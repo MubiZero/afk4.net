@@ -16,6 +16,9 @@ export interface BookingItem {
   phoneNumber: string;
   note: string;
   playerAccountId: string;
+  // Личность за счётом, с которого пришла заявка. Ею стойка и спрашивает сеть про гостя:
+  // у заявки, записанной на стойке одним номером, счёта ещё нет — и спрашивать нечем.
+  platformPersonId: string;
   seatId: string;
   seatName: string;
   zoneName: string;
@@ -173,6 +176,7 @@ export function mapReservationsToItems(
       phoneNumber: readString(reservation, 'phoneNumber'),
       note: readString(reservation, 'note', readString(reservation, 'phoneNumber')),
       playerAccountId: readString(reservation, 'playerAccountId'),
+      platformPersonId: readString(reservation, 'platformPersonId'),
       seatId: readString(reservation, 'seatId'),
       seatName: readString(reservation, 'seatName'),
       zoneName: readString(reservation, 'zoneName'),

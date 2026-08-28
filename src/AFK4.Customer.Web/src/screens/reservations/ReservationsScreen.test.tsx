@@ -4,12 +4,31 @@ import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '@/components/ui/toast';
 import { ReservationsScreen } from './ReservationsScreen';
 import type { PlayerApiClient } from '@/api/playerApi';
+import { branchChoice } from '@/branch/branchChoice';
+import type { BrandingHallDto } from '@/api/types';
 
-function renderScreen(api: PlayerApiClient, phoneVerified: boolean, branchId: string | null = null) {
+// Зал уже записан у человека со счётом в клубе: витрину выбора он не видит.
+const settled = (branchId: string | null) => branchChoice([], null, branchId);
+
+const hall = (branchId: string, name: string, city: string): BrandingHallDto =>
+  ({ branchId, name, city, address: null });
+
+function renderScreen(
+  api: PlayerApiClient,
+  phoneVerified: boolean,
+  branchId: string | null = null,
+  branch = settled(branchId),
+  onChooseBranch: (id: string) => void = () => {}
+) {
   return render(
     <I18nProvider>
       <ToastProvider autoDismissMs={1000}>
-        <ReservationsScreen api={api} phoneVerified={phoneVerified} branchId={branchId} />
+        <ReservationsScreen
+          api={api}
+          phoneVerified={phoneVerified}
+          branch={branch}
+          onChooseBranch={onChooseBranch}
+        />
       </ToastProvider>
     </I18nProvider>
   );
@@ -142,4 +161,82 @@ it('не запирает бронь, если правила не загруз�
   } as unknown as PlayerApiClient;
   renderScreen(api, true, 'b1');
   expect(await screen.findByLabelText('Начало')).toBeInTheDocument();
+});
+
+// Первое действие в сети из нескольких залов упирается в вопрос «в какой вы придёте»: счёт
+// человеку открывает эта самая бронь, и гадать зал за него сервер не станет.
+it('у сети без счёта спрашивает зал и не даёт бронировать, пока он не назван', async () => {
+  const api = {
+    getReservations: mock().mockResolvedValue([]),
+    getBookingRules: mock().mockResolvedValue(rules),
+    createReservation: mock().mockResolvedValue({})
+  } as unknown as PlayerApiClient;
+  const halls = [hall('b1', 'На Рудаки', 'Душанбе'), hall('b2', 'В Худжанде', 'Худжанд')];
+
+  renderScreen(api, true, null, branchChoice(halls, null, null));
+
+  expect(await screen.findByText('В какой зал вы придёте?')).toBeInTheDocument();
+  fireEvent.change(await screen.findByLabelText('Начало'), { target: { value: '2999-01-01T10:00' } });
+  fireEvent.change(screen.getByLabelText('Конец'), { target: { value: '2999-01-01T12:00' } });
+  fireEvent.click(screen.getByRole('button', { name: /забронировать/i }));
+
+  expect(await screen.findByText('Сначала выберите зал, в который придёте.')).toBeInTheDocument();
+  expect(api.createReservation).not.toHaveBeenCalled();
+});
+
+it('названный зал уезжает вместе с бронью', async () => {
+  const api = {
+    getReservations: mock().mockResolvedValue([]),
+    getBookingRules: mock().mockResolvedValue(rules),
+    createReservation: mock().mockResolvedValue({})
+  } as unknown as PlayerApiClient;
+  const halls = [hall('b1', 'На Рудаки', 'Душанбе'), hall('b2', 'В Худжанде', 'Худжанд')];
+
+  renderScreen(api, true, null, branchChoice(halls, 'b2', null));
+
+  fireEvent.change(await screen.findByLabelText('Начало'), { target: { value: '2999-01-01T10:00' } });
+  fireEvent.change(screen.getByLabelText('Конец'), { target: { value: '2999-01-01T12:00' } });
+  fireEvent.click(screen.getByRole('button', { name: /забронировать/i }));
+
+  await waitFor(() => expect(api.createReservation).toHaveBeenCalled());
+  const sent = (api.createReservation as unknown as ReturnType<typeof mock>).mock.calls[0][0];
+  expect(sent.branchId).toBe('b2');
+});
+
+// Единственный зал сети — не выбор, а данность: вопрос над ним был бы вопросом без вопроса.
+it('у сети с одним залом ничего не спрашивает, но зал называет', async () => {
+  const api = {
+    getReservations: mock().mockResolvedValue([]),
+    getBookingRules: mock().mockResolvedValue(rules),
+    createReservation: mock().mockResolvedValue({})
+  } as unknown as PlayerApiClient;
+
+  renderScreen(api, true, null, branchChoice([hall('b1', 'На Рудаки', 'Душанбе')], null, null));
+
+  expect(screen.queryByText('В какой зал вы придёте?')).not.toBeInTheDocument();
+  fireEvent.change(await screen.findByLabelText('Начало'), { target: { value: '2999-01-01T10:00' } });
+  fireEvent.change(screen.getByLabelText('Конец'), { target: { value: '2999-01-01T12:00' } });
+  fireEvent.click(screen.getByRole('button', { name: /забронировать/i }));
+
+  await waitFor(() => expect(api.createReservation).toHaveBeenCalled());
+  const sent = (api.createReservation as unknown as ReturnType<typeof mock>).mock.calls[0][0];
+  expect(sent.branchId).toBe('b1');
+});
+
+// Отказ сервера про зал не должен выглядеть как «время занято»: человек ищет другой час, а
+// лечится это выбором зала.
+it('отказ branch_required объясняется словами про зал', async () => {
+  const api = {
+    getReservations: mock().mockResolvedValue([]),
+    getBookingRules: mock().mockResolvedValue(rules),
+    createReservation: mock().mockRejectedValue(Object.assign(new Error('branch_required'), { status: 409 }))
+  } as unknown as PlayerApiClient;
+
+  renderScreen(api, true, null, branchChoice([hall('b1', 'На Рудаки', 'Душанбе')], null, null));
+
+  fireEvent.change(await screen.findByLabelText('Начало'), { target: { value: '2999-01-01T10:00' } });
+  fireEvent.change(screen.getByLabelText('Конец'), { target: { value: '2999-01-01T12:00' } });
+  fireEvent.click(screen.getByRole('button', { name: /забронировать/i }));
+
+  expect(await screen.findByText('Сначала выберите зал, в который придёте.')).toBeInTheDocument();
 });

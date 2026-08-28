@@ -16,7 +16,7 @@ const searchPlayers = mock(async () => ([
     createdAtUtc: '2026-08-01T00:00:00Z',
     lastActivityAtUtc: null,
     activePackageName: null,
-    activePackageRemainingMinutes: 0
+    activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false
   }
 ]));
 

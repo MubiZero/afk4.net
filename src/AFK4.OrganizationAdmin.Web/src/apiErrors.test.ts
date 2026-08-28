@@ -38,7 +38,8 @@ describe('projectOperatorError', () => {
     ['open_shift_required', 'Чтобы принять оплату, сначала откройте смену.'],
     ['insufficient_funds', 'На балансе клиента недостаточно средств.'],
     ['session_start_conflict', 'Сессию нельзя запустить из-за конфликта. Обновите данные.']
-  ])('localizes reservation start error %s', (code, expectedDetail) => {
+  ])('переводит отказ %s, когда сервер назвал его полем code', (code, expectedDetail) => {
+    // Так отвечает старт брони: код в `code`, человеческое пояснение рядом в `error`.
     const error = new PlatformApiError(
       'request failed',
       409,
@@ -49,6 +50,47 @@ describe('projectOperatorError', () => {
     expect(projectOperatorError(error, t)).toEqual({
       title: 'Действие не выполнено',
       detail: expectedDetail
+    });
+  });
+
+  // Так отвечает касса, склад и смены: `{ error: "<код>" }` и больше ничего. Пока разборщик
+  // читал только `code`, оператор видел здесь сырую английскую строку из бэкенда.
+  it.each([
+    ['open_shift_required', 'Чтобы принять оплату, сначала откройте смену.'],
+    ['insufficient_funds', 'На балансе клиента недостаточно средств.'],
+    ['out_of_stock', 'Товара недостаточно на складе. Обновите остатки.'],
+    ['mixed_currency', 'Все части оплаты должны быть в одной валюте.'],
+    ['invalid_payment_split', 'Проверьте распределение суммы между способами оплаты.'],
+    ['player_required_for_wallet', 'Для выбранного способа оплаты нужен клиент клуба.'],
+    ['version_conflict', 'Данные уже изменились. Обновите их и повторите действие.'],
+    ['idempotency_conflict', 'Этот запрос уже использован с другими параметрами. Обновите данные.']
+  ])('переводит отказ %s, когда сервер назвал его полем error', (code, expectedDetail) => {
+    const error = new PlatformApiError(
+      'request failed',
+      409,
+      'Conflict',
+      JSON.stringify({ error: code })
+    );
+
+    expect(projectOperatorError(error, t)).toEqual({
+      title: 'Действие не выполнено',
+      detail: expectedDetail
+    });
+  });
+
+  it('не принимает свободный текст в error за код отказа', () => {
+    // `error` у сервера бывает и пояснением для человека. Подставлять под него фразу из
+    // словаря нельзя: оператор прочитал бы не то, что случилось.
+    const error = new PlatformApiError(
+      'request failed',
+      400,
+      'Bad Request',
+      JSON.stringify({ error: 'End time must be after start time.' })
+    );
+
+    expect(projectOperatorError(error, t)).toEqual({
+      title: 'Действие не выполнено',
+      detail: 'request failed'
     });
   });
 

@@ -14,9 +14,9 @@ function renderCard(state: ReputationState, ask = () => {}) {
 }
 
 describe('ReputationCard', () => {
-  it('без номера объясняет, почему спрашивать нечего, и не предлагает кнопку', () => {
+  it('без номера и без личности объясняет, почему спрашивать нечего, и не предлагает кнопку', () => {
     renderCard({ status: 'noPhone' });
-    expect(screen.getByText('Без номера сеть ничего не скажет.')).toBeInTheDocument();
+    expect(screen.getByText('Ни номера, ни личности — сеть не поймёт, о ком спрашивать.')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
   });
 

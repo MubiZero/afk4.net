@@ -79,7 +79,15 @@ public sealed class PlayerShellWebHostBridge(
             return Error(requestId, "invalid_payload", "auth:signIn requires phoneNumber and password.");
         }
 
-        await auth.SignInAsync(state.OrganizationId, phoneEl.GetString()!, pwEl.GetString()!, ct);
+        // Зал берём из состояния оболочки, а не спрашиваем у человека: он стоит у конкретного
+        // ПК, и этот ПК знает, в каком он зале. Без зала первый вход в сеть из нескольких залов
+        // кончался бы отказом, неотличимым от «неверный PIN».
+        await auth.SignInAsync(
+            state.OrganizationId,
+            phoneEl.GetString()!,
+            pwEl.GetString()!,
+            state.BranchId == Guid.Empty ? null : state.BranchId,
+            ct);
         return Ok(requestId, Snapshot());
     }
 

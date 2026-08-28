@@ -64,13 +64,34 @@ describe('projectPlayerClient', () => {
     expect(inactiveDebtor).toMatchObject({ isActive: false, debtMinorUnits: 3500, status: 'inactive', tone: 'regular' });
   });
 
+  it('доносит личность в сети и то, что карточку завёл сам игрок', () => {
+    const fromApp = projectPlayerClient(
+      {
+        playerAccountId: 'p7', displayName: 'Фируз', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0,
+        activePackageCount: 0, isActive: true,
+        platformPersonId: '11111111-1111-1111-1111-111111111111', createdFromApp: true
+      },
+      t
+    );
+    expect(fromApp.platformPersonId).toBe('11111111-1111-1111-1111-111111111111');
+    expect(fromApp.createdFromApp).toBe(true);
+
+    // Карточка стойки времён до общего котла: личности у неё нет, и репутацию по ней не спросить.
+    const deskCard = projectPlayerClient(
+      { playerAccountId: 'p8', displayName: 'Собир', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
+      t
+    );
+    expect(deskCard.platformPersonId).toBeNull();
+    expect(deskCard.createdFromApp).toBe(false);
+  });
+
   it('projects createdAtUtc/lastActivityAtUtc/active package fields, falling back to null when absent', () => {
     const withPackage = projectPlayerClient(
       {
         playerAccountId: 'p4', displayName: 'Zara', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0,
         activePackageCount: 1, isActive: true,
         createdAtUtc: '2026-07-01T00:00:00Z', lastActivityAtUtc: '2026-07-05T00:00:00Z',
-        activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150
+        activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150, platformPersonId: null, createdFromApp: false
       },
       t
     );
@@ -112,7 +133,7 @@ const client = (over: Partial<PlayerClientItem>): PlayerClientItem => ({
   playerAccountId: 'p', name: 'X', isActive: true, status: 'active', balanceMinorUnits: 0,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '',
   source: 'backend', createdAtUtc: null, lastActivityAtUtc: null,
-  activePackageName: null, activePackageRemainingMinutes: 0, ...over
+  activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false, ...over
 });
 
 describe('ledgerTypeLabel', () => {

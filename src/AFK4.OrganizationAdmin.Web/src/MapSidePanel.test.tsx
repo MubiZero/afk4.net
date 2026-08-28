@@ -70,7 +70,7 @@ function player(playerAccountId: string, displayName: string, walletBalanceMinor
     createdAtUtc: '2026-07-01T00:00:00Z',
     lastActivityAtUtc: null,
     activePackageName: null,
-    activePackageRemainingMinutes: 0
+    activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false
   };
 }
 
@@ -237,7 +237,7 @@ describe('MapSidePanel new session client picker', () => {
           playerAccountId: 'player-1', displayName: 'Мадина С.', phoneNumber: '+992 90 777 88 99',
           walletBalanceMinorUnits: 45_000, debtBalanceMinorUnits: 0, activePackageCount: 1,
           isActive: true, createdAtUtc: '2026-07-01T00:00:00Z', lastActivityAtUtc: null,
-          activePackageName: 'Night 5h', activePackageRemainingMinutes: 180
+          activePackageName: 'Night 5h', activePackageRemainingMinutes: 180, platformPersonId: null, createdFromApp: false
         }]);
       }
       throw new Error(`Unexpected request: ${url.pathname}`);

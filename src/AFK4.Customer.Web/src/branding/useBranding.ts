@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { OrganizationBrandingDto } from '../api/types';
+import type { BrandingHallDto, OrganizationBrandingDto } from '../api/types';
 import { resolveOrganizationKey } from './resolveOrganizationKey';
 import { applyTheme } from './applyTheme';
 import { fetchOrganizationBranding } from '../api/brandingApi';
@@ -15,7 +15,14 @@ interface UseBrandingOptions {
 
 export type BrandingState =
   | { status: 'loading' }
-  | { status: 'ready'; organizationId: string; brandName: string; logoUrl: string | null };
+  | {
+      status: 'ready';
+      organizationId: string;
+      brandName: string;
+      logoUrl: string | null;
+      // Залы клуба: из них человек выбирает, куда придёт, пока счёта в клубе у него нет.
+      halls: BrandingHallDto[];
+    };
 
 export function useBranding(options: UseBrandingOptions): BrandingState {
   const [state, setState] = useState<BrandingState>({ status: 'loading' });
@@ -47,6 +54,7 @@ export function useBranding(options: UseBrandingOptions): BrandingState {
         organizationId: branding?.organizationId ?? fallbackOrganizationId ?? '',
         brandName: branding?.name ?? 'AFK4.NET',
         logoUrl: branding?.logoUrl ?? null,
+        halls: branding?.halls ?? [],
       });
     }
 

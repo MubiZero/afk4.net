@@ -49,13 +49,10 @@ export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProje
   const title = t('op.error.actionFailed.title');
 
   if (error instanceof PlatformApiError) {
-    const code = readErrorCode(error.body);
-    if (code !== null && code in codeMessageKeys) {
+    const code = readKnownErrorCode(error.body);
+    if (code !== null) {
       const planLimit = code === 'plan_limit_reached' ? readPlanLimit(error.body) : null;
-      return {
-        title,
-        detail: t(codeMessageKeys[code as keyof typeof codeMessageKeys], planLimit ?? undefined)
-      };
+      return { title, detail: t(codeMessageKeys[code], planLimit ?? undefined) };
     }
   }
 
@@ -70,10 +67,22 @@ export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProje
   return { title, detail: t('op.error.actionFailed.noDetail') };
 }
 
-function readErrorCode(body: string): string | null {
+// Код отказа сервер называет двумя именами. Старт брони отвечает `code` и кладёт рядом
+// человеческое пояснение в `error`; касса, склад и смены отвечают одним только `error`, и там
+// код лежит именно в нём. Читаем оба поля и берём то, что нашлось в словаре: по одному `code`
+// половина отказов доезжала бы до оператора английской строкой из бэкенда.
+//
+// Свободный текст (`error: "End time must be after start time."`) словарю не принадлежит и
+// проходит мимо — его покажет запасная ветка, как показывала всегда.
+function readKnownErrorCode(body: string): keyof typeof codeMessageKeys | null {
   try {
-    const parsed = JSON.parse(body) as { code?: unknown };
-    return typeof parsed.code === 'string' ? parsed.code : null;
+    const parsed = JSON.parse(body) as { code?: unknown; error?: unknown };
+    for (const candidate of [parsed.code, parsed.error]) {
+      if (typeof candidate === 'string' && candidate in codeMessageKeys) {
+        return candidate as keyof typeof codeMessageKeys;
+      }
+    }
+    return null;
   } catch {
     return null;
   }

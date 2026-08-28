@@ -24,11 +24,14 @@ public sealed class PlayerShellWebHostBridgeTests
         public AuthSnapshot Current { get; private set; }
         public string? CurrentAccessToken => Current.Authenticated ? "tok" : null;
         public Guid? LastOrg { get; private set; }
+        public Guid? LastBranch { get; private set; }
         public bool Fail { get; set; }
 
-        public Task<AuthSnapshot> SignInAsync(Guid organizationId, string phone, string password, CancellationToken ct)
+        public Task<AuthSnapshot> SignInAsync(
+            Guid organizationId, string phone, string password, Guid? branchId, CancellationToken ct)
         {
             LastOrg = organizationId;
+            LastBranch = branchId;
             Current = Fail ? new AuthSnapshot(false, null, false) : new AuthSnapshot(true, "Alex", true);
             return Task.FromResult(Current);
         }
@@ -134,10 +137,10 @@ public sealed class PlayerShellWebHostBridgeTests
         Assert.Equal("locked", envelope.GetProperty("payload").GetProperty("state").GetString());
     }
 
-    private static PlayerShellStateDto StateWith(Guid org) =>
+    private static PlayerShellStateDto StateWith(Guid org, Guid? branch = null) =>
         new(
             OrganizationId: org,
-            BranchId: Guid.NewGuid(),
+            BranchId: branch ?? Guid.NewGuid(),
             DeviceId: Guid.NewGuid(),
             State: PlayerShellStateNames.Active,
             SessionId: Guid.NewGuid(),
@@ -167,6 +170,37 @@ public sealed class PlayerShellWebHostBridgeTests
         Assert.False(response.GetProperty("payload").TryGetProperty("accessToken", out _));
     }
 
+    // Зал у ПК известен самой оболочке. Не назвать его — значит оставить первого гостя сети из
+    // нескольких залов без счёта: сервер откажет, а экран покажет то же, что при неверном PIN.
+    [Fact]
+    public async Task SignIn_NamesTheBranchTheComputerStandsIn()
+    {
+        var auth = new StubAuth();
+        var branch = Guid.NewGuid();
+        var state = StateWith(Guid.NewGuid(), branch);
+        var bridge = new PlayerShellWebHostBridge(new StubLauncher(), () => state, auth);
+
+        var request = """{"requestId":"a3","type":"auth:signIn","payload":{"phoneNumber":"+992900000000","password":"pw"}}""";
+        await bridge.HandleAsync(request, CancellationToken.None);
+
+        Assert.Equal(branch, auth.LastBranch);
+    }
+
+    // Пустой зал в состоянии — это «не знаю», а не «зал с нулевым идентификатором»: такой
+    // отправлять на сервер нельзя, он ответит «нет такого филиала».
+    [Fact]
+    public async Task SignIn_WithUnknownBranch_SaysNothingAboutIt()
+    {
+        var auth = new StubAuth();
+        var state = StateWith(Guid.NewGuid(), Guid.Empty);
+        var bridge = new PlayerShellWebHostBridge(new StubLauncher(), () => state, auth);
+
+        var request = """{"requestId":"a4","type":"auth:signIn","payload":{"phoneNumber":"+992900000000","password":"pw"}}""";
+        await bridge.HandleAsync(request, CancellationToken.None);
+
+        Assert.Null(auth.LastBranch);
+    }
+
     [Fact]
     public async Task SignIn_WithoutPipeState_IsRejected()
     {
@@ -182,7 +216,7 @@ public sealed class PlayerShellWebHostBridgeTests
     public async Task LoadAuthState_ReflectsClient()
     {
         var auth = new StubAuth();
-        await auth.SignInAsync(Guid.NewGuid(), "p", "pw", CancellationToken.None);
+        await auth.SignInAsync(Guid.NewGuid(), "p", "pw", null, CancellationToken.None);
         var bridge = new PlayerShellWebHostBridge(new StubLauncher(), () => StateWith(Guid.NewGuid()), auth);
 
         var response = Parse((await bridge.HandleAsync("""{"requestId":"a3","type":"auth:loadState"}""", CancellationToken.None))!);

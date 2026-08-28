@@ -13,6 +13,7 @@ import { ToastProvider } from './components/ui/toast';
 import { SignInScreen } from './screens/auth/SignInScreen';
 import { DashboardScreen } from './screens/dashboard/DashboardScreen';
 import { useBranding } from './branding/useBranding';
+import { branchChoice } from './branch/branchChoice';
 import { clearPlayerCaches } from './pwa/offlineCache';
 import { VisitsScreen } from './screens/history/VisitsScreen';
 import { ReceiptScreen } from './screens/history/ReceiptScreen';
@@ -100,6 +101,16 @@ export function App() {
   const currentClub: MyClubDto | null =
     me?.clubs.find((club) => club.organizationId === brandedOrganizationId)
     ?? (me?.clubs.length === 1 ? me.clubs[0] : null);
+
+  // Зал, в который придёт игрок. Спрашивается один раз на всё приложение: бронь и пополнение —
+  // оба первое действие, и переспрашивать одно и то же в каждой форме было бы плохой ценой за
+  // один вопрос. У игрока со счётом в клубе зал уже записан, и вопроса нет вовсе.
+  const [chosenBranchId, setChosenBranchId] = useState<string | null>(null);
+  const branch = branchChoice(
+    branding.status === 'ready' ? branding.halls : [],
+    chosenBranchId,
+    currentClub?.homeBranchId ?? null
+  );
 
   // Keep route state in sync with browser/OS back-forward navigation.
   useEffect(() => {
@@ -192,7 +203,7 @@ export function App() {
     <ToastProvider>
       <AppShell active={tabForRoute(route)} onNavigate={navigate} features={features}>
         <OfflineBanner />
-        {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={me?.person.displayName ?? session.displayName} phoneVerified={session.phoneVerified} features={features} />}
+        {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={me?.person.displayName ?? session.displayName} phoneVerified={session.phoneVerified} features={features} branch={branch} onChooseBranch={setChosenBranchId} />}
         {route.kind === 'history' && (
           <>
             <HistoryTabs active="visits" onChange={(view) => navigateTo({ kind: view === 'purchases' ? 'purchases' : 'history' })} />
@@ -206,7 +217,7 @@ export function App() {
           </>
         )}
         {route.kind === 'receipt' && <ReceiptScreen api={api} sessionId={route.sessionId} onBack={() => navigateTo({ kind: 'history' })} />}
-        {route.kind === 'reservations' && <ReservationsScreen api={api} phoneVerified={session.phoneVerified} branchId={currentClub?.homeBranchId ?? null} />}
+        {route.kind === 'reservations' && <ReservationsScreen api={api} phoneVerified={session.phoneVerified} branch={branch} onChooseBranch={setChosenBranchId} />}
         {route.kind === 'profile' && <ProfileScreen api={api} person={me?.person ?? null} onPersonChanged={reloadMe} onSignOut={signOut} onLocaleChange={handleLocaleChange} />}
       </AppShell>
     </ToastProvider>

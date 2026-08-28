@@ -505,7 +505,7 @@ export function BackendBookingWorkspace({
   };
 
   const selectedItem = items.find((i) => i.reservationId === selectedReservationId) ?? null;
-  const reputation = useReputation(backend, selectedItem?.phoneNumber ?? '');
+  const reputation = useReputation(backend, selectedItem?.phoneNumber ?? '', selectedItem?.platformPersonId || null);
   const selectedGroupSize = selectedItem?.reservationGroupId
     ? items.filter((i) => i.reservationGroupId === selectedItem.reservationGroupId && i.state !== 'cancelled').length
     : 0;

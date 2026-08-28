@@ -14,6 +14,10 @@ export interface PlayerSearchResultDto {
   lastActivityAtUtc: string | null;
   activePackageName: string | null;
   activePackageRemainingMinutes: number;
+  // Кто это в сети и откуда взялся. Личность есть не у всех: карточки, заведённые стойкой до
+  // общего котла, к платформе не привязаны, и репутацию по ним не спросить.
+  platformPersonId: Guid | null;
+  createdFromApp: boolean;
 }
 
 export interface PlayerAccountDto {
@@ -24,6 +28,8 @@ export interface PlayerAccountDto {
   phoneNumber: string | null;
   isActive: boolean;
   createdAtUtc: string;
+  platformPersonId: Guid | null;
+  createdFromApp: boolean;
 }
 
 export interface LedgerEntryDto {
@@ -195,14 +201,19 @@ export function createPlayerClient(api: PlatformApiClient) {
     // адреса оседают в логах прокси, а это чужой телефон. Маршрут пишется в аудит на сам факт
     // чтения и стоит под лимитом 20/мин на сотрудника, поэтому зовём его только из карточки —
     // там, где администратор принимает решение, — и никогда построчно из списка.
-    //
-    // Парного `GET branches/{id}/players/reputation/{platformPersonId}` здесь нет намеренно:
-    // ни одна операторская проекция игрока не отдаёт PlatformPersonId, так что позвать его
-    // сегодня нечем.
     lookupReputation(branchId: Guid, phoneNumber: string): Promise<PlayerReputationDto> {
       return api.post<PlayerReputationDto, PlayerReputationLookupRequest>(
         `branches/${branchId}/players/reputation/lookup`,
         { phoneNumber }
+      );
+    },
+    // То же самое про человека, у карточки которого номера нет: спрашиваем по личности
+    // платформы, которую проекция клиента теперь называет. Без этого клиент без номера
+    // оставался единственным, про кого сеть молчала, — а это ровно тот случай, когда стойке
+    // важнее всего знать, чем человек кончил в соседнем клубе.
+    reputationForPerson(branchId: Guid, platformPersonId: Guid): Promise<PlayerReputationDto> {
+      return api.get<PlayerReputationDto>(
+        `branches/${branchId}/players/reputation/${platformPersonId}`
       );
     }
   };

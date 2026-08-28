@@ -15,7 +15,7 @@ const player: PlayerClientItem & { playerAccountId: string } = {
   playerAccountId: '22222222-2222-2222-2222-222222222222', name: 'Амир', isActive: true,
   status: 'active', balanceMinorUnits: 2_000, debtMinorUnits: 0, last: '', tone: 'active', detail: '',
   phoneNumber: '', source: 'backend', createdAtUtc: null, lastActivityAtUtc: null,
-  activePackageName: null, activePackageRemainingMinutes: 0
+  activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false
 };
 const backend = {
   config: { platformBaseUrl: 'http://test' }, branchId: 'branch-1',

@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../shell/pressable.dart';
 import '../theme/app_theme.dart';
+import 'halls_line.dart';
 import 'opening_hours.dart';
 import 'organization.dart';
 
@@ -12,6 +13,11 @@ import 'organization.dart';
 /// Клуб выбирают глазами. Строчка с названием отвечала только на вопрос «как называется» —
 /// а игрок спрашивает «где это, сколько стоит и как там внутри». Поэтому карточка крупная и
 /// начинается с фотографии: она отвечает на последний вопрос быстрее любого описания.
+///
+/// У сети из нескольких залов карточка говорит о сети, а не о первом её зале: адрес, часы и
+/// описание принадлежат конкретному залу, и выданные за весь клуб они врут — игрок поехал бы
+/// по адресу одного зала к часам другого. Про залы сети отвечают подробности, куда и уводит
+/// «Подробнее»; свободные места чип считает по всем открытым залам и без того.
 class ClubCard extends StatelessWidget {
   const ClubCard({
     super.key,
@@ -383,10 +389,9 @@ class _AddressLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final place = club.places.isEmpty ? null : club.places.first;
-    if (place == null) return const SizedBox.shrink();
-
-    final text = [place.city, place.address].where((part) => part != null && part.isNotEmpty).join(', ');
+    // Один зал — его адрес; сеть — сколько залов и в каких городах. Той же строкой, что и в
+    // подробностях: два ответа на «где этот клуб» разъехались бы на первой же правке.
+    final text = hallsLine(L.of(context), club.places);
     if (text.isEmpty) return const SizedBox.shrink();
 
     return Row(
@@ -417,7 +422,8 @@ class _DescriptionLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final place = club.places.isEmpty ? null : club.places.first;
+    // Описание пишут залу, а не сети: у сети оно бы рассказывало про один зал от лица всех.
+    final place = club.places.length == 1 ? club.places.single : null;
     final description = place?.description;
     if (description == null || description.isEmpty) return const SizedBox.shrink();
 
@@ -445,7 +451,9 @@ class _OpeningLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L.of(context);
     final theme = Theme.of(context);
-    final place = club.places.isEmpty ? null : club.places.first;
+    // «Открыто до 23:00» — про один зал. У сети залы закрываются в разное время, и часы
+    // первого из них здесь звали бы к запертой двери соседнего; их показывают подробности.
+    final place = club.places.length == 1 ? club.places.single : null;
     if (place == null) return const SizedBox.shrink();
 
     final now = openingNowLabel(l, place.workingHours, clock());

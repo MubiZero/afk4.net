@@ -4,6 +4,7 @@ import { I18nProvider } from '@afk4/i18n';
 import { DashboardScreen } from './screens/dashboard/DashboardScreen';
 import { ToastProvider } from './components/ui/toast';
 import type { PlayerApiClient } from './api/playerApi';
+import { branchChoice } from './branch/branchChoice';
 
 it('renders the dashboard in English under the en locale', async () => {
   const api = {
@@ -13,7 +14,7 @@ it('renders the dashboard in English under the en locale', async () => {
   render(
     <I18nProvider initialLocale="en">
       <ToastProvider>
-        <DashboardScreen api={api} displayName="Fedor" phoneVerified={false} />
+        <DashboardScreen branch={branchChoice([], null, 'b1')} onChooseBranch={() => {}} api={api} displayName="Fedor" phoneVerified={false} />
       </ToastProvider>
     </I18nProvider>
   );

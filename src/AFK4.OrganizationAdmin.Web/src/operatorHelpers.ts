@@ -1411,6 +1411,12 @@ export type PlayerClientItem = {
   lastActivityAtUtc: string | null;
   activePackageName: string | null;
   activePackageRemainingMinutes: number;
+  // Личность этого человека в сети, если карточка к ней привязана: по ней спрашивают репутацию,
+  // когда номера в карточке нет.
+  platformPersonId: string | null;
+  // Карточку завёл сам игрок первым действием из приложения, а не стойка. Стойке это отвечает
+  // на «откуда он взялся»: такого человека никто здесь не видел и паспорт его не сверял.
+  createdFromApp: boolean;
 };
 
 export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem {
@@ -1439,7 +1445,9 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
     createdAtUtc: readString(player, 'createdAtUtc') || null,
     lastActivityAtUtc: readString(player, 'lastActivityAtUtc') || null,
     activePackageName: readString(player, 'activePackageName') || null,
-    activePackageRemainingMinutes: readNumber(player, 'activePackageRemainingMinutes', 0)
+    activePackageRemainingMinutes: readNumber(player, 'activePackageRemainingMinutes', 0),
+    platformPersonId: readString(player, 'platformPersonId') || null,
+    createdFromApp: isRecord(player) && player.createdFromApp === true
   };
 }
 
