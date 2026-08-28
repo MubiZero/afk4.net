@@ -5,6 +5,8 @@ import type { PlayerApiClient } from '@/api/playerApi';
 import type { PlayerBookingRulesDto, PlayerReservationDto } from '@/api/types';
 import { formatDateTime } from '@/lib/datetime';
 import { useToast } from '@/components/ui/toast';
+import { BranchPicker } from '@/branch/BranchPicker';
+import type { BranchChoice } from '@/branch/branchChoice';
 import { RespondByCountdown } from './RespondByCountdown';
 import { Rejection } from './Rejection';
 
@@ -20,11 +22,15 @@ const STATE_KEYS: Record<string, MessageKey> = {
 interface ReservationsScreenProps {
   api: PlayerApiClient;
   phoneVerified: boolean;
-  /** Филиал, чьи правила приёма показываются. Пусто — клуб ещё не выбран, правил не спрашиваем. */
-  branchId: string | null;
+  /**
+   * Зал, в который придёт игрок: по нему показываются правила приёма и в нём клуб откроет счёт,
+   * если это первая бронь человека в сети. Не назван — правил не спрашиваем.
+   */
+  branch: BranchChoice;
+  onChooseBranch: (branchId: string) => void;
 }
 
-export function ReservationsScreen({ api, phoneVerified, branchId }: ReservationsScreenProps) {
+export function ReservationsScreen({ api, phoneVerified, branch, onChooseBranch }: ReservationsScreenProps) {
   const { t } = useI18n();
   const { toast } = useToast();
   const [reservations, setReservations] = useState<PlayerReservationDto[] | null>(null);
@@ -47,6 +53,7 @@ export function ReservationsScreen({ api, phoneVerified, branchId }: Reservation
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  const branchId = branch.branchId;
   useEffect(() => {
     if (branchId === null) { setRules(null); return; }
     let cancelled = false;
@@ -67,11 +74,18 @@ export function ReservationsScreen({ api, phoneVerified, branchId }: Reservation
       toast({ title: t('customer.reservations.timeError'), variant: 'error' });
       return;
     }
+    // Зал спрашивается до отправки, а не после отказа сервера: человек уже выбрал время, и
+    // возвращать его к форме с общим «не получилось» — терять то, что он набрал.
+    if (branch.unanswered) {
+      toast({ title: t('customer.branch.errRequired'), variant: 'error' });
+      return;
+    }
     setPending(true);
     try {
       await api.createReservation({
         startsAtUtc: new Date(startsAt).toISOString(),
-        endsAtUtc: new Date(endsAt).toISOString()
+        endsAtUtc: new Date(endsAt).toISOString(),
+        branchId
       });
       setStartsAt('');
       setEndsAt('');
@@ -81,9 +95,14 @@ export function ReservationsScreen({ api, phoneVerified, branchId }: Reservation
       const status = (error as { status?: number }).status;
       // Клуб закрыл счёт — это его решение, а не занятое время: общий ответ звал бы человека
       // подобрать другой час, которого не хватит.
-      const closed = (error as { message?: string }).message === 'club_account_closed';
+      const message = (error as { message?: string }).message;
+      const closed = message === 'club_account_closed';
       const title = closed
         ? t('customer.club.errClosed')
+        // Клуб успел завести зал, пока форма была открыта, или зал исчез из сети: и то и другое
+        // лечится выбором зала, а не другим временем.
+        : message === 'branch_required' ? t('customer.branch.errRequired')
+        : message === 'branch_not_found' ? t('customer.branch.errGone')
         : status === 409 ? t('customer.reservations.conflict') : t('customer.reservations.createError');
       toast({ title, variant: 'error' });
     } finally {
@@ -119,6 +138,7 @@ export function ReservationsScreen({ api, phoneVerified, branchId }: Reservation
 
       {bookingOff ? null : phoneVerified ? (
         <form className="space-y-3 rounded-2xl bg-[var(--color-surface)] p-4" onSubmit={handleCreate}>
+          <BranchPicker choice={branch} onChoose={onChooseBranch} />
           <div className="space-y-1.5">
             <label htmlFor="res-start" className="text-sm text-[var(--text-2)]">{t('customer.reservations.start')}</label>
             <input id="res-start" type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)}

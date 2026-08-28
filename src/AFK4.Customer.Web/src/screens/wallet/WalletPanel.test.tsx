@@ -4,12 +4,21 @@ import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '@/components/ui/toast';
 import { WalletPanel } from './WalletPanel';
 import type { PlayerApiClient } from '@/api/playerApi';
+import { branchChoice } from '@/branch/branchChoice';
 
-function renderPanel(api: PlayerApiClient, phoneVerified: boolean, features: string[] | null = null) {
+// У человека со счётом в клубе зал уже записан — панель кошелька спрашивать не о чем.
+const settled = branchChoice([], null, 'b1');
+
+function renderPanel(
+  api: PlayerApiClient,
+  phoneVerified: boolean,
+  features: string[] | null = null,
+  branch = settled
+) {
   return render(
     <I18nProvider>
       <ToastProvider autoDismissMs={1000}>
-        <WalletPanel api={api} phoneVerified={phoneVerified} features={features} />
+        <WalletPanel api={api} phoneVerified={phoneVerified} features={features} branch={branch} onChooseBranch={() => {}} />
       </ToastProvider>
     </I18nProvider>
   );
@@ -33,7 +42,7 @@ it('submits a top-up request and shows it in the intent list', async () => {
   const amount = await screen.findByLabelText('Сумма');
   fireEvent.change(amount, { target: { value: '50' } });
   fireEvent.click(screen.getByRole('button', { name: /внести на стойке/i }));
-  await waitFor(() => expect(api.createTopUpIntent).toHaveBeenCalledWith({ amountMinorUnits: 5000, currencyCode: 'TJS' }));
+  await waitFor(() => expect(api.createTopUpIntent).toHaveBeenCalledWith({ amountMinorUnits: 5000, currencyCode: 'TJS', branchId: 'b1' }));
   expect(await screen.findByText('Ожидает')).toBeInTheDocument();
 });
 

@@ -446,9 +446,25 @@ internal static class AuthEndpoints
             var org = await dbContext.Organizations
                 .AsNoTracking()
                 .Where(o => o.Slug == normalizedKey && o.Status == "active")
-                .Select(o => new OrganizationBrandingDto(o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor))
+                .Select(o => new { o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor })
                 .FirstOrDefaultAsync(cancellationToken);
-            return org is null ? Results.NotFound() : Results.Ok(org);
+            if (org is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Залы клуба той же выдачей: своей веб-сборке они нужны, чтобы спросить «в какой зал
+            // вы придёте» до первой брони или пополнения. Отдельным запросом это был бы второй
+            // круг к серверу ради строки под названием клуба.
+            var halls = await dbContext.Branches
+                .AsNoTracking()
+                .Where(b => b.OrganizationId == org.OrganizationId)
+                .OrderBy(b => b.City).ThenBy(b => b.Name)
+                .Select(b => new BrandingHallDto(b.BranchId, b.Name, b.City, b.Address))
+                .ToListAsync(cancellationToken);
+
+            return Results.Ok(new OrganizationBrandingDto(
+                org.OrganizationId, org.Name, org.LogoUrl, org.AccentColor, halls));
         }).RequireRateLimiting("player-public");
 
         organizations.MapPost("auth/staff/sign-in-by-phone", async (

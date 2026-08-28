@@ -86,6 +86,16 @@ export interface OrganizationBrandingDto {
   name: string;
   logoUrl: string | null;
   accentColor: string | null;
+  // Залы сети — чтобы спросить «в какой вы придёте» до первого действия. Пусто или отсутствует
+  // у клуба, который залов не завёл: тогда вопроса нет и всё работает как раньше.
+  halls?: BrandingHallDto[] | null;
+}
+
+export interface BrandingHallDto {
+  branchId: string;
+  name: string;
+  city: string;
+  address: string | null;
 }
 
 export interface CursorPage<T> {
@@ -152,6 +162,9 @@ export interface UpdatePlayerProfileRequest {
 export interface PlayerTopUpIntentRequest {
   amountMinorUnits: number;
   currencyCode?: string | null;
+  // Зал, в котором клуб откроет счёт, если его ещё нет. Нужен только на первом действии в сети
+  // из нескольких залов: гадать за человека сервер не станет и ответит branch_required.
+  branchId?: string | null;
 }
 
 export interface PlayerTopUpIntentDto {
@@ -171,6 +184,8 @@ export interface CreatePlayerReservationRequest {
   startsAtUtc: string;
   endsAtUtc: string;
   note?: string | null;
+  // См. PlayerTopUpIntentRequest.branchId: бронь — такое же первое действие в клубе.
+  branchId?: string | null;
 }
 
 export interface PlayerReservationDto {

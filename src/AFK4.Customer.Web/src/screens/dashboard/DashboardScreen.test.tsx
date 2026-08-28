@@ -4,6 +4,10 @@ import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '@/components/ui/toast';
 import { DashboardScreen } from './DashboardScreen';
 import { PlayerApiError } from '@/api/playerApi';
+import { branchChoice } from '@/branch/branchChoice';
+
+// У человека со счётом в клубе зал уже записан — дашборд ни о чём не спрашивает.
+const settled = branchChoice([], null, 'b1');
 
 function apiWith(dashboard: unknown) {
   return {
@@ -19,7 +23,7 @@ it('renders the wallet balance and a no-session empty state', async () => {
     debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
     activeSession: null
   });
-  render(<I18nProvider><ToastProvider><DashboardScreen api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><DashboardScreen branch={settled} onChooseBranch={() => {}} api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
   expect(await screen.findByText('245,00 TJS')).toBeInTheDocument();
   expect(screen.getByText('Нет активной сессии')).toBeInTheDocument();
 });
@@ -37,7 +41,7 @@ it('renders the active session seat and a running timer', async () => {
       remainingSeconds: null, accruedCostMinorUnits: 3850, currencyCode: 'TJS'
     }
   });
-  render(<I18nProvider><ToastProvider><DashboardScreen api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><DashboardScreen branch={settled} onChooseBranch={() => {}} api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
   expect(await screen.findByText('PC-14 · VIP')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByTestId('session-timer').textContent).toMatch(/^\d\d:\d\d:\d\d$/));
 });
@@ -51,7 +55,7 @@ it('показывает придержанное под брони отдель
     debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
     activeSession: null
   });
-  render(<I18nProvider><ToastProvider><DashboardScreen api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><DashboardScreen branch={settled} onChooseBranch={() => {}} api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
   expect(await screen.findByText(/Придержано под брони/)).toBeInTheDocument();
   expect(screen.getByText('50,00 TJS')).toBeInTheDocument();
 });
@@ -63,7 +67,7 @@ it('не показывает придержанное, когда придер�
     debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
     activeSession: null
   });
-  render(<I18nProvider><ToastProvider><DashboardScreen api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><DashboardScreen branch={settled} onChooseBranch={() => {}} api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider></I18nProvider>);
   await screen.findByText('245,00 TJS');
   expect(screen.queryByText(/Придержано под брони/)).not.toBeInTheDocument();
 });
@@ -75,7 +79,7 @@ it('объясняет отсутствие счёта в клубе вмест�
     getDashboard: mock().mockRejectedValue(new PlayerApiError(409, 'club_not_selected')),
     getTopUpIntents: mock().mockResolvedValue([])
   } as unknown as import('@/api/playerApi').PlayerApiClient;
-  render(<I18nProvider><ToastProvider><DashboardScreen api={api} displayName="Фёдор" phoneVerified /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><DashboardScreen branch={settled} onChooseBranch={() => {}} api={api} displayName="Фёдор" phoneVerified /></ToastProvider></I18nProvider>);
   expect(await screen.findByText('Вы здесь ещё не начинали')).toBeInTheDocument();
   expect(screen.queryByText(/Не удалось загрузить данные/)).not.toBeInTheDocument();
 });

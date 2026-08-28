@@ -5,6 +5,7 @@ import type { PlayerDashboardDto } from '@/api/types';
 import { formatMoney } from '@/lib/money';
 import { LiveSessionCard } from './LiveSessionCard';
 import { WalletPanel } from '@/screens/wallet/WalletPanel';
+import type { BranchChoice } from '@/branch/branchChoice';
 
 type Load =
   | { state: 'loading' }
@@ -13,7 +14,14 @@ type Load =
   | { state: 'noClub' }
   | { state: 'ready'; data: PlayerDashboardDto; fetchedAt: Date };
 
-export function DashboardScreen({ api, displayName, phoneVerified, features = null }: { api: PlayerApiClient; displayName: string; phoneVerified: boolean; features?: string[] | null }) {
+export function DashboardScreen({ api, displayName, phoneVerified, features = null, branch, onChooseBranch }: {
+  api: PlayerApiClient;
+  displayName: string;
+  phoneVerified: boolean;
+  features?: string[] | null;
+  branch: BranchChoice;
+  onChooseBranch: (branchId: string) => void;
+}) {
   const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
 
@@ -86,7 +94,7 @@ export function DashboardScreen({ api, displayName, phoneVerified, features = nu
             )}
           </section>
 
-          <WalletPanel api={api} phoneVerified={phoneVerified} features={features} />
+          <WalletPanel api={api} phoneVerified={phoneVerified} features={features} branch={branch} onChooseBranch={onChooseBranch} />
 
           {load.data.activeSession
             ? <LiveSessionCard session={load.data.activeSession} fetchedAt={load.fetchedAt} />
