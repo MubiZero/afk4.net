@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Security.Principal;
 
+using AFK4.SetupWizard.Core;
+
 namespace AFK4.SetupWizard;
 
 public static class ElevationGuard

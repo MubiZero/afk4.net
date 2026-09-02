@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace AFK4.SetupWizard;
+namespace AFK4.SetupWizard.Core;
 
 // Minimal best-effort crash log for the setup wizard, written next to the agent log
 // (%ProgramData%\AFK4\logs\setup-wizard.log). The wizard has no other logging sink, so a
