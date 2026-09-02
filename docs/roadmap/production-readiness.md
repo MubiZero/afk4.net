@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-08-06
+Last updated: 2026-09-03
 
 ## Purpose
 
@@ -9,39 +9,37 @@ It is intentionally operational: infrastructure, release gates, security,
 backups, device validation, and pilot readiness. Keep it gate-level; detailed
 run history belongs in the progress snapshot or archive notes.
 
-> **Status note (2026-08-06):** the product/feature side has moved far beyond
-> the pilot bar — the full Platform Control redesign, SP3 platform administration +
-> SaaS billing, the entire SP4 wave (counter-loop, anti-fraud, offline,
-> customer portal/shell, notifications, localization, realtime), the dcgate
-> payments subsystem, the Organization Admin WebView2/React migration, the
-> phone/email staff-identity wave, and the FE forgot/reset-password screen are
-> all implemented and merged. Since 2026-06-04 the customer-shell WebView2
-> pivot shipped end to end — login, self-service extend/top-up, plus Unit F
-> (shop, loyalty/cashback, news/banners) — together with multi-tenant dcgate
-> payments (now on a shared AFK4 Telegram app: owners supply phone + OTP only),
-> shift-revenue reporting, branch-timezone-aware business-day rollup, and real
-> PNG PWA icons. Since then, wave A of the platform-admin gap closure also
-> landed: Platform Control was rebuilt around a fleet-pulse home screen
-> (network → clubs → signal rows, replacing the old registry-style screens)
-> with the shared visual layer split out into `@afk4/ui`; a platform staff
-> directory now lets a full platform admin invite, re-role, disable, and
-> reset the two-factor setup of other platform staff; sign-in for every
-> platform role now requires TOTP two-factor with recovery codes; and support
-> mode lets platform staff open a time-boxed, reason-required, read-mostly
-> session inside an organization's admin app, with money surfaces fully
-> excluded and every action journaled to the organization's own audit log.
-> CI now also runs a dedicated PostgreSQL-backed test job on every PR (not
-> just against main), and a silent skip of those tests fails the build instead
-> of passing quietly. What remains for production is mostly the operational
-> gates below (backups ownership, Authenticode/signing custody, production
-> object-store/CDN, physical Windows smoke, secret hygiene) plus, for the
-> payments money-path, an external blocker: the DC bank bot stopped delivering
-> deposit notifications, so the real payment → webhook → wallet-credit step is
-> frozen until the bot recovers (attach + session-sharing are proven live on
-> staging). The customer-shell still needs one on-device (real gaming PC)
-> kiosk/login/QR/offline smoke gate. See
-> `docs/progress/2026-05-12-vertical-slice-progress.md` for the current
-> feature snapshot.
+> **Status note (2026-09-03).** The feature side is done far past the pilot bar:
+> Platform Control (fleet pulse, billing, health, announcements, support mode,
+> two-factor for every platform role), the whole SP3/SP4 wave, dcgate payments,
+> the Organization Admin WebView2/React migration, and — through August 2026 —
+> the platform account pool, booking truthfulness (no-show, reject with reason,
+> realtime), the player ledger, seating codes, network bans, staff invites by
+> phone, club tournaments, friends, and agent credential rotation. The player
+> mobile app covers all fifteen items of the August product analysis.
+>
+> **Three things decide the launch now.**
+>
+> 1. *The gaming PC does not really lock.* The agent's lock controller only logs;
+>    the launcher list is hardcoded empty; unknown device commands are answered
+>    "accepted". By the owner's decision (2026-09-03) this is the **last** part to
+>    be built, after everything else is production-ready — so the physical Windows
+>    smoke is not the next step either, it has nothing to prove yet.
+> 2. *Operational decisions no one else can take:* Authenticode custody and the
+>    update-signing key, production object store/CDN and retention, backup
+>    encryption/retention/ownership, an incident and rollback checklist, real SMTP
+>    settings, and whether a machine credential exists for release registration
+>    (registering a package needs a platform-admin session behind two-factor, so
+>    CI cannot do it and a human does it in Platform Control).
+> 3. *The money path end to end:* the DC bank bot stopped delivering deposit
+>    notifications, so real payment → webhook → wallet credit is unproven. Attach
+>    and session sharing are proven live on staging. External blocker.
+>
+> Repo hygiene as of 2026-09-02…03: three dead stacks removed (~24 000 lines),
+> the release script fixed, `Package Smoke` green again after two red weeks, a
+> lint gate added for the web workspaces, and `deploy/**` finally covered by PR
+> checks. See `docs/progress/2026-05-12-vertical-slice-progress.md` for the
+> feature-level snapshot.
 
 The product scope and architecture decisions remain in:
 
@@ -116,8 +114,13 @@ Minimum bar:
    token and staging database/session secrets were rotated after the
    hardening pass. A GitHub Actions `Coolify Staging Deploy` workflow now
    removes the manual Coolify click path for ordinary Platform API staging
-   deploys while keeping EF migration changes behind an explicit backup and
-   migration confirmation.
+   deploys. Migrations are applied by the application at startup
+   (`Database__ApplyMigrationsOnStartup=true`); the deploy workflow only lists
+   the migration files in the deploy and does not gate on them. The blocking
+   confirmation was removed deliberately after it left staging on a stale build
+   for two weeks — the manual step was simply forgotten and the failure looked
+   like a healthy service. This is safe for a single instance only: a scaled-out
+   deployment needs migrations back as their own step.
 
 2. **Organization Onboarding And Platform Control**
 
@@ -557,9 +560,11 @@ and the progress snapshot). The remaining path to production is operational:
 ## Decision Rules
 
 - Do not add local server, non-Windows agents, microservices, kernel driver,
-  fiscal integrations, mobile app, or customer browser operational admin as the
-  primary club UI to solve production readiness unless the PRD and architecture
-  spec are updated first.
+  fiscal integrations, or a customer browser app as the primary club UI to solve
+  production readiness unless the PRD and architecture spec are updated first.
+  (The player mobile app is no longer on this list: it was built deliberately in
+  August 2026 and is the player-facing product. The React player web that
+  duplicated it was removed on 2026-09-02.)
 - Prefer runbooks and explicit release gates before adding provider-specific
   SDKs.
 - Prefer one real-device smoke loop over more theoretical docs once staging is

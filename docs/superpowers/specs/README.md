@@ -1,54 +1,56 @@
-# Active Architecture Specs
+# Спеки
 
-The active architecture source of truth is:
+Спека объясняет, почему система устроена так, а не иначе. Поэтому спеки, в отличие от
+планов, не уезжают в архив после отгрузки: их читают, когда меняют уже сделанное. Но
+считать сделанное «одобренным заделом» нельзя — отсюда деление ниже.
 
-- `2026-05-12-afk4-platform-architecture-design.md`
-- `2026-07-28-platform-organization-product-boundary-design.md` — defines the
-  current Platform Control and Organization Admin product, identity, role,
-  permission, route, and release boundaries.
-- `2026-07-29-platform-control-rebuild-design.md` — defines the approved
-  organization-centered big-bang rebuild of the internal Platform Control UI,
-  its platform roles, workflows, safety rules, and delivery slices.
-- `2026-08-03-platform-control-ui-redesign-design.md` — supersedes the rebuild's
-  visual and screen-structure decisions: fleet-pulse main screen with signal
-  rows, passport-plus-tabs client card, shared `@afk4/tokens` language, and the
-  operational levers (subscription editing, payment grace, per-client update
-  channel, owner transfer). Route, permission, and contract boundaries from the
-  rebuild spec stay in force.
+Обновлено 03.09.2026.
 
-Approved backlog specs:
+## Источник правды по архитектуре
 
-- `2026-07-29-platform-managed-client-updates-design.md` — moves signed package
-  publication and rollout authority to Platform Control/release automation,
-  adds deterministic batching and maintenance-aware Organization Admin updates,
-  and replaces fake rollback with verified last-known-good recovery.
-- `2026-07-28-operator-unified-admin-parity-closure-design.md` — closes the
-  required Clients, Monetization, Settings, and Venue gaps; its certified
-  Platform Control `/club` removal is complete on the current topic branch.
-- `2026-07-15-operator-reports-workspace-consolidation-design.md` — redesigns
-  Reports as `Сводка / Смены и касса / Выручка`, gives Cash, Events, and Stock
-  one clear ownership model, and replaces the separate approvals inbox with
-  contextual second-manager confirmation using an existing AFK4 account.
-- `2026-06-11-productionize-client-installer-design.md` — shared bundled .NET
-  runtime (framework-dependent apps + WiX Burn bundle) to cut the ~160 MB agent
-  MSI, channel-driven prod URL, and code signing (blocked on a cert). Includes a
-  phased implementation outline; pick up in a new session.
-- `2026-06-18-online-booking-autoconfirm-hold.md` — Slice 1 auto-confirmation
-  is shipped; Slice 2 wallet hold/no-show release remains backlog and must be
-  implemented together with the customer self-service tariff/package picker.
+- `2026-05-12-afk4-platform-architecture-design.md` — платформа целиком: границы,
+  модули, данные, клиенты.
+- `2026-07-28-platform-organization-product-boundary-design.md` — граница между Platform
+  Control и Organization Admin: личности, роли, права, маршруты, релизы. Действует.
 
-All focused design specs for shipped work — the platform-control redesign, the
-2026-06-01 UX-audit feature specs (counter-loop, anti-fraud, offline,
-customer portal/shell, notifications, localization, realtime,
-frontend-consolidation), the dcgate payments design (incl. the shared-AFK4
-Telegram-app reversal that superseded per-owner credentials), the
-phone/email staff-identity wave, the brand-positioning copy sweep, the
-customer-shell WebView2 pivot and its Unit F cycles (shop, loyalty, news),
-shift-revenue + branch-timezone reporting, Operator UI consolidation/QA, and
-the commerce/booking financial-integrity wave, plus the Operator cash-terminal
-redesign and authoritative system footer — are implemented and archived
-under `docs/archive/superpowers/specs/`. Read them for the design rationale
-behind already-merged features.
+## Реализовано и влито
 
-When you start new design work, add the spec here, then move it to the
-archive once the work lands on `main`.
+Читать при изменении соответствующей части, а не как план работ.
+
+- `2026-07-29-platform-control-rebuild-design.md` и
+  `2026-08-03-platform-control-ui-redesign-design.md` — панель платформы. Визуальные и
+  экранные решения перестройки заменены редизайном; границы маршрутов, прав и контрактов
+  из перестройки остались в силе.
+- `2026-08-04-platform-access-and-support-mode-design.md` — двухфакторный вход,
+  справочник администраторов платформы, режим поддержки.
+- `2026-08-07-platform-billing-dunning-and-pricing-design.md`,
+  `2026-08-07-platform-observability-and-analytics-design.md`,
+  `2026-08-08-platform-product-operations-design.md` — волны биллинга, наблюдаемости и
+  продуктовых операций платформы.
+- `2026-08-11-customer-app-flutter-design.md` и `2026-08-11-flutter-migration-map.md` —
+  приложение игрока. Переезд с веба завершён; веб-версия удалена 02.09.2026, а веб-сборка
+  Flutter закрывает вход по ссылке без установки.
+- Волна консолидации Organization Admin (июль): `…operator-unified-admin-*`,
+  `…operator-management-*`, `…operator-reports-workspace-consolidation-design.md`,
+  `…operator-post-auth-shift-gate-design.md`, `…operator-media-upload-subsystem-design.md`.
+- Платежи: `…eskhata-merchant-acceptance-design.md`, `…dc-paylink-manual-acceptance-*`,
+  `…payments-loyalty-*`, `…operator-club-payments-rethink-decisions.md`.
+- Брони: `2026-06-18-online-booking-autoconfirm-hold.md`.
+
+## Реализовано частично
+
+- `2026-07-29-platform-managed-client-updates-design.md` — публикация пакетов и раскатка
+  переехали на платформу, восстановление последней рабочей версии у агента есть,
+  окна обслуживания у филиала есть. **Открытым остаётся** служебный доступ для
+  регистрации релиза из CI: маршрут требует сессии администратора платформы, а она за
+  двухфакторкой, поэтому пакет сейчас заводит человек в панели.
+- `2026-06-11-productionize-client-installer-design.md` и
+  `2026-07-28-organization-admin-latest-installer-design.md` — установщик собирается и
+  публикуется; **не решено** production-подписание: сертификат, его хранение и хранение
+  ключа подписи метаданных обновлений.
+
+## Связанное
+
+- Планы незакрытой работы: `../plans/README.md`
+- Операционная дорожная карта: `../../roadmap/production-readiness.md`
+- Снимок текущего состояния: `../../progress/2026-05-12-vertical-slice-progress.md`
