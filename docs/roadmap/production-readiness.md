@@ -554,8 +554,11 @@ and the progress snapshot). The remaining path to production is operational:
    `COOLIFY_API_TOKEN` are configured for automated staging deploy.
 
 5. **Finish notification delivery configuration** — the backend reset path,
-   Operator forgot/reset-password screen, and MailKit SMTP transport exist;
-   wire and verify real per-environment SMTP settings.
+   Operator forgot/reset-password screen, and MailKit SMTP transport exist.
+   No third-party provider is needed: a Stalwart mail server already runs in
+   Coolify (`mail-mubi-dev`) with matching reverse DNS, and `afk4.net` only has
+   to be added to it. Procedure, DNS records and the verification that counts:
+   `docs/operations/email-delivery.md`.
 
 ## Decision Rules
 
