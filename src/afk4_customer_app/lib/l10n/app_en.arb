@@ -590,6 +590,7 @@
       }
     }
   },
+  "customerPushOpen": "Open",
   "customerReceiptLoadError": "Couldn't load the receipt.",
   "customerReceiptNotFound": "Receipt not found",
   "customerReceiptOpenLink": "Receipt →",

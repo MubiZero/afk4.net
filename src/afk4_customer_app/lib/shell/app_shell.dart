@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/dto.dart';
@@ -7,11 +9,14 @@ import '../dashboard/dashboard_screen.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/branch_choice.dart';
 import '../organization/organization.dart';
+import '../push/push_messages.dart';
+import '../push/push_notification.dart';
 import '../push/push_service.dart';
 import '../profile/profile_screen.dart';
 import '../reservations/reservations_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'network_ban_note.dart';
+import 'push_note.dart';
 
 /// Разделы приложения. Порядок — это заявление о том, чем игрок пользуется чаще: сначала то,
 /// что происходит сейчас, потом деньги, в конце настройки.
@@ -29,6 +34,7 @@ class AppShell extends StatefulWidget {
     required this.organization,
     this.me,
     this.push,
+    this.pushMessages,
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
@@ -48,6 +54,9 @@ class AppShell extends StatefulWidget {
 
   /// Уведомления на телефон. null — платформа их не поддерживает (веб, тесты).
   final PushService? push;
+
+  /// Входящие уведомления. null — приходить нечему: веб или тест без подмены.
+  final PushMessages? pushMessages;
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
@@ -78,10 +87,95 @@ class _AppShellState extends State<AppShell> {
   /// После открытия счёта не нужен вовсе: зал записан в самом счёте.
   String? _chosenBranchId;
 
+  /// Просьба открыть магазин, пришедшая уведомлением. Меняется числом, а не флагом: два
+  /// уведомления подряд про два заказа — это две просьбы, и вторая не должна потеряться.
+  int _openShopRequest = 0;
+
+  final List<StreamSubscription<PushNotification>> _pushSubscriptions = [];
+
+  /// Уведомление, показанное поверх разделов, и таймер, который его уберёт.
+  PushNotification? _note;
+  Timer? _noteTimer;
+
   @override
   void initState() {
     super.initState();
     if (_accountOpen) _loadFeatures();
+    _listenForPush();
+  }
+
+  @override
+  void dispose() {
+    _noteTimer?.cancel();
+    for (final subscription in _pushSubscriptions) {
+      subscription.cancel();
+    }
+    super.dispose();
+  }
+
+  /// Три пути одного уведомления: приложение запустилось нажатием, было в фоне и его вернули
+  /// нажатием, или игрок уже внутри. Первые два ведут на нужный экран сразу, третий сначала
+  /// показывает сообщение — выдёргивать человека с экрана, где он что-то делает, нельзя.
+  void _listenForPush() {
+    final messages = widget.pushMessages;
+    if (messages == null) return;
+
+    unawaited(
+      messages.initialMessage().then((notification) {
+        if (notification != null && mounted) _followPush(notification);
+      }),
+    );
+
+    _pushSubscriptions.add(
+      messages.onOpenedApp.listen((notification) {
+        if (mounted) _followPush(notification);
+      }),
+    );
+
+    _pushSubscriptions.add(
+      messages.onForegroundMessage.listen((notification) {
+        if (mounted) _announcePush(notification);
+      }),
+    );
+  }
+
+  /// Открыть то, о чём уведомление. Незнакомое событие не двигает игрока никуда: приложение
+  /// просто открылось, и это честнее, чем увести наугад.
+  void _followPush(PushNotification notification) {
+    switch (pushDestinationFor(notification.template)) {
+      case PushDestination.home:
+        _open(AppSection.home);
+      case PushDestination.reservations:
+        if (_enabled('online_booking')) _open(AppSection.reservations);
+      case PushDestination.wallet:
+        _open(AppSection.wallet);
+      case PushDestination.shop:
+        setState(() {
+          _section = AppSection.home;
+          _openShopRequest++;
+        });
+      case null:
+        break;
+    }
+  }
+
+  /// Игрок уже в приложении: система в этом случае не показывает ничего сама. Полоса встаёт
+  /// над разделами, не перекрывая работу, и уходит сама через несколько секунд. Перейти можно
+  /// нажатием — но только если есть куда: кнопка, ведущая в никуда, хуже её отсутствия.
+  void _announcePush(PushNotification notification) {
+    final text = notification.body ?? notification.title;
+    if (text == null || text.trim().isEmpty) return;
+
+    setState(() => _note = notification);
+    _noteTimer?.cancel();
+    _noteTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _note = null);
+    });
+  }
+
+  void _dismissNote() {
+    _noteTimer?.cancel();
+    setState(() => _note = null);
   }
 
   @override
@@ -106,7 +200,9 @@ class _AppShellState extends State<AppShell> {
   ///
   /// Список клубов не спросился (`me == null`) — считаем, что счёт есть: разделы сами
   /// разберутся с ответом сервера, а спрятать всё из-за сетевого сбоя было бы враньём.
-  bool get _accountOpen => widget.me == null || widget.me!.clubAt(widget.organization.organizationId) != null;
+  bool get _accountOpen =>
+      widget.me == null ||
+      widget.me!.clubAt(widget.organization.organizationId) != null;
 
   /// Где игрок собирается играть. Залы берутся из каталога клубов — того же ответа, из
   /// которого игрок выбирал сам клуб. Со счётом выбора нет: сервер уже знает зал, и обещать
@@ -119,7 +215,8 @@ class _AppShellState extends State<AppShell> {
           onChosen: (branchId) => setState(() => _chosenBranchId = branchId),
         );
 
-  bool _enabled(String feature) => _features == null || _features!.contains(feature);
+  bool _enabled(String feature) =>
+      _features == null || _features!.contains(feature);
 
   bool get _phoneVerified => _phoneVerifiedNow || widget.session.phoneVerified;
 
@@ -135,14 +232,18 @@ class _AppShellState extends State<AppShell> {
         AppSection.home,
         DashboardScreen(
           api: widget.api,
-          displayName: widget.me?.person.displayName ?? widget.session.displayName,
+          displayName:
+              widget.me?.person.displayName ?? widget.session.displayName,
           organization: widget.organization,
           phoneVerified: _phoneVerified,
           features: _features,
           accountOpen: _accountOpen,
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
-          onOpenReservations: booking ? () => _open(AppSection.reservations) : null,
+          onOpenReservations: booking
+              ? () => _open(AppSection.reservations)
+              : null,
           onOpenWallet: () => _open(AppSection.wallet),
+          openShopRequest: _openShopRequest,
           clock: widget.clock,
         ),
         NavigationDestination(
@@ -226,6 +327,17 @@ class _AppShellState extends State<AppShell> {
           // а не на том экране, где человек первым получит отказ.
           if (person != null && person.networkBanned)
             NetworkBanNote(reason: person.networkBanReason),
+          if (_note case final note?)
+            PushNote(
+              text: (note.body ?? note.title)!,
+              onOpen: pushDestinationFor(note.template) == null
+                  ? null
+                  : () {
+                      _dismissNote();
+                      _followPush(note);
+                    },
+              onDismiss: _dismissNote,
+            ),
           Expanded(
             child: IndexedStack(
               index: selected,
@@ -238,7 +350,9 @@ class _AppShellState extends State<AppShell> {
         // Волосяная линия сверху: без неё панель сливается с прокрученным под неё списком, и
         // непонятно, где кончается содержимое и начинается навигация.
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline)),
+          border: Border(
+            top: BorderSide(color: Theme.of(context).colorScheme.outline),
+          ),
         ),
         child: NavigationBar(
           selectedIndex: selected,

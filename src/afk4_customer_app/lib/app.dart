@@ -14,6 +14,7 @@ import 'organization/club_picker_screen.dart';
 import 'organization/organization.dart';
 import 'organization/organization_directory.dart';
 import 'organization/selected_organization_store.dart';
+import 'push/push_messages.dart';
 import 'push/push_service.dart';
 import 'push/push_tokens.dart';
 import 'theme/ambient_background.dart';
@@ -38,6 +39,7 @@ class CustomerApp extends StatefulWidget {
     this.sessionStore = const PlayerSessionStore(),
     this.localeStore = const LocalePreferenceStore(),
     this.pushTokens,
+    this.pushMessages,
   });
 
   /// Жёстко задаётся только тестами: перебивает и выбор игрока, и язык устройства.
@@ -51,6 +53,9 @@ class CustomerApp extends StatefulWidget {
   /// Откуда берётся адрес телефона для пушей. Тесты подставляют свой — настоящий Firebase
   /// в проверке того, что при выходе токен снимается, участвовать не должен.
   final PushTokens? pushTokens;
+
+  /// Входящие уведомления. null — приходить нечему: веб или тест без подмены.
+  final PushMessages? pushMessages;
 
   @override
   State<CustomerApp> createState() => _CustomerAppState();
@@ -116,6 +121,7 @@ class _CustomerAppState extends State<CustomerApp> {
         directory: widget.directory,
         api: widget.api,
         pushTokens: widget.pushTokens,
+        pushMessages: widget.pushMessages,
         organizationStore: widget.selectedOrganizationStore,
         sessionStore: widget.sessionStore,
         onLocaleChanged: _chooseLocale,
@@ -131,6 +137,7 @@ class _Root extends StatefulWidget {
     required this.directory,
     required this.api,
     required this.pushTokens,
+    required this.pushMessages,
     required this.organizationStore,
     required this.sessionStore,
     required this.onLocaleChanged,
@@ -140,6 +147,7 @@ class _Root extends StatefulWidget {
   final OrganizationDirectory directory;
   final PlayerApiClient api;
   final PushTokens? pushTokens;
+  final PushMessages? pushMessages;
   final SelectedOrganizationStore organizationStore;
   final PlayerSessionStore sessionStore;
   final ValueChanged<Locale> onLocaleChanged;
@@ -300,6 +308,7 @@ class _RootState extends State<_Root> {
       organization: organization,
       me: _me,
       push: _push,
+      pushMessages: widget.pushMessages,
       onSignOut: _signOut,
       onChangeClub: _changeClub,
       onLocaleChanged: widget.onLocaleChanged,

@@ -43,6 +43,7 @@ class DashboardScreen extends StatefulWidget {
     this.accountOpen = true,
     this.onOpenReservations,
     this.onOpenWallet,
+    this.openShopRequest = 0,
     this.onPhoneVerified,
     this.clock = DateTime.now,
   });
@@ -58,6 +59,10 @@ class DashboardScreen extends StatefulWidget {
   /// Возможности клуба; null — список не получен. Загружает их оболочка: он нужен ещё и
   /// разделам, а два независимых запроса одного и того же — лишний трафик и рассинхрон.
   final List<String>? features;
+
+  /// Счётчик просьб открыть магазин снаружи — из нажатия на уведомление о готовом заказе.
+  /// Число, а не флаг: два заказа подряд дают две просьбы, и вторая не должна потеряться.
+  final int openShopRequest;
 
   /// Есть ли у игрока счёт в этом клубе. Пока нет — спрашивать нечего: ни денег, ни сессии,
   /// ни истории здесь ещё не завелось.
@@ -135,6 +140,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loadBranch();
       _loadPendingReview();
       _poll ??= Timer.periodic(_refreshEvery, (_) => _refresh());
+    }
+
+    // Нажали на уведомление о готовом заказе: магазин открывается сам, чтобы игрок не искал
+    // то, о чём ему только что сообщили.
+    if (widget.openShopRequest != oldWidget.openShopRequest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_openShop());
+      });
     }
   }
 
