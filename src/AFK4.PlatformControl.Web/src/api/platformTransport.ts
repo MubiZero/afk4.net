@@ -279,7 +279,7 @@ export class PlatformTransport {
   private buildHeaders(): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.session !== null && this.session.accessToken.length > 0) {
-      headers['Authorization'] = `Bearer ${this.session.accessToken}`;
+      headers.Authorization = `Bearer ${this.session.accessToken}`;
     }
     return headers;
   }

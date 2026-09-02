@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import {
   mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv, movementStatusTone,
-  type JournalRow,
 } from './journalModel';
 
 const catalog = [

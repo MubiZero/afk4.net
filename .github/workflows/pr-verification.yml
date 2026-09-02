@@ -212,6 +212,12 @@ jobs:
       # the workspace dirs explicitly; each runs in its own dir to pick up its bunfig.
       # The list must hold every workspace with a `test` script — a workspace missing here is
       # not "not covered yet", it is a suite that goes red without anyone finding out.
+      # Линтер ловит то, что не ловят ни тесты, ни сборка: мёртвые импорты и переменные,
+      # перекрытые глобальные имена, `==` вместо `===`. Набор правил намеренно узкий — см.
+      # biome.json: правило, которое кричит на здоровый код, скоро начинают игнорировать.
+      - name: Lint web workspaces
+        run: bun run lint
+
       - name: Test web workspaces
         run: |
           set -e

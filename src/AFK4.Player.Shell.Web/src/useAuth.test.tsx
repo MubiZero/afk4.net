@@ -13,8 +13,11 @@ function installBridge(responder: (msg: any) => any) {
     webview: {
       postMessage(msg: any) {
         const payload = responder(msg);
-        queueMicrotask(() =>
-          listeners.forEach((l) => l({ data: { type: 'host:response', requestId: msg.requestId, ok: true, payload } })));
+        queueMicrotask(() => {
+          listeners.forEach((l) => {
+            l({ data: { type: 'host:response', requestId: msg.requestId, ok: true, payload } });
+          });
+        });
       },
       addEventListener: (_t: string, l: any) => listeners.push(l),
       removeEventListener: () => {}

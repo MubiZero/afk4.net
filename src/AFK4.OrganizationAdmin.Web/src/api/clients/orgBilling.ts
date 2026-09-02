@@ -41,13 +41,13 @@ export interface OrganizationBillingStatusDto {
 // Read-only org billing screen (Сеть → Подписка) — no plan-management actions by design.
 export function createOrgBillingClient(api: PlatformApiClient) {
   return {
-    getSubscription(organizationId: Guid): Promise<OrganizationSubscriptionDto> {
+    getSubscription(_organizationId: Guid): Promise<OrganizationSubscriptionDto> {
       return api.get<OrganizationSubscriptionDto>('subscription');
     },
-    listInvoices(organizationId: Guid): Promise<InvoiceDto[]> {
+    listInvoices(_organizationId: Guid): Promise<InvoiceDto[]> {
       return api.get<InvoiceDto[]>('invoices');
     },
-    getBillingStatus(organizationId: Guid): Promise<OrganizationBillingStatusDto> {
+    getBillingStatus(_organizationId: Guid): Promise<OrganizationBillingStatusDto> {
       return api.get<OrganizationBillingStatusDto>('billing/status');
     }
   };

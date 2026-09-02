@@ -23,7 +23,7 @@ export function ReportsWorkspace({ backend, currencyCode, onNavigate }: {
 
   const current = destinations.some((destination) => destination.id === active) ? active : destinations[0].id;
   const panel = current === 'summary'
-    ? <SummaryReport backend={backend} currencyCode={currencyCode} onNavigate={onNavigate} />
+    ? <SummaryReport backend={backend} onNavigate={onNavigate} />
     : current === 'shiftsCash'
       ? <ShiftCashReport backend={backend} currencyCode={currencyCode} />
       : <RevenueReport backend={backend} currencyCode={currencyCode} />;

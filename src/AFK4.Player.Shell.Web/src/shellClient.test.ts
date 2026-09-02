@@ -10,7 +10,13 @@ function installWebview(onPost: (message: any) => void) {
       removeEventListener: () => {}
     }
   };
-  return { reply: (data: unknown) => listeners.forEach((l) => l({ data })) };
+  return {
+    reply: (data: unknown) => {
+      listeners.forEach((l) => {
+        l({ data });
+      });
+    }
+  };
 }
 
 afterEach(() => {

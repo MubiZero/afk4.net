@@ -10,9 +10,12 @@
     "src/AFK4.Player.Shell.Web"
   ],
   "scripts": {
-    "build:brand": "bun scripts/build-brand-assets.mjs"
+    "build:brand": "bun scripts/build-brand-assets.mjs",
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.4",
     "@resvg/resvg-js": "^2.6.2",
     "png-to-ico": "^3.0.1"
   }

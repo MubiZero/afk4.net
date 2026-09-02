@@ -14,7 +14,13 @@ function installWebview(onPost: (message: any) => void) {
       }
     }
   };
-  return { push: (data: unknown) => act(() => listeners.forEach((l) => l({ data }))) };
+  return {
+    push: (data: unknown) => act(() => {
+      listeners.forEach((l) => {
+        l({ data });
+      });
+    })
+  };
 }
 
 afterEach(() => {

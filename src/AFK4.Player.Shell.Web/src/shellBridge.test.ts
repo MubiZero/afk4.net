@@ -16,7 +16,11 @@ function installWebview(onPost: (message: any) => void) {
     }
   };
   return {
-    emit: (data: unknown) => listeners.forEach((l) => l({ data }))
+    emit: (data: unknown) => {
+      listeners.forEach((l) => {
+        l({ data });
+      });
+    }
   };
 }
 

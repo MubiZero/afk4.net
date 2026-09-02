@@ -28,7 +28,7 @@ export interface ChooseClubState {
 // навигационного feedback не знаем — её вешает вызывающий через onSignedIn/onSignedOut, чтобы
 // хук не зависел от состояния навигации.
 export function useOperatorAuth(
-  config: OperatorConfig,
+  _config: OperatorConfig,
   options: { onSignedIn?: () => void; onSignedOut?: () => void } = {}
 ) {
   const { t } = useI18n();

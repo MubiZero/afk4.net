@@ -15,7 +15,7 @@ export function slugify(input: string): string {
   const lower = input.trim().toLowerCase();
   let out = '';
   for (const char of lower) {
-    if (Object.prototype.hasOwnProperty.call(CYRILLIC_TO_LATIN, char)) {
+    if (Object.hasOwn(CYRILLIC_TO_LATIN, char)) {
       out += CYRILLIC_TO_LATIN[char];
     } else if (/[a-z0-9]/.test(char)) {
       out += char;
