@@ -590,9 +590,14 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   back — an open policy decision, recorded in
   `docs/operations/update-package-publishing.md`.
 
-- **Per-environment SMTP config** still needs the user's real connection
-  details wired into `NotificationOptions`. Email is now the only notification
-  channel not proven against a real provider: SMS and Android push are.
+- **Per-environment SMTP config** is unwired. The mail server itself is not the
+  gap: Stalwart runs in Coolify (`mail-mubi-dev`) with reverse DNS pointing at
+  `mail.mubi.dev`, and `mubi.dev` already sends with SPF and `p=reject`. What is
+  missing is `afk4.net` inside that server (domain, DKIM, a `no-reply` mailbox),
+  its DNS records in the empty Cloudflare zone, and the `Notifications__*`
+  variables. Steps and the verification that counts:
+  `docs/operations/email-delivery.md`. Email stays the only notification channel
+  not proven end to end; SMS and Android push are.
 - **iOS side of the mobile app** — no APNs key, no iOS build, no `ios` folder at
   all. Android is verified end to end, and since 2026-09-03 the app also handles
   an incoming notification: tapping one opens the screen it is about. iOS is
@@ -642,9 +647,10 @@ last**, after every other part is production-ready. Everything below is that
    paths, and the last live pass found two defects that 2000+ tests had not.
    Referral is off by default and is switched on in «Платежи и лояльность»;
    off-peak needs a tariff with hours set in «Тарифы и пакеты».
-2. **Real per-environment SMTP.** The reset-password backend, the screen and the
-   MailKit transport all exist; the connection details do not. Email is the only
-   notification channel not proven against a real provider.
+2. **Real per-environment SMTP.** Everything in code exists; the domain does not
+   exist on the mail server yet. `afk4.net` gets added to the Stalwart instance
+   already running in Coolify, its records go into the empty Cloudflare zone, and
+   the `Notifications__*` variables get set — `docs/operations/email-delivery.md`.
 3. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, an incident and rollback
