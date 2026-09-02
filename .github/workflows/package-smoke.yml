@@ -139,92 +139,37 @@ jobs:
             -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
             -ReleaseNotes "Package smoke build $env:AFK4_PACKAGE_VERSION."
 
-      - name: Register staging update packages and create rollouts
+      # Регистрация пакета на платформе из смоука убрана намеренно. Релиз заводится
+      # администратором платформы, а вход администратора обязан пройти двухфакторку —
+      # неинтерактивного токена для этого нет и заводить его в обход 2FA мы не будем.
+      # Смоук доказывает то, что может доказать сам: MSI собираются, метаданные и артефакты
+      # уезжают в хранилище, стабильный установщик совпадает с ними побайтно и API отдаёт
+      # на него ссылку. Пакет регистрируется руками в панели платформы, там же и раскатка.
+      - name: Report update package requests awaiting registration
         shell: pwsh
-        env:
-          AFK4_STAGING_UPDATE_STAFF_USERNAME: ${{ secrets.AFK4_STAGING_UPDATE_STAFF_USERNAME }}
-          AFK4_STAGING_UPDATE_STAFF_PASSWORD: ${{ secrets.AFK4_STAGING_UPDATE_STAFF_PASSWORD }}
-          AFK4_STAGING_ORGANIZATION_ID: ${{ vars.AFK4_STAGING_ORGANIZATION_ID }}
-          AFK4_STAGING_PLATFORM_BASE_URL: ${{ vars.AFK4_STAGING_PLATFORM_BASE_URL }}
-          AFK4_STAGING_BRANCH_ID: ${{ vars.AFK4_STAGING_BRANCH_ID }}
-          AFK4_STAGING_UPDATE_TARGET_DEVICE_ID: ${{ vars.AFK4_STAGING_UPDATE_TARGET_DEVICE_ID }}
         run: |
-          $required = @(
-            'AFK4_STAGING_UPDATE_STAFF_USERNAME',
-            'AFK4_STAGING_UPDATE_STAFF_PASSWORD',
-            'AFK4_STAGING_ORGANIZATION_ID',
-            'AFK4_STAGING_PLATFORM_BASE_URL',
-            'AFK4_STAGING_BRANCH_ID',
-            'AFK4_STAGING_UPDATE_TARGET_DEVICE_ID'
+          $requestPaths = @(
+            "artifacts/update-packages/organization-admin-$env:AFK4_PACKAGE_VERSION-internal-request.json",
+            "artifacts/update-packages/agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json",
+            "artifacts/update-packages/player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json"
           )
 
-          foreach ($name in $required) {
-            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
-              throw "$name is required for staging update registration."
-            }
-          }
-
-          $signInBody = @{
-            organizationId = $env:AFK4_STAGING_ORGANIZATION_ID
-            userName = $env:AFK4_STAGING_UPDATE_STAFF_USERNAME
-            password = $env:AFK4_STAGING_UPDATE_STAFF_PASSWORD
-          } | ConvertTo-Json
-
-          $signInResponse = Invoke-RestMethod `
-            -Method Post `
-            -Uri "$($env:AFK4_STAGING_PLATFORM_BASE_URL.TrimEnd('/'))/api/organizations/$($env:AFK4_STAGING_ORGANIZATION_ID)/auth/staff/sign-in" `
-            -Headers @{
-              'X-AFK4-Product' = 'organization-admin'
-              'X-AFK4-Compatibility-Epoch' = '2'
-              'X-AFK4-Client-Version' = "0.2.0-package-smoke-$env:GITHUB_RUN_NUMBER"
-            } `
-            -ContentType 'application/json' `
-            -Body $signInBody
-
-          if ([string]::IsNullOrWhiteSpace($signInResponse.accessToken)) {
-            throw "Staging staff sign-in response did not include an access token."
-          }
-
-          $env:AFK4_UPDATE_REGISTRATION_TOKEN = [string]$signInResponse.accessToken
-
-          $organizationAdminPackageRequestPath = "artifacts/update-packages/organization-admin-$env:AFK4_PACKAGE_VERSION-internal-request.json"
-          $agentPackageRequestPath = "artifacts/update-packages/agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json"
-          $playerShellPackageRequestPath = "artifacts/update-packages/player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json"
-          foreach ($requestPath in @($organizationAdminPackageRequestPath, $agentPackageRequestPath, $playerShellPackageRequestPath)) {
+          foreach ($requestPath in $requestPaths) {
             if (-not (Test-Path -LiteralPath $requestPath -PathType Leaf)) {
               throw "Expected update package request was not produced: $requestPath"
             }
+
+            $request = Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
+            foreach ($field in @('component', 'version', 'channel', 'artifactUri', 'sha256', 'signature', 'signatureAlgorithm', 'sizeBytes')) {
+              if ($null -eq $request.$field -or [string]::IsNullOrWhiteSpace([string]$request.$field)) {
+                throw "Update package request '$requestPath' is missing required field '$field'."
+              }
+            }
+
+            Write-Host "Ready to register: $($request.component) $($request.version) ($($request.channel))"
           }
 
-          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
-            -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
-            -OrganizationId $env:AFK4_STAGING_ORGANIZATION_ID `
-            -BranchId $env:AFK4_STAGING_BRANCH_ID `
-            -RequestPath $organizationAdminPackageRequestPath `
-            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
-            -CreateRollouts `
-            -RolloutComponent organization-admin `
-            -RolloutTargetKind branch `
-            -RolloutReason "Automated package smoke operator rollout $env:AFK4_PACKAGE_VERSION."
-
-          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
-            -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
-            -OrganizationId $env:AFK4_STAGING_ORGANIZATION_ID `
-            -BranchId $env:AFK4_STAGING_BRANCH_ID `
-            -RequestPath $agentPackageRequestPath `
-            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
-            -CreateRollouts `
-            -RolloutComponent agent-service `
-            -RolloutTargetKind device `
-            -RolloutTargetDeviceId $env:AFK4_STAGING_UPDATE_TARGET_DEVICE_ID `
-            -RolloutReason "Automated package smoke agent rollout $env:AFK4_PACKAGE_VERSION."
-
-          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
-            -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
-            -OrganizationId $env:AFK4_STAGING_ORGANIZATION_ID `
-            -BranchId $env:AFK4_STAGING_BRANCH_ID `
-            -RequestPath $playerShellPackageRequestPath `
-            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
+          Write-Host "Register these packages in Platform Control, or run scripts/register-update-package-requests.ps1 with a platform administrator token."
 
       - name: Verify stable Organization Admin installer
         shell: pwsh

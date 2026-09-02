@@ -1,12 +1,20 @@
+<#
+.SYNOPSIS
+Регистрирует собранные пакеты обновлений на платформе и, по желанию, создаёт раскатку.
+
+.DESCRIPTION
+Релиз клиентских приложений принадлежит платформе, а не клубу: пакет заводится один раз на всю
+сеть, а раскатка адресуется организациям, филиалам или конкретным устройствам. Поэтому скрипт
+ходит в `/api/platform/updates/*` и требует токен администратора платформы с правом
+`platform.updates.packages.manage`. Клубный токен сотрудника эти маршруты не пустят.
+
+Вход админа платформы проходит через двухфакторку, поэтому получить токен неинтерактивно нельзя —
+это осознанное ограничение, а не недоработка. Скрипт запускается человеком, у которого токен уже
+на руках, либо из ручного релизного workflow, где токен лежит в секрете.
+#>
 param(
     [Parameter(Mandatory = $true)]
     [uri] $PlatformBaseUrl,
-
-    [Parameter(Mandatory = $true)]
-    [guid] $BranchId,
-
-    [Parameter(Mandatory = $true)]
-    [guid] $OrganizationId,
 
     [string[]] $RequestPath,
 
@@ -21,10 +29,14 @@ param(
     [ValidateSet('agent-service', 'player-shell', 'organization-admin')]
     [string[]] $RolloutComponent = @('agent-service'),
 
-    [ValidateSet('device', 'branch')]
+    [ValidateSet('organization', 'branch', 'device')]
     [string] $RolloutTargetKind = 'device',
 
-    [guid[]] $RolloutTargetDeviceId,
+    [guid[]] $RolloutOrganizationId,
+
+    [guid[]] $RolloutBranchId,
+
+    [guid[]] $RolloutDeviceId,
 
     [ValidateRange(1, 100)]
     [int] $RolloutBatchPercent = 100,
@@ -101,6 +113,62 @@ function Get-JsonPropertyValue {
     return $property.Value
 }
 
+<# Файл запроса пишет AFK4.Update.Publisher, и в нём есть поле organizationId — наследство клубной
+   модели релизов. Платформенный контракт его не знает, поэтому тело собирается по полям явно:
+   лишнее не уезжает, а недостающее видно сразу и по имени. #>
+function New-PlatformPackageBody {
+    param(
+        [object] $Request,
+        [string] $SourceFile
+    )
+
+    $fields = [ordered]@{}
+    foreach ($name in @('component', 'version', 'channel', 'artifactUri', 'sha256', 'signature', 'signatureAlgorithm', 'sizeBytes', 'releaseNotes')) {
+        $value = Get-JsonPropertyValue $Request $name
+        if ($null -eq $value -or ([string]::IsNullOrWhiteSpace([string]$value) -and $name -ne 'sizeBytes')) {
+            throw "Update package request '$SourceFile' is missing required field '$name'."
+        }
+
+        $fields[$name] = $value
+    }
+
+    return $fields | ConvertTo-Json -Depth 5
+}
+
+function Invoke-PlatformApi {
+    param(
+        [string] $Uri,
+        [hashtable] $Headers,
+        [string] $Body,
+        [string] $What
+    )
+
+    try {
+        return Invoke-RestMethod -Method Post -Uri $Uri -Headers $Headers -ContentType 'application/json' -Body $Body
+    }
+    catch {
+        $status = $null
+        $response = $_.Exception.Response
+        if ($null -ne $response) {
+            $status = [int]$response.StatusCode
+        }
+
+        $hint = switch ($status) {
+            401 { "The access token is not a platform administrator session. Club staff tokens cannot register releases." }
+            403 { "The platform administrator lacks the 'platform.updates.packages.manage' permission." }
+            404 { "The platform build at '$PlatformBaseUrl' does not expose $Uri. Check that it is current." }
+            default { $null }
+        }
+
+        $message = "$What failed"
+        if ($null -ne $status) { $message += " with HTTP $status" }
+        $message += ": $($_.Exception.Message)"
+        if ($null -ne $hint) { $message += " $hint" }
+
+        throw $message
+    }
+}
+
 if ($null -eq $PlatformBaseUrl -or -not $PlatformBaseUrl.IsAbsoluteUri) {
     throw "PlatformBaseUrl must be an absolute URI."
 }
@@ -122,36 +190,42 @@ if ($hasTokenEnvVar) {
     }
 }
 
+$rolloutOrganizationIds = @($RolloutOrganizationId | Where-Object { $null -ne $_ } | ForEach-Object { $_.ToString('D') })
+$rolloutBranchIds = @($RolloutBranchId | Where-Object { $null -ne $_ } | ForEach-Object { $_.ToString('D') })
+$rolloutDeviceIds = @($RolloutDeviceId | Where-Object { $null -ne $_ } | ForEach-Object { $_.ToString('D') })
+
 if ($CreateRollouts) {
     if ([string]::IsNullOrWhiteSpace($RolloutReason)) {
         throw "RolloutReason is required when CreateRollouts is set."
     }
 
-    if ($RolloutTargetKind -eq 'device' -and ($null -eq $RolloutTargetDeviceId -or $RolloutTargetDeviceId.Count -eq 0)) {
-        throw "RolloutTargetDeviceId is required when CreateRollouts is set with RolloutTargetKind=device."
+    $targets = switch ($RolloutTargetKind) {
+        'organization' { $rolloutOrganizationIds }
+        'branch' { $rolloutBranchIds }
+        'device' { $rolloutDeviceIds }
+    }
+
+    if ($targets.Count -eq 0) {
+        throw "Rollout target kind '$RolloutTargetKind' requires at least one Rollout$([char]::ToUpper($RolloutTargetKind[0]) + $RolloutTargetKind.Substring(1))Id."
     }
 }
 
 $requestFiles = Resolve-RequestFiles $RequestPath $RequestDirectory
 $baseUri = $PlatformBaseUrl.AbsoluteUri.TrimEnd('/')
-$organizationPrefix = "$baseUri/api/organizations/$($OrganizationId.ToString('D'))"
-$registrationUri = "$organizationPrefix/branches/$($BranchId.ToString('D'))/updates/packages"
-$rolloutsUri = "$organizationPrefix/branches/$($BranchId.ToString('D'))/updates/rollouts"
+$registrationUri = "$baseUri/api/platform/updates/packages"
+$rolloutsUri = "$baseUri/api/platform/updates/rollouts"
 $headers = @{
     Authorization = "Bearer $AccessToken"
-    'X-AFK4-Product' = 'organization-admin'
-    'X-AFK4-Compatibility-Epoch' = '2'
-    'X-AFK4-Client-Version' = '0.2.0-update-registration'
 }
 $rolloutComponents = @($RolloutComponent | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 foreach ($requestFile in $requestFiles) {
-    $body = Get-Content -LiteralPath $requestFile -Raw
-    $request = $body | ConvertFrom-Json
+    $request = Get-Content -LiteralPath $requestFile -Raw | ConvertFrom-Json
     $component = [string](Get-JsonPropertyValue $request 'component')
-    $requestOrganizationId = [string](Get-JsonPropertyValue $request 'organizationId')
     $channel = [string](Get-JsonPropertyValue $request 'channel')
-    $registration = Invoke-RestMethod -Method Post -Uri $registrationUri -Headers $headers -ContentType 'application/json' -Body $body
+    $body = New-PlatformPackageBody -Request $request -SourceFile $requestFile
+
+    $registration = Invoke-PlatformApi -Uri $registrationUri -Headers $headers -Body $body -What "Update package registration for '$requestFile'"
     Write-Host "Registered update package request: $requestFile"
 
     if ($CreateRollouts -and $rolloutComponents -contains $component) {
@@ -160,25 +234,19 @@ foreach ($requestFile in $requestFiles) {
             throw "Platform registration response did not include updatePackageId for '$requestFile'."
         }
 
-        $targetDeviceIds = @()
-        if ($RolloutTargetKind -eq 'device') {
-            $targetDeviceIds = @($RolloutTargetDeviceId |
-                Where-Object { $null -ne $_ } |
-                ForEach-Object { $_.ToString('D') })
-        }
-
         $rolloutBody = @{
-            organizationId = $requestOrganizationId
             updatePackageId = $updatePackageId
             channel = $channel
             targetKind = $RolloutTargetKind
-            targetDeviceIds = $targetDeviceIds
+            organizationIds = $rolloutOrganizationIds
+            branchIds = $rolloutBranchIds
+            deviceIds = $rolloutDeviceIds
             batchPercent = $RolloutBatchPercent
             startsAtUtc = $RolloutStartsAtUtc.ToUniversalTime().ToString('O')
             reason = $RolloutReason
         } | ConvertTo-Json -Depth 5
 
-        $rollout = Invoke-RestMethod -Method Post -Uri $rolloutsUri -Headers $headers -ContentType 'application/json' -Body $rolloutBody
+        $rollout = Invoke-PlatformApi -Uri $rolloutsUri -Headers $headers -Body $rolloutBody -What "Rollout creation for component '$component'"
         $rolloutId = [string](Get-JsonPropertyValue $rollout 'updateRolloutId')
         Write-Host "Created update rollout for component '$component': $rolloutId"
     }

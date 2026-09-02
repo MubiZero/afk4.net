@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Management.Automation.Language;
 
 namespace AFK4.Agent.Service.Tests;
@@ -79,8 +80,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Empty(errors);
         AssertParameter(ast, "PlatformBaseUrl");
-        AssertParameter(ast, "OrganizationId");
-        AssertParameter(ast, "BranchId");
         AssertParameter(ast, "RequestPath");
         AssertParameter(ast, "RequestDirectory");
         AssertParameter(ast, "AccessToken");
@@ -88,7 +87,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "CreateRollouts");
         AssertParameter(ast, "RolloutComponent");
         AssertParameter(ast, "RolloutTargetKind");
-        AssertParameter(ast, "RolloutTargetDeviceId");
+        AssertParameter(ast, "RolloutOrganizationId");
+        AssertParameter(ast, "RolloutBranchId");
+        AssertParameter(ast, "RolloutDeviceId");
         AssertParameter(ast, "RolloutBatchPercent");
         AssertParameter(ast, "RolloutStartsAtUtc");
         AssertParameter(ast, "RolloutReason");
@@ -99,7 +100,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     {
         Directory.CreateDirectory(tempRoot);
         var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
-        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service"}""";
+        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service","version":"1.2.3","channel":"internal","artifactUri":"https://updates.example/afk4.msi","sha256":"abc123","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""";
         await File.WriteAllTextAsync(
             requestPath,
             requestBody);
@@ -137,8 +138,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             },
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessTokenEnvVar", "AFK4_TEST_REGISTRATION_TOKEN");
 
@@ -150,9 +149,14 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         var capturedRequest = await capturedRequestTask.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal("POST", capturedRequest.Method);
-        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequest.Path);
+        Assert.Equal("/api/platform/updates/packages", capturedRequest.Path);
         Assert.Equal("Bearer test-token", capturedRequest.Authorization);
-        Assert.Equal(requestBody, capturedRequest.Body);
+        var registered = JsonDocument.Parse(capturedRequest.Body).RootElement;
+        Assert.Equal("agent-service", registered.GetProperty("component").GetString());
+        Assert.Equal("1.2.3", registered.GetProperty("version").GetString());
+        Assert.Equal(1024, registered.GetProperty("sizeBytes").GetInt64());
+        Assert.False(registered.TryGetProperty("organizationId", out _));
+        Assert.DoesNotContain("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08", capturedRequest.Body, StringComparison.Ordinal);
     }
 
     [WindowsOnlyFact]
@@ -160,7 +164,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     {
         Directory.CreateDirectory(tempRoot);
         var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
-        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service","channel":"internal"}""";
+        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service","version":"1.2.3","channel":"internal","artifactUri":"https://updates.example/afk4.msi","sha256":"abc123","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""";
         await File.WriteAllTextAsync(requestPath, requestBody);
         var port = GetFreeTcpPort();
         var baseUrl = $"http://127.0.0.1:{port}/";
@@ -197,14 +201,12 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token",
             "-CreateRollouts",
             "-RolloutComponent", "agent-service",
             "-RolloutTargetKind", "device",
-            "-RolloutTargetDeviceId", "0588fb59-3edb-4704-bbdb-094e12417cf1",
+            "-RolloutDeviceId", "0588fb59-3edb-4704-bbdb-094e12417cf1",
             "-RolloutReason", "Automated smoke rollout.");
 
         if (result.ExitCode != 0)
@@ -214,8 +216,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
-        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
+        Assert.Equal("/api/platform/updates/packages", capturedRequests[0].Path);
+        Assert.Equal("/api/platform/updates/rollouts", capturedRequests[1].Path);
         Assert.Contains("\"updatePackageId\":", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.Contains("4a8f4f55-cc8e-49ce-9f69-98e9db9c8be7", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.Contains("\"targetKind\":", capturedRequests[1].Body, StringComparison.Ordinal);
@@ -228,7 +230,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     {
         Directory.CreateDirectory(tempRoot);
         var requestPath = Path.Combine(tempRoot, "organization-admin-1.2.3-internal-request.json");
-        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"organization-admin","channel":"internal"}""";
+        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"organization-admin","version":"1.2.3","channel":"internal","artifactUri":"https://updates.example/afk4.msi","sha256":"abc123","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""";
         await File.WriteAllTextAsync(requestPath, requestBody);
         var port = GetFreeTcpPort();
         var baseUrl = $"http://127.0.0.1:{port}/";
@@ -265,13 +267,12 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token",
             "-CreateRollouts",
             "-RolloutComponent", "organization-admin",
             "-RolloutTargetKind", "branch",
+            "-RolloutBranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RolloutReason", "Automated smoke operator rollout.");
 
         if (result.ExitCode != 0)
@@ -281,11 +282,12 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
-        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
+        Assert.Equal("/api/platform/updates/packages", capturedRequests[0].Path);
+        Assert.Equal("/api/platform/updates/rollouts", capturedRequests[1].Path);
         Assert.Contains("\"targetKind\":", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.Contains("\"branch\"", capturedRequests[1].Body, StringComparison.Ordinal);
-        Assert.Contains("\"targetDeviceIds\":", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("\"deviceIds\":", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("acfc0212-967f-4d84-94be-9003387b09c2", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.DoesNotContain("0588fb59-3edb-4704-bbdb-094e12417cf1", capturedRequests[1].Body, StringComparison.Ordinal);
     }
 
@@ -296,7 +298,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     {
         Directory.CreateDirectory(tempRoot);
         var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
-        await File.WriteAllTextAsync(requestPath, """{"component":"agent-service"}""");
+        await File.WriteAllTextAsync(requestPath, """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service","version":"1.2.3","channel":"internal","artifactUri":"https://updates.example/afk4.msi","sha256":"abc123","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""");
         var port = GetFreeTcpPort();
         var baseUrl = $"http://127.0.0.1:{port}/";
         using var listener = new HttpListener();
@@ -317,8 +319,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token");
 
@@ -328,7 +328,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         }
 
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Equal("""{"component":"agent-service"}""", await capturedRequestTask.WaitAsync(TimeSpan.FromSeconds(5)));
+        var postedBody = await capturedRequestTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("agent-service", JsonDocument.Parse(postedBody).RootElement.GetProperty("component").GetString());
     }
 
     [WindowsOnlyFact]
@@ -342,8 +343,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "http://127.0.0.1:9",
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath);
 
         Assert.NotEqual(0, result.ExitCode);
@@ -364,8 +363,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             },
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "http://127.0.0.1:9",
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token",
             "-AccessTokenEnvVar", "AFK4_TEST_REGISTRATION_TOKEN");
@@ -379,13 +376,13 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     {
         var requestDirectory = Path.Combine(tempRoot, "requests");
         Directory.CreateDirectory(requestDirectory);
-        var firstBody = """{"component":"agent-service","order":1}""";
-        var secondBody = """{"component":"organization-admin","order":2}""";
-        var thirdBody = """{"component":"player-shell","order":3}""";
+        var firstBody = """{"component":"agent-service","version":"1.2.1","channel":"internal","artifactUri":"https://updates.example/agent-service.msi","sha256":"abc121","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""";
+        var secondBody = """{"component":"organization-admin","version":"1.2.2","channel":"internal","artifactUri":"https://updates.example/organization-admin.msi","sha256":"abc122","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""";
+        var thirdBody = """{"component":"player-shell","version":"1.2.3","channel":"internal","artifactUri":"https://updates.example/player-shell.msi","sha256":"abc123","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""";
         await File.WriteAllTextAsync(Path.Combine(requestDirectory, "02-organization-admin-request.json"), secondBody);
         await File.WriteAllTextAsync(Path.Combine(requestDirectory, "01-agent-service-request.json"), firstBody);
         await File.WriteAllTextAsync(Path.Combine(requestDirectory, "03-player-shell-request.json"), thirdBody);
-        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "00-ignored.json"), """{"component":"ignored"}""");
+        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "00-ignored.json"), """{"component":"ignored","version":"1.2.9","channel":"internal","artifactUri":"https://updates.example/ignored.msi","sha256":"abc129","signature":"sig","signatureAlgorithm":"ecdsa-p256-sha256-ieee-p1363","sizeBytes":1024,"releaseNotes":"Smoke build."}""");
         var port = GetFreeTcpPort();
         var baseUrl = $"http://127.0.0.1:{port}/";
         using var listener = new HttpListener();
@@ -423,8 +420,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestDirectory", requestDirectory,
             "-AccessToken", "test-token");
 
@@ -435,9 +430,12 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal(new[] { firstBody, secondBody, thirdBody }, capturedRequests.Select(request => request.Body));
+        Assert.Equal(
+            new[] { "agent-service", "organization-admin", "player-shell" },
+            capturedRequests.Select(request => JsonDocument.Parse(request.Body).RootElement.GetProperty("component").GetString()));
+        Assert.All(capturedRequests, request => Assert.DoesNotContain("organizationId", request.Body, StringComparison.Ordinal));
         Assert.All(capturedRequests, request => Assert.Equal("POST", request.Method));
-        Assert.All(capturedRequests, request => Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", request.Path));
+        Assert.All(capturedRequests, request => Assert.Equal("/api/platform/updates/packages", request.Path));
         Assert.All(capturedRequests, request => Assert.Equal("Bearer test-token", request.Authorization));
     }
 
@@ -452,8 +450,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "http://127.0.0.1:9",
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token");
 
@@ -472,8 +468,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "file:///tmp/afk4",
-            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
-            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token");
 
@@ -547,7 +541,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}", registrationStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_BRANCH_ID: ${{ inputs.branch_id }}", registrationStep, StringComparison.Ordinal);
         Assert.Contains("'-PlatformBaseUrl', $env:INPUT_PLATFORM_BASE_URL", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("'-BranchId', $env:INPUT_BRANCH_ID", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("'-RolloutBranchId', $env:INPUT_BRANCH_ID", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("'-RolloutDeviceId', $env:INPUT_ROLLOUT_TARGET_DEVICE_ID", registrationStep, StringComparison.Ordinal);
+        Assert.DoesNotContain("'-OrganizationId'", registrationStep, StringComparison.Ordinal);
         Assert.Contains("'-AccessTokenEnvVar', 'AFK4_UPDATE_REGISTRATION_TOKEN'", registrationStep, StringComparison.Ordinal);
         Assert.Contains("-CreateRollouts", registrationStep, StringComparison.Ordinal);
         Assert.DoesNotContain("${{ inputs.", registrationRunBlock, StringComparison.Ordinal);
@@ -691,17 +687,21 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.DoesNotContain("afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("afk4-gaming-pc-setup-$env:AFK4_PACKAGE_VERSION-internal.exe", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("$env:GITHUB_RUN_NUMBER-ci", workflow, StringComparison.Ordinal);
+
+        // Смоук не регистрирует релиз: маршрут платформенный и требует сессии администратора
+        // платформы, а она защищена двухфакторкой. Раньше здесь стоял вход клубного сотрудника,
+        // и шаг падал на 404 — красный смоук был единственным, что об этом говорило.
+        Assert.DoesNotContain("scripts/register-update-package-requests.ps1 `", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("auth/staff/sign-in", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("AFK4_STAGING_UPDATE_STAFF_PASSWORD", workflow, StringComparison.Ordinal);
+        Assert.Contains("Report update package requests awaiting registration", workflow, StringComparison.Ordinal);
+        Assert.Contains("Verify stable Organization Admin installer", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/publish-client-msi-updates.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"scripts/register-update-package-requests.ps1\"", workflow, StringComparison.Ordinal);
         Assert.Contains("ArtifactStore s3", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("Publish staging bootstrapper to MinIO", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("artifacts/bootstrapper", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("afk4-package-smoke-bootstrapper-0.1.${{ github.run_number }}-internal", workflow, StringComparison.Ordinal);
-        Assert.Contains("AFK4_STAGING_UPDATE_STAFF_USERNAME", workflow, StringComparison.Ordinal);
-        Assert.Contains("AFK4_STAGING_UPDATE_STAFF_PASSWORD", workflow, StringComparison.Ordinal);
-        Assert.Contains("/api/organizations/$($env:AFK4_STAGING_ORGANIZATION_ID)/auth/staff/sign-in", workflow, StringComparison.Ordinal);
-        Assert.Contains("scripts/register-update-package-requests.ps1", workflow, StringComparison.Ordinal);
-        Assert.Contains("-CreateRollouts", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/upload-artifact@v4", workflow, StringComparison.Ordinal);
         Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
         Assert.Contains("retention-days: 3", workflow, StringComparison.Ordinal);
@@ -715,19 +715,24 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
-    public void PackageSmokeWorkflow_CreatesAgentDeviceAndOperatorBranchRollouts()
+    public void PackageSmokeWorkflow_ReportsPackagesAwaitingRegistrationInsteadOfRegisteringThem()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/package-smoke.yml")));
-        var registrationStep = ExtractWorkflowStep(workflow, "Register staging update packages and create rollouts");
+        var reportStep = ExtractWorkflowStep(workflow, "Report update package requests awaiting registration");
 
-        Assert.Contains("organization-admin-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-RolloutComponent organization-admin", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-RolloutTargetKind branch", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-RolloutComponent agent-service", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-RolloutTargetKind device", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-RolloutTargetDeviceId $env:AFK4_STAGING_UPDATE_TARGET_DEVICE_ID", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("organization-admin-$env:AFK4_PACKAGE_VERSION-internal-request.json", reportStep, StringComparison.Ordinal);
+        Assert.Contains("agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json", reportStep, StringComparison.Ordinal);
+        Assert.Contains("player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json", reportStep, StringComparison.Ordinal);
+
+        // Файл запроса обязан быть заполнен целиком: подписи и хеша достаточно, чтобы
+        // регистрация в панели платформы прошла без повторной сборки.
+        Assert.Contains("'signature'", reportStep, StringComparison.Ordinal);
+        Assert.Contains("'sha256'", reportStep, StringComparison.Ordinal);
+        Assert.Contains("'artifactUri'", reportStep, StringComparison.Ordinal);
+
+        // И ни одной попытки зарегистрировать релиз клубным токеном.
+        Assert.DoesNotContain("auth/staff/sign-in", reportStep, StringComparison.Ordinal);
+        Assert.DoesNotContain("-CreateRollouts", reportStep, StringComparison.Ordinal);
     }
 
     [Fact]
