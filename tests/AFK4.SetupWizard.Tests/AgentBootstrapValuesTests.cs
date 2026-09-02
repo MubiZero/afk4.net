@@ -45,7 +45,7 @@ public sealed class AgentBootstrapValuesTests
         Guid.Parse("22222222-2222-4222-8222-222222222222"),
         "credential-secret-that-must-not-leak",
         DeviceRoleNames.ManagerWorkstation,
-        "https://afk4.staging.mubi.dev/",
+        "https://api.afk4.net/",
         "internal",
         "lease-public-key",
         "update-public-key");

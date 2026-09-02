@@ -22,8 +22,8 @@ $ErrorActionPreference = 'Stop'
 # internal/beta stay on staging; stable points at the production platform origin. The URL is
 # injected into AFK4.SetupWizard.Core via -p:AFK4PlatformBaseUrl below (see SetupWizardDefaults).
 $platformBaseUrlByChannel = @{
-    'internal' = 'https://afk4.staging.mubi.dev'
-    'beta' = 'https://afk4.staging.mubi.dev'
+    'internal' = 'https://api.afk4.net'
+    'beta' = 'https://api.afk4.net'
     'stable' = 'https://app.afk4.net'
 }
 $platformBaseUrl = $platformBaseUrlByChannel[$Channel]

@@ -16,14 +16,14 @@ const KV_STATE_TTL_SECONDS = 86_400 * 7;
 const MONITORS = [
   {
     name: 'platform-api-health',
-    url: 'https://afk4.staging.mubi.dev/api/health',
+    url: 'https://api.afk4.net/api/health',
     method: 'GET',
     expectStatus: 200,
     expectBody: '"status":"ok"',
   },
   {
     name: 'platform-api-auth-401',
-    url: 'https://afk4.staging.mubi.dev/api/platform/auth/sign-in',
+    url: 'https://api.afk4.net/api/platform/auth/sign-in',
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: '{}',
@@ -31,14 +31,14 @@ const MONITORS = [
   },
   {
     name: 'control-plane-spa-healthz',
-    url: 'https://platform.afk4.staging.mubi.dev/healthz',
+    url: 'https://platform.afk4.net/healthz',
     method: 'GET',
     expectStatus: 200,
     expectBody: 'ok',
   },
   {
     name: 'control-plane-spa-shell',
-    url: 'https://platform.afk4.staging.mubi.dev/',
+    url: 'https://platform.afk4.net/',
     method: 'GET',
     expectStatus: 200,
     expectBody: 'AFK4 Platform Platform Control',

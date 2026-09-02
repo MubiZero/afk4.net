@@ -48,7 +48,7 @@ param(
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
 
-$DefaultBaseUrl = "https://afk4.staging.mubi.dev"
+$DefaultBaseUrl = "https://api.afk4.net"
 $DefaultOrganizationId = [Guid]"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"
 $DefaultBranchId = [Guid]"acfc0212-967f-4d84-94be-9003387b09c2"
 $DefaultStaffUserName = "real-device-smoke@afk4.test"
@@ -68,7 +68,7 @@ Usage:
   .\scripts\cleanup-manager-workstation-smoke-data.ps1 -Apply -DeleteEmptySmokeSeats
 
 Useful overrides:
-  -BaseUrl https://afk4.staging.mubi.dev
+  -BaseUrl https://api.afk4.net
   -OrganizationId 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08
   -BranchId acfc0212-967f-4d84-94be-9003387b09c2
   -StaffUserName real-device-smoke@afk4.test

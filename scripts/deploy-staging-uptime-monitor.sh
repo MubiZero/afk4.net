@@ -96,6 +96,9 @@ fi
 export NAMESPACE_ID
 
 echo ">>> Uploading Worker script '$WORKER_NAME'"
+# keep_bindings сохраняет секреты воркера (TELEGRAM_*) при загрузке новой версии.
+# Без него загрузка объявляет ровно перечисленные привязки, а секреты молча пропадают:
+# монитор продолжает работать и продолжает молчать, что хуже упавшего монитора.
 METADATA=$(python3 -c "
 import json, os
 print(json.dumps({
@@ -104,6 +107,7 @@ print(json.dumps({
     'bindings': [
         {'type': 'kv_namespace', 'name': 'STATE', 'namespace_id': os.environ['NAMESPACE_ID']}
     ],
+    'keep_bindings': ['secret_text'],
 }))
 ")
 

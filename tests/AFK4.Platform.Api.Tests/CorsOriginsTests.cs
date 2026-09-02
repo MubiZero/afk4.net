@@ -27,7 +27,7 @@ public sealed class CorsOriginsTests
     public void Resolve_OutsideProduction_KeepsDeveloperOriginsAlongsideConfiguredOnes()
     {
         var origins = CorsOrigins.Resolve(
-            Configuration("https://admin.afk4.staging.mubi.dev"),
+            Configuration("https://admin.afk4.net"),
             "Cors:OperatorWebOrigins",
             DeveloperDefaults,
             allowDeveloperDefaults: true);
@@ -35,7 +35,7 @@ public sealed class CorsOriginsTests
         // Браузерная проверка со стенда живёт именно на этом порту, и стенд ради неё не
         // перенастраивают — см. docs/operations/organization-admin-access.md.
         Assert.Contains("http://localhost:4174", origins);
-        Assert.Contains("https://admin.afk4.staging.mubi.dev", origins);
+        Assert.Contains("https://admin.afk4.net", origins);
     }
 
     [Fact]

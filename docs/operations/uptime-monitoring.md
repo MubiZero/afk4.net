@@ -46,10 +46,10 @@ They run from Cloudflare's network on a 5-minute cron schedule.
 
 | # | Endpoint | Method | Expected status | Expected body keyword |
 |---|---|---|---|---|
-| 1 | `https://afk4.staging.mubi.dev/api/health` | GET | 200 | `"status":"ok"` |
-| 2 | `https://afk4.staging.mubi.dev/api/platform/auth/sign-in` (POST body `{}`) | POST | **401** | - |
-| 3 | `https://platform.afk4.staging.mubi.dev/healthz` | GET | 200 | `ok` |
-| 4 | `https://platform.afk4.staging.mubi.dev/` | GET | 200 | `Platform Control` |
+| 1 | `https://api.afk4.net/api/health` | GET | 200 | `"status":"ok"` |
+| 2 | `https://api.afk4.net/api/platform/auth/sign-in` (POST body `{}`) | POST | **401** | - |
+| 3 | `https://platform.afk4.net/healthz` | GET | 200 | `ok` |
+| 4 | `https://platform.afk4.net/` | GET | 200 | `Platform Control` |
 
 Monitor 2 deliberately submits an empty body to the platform-admin
 sign-in endpoint. The endpoint MUST answer 401. A 5xx means the auth

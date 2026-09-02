@@ -13,7 +13,7 @@ public sealed class FileBootstrapWriterTests
         CredentialId: Guid.Parse("22222222-2222-4222-8222-222222222222"),
         CredentialSecret: "afk4_secret_value",
         Role: DeviceRoleNames.GamingPc,
-        ApiBaseUrl: "https://afk4.staging.mubi.dev/",
+        ApiBaseUrl: "https://api.afk4.net/",
         UpdateChannel: "internal",
         LeaseSigningPublicKeyPem: "lease-pem",
         UpdatePackageSigningPublicKeyPem: "update-pem");
@@ -31,7 +31,7 @@ public sealed class FileBootstrapWriterTests
             var agent = document.RootElement.GetProperty("Agent");
 
             Assert.Equal("afk4_secret_value", agent.GetProperty("DeviceCredentialSecret").GetString());
-            Assert.Equal("https://afk4.staging.mubi.dev", agent.GetProperty("PlatformBaseUrl").GetString()); // trailing slash trimmed
+            Assert.Equal("https://api.afk4.net", agent.GetProperty("PlatformBaseUrl").GetString()); // trailing slash trimmed
             Assert.Equal(DeviceRoleNames.GamingPc, agent.GetProperty("DeviceRole").GetString());
             Assert.Equal("DESKTOP-TEST", agent.GetProperty("MachineName").GetString());
             // Emitted as a real JSON boolean so AgentOptions.PlayerShellAutoStartEnabled binds.

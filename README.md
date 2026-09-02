@@ -161,7 +161,7 @@ build at staging for pilot smoke, set `AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL
 launching the app:
 
 ```powershell
-$env:AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
+$env:AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL = 'https://api.afk4.net'
 & .\src\AFK4.OrganizationAdmin.App\bin\Debug\net10.0-windows\AFK4.OrganizationAdmin.App.exe
 ```
 

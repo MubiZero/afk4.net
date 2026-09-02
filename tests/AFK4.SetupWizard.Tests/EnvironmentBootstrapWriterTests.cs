@@ -46,16 +46,16 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
             Guid.Parse("22222222-2222-4222-8222-222222222222"),
             "credential-secret",
             DeviceRoleNames.ManagerWorkstation,
-            "https://afk4.staging.mubi.dev/",
+            "https://api.afk4.net/",
             "internal",
             "lease-public-key",
             "update-public-key");
 
         new EnvironmentBootstrapWriter("MANAGER-01", EnvironmentVariableTarget.Process).Write(config);
 
-        Assert.Equal("https://afk4.staging.mubi.dev", Environment.GetEnvironmentVariable("Agent__PlatformBaseUrl"));
+        Assert.Equal("https://api.afk4.net", Environment.GetEnvironmentVariable("Agent__PlatformBaseUrl"));
         Assert.Equal(
-            "https://afk4.staging.mubi.dev",
+            "https://api.afk4.net",
             Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL"));
         Assert.Equal(
             config.OrganizationId.ToString("D"),

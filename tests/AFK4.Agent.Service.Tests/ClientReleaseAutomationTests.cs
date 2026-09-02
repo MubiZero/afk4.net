@@ -785,8 +785,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
 
         Assert.Contains("$platformBaseUrlByChannel = @{", script, StringComparison.Ordinal);
-        Assert.Contains("'internal' = 'https://afk4.staging.mubi.dev'", script, StringComparison.Ordinal);
-        Assert.Contains("'beta' = 'https://afk4.staging.mubi.dev'", script, StringComparison.Ordinal);
+        Assert.Contains("'internal' = 'https://api.afk4.net'", script, StringComparison.Ordinal);
+        Assert.Contains("'beta' = 'https://api.afk4.net'", script, StringComparison.Ordinal);
         Assert.Contains("'stable' = 'https://app.afk4.net'", script, StringComparison.Ordinal);
         Assert.Contains("$platformBaseUrl = $platformBaseUrlByChannel[$Channel]", script, StringComparison.Ordinal);
         Assert.Contains("No platform base URL is configured for channel", script, StringComparison.Ordinal);

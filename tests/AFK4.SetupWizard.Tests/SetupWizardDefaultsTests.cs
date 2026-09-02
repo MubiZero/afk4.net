@@ -7,7 +7,7 @@ public sealed class SetupWizardDefaultsTests
     [Fact]
     public void ResolvePlatformBaseUrl_WithNull_FallsBackToStaging()
     {
-        Assert.Equal("https://afk4.staging.mubi.dev", SetupWizardDefaults.ResolvePlatformBaseUrl(null));
+        Assert.Equal("https://api.afk4.net", SetupWizardDefaults.ResolvePlatformBaseUrl(null));
     }
 
     [Theory]
@@ -15,7 +15,7 @@ public sealed class SetupWizardDefaultsTests
     [InlineData("   ")]
     public void ResolvePlatformBaseUrl_WithBlank_FallsBackToStaging(string injected)
     {
-        Assert.Equal("https://afk4.staging.mubi.dev", SetupWizardDefaults.ResolvePlatformBaseUrl(injected));
+        Assert.Equal("https://api.afk4.net", SetupWizardDefaults.ResolvePlatformBaseUrl(injected));
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public sealed class SetupWizardDefaultsTests
     {
         // The test assembly is built without the AFK4PlatformBaseUrl property, so the resolver
         // must fall back to staging — this guards the contract every other SetupWizard test relies on.
-        Assert.Equal(new Uri("https://afk4.staging.mubi.dev"), SetupWizardDefaults.PlatformBaseUrl);
+        Assert.Equal(new Uri("https://api.afk4.net"), SetupWizardDefaults.PlatformBaseUrl);
     }
 
     [Theory]

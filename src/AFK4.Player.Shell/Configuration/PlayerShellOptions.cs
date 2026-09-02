@@ -11,5 +11,5 @@ public sealed class PlayerShellOptions
     public int ReconnectDelayMilliseconds { get; init; } = 500;
 
     public string ApiBaseUrl { get; init; } =
-        Environment.GetEnvironmentVariable("AFK4_PLATFORM_API_BASE_URL") ?? "https://afk4.staging.mubi.dev";
+        Environment.GetEnvironmentVariable("AFK4_PLATFORM_API_BASE_URL") ?? "https://api.afk4.net";
 }
