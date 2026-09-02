@@ -124,6 +124,56 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("Do not commit secrets", runbook, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Каждый явный источник COPY обязан существовать в репозитории.
+    ///
+    /// Один снесённый проект оставил в Dockerfile строку `COPY src/AFK4.BuildingBlocks/...`,
+    /// и деплой staging упал уже после мержа: ни одна проверка PR в Dockerfile не заглядывает —
+    /// `deploy/**` вообще не входит ни в один фильтр путей. Пусть заглядывает хотя бы этот тест.
+    /// </summary>
+    [Theory]
+    [InlineData("src/AFK4.Platform.Api/Dockerfile")]
+    [InlineData("deploy/coolify/platform-control.Dockerfile")]
+    [InlineData("deploy/coolify/organization-admin.Dockerfile")]
+    public void Dockerfile_CopiesOnlyPathsThatExist(string dockerfilePath)
+    {
+        var repositoryRoot = GetRepositoryRoot();
+        var lines = File.ReadAllLines(RepositoryPath(dockerfilePath));
+        var missing = new List<string>();
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.Trim();
+            if (!line.StartsWith("COPY ", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("--from=", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var arguments = line["COPY ".Length..].Trim();
+            var sources = arguments.StartsWith('[')
+                ? arguments.Trim('[', ']').Split(',').Select(part => part.Trim().Trim('"')).ToArray()
+                : arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            // Последний аргумент — путь внутри образа, а не в репозитории.
+            foreach (var source in sources.Take(sources.Length - 1))
+            {
+                if (source is "." or ".." || source.Contains('*', StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var candidate = Path.Combine(repositoryRoot, source.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(candidate) && !Directory.Exists(candidate))
+                {
+                    missing.Add($"{dockerfilePath}: {source}");
+                }
+            }
+        }
+
+        Assert.Empty(missing);
+    }
+
     private static string RepositoryPath(string relativePath)
     {
         return Path.GetFullPath(Path.Combine(GetRepositoryRoot(), relativePath));
