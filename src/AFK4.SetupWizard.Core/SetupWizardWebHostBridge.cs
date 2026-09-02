@@ -1,11 +1,10 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
 
-namespace AFK4.SetupWizard.Web;
+namespace AFK4.SetupWizard.Core;
 
 public sealed class SetupWizardWebHostBridge(
     ISetupWizardApiClient apiClient,
