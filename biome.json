@@ -1,0 +1,55 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.4/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "packages/**/*.ts",
+      "packages/**/*.tsx",
+      "src/AFK4.OrganizationAdmin.Web/src/**",
+      "src/AFK4.PlatformControl.Web/src/**",
+      "src/AFK4.SetupWizard.Web/src/**",
+      "src/AFK4.Player.Shell.Web/src/**",
+      "!**/dist/**",
+      "!**/node_modules/**",
+      "!packages/i18n/src/messages.ru.ts",
+      "!packages/i18n/src/messages.en.ts",
+      "!packages/i18n/src/messages.tg.ts"
+    ]
+  },
+  "formatter": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "noUnusedFunctionParameters": "error",
+        "noUnusedLabels": "error",
+        "noConstantCondition": "error",
+        "noSelfAssign": "error",
+        "noSwitchDeclarations": "error",
+        "useValidTypeof": "error"
+      },
+      "suspicious": {
+        "noAssignInExpressions": "error",
+        "noDoubleEquals": "error",
+        "noDuplicateCase": "error",
+        "noDuplicateObjectKeys": "error",
+        "noDuplicateParameters": "error",
+        "noFallthroughSwitchClause": "error",
+        "noPrototypeBuiltins": "error",
+        "noShadowRestrictedNames": "error",
+        "noSparseArray": "error",
+        "noUnsafeNegation": "error",
+        "useIterableCallbackReturn": "error"
+      },
+      "complexity": {
+        "noUselessTernary": "error",
+        "noUselessCatch": "error",
+        "useLiteralKeys": "error",
+        "useOptionalChain": "error"
+      }
+    }
+  }
+}

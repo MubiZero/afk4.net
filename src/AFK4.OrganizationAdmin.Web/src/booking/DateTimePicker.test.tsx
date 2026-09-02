@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, fireEvent, render, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { DateTimePicker } from './DateTimePicker';
 

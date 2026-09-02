@@ -656,7 +656,6 @@ export function BackendBookingWorkspace({
           loading={loadStatus === 'loading'}
           showSkeleton={showSkeleton}
           selectedReservationId={selectedReservationId}
-          branchName={floorMap.branchName}
           previewBlock={previewBlock}
           dateLabel={dateLabel}
           dateValue={dateValue}

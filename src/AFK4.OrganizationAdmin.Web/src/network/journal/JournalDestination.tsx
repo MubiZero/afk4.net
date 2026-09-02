@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import type { JSX } from 'react';
-import { Download } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { EmptyState } from '../../operatorPrimitives';

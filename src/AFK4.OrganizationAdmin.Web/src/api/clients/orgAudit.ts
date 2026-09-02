@@ -32,7 +32,7 @@ export interface OrgAuditQuery {
 
 export function createOrgAuditClient(api: PlatformApiClient) {
   return {
-    searchOrganizationAudit(organizationId: Guid, query: OrgAuditQuery): Promise<OrgAuditSearchResultDto> {
+    searchOrganizationAudit(_organizationId: Guid, query: OrgAuditQuery): Promise<OrgAuditSearchResultDto> {
       return api.get<OrgAuditSearchResultDto>('audit', normalizeReportQuery(query));
     }
   };

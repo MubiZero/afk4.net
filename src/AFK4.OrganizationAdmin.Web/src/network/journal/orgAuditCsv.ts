@@ -20,7 +20,7 @@ const HEADER = [
 
 const NEW_LINE = '\r\n';
 
-function escape(value: string | null): string {
+function escapeField(value: string | null): string {
   if (value === null) return '';
   if (!/[",\r\n]/.test(value)) return value;
   return `"${value.replaceAll('"', '""')}"`;
@@ -43,7 +43,7 @@ export function toAuditCsv(records: readonly OrgAuditRecordDto[]): string {
         r.sourceApp,
         r.detailsJson
       ]
-        .map(escape)
+        .map(escapeField)
         .join(',')
     );
   }

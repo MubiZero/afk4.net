@@ -34,8 +34,7 @@ it('every literal t() key used in operator source exists in the catalog', () => 
 
   for (const file of collectSourceFiles(SRC_ROOT)) {
     const text = readFileSync(file, 'utf8');
-    let match: RegExpExecArray | null;
-    while ((match = KEY_CALL.exec(text)) !== null) {
+    for (const match of text.matchAll(KEY_CALL)) {
       const key = match[1];
       if (!(key in ru) && !missing.has(key)) {
         missing.set(key, file.replace(SRC_ROOT, 'src'));

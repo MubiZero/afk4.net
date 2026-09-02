@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorState, LoadingCards } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';

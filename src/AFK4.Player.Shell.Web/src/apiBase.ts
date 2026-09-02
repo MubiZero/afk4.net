@@ -15,6 +15,6 @@ const injected =
   typeof window !== 'undefined' ? window.__AFK4_PLAYER_CONFIG__?.platformBaseUrl : undefined;
 
 export const API_BASE =
-  (injected && injected.trim()) ||
+  (injected?.trim()) ||
   import.meta.env.VITE_PLATFORM_API_BASE_URL ||
   'https://afk4.staging.mubi.dev';

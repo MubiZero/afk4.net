@@ -80,7 +80,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [visible, dismiss]);
 
   useEffect(() => () => {
-    timers.current.forEach((timer) => clearTimeout(timer));
+    timers.current.forEach((timer) => {
+      clearTimeout(timer);
+    });
     timers.current.clear();
   }, []);
 

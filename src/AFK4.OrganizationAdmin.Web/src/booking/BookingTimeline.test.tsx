@@ -33,7 +33,6 @@ function renderTimeline(
         loading={false}
         showSkeleton={false}
         selectedReservationId=""
-        branchName="AFK4"
         previewBlock={previewBlock}
         dateLabel="Сегодня"
         dateValue="2026-06-19"
@@ -70,7 +69,7 @@ describe('BookingTimeline drag-to-create', () => {
       <I18nProvider>
         <BookingTimeline
           groups={crossZoneGroups} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
-          selectedReservationId="" branchName="AFK4" previewBlock={null} dateLabel="Сегодня"
+          selectedReservationId="" previewBlock={null} dateLabel="Сегодня"
           dateValue="2026-06-19" isToday={true}
           onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}
           onCellCreate={onCellCreate} onSeatsCreate={onSeatsCreate} onSeatToggle={onSeatToggle}
@@ -139,7 +138,7 @@ describe('BookingTimeline drag-to-create', () => {
       <I18nProvider>
         <BookingTimeline
           groups={twoRows} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
-          selectedReservationId="" branchName="AFK4" previewBlock={null} dateLabel="Сегодня"
+          selectedReservationId="" previewBlock={null} dateLabel="Сегодня"
           dateValue="2026-06-19" isToday={true}
           onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}
           onCellCreate={() => {}} onSeatsCreate={onSeatsCreate} onSeatToggle={() => {}}
@@ -164,7 +163,7 @@ describe('BookingTimeline drag-to-create', () => {
     const onToday = mock(() => {});
     const props = {
       groups, axis, nowMs: -1, loading: false, showSkeleton: false,
-      selectedReservationId: '', branchName: 'AFK4', previewBlock: null,
+      selectedReservationId: '', previewBlock: null,
       dateLabel: '20 июня', dateValue: '2026-06-20',
       onPrevDay: () => {}, onNextDay: () => {}, onPickDate: () => {},
       onSelectBlock: () => {}, onCellCreate: () => {}, onSeatsCreate: () => {}, onSeatToggle: () => {}
@@ -186,7 +185,7 @@ describe('BookingTimeline drag-to-create', () => {
       <I18nProvider>
         <BookingTimeline
           groups={groups} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
-          selectedReservationId="" branchName="AFK4" previewBlock={null}
+          selectedReservationId="" previewBlock={null}
           dateLabel="Сегодня" dateValue="2026-06-19" isToday={true}
           onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={onPickDate}
           onSelectBlock={() => {}} onCellCreate={() => {}} onSeatsCreate={() => {}} onSeatToggle={() => {}}
@@ -209,7 +208,7 @@ describe('BookingTimeline drag-to-create', () => {
       <I18nProvider>
         <BookingTimeline
           groups={twoRows} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
-          selectedReservationId="" branchName="AFK4"
+          selectedReservationId=""
           previewBlock={{ seatIds: ['a1', 'a2'], startMs: 2 * 3_600_000, endMs: 3 * 3_600_000 }}
           dateLabel="Сегодня" dateValue="2026-06-19" isToday={true}
           onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}

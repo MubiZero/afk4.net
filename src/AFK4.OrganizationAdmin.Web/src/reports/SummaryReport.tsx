@@ -9,7 +9,9 @@ import { ReportRangeControls } from './ReportRangeControls';
 import { todayReportRange, toReportQuery, type ReportDateRange } from './reportRange';
 import { createReportClients } from './reportClient';
 
-export function SummaryReport({ backend, currencyCode, onNavigate }: { backend: OperatorBackendContext | null; currencyCode: string; onNavigate: (workspace: WorkspaceId) => void }): JSX.Element {
+// Валюта не приходит пропом: каждая сумма приезжает с сервера вместе со своей валютой,
+// и брать её из соседнего места значило бы подписать чужие деньги знаком клуба.
+export function SummaryReport({ backend, onNavigate }: { backend: OperatorBackendContext | null; onNavigate: (workspace: WorkspaceId) => void }): JSX.Element {
   const { t, formatDate } = useI18n();
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
   const [data, setData] = useState<OrganizationAdminSummaryReportDto | null>(null);

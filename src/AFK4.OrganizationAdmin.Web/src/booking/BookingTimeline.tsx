@@ -25,7 +25,7 @@ interface DragState {
 }
 
 export function BookingTimeline({
-  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, branchName, previewBlock, dateLabel, dateValue, isToday, onPrevDay, onNextDay, onToday, onPickDate, onSelectBlock, onCellCreate, onSeatsCreate, onSeatToggle
+  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, previewBlock, dateLabel, dateValue, isToday, onPrevDay, onNextDay, onToday, onPickDate, onSelectBlock, onCellCreate, onSeatsCreate, onSeatToggle
 }: {
   groups: ZoneRowGroup[];
   axis: TimelineAxis;
@@ -33,7 +33,6 @@ export function BookingTimeline({
   loading: boolean;
   showSkeleton: boolean;
   selectedReservationId: string;
-  branchName: string;
   previewBlock: { seatIds: string[]; startMs: number; endMs: number } | null;
   dateLabel: string;
   dateValue: string;   // yyyy-mm-dd для нативного выбора дня
@@ -355,7 +354,7 @@ export function BookingTimeline({
                       <b>{block.item.customerName}</b>
                     </button>
                   ))}
-                  {ghost && ghost.seatIds.has(row.seat.id) && (
+                  {ghost?.seatIds.has(row.seat.id) && (
                     <div className={`booking-ghost${ghost.seatIds.size > 1 ? ' group' : ''}`} style={{ left: `${ghost.left}%`, width: `${ghost.width}%` }}>
                       {row.seat.id === ghost.labelSeatId && <span>{ghost.label}</span>}
                     </div>

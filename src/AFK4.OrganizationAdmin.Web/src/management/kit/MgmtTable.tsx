@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { useI18n } from '@afk4/i18n';
 import { Search } from 'lucide-react';
 import { EmptyState, Skeleton } from '../../operatorPrimitives';
 import { RowActionsMenu } from './RowActionsMenu';
@@ -40,7 +39,6 @@ export function MgmtTable<T>({
   isLoading,
   empty
 }: MgmtTableProps<T>) {
-  const { t } = useI18n();
   const effectiveGrid = rowActions ? `${gridTemplate} 44px` : gridTemplate;
 
   return (

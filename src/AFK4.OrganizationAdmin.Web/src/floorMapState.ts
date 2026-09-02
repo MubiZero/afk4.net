@@ -297,7 +297,7 @@ function resolveTone(
   normalizedState: string,
   hasDevice: boolean,
   isOnline: boolean,
-  hasActiveSession: boolean
+  _hasActiveSession: boolean
 ): SeatTone {
   // Обслуживание — намеренное отключение: спокойный серый «service», и побеждает связь
   // (ПК на обслуживании обычно выключен), поэтому проверяем до офлайна.
