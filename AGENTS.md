@@ -81,6 +81,22 @@ roadmap/progress/plan that depends on it.
 
 ## Verification
 
+`scripts/verify.sh` is the local gate and mirrors `pr-verification.yml` lane for
+lane. With no arguments it works out which lanes the change needs from
+`git merge-base HEAD origin/main`; `--all` runs everything, `--fast` skips the
+Flutter integration run and web build, and a lane name (`dotnet`, `web`,
+`flutter`, `windows`) runs just that one. It brings up the test PostgreSQL
+container itself and refuses to run the .NET lane without a real database — a run
+where those tests skipped is not proof. Its closing line lists what it did *not*
+check.
+
+The `windows` lane cannot run on macOS or Linux: with `AFK4_WINDOWS_HOST` set it
+ships the tree to that machine over SSH, and without it dispatches
+`windows-checks.yml` on the GitHub runner (the commit has to be pushed first).
+That lane is the only way the WPF-hosted suites and `WindowsOnly` tests run at
+all — including the tests that execute the release PowerShell scripts. A change
+to `scripts/*.ps1` or `installers/**` is not verified until it has run.
+
 Use the narrowest fresh verification that proves the change.
 
 - Docs-only changes: `git diff --check`.
@@ -94,6 +110,12 @@ Use the narrowest fresh verification that proves the change.
 - Full solution build/test is required before push/merge/release validation or
   when shared infrastructure, migrations, packaging, or cross-application
   contracts changed.
+- Web workspaces are linted by Biome (`bun run lint`, config in `biome.json`),
+  in CI and as the first step of the local web lane. The rule set is deliberately
+  narrow — dead imports and variables, shadowed globals, `==`, duplicate keys and
+  switch branches, a missing return in an iterator callback. Formatting is off.
+  A rule that shouts at healthy code gets ignored along with the useful ones; if
+  a new rule earns its place, add it to `biome.json` explicitly.
 - CI (`pr-verification.yml`) runs a dedicated `test-postgres` job against a
   real PostgreSQL service container on every relevant PR, with
   `AFK4_REQUIRE_POSTGRES_TESTS=1` set so a silently skipped Postgres-backed
@@ -114,9 +136,10 @@ Use the narrowest fresh verification that proves the change.
 
 ## Windows App Guidance
 
-- Operator App should feel like dense operator software, not a marketing
-  dashboard.
-- Main Operator App screen is the floor map.
+- Organization Admin should feel like dense operator software, not a marketing
+  dashboard. (It was the Operator App before the 2026-07-28 product-boundary
+  migration; the old name survives only in code and archived plans.)
+- Its main screen is the floor map.
 - Local cache is UI acceleration only, never authority for financial/session
   state.
 - Critical operator actions must wait for backend confirmation.

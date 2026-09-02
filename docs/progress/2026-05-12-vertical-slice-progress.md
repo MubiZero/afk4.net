@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-08-17
+Last updated: 2026-09-03
 
 ## Purpose
 
@@ -23,8 +23,11 @@ needed.
   migration; that name survives only inside the code and in archived plans.
 - Platform-owner/support operations run in the browser Platform Control
   (`AFK4.PlatformControl.Web`, admin-only SPA under `/admin`).
-- Players have a self-service shell + installable PWA portal (PIN/QR, balance,
-  self-extend, online top-up).
+- Players use the Flutter app (`src/afk4_customer_app`) on their phone and the
+  Player Shell on the gaming PC itself. The separate React player web
+  (`AFK4.Customer.Web`) was removed on 2026-09-02: the Flutter app already builds
+  for the web, so a link without an install is covered by the same app.
+  iOS is not built at all yet — Android and web only.
 - Backend is a .NET 10 ASP.NET Core modular monolith on PostgreSQL.
 - Gaming PCs run the Windows Agent Service + Player Shell; manager workstations
   run the Organization Admin.
@@ -52,8 +55,8 @@ SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
 - **Anti-fraud controls** — manager review/approval, caps, daily owner summary.
 - **Offline-resilience** — Agent grace mode, offline lease extension, command
   + billing outbox, adaptive heartbeat.
-- **Customer portal (PWA) + customer shell** — player auth, self-service,
-  online top-up.
+- **Player shell on the gaming PC** — player auth, self-service extend, shop,
+  cashback, news.
 - **Notifications backbone** — MailKit SMTP transport, dispatcher, outbox,
   contact fields + preferences; staff/owner password-reset backend.
 - **Localization** — ru/en/tg catalog (`locales/*.json` + `packages/i18n`),
@@ -359,6 +362,29 @@ Latest Verification).
 
 ## Latest Verification
 
+- Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
+  removed: the switched-off WPF Organization Admin (8884 lines + 23 test files),
+  the React player web, and the unused `AFK4.BuildingBlocks` project — about
+  24 000 lines and one styling stack. **The release path was broken and nobody
+  saw it:** `scripts/register-update-package-requests.ps1` still posted to the
+  club-scoped update routes that moved to the platform level, so `Package Smoke`
+  had been red on every push to `main` since 2026-08-21. The script now speaks
+  the platform contract; package registration was taken out of the smoke run
+  entirely, because that route needs a platform-admin session and that session is
+  behind two-factor — a bypass token for CI was refused. Package Smoke is green
+  again (first green since 2026-08-21) and staging deploys.
+  Removing the dead stacks broke the staging deploy once: three Dockerfiles still
+  copied the deleted paths, and `deploy/**` was in no PR path filter. Both fixed —
+  the directory now triggers checks and a test asserts every `COPY` source
+  exists.
+  Added in the same round: in-app push handling in the player app (a notification
+  now opens the screen it is about; a test caught that the in-app banner sat
+  under the bottom navigation and its button hit «Профиль» instead), a narrow
+  Biome lint gate on the web workspaces (it caught a shadowed `escape` that would
+  have URL-encoded the audit CSV export), 27 tests for the setup-wizard host
+  bridge (moved into `SetupWizard.Core` so it is testable off Windows), and 16
+  tests for the dashboard summary calculation.
+
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
@@ -544,11 +570,33 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   need a native WebView2 visual pass at 100%/125% scaling in dark and light
   themes together with the broader clean `manager_workstation` smoke below.
 
+- **The gaming PC does not actually lock.** `WorkstationLockController` is the
+  only registered implementation and both of its methods just write a log line.
+  Everything above it is real — the enforcement coordinator, grace mode, lease
+  validation — but the workstation is never locked. What holds a player today is
+  the shell window (`Topmost`, borderless) plus killing denied processes, and
+  Alt+Tab or the Windows key go around both. Three smaller holes sit next to it:
+  the launcher app list is hardcoded empty (`Worker.cs:362`) so the shell shows
+  no games; an unknown device command is answered "accepted" and does nothing;
+  the installed-app inventory and session reconciliation run once per service
+  start, not on a schedule. **By the owner's decision (2026-09-03) the gaming PC
+  is the last part to be worked on, after everything else is production-ready.**
+
+- **Release registration needs a human.** Registering an update package is a
+  platform-admin action behind two-factor, so CI cannot do it: `Package Smoke`
+  builds, signs and publishes artifacts and verifies the stable installer, then
+  prints what is waiting to be registered in Platform Control. A machine
+  credential scoped to `platform.updates.packages.manage` would give CI that step
+  back — an open policy decision, recorded in
+  `docs/operations/update-package-publishing.md`.
+
 - **Per-environment SMTP config** still needs the user's real connection
   details wired into `NotificationOptions`. Email is now the only notification
   channel not proven against a real provider: SMS and Android push are.
-- **iOS side of the mobile app** — no APNs key, no iOS build, no delivery
-  evidence. Android is verified end to end; iOS is untouched.
+- **iOS side of the mobile app** — no APNs key, no iOS build, no `ios` folder at
+  all. Android is verified end to end, and since 2026-09-03 the app also handles
+  an incoming notification: tapping one opens the screen it is about. iOS is
+  untouched.
 - **Capacity is checked by machine count, so two cases stay open by design.** A
   branch with no attached, approved gaming PC is treated as unlimited — an
   unconfigured branch should not explain its own misconfiguration to a player. And a
@@ -565,9 +613,8 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   change what an operator's session means and need a product decision. Fixed
   duration and extensions are already handled: they are refused outside the
   tariff's hours, and the minutes each of them billed keep their own price.
-- **Operator entity search** is still deferred: the command palette navigates
-  between workspaces but does not yet search clients, seats, reservations,
-  orders, or receipts.
+- **Operator entity search** is half-closed: the command palette finds people
+  (#202) but still does not search seats, reservations, orders, or receipts.
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
   `manager_workstation` install at 100%/125% scaling and run the physical Windows
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
@@ -585,24 +632,28 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Recommended Next Work
 
-The revenue wave for the mobile app is in progress; the rest is the Windows side
-and the operational backlog.
+The order changed on 2026-09-03 by the owner's decision: **the gaming PC is done
+last**, after every other part is production-ready. Everything below is that
+"everything else".
 
-1. Revenue wave 2 is complete in code: hour packages, group booking, refer a
-   friend, the booking capacity check and off-peak pricing are all merged. **None of
-   the five has been on a phone or against staging.** They are all money paths, and
-   the live device pass earlier in this work found two defects that 2000+ tests did
-   not. Referral is off by default and has to be switched on in «Платежи и
-   лояльность» first; off-peak needs a tariff with hours set in «Тарифы и пакеты».
-   The accepted cost of the scheduled-tariff model is worth re-checking on real
-   traffic: a session started at 11:50 on the cheap morning tariff runs to 15:00 at
-   the morning price, the same way the operator's manual tariff choice already
-   behaves.
-2. Return to the production-readiness backlog: repeat the
-   Operator day flow from a clean `manager_workstation` install at 100%/125%,
-   then run the physical Windows 10/11 gaming-PC Agent/Shell smoke. These need
-   physical hardware and are the last functional evidence gap.
-3. Wire real per-environment SMTP settings and work through the remaining
-   pre-production decisions in the production-readiness roadmap.
-4. Decide whether iOS is in scope before launch. If it is, it needs an APNs key,
-   an Apple developer account, and a device pass equivalent to the Android one.
+1. **Live pass over the revenue wave.** Hour packages, group booking, refer a
+   friend, the booking capacity check and off-peak pricing are all merged, and
+   **none of the five has been on a phone or against staging.** They are money
+   paths, and the last live pass found two defects that 2000+ tests had not.
+   Referral is off by default and is switched on in «Платежи и лояльность»;
+   off-peak needs a tariff with hours set in «Тарифы и пакеты».
+2. **Real per-environment SMTP.** The reset-password backend, the screen and the
+   MailKit transport all exist; the connection details do not. Email is the only
+   notification channel not proven against a real provider.
+3. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
+   Authenticode custody, production object store/CDN, package-registration
+   credentials, backup encryption/retention/ownership, an incident and rollback
+   checklist.
+4. **Decide whether iOS ships at launch.** If yes: an Apple developer account,
+   an APNs key, an `ios` build target, and a device pass equal to the Android one.
+5. **Clean `manager_workstation` pass** at 100%/125% scaling — the last piece of
+   evidence that does not need the gaming PC.
+6. **Then the gaming PC**, in one piece: a real workstation lock and kiosk mode,
+   the launcher list, honest answers to unknown commands, scheduled inventory,
+   and «позвать оператора» reaching the counter. Only after that does the
+   physical Windows smoke have anything to prove.

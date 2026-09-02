@@ -1,74 +1,34 @@
-# Plan Navigation
+# Планы реализации
 
-Implementation plans for completed work are archived once their work lands on
-`main`. The active plans are:
+Здесь лежат только планы незакрытой работы. План уезжает в
+`../../archive/superpowers/plans/` в тот же заход, когда его работа влилась в `main`:
+папка «активных» планов, где половина уже сделана, врёт о состоянии проекта дороже, чем
+экономит времени.
 
-- `2026-07-29-platform-control-rebuild.md` — replaces Platform Control with an
-  organization-centered internal application for Platform Owner and Platform
-  Support, with canonical resource pages and permission-derived navigation.
-  Landed on `main` in `fe41963d`; its visual and screen-structure decisions are
-  superseded by the UI redesign plan below. Archive both this plan and its spec
-  once the redesign lands.
-- `2026-08-03-platform-control-ui-redesign.md` — rebuilds the Platform Control
-  screens around a fleet-pulse main view with signal rows, a passport-plus-tabs
-  client card, the shared `@afk4/tokens` language, and the operational levers
-  (client profile editing, full subscription terms, payment grace, per-client
-  update channel, owner transfer). All nine tasks are implemented on its topic
-  branch and the local gate is green; three EF migrations
-  (`AddOrganizationContactFields`, `AddSubscriptionPaymentGrace`,
-  `AddOrganizationUpdateChannel`) must be applied to staging by hand before the
-  deploy workflow will run. Archive this plan and its spec once the work lands
-  on `main`.
-- `2026-07-29-platform-update-release-control.md` — moves package publication
-  and deterministic rollout into Platform Control and release automation.
-- `2026-07-29-organization-admin-maintenance-updates.md` — coordinates Agent and
-  Organization Admin around critical work and maintenance windows.
-- `2026-07-29-client-update-known-good-recovery.md` — replaces fake rollback
-  with verified last-known-good storage, startup health, and recovery.
-- `2026-07-29-organization-admin-reports-redesign.md` — replaces the
-  transitional Reports UI with the three approved owner-facing destinations;
-  the backend-authoritative timezone, trend, comparison, and combined-export
-  projection remains the next task in that plan.
+Обновлено 03.09.2026: 51 отгруженный план переехал в архив — вся волна платформенной
+администрации (август), вся волна приложения игрока, разделение Platform Control и
+Organization Admin, перестройка и редизайн панели платформы, релизное управление
+обновлениями.
 
-- `2026-07-28-platform-organization-big-bang-migration.md` — atomically
-  separates Platform Control and Organization Admin across auth domains, APIs,
-  roles, permissions, projects, migration, packaging, and release gates.
-- `2026-07-28-platform-control-club-removal.md` — removes the obsolete browser
-  `/club` workspace after Operator parity certification while preserving the
-  platform-owner/support Platform Control.
+## Активные планы
 
-- `2026-07-28-operator-unified-admin-parity-closure.md` — closes required
-  Clients, Monetization, Settings, and Venue gaps and provides the certificate
-  used by the current Platform Control `/club` removal project.
-- `2026-07-15-operator-reports-workspace-consolidation.md` — implements the
-  approved Reports center, Cash/Events/Stock ownership model, and secure
-  contextual second-manager confirmation before removing the legacy approvals
-  inbox.
-- `2026-06-11-installer-shared-runtime-workstream-a.md` — shared-runtime client
-  installer workstream; blocked on the production signing/certificate decision.
+- `2026-06-11-installer-shared-runtime-workstream-a.md` — общий рантайм в установщике
+  клиентских приложений. **Заблокирован** решением о production-сертификате подписи: пока
+  не назван владелец сертификата и политика хранения ключа, работу начинать нечем.
+- `2026-07-29-organization-admin-reports-redesign.md` — три утверждённых экрана отчётов
+  владельца сделаны; **не закрыт хвост**: серверный часовой пояс, тренд, сравнение периодов
+  и общий экспорт одной проекцией.
 
-The SP3 admin/billing redesign, the whole SP4 wave (counter-loop, anti-fraud,
-offline-resilience, customer portal/shell, notifications, localization,
-realtime, dcgate payments), the phone/email staff-identity wave, the
-customer-shell WebView2 pivot + Unit F (shop/loyalty/news), shared-AFK4
-Telegram payments, shift-revenue reporting, Operator UI consolidation/QA, and
-the commerce/booking financial-integrity wave are implemented and merged. The
-Operator cash-terminal redesign and authoritative system footer are implemented
-and archived on their completed topic branch pending integration. The
-2026-07-14 native Operator staging day-flow smoke and its P0 financial fixes are
-also complete and archived.
+## Что делать с новым планом
 
-When you start new work, add its plan file here, then move it to the archive
-once it ships.
+Добавить файл сюда и строку в этот список. Работа влилась — перенести файл в архив и
+убрать строку. Если план оказался ненужным, его тоже переносят в архив, дописав в шапке
+одну строку о том, почему от него отказались.
 
-## Archive
+## Связанное
 
-All shipped phase, redesign, and SP3/SP4 plans live in
-`docs/archive/superpowers/plans/`. Use them when you need the original
-implementation context or design rationale for already-merged work.
-
-## Related
-
-- Architecture source of truth: `../specs/2026-05-12-afk4-platform-architecture-design.md`
-- Operational/production roadmap: `../../roadmap/production-readiness.md`
-- Current-state snapshot: `../../progress/2026-05-12-vertical-slice-progress.md`
+- Архитектурный источник правды: `../specs/2026-05-12-afk4-platform-architecture-design.md`
+- Индекс спек: `../specs/README.md`
+- Операционная дорожная карта: `../../roadmap/production-readiness.md`
+- Снимок текущего состояния: `../../progress/2026-05-12-vertical-slice-progress.md`
+- Архив отгруженных планов: `../../archive/superpowers/plans/`
