@@ -118,7 +118,6 @@ trusted authority for sessions, billing, or authorization.
 
 ### Shared Projects
 
-- `src/AFK4.BuildingBlocks` - low-level domain primitives.
 - `src/AFK4.Shared.Contracts` - DTOs shared by backend, Organization Admin, Agent,
   and Shell.
 - `src/AFK4.Update.Publisher` - CLI for publishing update artifacts and signed

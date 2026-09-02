@@ -1,8 +1,0 @@
-node_modules/
-dist/
-*.tsbuildinfo
-.vite/
-
-# Local UI preview harness (standalone demo.html entry; not part of the build)
-demo.html
-src/preview/

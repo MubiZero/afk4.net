@@ -451,10 +451,10 @@ jobs:
             throw "AFK4_UPDATE_REGISTRATION_TOKEN secret is required when register_update_packages=true."
           }
 
+          # Токен здесь — платформенный: пакет заводится на всю сеть, и маршрут
+          # /api/platform/updates/* принимает только сессию администратора платформы.
           $arguments = @(
             '-PlatformBaseUrl', $env:INPUT_PLATFORM_BASE_URL,
-            '-OrganizationId', $env:INPUT_ORGANIZATION_ID,
-            '-BranchId', $env:INPUT_BRANCH_ID,
             '-RequestDirectory', 'artifacts/update-packages',
             '-AccessTokenEnvVar', 'AFK4_UPDATE_REGISTRATION_TOKEN')
 
@@ -462,9 +462,25 @@ jobs:
             $arguments += @('-CreateRollouts')
             $arguments += @('-RolloutComponent', $env:INPUT_ROLLOUT_COMPONENT)
             $arguments += @('-RolloutTargetKind', $env:INPUT_ROLLOUT_TARGET_KIND)
-            if (-not [string]::IsNullOrWhiteSpace($env:INPUT_ROLLOUT_TARGET_DEVICE_ID)) {
-              $arguments += @('-RolloutTargetDeviceId', $env:INPUT_ROLLOUT_TARGET_DEVICE_ID)
+
+            switch ($env:INPUT_ROLLOUT_TARGET_KIND) {
+              'device' {
+                if ([string]::IsNullOrWhiteSpace($env:INPUT_ROLLOUT_TARGET_DEVICE_ID)) {
+                  throw "rollout_target_device_id is required when rollout_target_kind=device."
+                }
+                $arguments += @('-RolloutDeviceId', $env:INPUT_ROLLOUT_TARGET_DEVICE_ID)
+              }
+              'branch' {
+                if ([string]::IsNullOrWhiteSpace($env:INPUT_BRANCH_ID)) {
+                  throw "branch_id is required when rollout_target_kind=branch."
+                }
+                $arguments += @('-RolloutBranchId', $env:INPUT_BRANCH_ID)
+              }
+              default {
+                throw "rollout_target_kind '$($env:INPUT_ROLLOUT_TARGET_KIND)' is not supported here; create network-wide rollouts from Platform Control."
+              }
             }
+
             if (-not [string]::IsNullOrWhiteSpace($env:INPUT_ROLLOUT_REASON)) {
               $arguments += @('-RolloutReason', $env:INPUT_ROLLOUT_REASON)
             }

@@ -9,7 +9,6 @@ on:
       - "deploy/coolify/**"
       - "src/AFK4.Platform.Api/**"
       - "src/AFK4.Shared.Contracts/**"
-      - "src/AFK4.BuildingBlocks/**"
       - "Directory.Build.props"
       - "Directory.Packages.props"
       - "NuGet.config"

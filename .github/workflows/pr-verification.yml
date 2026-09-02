@@ -57,7 +57,6 @@ jobs:
             "packages/",
             "src/AFK4.PlatformControl.Web/",
             "src/AFK4.OrganizationAdmin.Web/",
-            "src/AFK4.Customer.Web/",
             "src/AFK4.SetupWizard.Web/",
             "src/AFK4.Player.Shell.Web/"
           )
@@ -219,7 +218,7 @@ jobs:
             packages/formatting packages/i18n packages/money \
             packages/tokens packages/ui \
             src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
-            src/AFK4.Customer.Web src/AFK4.SetupWizard.Web \
+            src/AFK4.SetupWizard.Web \
             src/AFK4.Player.Shell.Web; do
             echo "::group::test $dir"
             # Run each workspace's own `test` script, not a bare `bun test`: Organization Admin
@@ -235,7 +234,7 @@ jobs:
           set -e
           for dir in \
             src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
-            src/AFK4.Customer.Web src/AFK4.SetupWizard.Web \
+            src/AFK4.SetupWizard.Web \
             src/AFK4.Player.Shell.Web; do
             echo "::group::build $dir"
             (cd "$dir" && bun run build)

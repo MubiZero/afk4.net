@@ -60,7 +60,7 @@ detect_lanes() {
         run_dotnet=dotnet ;;
     esac
     case "$path" in
-      packages/*|src/AFK4.PlatformControl.Web/*|src/AFK4.OrganizationAdmin.Web/*|src/AFK4.Customer.Web/*|src/AFK4.SetupWizard.Web/*|src/AFK4.Player.Shell.Web/*|package.json|bun.lock|bunfig.toml|.github/workflows/pr-verification.yml)
+      packages/*|src/AFK4.PlatformControl.Web/*|src/AFK4.OrganizationAdmin.Web/*|src/AFK4.SetupWizard.Web/*|src/AFK4.Player.Shell.Web/*|package.json|bun.lock|bunfig.toml|.github/workflows/pr-verification.yml)
         run_web=web ;;
     esac
     case "$path" in
@@ -140,7 +140,7 @@ lane_dotnet() {
   # WindowsOnly — здесь они сообщаются пропущенными, а в Windows-джобе CI идут по-настоящему.
   for project in \
     tests/AFK4.Platform.Api.Tests tests/AFK4.Shared.Contracts.Tests \
-    tests/AFK4.Agent.Service.Tests tests/AFK4.BuildingBlocks.Tests \
+    tests/AFK4.Agent.Service.Tests \
     tests/AFK4.Localization.Tests tests/AFK4.SetupWizard.Tests \
     tests/AFK4.Update.Publisher.Tests; do
     echo "── $project"
@@ -156,7 +156,7 @@ lane_web() {
     packages/formatting packages/i18n packages/money \
     packages/tokens packages/ui \
     src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
-    src/AFK4.Customer.Web src/AFK4.SetupWizard.Web \
+    src/AFK4.SetupWizard.Web \
     src/AFK4.Player.Shell.Web; do
     echo "── test $dir"
     (cd "$dir" && bun run test)
@@ -165,7 +165,7 @@ lane_web() {
   # Сборка — это ещё и проверка типов: `bun test` типы не смотрит, и ошибка доезжает до CI.
   for dir in \
     src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
-    src/AFK4.Customer.Web src/AFK4.SetupWizard.Web \
+    src/AFK4.SetupWizard.Web \
     src/AFK4.Player.Shell.Web; do
     echo "── build $dir"
     (cd "$dir" && bun run build)

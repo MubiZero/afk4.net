@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\AFK4.BuildingBlocks\AFK4.BuildingBlocks.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

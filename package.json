@@ -6,7 +6,6 @@
     "packages/*",
     "src/AFK4.PlatformControl.Web",
     "src/AFK4.OrganizationAdmin.Web",
-    "src/AFK4.Customer.Web",
     "src/AFK4.SetupWizard.Web",
     "src/AFK4.Player.Shell.Web"
   ],

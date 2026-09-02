@@ -252,41 +252,50 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
 POST the generated JSON to:
 
 ```text
-POST /api/organizations/{organizationId}/branches/{branchId}/updates/packages
+POST /api/platform/updates/packages
 ```
 
-The staff token must include `updates.packages.manage`. Register generated
-request JSON files with a short-lived token supplied outside the repository:
+Release registration belongs to the platform, not to a club: a package is
+registered once for the whole network, and a rollout then targets
+organizations, branches, or individual devices. The token must therefore be a
+platform administrator session carrying
+`platform.updates.packages.manage` — a club staff token is rejected on these
+routes.
+
+Platform administrator sign-in always clears two-factor authentication, so this
+token cannot be minted non-interactively. That is deliberate: registering a
+release is a human decision. Register from Platform Control, or run the script
+with a token you already hold:
 
 ```powershell
-$env:AFK4_UPDATE_REGISTRATION_TOKEN = 'example-short-lived-staff-access-token'
+$env:AFK4_UPDATE_REGISTRATION_TOKEN = 'example-short-lived-platform-admin-access-token'
 
 powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
   -PlatformBaseUrl https://platform.afk4.example `
-  -OrganizationId '<organization-id>' `
-  -BranchId acfc0212-967f-4d84-94be-9003387b09c2 `
   -RequestDirectory artifacts/update-packages `
   -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
 ```
 
-By default, registration leaves package state as `registered`. A human or
-Organization Admin workflow can validate packages and create rollouts using
+The script posts only the fields of the platform contract; the `organizationId`
+left in the generated request JSON by `AFK4.Update.Publisher` is not sent.
+
+By default, registration leaves package state as `registered`. A human can then
+validate packages and create rollouts using
 `docs/operations/client-update-rollout.md`.
 
 For staging/internal smoke, the script can create a rollout immediately after
-registration:
+registration. The target ids depend on the rollout kind — `-RolloutDeviceId`,
+`-RolloutBranchId` or `-RolloutOrganizationId`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
   -PlatformBaseUrl https://afk4.staging.mubi.dev `
-  -OrganizationId '<organization-id>' `
-  -BranchId acfc0212-967f-4d84-94be-9003387b09c2 `
   -RequestDirectory artifacts/update-packages `
   -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
   -CreateRollouts `
   -RolloutComponent agent-service `
   -RolloutTargetKind device `
-  -RolloutTargetDeviceId '<device-id>' `
+  -RolloutDeviceId '<device-id>' `
   -RolloutReason "Internal Agent Service smoke rollout."
 ```
 
@@ -296,17 +305,25 @@ URLs. The workflow compares the dispatch `platform_base_url` input with that
 allowlist before using `AFK4_UPDATE_REGISTRATION_TOKEN`, so the token cannot be
 sent to arbitrary dispatch input hosts.
 
-The `Package Smoke` workflow can publish staging artifacts to MinIO and create
-an internal device rollout when these repository variables/secrets are present:
+The `Package Smoke` workflow builds the MSIs, publishes staging artifacts and
+signed metadata to MinIO, and verifies the stable Organization Admin installer.
+It does **not** register packages or create rollouts: that needs a platform
+administrator token, which cannot exist in CI without weakening two-factor
+authentication. The workflow instead prints the packages awaiting registration;
+register them in Platform Control.
+
+Required for the workflow:
 
 - variables: `AFK4_STAGING_PLATFORM_BASE_URL`, `AFK4_STAGING_ORGANIZATION_ID`,
   `AFK4_STAGING_BRANCH_ID`, `AFK4_STAGING_MINIO_ENDPOINT`,
-  `AFK4_STAGING_MINIO_BUCKET`, `AFK4_STAGING_UPDATE_PUBLIC_BASE_URI`,
-  `AFK4_STAGING_UPDATE_TARGET_DEVICE_ID`, `AFK4_ALLOWED_PLATFORM_BASE_URLS`;
+  `AFK4_STAGING_MINIO_BUCKET`, `AFK4_STAGING_UPDATE_PUBLIC_BASE_URI`;
 - secrets: `AFK4_UPDATE_SIGNING_KEY_PEM`,
-  `AFK4_STAGING_MINIO_ACCESS_KEY`, `AFK4_STAGING_MINIO_SECRET_KEY`,
-  `AFK4_STAGING_UPDATE_STAFF_USERNAME`,
-  `AFK4_STAGING_UPDATE_STAFF_PASSWORD`.
+  `AFK4_STAGING_MINIO_ACCESS_KEY`, `AFK4_STAGING_MINIO_SECRET_KEY`.
+
+Open decision: a dedicated machine credential for release registration (scoped
+to `platform.updates.packages.manage`, without an interactive second factor)
+would let CI register internal builds again. Until that policy is settled,
+registration stays a human action.
 
 For Organization Admin, Package Smoke also atomically replaces the stable
 compatibility-download object after the immutable versioned MSI has been
