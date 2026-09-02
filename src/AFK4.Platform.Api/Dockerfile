@@ -5,7 +5,6 @@ WORKDIR /src
 
 COPY ["global.json", "./"]
 COPY ["Directory.Build.props", "./"]
-COPY ["src/AFK4.BuildingBlocks/AFK4.BuildingBlocks.csproj", "src/AFK4.BuildingBlocks/"]
 COPY ["src/AFK4.Shared.Contracts/AFK4.Shared.Contracts.csproj", "src/AFK4.Shared.Contracts/"]
 COPY ["src/AFK4.Platform.Api/AFK4.Platform.Api.csproj", "src/AFK4.Platform.Api/"]
 

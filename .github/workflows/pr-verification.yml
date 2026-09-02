@@ -39,6 +39,7 @@ jobs:
           $changed = git diff --name-only "$base...$head"
           $relevantPrefixes = @(
             ".github/workflows/",
+            "deploy/",
             "installers/",
             "scripts/",
             "src/",

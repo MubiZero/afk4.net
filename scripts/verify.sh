@@ -56,7 +56,7 @@ detect_lanes() {
   local run_dotnet='' run_web='' run_flutter=''
   while IFS= read -r path; do
     case "$path" in
-      .github/workflows/*|installers/*|scripts/*|src/*|tests/*|AFK4.sln|.config/dotnet-tools.json|Directory.Build.props|Directory.Packages.props|global.json|NuGet.config)
+      .github/workflows/*|deploy/*|installers/*|scripts/*|src/*|tests/*|AFK4.sln|.config/dotnet-tools.json|Directory.Build.props|Directory.Packages.props|global.json|NuGet.config)
         run_dotnet=dotnet ;;
     esac
     case "$path" in
