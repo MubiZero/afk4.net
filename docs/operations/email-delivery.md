@@ -131,5 +131,6 @@ Notifications__FromName=AFK4
 
 - `docs/operations/coolify-staging-deploy.md` — где лежит приложение и как его передеплоить.
 - `deploy/coolify/staging.env.template` — полный список переменных среды.
+- `docs/operations/dns-and-hosts.md` — остальная зона `afk4.net`: что заведено, что нет и почему.
 - `docs/roadmap/production-readiness.md` — почта числится там открытым пунктом до тех пор,
   пока шаг 4 не пройден на живой среде.
