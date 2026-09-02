@@ -590,6 +590,7 @@
       }
     }
   },
+  "customerPushOpen": "Кушодан",
   "customerReceiptLoadError": "Чекро бор кардан муяссар нашуд.",
   "customerReceiptNotFound": "Чек ёфт нашуд",
   "customerReceiptOpenLink": "Чек →",

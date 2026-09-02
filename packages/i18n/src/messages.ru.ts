@@ -409,6 +409,7 @@ export const ru = {
   "customer.progress.maxLevel": "Максимальный уровень",
   "customer.progress.title": "Ваш стаж",
   "customer.progress.toNext": "До следующего уровня — {hours} ч",
+  "customer.push.open": "Открыть",
   "customer.receipt.loadError": "Не удалось загрузить чек.",
   "customer.receipt.notFound": "Чек не найден",
   "customer.receipt.openLink": "Чек →",

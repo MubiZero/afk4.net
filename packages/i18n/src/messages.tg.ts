@@ -409,6 +409,7 @@ export const tg = {
   "customer.progress.maxLevel": "Сатҳи баландтарин",
   "customer.progress.title": "Собиқаи шумо",
   "customer.progress.toNext": "То сатҳи оянда — {hours} соат",
+  "customer.push.open": "Кушодан",
   "customer.receipt.loadError": "Чекро бор кардан муяссар нашуд.",
   "customer.receipt.notFound": "Чек ёфт нашуд",
   "customer.receipt.openLink": "Чек →",

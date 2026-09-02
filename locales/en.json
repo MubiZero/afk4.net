@@ -408,6 +408,7 @@
   "customer.progress.maxLevel": "Top level reached",
   "customer.progress.title": "Your record",
   "customer.progress.toNext": "{hours} h to the next level",
+  "customer.push.open": "Open",
   "customer.receipt.loadError": "Couldn't load the receipt.",
   "customer.receipt.notFound": "Receipt not found",
   "customer.receipt.openLink": "Receipt →",

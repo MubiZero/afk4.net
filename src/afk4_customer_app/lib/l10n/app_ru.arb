@@ -590,6 +590,7 @@
       }
     }
   },
+  "customerPushOpen": "Открыть",
   "customerReceiptLoadError": "Не удалось загрузить чек.",
   "customerReceiptNotFound": "Чек не найден",
   "customerReceiptOpenLink": "Чек →",
