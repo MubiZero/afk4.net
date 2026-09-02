@@ -140,7 +140,7 @@ lane_dotnet() {
   # WindowsOnly — здесь они сообщаются пропущенными, а в Windows-джобе CI идут по-настоящему.
   for project in \
     tests/AFK4.Platform.Api.Tests tests/AFK4.Shared.Contracts.Tests \
-    tests/AFK4.Agent.Service.Tests tests/AFK4.BuildingBlocks.Tests \
+    tests/AFK4.Agent.Service.Tests \
     tests/AFK4.Localization.Tests tests/AFK4.SetupWizard.Tests \
     tests/AFK4.Update.Publisher.Tests; do
     echo "── $project"

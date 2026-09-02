@@ -15,7 +15,6 @@ on:
       - "scripts/rollback-afk4-update-msi.ps1"
       - "scripts/restart-afk4-agent-service.ps1"
       - "src/AFK4.Shared.Contracts/**"
-      - "src/AFK4.BuildingBlocks/**"
       - "src/AFK4.OrganizationAdmin.App/**"
       - "src/AFK4.OrganizationAdmin.Web/**"
       - "src/AFK4.Agent.Service/**"

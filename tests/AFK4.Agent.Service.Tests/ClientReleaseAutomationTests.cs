@@ -673,7 +673,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("timeout-minutes: 60", workflow, StringComparison.Ordinal);
         Assert.Contains("- \".config/dotnet-tools.json\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.OrganizationAdmin.Web/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
@@ -752,7 +751,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \"deploy/coolify/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.Platform.Api/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
 
         // Ручное подтверждение убрано намеренно: миграции применяет pre-deployment command
         // контейнера, а блокирующий гард ровно один раз оставил staging на старой сборке

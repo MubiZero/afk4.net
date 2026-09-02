@@ -50,7 +50,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'customer.achievement.marathon',
     // «{club}, {hall}» — две подстановки и запятая: переводить нечего.
     'customer.friends.inHall',
-    'op.command.stage.cashier', 'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',
+    'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',
     'op.helper.appVer.shell', 'op.helper.audit.system', 'op.helper.billing.package', 'op.helper.deviceStatus.online',
     'op.helper.player.packageCount', 'op.helper.player.packageFallback', 'op.helper.player.platform', 'op.helper.player.tariffFallback',
     'op.helper.pos.receiptNumber', 'op.helper.pos.receiptType.fallback', 'op.helper.pos.saleState.fallback', 'op.helper.staff.operator',

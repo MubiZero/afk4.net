@@ -1,7 +1,6 @@
 {
   "@@locale": "en",
   "a11yClubMap": "Map of clubs",
-  "a11yLoading": "Loading",
   "a11yLoadingDashboard": "Loading data",
   "a11yLoadingProfile": "Loading profile",
   "a11yLoadingPurchases": "Loading purchases",
@@ -9,7 +8,6 @@
   "a11yLoadingReservations": "Loading reservations",
   "a11yLoadingVisits": "Loading visits",
   "a11yLoadingLedger": "Loading wallet movements",
-  "a11yReservationsRespondIn": "The club answers in:",
   "a11ySessionElapsed": "Session running:",
   "a11ySessionRemaining": "Time remaining:",
   "bookingRejectEvent": "A private event is booked for that time",
@@ -100,7 +98,6 @@
   },
   "customerClubPickerNoFreeSeats": "No free seats",
   "customerClubPickerNoRating": "No ratings yet",
-  "customerClubPickerOpen": "Choose",
   "customerClubPickerOpenAllDay": "Open around the clock",
   "customerClubPickerOpenUntil": "Open until {time}",
   "@customerClubPickerOpenUntil": {
@@ -127,14 +124,6 @@
     }
   },
   "customerClubPickerPriceUnknown": "Ask the club about prices",
-  "customerClubPickerReviews": "{count, plural, one {{count} review} other {{count} reviews}}",
-  "@customerClubPickerReviews": {
-    "placeholders": {
-      "count": {
-        "type": "num"
-      }
-    }
-  },
   "customerClubPickerSearch": "Search by name",
   "customerClubPickerSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
   "@customerClubPickerSeats": {
@@ -166,7 +155,6 @@
       }
     }
   },
-  "customerCommonLoadMore": "Show more",
   "customerCommonLoadMoreError": "Could not load more. Retry",
   "customerCommonLoading": "Loading…",
   "customerCommonRetry": "Retry",
@@ -175,14 +163,9 @@
   "customerCommonYesterday": "Yesterday",
   "customerDashboardAccrued": "accrued",
   "customerDashboardBalance": "Wallet balance",
-  "customerDashboardBookSeat": "Book a seat",
   "customerDashboardDebt": "Debt",
   "customerDashboardDebtNote": "You can settle the debt at the club desk",
-  "customerDashboardHeld": "Held for bookings",
-  "customerDashboardHeldNote": "It comes back if you cancel, or if the club does not answer.",
   "customerDashboardLoadError": "Couldn't load your data. Check your connection.",
-  "customerDashboardNoClub": "You have not started here yet",
-  "customerDashboardNoClubNote": "Your account at this club opens with the first booking or top-up.",
   "customerDashboardNoSession": "No active session",
   "customerDashboardPerHour": "{price} per hour",
   "@customerDashboardPerHour": {
@@ -196,7 +179,6 @@
   "customerDashboardSessionEnded": "Time is up",
   "customerDashboardSessionEndingSoon": "Time is running out",
   "customerDashboardSessionRemaining": "Remaining",
-  "customerDashboardWelcome": "Welcome back",
   "customerEventsCancel": "Not going",
   "customerEventsCancelConfirmFree": "Your spot goes back to the others.",
   "customerEventsCancelConfirmPaid": "The {price} entry fee returns to your wallet.",
@@ -346,15 +328,6 @@
   "customerLoyaltyEarned": "Earned as cashback",
   "customerLoyaltyEmpty": "No cashback yet",
   "customerLoyaltyEmptyHint": "It shows up after your first top-up or order.",
-  "customerLoyaltyEntry": "Earned {amount}",
-  "@customerLoyaltyEntry": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "customerLoyaltyEntryHint": "A share of top-ups and orders comes back to your wallet",
   "customerLoyaltyHistory": "Recent cashback",
   "customerLoyaltyLoadError": "Couldn't load cashback",
   "customerLoyaltyOff": "This club doesn't give cashback yet",
@@ -389,14 +362,10 @@
   "customerLoyaltySpendNote": "Cashback is ordinary wallet money: spend it on time and the bar.",
   "customerLoyaltyTitle": "Cashback",
   "customerNavDashboard": "Home",
-  "customerNavHistory": "History",
   "customerNavProfile": "Profile",
   "customerNavReservations": "Bookings",
   "customerNavWallet": "Wallet",
-  "customerNewsAll": "All news",
-  "customerNewsEmpty": "No news yet",
   "customerNewsTitle": "Club news",
-  "customerOfflineBanner": "Offline — showing saved data",
   "customerOfflineStale": "No connection — the data may be out of date",
   "customerPackagesBonus": "+{bonus} free",
   "@customerPackagesBonus": {
@@ -480,7 +449,6 @@
   "customerPhoneErrInUse": "Another player of this club already uses that number",
   "customerPhoneErrInvalidCode": "Wrong code",
   "customerPhoneErrInvalidPhone": "Check the phone number",
-  "customerPhoneErrRateLimited": "Too many codes this hour. Try later",
   "customerPhoneErrSms": "The SMS could not be sent. Try later",
   "customerPhoneErrTooManyAttempts": "Too many attempts — request a new code",
   "customerPhoneIntro": "We will text you a code to confirm the number is yours.",
@@ -505,7 +473,6 @@
     }
   },
   "customerPhoneTitle": "Confirm your number",
-  "customerPinCancel": "Cancel",
   "customerPinChange": "Change PIN",
   "customerPinDone": "PIN saved",
   "customerPinErrFormat": "A PIN is 4 to 8 digits",
@@ -513,28 +480,16 @@
   "customerPinErrSave": "Couldn't save the PIN",
   "customerPinField": "New PIN",
   "customerPinForgot": "Forgot your PIN? Just set a new one — we won't ask for the old one.",
-  "customerPinForgotNote": "We never ask for the old PIN — forgot it, just set a new one.",
-  "customerPinHint": "4 to 8 digits",
   "customerPinIntro": "Type it with your phone number on the PC screen and take a seat yourself, without the staff.",
-  "customerPinInvalid": "A PIN is 4 to 8 digits",
-  "customerPinIsSet": "PIN is set",
-  "customerPinNetworkNote": "One PIN works across every club in the network.",
-  "customerPinNotSet": "No PIN yet",
-  "customerPinNote": "Type it on the gaming PC and seat yourself, without an administrator.",
   "customerPinRepeat": "Repeat the PIN",
   "customerPinRule": "4 to 8 digits",
   "customerPinSave": "Save",
-  "customerPinSaveError": "Could not save the PIN",
-  "customerPinSaved": "PIN saved",
   "customerPinSaving": "Saving…",
   "customerPinScope": "The PIN works in every club. You don't need it for the app — you sign in here with an SMS code.",
   "customerPinSet": "Set a PIN",
   "customerPinStateSet": "PIN is set",
   "customerPinStateUnset": "No PIN yet — for now the staff seats you at a PC",
   "customerPinTitle": "PIN for sitting down at a PC",
-  "customerPlayBusyOffline": "PC is off",
-  "customerPlayBusyReservation": "Booked",
-  "customerPlayBusySession": "Taken",
   "customerPlayCode": "Code from the computer screen",
   "customerPlayCodeHint": "Six digits shown by a free PC",
   "customerPlayConfirm": "Start for {amount}",
@@ -555,9 +510,7 @@
   "customerPlayNoSeatsHint": "Ask at the desk; they'll tell you when one frees up.",
   "customerPlayNoTariffs": "The club has not set prices yet",
   "customerPlayNoTariffsHint": "You cannot start a session from the app. Ask at the desk — an attendant will seat you.",
-  "customerPlayPickSeat": "Pick a free seat",
   "customerPlayPickTariff": "Pick a rate",
-  "customerPlaySeat": "Seat",
   "customerPlaySeatsFree": "Free seats: {count}",
   "@customerPlaySeatsFree": {
     "placeholders": {
@@ -628,7 +581,6 @@
     }
   },
   "customerProgressMaxLevel": "Top level reached",
-  "customerProgressOpen": "Record and achievements",
   "customerProgressTitle": "Your record",
   "customerProgressToNext": "{hours} h to the next level",
   "@customerProgressToNext": {
@@ -733,17 +685,7 @@
     }
   },
   "customerReservationsHoldNote": "The amount is held on your wallet and comes back if you cancel",
-  "customerReservationsLimitReached": "No more requests for now — wait for an answer on the current ones.",
   "customerReservationsLoadError": "Failed to load reservations.",
-  "customerReservationsModeManual": "An administrator reviews the request and answers within {minutes, plural, one {{minutes} minute} other {{minutes} minutes}}.",
-  "@customerReservationsModeManual": {
-    "placeholders": {
-      "minutes": {
-        "type": "num"
-      }
-    }
-  },
-  "customerReservationsModeOff": "This branch is not taking bookings from the app right now.",
   "customerReservationsNewTitle": "New booking",
   "customerReservationsNoFunds": "Your wallet doesn't cover this booking; top it up and try again",
   "customerReservationsNoSeat": "No seat",
@@ -751,7 +693,6 @@
   "customerReservationsNone": "No bookings yet",
   "customerReservationsNoneHint": "A booking holds the PC you picked until you arrive",
   "customerReservationsNotChosen": "Not chosen",
-  "customerReservationsPrepayment": "We hold the booking amount on your wallet until you arrive.",
   "customerReservationsPrice": "You'll pay {amount}",
   "@customerReservationsPrice": {
     "placeholders": {
@@ -786,14 +727,6 @@
       }
     }
   },
-  "customerReservationsRespondIn": "The club answers within {clock}",
-  "@customerReservationsRespondIn": {
-    "placeholders": {
-      "clock": {
-        "type": "String"
-      }
-    }
-  },
   "customerReservationsRespondLeft": "{minutes, plural, one {{minutes} minute left} other {{minutes} minutes left}}",
   "@customerReservationsRespondLeft": {
     "placeholders": {
@@ -802,7 +735,6 @@
       }
     }
   },
-  "customerReservationsRespondNote": "If it does not answer in time, the request drops and the money comes back in full.",
   "customerReservationsRespondOver": "The club did not answer in time — the request will be cancelled and the money returned.",
   "customerReservationsRespondSoon": "less than a minute left",
   "customerReservationsRuleManual": "A member of staff reviews each request — usually within {minutes} min.",
@@ -928,10 +860,7 @@
   },
   "customerShopLoadError": "Couldn't load the menu",
   "customerShopNewOrder": "Order more",
-  "customerShopOpen": "Order to your seat",
-  "customerShopOpenHint": "Food and drinks are brought to your PC",
   "customerShopOrderTitle": "Your order",
-  "customerShopOutOfStock": "Out of stock",
   "customerShopPlace": "Order for {amount}",
   "@customerShopPlace": {
     "placeholders": {
@@ -947,31 +876,9 @@
   "customerShopStatusPlaced": "Order received, preparing it",
   "customerShopTitle": "Order to your seat",
   "customerShopTotal": "Total",
-  "customerSigninAccountDisabled": "This number is closed. Ask at the club counter.",
   "customerSigninBlocked": "This account is closed. Ask the club for help.",
-  "customerSigninByCode": "Sign in with an SMS code",
-  "customerSigninByPassword": "Sign in with a password",
-  "customerSigninChangePhone": "Use another number",
-  "customerSigninCode": "Code from the SMS",
   "customerSigninCodeError": "Wrong code",
-  "customerSigninCodeExpired": "The code expired — request a new one",
-  "customerSigninCodeLifetime": "The code is valid for {minutes, plural, one {{minutes} minute} other {{minutes} minutes}}.",
-  "@customerSigninCodeLifetime": {
-    "placeholders": {
-      "minutes": {
-        "type": "num"
-      }
-    }
-  },
   "customerSigninCodeNone": "No code was requested, or it has already been used",
-  "customerSigninCodeSent": "Code sent to {phone}, if such a player exists at this club.",
-  "@customerSigninCodeSent": {
-    "placeholders": {
-      "phone": {
-        "type": "String"
-      }
-    }
-  },
   "customerSigninCodeSentAny": "Code sent to {phone}",
   "@customerSigninCodeSentAny": {
     "placeholders": {
@@ -980,16 +887,7 @@
       }
     }
   },
-  "customerSigninCodeSentTo": "Code sent to {phone}",
-  "@customerSigninCodeSentTo": {
-    "placeholders": {
-      "phone": {
-        "type": "String"
-      }
-    }
-  },
   "customerSigninCodeTooMany": "Too many attempts — request a new code",
-  "customerSigninError": "Wrong number or password",
   "customerSigninFailed": "Couldn't sign you in. Try again.",
   "customerSigninFinish": "Continue",
   "customerSigninIntro": "Enter your phone number and we'll text you a code. One account works in every club.",
@@ -999,26 +897,11 @@
   "customerSigninNameHint": "The club's staff will see this name when you arrive.",
   "customerSigninNameTitle": "What's your name?",
   "customerSigninNetworkError": "No connection to the server. Check your internet.",
-  "customerSigninNewHere": "First time here? Enter your number too — we will just ask your name.",
-  "customerSigninPassword": "PIN or password",
   "customerSigninPhone": "Phone",
-  "customerSigninPhoneError": "Check the phone number",
-  "customerSigninResend": "Send the code again",
-  "customerSigninResendIn": "You can ask for a new code in {seconds} s",
-  "@customerSigninResendIn": {
-    "placeholders": {
-      "seconds": {
-        "type": "String"
-      }
-    }
-  },
   "customerSigninSaveError": "Couldn't save your name",
   "customerSigninSaving": "Saving…",
-  "customerSigninSendCode": "Send the code",
-  "customerSigninSending": "Sending…",
   "customerSigninSubmit": "Sign in",
   "customerSigninSubmitting": "Signing in…",
-  "customerSigninSubtitle": "Your phone number is your sign-in. We will text you a code.",
   "customerSigninTitle": "Sign in",
   "customerTariffDayFri": "Fri",
   "customerTariffDayMon": "Mon",
@@ -1055,7 +938,6 @@
       }
     }
   },
-  "customerWalletQuick": "Quick amounts",
   "customerWalletRequest": "Pay at the desk",
   "customerWalletRequesting": "Sending…",
   "customerWalletSendError": "Couldn't send the request",
@@ -1072,13 +954,6 @@
   "customerWeekday5": "Friday",
   "customerWeekday6": "Saturday",
   "customerWeekday7": "Sunday",
-  "customerWelcomeName": "Name",
-  "customerWelcomeNameError": "Enter your name",
-  "customerWelcomeSaveError": "Could not save. Try again.",
-  "customerWelcomeSaving": "Saving…",
-  "customerWelcomeSubmit": "Continue",
-  "customerWelcomeSubtitle": "The administrator sees this name when seating you at a PC.",
-  "customerWelcomeTitle": "What is your name?",
   "ledgerAccountBonusTime": "Bonus time",
   "ledgerAccountDebt": "Debt",
   "ledgerAccountPackageTime": "Package time",
