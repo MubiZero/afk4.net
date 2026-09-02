@@ -12,7 +12,7 @@ migration. The old name survives inside the code (`operatorHelpers.ts`, `op.*`
 message keys, `OperatorBackendContext`) and in archived plans; it is not a second
 product.
 
-`platform.afk4.staging.mubi.dev/admin` is **Platform Control** — the
+`platform.api.afk4.net/admin` is **Platform Control** — the
 platform-owner and support console. Tariffs, loyalty and club layout are not
 there.
 
@@ -52,7 +52,7 @@ feature is not enabled for the organization.
 The released path. Install the MSI for the environment, for staging:
 
 ```
-https://updates.afk4.staging.mubi.dev/afk4-updates-staging/organization-admin/internal/latest/afk4-organization-admin-internal.msi
+https://updates.afk4.net/afk4-updates-staging/organization-admin/internal/latest/afk4-organization-admin-internal.msi
 ```
 
 ### Browser, from a checkout
@@ -64,7 +64,7 @@ browser application:
 ```bash
 cd src/AFK4.OrganizationAdmin.Web
 bun install
-VITE_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev bun run build
+VITE_PLATFORM_BASE_URL=https://api.afk4.net bun run build
 bun run preview
 ```
 

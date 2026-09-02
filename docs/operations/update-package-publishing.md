@@ -96,7 +96,7 @@ For staging MinIO publishing, use `s3`. The staging bucket is expected to be
 publicly readable by Agents through:
 
 ```text
-https://updates.afk4.staging.mubi.dev/afk4-updates-staging/
+https://updates.afk4.net/afk4-updates-staging/
 ```
 
 The publisher signs S3 `PUT` requests with AWS Signature Version 4 and writes
@@ -114,9 +114,9 @@ $env:AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY = '<minio-secret-key>'
   --channel internal `
   --artifact C:\builds\afk4-agent-1.2.3-internal.msi `
   --artifact-store s3 `
-  --s3-endpoint https://updates.afk4.staging.mubi.dev `
+  --s3-endpoint https://updates.afk4.net `
   --s3-bucket afk4-updates-staging `
-  --s3-public-base-uri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
+  --s3-public-base-uri https://updates.afk4.net/afk4-updates-staging/ `
   --s3-access-key-env-var AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY `
   --s3-secret-key-env-var AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY `
   --signing-key-env-var AFK4_UPDATE_SIGNING_KEY_PEM `
@@ -172,9 +172,9 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
   -Channel internal `
   -OrganizationId 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08 `
   -ArtifactStore s3 `
-  -S3Endpoint https://updates.afk4.staging.mubi.dev `
+  -S3Endpoint https://updates.afk4.net `
   -S3Bucket afk4-updates-staging `
-  -S3PublicBaseUri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
+  -S3PublicBaseUri https://updates.afk4.net/afk4-updates-staging/ `
   -S3AccessKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY `
   -S3SecretKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY `
   -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
@@ -238,9 +238,9 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
   -PackageDirectory artifacts/client-packages `
   -OutputDirectory artifacts/update-packages `
   -ArtifactStore s3 `
-  -S3Endpoint https://updates.afk4.staging.mubi.dev `
+  -S3Endpoint https://updates.afk4.net `
   -S3Bucket afk4-updates-staging `
-  -PublicBaseUri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
+  -PublicBaseUri https://updates.afk4.net/afk4-updates-staging/ `
   -S3AccessKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY `
   -S3SecretKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY `
   -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
@@ -289,7 +289,7 @@ registration. The target ids depend on the rollout kind — `-RolloutDeviceId`,
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
-  -PlatformBaseUrl https://afk4.staging.mubi.dev `
+  -PlatformBaseUrl https://api.afk4.net `
   -RequestDirectory artifacts/update-packages `
   -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
   -CreateRollouts `
@@ -330,7 +330,7 @@ compatibility-download object after the immutable versioned MSI has been
 published:
 
 ```text
-https://updates.afk4.staging.mubi.dev/afk4-updates-staging/organization-admin/internal/latest/afk4-organization-admin-internal.msi
+https://updates.afk4.net/afk4-updates-staging/organization-admin/internal/latest/afk4-organization-admin-internal.msi
 ```
 
 The stable object is uploaded from the same local bytes and carries

@@ -4,13 +4,13 @@ namespace AFK4.Player.Shell.Tests.Web;
 
 public sealed class AuthorizationHeaderPolicyTests
 {
-    private const string ApiBase = "https://afk4.staging.mubi.dev";
+    private const string ApiBase = "https://api.afk4.net";
 
     [Fact]
     public void Injects_WhenRequestMatchesApiOriginAndTokenPresent()
     {
         var decision = AuthorizationHeaderPolicy.Decide(
-            requestUri: "https://afk4.staging.mubi.dev/api/me/dashboard",
+            requestUri: "https://api.afk4.net/api/me/dashboard",
             apiBaseUrl: ApiBase,
             accessToken: "tok123");
 
@@ -22,7 +22,7 @@ public sealed class AuthorizationHeaderPolicyTests
     public void DoesNotInject_WhenTokenMissing()
     {
         var decision = AuthorizationHeaderPolicy.Decide(
-            "https://afk4.staging.mubi.dev/api/me/dashboard", ApiBase, accessToken: null);
+            "https://api.afk4.net/api/me/dashboard", ApiBase, accessToken: null);
 
         Assert.False(decision.ShouldInject);
     }

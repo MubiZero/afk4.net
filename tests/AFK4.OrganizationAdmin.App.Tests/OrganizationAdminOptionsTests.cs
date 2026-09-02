@@ -37,10 +37,10 @@ public sealed class OrganizationAdminOptionsTests
     {
         var options = OrganizationAdminOptions.LoadFromEnvironment(name =>
             name == OrganizationAdminOptions.PlatformBaseUrlEnvironmentVariable
-                ? "https://afk4.staging.mubi.dev/"
+                ? "https://api.afk4.net/"
                 : null);
 
-        Assert.Equal(new Uri("https://afk4.staging.mubi.dev/"), options.PlatformBaseUrl);
+        Assert.Equal(new Uri("https://api.afk4.net/"), options.PlatformBaseUrl);
     }
 
     [Theory]

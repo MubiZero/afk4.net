@@ -11,7 +11,7 @@ public sealed class OrganizationAdminWebBootstrapScriptTests
     {
         var appOptions = new OrganizationAdminOptions
         {
-            PlatformBaseUrl = new Uri("https://afk4.staging.mubi.dev/"),
+            PlatformBaseUrl = new Uri("https://api.afk4.net/"),
             CurrencyCode = "USD",
             OrganizationId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
             BranchId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
@@ -30,7 +30,7 @@ public sealed class OrganizationAdminWebBootstrapScriptTests
         Assert.Equal(2, root.GetProperty("compatibilityEpoch").GetInt32());
         Assert.Equal("webview2", root.GetProperty("runtime").GetString());
         Assert.Equal("vite-dist", root.GetProperty("shellMode").GetString());
-        Assert.Equal("https://afk4.staging.mubi.dev/", root.GetProperty("platformBaseUrl").GetString());
+        Assert.Equal("https://api.afk4.net/", root.GetProperty("platformBaseUrl").GetString());
         Assert.Equal("USD", root.GetProperty("currencyCode").GetString());
         Assert.Equal("2.45.1", root.GetProperty("appVersion").GetString());
         Assert.Equal("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", root.GetProperty("organizationId").GetString());

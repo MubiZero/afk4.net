@@ -68,7 +68,7 @@ Run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/configure-pilot-branch.ps1 `
-  -BaseUrl https://afk4.staging.mubi.dev `
+  -BaseUrl https://api.afk4.net `
   -OrganizationId '<organization-id>' `
   -BranchId '<branch-id>' `
   -AdminUserName '<owner-or-manager-user>' `
@@ -104,7 +104,7 @@ $headers = @{ Authorization = "Bearer <staff-access-token>" }
 
 Invoke-RestMethod `
   -Method Post `
-  -Uri "https://afk4.staging.mubi.dev/api/organizations/<organization-id>/branches/<branch-id>/devices/<device-id>/seat-assignment" `
+  -Uri "https://api.afk4.net/api/organizations/<organization-id>/branches/<branch-id>/devices/<device-id>/seat-assignment" `
   -Headers $headers `
   -ContentType "application/json" `
   -Body (@{

@@ -109,7 +109,7 @@ Minimum bar:
    2026-05-17 from `codex/coolify-staging-rehearsal`: Coolify built the
    Platform API container from the repository, ran a managed PostgreSQL
    service, applied EF migrations explicitly, and passed backend health/auth
-   smoke. The real staging domain `afk4.staging.mubi.dev` resolves to the
+   smoke. The real staging domain `api.afk4.net` resolves to the
    Coolify VPS and passes `/api/health` over trusted TLS. The rehearsal API
    token and staging database/session secrets were rotated after the
    hardening pass. A GitHub Actions `Coolify Staging Deploy` workflow now
@@ -206,7 +206,7 @@ Minimum bar:
 6. **Signed Client Release Rehearsal**
 
    Staging now has a temporary pilot update-hosting path using Coolify-hosted
-   MinIO at `updates.afk4.staging.mubi.dev`. The package smoke workflow can
+   MinIO at `updates.api.afk4.net`. The package smoke workflow can
    build MSI artifacts, publish signed update metadata to staging MinIO,
    register packages with the staging Platform API, and create an internal
    device rollout. Client package workflows now set up Node 24 and the package
@@ -284,7 +284,7 @@ Minimum bar:
   from the default publishing flow; remaining onboarding evidence is any
   strict `manager_workstation` role smoke not yet captured.
 - Coolify-first staging is deployed and smoke-tested on
-  `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
+  `api.afk4.net`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
   backend deploys through the Coolify API, with a fail-closed EF migration
   guard.

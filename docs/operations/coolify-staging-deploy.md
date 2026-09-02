@@ -99,7 +99,7 @@ AllowedHosts=<coolify-staging-domain>;localhost;127.0.0.1
 Install__ApiBaseUrl=https://<coolify-staging-domain>
 Install__UpdateChannel=internal
 Install__UpdatePackageSigningPublicKeyPem=<public PEM from deploy/coolify/staging-update-signing-public.pem>
-Cors__PlatformWebOrigins__0=https://platform.afk4.staging.mubi.dev
+Cors__PlatformWebOrigins__0=https://platform.afk4.net
 ConnectionStrings__PlatformDatabase=<Coolify PostgreSQL connection string>
 Sessions__SigningPrivateKeyPem=<Coolify secret PEM>
 SupportAccess__OrganizationAdminBaseUrl=<Organization Admin base URL for this environment>
@@ -298,7 +298,7 @@ context = repository root, exposed port `8080`, health path `/healthz`):
 
 | Coolify app | Host | Build arguments |
 | --- | --- | --- |
-| Admin SPA | `platform.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev` |
+| Admin SPA | `platform.api.afk4.net` | `VITE_PLATFORM_API_BASE_URL=https://api.afk4.net` |
 
 The host exposes `/admin/*`. Verify `/admin` in a browser and confirm that old
 `/club/install` and browser staff sign-in/reset URLs render the explicit

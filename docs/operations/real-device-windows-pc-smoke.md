@@ -9,7 +9,7 @@ This runbook verifies AFK4 on one real Windows gaming PC against the staging
 Platform API at:
 
 ```text
-https://afk4.staging.mubi.dev
+https://api.afk4.net
 ```
 
 It is intentionally manual. The goal is to collect honest evidence for the
@@ -123,8 +123,8 @@ Windows gaming PC:
 
 - Windows 10/11 x64.
 - Local Administrator access.
-- Outbound HTTPS access to `https://afk4.staging.mubi.dev`.
-- Outbound HTTPS access to `https://updates.afk4.staging.mubi.dev`.
+- Outbound HTTPS access to `https://api.afk4.net`.
+- Outbound HTTPS access to `https://updates.afk4.net`.
 - The current internal Agent MSI publishes the Agent Service and Setup Wizard
   as self-contained `win-x64` outputs, so a separate .NET Desktop Runtime
   install is not required for the MSI smoke path.
@@ -142,7 +142,7 @@ Use this path for the clean Windows 11 VM gate.
      `Content-Length` during the smoke follow-up:
 
      ```text
-     https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.29/afk4-agent-0.1.29-internal.msi
+     https://updates.afk4.net/afk4-updates-staging/agent-service/internal/0.1.29/afk4-agent-0.1.29-internal.msi
      ```
 
 2. Prepare an authorized staging branch staff account. Keep its credential only
@@ -176,7 +176,7 @@ Use this path for the clean Windows 11 VM gate.
 Preferred setup is through the Mubi admin SPA plus Setup Wizard and Operator:
 
 1. Mubi creates the organization and owner invite under
-   `https://platform.afk4.staging.mubi.dev/admin`.
+   `https://platform.afk4.net/admin`.
 2. The owner accepts the invitation through the current onboarding path and
    creates/edits the branch floor map in Organization Admin.
 3. The smoke uses the authorized staff login only inside Setup Wizard.
@@ -188,7 +188,7 @@ real secrets into chat or repository files.
 ```powershell
 Set-Location D:\afk4.net
 
-$baseUrl = 'https://afk4.staging.mubi.dev'
+$baseUrl = 'https://api.afk4.net'
 $organizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08'
 $branchId = 'acfc0212-967f-4d84-94be-9003387b09c2'
 $zoneId = '2e37f7b3-41bb-4a19-9d50-94eb848f4e01'
@@ -424,7 +424,7 @@ $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force C:\AFK4-Smoke | Out-Null
 
 $packageVersion = '0.1.29'
-$agentMsiUri = "https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/$packageVersion/afk4-agent-$packageVersion-internal.msi"
+$agentMsiUri = "https://updates.afk4.net/afk4-updates-staging/agent-service/internal/$packageVersion/afk4-agent-$packageVersion-internal.msi"
 $agentMsiPath = "C:\AFK4-Smoke\afk4-agent-$packageVersion-internal.msi"
 
 curl.exe -I -L --fail $agentMsiUri
@@ -515,7 +515,7 @@ Expected after successful wizard enrollment:
   `Agent__UpdatePackageSigningPublicKeyPem`;
 - HKLM `RunOnce` no longer has an `AFK4 Setup Wizard` entry, and Agent MSI
   upgrades do not re-register first-run wizard launch;
-- `Agent__PlatformBaseUrl` is exactly `https://afk4.staging.mubi.dev`, not
+- `Agent__PlatformBaseUrl` is exactly `https://api.afk4.net`, not
   `http://localhost:5074`;
 - `AFK4.Agent.Service` is switched to automatic startup and is running;
 - `C:\ProgramData\AFK4\Agent\runtime-state.json` appears after the first
@@ -538,7 +538,7 @@ If the service starts and then stops with `HttpRequestException` for
 `Install__ApiBaseUrl`. Confirm the live Coolify Platform API environment has:
 
 ```text
-Install__ApiBaseUrl=https://afk4.staging.mubi.dev
+Install__ApiBaseUrl=https://api.afk4.net
 Install__UpdateChannel=internal
 Install__UpdatePackageSigningPublicKeyPem=<staging update signing public PEM>
 ```
@@ -547,7 +547,7 @@ After fixing the live API and restarting it, repair the already-enrolled VM
 without reinstalling:
 
 ```powershell
-[Environment]::SetEnvironmentVariable('Agent__PlatformBaseUrl', 'https://afk4.staging.mubi.dev', 'Machine')
+[Environment]::SetEnvironmentVariable('Agent__PlatformBaseUrl', 'https://api.afk4.net', 'Machine')
 Stop-Service AFK4.Agent.Service -Force -ErrorAction SilentlyContinue
 Start-Service AFK4.Agent.Service
 Start-Sleep 20

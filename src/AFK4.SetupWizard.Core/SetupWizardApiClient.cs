@@ -14,7 +14,7 @@ public static class SetupWizardDefaults
     // ApiBaseUrl the platform returns, so only this initial value is build-pinned. The build
     // injects the channel's platform origin via [AssemblyMetadata("AFK4.PlatformBaseUrl", ...)]
     // (see AFK4.SetupWizard.Core.csproj); dev/test builds omit it and fall back to staging.
-    private const string StagingPlatformBaseUrl = "https://afk4.staging.mubi.dev";
+    private const string StagingPlatformBaseUrl = "https://api.afk4.net";
 
     public static readonly Uri PlatformBaseUrl = new(ResolvePlatformBaseUrl(ReadInjectedBaseUrl()));
 

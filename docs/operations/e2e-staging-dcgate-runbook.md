@@ -6,7 +6,7 @@
 ## Константы (staging, на 2026-06-08)
 
 ```
-API       = https://afk4.staging.mubi.dev
+API       = https://api.afk4.net
 OWNER     = <smoke login; password comes from the secret manager>
 ORGANIZATION_ID = <smoke organization UUID>
 GATEWAY   = <smoke gateway UUID>

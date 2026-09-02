@@ -18,7 +18,7 @@ public sealed class RealDeviceSmokeRunbookTests
     {
         var runbook = NormalizeLineEndings(File.ReadAllText(RepositoryPath("docs/operations/real-device-windows-pc-smoke.md")));
 
-        Assert.Contains("https://afk4.staging.mubi.dev", runbook, StringComparison.Ordinal);
+        Assert.Contains("https://api.afk4.net", runbook, StringComparison.Ordinal);
         Assert.Contains("Windows 10/11", runbook, StringComparison.Ordinal);
         Assert.Contains("POST /api/organizations/{organizationId}/install/discover", runbook, StringComparison.Ordinal);
         Assert.Contains("POST /api/organizations/{organizationId}/install/seats", runbook, StringComparison.Ordinal);
