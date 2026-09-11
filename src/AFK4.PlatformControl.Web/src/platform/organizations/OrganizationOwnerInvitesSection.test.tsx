@@ -55,7 +55,7 @@ it('creates a code and reveals the full code', async () => {
   await screen.findByText('Кодов настройки пока нет.');
 
   fireEvent.click(screen.getByRole('button', { name: 'Создать код' }));
-  await waitFor(() => expect(client.createOrganizationOwnerInvite).toHaveBeenCalledWith('o1', 'b1', null, null, null));
+  await waitFor(() => expect(client.createOrganizationOwnerInvite).toHaveBeenCalledWith('o1', 'b1', null, null, null, null));
   expect(await screen.findByText('FULL-CODE-9')).toBeTruthy();
 });
 
@@ -74,4 +74,27 @@ it('revokes a pending invite with a reason', async () => {
   fireEvent.click(confirmButtons[confirmButtons.length - 1]);
 
   await waitFor(() => expect(client.revokeOrganizationOwnerInvite).toHaveBeenCalledWith('i1', 'fraud'));
+});
+
+// Без адреса сервер письма не шлёт, а код приходится диктовать голосом: поле почты — это и есть
+// единственный путь, которым приглашение доезжает до владельца само.
+it('sends the invite to the owner email typed in the form', async () => {
+  const client = {
+    listOrganizationOwnerInvites: mock().mockResolvedValue([]),
+    createOrganizationOwnerInvite: mock().mockResolvedValue({
+      organizationOwnerInviteId: 'i9', organizationId: 'o1', branchId: 'b1', code: 'FULL-CODE-9',
+      status: 'pending', ownerUserName: null, ownerDisplayName: null,
+      expiresAtUtc: '2026-02-01T00:00:00Z', acceptedAtUtc: null, revokedAtUtc: null,
+      revokedReason: null, createdAtUtc: '2026-01-01T00:00:00Z'
+    }),
+    revokeOrganizationOwnerInvite: mock()
+  };
+  renderSection(client);
+  await screen.findByText('Кодов настройки пока нет.');
+
+  fireEvent.change(screen.getByLabelText('Почта владельца'), { target: { value: ' owner@club.tj ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Создать код' }));
+
+  await waitFor(() => expect(client.createOrganizationOwnerInvite)
+    .toHaveBeenCalledWith('o1', 'b1', null, null, null, 'owner@club.tj'));
 });

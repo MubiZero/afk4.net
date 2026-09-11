@@ -9,12 +9,13 @@ export class OrganizationOwnerInvitesApi {
     branchId: string,
     ownerUserName: string | null,
     ownerDisplayName: string | null,
-    lifetime: string | null
+    lifetime: string | null,
+    ownerEmail: string | null
   ): Promise<OrganizationOwnerInvite> {
     return this.transport.send<OrganizationOwnerInvite>(
       'POST',
       `/api/platform/organizations/${organizationId}/organization-owner-invitations`,
-      { branchId, ownerUserName, ownerDisplayName, lifetime }
+      { branchId, ownerUserName, ownerDisplayName, lifetime, ownerEmail }
     );
   }
 

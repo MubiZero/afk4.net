@@ -2863,6 +2863,8 @@ export const tg = {
   "platform.organization.invites.empty": "Ҳоло рамзи насб нест.",
   "platform.organization.invites.ownerDisplayName": "Номи соҳиб",
   "platform.organization.invites.ownerUserName": "Логини соҳиб (email)",
+  "platform.organization.invites.ownerEmail": "Почтаи соҳиб",
+  "platform.organization.invites.ownerEmailHint": "Код бо мактуб ба ин суроға фиристода мешавад. Агар холӣ монад, кодро бояд худатон ба соҳиб супоред.",
   "platform.organization.invites.revoke": "Бозпас гирифтан",
   "platform.organization.invites.revokeConfirm": "Бозпас гирифтан",
   "platform.organization.invites.revokeReason": "Сабаб",

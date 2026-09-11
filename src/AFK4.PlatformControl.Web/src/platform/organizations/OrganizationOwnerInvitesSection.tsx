@@ -36,6 +36,7 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
   const [branchId, setBranchId] = useState(branches[0]?.branchId ?? '');
   const [ownerUserName, setOwnerUserName] = useState('');
   const [ownerDisplayName, setOwnerDisplayName] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [creating, setCreating] = useState(false);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
@@ -58,10 +59,11 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
         branchId,
         ownerUserName.trim() === '' ? null : ownerUserName.trim(),
         ownerDisplayName.trim() === '' ? null : ownerDisplayName.trim(),
-        null
+        null,
+        ownerEmail.trim() === '' ? null : ownerEmail.trim()
       );
       setRevealed(cur => new Map(cur).set(made.organizationOwnerInviteId, made.code));
-      setOwnerUserName(''); setOwnerDisplayName('');
+      setOwnerUserName(''); setOwnerDisplayName(''); setOwnerEmail('');
       toast({ title: t('platform.organization.invites.created'), variant: 'success' });
       setTick(n => n + 1);
     } catch {
@@ -105,6 +107,16 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
           <label className="ui-field">
             <span>{t('platform.organization.invites.ownerDisplayName')}</span>
             <Input aria-label={t('platform.organization.invites.ownerDisplayName')} value={ownerDisplayName} onChange={e => setOwnerDisplayName(e.target.value)} />
+          </label>
+          <label className="ui-field">
+            <span>{t('platform.organization.invites.ownerEmail')}</span>
+            <Input
+              type="email"
+              aria-label={t('platform.organization.invites.ownerEmail')}
+              value={ownerEmail}
+              onChange={e => setOwnerEmail(e.target.value)}
+            />
+            <small>{t('platform.organization.invites.ownerEmailHint')}</small>
           </label>
           <div>
             <Button onClick={() => void create()} disabled={creating || branchId === ''}>{t('platform.organization.invites.create')}</Button>
