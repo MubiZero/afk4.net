@@ -161,10 +161,12 @@ public sealed class EfDailySummaryRunner(
 
     // Interpret a wall-clock midnight in the given zone as a precise UTC instant (DST-safe: the offset is
     // resolved at that local moment, so the window endpoints stay correct even across a transition).
+    // Returned normalized to UTC: the same instant, but Npgsql only writes offset 0 to
+    // `timestamp with time zone`, and these endpoints are compared against such columns.
     private static DateTimeOffset ToZonedInstant(DateTime localDateTime, TimeZoneInfo timeZone)
     {
         var unspecified = DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified);
-        return new DateTimeOffset(unspecified, timeZone.GetUtcOffset(unspecified));
+        return new DateTimeOffset(unspecified, timeZone.GetUtcOffset(unspecified)).ToUniversalTime();
     }
 
     private static string Money(long minorUnits) => (minorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture);
