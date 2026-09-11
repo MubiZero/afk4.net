@@ -2863,6 +2863,8 @@ export const ru = {
   "platform.organization.invites.empty": "Кодов настройки пока нет.",
   "platform.organization.invites.ownerDisplayName": "Имя владельца",
   "platform.organization.invites.ownerUserName": "Логин владельца (email)",
+  "platform.organization.invites.ownerEmail": "Почта владельца",
+  "platform.organization.invites.ownerEmailHint": "Код уйдёт письмом на этот адрес. Оставьте пустым — код придётся передать владельцу лично.",
   "platform.organization.invites.revoke": "Отозвать",
   "platform.organization.invites.revokeConfirm": "Отозвать",
   "platform.organization.invites.revokeReason": "Причина",

@@ -2863,6 +2863,8 @@ export const en = {
   "platform.organization.invites.empty": "No setup codes yet.",
   "platform.organization.invites.ownerDisplayName": "Owner display name",
   "platform.organization.invites.ownerUserName": "Owner username (email)",
+  "platform.organization.invites.ownerEmail": "Owner email",
+  "platform.organization.invites.ownerEmailHint": "The code is emailed to this address. Leave it empty to hand the code over in person.",
   "platform.organization.invites.revoke": "Revoke",
   "platform.organization.invites.revokeConfirm": "Revoke",
   "platform.organization.invites.revokeReason": "Reason",
