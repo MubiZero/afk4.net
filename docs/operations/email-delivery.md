@@ -10,7 +10,9 @@ Status: настройка домена `afk4.net` на существующем
 ## Что уже есть (проверено 2026-09-03)
 
 - В Coolify работает сервис `mail-mubi-dev` — **Stalwart 0.16.13**, статус healthy. Порты
-  25, 465, 587, 993, 995, 143, 110 и 4190 опубликованы на хосте.
+  25, 465, 993, 995, 143, 110 и 4190 опубликованы на хосте. **587 закрыт** — проверено
+  12.09.2026, соединение отклоняется, хотя в описании сервиса он числится. Отправка идёт
+  через 465.
 - Веб-панель Stalwart открывается на `https://mail.mubi.dev` (Traefik ведёт этот хост на
   порт 8080 контейнера).
 - Обратная зона IP `207.180.237.97` указывает на `mail.mubi.dev`, и A-запись хоста совпадает.
@@ -95,8 +97,8 @@ Traefik.
 
 ```
 Notifications__SmtpHost=mail.mubi.dev
-Notifications__SmtpPort=587
-Notifications__UseStartTls=true
+Notifications__SmtpPort=465
+Notifications__UseStartTls=false
 Notifications__Username=no-reply@afk4.net
 Notifications__Password=<секрет Coolify>
 Notifications__FromAddress=no-reply@afk4.net

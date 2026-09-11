@@ -41,8 +41,8 @@ public sealed class MailKitSmtpTransport(IOptions<NotificationOptions> options) 
         using var client = new SmtpClient();
         try
         {
-            var secureOptions = options.UseStartTls ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
-            await client.ConnectAsync(options.SmtpHost, options.SmtpPort, secureOptions, cancellationToken);
+            await client.ConnectAsync(
+                options.SmtpHost, options.SmtpPort, ResolveSecureOptions(options.UseStartTls, options.SmtpPort), cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(options.Username))
             {
@@ -63,4 +63,16 @@ public sealed class MailKitSmtpTransport(IOptions<NotificationOptions> options) 
             throw new SmtpTransportException(isPermanent: false, exception.Message);
         }
     }
+
+    /// <summary>
+    /// Как шифровать соединение. Порт 465 — TLS сразу при подключении (RFC 8314), и назвать это
+    /// явно важнее, чем короче: <see cref="SecureSocketOptions.Auto"/> при неудаче с TLS молча
+    /// продолжает без шифрования, а следом уходит логин и пароль ящика.
+    /// </summary>
+    internal static SecureSocketOptions ResolveSecureOptions(bool useStartTls, int port) => (useStartTls, port) switch
+    {
+        (true, _) => SecureSocketOptions.StartTls,
+        (false, 465) => SecureSocketOptions.SslOnConnect,
+        _ => SecureSocketOptions.Auto,
+    };
 }
