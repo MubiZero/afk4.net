@@ -14,5 +14,17 @@ public sealed class MediaOptions
         public string SecretKey { get; set; } = string.Empty;
         public string PublicBaseUri { get; set; } = string.Empty;
         public string Region { get; set; } = "us-east-1";
+
+        /// <summary>
+        /// Хранилище готово принимать файлы. Без него загрузка отказывает всегда, и сказать об этом
+        /// надо прямо: «не удалось загрузить файл» отправляет искать проблему в файле, которого в
+        /// нём нет.
+        /// </summary>
+        public bool IsConfigured =>
+            !string.IsNullOrWhiteSpace(Endpoint)
+            && !string.IsNullOrWhiteSpace(Bucket)
+            && !string.IsNullOrWhiteSpace(AccessKey)
+            && !string.IsNullOrWhiteSpace(SecretKey)
+            && !string.IsNullOrWhiteSpace(PublicBaseUri);
     }
 }

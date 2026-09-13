@@ -12,6 +12,9 @@ public sealed class EfMediaService(
     public async Task<MediaServiceResult> UploadAsync(Guid organizationId, Guid branchId, Guid staffUserId,
         string purpose, string declaredContentType, Stream content, long sizeBytes, CancellationToken ct)
     {
+        if (!options.Value.S3.IsConfigured)
+            return new(false, "Media storage is not configured on this environment.", null);
+
         if (sizeBytes <= 0 || sizeBytes > options.Value.MaxBytes)
             return new(false, "File exceeds the maximum allowed size.", null);
 

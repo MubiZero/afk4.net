@@ -42,7 +42,10 @@ public sealed record PlatformHealthOverviewDto(
     IReadOnlyList<JobHealthDto> Jobs,
     IReadOnlyList<QueueHealthDto> Queues,
     IReadOnlyList<IncidentDto> OpenIncidents,
-    IReadOnlyList<QueueFailureDto> RecentFailures);
+    IReadOnlyList<QueueFailureDto> RecentFailures,
+    /// Хранилище файлов не настроено: логотипы и фото зала загрузить нельзя ни из мастера, ни из
+    /// панели. Видно здесь, а не при первой попытке загрузки — иначе об этом узнаёт клуб, а не мы.
+    bool MediaStorageConfigured = true);
 
 /// <summary>
 /// Проверка доставки почты: письмо уходит боевым путём, а причина отказа возвращается сразу.

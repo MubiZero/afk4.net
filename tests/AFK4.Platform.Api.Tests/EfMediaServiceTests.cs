@@ -154,7 +154,22 @@ public sealed class EfMediaServiceTests
     }
 
     private static EfMediaService CreateService(PlatformDbContext db, FakeMediaStorage storage) =>
-        new(db, storage, Options.Create(new MediaOptions { MaxBytes = MaxBytes }), TimeProvider.System);
+        new(db, storage, Options.Create(ConfiguredOptions()), TimeProvider.System);
+
+    // Хранилище в тестах подставное, но настроенным оно быть обязано: без адреса и ключей сервис
+    // теперь отказывает сразу, и это ровно то поведение, которое проверяет MediaStorageConfigurationTests.
+    private static MediaOptions ConfiguredOptions() => new()
+    {
+        MaxBytes = MaxBytes,
+        S3 =
+        {
+            Endpoint = "https://storage.test",
+            Bucket = "media",
+            AccessKey = "key",
+            SecretKey = "secret",
+            PublicBaseUri = "https://storage.test/media",
+        },
+    };
 
     private static PlatformDbContext CreateDbContext()
     {

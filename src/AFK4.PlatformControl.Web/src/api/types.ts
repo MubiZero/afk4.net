@@ -710,4 +710,5 @@ export interface HealthOverview {
   queues: QueueHealth[];
   openIncidents: Incident[];
   recentFailures: QueueFailure[];
+  mediaStorageConfigured: boolean;
 }

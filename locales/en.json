@@ -2735,6 +2735,8 @@
   "platform.health.job.scheduled_reports": "Scheduled reports",
   "platform.health.jobs.title": "Jobs",
   "platform.health.lastSuccess": "Last success: {time}",
+  "platform.health.mediaStorage.missing": "Not configured: logos and hall photos cannot be uploaded from the setup wizard or the club panel. Platform API needs the Media__S3__* variables.",
+  "platform.health.mediaStorage.title": "File storage",
   "platform.health.neverRan": "Never ran",
   "platform.health.queue.billing_outbox": "Billing",
   "platform.health.queue.failed": "{count, plural, one {# failed} other {# failed}}",
