@@ -163,7 +163,8 @@ internal static class DeviceEndpoints
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
             var staff = authorization.StaffContext!;
-            var result = await installService.DiscoverForStaffAsync(staff.OrganizationId, staff.BranchIds, staff.DisplayName, cancellationToken);
+            var result = await installService.DiscoverForStaffAsync(
+                staff.OrganizationId, staff.BranchIds, staff.DisplayName, staff.StaffUserId, cancellationToken);
 
             await WriteAuditAsync(
                 auditRecordWriter,

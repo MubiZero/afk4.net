@@ -4,10 +4,12 @@ namespace AFK4.Platform.Api.Install;
 
 public interface IInstallService
 {
+    /// <param name="staffUserId">Кто ставит: сам себя он в списке сотрудников зала не считает.</param>
     Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverForStaffAsync(
         Guid organizationId,
         IReadOnlySet<Guid> branchIds,
         string ownerDisplayName,
+        Guid staffUserId,
         CancellationToken cancellationToken);
 
     Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatForStaffAsync(

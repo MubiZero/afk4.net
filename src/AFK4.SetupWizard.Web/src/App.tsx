@@ -14,6 +14,7 @@ import { StaffScreen } from './StaffScreen';
 import { TariffScreen } from './TariffScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
+import { nextSetupStep } from './setupSteps';
 import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
 import {
   authenticatedInstallClient,
@@ -35,6 +36,7 @@ import {
 interface WizardState {
   step: WizardStep;
   ownerName: string;
+  brandingConfigured: boolean;
   branches: WizardBranch[];
   branch: WizardBranch | null;
   role: WizardRole;
@@ -46,6 +48,7 @@ interface WizardState {
 const initialState: WizardState = {
   step: 'phoneLogin',
   ownerName: '',
+  brandingConfigured: false,
   branches: [],
   branch: null,
   role: 'gaming_pc',
@@ -172,7 +175,11 @@ export function App() {
   }, [installing]);
 
   const handlePhoneDiscovered = useCallback((response: WizardDiscoverResponse) => {
-    const base = { ownerName: response.ownerName, branches: response.branches } as const;
+    const base = {
+      ownerName: response.ownerName,
+      branches: response.branches,
+      brandingConfigured: response.brandingConfigured,
+    } as const;
     if (response.branches.length === 1) {
       setState((prev) => ({ ...prev, ...base, branch: response.branches[0], step: 'role' }));
       return;
@@ -193,25 +200,41 @@ export function App() {
   }, []);
 
   const handleRoleContinue = useCallback((role: WizardRole) => {
-    // Оформление клуба настраивает управляющий со своего рабочего места: на игровом ПК этот шаг
-    // только задерживал бы установку железа.
-    setState((prev) => ({ ...prev, role, step: role === 'manager_workstation' ? 'branding' : 'device' }));
+    // Настройка клуба показывается только там, где её ещё не сделали: мастер ставится на каждый
+    // админский ПК, а клуб настраивают один раз.
+    setState((prev) => ({
+      ...prev,
+      role,
+      step: nextSetupStep('role', role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
+    }));
   }, []);
 
   const handleBrandingContinue = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'staff' }));
+    setState((prev) => ({
+      ...prev,
+      step: nextSetupStep('branding', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
+    }));
   }, []);
 
   const handleStaffContinue = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'hall' }));
+    setState((prev) => ({
+      ...prev,
+      step: nextSetupStep('staff', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
+    }));
   }, []);
 
   const handleHallContinue = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'tariff' }));
+    setState((prev) => ({
+      ...prev,
+      step: nextSetupStep('hall', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
+    }));
   }, []);
 
   const handleTariffContinue = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'device' }));
+    setState((prev) => ({
+      ...prev,
+      step: nextSetupStep('tariff', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
+    }));
   }, []);
 
   const backToStaff = useCallback(() => {

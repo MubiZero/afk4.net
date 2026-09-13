@@ -423,7 +423,7 @@ public sealed class SetupWizardWebHostBridge(
             .OrderBy(branch => branch.Name, StringComparer.OrdinalIgnoreCase)
             .Select(MapBranch)
             .ToArray();
-        return new WizardDiscoverResult(response.OwnerDisplayName, branches);
+        return new WizardDiscoverResult(response.OwnerDisplayName, branches, response.BrandingConfigured);
     }
 
     private async Task<WizardSeat> CreateSeatAuthenticatedAsync(JsonElement payload, CancellationToken cancellationToken)
@@ -547,7 +547,9 @@ public sealed class SetupWizardWebHostBridge(
             branch.Name,
             zones,
             seats,
-            branch.FreeSeatIds.ToArray());
+            branch.FreeSeatIds.ToArray(),
+            branch.HasTariff,
+            branch.HasStaffBesidesOwner);
     }
 
     private static int ZoneSortOrder(IDictionary<Guid, FloorMapZoneDto> lookup, Guid zoneId) =>
@@ -675,7 +677,10 @@ public sealed class SetupWizardWebHostBridge(
 
     private sealed record WizardTariffCreated(string Name);
 
-    private sealed record WizardDiscoverResult(string OwnerName, IReadOnlyList<WizardBranch> Branches);
+    private sealed record WizardDiscoverResult(
+        string OwnerName,
+        IReadOnlyList<WizardBranch> Branches,
+        bool BrandingConfigured);
 
     private sealed record WizardBranch(
         Guid BranchId,
@@ -683,7 +688,9 @@ public sealed class SetupWizardWebHostBridge(
         string BranchName,
         IReadOnlyList<WizardZone> Zones,
         IReadOnlyList<WizardSeat> Seats,
-        IReadOnlyList<Guid> FreeSeatIds);
+        IReadOnlyList<Guid> FreeSeatIds,
+        bool HasTariff,
+        bool HasStaffBesidesOwner);
 
     private sealed record WizardZone(Guid ZoneId, string Name, int SortOrder);
 

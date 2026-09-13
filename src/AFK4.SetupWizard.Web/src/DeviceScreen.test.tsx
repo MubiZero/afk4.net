@@ -12,6 +12,8 @@ const BRANCH: WizardBranch = {
   zones: [ZONE],
   seats: [],
   freeSeatIds: [],
+  hasTariff: false,
+  hasStaffBesidesOwner: false,
 };
 const CREATED_SEAT: WizardSeat = {
   seatId: 's-1',

@@ -12,6 +12,8 @@ export interface WizardBranch {
   zones: WizardZone[];
   seats: WizardSeat[];
   freeSeatIds: string[];
+  hasTariff: boolean;
+  hasStaffBesidesOwner: boolean;
 }
 
 export interface WizardZone {
@@ -35,6 +37,7 @@ export interface WizardSeat {
 export interface WizardDiscoverResponse {
   ownerName: string;
   branches: WizardBranch[];
+  brandingConfigured: boolean;
 }
 
 export interface WizardEnrollResult {
