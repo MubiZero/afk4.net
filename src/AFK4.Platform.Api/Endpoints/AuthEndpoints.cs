@@ -129,6 +129,66 @@ internal static class AuthEndpoints
                 : Results.Ok(resolution.SignedIn);
         });
 
+        // ── Вход до того, как известна организация ───────────────────────────────────────
+        // Мастер установки ставит первый ПК в клубе и организацию узнаёт ИЗ ОТВЕТА на вход;
+        // требовать её в пути — требовать знать ответ до вопроса. Тот же довод давно принят для
+        // сброса пароля, который живёт в корне с самого начала.
+        //
+        // Организационные копии выше остаются и не помечаются устаревшими: их знают уже
+        // установленные в поле сборки Organization Admin, где организация записана на машине.
+        //
+        // Пути берутся из StaffAuthRoutes — тех же констант, что и у мастера; стык стережёт
+        // WizardRouteContractTests. До 13.09.2026 путь был строкой в двух местах, и мастер
+        // получал 404 на первом же экране при зелёных тестах с обеих сторон.
+        app.MapPost(StaffAuthRoutes.SignIn, async (
+            StaffSignInRequest request,
+            IStaffCredentialService credentialService,
+            CancellationToken cancellationToken) =>
+        {
+            var response = await credentialService.SignInAsync(request, cancellationToken);
+
+            return response is null
+                ? Results.Unauthorized()
+                : Results.Ok(response);
+        }).RequireRateLimiting("staff-sign-in");
+
+        app.MapPost(StaffAuthRoutes.SignInByLogin, async (
+            StaffSignInByLoginRequest request,
+            IStaffCredentialService credentialService,
+            CancellationToken cancellationToken) =>
+        {
+            var resolution = await credentialService.SignInByLoginAsync(
+                organizationId: null,
+                request,
+                cancellationToken);
+
+            if (resolution.SignedIn is not null)
+            {
+                return Results.Ok(resolution.SignedIn);
+            }
+
+            // Один логин работает в нескольких клубах — человек выбирает, в какой войти, и
+            // возвращается сюда через SignIn с названной организацией. Отказ и выбор нельзя
+            // сливать в один ответ: «не подошло» и «подошло в двух местах» — разные исходы.
+            return resolution.Clubs.Count > 0
+                ? Results.Json(
+                    new StaffSignInChooseClubResponse(resolution.Clubs),
+                    statusCode: StatusCodes.Status409Conflict)
+                : Results.Unauthorized();
+        }).RequireRateLimiting("staff-sign-in");
+
+        app.MapPost(StaffAuthRoutes.SignInByPhone, async (
+            StaffSignInByPhoneRequest request,
+            IStaffCredentialService credentialService,
+            CancellationToken cancellationToken) =>
+        {
+            var signedIn = await credentialService.SignInByPhoneAsync(request, cancellationToken);
+
+            return signedIn is null
+                ? Results.Unauthorized()
+                : Results.Ok(signedIn);
+        }).RequireRateLimiting("staff-sign-in");
+
         organizations.MapPost("auth/staff/refresh", async (
             Guid organizationId,
             StaffRefreshTokenRequest request,

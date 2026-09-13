@@ -10,8 +10,15 @@ public interface IStaffCredentialService
         StaffSignInByOrganizationKeyRequest request,
         CancellationToken cancellationToken);
 
+    /// <param name="organizationId">
+    /// Организация, в которой искать учётную запись, или <c>null</c> — «искать по всей сети».
+    /// Второе нужно мастеру установки: он входит до того, как организация известна, и именно
+    /// из ответа её и узнаёт. Сотрудник, работающий в нескольких клубах, при этом получает
+    /// список на выбор — ровно тот случай, ради которого заведён
+    /// <see cref="StaffLoginResolution.Clubs"/>.
+    /// </param>
     Task<StaffLoginResolution> SignInByLoginAsync(
-        Guid organizationId,
+        Guid? organizationId,
         StaffSignInByLoginRequest request,
         CancellationToken cancellationToken);
 

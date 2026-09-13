@@ -489,6 +489,18 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(5)
             }));
 
+    // Вход сотрудника без организации в пути (мастер установки). Ручка своя, а не общая со
+    // сбросом: это единственное место, где пара логин/пароль проверяется по всей сети, и
+    // прикрутить перебор надо уметь, не запирая заодно восстановление пароля.
+    options.AddPolicy("staff-sign-in", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
     options.AddPolicy("staff-reset", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
