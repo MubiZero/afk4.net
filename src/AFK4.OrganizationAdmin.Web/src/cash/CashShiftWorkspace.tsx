@@ -157,7 +157,7 @@ export function CashShiftWorkspace({
             <div className="cash-shift-status-block"><span>{t('op.cash.shift.cashier')}</span><strong>{operatorName}</strong></div>
             <div className="cash-shift-status-block"><span>{t('op.cash.shift.opened')}</span><strong>{formatOpenedAt(current.openedAtUtc, t('op.cash.shift.today'))}</strong></div>
             <div className="cash-shift-status-block"><span>{t('op.cash.shift.starting')}</span><strong><Money minorUnits={current.cash.starting.minorUnits} currencyCode={currencyCode} /></strong></div>
-            <div className="cash-shift-status-actions">{exportMenu}<CashShiftCommandBar backend={backend} session={session} shiftId={current.shiftId} isOpen expectedCash={current.cash.expected} currencyCode={currencyCode} revenue={current} onShiftChanged={onShiftChanged} /></div>
+            <div className="cash-shift-status-actions">{exportMenu}<CashShiftCommandBar backend={backend} session={session} shiftId={current.shiftId} isOpen openedByStaffUserId={current.openedByStaffUserId} expectedCash={current.cash.expected} currencyCode={currencyCode} revenue={current} onShiftChanged={onShiftChanged} /></div>
           </section>
 
           <section className="cash-shift-reconcile-band" aria-label={t('op.cash.shift.reconcileTitle')}>

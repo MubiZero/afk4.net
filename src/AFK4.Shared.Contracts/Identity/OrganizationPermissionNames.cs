@@ -65,6 +65,17 @@ public static class OrganizationPermissionNames
 
     public const string CloseShift = "organization.shifts.close";
 
+    /// Закрыть СВОЮ смену — ту, которую сам и открыл. Узкое подмножество CloseShift.
+    ///
+    /// Контроль от этого не слабеет: сверка кассы обязательна для всех (CountedCash), а
+    /// расхождение сверх допуска филиала по-прежнему требует подписи второго человека, который
+    /// не открывал и не закрывает смену (§5.7, EfShiftService). То есть «закрыть поверх
+    /// недостачи» в одиночку нельзя было и не станет можно.
+    ///
+    /// Без этого права ночной кассир, которого гейт после входа ЗАСТАВИЛ открыть смену, не мог
+    /// её закрыть: в шесть утра он один, а закрывать обязан кто-то другой.
+    public const string CloseOwnShift = "organization.shifts.close_own";
+
     public const string ViewShift = "organization.shifts.view";
 
     public const string ManageShiftCash = "organization.shifts.cash.manage";

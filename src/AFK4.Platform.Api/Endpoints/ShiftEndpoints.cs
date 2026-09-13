@@ -307,12 +307,13 @@ internal static class ShiftEndpoints
             IShiftService shiftService,
             CancellationToken cancellationToken) =>
         {
+            // Грузим по узкому праву: оно есть у всех, у кого есть широкое, плюс у кассира.
             var shift = await LoadShiftScopedEndpointAsync(
                 dbContext,
                 staffContextAccessor,
                 authorizationService,
                 shiftId,
-                OrganizationPermissionNames.CloseShift,
+                OrganizationPermissionNames.CloseOwnShift,
                 cancellationToken);
             if (shift.Result is not null)
             {
@@ -340,6 +341,33 @@ internal static class ShiftEndpoints
             if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
             {
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            // Широкое право закрывает любую смену. Без него — только свою: ту, которую сам и
+            // открыл. Сверку кассы это не отменяет, и расхождение сверх допуска по-прежнему
+            // потребует подписи второго человека (§5.7) — «закрыть поверх недостачи» в одиночку
+            // нельзя было и не стало можно.
+            var closesAnyShift = await authorizationService.RequireBranchPermissionAsync(
+                shift.BranchId,
+                OrganizationPermissionNames.CloseShift,
+                cancellationToken);
+
+            if (!closesAnyShift.IsAllowed
+                && shift.Entity!.OpenedByStaffUserId != authorization.StaffContext.StaffUserId)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext.OrganizationId,
+                    shift.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.CloseShift,
+                    "Shift",
+                    shiftId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { Reason = "not_own_shift" },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
             var result = await shiftService.CloseShiftAsync(

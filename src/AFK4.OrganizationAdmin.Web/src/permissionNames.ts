@@ -22,6 +22,7 @@ export const permissionNames = {
   viewShift: 'organization.shifts.view',
   openShift: 'organization.shifts.open',
   closeShift: 'organization.shifts.close',
+  closeOwnShift: 'organization.shifts.close_own',
   manageShiftCash: 'organization.shifts.cash.manage',
   viewReports: 'organization.reports.view',
   viewReservations: 'organization.reservations.view',
