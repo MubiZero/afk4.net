@@ -802,6 +802,21 @@
   "customerReviewsEmpty": "Отзывов пока нет — ваш будет первым",
   "customerReviewsError": "Не удалось загрузить отзывы",
   "customerReviewsTitle": "Отзывы игроков",
+  "customerSessionEndAction": "Закончить и встать",
+  "customerSessionEndBody": "Место освободится сразу. Оплаченное, но неигранное время вернётся на кошелёк.",
+  "customerSessionEndCancel": "Остаться",
+  "customerSessionEndConfirm": "Закончить",
+  "customerSessionEndFailed": "Не удалось закончить сессию. Попробуйте ещё раз или позовите оператора.",
+  "customerSessionEndNoRefund": "Сессия закончена",
+  "customerSessionEndRefunded": "Вернули {amount} за неигранное время",
+  "@customerSessionEndRefunded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionEndTitle": "Закончить сессию?",
   "customerSessionExtendAction": "Продлить",
   "customerSessionExtendConfirm": "Продлить на {duration}",
   "@customerSessionExtendConfirm": {

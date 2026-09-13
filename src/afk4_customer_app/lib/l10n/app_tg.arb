@@ -802,6 +802,21 @@
   "customerReviewsEmpty": "Ҳанӯз тақриз нест — аввалин аз они шумо мешавад",
   "customerReviewsError": "Тақризҳоро бор карда натавонистем",
   "customerReviewsTitle": "Тақризҳои бозигарон",
+  "customerSessionEndAction": "Тамом кардан ва хестан",
+  "customerSessionEndBody": "Ҷой фавран озод мешавад. Вақти пардохтшуда, ки бозӣ накардаед, ба ҳамён бармегардад.",
+  "customerSessionEndCancel": "Мондан",
+  "customerSessionEndConfirm": "Тамом кардан",
+  "customerSessionEndFailed": "Сессияро тамом кардан нашуд. Бори дигар кӯшиш кунед ё операторро ҷеғ занед.",
+  "customerSessionEndNoRefund": "Сессия тамом шуд",
+  "customerSessionEndRefunded": "Барои вақти бознакарда {amount} баргардонида шуд",
+  "@customerSessionEndRefunded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionEndTitle": "Сессияро тамом кунем?",
   "customerSessionExtendAction": "Дароз кардан",
   "customerSessionExtendConfirm": "Ба {duration} дароз кардан",
   "@customerSessionExtendConfirm": {

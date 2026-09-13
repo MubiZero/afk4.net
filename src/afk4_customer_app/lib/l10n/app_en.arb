@@ -802,6 +802,21 @@
   "customerReviewsEmpty": "No reviews yet — yours would be the first",
   "customerReviewsError": "Could not load the reviews",
   "customerReviewsTitle": "Player reviews",
+  "customerSessionEndAction": "Finish and leave",
+  "customerSessionEndBody": "The seat frees up right away. Paid time you did not use comes back to your wallet.",
+  "customerSessionEndCancel": "Stay",
+  "customerSessionEndConfirm": "Finish",
+  "customerSessionEndFailed": "Could not finish the session. Try again or ask an operator.",
+  "customerSessionEndNoRefund": "Session finished",
+  "customerSessionEndRefunded": "Refunded {amount} for the time you did not use",
+  "@customerSessionEndRefunded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionEndTitle": "Finish the session?",
   "customerSessionExtendAction": "Add time",
   "customerSessionExtendConfirm": "Add {duration}",
   "@customerSessionExtendConfirm": {

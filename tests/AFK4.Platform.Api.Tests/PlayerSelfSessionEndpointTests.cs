@@ -311,4 +311,216 @@ public class PlayerSelfSessionEndpointTests
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    // ── Игрок сам встаёт из-за ПК ─────────────────────────────────────────────────────────
+    //
+    // Предоплаченная сессия списывается ЦЕЛИКОМ при старте, поэтому ранний выход — это возврат
+    // переплаты, а не доплата. Тариф здесь 1000 дирамов за минуту при минимуме в минуту, так что
+    // час стоит 60 000, а «встал сразу» стоит минимум — одну минуту.
+
+    private static async Task<Guid> StartHourSessionAsync(PlatformApiFactory factory, HttpClient client, SelfStartContext ctx)
+    {
+        var start = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(await SeatingCodeAsync(factory, ctx), ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+        start.EnsureSuccessStatusCode();
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return (await db.Sessions.SingleAsync(s => s.PlayerAccountId == ctx.PlayerId)).SessionId;
+    }
+
+    private static async Task<long> WalletBalanceAsync(PlatformApiFactory factory, Guid playerId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.LedgerEntries
+            .Where(entry => entry.PlayerAccountId == playerId
+                            && entry.AccountType == AFK4.Shared.Contracts.Billing.LedgerAccountTypeNames.Wallet)
+            .SumAsync(entry => entry.AmountMinorUnits);
+    }
+
+    /// Включает кешбэк за игровое время в этом клубе: без него возврат нечего разматывать, и
+    /// дыра «оплатить восемь часов, встать через пять минут, оставить себе кешбэк за восемь»
+    /// осталась бы непроверенной.
+    private static async Task EnableSessionCashbackAsync(PlatformApiFactory factory, Guid orgId, int basisPoints)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        // Кешбэк проходит через лестницу фич, а она начинается с существования организации:
+        // без строки Organizations ответ «нет», и настройки лояльности читаться не будут вовсе.
+        if (!await db.Organizations.AnyAsync(organization => organization.OrganizationId == orgId))
+        {
+            db.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = orgId,
+                Name = "Self-End Club",
+                CreatedAtUtc = Now
+            });
+        }
+
+        db.OrganizationFeatureOverrides.Add(new OrganizationFeatureOverrideEntity
+        {
+            OrganizationFeatureOverrideId = Guid.NewGuid(),
+            OrganizationId = orgId,
+            FeatureKey = AFK4.Shared.Contracts.Platform.Features.PlatformFeatureNames.Loyalty,
+            IsEnabled = true,
+            Reason = "тест: включаем кешбэк за игровое время",
+            SetByPlatformAdminUserId = Guid.Empty,
+            SetAtUtc = Now
+        });
+
+        db.OrganizationLoyaltySettings.Add(new OrganizationLoyaltySettingsEntity
+        {
+            OrganizationId = orgId,
+            SessionEnabled = true,
+            SessionPercentBasisPoints = basisPoints,
+            UpdatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<long> SumByTypeAsync(PlatformApiFactory factory, Guid sessionId, string entryType)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.LedgerEntries
+            .Where(entry => entry.SessionId == sessionId && entry.EntryType == entryType)
+            .SumAsync(entry => entry.AmountMinorUnits);
+    }
+
+    // Кешбэк начисляется при старте на ВСЮ предоплаченную сумму. Вернуть деньги и оставить
+    // кешбэк за неигранные часы — это дыра, а не щедрость.
+    [Fact]
+    public async Task SelfEnd_UnwindsCashbackInProportionToTheRefund()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        await EnableSessionCashbackAsync(factory, ctx.OrgId, basisPoints: 1000); // 10%
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+
+        // Час стоит 60 000, кешбэк 10% = 6 000.
+        Assert.Equal(6_000, await SumByTypeAsync(factory, sessionId, AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.Cashback));
+
+        (await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")))).EnsureSuccessStatusCode();
+
+        // Вернулось 59 000 из 60 000, значит снимается 59/60 кешбэка = 5 900.
+        Assert.Equal(59_000, await SumByTypeAsync(factory, sessionId, AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.Refund));
+        Assert.Equal(-5_900, await SumByTypeAsync(factory, sessionId, AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.Reversal));
+    }
+
+    // Клуб без кешбэка: разматывать нечего, и лишней записи в леджере появиться не должно.
+    [Fact]
+    public async Task SelfEnd_WithoutCashback_WritesNoReversal()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        (await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")))).EnsureSuccessStatusCode();
+
+        Assert.Equal(0, await SumByTypeAsync(factory, sessionId, AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.Reversal));
+    }
+
+    [Fact]
+    public async Task SelfEnd_RefundsTheUnplayedTime()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        var afterStart = await WalletBalanceAsync(factory, ctx.PlayerId);
+
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<PlayerSelfEndSessionResponse>();
+        Assert.NotNull(body);
+
+        // Встал сразу — списывается минимальная тарифицируемая длительность, остальное вернулось.
+        Assert.Equal(1, body!.BilledMinutes);
+        Assert.Equal(59_000, body.Refunded.MinorUnits);
+        Assert.Equal(afterStart + 59_000, await WalletBalanceAsync(factory, ctx.PlayerId));
+    }
+
+    [Fact]
+    public async Task SelfEnd_ClosesTheSession()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        (await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")))).EnsureSuccessStatusCode();
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var session = await db.Sessions.SingleAsync(s => s.SessionId == sessionId);
+        Assert.NotEqual(SessionStateNames.Active, session.State);
+    }
+
+    // Что именно защищает от второго возврата: после первого закрытия сессия уже не Active, и
+    // повторный вызов не доходит до денег вовсе — ни по тому же ключу, ни по новому. (От
+    // ОДНОВРЕМЕННЫХ вызовов защищает оптимистичная версия сессии: записи возврата попадают в ту
+    // же транзакцию, что и смена состояния. Гонку здесь не воспроизвести — PlatformApiFactory
+    // работает на in-memory провайдере, — поэтому она подтверждается кодом, а не этим тестом.)
+    [Fact]
+    public async Task SelfEnd_AfterTheSessionIsClosed_TouchesNoMoney()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        var key = Guid.NewGuid().ToString("N");
+
+        (await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end", new PlayerSelfEndSessionRequest(key)))
+            .EnsureSuccessStatusCode();
+        var afterFirst = await WalletBalanceAsync(factory, ctx.PlayerId);
+
+        await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end", new PlayerSelfEndSessionRequest(key));
+        await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(afterFirst, await WalletBalanceAsync(factory, ctx.PlayerId));
+    }
+
+    // Чужую сессию не закончить — тем же правилом, что и продление.
+    [Fact]
+    public async Task SelfEnd_ForeignSession_Returns404()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{Guid.NewGuid()}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SelfEnd_WithoutToken_IsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{Guid.NewGuid()}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }

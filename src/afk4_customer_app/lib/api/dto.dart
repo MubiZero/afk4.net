@@ -14,6 +14,26 @@ class Money {
       );
 }
 
+/// Чем закончился ранний выход из-за ПК.
+///
+/// Показывается человеку целиком: «я встал раньше» и «мне вернули столько-то» — это одно
+/// событие, и узнавать вторую половину из истории кошелька он не должен.
+class EndedSession {
+  const EndedSession({required this.billedMinutes, required this.refunded});
+
+  /// Сколько минут списано. Не фактические минуты, а тарифицируемые: минимальная длительность
+  /// и шаг округления тарифа уже применены — ровно как считают у стойки.
+  final int billedMinutes;
+
+  /// Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью.
+  final Money refunded;
+
+  factory EndedSession.fromJson(Map<String, dynamic> json) => EndedSession(
+        billedMinutes: (json['billedMinutes'] as num?)?.toInt() ?? 0,
+        refunded: Money.fromJson(json['refunded'] as Map<String, dynamic>),
+      );
+}
+
 /// Режим сессии. `fixed` — оплачена наперёд, показывается остаток; `open` — счётчик времени
 /// и накопленная стоимость.
 enum SessionDurationMode { open, fixed }

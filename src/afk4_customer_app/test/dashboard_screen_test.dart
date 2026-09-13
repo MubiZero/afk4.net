@@ -442,4 +442,67 @@ void main() {
     expect(find.textContaining('080,50'), findsOneWidget);
     await unmount(tester);
   });
+
+  // Игрок сам встаёт из-за ПК. До этого «пульт места» не умел главную команду пульта: сесть
+  // можно было из приложения, а встать — только позвав оператора.
+  testWidgets('заканчивает сессию и показывает, сколько вернулось', (tester) async {
+    final requests = <String>[];
+    final http = FakeHttpClient((request) {
+      requests.add('${request.method} ${request.url.path}');
+      return switch (request.url.path) {
+        '/api/me/dashboard' => (_dashboardJson(session: _fixedSession(remainingSeconds: 3540)), 200),
+        '/api/me/features' => ('{"features":["online_topup"]}', 200),
+        '/api/me/sessions/s1/end' => (
+            jsonEncode({
+              'billedMinutes': 1,
+              'refunded': {'currencyCode': 'TJS', 'minorUnits': 59000},
+            }),
+            200
+          ),
+        _ => ('[]', 200),
+      };
+    });
+
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Закончить и встать'));
+    await tester.pumpAndSettle();
+
+    // Подтверждение обязательно: место освобождается сразу, и случайное нажатие выгоняет
+    // человека из-за ПК.
+    expect(find.text('Закончить сессию?'), findsOneWidget);
+    await tester.tap(find.text('Закончить'));
+    await tester.pumpAndSettle();
+
+    expect(requests, contains('POST /api/me/sessions/s1/end'));
+    // Сумма возврата — сразу на экране, а не «смотрите в истории кошелька».
+    expect(find.textContaining('590,00'), findsOneWidget);
+
+    await unmount(tester);
+  });
+
+  testWidgets('отказ от подтверждения оставляет сессию идти', (tester) async {
+    final requests = <String>[];
+    final http = FakeHttpClient((request) {
+      requests.add('${request.method} ${request.url.path}');
+      return switch (request.url.path) {
+        '/api/me/dashboard' => (_dashboardJson(session: _fixedSession(remainingSeconds: 3540)), 200),
+        '/api/me/features' => ('{"features":["online_topup"]}', 200),
+        _ => ('[]', 200),
+      };
+    });
+
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Закончить и встать'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Остаться'));
+    await tester.pumpAndSettle();
+
+    expect(requests, isNot(contains('POST /api/me/sessions/s1/end')));
+
+    await unmount(tester);
+  });
 }

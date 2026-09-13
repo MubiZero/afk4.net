@@ -476,6 +476,23 @@ class PlayerApiClient {
     });
   }
 
+  /// Игрок встаёт из-за ПК сам.
+  ///
+  /// Предоплаченная сессия списывается целиком при старте, поэтому ранний выход возвращает
+  /// переплату на кошелёк. Возвращается то, что показать человеку: сколько минут списано (по
+  /// правилам тарифа, а не по секундам) и сколько вернулось.
+  ///
+  /// 404 — сессия уже не идёт или чужая.
+  Future<EndedSession> endSession({
+    required String sessionId,
+    required String idempotencyKey,
+  }) async {
+    final body = await sendJson('POST', '/api/me/sessions/${Uri.encodeComponent(sessionId)}/end', {
+      'idempotencyKey': idempotencyKey,
+    });
+    return EndedSession.fromJson(body);
+  }
+
   /// Кешбэк игрока: накопленное и правила начисления. 403 — клуб не подключил лояльность.
   Future<PlayerLoyalty> getLoyalty() async =>
       _parse(await getJson('/api/me/loyalty'), PlayerLoyalty.fromJson);
