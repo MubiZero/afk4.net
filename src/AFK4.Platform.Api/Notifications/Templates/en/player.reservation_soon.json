@@ -1,5 +1,5 @@
 {
-  "subject": "Booking in an hour",
+  "subject": "Booking in an hour — {{club}}, {{time}}",
   "bodyText": "{{club}}: see you at {{time}}.",
   "bodyHtml": ""
 }

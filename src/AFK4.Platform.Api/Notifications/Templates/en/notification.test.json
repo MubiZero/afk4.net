@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4.NET notification check",
-  "bodyText": "Test notification for {{recipient}}. If you received it, the delivery channel works.",
-  "bodyHtml": "<p>Test notification for {{recipient}}.</p><p>If you received it, the delivery channel works.</p>"
+  "subject": "AFK4.net email check",
+  "bodyText": "This is an AFK4.net test email. If it reached you, delivery works.",
+  "bodyHtml": "<p>This is an AFK4.net test email.</p><p>If it reached you, delivery works.</p>"
 }

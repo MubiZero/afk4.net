@@ -1,5 +1,5 @@
 {
-  "subject": "Ҳисоб пур карда шуд",
+  "subject": "Ҳисоб ба {{amount}} пур карда шуд",
   "bodyText": "{{amount}} воридот шуд. Ҳисоб: {{balance}}.",
   "bodyHtml": ""
 }
