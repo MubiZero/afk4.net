@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { useI18n } from '@afk4/i18n';
+
+export interface TariffClient {
+  createTariff(name: string, pricePerHourMinorUnits: number): Promise<{ name: string }>;
+}
+
+interface TariffScreenProps {
+  client: TariffClient;
+  ownerName: string;
+  branchName: string;
+  onContinue(): void;
+  onBack(): void;
+}
+
+export function TariffScreen({ client, ownerName, branchName, onContinue, onBack }: TariffScreenProps) {
+  const { t } = useI18n();
+  const [name, setName] = useState(t('setup.wizard.tariff.defaultName'));
+  const [pricePerHour, setPricePerHour] = useState('10');
+  const [created, setCreated] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const parsedPrice = Number.parseFloat(pricePerHour.replace(',', '.'));
+  const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving;
+
+  async function create(): Promise<void> {
+    if (!canCreate) return;
+    setSaving(true);
+    setFailed(false);
+    try {
+      // Цена вводится в сомони, а хранится в дирамах: копейки считаются целыми, иначе округление
+      // однажды съест или подарит минуту игры.
+      const result = await client.createTariff(name.trim(), Math.round(parsedPrice * 100));
+      setCreated(result.name);
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="wizard-screen is-narrow">
+      <div className="wizard-screen-head">
+        <span className="wizard-screen-context">{ownerName} · {branchName}</span>
+        <div className="wizard-screen-title-row">
+          <span className="wizard-screen-step" aria-hidden>7</span>
+          <h1>{t('setup.wizard.tariff.title')}</h1>
+        </div>
+        <p>{t('setup.wizard.tariff.subtitle')}</p>
+      </div>
+
+      <div className="wizard-field">
+        <label className="wizard-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
+        <input
+          id="tariff-name"
+          className="wizard-input"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </div>
+
+      <div className="wizard-field">
+        <label className="wizard-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
+        <input
+          id="tariff-price"
+          className="wizard-input"
+          type="number"
+          min={1}
+          step="0.5"
+          value={pricePerHour}
+          onChange={(event) => setPricePerHour(event.target.value)}
+        />
+      </div>
+
+      <button type="button" className="wizard-button is-ghost" onClick={() => void create()} disabled={!canCreate}>
+        {saving ? <Loader2 size={16} className="wizard-spin" aria-hidden /> : <Check size={16} aria-hidden />}
+        {t('setup.wizard.tariff.create')}
+      </button>
+
+      {failed ? <p className="wizard-error">{t('setup.wizard.tariff.failed')}</p> : null}
+      {created === null ? null : <p className="wizard-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
+
+      <div className="wizard-actions">
+        <button type="button" className="wizard-button is-ghost" onClick={onBack}>
+          <ArrowLeft size={16} aria-hidden />
+          {t('setup.wizard.common.back')}
+        </button>
+        <button type="button" className="wizard-button" onClick={onContinue} disabled={saving}>
+          <ArrowRight size={16} aria-hidden />
+          {created === null ? t('setup.wizard.tariff.skip') : t('setup.wizard.tariff.next')}
+        </button>
+      </div>
+    </section>
+  );
+}

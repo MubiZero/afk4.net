@@ -22,6 +22,10 @@ public sealed class SetupWizardWebHostBridge(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    // Потолок на один заход: зал в сотню мест — это уже не установка, а импорт, и такие вещи
+    // делаются в панели, а не пачкой запросов из мастера.
+    private const int MaxSeatsPerRun = 60;
+
     private string? accessToken;
 
     // Организация нужна для установочных запросов: у всех организационных маршрутов канонический
@@ -64,6 +68,8 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:enrollAuth" => await EnrollAuthenticatedAsync(request.Payload, cancellationToken),
                 "wizard:brandingPresets" => BrandingPresetList(),
                 "wizard:inviteStaff" => await InviteStaffAsync(request.Payload, cancellationToken),
+                "wizard:createSeats" => await CreateSeatsAsync(request.Payload, cancellationToken),
+                "wizard:createTariff" => await CreateTariffAsync(request.Payload, cancellationToken),
                 "wizard:saveBranding" => await SaveBrandingAsync(request.Payload, cancellationToken),
                 "wizard:provisionShell" => FinalizeForRole(ReadProvisionRole(request.Payload)),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
@@ -318,6 +324,58 @@ public sealed class SetupWizardWebHostBridge(
             cancellationToken);
 
         return new WizardStaffInvited(displayName, roleName, invite.Code, invite.ExpiresAtUtc);
+    }
+
+    // Зал заводится пачкой: «ПК-1»…«ПК-N». Сервер создаёт места по одному и идемпотентен по имени,
+    // поэтому повтор шага не плодит дубликаты, а докладывает недостающие.
+    private async Task<object> CreateSeatsAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardCreateSeatsPayload>(payload);
+        var prefix = (request.NamePrefix ?? string.Empty).Trim();
+        if (prefix.Length == 0)
+        {
+            throw new InvalidOperationException("Seat name prefix is required.");
+        }
+
+        if (request.Count is not > 0 or > MaxSeatsPerRun)
+        {
+            throw new InvalidOperationException($"Seat count must be between 1 and {MaxSeatsPerRun}.");
+        }
+
+        var organizationId = RequireOrganizationId();
+        var branchId = ParseGuid(request.BranchId, nameof(request.BranchId));
+        var zoneId = ParseGuid(request.ZoneId, nameof(request.ZoneId));
+        var accessToken = RequireAccessToken();
+
+        var created = new List<string>();
+        for (var number = 1; number <= request.Count; number++)
+        {
+            var seat = await apiClient.CreateSeatAuthenticatedAsync(
+                organizationId, accessToken, branchId, zoneId, $"{prefix}-{number}", cancellationToken);
+            created.Add(seat.Name);
+        }
+
+        return new WizardSeatsCreated(created);
+    }
+
+    private async Task<object> CreateTariffAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardCreateTariffPayload>(payload);
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0 || request.PricePerHourMinorUnits is not > 0)
+        {
+            throw new InvalidOperationException("Tariff name and price are required.");
+        }
+
+        var tariff = await apiClient.CreateTariffAsync(
+            RequireOrganizationId(),
+            ParseGuid(request.BranchId, nameof(request.BranchId)),
+            RequireAccessToken(),
+            name,
+            request.PricePerHourMinorUnits.Value,
+            cancellationToken);
+
+        return new WizardTariffCreated(tariff.Name);
     }
 
     private Guid RequireOrganizationId() =>
@@ -575,6 +633,14 @@ public sealed class SetupWizardWebHostBridge(
     private sealed record WizardStaffInvitePayload(string? BranchId, string? DisplayName, string? PhoneNumber, string? RoleName);
 
     private sealed record WizardStaffInvited(string DisplayName, string RoleName, string Code, DateTimeOffset ExpiresAtUtc);
+
+    private sealed record WizardCreateSeatsPayload(string? BranchId, string? ZoneId, string? NamePrefix, int? Count);
+
+    private sealed record WizardSeatsCreated(IReadOnlyList<string> Names);
+
+    private sealed record WizardCreateTariffPayload(string? BranchId, string? Name, long? PricePerHourMinorUnits);
+
+    private sealed record WizardTariffCreated(string Name);
 
     private sealed record WizardDiscoverResult(string OwnerName, IReadOnlyList<WizardBranch> Branches);
 

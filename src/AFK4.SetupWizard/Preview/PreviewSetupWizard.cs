@@ -3,6 +3,7 @@ using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Tariffs;
 
 namespace AFK4.SetupWizard.Preview;
 
@@ -96,6 +97,15 @@ internal static class PreviewSetupWizard
             string roleName,
             CancellationToken cancellationToken)
             => Task.FromResult(new StaffInviteDto(Guid.NewGuid(), "123456", DateTimeOffset.UtcNow.AddDays(1)));
+
+        public Task<TariffDto> CreateTariffAsync(
+            Guid organizationId,
+            Guid branchId,
+            string accessToken,
+            string name,
+            long pricePerHourMinorUnits,
+            CancellationToken cancellationToken)
+            => Task.FromResult(new TariffDto(Guid.NewGuid(), organizationId, branchId, name, true, DateTimeOffset.UtcNow));
 
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
             Guid organizationId, string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)

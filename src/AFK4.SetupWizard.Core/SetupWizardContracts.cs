@@ -1,5 +1,6 @@
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Tariffs;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -88,6 +89,15 @@ public interface ISetupWizardApiClient
         string displayName,
         string phoneNumber,
         string roleName,
+        CancellationToken cancellationToken);
+
+    /// <summary>Первый тариф клуба: имя и цена за час. Возвращает имя созданного тарифа.</summary>
+    Task<TariffDto> CreateTariffAsync(
+        Guid organizationId,
+        Guid branchId,
+        string accessToken,
+        string name,
+        long pricePerHourMinorUnits,
         CancellationToken cancellationToken);
 
     Task<InstallEnrollResponse> EnrollAuthenticatedAsync(

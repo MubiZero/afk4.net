@@ -143,6 +143,24 @@ export function inviteStaff(
   return postHostRequest<WizardStaffInvited>('wizard:inviteStaff', { branchId, displayName, phoneNumber, roleName });
 }
 
+/** Зал пачкой: «ПК-1»…«ПК-N» в выбранной зоне. */
+export function createSeats(
+  branchId: string,
+  zoneId: string,
+  namePrefix: string,
+  count: number,
+): Promise<{ names: string[] }> {
+  return postHostRequest<{ names: string[] }>('wizard:createSeats', { branchId, zoneId, namePrefix, count });
+}
+
+export function createTariff(
+  branchId: string,
+  name: string,
+  pricePerHourMinorUnits: number,
+): Promise<{ name: string }> {
+  return postHostRequest<{ name: string }>('wizard:createTariff', { branchId, name, pricePerHourMinorUnits });
+}
+
 export function discoverAuthenticated(): Promise<WizardDiscoverResponse> {
   return postHostRequest<WizardDiscoverResponse>('wizard:discoverAuth');
 }
