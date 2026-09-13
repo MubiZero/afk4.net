@@ -113,6 +113,12 @@ public sealed class Worker(
                 // Код для монитора приезжает с сердцебиением — оболочка покажет его, пока за ПК
                 // никто не сидит. Пустой он у занятой машины: звать к ней некого.
                 seatingCode = heartbeat.SeatingCode;
+                // Последнее известное оформление переживает обрыв связи: логотип на экране не
+                // должен мигать оттого, что сеть моргнула.
+                if (heartbeat.Branding is not null)
+                {
+                    branding = heartbeat.Branding;
+                }
                 if (heartbeat.RotateCredential)
                 {
                     await TryRotateCredentialAsync(client, agentOptions, cancellationToken);
@@ -335,6 +341,8 @@ public sealed class Worker(
     /// <summary>Код, который оболочка показывает на простаивающем экране. Приезжает с сердцебиением.</summary>
     private string? seatingCode;
 
+    private ShellBrandingDto? branding;
+
     private PlayerShellStateDto CreatePlayerShellState(AgentRuntimeState runtimeState)
     {
         var agentOptions = options.Value;
@@ -362,9 +370,11 @@ public sealed class Worker(
             LauncherApps: [],
             Locale: agentOptions.PreferredLocale,
             WarningKind: PlayerShellWarning.Classify(runtimeState.State, remainingSeconds, threshold, isGraceMode),
-            Branding: string.IsNullOrWhiteSpace(agentOptions.ClubName)
+            // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом
+            // для первого запуска, пока сервер ещё не ответил ни разу.
+            Branding: branding ?? (string.IsNullOrWhiteSpace(agentOptions.ClubName)
                 ? null
-                : new ShellBrandingDto(agentOptions.ClubName!, agentOptions.LogoUrl, agentOptions.AccentColor));
+                : new ShellBrandingDto(agentOptions.ClubName!, agentOptions.LogoUrl, agentOptions.AccentColor)));
     }
 
     private static string CreatePlayerShellMessage(AgentRuntimeState runtimeState)

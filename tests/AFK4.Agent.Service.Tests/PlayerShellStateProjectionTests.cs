@@ -94,7 +94,90 @@ public sealed class PlayerShellStateProjectionTests
         Assert.Equal("#c8ff00", dto.Branding.AccentColor);
     }
 
+    // Оформление меняют в панели, и на игровой ПК оно приезжает сердцебиением. Конфиг машины
+    // остаётся запасным вариантом для самого первого запуска — до первого ответа сервера.
+    [Fact]
+    public async Task CreatePlayerShellState_PrefersBrandingFromHeartbeatOverTheConfiguredOne()
+    {
+        var sessionId = Guid.Parse("992624cf-77d1-413b-8e51-6f88872183eb");
+        var leaseExpiry = DateTimeOffset.UtcNow.AddSeconds(600);
+        var leaseStore = new InMemorySessionLeaseStore();
+        leaseStore.Save(new SessionLeaseDto(
+            SessionId: sessionId,
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            SeatId: Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+            DeviceId: Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            State: "active",
+            Sequence: 1,
+            IssuedAtUtc: DateTimeOffset.UtcNow.AddHours(-1),
+            ExpiresAtUtc: leaseExpiry,
+            SignatureAlgorithm: "none",
+            Signature: "test"));
+
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var statePublished = new TaskCompletionSource<PlayerShellStateDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            ClubName = "Из конфига",
+            AccentColor = "#000000",
+        });
+
+        using var heartbeatHandler = new AlwaysOkHeartbeatHandler(
+            new ShellBrandingDto("Клуб «Орион»", "https://api.afk4.net/branding/presets/bolt.svg", "#C8FF00"));
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(heartbeatHandler)),
+            options,
+            new NoOpRealtimeClient(),
+            leaseStore,
+            new ActiveRuntimeStateStore(sessionId, leaseExpiry),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            // Первый кадр оболочка получает раньше, чем сервер успевает ответить, — ждём тот,
+            // в котором оформление уже пришло сердцебиением.
+            new WaitForBrandingPublisher(statePublished, stopping),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            TimeProvider.System);
+
+        await worker.StartAsync(stopping.Token);
+        var dto = await statePublished.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.NotNull(dto.Branding);
+        Assert.Equal("Клуб «Орион»", dto.Branding!.ClubName);
+        Assert.Equal("https://api.afk4.net/branding/presets/bolt.svg", dto.Branding.LogoUrl);
+        Assert.Equal("#C8FF00", dto.Branding.AccentColor);
+    }
+
     // --- test doubles (private, scoped to this test class) ---
+
+    private sealed class WaitForBrandingPublisher(
+        TaskCompletionSource<PlayerShellStateDto> captured,
+        CancellationTokenSource stopping) : IPlayerShellStatePublisher
+    {
+        public Task PublishAsync(PlayerShellStateDto state, CancellationToken cancellationToken)
+        {
+            if (state.Branding?.LogoUrl is not null)
+            {
+                captured.TrySetResult(state);
+                stopping.Cancel();
+            }
+
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class CapturingPlayerShellStatePublisher(
         TaskCompletionSource<PlayerShellStateDto> captured,
@@ -108,7 +191,7 @@ public sealed class PlayerShellStateProjectionTests
         }
     }
 
-    private sealed class AlwaysOkHeartbeatHandler : HttpMessageHandler
+    private sealed class AlwaysOkHeartbeatHandler(ShellBrandingDto? branding = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -117,7 +200,8 @@ public sealed class PlayerShellStateProjectionTests
             var response = new DeviceHeartbeatResponse(
                 ServerTimeUtc: DateTimeOffset.UtcNow,
                 HeartbeatIntervalSeconds: 10,
-                Commands: []);
+                Commands: [],
+                Branding: branding);
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {

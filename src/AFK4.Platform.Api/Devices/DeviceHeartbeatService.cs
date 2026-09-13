@@ -6,6 +6,7 @@ using AFK4.Shared.Contracts.Sessions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Platform.Api.Devices;
 
@@ -110,11 +111,24 @@ public sealed class DeviceHeartbeatService(
                 .ToList();
         }
 
-        var branchGraceMinutes = await dbContext.Branches
+        // Оформление берётся тем же запросом, что и окно офлайна: сердцебиение стучит с каждой
+        // машины раз в десять секунд, и отдельный запрос за логотипом стоил бы ровно столько же,
+        // сколько сам логотип меняется раз в полгода.
+        var branchInfo = await dbContext.Branches
             .AsNoTracking()
             .Where(branch => branch.BranchId == request.BranchId)
-            .Select(branch => branch.GraceLeaseMinutes)
+            .Select(branch => new
+            {
+                branch.GraceLeaseMinutes,
+                Branding = dbContext.Organizations
+                    .Where(organization => organization.OrganizationId == branch.OrganizationId)
+                    .Select(organization => new ShellBrandingDto(
+                        organization.Name, organization.LogoUrl, organization.AccentColor))
+                    .FirstOrDefault(),
+            })
             .FirstOrDefaultAsync(cancellationToken);
+
+        var branchGraceMinutes = branchInfo?.GraceLeaseMinutes ?? 0;
 
         // Код показывает только свободная машина: звать человека к занятой незачем, а показать
         // код поверх чужой игры значит позвать к ней постороннего.
@@ -142,6 +156,7 @@ public sealed class DeviceHeartbeatService(
             SeatingCodeExpiresAtUtc: seatingCode?.ExpiresAtUtc,
             // Просьбу видит только машина, которую клуб уже принял: незаверенному ПК менять
             // нечего, а просьба на нём выглядела бы как разрешение.
-            RotateCredential: allowOperationalCommands && rotationRequested);
+            RotateCredential: allowOperationalCommands && rotationRequested,
+            Branding: branchInfo?.Branding);
     }
 }
