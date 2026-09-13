@@ -2735,6 +2735,8 @@
   "platform.health.job.scheduled_reports": "Отчёты по расписанию",
   "platform.health.jobs.title": "Задания",
   "platform.health.lastSuccess": "Последний успех: {time}",
+  "platform.health.mediaStorage.missing": "Не настроено: логотипы и фото зала загрузить нельзя ни из мастера установки, ни из панели клуба. Нужны переменные Media__S3__* у Platform API.",
+  "platform.health.mediaStorage.title": "Хранилище файлов",
   "platform.health.neverRan": "Ни разу не отработало",
   "platform.health.queue.billing_outbox": "Биллинг",
   "platform.health.queue.failed": "{count, plural, one {# провалено} few {# провалено} other {# провалено}}",

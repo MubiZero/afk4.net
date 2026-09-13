@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Outbox;
 using AFK4.Shared.Contracts.Platform.Health;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using AFK4.Platform.Api.Media;
 
 namespace AFK4.Platform.Api.Platform.Health;
 
@@ -17,6 +18,7 @@ public sealed class EfPlatformHealthOverviewService(
     IPlatformIncidentService incidentService,
     PlatformJobIntervalCatalog jobIntervalCatalog,
     IOptions<PlatformHealthOptions> healthOptions,
+    IOptions<MediaOptions> mediaOptions,
     TimeProvider timeProvider)
     : IPlatformHealthOverviewService
 {
@@ -145,6 +147,7 @@ public sealed class EfPlatformHealthOverviewService(
                 incident.LastSeenAtUtc))
             .ToList();
 
-        return new PlatformHealthOverviewDto(now, jobs, queues, incidents, recentFailures);
+        return new PlatformHealthOverviewDto(
+            now, jobs, queues, incidents, recentFailures, mediaOptions.Value.S3.IsConfigured);
     }
 }

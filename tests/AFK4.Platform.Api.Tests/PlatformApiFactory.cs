@@ -249,6 +249,16 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                 // resolve the SAME instance the endpoint used (see FakeMediaStorage.Objects).
                 services.RemoveAll<IMediaStorage>();
                 services.AddSingleton<IMediaStorage, FakeMediaStorage>();
+                // Хранилище подставное, но настроенным быть обязано: без адреса и ключей сервис
+                // отказывает сразу — так он ведёт себя на среде, где Media__S3__* не заданы.
+                services.Configure<MediaOptions>(options =>
+                {
+                    options.S3.Endpoint = "https://storage.test";
+                    options.S3.Bucket = "media";
+                    options.S3.AccessKey = "key";
+                    options.S3.SecretKey = "secret";
+                    options.S3.PublicBaseUri = "https://storage.test/media";
+                });
 
                 using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
                 var signingPrivateKeyPem = key.ExportECPrivateKeyPem();

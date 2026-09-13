@@ -124,12 +124,23 @@ function TestEmailCard({ client }: { client: Pick<HealthApi, 'sendTestEmail'> })
 }
 
 function HealthOverviewView({ overview }: { overview: HealthOverview }) {
+  const { t } = useI18n();
   return (
     <>
       <IncidentsCard overview={overview} />
       <JobsCard jobs={overview.jobs} />
       <QueuesCard queues={overview.queues} />
       <FailuresCard failures={overview.recentFailures} />
+      {overview.mediaStorageConfigured ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('platform.health.mediaStorage.title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CardDescription>{t('platform.health.mediaStorage.missing')}</CardDescription>
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

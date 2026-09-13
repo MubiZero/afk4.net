@@ -35,7 +35,7 @@ function queue(overrides: Partial<QueueHealth> = {}): QueueHealth {
 }
 
 function overview(overrides: Partial<HealthOverview> = {}): HealthOverview {
-  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [job()], queues: [queue()], openIncidents: [], recentFailures: [], ...overrides };
+  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [job()], queues: [queue()], openIncidents: [], recentFailures: [], mediaStorageConfigured: true, ...overrides };
 }
 
 function fakeClient(result: HealthOverview | (() => Promise<HealthOverview>)) {
@@ -130,4 +130,11 @@ it('confirms a delivered test email', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Отправить проверочное письмо' }));
 
   expect(await screen.findByText('Письмо отправлено')).toBeTruthy();
+});
+
+// Про ненастроенное хранилище узнать должны мы, а не клуб при первой загрузке логотипа.
+it('warns when file storage is not configured', async () => {
+  render(<I18nProvider><HealthScreen client={fakeClient(overview({ mediaStorageConfigured: false }))} /></I18nProvider>);
+
+  expect(await screen.findByText(/Не настроено: логотипы и фото зала/)).toBeTruthy();
 });

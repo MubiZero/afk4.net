@@ -2736,6 +2736,8 @@ export const tg = {
   "platform.health.job.scheduled_reports": "Ҳисоботҳо тибқи ҷадвал",
   "platform.health.jobs.title": "Вазифаҳо",
   "platform.health.lastSuccess": "Муваффақияти охирин: {time}",
+  "platform.health.mediaStorage.missing": "Танзим нашудааст: логотип ва аксҳои толорро на аз устоди насб ва на аз панели клуб бор кардан мумкин нест. Ба Platform API тағйирёбандаҳои Media__S3__* лозим аст.",
+  "platform.health.mediaStorage.title": "Анбори файлҳо",
   "platform.health.neverRan": "Ҳеҷ гоҳ иҷро нашудааст",
   "platform.health.queue.billing_outbox": "Биллинг",
   "platform.health.queue.failed": "{count, plural, other {# ноком}}",
