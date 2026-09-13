@@ -47,6 +47,10 @@ export function ClientPicker({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [settled, setSettled] = useState(false); // поиск для текущего запроса завершился
+  // Сбой поиска НЕЛЬЗЯ показывать как «не найдено»: оператор заведёт второго клиента на того же
+  // человека, и дальше расходятся кошелёк, долг и история визитов. Это дороже любого другого
+  // проглоченного отказа на этом экране.
+  const [failed, setFailed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,6 +65,7 @@ export function ClientPicker({
     if (!open || query.length < 2) {
       setResults([]);
       setSettled(false);
+      setFailed(false);
       setLoading(false);
       return undefined;
     }
@@ -73,11 +78,13 @@ export function ClientPicker({
           setResults(hits.filter((hit) => hit.playerAccountId));
           setActiveIndex(0);
           setSettled(true);
+          setFailed(false);
         })
         .catch(() => {
           if (cancelled) return;
           setResults([]);
           setSettled(true);
+          setFailed(true);
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -192,7 +199,13 @@ export function ClientPicker({
               </li>
             ))
           ) : (
-            <li className="booking-client-msg">{searching ? t('op.pos.cart.clientSearching') : t('op.pos.cart.clientNotFound')}</li>
+            <li className={`booking-client-msg${failed && !searching ? ' is-failed' : ''}`}>
+              {searching
+                ? t('op.pos.cart.clientSearching')
+                : failed
+                  ? t('op.booking.client.searchFailed')
+                  : t('op.pos.cart.clientNotFound')}
+            </li>
           )}
         </ul>
       )}

@@ -144,4 +144,34 @@ describe('ClientPicker', () => {
     expect(document.activeElement).toBe(linkedInput);
     expect(screen.queryByRole('listbox')).toBeNull();
   });
+
+  // Сбой поиска, показанный как «не найдено», — это второй клиент на того же человека: у него
+  // разойдутся кошелёк, долг и история визитов. Отказ и пустой результат обязаны выглядеть
+  // по-разному.
+  it('сбой поиска не выдаётся за «клиент не найден»', async () => {
+    const search = mock(async () => { throw new Error('network'); });
+    render(<Harness search={search} onPick={() => {}} />);
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Аз' } });
+
+    expect(await screen.findByText('Поиск не сработал. Повторите ввод.')).toBeInTheDocument();
+    expect(screen.queryByText('Клиент не найден')).not.toBeInTheDocument();
+  });
+
+  it('после удачного повтора сообщение об отказе уходит', async () => {
+    let failNext = true;
+    const search = mock(async () => {
+      if (failNext) { failNext = false; throw new Error('network'); }
+      return [client({})];
+    });
+    render(<Harness search={search} onPick={() => {}} />);
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Аз' } });
+    await screen.findByText('Поиск не сработал. Повторите ввод.');
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Ази' } });
+
+    expect(await screen.findByText('Азиз П.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Поиск не сработал. Повторите ввод.')).not.toBeInTheDocument());
+  });
 });

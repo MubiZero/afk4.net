@@ -1175,6 +1175,12 @@
   text-align: center;
 }
 
+/* Сбой поиска и «никого не нашлось» — разные исходы, и выглядеть они обязаны по-разному:
+   спутав их, оператор заводит дубль клиента. */
+.booking-client-msg.is-failed {
+  color: var(--danger-text);
+}
+
 .booking-client-option {
   display: flex;
   align-items: center;
