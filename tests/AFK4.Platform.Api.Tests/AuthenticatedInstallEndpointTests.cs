@@ -26,6 +26,89 @@ public sealed class AuthenticatedInstallEndpointTests
         Assert.NotEmpty(body!.Branches);
     }
 
+    // Мастер ставится на каждый админский ПК, а клуб настраивают один раз: без этих признаков он
+    // спрашивал бы про оформление и тариф повторно — и на тарифе с тем же именем сервер бы отказал.
+    [Fact]
+    public async Task AuthDiscover_TellsWhatTheClubAlreadyHas()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+
+        var fresh = await DiscoverAsync(client);
+        Assert.False(fresh!.BrandingConfigured);
+        Assert.All(fresh.Branches, branch => Assert.False(branch.HasTariff));
+        Assert.All(fresh.Branches, branch => Assert.False(branch.HasStaffBesidesOwner));
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var organization = await db.Organizations.SingleAsync(row => row.OrganizationId == TestIds.OrganizationId);
+            organization.AccentColor = "#C8FF00";
+            db.Tariffs.Add(new TariffEntity
+            {
+                TariffId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "Стандартный",
+                IsActive = true,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+            });
+            db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+            {
+                StaffRoleAssignmentId = Guid.NewGuid(),
+                StaffUserId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                RoleName = OrganizationRoleNames.Operator,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var configured = await DiscoverAsync(client);
+        Assert.True(configured!.BrandingConfigured);
+        var branch = Assert.Single(configured.Branches, candidate => candidate.BranchId == TestIds.BranchId);
+        Assert.True(branch.HasTariff);
+        Assert.True(branch.HasStaffBesidesOwner);
+    }
+
+    // Владелец есть в каждом клубе с первого дня — сам по себе он не повод пропустить шаг найма.
+    [Fact]
+    public async Task AuthDiscover_DoesNotCountTheOwnerAsStaff()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+            {
+                StaffRoleAssignmentId = Guid.NewGuid(),
+                StaffUserId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                RoleName = OrganizationRoleNames.OrganizationOwner,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var body = await DiscoverAsync(client);
+
+        Assert.All(body!.Branches, branch => Assert.False(branch.HasStaffBesidesOwner));
+    }
+
+    private static async Task<InstallDiscoverResponse?> DiscoverAsync(HttpClient client)
+    {
+        var response = await client.PostAsync(InstallRoutes.AuthenticatedDiscover(TestIds.OrganizationId), content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<InstallDiscoverResponse>();
+    }
+
     [Fact]
     public async Task AuthDiscover_WithoutToken_Returns401()
     {

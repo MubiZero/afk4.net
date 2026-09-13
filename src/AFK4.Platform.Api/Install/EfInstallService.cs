@@ -8,6 +8,7 @@ using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using AFK4.Platform.Api.Identity;
 
 namespace AFK4.Platform.Api.Install;
 
@@ -370,6 +371,7 @@ public sealed class EfInstallService(
         Guid organizationId,
         IReadOnlySet<Guid> branchIds,
         string ownerDisplayName,
+        Guid staffUserId,
         CancellationToken cancellationToken)
     {
         var organization = await dbContext.Organizations
@@ -389,13 +391,44 @@ public sealed class EfInstallService(
             .OrderBy(branch => branch.Name)
             .ToListAsync(cancellationToken);
 
+        // Что в клубе уже настроено — двумя запросами на весь список залов, а не по одному на зал:
+        // мастеру это нужно, чтобы не спрашивать про тариф и сотрудников там, где они давно есть.
+        var branchesWithTariff = await dbContext.Tariffs
+            .AsNoTracking()
+            .Where(tariff => tariff.OrganizationId == organizationId
+                && allowedBranchIds.Contains(tariff.BranchId)
+                && tariff.IsActive)
+            .Select(tariff => tariff.BranchId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var branchesWithStaff = await dbContext.StaffRoleAssignments
+            .AsNoTracking()
+            .Where(assignment => assignment.OrganizationId == organizationId
+                && allowedBranchIds.Contains(assignment.BranchId)
+                // Владелец есть в клубе с первого дня, а тот, кто сейчас ставит, — это техник или
+                // сам управляющий: ни один из них не отвечает на вопрос «есть ли кому работать в зале».
+                && assignment.RoleName != OrganizationRoleNames.OrganizationOwner
+                && assignment.StaffUserId != staffUserId)
+            .Select(assignment => assignment.BranchId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         var branchDtos = new List<InstallBranchDto>(branches.Count);
         foreach (var branch in branches)
         {
-            branchDtos.Add(await BuildBranchDtoAsync(branch, cancellationToken));
+            var dto = await BuildBranchDtoAsync(branch, cancellationToken);
+            branchDtos.Add(dto with
+            {
+                HasTariff = branchesWithTariff.Contains(branch.BranchId),
+                HasStaffBesidesOwner = branchesWithStaff.Contains(branch.BranchId),
+            });
         }
 
-        var response = new InstallDiscoverResponse(ownerDisplayName, branchDtos);
+        var brandingConfigured = !string.IsNullOrWhiteSpace(organization.LogoUrl)
+            || !string.IsNullOrWhiteSpace(organization.AccentColor);
+
+        var response = new InstallDiscoverResponse(ownerDisplayName, branchDtos, brandingConfigured);
         return InstallOperationResult<InstallDiscoverResponse>.Success(
             response,
             organizationId,
