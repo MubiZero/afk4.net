@@ -14,8 +14,10 @@ public sealed class OrganizationAdminCompatibilityMiddleware(RequestDelegate nex
         HttpContext httpContext,
         IOptions<OrganizationAdminCompatibilityOptions> options)
     {
-        var domain = httpContext.GetEndpoint()?.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain;
-        if (domain != AuthenticationDomain.Organization)
+        var endpoint = httpContext.GetEndpoint();
+        var domain = endpoint?.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain;
+        if (domain != AuthenticationDomain.Organization
+            || endpoint?.Metadata.GetMetadata<NonOrganizationAdminClientMetadata>() is not null)
         {
             await next(httpContext);
             return;

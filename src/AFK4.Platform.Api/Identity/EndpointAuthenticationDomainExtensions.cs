@@ -14,6 +14,13 @@ public static class EndpointAuthenticationDomainExtensions
         return builder.WithMetadata(new AuthenticationDomainMetadata(AuthenticationDomain.Organization));
     }
 
+    /// <summary>Эндпоинт организационного домена, вызываемый не панелью управляющего.</summary>
+    public static TBuilder AllowNonOrganizationAdminClients<TBuilder>(this TBuilder builder)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        return builder.WithMetadata(new NonOrganizationAdminClientMetadata());
+    }
+
     public static TBuilder AllowPlatformSupportAccess<TBuilder>(this TBuilder builder, string permission)
         where TBuilder : IEndpointConventionBuilder
     {

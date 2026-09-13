@@ -178,7 +178,10 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return ToInstallHttpResult(result);
-        });
+        })
+            // Мастер установки — не панель управляющего: проверку версии Organization Admin
+            // к нему не применяем, доменная защита группы остаётся.
+            .AllowNonOrganizationAdminClients();
 
         organizations.MapPost("install/auth/seats", async (
             AuthenticatedInstallCreateSeatRequest request,
@@ -219,7 +222,10 @@ internal static class DeviceEndpoints
             }
 
             return ToInstallHttpResult(result);
-        });
+        })
+            // Мастер установки — не панель управляющего: проверку версии Organization Admin
+            // к нему не применяем, доменная защита группы остаётся.
+            .AllowNonOrganizationAdminClients();
 
         organizations.MapPost("install/auth/enroll", async (
             AuthenticatedInstallEnrollRequest request,
@@ -285,7 +291,10 @@ internal static class DeviceEndpoints
             }
 
             return ToInstallHttpResult(result);
-        });
+        })
+            // Мастер установки — не панель управляющего: проверку версии Organization Admin
+            // к нему не применяем, доменная защита группы остаётся.
+            .AllowNonOrganizationAdminClients();
 
         app.MapPost("/api/devices/enroll", async (
             DeviceEnrollmentRequest request,
