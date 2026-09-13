@@ -8,6 +8,7 @@ export type WizardStep =
   | 'branchSelection'
   | 'role'
   | 'branding'
+  | 'staff'
   | 'device'
   | 'finished';
 
@@ -16,8 +17,9 @@ const STEPS: { id: WizardStep; index: number; labelKey: MessageKey }[] = [
   { id: 'branchSelection', index: 2, labelKey: 'setup.wizard.stepper.branch' },
   { id: 'role', index: 3, labelKey: 'setup.wizard.stepper.role' },
   { id: 'branding', index: 4, labelKey: 'setup.wizard.stepper.branding' },
-  { id: 'device', index: 5, labelKey: 'setup.wizard.stepper.device' },
-  { id: 'finished', index: 6, labelKey: 'setup.wizard.stepper.done' },
+  { id: 'staff', index: 5, labelKey: 'setup.wizard.stepper.staff' },
+  { id: 'device', index: 6, labelKey: 'setup.wizard.stepper.device' },
+  { id: 'finished', index: 7, labelKey: 'setup.wizard.stepper.done' },
 ];
 
 // The forgot-password screen shares stepper position 1 with the sign-in screen.
@@ -27,8 +29,9 @@ const STEP_TO_INDEX: Record<WizardStep, number> = {
   branchSelection: 1,
   role: 2,
   branding: 3,
-  device: 4,
-  finished: 5,
+  staff: 4,
+  device: 5,
+  finished: 6,
 };
 
 interface StepperProps {

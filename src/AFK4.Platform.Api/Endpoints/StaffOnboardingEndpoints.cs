@@ -222,7 +222,9 @@ internal static class StaffOnboardingEndpoints
                 cancellationToken);
 
             return Results.Ok(new StaffInviteDto(result.StaffInviteId, result.Code, result.ExpiresAtUtc));
-        });
+        })
+            // Мастер установки заводит сотрудников на месте: проверка версии панели к нему не применяется.
+            .AllowNonOrganizationAdminClients();
 
         // Приём приглашения. Отвечает теми же словами, что сброс пароля по телефону: человек по
         // ту сторону тот же самый, и два разных языка отказов он читал бы как два разных сбоя.

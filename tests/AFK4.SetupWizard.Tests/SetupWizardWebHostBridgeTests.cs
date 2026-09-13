@@ -69,6 +69,62 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.Empty(deps.Api.DiscoverCalls);
     }
 
+    // --- сотрудники -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task InviteStaff_SendsTheInviteAndReturnsTheCodeToHandOver()
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        var branchId = Guid.NewGuid();
+
+        var response = await Send(
+            bridge,
+            "wizard:inviteStaff",
+            $$"""{"branchId":"{{branchId:D}}","displayName":" Дилшод ","phoneNumber":" +992900000001 ","roleName":"operator"}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal("123456", response.GetProperty("payload").GetProperty("code").GetString());
+        var invite = Assert.Single(deps.Api.Invites);
+        Assert.Equal(branchId, invite.BranchId);
+        Assert.Equal("Дилшод", invite.DisplayName);
+        Assert.Equal("+992900000001", invite.Phone);
+        Assert.Equal("operator", invite.Role);
+    }
+
+    [Fact]
+    public async Task InviteStaff_BeforeSignIn_IsRefused()
+    {
+        var bridge = CreateBridge(out var deps);
+
+        var response = await Send(
+            bridge,
+            "wizard:inviteStaff",
+            $$"""{"branchId":"{{Guid.NewGuid():D}}","displayName":"Дилшод","phoneNumber":"+992900000001","roleName":"operator"}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Empty(deps.Api.Invites);
+    }
+
+    // Без имени или номера приглашать некого — запрос до сервера доходить не должен.
+    [Theory]
+    [InlineData("", "+992900000001", "operator")]
+    [InlineData("Дилшод", "", "operator")]
+    [InlineData("Дилшод", "+992900000001", "")]
+    public async Task InviteStaff_WithMissingFields_IsRefused(string displayName, string phone, string role)
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        var response = await Send(
+            bridge,
+            "wizard:inviteStaff",
+            $$"""{"branchId":"{{Guid.NewGuid():D}}","displayName":"{{displayName}}","phoneNumber":"{{phone}}","roleName":"{{role}}"}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Empty(deps.Api.Invites);
+    }
+
     // --- оформление -----------------------------------------------------------------------
 
     [Fact]
@@ -495,6 +551,22 @@ public sealed class SetupWizardWebHostBridgeTests
         {
             Branding = (organizationId, logoUrl, accentColor);
             return Task.CompletedTask;
+        }
+
+        // Приглашения, отправленные мастером.
+        public List<(Guid OrganizationId, Guid BranchId, string DisplayName, string Phone, string Role)> Invites { get; } = [];
+
+        public Task<StaffInviteDto> InviteStaffAsync(
+            Guid organizationId,
+            Guid branchId,
+            string accessToken,
+            string displayName,
+            string phoneNumber,
+            string roleName,
+            CancellationToken cancellationToken)
+        {
+            Invites.Add((organizationId, branchId, displayName, phoneNumber, roleName));
+            return Task.FromResult(new StaffInviteDto(Guid.NewGuid(), "123456", DateTimeOffset.UnixEpoch.AddYears(56)));
         }
 
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(

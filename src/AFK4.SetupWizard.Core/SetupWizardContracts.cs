@@ -80,6 +80,16 @@ public interface ISetupWizardApiClient
         string? accentColor,
         CancellationToken cancellationToken);
 
+    /// <summary>Приглашение сотрудника: код уходит ему в SMS, пароль он задаёт себе сам.</summary>
+    Task<StaffInviteDto> InviteStaffAsync(
+        Guid organizationId,
+        Guid branchId,
+        string accessToken,
+        string displayName,
+        string phoneNumber,
+        string roleName,
+        CancellationToken cancellationToken);
+
     Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
         Guid organizationId,
         string accessToken,

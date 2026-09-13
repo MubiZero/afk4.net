@@ -1,4 +1,6 @@
 using System.Net;
+using AFK4.Shared.Contracts.Branding;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.Platform.Api.Tests;
@@ -9,15 +11,24 @@ namespace AFK4.Platform.Api.Tests;
 /// и обе стороны были зелёными — каждая проверяла себя. На живом API это было 404, то есть enroll
 /// игрового ПК не работал вовсе.
 /// </summary>
-public sealed class InstallRouteContractTests
+public sealed class WizardRouteContractTests
 {
     private static readonly Guid OrganizationId = Guid.Parse("3f1d2a44-9c1e-4f7b-9a0d-2b6c5e8a1f30");
 
+    private static readonly Guid BranchId = Guid.Parse("6c2f9b18-70a4-4d53-8f0e-1d9b4c7a2e55");
+
+    /// <summary>
+    /// Всё, куда ходит мастер установки. Список общий для обеих проверок намеренно: маршрут,
+    /// добавленный мастеру, обязан сразу попасть под оба условия — существовать и не требовать
+    /// заголовков панели управляющего.
+    /// </summary>
     public static TheoryData<string> InstallRoutePaths() =>
         new(
             InstallRoutes.AuthenticatedDiscover(OrganizationId),
             InstallRoutes.AuthenticatedSeats(OrganizationId),
-            InstallRoutes.AuthenticatedEnroll(OrganizationId));
+            InstallRoutes.AuthenticatedEnroll(OrganizationId),
+            BrandingRoutes.Organization(OrganizationId),
+            StaffRoutes.Invites(OrganizationId, BranchId));
 
     [Theory]
     [MemberData(nameof(InstallRoutePaths))]
@@ -26,7 +37,7 @@ public sealed class InstallRouteContractTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsync(path, content: null);
+        var response = await SendAsync(client, path);
 
         // Важно ровно одно: маршрут существует. Без токена и без тела сервер отвечает отказом
         // в доступе или «нет тела» — но не «нет такого адреса».
@@ -43,8 +54,15 @@ public sealed class InstallRouteContractTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsync(path, content: null);
+        var response = await SendAsync(client, path);
 
         Assert.NotEqual(HttpStatusCode.UpgradeRequired, response.StatusCode);
     }
+
+    // Оформление правится PATCH-ом, остальное создаётся POST-ом: проверяем тем методом, которым
+    // маршрут и вызывают, иначе «маршрут есть» доказывался бы на 405.
+    private static Task<HttpResponseMessage> SendAsync(HttpClient client, string path) =>
+        path.EndsWith("/branding", StringComparison.Ordinal)
+            ? client.PatchAsync(path, content: null)
+            : client.PostAsync(path, content: null);
 }

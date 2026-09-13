@@ -87,6 +87,16 @@ internal static class PreviewSetupWizard
             Guid organizationId, string accessToken, string? logoUrl, string? accentColor, CancellationToken cancellationToken)
             => Task.CompletedTask;
 
+        public Task<StaffInviteDto> InviteStaffAsync(
+            Guid organizationId,
+            Guid branchId,
+            string accessToken,
+            string displayName,
+            string phoneNumber,
+            string roleName,
+            CancellationToken cancellationToken)
+            => Task.FromResult(new StaffInviteDto(Guid.NewGuid(), "123456", DateTimeOffset.UtcNow.AddDays(1)));
+
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
             Guid organizationId, string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
             => Task.FromResult(new InstallEnrollResponse(

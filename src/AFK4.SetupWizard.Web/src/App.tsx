@@ -9,6 +9,7 @@ import { FinishedScreen } from './FinishedScreen';
 import { ForgotPasswordScreen, type SignInPrefill } from './ForgotPasswordScreen';
 import { PhoneLoginScreen } from './PhoneLoginScreen';
 import { BrandingScreen } from './BrandingScreen';
+import { StaffScreen } from './StaffScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
 import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
@@ -16,6 +17,7 @@ import {
   authenticatedInstallClient,
   brandingPresets,
   getBootstrapConfig,
+  inviteStaff,
   saveBranding,
   type WizardBranch,
   type WizardDiscoverResponse,
@@ -62,8 +64,9 @@ const STEP_POSITION: Record<WizardStep, number> = {
   branchSelection: 1,
   role: 2,
   branding: 3,
-  device: 4,
-  finished: 5,
+  staff: 4,
+  device: 5,
+  finished: 6,
 };
 
 const THEME_STORAGE_KEY = 'afk4.setupWizard.theme';
@@ -189,7 +192,15 @@ export function App() {
   }, []);
 
   const handleBrandingContinue = useCallback(() => {
+    setState((prev) => ({ ...prev, step: 'staff' }));
+  }, []);
+
+  const handleStaffContinue = useCallback(() => {
     setState((prev) => ({ ...prev, step: 'device' }));
+  }, []);
+
+  const backToBranding = useCallback(() => {
+    setState((prev) => ({ ...prev, step: 'branding' }));
   }, []);
 
   const backToRoleFromBranding = useCallback(() => {
@@ -236,6 +247,15 @@ export function App() {
   }, []);
 
   // Мост прячется здесь: экран получает две функции и ничего не знает про нативный хост.
+  // Филиал известен только здесь, поэтому экран получает готовый клиент с уже вшитым филиалом.
+  const staffClient = useCallback(
+    (branchId: string) => ({
+      invite: (displayName: string, phoneNumber: string, roleName: string) =>
+        inviteStaff(branchId, displayName, phoneNumber, roleName),
+    }),
+    [],
+  );
+
   const brandingClient = useMemo(
     () => ({ presets: brandingPresets, save: saveBranding }),
     [],
@@ -248,10 +268,11 @@ export function App() {
       branchSelection: 'setup.wizard.stepper.branch',
       role: 'setup.wizard.stepper.role',
       branding: 'setup.wizard.stepper.branding',
+      staff: 'setup.wizard.stepper.staff',
       device: 'setup.wizard.stepper.device',
       finished: 'setup.wizard.stepper.done',
     };
-    const order = ['phoneLogin', 'branchSelection', 'role', 'branding', 'device', 'finished'];
+    const order = ['phoneLogin', 'branchSelection', 'role', 'branding', 'staff', 'device', 'finished'];
     const announceStep = state.step === 'forgotPassword' ? 'phoneLogin' : state.step;
     const stepNumber = order.indexOf(announceStep) + 1;
     return `${t('setup.wizard.common.step')} ${stepNumber}: ${t(stepLabelKey[state.step])}`;
@@ -396,6 +417,16 @@ export function App() {
             branchName={state.branch.branchName}
             onContinue={handleBrandingContinue}
             onBack={backToRoleFromBranding}
+          />
+        )}
+
+        {state.step === 'staff' && state.branch && (
+          <StaffScreen
+            client={staffClient(state.branch.branchId)}
+            ownerName={state.ownerName}
+            branchName={state.branch.branchName}
+            onContinue={handleStaffContinue}
+            onBack={backToBranding}
           />
         )}
 

@@ -210,7 +210,9 @@ internal static class BranchProfileLayoutEndpoints
 
             return Results.Ok(new OrganizationBrandingDto(
                 organization.OrganizationId, organization.Name, organization.LogoUrl, organization.AccentColor, []));
-        });
+        })
+            // Оформление клуба ставится мастером установки, а не только панелью.
+            .AllowNonOrganizationAdminClients();
 
         app.MapPatch("branches/{branchId:guid}/profile", async (
             Guid branchId,

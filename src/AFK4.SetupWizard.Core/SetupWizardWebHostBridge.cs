@@ -63,6 +63,7 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:createSeatAuth" => await CreateSeatAuthenticatedAsync(request.Payload, cancellationToken),
                 "wizard:enrollAuth" => await EnrollAuthenticatedAsync(request.Payload, cancellationToken),
                 "wizard:brandingPresets" => BrandingPresetList(),
+                "wizard:inviteStaff" => await InviteStaffAsync(request.Payload, cancellationToken),
                 "wizard:saveBranding" => await SaveBrandingAsync(request.Payload, cancellationToken),
                 "wizard:provisionShell" => FinalizeForRole(ReadProvisionRole(request.Payload)),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
@@ -294,6 +295,29 @@ public sealed class SetupWizardWebHostBridge(
             cancellationToken);
 
         return new WizardBrandingSaved(true);
+    }
+
+    private async Task<object> InviteStaffAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardStaffInvitePayload>(payload);
+        var displayName = (request.DisplayName ?? string.Empty).Trim();
+        var phoneNumber = (request.PhoneNumber ?? string.Empty).Trim();
+        var roleName = (request.RoleName ?? string.Empty).Trim();
+        if (displayName.Length == 0 || phoneNumber.Length == 0 || roleName.Length == 0)
+        {
+            throw new InvalidOperationException("Name, phone and role are required.");
+        }
+
+        var invite = await apiClient.InviteStaffAsync(
+            RequireOrganizationId(),
+            ParseGuid(request.BranchId, nameof(request.BranchId)),
+            RequireAccessToken(),
+            displayName,
+            phoneNumber,
+            roleName,
+            cancellationToken);
+
+        return new WizardStaffInvited(displayName, roleName, invite.Code, invite.ExpiresAtUtc);
     }
 
     private Guid RequireOrganizationId() =>
@@ -547,6 +571,10 @@ public sealed class SetupWizardWebHostBridge(
     private sealed record WizardBrandingPresets(IReadOnlyList<WizardBrandingPreset> Presets);
 
     private sealed record WizardBrandingSaved(bool Saved);
+
+    private sealed record WizardStaffInvitePayload(string? BranchId, string? DisplayName, string? PhoneNumber, string? RoleName);
+
+    private sealed record WizardStaffInvited(string DisplayName, string RoleName, string Code, DateTimeOffset ExpiresAtUtc);
 
     private sealed record WizardDiscoverResult(string OwnerName, IReadOnlyList<WizardBranch> Branches);
 
