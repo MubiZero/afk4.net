@@ -139,7 +139,9 @@ internal static class TariffEndpoints
                 cancellationToken);
 
             return Results.Ok(result.Response);
-        });
+        })
+            // Первый тариф клуб заводит в мастере установки, а не только в панели.
+            .AllowNonOrganizationAdminClients();
 
         app.MapPost("branches/{branchId:guid}/tariffs/{tariffId:guid}/versions", async (
             Guid branchId,
@@ -211,7 +213,9 @@ internal static class TariffEndpoints
                 cancellationToken);
 
             return Results.Ok(result.Response);
-        });
+        })
+            // Цена первого тарифа ставится там же, в мастере установки.
+            .AllowNonOrganizationAdminClients();
 
         app.MapPatch("branches/{branchId:guid}/tariffs/{tariffId:guid}", async (
             Guid branchId,

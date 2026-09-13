@@ -4,6 +4,7 @@ using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Tariffs;
 
 namespace AFK4.SetupWizard.Tests;
 
@@ -67,6 +68,80 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.False(response.GetProperty("ok").GetBoolean());
         Assert.Equal("wizard_discover_failed", response.GetProperty("error").GetProperty("code").GetString());
         Assert.Empty(deps.Api.DiscoverCalls);
+    }
+
+    // --- зал и тарифы ---------------------------------------------------------------------
+
+    [Fact]
+    public async Task CreateSeats_MakesNumberedSeatsInTheChosenZone()
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        var branchId = Guid.NewGuid();
+        var zoneId = Guid.NewGuid();
+
+        var response = await Send(
+            bridge,
+            "wizard:createSeats",
+            $$"""{"branchId":"{{branchId:D}}","zoneId":"{{zoneId:D}}","namePrefix":" ПК ","count":3}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(3, response.GetProperty("payload").GetProperty("names").GetArrayLength());
+        Assert.Equal(3, deps.Api.SeatNames.Count);
+        Assert.Equal(["ПК-1", "ПК-2", "ПК-3"], deps.Api.SeatNames);
+    }
+
+    // Зал в сотню мест — это импорт, а не установка: такой запрос до сервера доходить не должен.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(61)]
+    public async Task CreateSeats_WithCountOutsideTheLimit_IsRefused(int count)
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        var response = await Send(
+            bridge,
+            "wizard:createSeats",
+            $$"""{"branchId":"{{Guid.NewGuid():D}}","zoneId":"{{Guid.NewGuid():D}}","namePrefix":"ПК","count":{{count}}}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Empty(deps.Api.SeatNames);
+    }
+
+    [Fact]
+    public async Task CreateTariff_PassesNameAndHourlyPrice()
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        var branchId = Guid.NewGuid();
+
+        var response = await Send(
+            bridge,
+            "wizard:createTariff",
+            $$"""{"branchId":"{{branchId:D}}","name":" Стандартный ","pricePerHourMinorUnits":1250}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        var tariff = Assert.Single(deps.Api.Tariffs);
+        Assert.Equal(branchId, tariff.BranchId);
+        Assert.Equal("Стандартный", tariff.Name);
+        Assert.Equal(1250, tariff.PricePerHour);
+    }
+
+    [Fact]
+    public async Task CreateTariff_WithoutPrice_IsRefused()
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        var response = await Send(
+            bridge,
+            "wizard:createTariff",
+            $$"""{"branchId":"{{Guid.NewGuid():D}}","name":"Стандартный","pricePerHourMinorUnits":0}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Empty(deps.Api.Tariffs);
     }
 
     // --- сотрудники -----------------------------------------------------------------------
@@ -536,10 +611,13 @@ public sealed class SetupWizardWebHostBridgeTests
             return Task.FromResult(new InstallDiscoverResponse("Владелец", Branches));
         }
 
+        public List<string> SeatNames { get; } = [];
+
         public Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
             Guid organizationId, string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
         {
             SeatCreated = true;
+            SeatNames.Add(name);
             return Task.FromResult(new InstallCreateSeatResponse(OrganizationId, branchId, zoneId, SeatId, name, 1));
         }
 
@@ -567,6 +645,20 @@ public sealed class SetupWizardWebHostBridgeTests
         {
             Invites.Add((organizationId, branchId, displayName, phoneNumber, roleName));
             return Task.FromResult(new StaffInviteDto(Guid.NewGuid(), "123456", DateTimeOffset.UnixEpoch.AddYears(56)));
+        }
+
+        public List<(Guid BranchId, string Name, long PricePerHour)> Tariffs { get; } = [];
+
+        public Task<TariffDto> CreateTariffAsync(
+            Guid organizationId,
+            Guid branchId,
+            string accessToken,
+            string name,
+            long pricePerHourMinorUnits,
+            CancellationToken cancellationToken)
+        {
+            Tariffs.Add((branchId, name, pricePerHourMinorUnits));
+            return Task.FromResult(new TariffDto(Guid.NewGuid(), organizationId, branchId, name, true, DateTimeOffset.UnixEpoch));
         }
 
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
