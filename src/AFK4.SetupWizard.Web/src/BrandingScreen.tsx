@@ -11,6 +11,7 @@ const COLORS = ['#C8FF00', '#FF3B30', '#FF9F0A', '#30D158', '#0A84FF', '#BF5AF2'
 export interface BrandingClient {
   presets(): Promise<{ presets: WizardBrandingPreset[] }>;
   save(logoUrl: string | null, accentColor: string | null): Promise<{ saved: boolean }>;
+  uploadLogo(): Promise<{ logoUrl?: string | null }>;
 }
 
 interface BrandingScreenProps {
@@ -28,6 +29,9 @@ export function BrandingScreen({ client, ownerName, branchName, onContinue, onBa
   const [accentColor, setAccentColor] = useState<string>(COLORS[0]);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadFailed, setUploadFailed] = useState(false);
+  const [ownLogoUrl, setOwnLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +48,24 @@ export function BrandingScreen({ client, ownerName, branchName, onContinue, onBa
       cancelled = true;
     };
   }, [client]);
+
+  async function upload(): Promise<void> {
+    setUploading(true);
+    setUploadFailed(false);
+    try {
+      const result = await client.uploadLogo();
+      // Пустой ответ — человек закрыл окно выбора: это не ошибка, экран остаётся как был.
+      // Поле может не прийти вовсе: пустые значения мост не сериализует.
+      if (result.logoUrl) {
+        setOwnLogoUrl(result.logoUrl);
+        setLogoUrl(result.logoUrl);
+      }
+    } catch {
+      setUploadFailed(true);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function save(): Promise<void> {
     setSaving(true);
@@ -88,6 +110,19 @@ export function BrandingScreen({ client, ownerName, branchName, onContinue, onBa
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="wizard-field">
+        <button type="button" className="wizard-button is-ghost" onClick={() => void upload()} disabled={uploading}>
+          {uploading ? <Loader2 size={16} className="wizard-spin" aria-hidden /> : null}
+          {t('setup.wizard.branding.upload')}
+        </button>
+        {ownLogoUrl === null ? null : (
+          <span className="wizard-preset is-selected" style={{ background: accentColor }}>
+            <img src={ownLogoUrl} alt={t('setup.wizard.branding.ownLogo')} />
+          </span>
+        )}
+        {uploadFailed ? <p className="wizard-error">{t('setup.wizard.branding.uploadFailed')}</p> : null}
       </div>
 
       <div className="wizard-field">

@@ -31,7 +31,10 @@ internal static class MediaEndpoints
             return result.Succeeded
                 ? Results.Ok(result.Media)
                 : Results.BadRequest(new { Error = result.Error });
-        }).DisableAntiforgery();
+        })
+            .DisableAntiforgery()
+            // Логотип клуба грузят и из мастера установки, не только из панели управляющего.
+            .AllowNonOrganizationAdminClients();
 
         app.MapDelete("branches/{branchId:guid}/media/{mediaId:guid}", async (
             Guid branchId, Guid mediaId,

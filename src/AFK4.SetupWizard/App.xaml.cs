@@ -56,7 +56,8 @@ public partial class App : Application
             new AgentServiceCompletionAction(),
             new MsiexecPlayerShellProvisioner(payloadResolver, processRunner),
             new MsiexecOrganizationAdminProvisioner(payloadResolver, processRunner),
-            new ExplorerOrganizationAdminLauncher());
+            new ExplorerOrganizationAdminLauncher(),
+            new OpenFileDialogLogoPicker());
 
         LaunchWebShell(bridge, machineInfo, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
         base.OnStartup(e);

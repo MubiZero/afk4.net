@@ -7,6 +7,7 @@ using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Tariffs;
+using AFK4.Shared.Contracts.Media;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -205,6 +206,34 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
 
         response.EnsureSuccessStatusCode();
         return await ReadRequiredAsync<StaffInviteDto>(response, cancellationToken);
+    }
+
+    public async Task<UploadedMediaDto> UploadOrganizationLogoAsync(
+        Guid organizationId,
+        Guid branchId,
+        string accessToken,
+        string filePath,
+        CancellationToken cancellationToken)
+    {
+        // Файл читается потоком: картинка клуба мелкая, но держать её целиком в памяти незачем,
+        // а размер и тип проверит сервер — он же и отклонит всё, что не картинка.
+        await using var file = File.OpenRead(filePath);
+        using var content = new MultipartFormDataContent
+        {
+            { new StringContent(MediaPurposeNames.OrganizationLogo), "purpose" },
+            { new StreamContent(file), "file", Path.GetFileName(filePath) },
+        };
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post, MediaRoutes.BranchMedia(organizationId, branchId))
+        {
+            Content = content,
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        return await ReadRequiredAsync<UploadedMediaDto>(response, cancellationToken);
     }
 
     public async Task<TariffDto> CreateTariffAsync(

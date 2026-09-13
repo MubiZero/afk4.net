@@ -5,6 +5,7 @@ using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Tariffs;
+using AFK4.Shared.Contracts.Media;
 
 namespace AFK4.SetupWizard.Tests;
 
@@ -68,6 +69,47 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.False(response.GetProperty("ok").GetBoolean());
         Assert.Equal("wizard_discover_failed", response.GetProperty("error").GetProperty("code").GetString());
         Assert.Empty(deps.Api.DiscoverCalls);
+    }
+
+    // --- свой логотип ---------------------------------------------------------------------
+
+    [Fact]
+    public async Task UploadLogo_SendsTheChosenFileAndReturnsItsUrl()
+    {
+        var picker = new StubLogoPicker("C:\\logo.png");
+        var bridge = CreateBridge(out var deps, logoFilePicker: picker);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        var response = await Send(
+            bridge, "wizard:uploadLogo", $$"""{"branchId":"{{Guid.NewGuid():D}}"}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal("https://cdn.afk4.net/logo.png", response.GetProperty("payload").GetProperty("logoUrl").GetString());
+        Assert.Equal(["C:\\logo.png"], deps.Api.UploadedLogoPaths);
+    }
+
+    // Закрытое окно выбора — обычный исход, а не отказ: грузить нечего, ошибки нет.
+    [Fact]
+    public async Task UploadLogo_WhenTheDialogIsDismissed_UploadsNothing()
+    {
+        var bridge = CreateBridge(out var deps, logoFilePicker: new StubLogoPicker(null));
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        var response = await Send(
+            bridge, "wizard:uploadLogo", $$"""{"branchId":"{{Guid.NewGuid():D}}"}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        // Адреса в ответе нет вовсе: пустые поля мост не сериализует, и веб обязан читать это как
+        // «логотип не выбран», а не как значение.
+        var payload = response.GetProperty("payload");
+        Assert.True(
+            !payload.TryGetProperty("logoUrl", out var logoUrl) || logoUrl.ValueKind == JsonValueKind.Null);
+        Assert.Empty(deps.Api.UploadedLogoPaths);
+    }
+
+    private sealed class StubLogoPicker(string? path) : ILogoFilePicker
+    {
+        public string? PickImage() => path;
     }
 
     // --- зал и тарифы ---------------------------------------------------------------------
@@ -534,10 +576,12 @@ public sealed class SetupWizardWebHostBridgeTests
         return JsonDocument.Parse(response!).RootElement;
     }
 
-    private static SetupWizardWebHostBridge CreateBridge(out Dependencies dependencies)
+    private static SetupWizardWebHostBridge CreateBridge(
+        out Dependencies dependencies,
+        ILogoFilePicker? logoFilePicker = null)
     {
         dependencies = new Dependencies();
-        return dependencies.Build();
+        return dependencies.Build(logoFilePicker);
     }
 
     private static async Task<(SetupWizardWebHostBridge Bridge, Dependencies Deps)> SignedIn()
@@ -557,7 +601,7 @@ public sealed class SetupWizardWebHostBridgeTests
         public FakeProvisioner Operator { get; } = new();
         public FakeLauncher Launcher { get; } = new();
 
-        public SetupWizardWebHostBridge Build() => new(
+        public SetupWizardWebHostBridge Build(ILogoFilePicker? logoFilePicker = null) => new(
             Api,
             Keys,
             Bootstrap,
@@ -565,7 +609,8 @@ public sealed class SetupWizardWebHostBridgeTests
             Completion,
             Shell,
             Operator,
-            Launcher);
+            Launcher,
+            logoFilePicker);
     }
 
     private sealed class FakeApiClient : ISetupWizardApiClient
@@ -645,6 +690,19 @@ public sealed class SetupWizardWebHostBridgeTests
         {
             Invites.Add((organizationId, branchId, displayName, phoneNumber, roleName));
             return Task.FromResult(new StaffInviteDto(Guid.NewGuid(), "123456", DateTimeOffset.UnixEpoch.AddYears(56)));
+        }
+
+        public List<string> UploadedLogoPaths { get; } = [];
+
+        public Task<UploadedMediaDto> UploadOrganizationLogoAsync(
+            Guid organizationId,
+            Guid branchId,
+            string accessToken,
+            string filePath,
+            CancellationToken cancellationToken)
+        {
+            UploadedLogoPaths.Add(filePath);
+            return Task.FromResult(new UploadedMediaDto(Guid.NewGuid(), "https://cdn.afk4.net/logo.png", "image/png", 10));
         }
 
         public List<(Guid BranchId, string Name, long PricePerHour)> Tariffs { get; } = [];

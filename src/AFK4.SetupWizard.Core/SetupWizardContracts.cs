@@ -1,6 +1,7 @@
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Tariffs;
+using AFK4.Shared.Contracts.Media;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -89,6 +90,14 @@ public interface ISetupWizardApiClient
         string displayName,
         string phoneNumber,
         string roleName,
+        CancellationToken cancellationToken);
+
+    /// <summary>Загружает логотип клуба и возвращает его публичный адрес.</summary>
+    Task<UploadedMediaDto> UploadOrganizationLogoAsync(
+        Guid organizationId,
+        Guid branchId,
+        string accessToken,
+        string filePath,
         CancellationToken cancellationToken);
 
     /// <summary>Первый тариф клуба: имя и цена за час. Возвращает имя созданного тарифа.</summary>
