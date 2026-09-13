@@ -20,6 +20,7 @@ export interface AuditRow {
 export function outcomeChipTone(outcome: string): OutcomeTone {
   if (outcome === 'Succeeded') return 'is-live';
   if (outcome === 'Denied') return 'is-danger';
+  if (outcome === 'Failed') return 'is-danger';
   return 'is-neutral';
 }
 

@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ErrorState, LoadingCards } from '@/components/ui/states';
 import { Page } from '@/components/layout/Page';
@@ -42,7 +45,7 @@ const SEVERITY_LABEL_KEYS: Record<IncidentSeverity, MessageKey> = {
 };
 
 export interface HealthScreenProps {
-  client: Pick<HealthApi, 'getOverview'>;
+  client: Pick<HealthApi, 'getOverview' | 'sendTestEmail'>;
 }
 
 export function HealthScreen({ client }: HealthScreenProps) {
@@ -56,9 +59,67 @@ export function HealthScreen({ client }: HealthScreenProps) {
       ) : state.status === 'error' ? (
         <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />
       ) : (
-        <HealthOverviewView overview={state.data} />
+        <>
+          <HealthOverviewView overview={state.data} />
+          <TestEmailCard client={client} />
+        </>
       )}
     </Page>
+  );
+}
+
+// Проверка доставки боевым путём. Без неё единственным способом убедиться, что почта работает,
+// было послать живому человеку настоящее письмо и гадать по счётчику провалов.
+function TestEmailCard({ client }: { client: Pick<HealthApi, 'sendTestEmail'> }) {
+  const { t } = useI18n();
+  const [email, setEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; error: string | null } | null>(null);
+
+  async function send() {
+    if (email.trim() === '') return;
+    setSending(true);
+    setResult(null);
+    try {
+      const outcome = await client.sendTestEmail(email.trim());
+      setResult({ ok: outcome.delivered, error: outcome.error });
+    } catch {
+      setResult({ ok: false, error: null });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('platform.health.testEmail.title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CardDescription>{t('platform.health.testEmail.hint')}</CardDescription>
+        <label className="ui-field">
+          <span>{t('platform.health.testEmail.address')}</span>
+          <Input
+            type="email"
+            aria-label={t('platform.health.testEmail.address')}
+            value={email}
+            onChange={event => setEmail(event.target.value)}
+          />
+        </label>
+        <Button onClick={() => void send()} disabled={sending || email.trim() === ''}>
+          {t('platform.health.testEmail.send')}
+        </Button>
+        {result === null ? null : result.ok ? (
+          <Badge variant="success">{t('platform.health.testEmail.sent')}</Badge>
+        ) : (
+          <span className="pc-queue-id">
+            <Badge variant="destructive">{t('platform.health.testEmail.failed')}</Badge>
+            {/* Причина отказа от канала доставки — ради неё эта кнопка и существует. */}
+            {result.error === null ? null : <span>{result.error}</span>}
+          </span>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

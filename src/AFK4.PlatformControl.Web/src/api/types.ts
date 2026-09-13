@@ -690,6 +690,11 @@ export interface Incident {
   lastSeenAtUtc: string;
 }
 
+export interface TestEmailResult {
+  delivered: boolean;
+  error: string | null;
+}
+
 export interface QueueFailure {
   queueName: string;
   failedAtUtc: string | null;

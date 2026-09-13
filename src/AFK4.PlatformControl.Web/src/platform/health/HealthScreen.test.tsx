@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { HealthScreen } from './HealthScreen';
 import type { HealthOverview, Incident, JobHealth, QueueHealth } from '@/api/types';
@@ -39,7 +39,10 @@ function overview(overrides: Partial<HealthOverview> = {}): HealthOverview {
 }
 
 function fakeClient(result: HealthOverview | (() => Promise<HealthOverview>)) {
-  return { getOverview: typeof result === 'function' ? mock(result) : mock().mockResolvedValue(result) };
+  return {
+    getOverview: typeof result === 'function' ? mock(result) : mock().mockResolvedValue(result),
+    sendTestEmail: mock().mockResolvedValue({ delivered: true, error: null })
+  };
 }
 
 describe('HealthScreen', () => {
@@ -99,4 +102,32 @@ it('says so when there are no recent failures', async () => {
     <I18nProvider><HealthScreen client={fakeClient(overview({ recentFailures: [] }))} /></I18nProvider>
   );
   expect(await screen.findByText('Свежих провалов нет')).toBeTruthy();
+});
+
+// Кнопка существует ради текста ошибки: без него «письмо не ушло» отправляет разбираться в базу.
+it('shows the delivery error when the test email fails', async () => {
+  const client = {
+    getOverview: mock().mockResolvedValue(overview({})),
+    sendTestEmail: mock().mockResolvedValue({ delivered: false, error: 'Connection refused' })
+  };
+  render(<I18nProvider><HealthScreen client={client} /></I18nProvider>);
+
+  fireEvent.change(await screen.findByLabelText('Куда отправить'), { target: { value: 'me@mubi.dev' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить проверочное письмо' }));
+
+  expect(await screen.findByText('Connection refused')).toBeTruthy();
+  expect(client.sendTestEmail).toHaveBeenCalledWith('me@mubi.dev');
+});
+
+it('confirms a delivered test email', async () => {
+  const client = {
+    getOverview: mock().mockResolvedValue(overview({})),
+    sendTestEmail: mock().mockResolvedValue({ delivered: true, error: null })
+  };
+  render(<I18nProvider><HealthScreen client={client} /></I18nProvider>);
+
+  fireEvent.change(await screen.findByLabelText('Куда отправить'), { target: { value: 'me@mubi.dev' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить проверочное письмо' }));
+
+  expect(await screen.findByText('Письмо отправлено')).toBeTruthy();
 });
