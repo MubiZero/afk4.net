@@ -18,7 +18,7 @@
 }
 
 .start-field::placeholder {
-  color: var(--text-quaternary);
+  color: var(--text-placeholder);
 }
 
 .start-field:focus-visible {

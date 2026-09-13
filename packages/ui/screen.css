@@ -109,7 +109,7 @@
 }
 
 .tt-search input::placeholder {
-  color: var(--text-quaternary);
+  color: var(--text-placeholder);
 }
 
 .tt-segs {
