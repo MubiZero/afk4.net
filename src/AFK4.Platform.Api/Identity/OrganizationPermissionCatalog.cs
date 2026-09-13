@@ -46,6 +46,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewReservations,
                 OrganizationPermissionNames.ManageReservations,
                 OrganizationPermissionNames.ManagePosCatalog,
+                OrganizationPermissionNames.ServeShopOrders,
                 OrganizationPermissionNames.ManageShopOrders,
                 OrganizationPermissionNames.CreatePosSale,
                 OrganizationPermissionNames.PayPosSale,
@@ -105,6 +106,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewReservations,
                 OrganizationPermissionNames.ManageReservations,
                 OrganizationPermissionNames.ManagePosCatalog,
+                OrganizationPermissionNames.ServeShopOrders,
                 OrganizationPermissionNames.ManageShopOrders,
                 OrganizationPermissionNames.CreatePosSale,
                 OrganizationPermissionNames.PayPosSale,
@@ -117,7 +119,9 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewDiagnostics,
                 OrganizationPermissionNames.ManageBranchStaff,
                 OrganizationPermissionNames.ViewAudit,
-                OrganizationPermissionNames.ManageBranchSettings
+                OrganizationPermissionNames.ManageBranchSettings,
+                OrganizationPermissionNames.ManageNews,
+                OrganizationPermissionNames.ManageTournaments
             },
             [OrganizationRoleNames.ShiftSupervisor] = new HashSet<string>
             {
@@ -151,7 +155,10 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.PayPosSale,
                 OrganizationPermissionNames.RefundPosSale,
                 OrganizationPermissionNames.VoidPosSale,
+                OrganizationPermissionNames.ServeShopOrders,
+                OrganizationPermissionNames.ManageShopOrders,
                 OrganizationPermissionNames.ViewInventory,
+                OrganizationPermissionNames.ManageInventoryStock,
                 OrganizationPermissionNames.ViewReceipt,
                 OrganizationPermissionNames.ViewUpdateStatus
             },
@@ -177,6 +184,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageReservations,
                 OrganizationPermissionNames.CreatePosSale,
                 OrganizationPermissionNames.PayPosSale,
+                OrganizationPermissionNames.ServeShopOrders,
                 OrganizationPermissionNames.ViewReceipt
             },
             [OrganizationRoleNames.Technician] = new HashSet<string>

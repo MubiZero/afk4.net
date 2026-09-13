@@ -112,6 +112,16 @@ public static class OrganizationPermissionNames
     // Owner-only: connect/manage the club's DC-Bank payment cards (dcgate gateways).
     public const string ManagePaymentGateways = "organization.payments.gateways.manage";
 
+    // Очередь заказов бара разведена на два права по одной границе: двигаются ли деньги.
+    //
+    // Serve — увидеть очередь, принять заказ, выдать его. Это чистая смена статуса, ничего не
+    // списывается и не возвращается: заказ оплачен в момент оформления. Выдаёт еду кассир, ему
+    // это право и нужно.
+    //
+    // Manage — отменить заказ, а отмена идёт через денежный координатор и возвращает деньги.
+    // Это денежное действие и остаётся за тем же кругом, что возвраты в кассе.
+    public const string ServeShopOrders = "organization.shop.orders.serve";
+
     public const string ManageShopOrders = "organization.shop.orders.manage";
 
     // Owner-only: configure org-wide loyalty/cashback rates.

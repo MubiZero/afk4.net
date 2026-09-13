@@ -178,11 +178,17 @@ internal static class ShopTestSeed
         HttpClient client,
         Guid organizationId,
         Guid branchId,
-        bool withShopPermission)
+        bool withShopPermission,
+        string? roleOverride = null)
     {
         var email = $"staff-{Guid.NewGuid():N}@afk4.test";
         const string password = "Passw0rd!";
-        var roleName = withShopPermission ? OrganizationRoleNames.OrganizationOwner : OrganizationRoleNames.ShiftSupervisor;
+        // Отрицательная роль — бухгалтер, а не старший смены: с 13.09.2026 очередь заказов
+        // разведена на serve (принять/выдать — чистая смена статуса) и manage (отменить, а это
+        // возврат денег), и старший смены имеет оба. Бухгалтер не стоит за стойкой и не имеет
+        // ни одного из них — это и есть «без права» для этих тестов.
+        var roleName = roleOverride
+            ?? (withShopPermission ? OrganizationRoleNames.OrganizationOwner : OrganizationRoleNames.Accountant);
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {

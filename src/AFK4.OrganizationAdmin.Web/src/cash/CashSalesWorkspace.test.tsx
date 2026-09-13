@@ -28,7 +28,7 @@ const POS_FULL = [
 
 describe('CashSalesWorkspace', () => {
   it('полные права POS и заказов: лента заказов и POS на одном экране, без переключателя', () => {
-    renderSales([...POS_FULL, 'organization.shop.orders.manage']);
+    renderSales([...POS_FULL, 'organization.shop.orders.serve', 'organization.shop.orders.manage']);
     // POS встроен.
     expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
@@ -38,13 +38,19 @@ describe('CashSalesWorkspace', () => {
     expect(screen.queryByRole('tab', { name: 'Касса' })).toBeNull();
   });
 
-  // Сервер спрашивает organization.shop.orders.manage на «Принять/Выдать/Отменить», и у роли
-  // оператора его нет. Пока лента висела на праве создавать продажу, кассир видел заказы и
+  // Пока лента висела на праве создавать продажу, кассир без права на очередь видел заказы и
   // получал 403 на каждое действие — кнопка обещала, что заказ обслужен.
-  it('кассир без права на заказы: лента скрыта, POS отрисован', () => {
+  it('без права на очередь: лента скрыта, POS отрисован', () => {
     renderSales(['organization.pos.sales.create', 'organization.pos.sales.pay']);
     expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(document.querySelector('section.pos-orders-ticker')).toBeNull();
+  });
+
+  // Кассир выдаёт еду, но денег за неё не возвращает: лента видна, кнопки отмены нет.
+  it('кассир видит очередь, но не может отменить заказ', () => {
+    renderSales(['organization.pos.sales.create', 'organization.pos.sales.pay', 'organization.shop.orders.serve']);
+    expect(document.querySelector('section.pos-orders-ticker')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Отменить' })).toBeNull();
   });
 
   it('только pay (без create): POS отрисован', () => {

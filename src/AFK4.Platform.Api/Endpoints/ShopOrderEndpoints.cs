@@ -23,7 +23,7 @@ internal static class ShopOrderEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, OrganizationPermissionNames.ManageShopOrders, cancellationToken);
+                branchId, OrganizationPermissionNames.ServeShopOrders, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -67,7 +67,7 @@ internal static class ShopOrderEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, OrganizationPermissionNames.ManageShopOrders, cancellationToken);
+                branchId, OrganizationPermissionNames.ServeShopOrders, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -147,6 +147,9 @@ internal static class ShopOrderEndpoints
             IShopCommerceCoordinator commerceCoordinator,
             CancellationToken cancellationToken) =>
         {
+            // Отмена — единственный переход, который идёт через денежный координатор и
+            // возвращает деньги, поэтому спрашивает Manage, а не Serve: принять и выдать заказ
+            // может кассир, вернуть за него деньги — нет.
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId, OrganizationPermissionNames.ManageShopOrders, cancellationToken);
 

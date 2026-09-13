@@ -29,7 +29,12 @@ const prefersReducedMotion = () =>
 // Чип компактен (место + «N поз · сумма»), клик по нему раскрывает поповер со ВСЕМ составом.
 // На пике лента — FIFO-очередь: старые слева (sortByPlacedAt), счётчик в лейбле, горизонтальный
 // скролл с видимым скроллбаром и правой тенью-подсказкой «есть ещё».
-export function PosOrdersTicker({ backend }: { backend: OperatorBackendContext | null }) {
+export function PosOrdersTicker({ backend, canCancel }: {
+  backend: OperatorBackendContext | null;
+  /// Отмена возвращает деньги, поэтому спрашивает право сильнее, чем вся остальная лента.
+  /// Принять и выдать заказ может кассир, вернуть за него деньги — нет.
+  canCancel: boolean;
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const [orders, setOrders] = useState<ShopOrderDto[]>([]);
@@ -232,9 +237,11 @@ export function PosOrdersTicker({ backend }: { backend: OperatorBackendContext |
                 <HandPlatter size={14} aria-hidden="true" />{t('op.shopOrders.deliver')}
               </button>
             )}
-            <button type="button" className="pos-order-detail-cancel" onClick={closeAfter(() => void runAction(popoverOrder, 'cancel')())}>
-              {t('op.shopOrders.cancel')}
-            </button>
+            {canCancel && (
+              <button type="button" className="pos-order-detail-cancel" onClick={closeAfter(() => void runAction(popoverOrder, 'cancel')())}>
+                {t('op.shopOrders.cancel')}
+              </button>
+            )}
           </div>
         </div>
       )}
