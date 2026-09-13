@@ -29,6 +29,19 @@ const codeMessageKeys = {
   plan_limit_reached: 'op.error.code.planLimitReached'
 } as const satisfies Record<string, MessageKey>;
 
+/// Отказ «сумма выше порога сотрудника, но операция может быть проведена по одобрению».
+/// Сервер отвечает на него 409 с `requiresApproval: true` (EndpointHelpers.Audit) — это не
+/// ошибка ввода и не запрет, а развилка: то же действие можно отправить старшему.
+export function requiresManagerApproval(error: unknown): boolean {
+  if (!(error instanceof PlatformApiError) || error.status !== 409) return false;
+  try {
+    const parsed = JSON.parse(error.body) as { requiresApproval?: unknown };
+    return parsed.requiresApproval === true;
+  } catch {
+    return false;
+  }
+}
+
 interface PlanLimitBody extends Record<string, number> {
   limit: number;
   current: number;

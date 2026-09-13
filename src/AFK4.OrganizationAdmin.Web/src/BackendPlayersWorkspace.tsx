@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { projectOperatorError } from './apiErrors';
+import { projectOperatorError, requiresManagerApproval } from './apiErrors';
 import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -31,6 +31,9 @@ import { CorrectionModal, correctionQuantities, type CorrectionAccount, type Cor
 import { RefundModal } from './players/RefundModal';
 import { EditProfileModal } from './players/EditProfileModal';
 import { ActiveStateConfirmModal } from './players/ActiveStateConfirmModal';
+import { ApprovalRequestModal } from './players/ApprovalRequestModal';
+import type { MoneyActionSubmitRequest } from './api/clients/moneyActions';
+import { correctionApprovalRequest, refundApprovalRequest } from './players/approvalDraft';
 import { PayDebtModal } from './players/PayDebtModal';
 import { DcTopUpDialog } from './players/DcTopUpDialog';
 
@@ -396,6 +399,38 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     return selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
   };
 
+  // Операция, упёршаяся в порог сотрудника: не проведена, но может уйти старшему на одобрение.
+  // Держим её целиком, а не «что хотели сделать»: одобренную заявку сервер исполняет сам, и
+  // пересобирать payload в момент одобрения было бы вторым источником правды.
+  const [approvalDraft, setApprovalDraft] = useState<
+    { request: MoneyActionSubmitRequest; amountLabel: string; label: string } | null
+  >(null);
+  const [approvalBusy, setApprovalBusy] = useState(false);
+
+  // Отправка заявки. Отдельно от runClientAction: это не «повтор того же действия», а другое
+  // действие с другим исходом — операция не выполняется, а встаёт в очередь.
+  const submitApprovalDraft = async () => {
+    if (approvalDraft === null) return;
+    setApprovalBusy(true);
+    try {
+      const nextBackend = requireBackend(backend, t);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await apiClients.moneyActions.submit(nextBackend.branchId, approvalDraft.request);
+      setFeedback({ label: approvalDraft.label, state: 'confirmed', detail: t('op.players.approval.sent') });
+      setApprovalDraft(null);
+      setCorrectionOpen(false);
+      setRefundTarget(null);
+    } catch (error) {
+      setFeedback({
+        label: approvalDraft.label,
+        state: 'failed',
+        detail: projectOperatorError(error, t).detail
+      });
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
   const runClientAction = async (id: PlayerActionId, label: string, options?: { topUpMinorUnits?: number; refundMinorUnits?: number }) => {
     setFeedback({ label, state: 'pending' });
     try {
@@ -514,14 +549,35 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           throw new Error(t('op.players.error.correctionInvalid'));
         }
 
-        const wallet = await apiClients.players.manualCorrection(backendClient.playerAccountId, {
-          organizationId: nextBackend.session.organizationId,
-          accountType: correctionAccount,
-          amount: { currencyCode, minorUnits: quantities.minorUnits },
-          quantitySeconds: quantities.quantitySeconds,
-          reason,
-          idempotencyKey: createIdempotencyKey('manual-correction')
-        });
+        const idempotencyKey = createIdempotencyKey('manual-correction');
+        let wallet: WalletSummaryDto;
+        try {
+          wallet = await apiClients.players.manualCorrection(backendClient.playerAccountId, {
+            organizationId: nextBackend.session.organizationId,
+            accountType: correctionAccount,
+            amount: { currencyCode, minorUnits: quantities.minorUnits },
+            quantitySeconds: quantities.quantitySeconds,
+            reason,
+            idempotencyKey
+          });
+        } catch (error) {
+          if (!requiresManagerApproval(error)) throw error;
+          setApprovalDraft({
+            label,
+            amountLabel: formatMinorUnits(Math.abs(quantities.minorUnits), currencyCode),
+            request: correctionApprovalRequest({
+              organizationId: nextBackend.session.organizationId,
+              playerAccountId: backendClient.playerAccountId,
+              accountType: correctionAccount,
+              signedAmountMinorUnits: quantities.minorUnits,
+              quantitySeconds: quantities.quantitySeconds,
+              currencyCode,
+              reason,
+              idempotencyKey
+            })
+          });
+          return;
+        }
         setWalletSummary(wallet);
         bumpLedger();
         setCorrectionOpen(false);
@@ -541,13 +597,34 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         if (!reason || refundMinorUnits === undefined || refundMinorUnits <= 0 || refundMinorUnits > originalMinorUnits) {
           throw new Error(t('op.players.error.refundInvalid'));
         }
-        await apiClients.players.refundLedgerEntry(backendClient.playerAccountId, refundTarget.ledgerEntryId, {
-          organizationId: nextBackend.session.organizationId,
-          ledgerEntryId: refundTarget.ledgerEntryId,
-          amount: { currencyCode, minorUnits: refundMinorUnits },
-          reason,
-          idempotencyKey: createIdempotencyKey('ledger-refund')
-        });
+        const refundIdempotencyKey = createIdempotencyKey('ledger-refund');
+        try {
+          await apiClients.players.refundLedgerEntry(backendClient.playerAccountId, refundTarget.ledgerEntryId, {
+            organizationId: nextBackend.session.organizationId,
+            ledgerEntryId: refundTarget.ledgerEntryId,
+            amount: { currencyCode, minorUnits: refundMinorUnits },
+            reason,
+            idempotencyKey: refundIdempotencyKey
+          });
+        } catch (error) {
+          if (!requiresManagerApproval(error)) throw error;
+          setApprovalDraft({
+            label,
+            amountLabel: formatMinorUnits(refundMinorUnits, currencyCode),
+            request: refundApprovalRequest({
+              organizationId: nextBackend.session.organizationId,
+              playerAccountId: backendClient.playerAccountId,
+              ledgerEntryId: refundTarget.ledgerEntryId,
+              accountType: refundTarget.accountType,
+              originalSignedMinorUnits: refundTarget.amount.minorUnits,
+              refundMinorUnits,
+              currencyCode,
+              reason,
+              idempotencyKey: refundIdempotencyKey
+            })
+          });
+          return;
+        }
         const wallet = await apiClients.players.getWalletSummary(backendClient.playerAccountId);
         setWalletSummary(wallet);
         bumpLedger();
@@ -825,6 +902,15 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           onClose={() => setActiveStateOpen(false)}
           onConfirm={() => void runClientAction('toggleActive', isSelectedInactive ? t('op.players.actions.reactivateLabel') : t('op.players.actions.deactivateLabel'))}
           busy={feedback.state === 'pending'}
+        />
+      )}
+
+      {approvalDraft !== null && (
+        <ApprovalRequestModal
+          amountLabel={approvalDraft.amountLabel}
+          onClose={() => setApprovalDraft(null)}
+          onConfirm={() => void submitApprovalDraft()}
+          busy={approvalBusy}
         />
       )}
     </main>
