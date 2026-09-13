@@ -112,6 +112,20 @@ export function signInToClub(
   return postHostRequest<WizardPhoneSignInResult>('wizard:signInToClub', { organizationId, login, password });
 }
 
+export interface WizardBrandingPreset {
+  id: string;
+  url: string;
+}
+
+/** Готовые эмблемы: картинки лежат на платформе, сюда приходят их адреса. */
+export function brandingPresets(): Promise<{ presets: WizardBrandingPreset[] }> {
+  return postHostRequest<{ presets: WizardBrandingPreset[] }>('wizard:brandingPresets');
+}
+
+export function saveBranding(logoUrl: string | null, accentColor: string | null): Promise<{ saved: boolean }> {
+  return postHostRequest<{ saved: boolean }>('wizard:saveBranding', { logoUrl, accentColor });
+}
+
 export function discoverAuthenticated(): Promise<WizardDiscoverResponse> {
   return postHostRequest<WizardDiscoverResponse>('wizard:discoverAuth');
 }

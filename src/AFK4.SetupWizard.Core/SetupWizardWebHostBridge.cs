@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Branding;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -61,6 +62,8 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:discoverAuth" => await DiscoverAuthenticatedAsync(cancellationToken),
                 "wizard:createSeatAuth" => await CreateSeatAuthenticatedAsync(request.Payload, cancellationToken),
                 "wizard:enrollAuth" => await EnrollAuthenticatedAsync(request.Payload, cancellationToken),
+                "wizard:brandingPresets" => BrandingPresetList(),
+                "wizard:saveBranding" => await SaveBrandingAsync(request.Payload, cancellationToken),
                 "wizard:provisionShell" => FinalizeForRole(ReadProvisionRole(request.Payload)),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
@@ -270,6 +273,27 @@ public sealed class SetupWizardWebHostBridge(
 
         await apiClient.ResetPasswordByPhoneAsync(phone, code, newPassword, cancellationToken);
         return new { ok = true };
+    }
+
+    // Картинки пресетов лежат на платформе: сюда едет их адрес, а не копия графики, чтобы у
+    // мастера и у приложения игрока логотип был одним и тем же файлом.
+    private static object BrandingPresetList() =>
+        new WizardBrandingPresets(
+            BrandingPresets.Ids
+                .Select(id => new WizardBrandingPreset(id, BrandingPresets.Url(SetupWizardDefaults.PlatformBaseUrl, id)))
+                .ToArray());
+
+    private async Task<object> SaveBrandingAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardBrandingPayload>(payload);
+        await apiClient.UpdateBrandingAsync(
+            RequireOrganizationId(),
+            RequireAccessToken(),
+            string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim(),
+            string.IsNullOrWhiteSpace(request.AccentColor) ? null : request.AccentColor.Trim(),
+            cancellationToken);
+
+        return new WizardBrandingSaved(true);
     }
 
     private Guid RequireOrganizationId() =>
@@ -515,6 +539,14 @@ public sealed class SetupWizardWebHostBridge(
         IReadOnlyList<WizardClubChoice> Clubs);
 
     private sealed record WizardClubChoice(Guid OrganizationId, string Name);
+
+    private sealed record WizardBrandingPayload(string? LogoUrl, string? AccentColor);
+
+    private sealed record WizardBrandingPreset(string Id, string Url);
+
+    private sealed record WizardBrandingPresets(IReadOnlyList<WizardBrandingPreset> Presets);
+
+    private sealed record WizardBrandingSaved(bool Saved);
 
     private sealed record WizardDiscoverResult(string OwnerName, IReadOnlyList<WizardBranch> Branches);
 

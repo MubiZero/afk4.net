@@ -83,6 +83,10 @@ internal static class PreviewSetupWizard
             => Task.FromResult(new InstallCreateSeatResponse(
                 OrgId, branchId, zoneId, Guid.NewGuid(), name, SortOrder: 99));
 
+        public Task UpdateBrandingAsync(
+            Guid organizationId, string accessToken, string? logoUrl, string? accentColor, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
             Guid organizationId, string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
             => Task.FromResult(new InstallEnrollResponse(
