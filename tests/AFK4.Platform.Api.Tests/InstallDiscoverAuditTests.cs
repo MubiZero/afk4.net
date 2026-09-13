@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -16,7 +17,7 @@ public sealed class InstallDiscoverAuditTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/install/auth/discover", null);
+        var response = await client.PostAsync(InstallRoutes.AuthenticatedDiscover(TestIds.OrganizationId), null);
         response.EnsureSuccessStatusCode();
 
         await using var scope = factory.Services.CreateAsyncScope();

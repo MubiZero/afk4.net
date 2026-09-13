@@ -74,16 +74,17 @@ internal static class PreviewSetupWizard
         public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken)
             => Task.CompletedTask;
 
-        public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(string accessToken, CancellationToken cancellationToken)
+        public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(
+            Guid organizationId, string accessToken, CancellationToken cancellationToken)
             => Task.FromResult(new InstallDiscoverResponse("Preview Staff", [BuildBranch()]));
 
         public Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
-            string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
+            Guid organizationId, string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
             => Task.FromResult(new InstallCreateSeatResponse(
                 OrgId, branchId, zoneId, Guid.NewGuid(), name, SortOrder: 99));
 
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
-            string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
+            Guid organizationId, string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
             => Task.FromResult(new InstallEnrollResponse(
                 OrgId,
                 request.BranchId,

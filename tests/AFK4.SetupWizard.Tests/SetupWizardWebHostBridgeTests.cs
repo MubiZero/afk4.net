@@ -408,21 +408,27 @@ public sealed class SetupWizardWebHostBridgeTests
         public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken) =>
             ResetByPhoneThrows is null ? Task.CompletedTask : throw ResetByPhoneThrows;
 
-        public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(string accessToken, CancellationToken cancellationToken)
+        // Организация, с которой мост пошёл в установочные запросы: тесты проверяют, что она
+        // берётся из ответа входа, а не теряется по дороге.
+        public List<Guid> DiscoverOrganizationIds { get; } = [];
+
+        public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(
+            Guid organizationId, string accessToken, CancellationToken cancellationToken)
         {
             DiscoverCalls.Add(accessToken);
+            DiscoverOrganizationIds.Add(organizationId);
             return Task.FromResult(new InstallDiscoverResponse("Владелец", Branches));
         }
 
         public Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
-            string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
+            Guid organizationId, string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
         {
             SeatCreated = true;
             return Task.FromResult(new InstallCreateSeatResponse(OrganizationId, branchId, zoneId, SeatId, name, 1));
         }
 
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
-            string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
+            Guid organizationId, string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
         {
             EnrollRequest = request;
             return Task.FromResult(new InstallEnrollResponse(

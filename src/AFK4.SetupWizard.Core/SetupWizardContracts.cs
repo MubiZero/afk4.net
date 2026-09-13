@@ -60,10 +60,12 @@ public interface ISetupWizardApiClient
         CancellationToken cancellationToken);
 
     Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(
+        Guid organizationId,
         string accessToken,
         CancellationToken cancellationToken);
 
     Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
+        Guid organizationId,
         string accessToken,
         Guid branchId,
         Guid zoneId,
@@ -71,6 +73,7 @@ public interface ISetupWizardApiClient
         CancellationToken cancellationToken);
 
     Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
+        Guid organizationId,
         string accessToken,
         AuthenticatedInstallEnrollRequest request,
         CancellationToken cancellationToken);

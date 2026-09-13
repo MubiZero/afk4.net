@@ -184,13 +184,18 @@ public sealed class SetupWizardApiClientTests
         var handler = new RecordingHandler(_ => JsonResponse(expected));
         var client = CreateClient(handler);
 
+        var organizationId = Guid.NewGuid();
+
         await client.EnrollAuthenticatedAsync(
+            organizationId,
             "access-123",
             new AuthenticatedInstallEnrollRequest(Guid.NewGuid(), Guid.NewGuid(), "GamingPc", "Стенд 5", "WIN-1", "pem"),
             CancellationToken.None);
 
         var request = Assert.Single(handler.Requests);
-        Assert.Equal("/api/install/auth/enroll", request.RequestUri!.AbsolutePath);
+        // Путь строится общей константой, а не строкой в клиенте: пока их было две, мастер стучался
+        // в несуществующий адрес, и обе стороны были зелёными.
+        Assert.Equal(InstallRoutes.AuthenticatedEnroll(organizationId), request.RequestUri!.AbsolutePath);
         Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
         Assert.Equal("access-123", request.Headers.Authorization.Parameter);
     }

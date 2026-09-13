@@ -23,6 +23,10 @@ public sealed class SetupWizardWebHostBridge(
 
     private string? accessToken;
 
+    // Организация нужна для установочных запросов: у всех организационных маршрутов канонический
+    // префикс с её идентификатором. Берётся из ответа входа — другого источника у мастера нет.
+    private Guid? organizationId;
+
     public async Task<string?> HandleAsync(string webMessageJson, CancellationToken cancellationToken)
     {
         SetupWizardWebBridgeRequest? request;
@@ -168,6 +172,7 @@ public sealed class SetupWizardWebHostBridge(
 
         var response = await apiClient.SignInByPhoneAsync(phone, password, cancellationToken);
         accessToken = response.AccessToken;
+        organizationId = response.OrganizationId;
         return new WizardPhoneSignInResult(response.DisplayName);
     }
 
@@ -185,6 +190,7 @@ public sealed class SetupWizardWebHostBridge(
         if (result.SignedIn is not null)
         {
             accessToken = result.SignedIn.AccessToken;
+            organizationId = result.SignedIn.OrganizationId;
             return new WizardLoginResult(result.SignedIn.DisplayName, RequiresClubChoice: false, []);
         }
 
@@ -206,6 +212,7 @@ public sealed class SetupWizardWebHostBridge(
 
         var response = await apiClient.SignInToClubAsync(organizationId, login, password, cancellationToken);
         accessToken = response.AccessToken;
+        this.organizationId = response.OrganizationId;
         return new WizardPhoneSignInResult(response.DisplayName);
     }
 
@@ -265,6 +272,9 @@ public sealed class SetupWizardWebHostBridge(
         return new { ok = true };
     }
 
+    private Guid RequireOrganizationId() =>
+        organizationId ?? throw new InvalidOperationException("Sign in before running install requests.");
+
     private string RequireAccessToken() =>
         string.IsNullOrEmpty(accessToken)
             ? throw new InvalidOperationException("Sign in with your phone before continuing.")
@@ -272,7 +282,8 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<WizardDiscoverResult> DiscoverAuthenticatedAsync(CancellationToken cancellationToken)
     {
-        var response = await apiClient.DiscoverAuthenticatedAsync(RequireAccessToken(), cancellationToken);
+        var response = await apiClient.DiscoverAuthenticatedAsync(
+            RequireOrganizationId(), RequireAccessToken(), cancellationToken);
         var branches = response.Branches
             .OrderBy(branch => branch.Name, StringComparer.OrdinalIgnoreCase)
             .Select(MapBranch)
@@ -292,7 +303,7 @@ public sealed class SetupWizardWebHostBridge(
         }
 
         var created = await apiClient.CreateSeatAuthenticatedAsync(
-            RequireAccessToken(), branchId, zoneId, name, cancellationToken);
+            RequireOrganizationId(), RequireAccessToken(), branchId, zoneId, name, cancellationToken);
         return new WizardSeat(
             created.SeatId,
             created.Name,
@@ -331,6 +342,7 @@ public sealed class SetupWizardWebHostBridge(
 
         var publicKey = await deviceKeyStore.GetOrCreatePublicKeyPemAsync(cancellationToken);
         var response = await apiClient.EnrollAuthenticatedAsync(
+            RequireOrganizationId(),
             RequireAccessToken(),
             new AuthenticatedInstallEnrollRequest(
                 branchId,

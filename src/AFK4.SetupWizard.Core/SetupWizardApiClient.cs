@@ -128,10 +128,11 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
             cancellationToken);
 
     public async Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(
+        Guid organizationId,
         string accessToken,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/install/auth/discover");
+        using var request = new HttpRequestMessage(HttpMethod.Post, InstallRoutes.AuthenticatedDiscover(organizationId));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
@@ -140,13 +141,14 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
     }
 
     public async Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
+        Guid organizationId,
         string accessToken,
         Guid branchId,
         Guid zoneId,
         string name,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/install/auth/seats")
+        using var request = new HttpRequestMessage(HttpMethod.Post, InstallRoutes.AuthenticatedSeats(organizationId))
         {
             Content = JsonContent.Create(
                 new AuthenticatedInstallCreateSeatRequest(branchId, zoneId, name),
@@ -160,11 +162,12 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
     }
 
     public async Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
+        Guid organizationId,
         string accessToken,
         AuthenticatedInstallEnrollRequest request,
         CancellationToken cancellationToken)
     {
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/install/auth/enroll")
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, InstallRoutes.AuthenticatedEnroll(organizationId))
         {
             Content = JsonContent.Create(request, options: JsonOptions)
         };
