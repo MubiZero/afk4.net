@@ -1,5 +1,5 @@
 {
-  "subject": "Заказ готов",
+  "subject": "Заказ готов — место {{seat}}",
   "bodyText": "{{items}} — несём за {{seat}}.",
   "bodyHtml": ""
 }

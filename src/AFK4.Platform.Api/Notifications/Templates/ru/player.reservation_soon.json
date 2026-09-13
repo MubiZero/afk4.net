@@ -1,5 +1,5 @@
 {
-  "subject": "Бронь через час",
+  "subject": "Бронь через час — {{club}}, {{time}}",
   "bodyText": "{{club}}: ждём вас в {{time}}.",
   "bodyHtml": ""
 }

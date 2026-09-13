@@ -34,10 +34,17 @@ public sealed class NotificationServiceTests
         string locale = "ru",
         string? email = "player@example.com",
         IReadOnlyList<NotificationChannel>? channels = null) => new(
-        TemplateKey: NotificationTemplateKeys.Test,
+        // Шаблон с подстановкой: проверочное письмо самодостаточно и токенов не несёт, а этим
+        // тестам нужно видеть, что значения действительно доехали до снимка в очереди.
+        TemplateKey: NotificationTemplateKeys.StaffPasswordReset,
         Category: NotificationCategory.Transactional,
         Recipient: new NotificationRecipient(Locale: locale, EmailAddress: email),
-        Tokens: new Dictionary<string, string> { ["recipient"] = "Sam" },
+        Tokens: new Dictionary<string, string>
+        {
+            ["displayName"] = "Sam",
+            ["code"] = "123456",
+            ["expiresInMinutes"] = "15",
+        },
         IdempotencyKey: idempotencyKey,
         PreferredChannels: channels);
 
@@ -54,8 +61,9 @@ public sealed class NotificationServiceTests
         Assert.Equal("Email", row.Channel);
         Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
         Assert.Equal("player@example.com", row.RecipientAddress);
-        Assert.Equal("Проверка уведомлений AFK4.NET", row.Subject);
+        Assert.Equal("Сброс пароля в AFK4.net", row.Subject);
         Assert.Contains("Sam", row.BodyText, StringComparison.Ordinal);
+        Assert.Contains("123456", row.BodyText, StringComparison.Ordinal);
         Assert.Equal(Now, row.CreatedUtc);
         Assert.Equal(Now, row.NextAttemptUtc);
         Assert.Contains(row.NotificationOutboxId, handle.OutboxIds);
@@ -98,7 +106,7 @@ public sealed class NotificationServiceTests
 
         var row = await db.NotificationOutbox.SingleAsync();
         Assert.Equal("ru", row.Locale);
-        Assert.Equal("Проверка уведомлений AFK4.NET", row.Subject);
+        Assert.Equal("Сброс пароля в AFK4.net", row.Subject);
     }
 
     [Fact]
@@ -110,7 +118,7 @@ public sealed class NotificationServiceTests
         await service.SendAsync(Request(locale: "en"), CancellationToken.None);
 
         var row = await db.NotificationOutbox.SingleAsync();
-        Assert.Equal("AFK4.NET notification check", row.Subject);
+        Assert.Equal("Reset your AFK4.net password", row.Subject);
     }
 
     [Fact]

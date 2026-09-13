@@ -50,10 +50,17 @@ public sealed class NotificationBackboneEndToEndTests
             new EfNotificationPreferenceService(db, time), runner, time, options);
 
         var request = new NotificationRequest(
-            TemplateKey: NotificationTemplateKeys.Test,
+            // Шаблон с подстановкой: сквозной путь должен показать, что значения доехали до письма,
+            // а проверочное письмо самодостаточно и токенов не несёт.
+            TemplateKey: NotificationTemplateKeys.StaffPasswordReset,
             Category: NotificationCategory.Transactional,
             Recipient: new NotificationRecipient(Locale: "en", EmailAddress: "owner@club.example"),
-            Tokens: new Dictionary<string, string> { ["recipient"] = "Owner" },
+            Tokens: new Dictionary<string, string>
+            {
+                ["displayName"] = "Owner",
+                ["code"] = "123456",
+                ["expiresInMinutes"] = "15",
+            },
             IdempotencyKey: "notification-test:club-1");
 
         var handle = await service.SendAsync(request, CancellationToken.None);
@@ -65,7 +72,7 @@ public sealed class NotificationBackboneEndToEndTests
         var message = Assert.Single(transport.Sent);
         Assert.Equal("owner@club.example", message.ToAddress);
         Assert.Equal("noreply@afk4.net", message.FromAddress);
-        Assert.Equal("AFK4.NET notification check", message.Subject);
+        Assert.Equal("Reset your AFK4.net password", message.Subject);
         Assert.Contains("Owner", message.BodyText, StringComparison.Ordinal);
         Assert.Contains("Owner", message.BodyHtml, StringComparison.Ordinal);
 
