@@ -176,6 +176,8 @@ public static class AuditActionNames
 
     public const string PlatformViewUpdates = "platform.updates.view";
 
+    public const string PlatformSendTestEmail = "platform.health.test_email.send";
+
     public const string ViewDiagnostics = "diagnostics.view";
 
     public const string ViewAudit = "audit.view";

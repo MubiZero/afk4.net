@@ -476,6 +476,19 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1)
             }));
 
+    // Проверочное письмо шлётся боевым SMTP наружу: право за 2FA, но лимит всё равно нужен —
+    // иначе панель превращается в отправлялку на любой адрес.
+    options.AddPolicy("platform-test-email", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Request.Headers.Authorization.ToString() is { Length: > 0 } actor
+                ? actor
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5)
+            }));
+
     options.AddPolicy("staff-reset", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",

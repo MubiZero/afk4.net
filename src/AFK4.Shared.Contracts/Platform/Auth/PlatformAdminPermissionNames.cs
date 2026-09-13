@@ -46,6 +46,10 @@ public static class PlatformAdminPermissionNames
 
     public const string ViewPlatformHealth = "platform.health.view";
 
+    /// <summary>Отправка проверочного письма. Отдельно от просмотра здоровья: это действие наружу,
+    /// а не чтение.</summary>
+    public const string SendTestNotification = "platform.health.test_email.send";
+
     public const string ManageOrganizationFeatures = "platform.organizations.features.manage";
 
     /// <summary>
@@ -99,6 +103,7 @@ public static class PlatformAdminPermissionNames
         ManageUpdatePackages,
         ManageUpdateRollouts,
         ManagePlatformAdmins,
-        ViewPlatformHealth
+        ViewPlatformHealth,
+        SendTestNotification
     ];
 }

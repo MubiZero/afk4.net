@@ -44,6 +44,15 @@ public sealed record PlatformHealthOverviewDto(
     IReadOnlyList<IncidentDto> OpenIncidents,
     IReadOnlyList<QueueFailureDto> RecentFailures);
 
+/// <summary>
+/// Проверка доставки почты: письмо уходит боевым путём, а причина отказа возвращается сразу.
+/// Раньше единственным способом проверить почту было послать кому-то настоящее приглашение и
+/// гадать по счётчику «провалено» без текста ошибки.
+/// </summary>
+public sealed record SendTestEmailRequest(string Email);
+
+public sealed record SendTestEmailResultDto(bool Delivered, string? Error);
+
 public static class PlatformQueueNames
 {
     public const string Notifications = "notifications";
