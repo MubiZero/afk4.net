@@ -29,7 +29,7 @@ function incident(overrides: Partial<Incident> = {}): Incident {
 }
 
 function overview(incidents: Incident[]): HealthOverview {
-  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [], queues: [], openIncidents: incidents };
+  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [], queues: [], openIncidents: incidents, recentFailures: [] };
 }
 
 it('a job that never ran is "never"', () => {

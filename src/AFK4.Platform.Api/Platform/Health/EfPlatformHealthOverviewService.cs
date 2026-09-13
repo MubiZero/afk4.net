@@ -20,6 +20,9 @@ public sealed class EfPlatformHealthOverviewService(
     TimeProvider timeProvider)
     : IPlatformHealthOverviewService
 {
+    /// <summary>Экран, а не выгрузка: свежих провалов показываем ограниченное число.</summary>
+    private const int RecentFailureLimit = 20;
+
     // Тот же запас, что у сторожа (см. PlatformHealthWatchJob.RunHistoryMargin) — без него серия
     // провалов задания с интервалом у самой границы окна теряла бы старые попытки из выборки.
     private static readonly TimeSpan RunHistoryMargin = TimeSpan.FromHours(6);
@@ -92,6 +95,44 @@ public sealed class EfPlatformHealthOverviewService(
             new(PlatformQueueNames.BillingOutbox, billingOutboxPending, billingOutboxFailed, billingOutboxStuck)
         };
 
+        // Причина провала, а не только счётчик: иначе «провалено: 4» диагностике ничем не помогает.
+        // Окно то же, что у правил здоровья, и ограничение на количество — экран, а не выгрузка.
+        var failedSince = now - healthOptions.Value.QueueFailureWindow;
+        var notificationFailures = await dbContext.NotificationOutbox
+            .AsNoTracking()
+            .Where(row => row.Status == NotificationOutboxStatus.Failed && row.FailedUtc != null && row.FailedUtc >= failedSince)
+            .OrderByDescending(row => row.FailedUtc)
+            .Take(RecentFailureLimit)
+            .Select(row => new { row.FailedUtc, row.TemplateKey, row.RecipientAddress, row.AttemptCount, row.LastError })
+            .ToListAsync(cancellationToken);
+
+        var billingFailures = await dbContext.OutboxMessages
+            .AsNoTracking()
+            .Where(row => row.Status == OutboxMessageStatus.Failed && row.FailedUtc != null && row.FailedUtc >= failedSince)
+            .OrderByDescending(row => row.FailedUtc)
+            .Take(RecentFailureLimit)
+            .Select(row => new { row.FailedUtc, row.Type, row.AttemptCount, row.LastError })
+            .ToListAsync(cancellationToken);
+
+        var recentFailures = notificationFailures
+            .Select(row => new QueueFailureDto(
+                PlatformQueueNames.Notifications,
+                row.FailedUtc,
+                row.TemplateKey,
+                RecipientMask.Apply(row.RecipientAddress),
+                row.AttemptCount,
+                row.LastError))
+            .Concat(billingFailures.Select(row => new QueueFailureDto(
+                PlatformQueueNames.BillingOutbox,
+                row.FailedUtc,
+                row.Type,
+                string.Empty,
+                row.AttemptCount,
+                row.LastError)))
+            .OrderByDescending(failure => failure.FailedAtUtc)
+            .Take(RecentFailureLimit)
+            .ToList();
+
         var openIncidents = await incidentService.ListOpenAsync(cancellationToken);
         var incidents = openIncidents
             .Select(incident => new IncidentDto(
@@ -104,6 +145,6 @@ public sealed class EfPlatformHealthOverviewService(
                 incident.LastSeenAtUtc))
             .ToList();
 
-        return new PlatformHealthOverviewDto(now, jobs, queues, incidents);
+        return new PlatformHealthOverviewDto(now, jobs, queues, incidents, recentFailures);
     }
 }

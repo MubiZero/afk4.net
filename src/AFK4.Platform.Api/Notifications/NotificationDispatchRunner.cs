@@ -44,6 +44,7 @@ public sealed class NotificationDispatchRunner(
         if (!channelsByName.TryGetValue(row.Channel, out var channel))
         {
             row.Status = NotificationOutboxStatus.Failed;
+            row.FailedUtc = now;
             row.LastError = $"No channel registered for '{row.Channel}'.";
             return;
         }
@@ -73,6 +74,7 @@ public sealed class NotificationDispatchRunner(
         if (!result.Retryable || row.AttemptCount >= options.MaxAttempts)
         {
             row.Status = NotificationOutboxStatus.Failed;
+            row.FailedUtc = now;
             return;
         }
 

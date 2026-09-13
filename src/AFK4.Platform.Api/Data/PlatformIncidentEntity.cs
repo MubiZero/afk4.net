@@ -34,6 +34,12 @@ public static class PlatformIncidentKindNames
     public const string JobFailing = "job_failing";
     public const string NotificationQueueStuck = "notification_queue_stuck";
     public const string BillingOutboxStuck = "billing_outbox_stuck";
+
+    // Провал и застревание — разные болезни с разным лечением: застряло — очередь не разбирается,
+    // провалено — канал отказал. Одним видом инцидента их описать нельзя, подпись врала бы про
+    // одно из двух.
+    public const string NotificationQueueFailing = "notification_queue_failing";
+    public const string BillingOutboxFailing = "billing_outbox_failing";
 }
 
 public static class PlatformIncidentSeverityNames

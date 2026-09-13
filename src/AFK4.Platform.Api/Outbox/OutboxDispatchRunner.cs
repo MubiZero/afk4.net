@@ -46,6 +46,7 @@ public sealed class OutboxDispatchRunner(
         if (!handlersByType.TryGetValue(message.Type, out var handler))
         {
             message.Status = OutboxMessageStatus.Failed;
+            message.FailedUtc = now;
             message.LastError = $"No outbox handler registered for type '{message.Type}'.";
             return;
         }
@@ -75,6 +76,7 @@ public sealed class OutboxDispatchRunner(
         if (!result.Retryable || message.AttemptCount >= options.MaxAttempts)
         {
             message.Status = OutboxMessageStatus.Failed;
+            message.FailedUtc = now;
             return;
         }
 

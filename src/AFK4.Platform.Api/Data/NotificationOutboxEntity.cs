@@ -56,6 +56,10 @@ public sealed class NotificationOutboxEntity
 
     public DateTimeOffset? SentUtc { get; set; }
 
+    /// <summary>Когда строка окончательно провалилась. Без этого «провалено» — счётчик за всю
+    /// историю: одна августовская ошибка держала бы индикатор красным вечно.</summary>
+    public DateTimeOffset? FailedUtc { get; set; }
+
     /// <summary>Files delivered with this notification (e.g. a scheduled report CSV). Persisted so retries replay the same payload.</summary>
     public List<NotificationOutboxAttachmentEntity> Attachments { get; set; } = [];
 }

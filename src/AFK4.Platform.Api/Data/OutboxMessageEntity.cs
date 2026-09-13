@@ -33,6 +33,9 @@ public sealed class OutboxMessageEntity
 
     public DateTimeOffset? DispatchedAtUtc { get; set; }
 
+    /// <summary>Когда сообщение окончательно провалилось — см. <see cref="NotificationOutboxEntity.FailedUtc"/>.</summary>
+    public DateTimeOffset? FailedUtc { get; set; }
+
     /// <summary>Caller-supplied key (reuses the command's idempotency key), unique — makes redelivery safe.</summary>
     public string IdempotencyKey { get; set; } = string.Empty;
 

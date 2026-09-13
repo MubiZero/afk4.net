@@ -5,6 +5,10 @@ namespace AFK4.Platform.Api.Platform.Health;
 
 public sealed record JobState(string JobName, TimeSpan Interval, DateTimeOffset? LastSuccessAtUtc, int ConsecutiveFailures);
 
+/// <summary>
+/// Снимок состояния. Провалы здесь — только свежие, за <c>QueueFailureWindow</c>: `Failed` —
+/// терминальный статус, и счёт за всю историю никогда бы не вернулся к нулю.
+/// </summary>
 public sealed record HealthSnapshot(
     IReadOnlyList<JobState> Jobs,
     int NotificationFailed,
@@ -41,7 +45,9 @@ public static class PlatformHealthRules
         PlatformIncidentKindNames.JobOverdue,
         PlatformIncidentKindNames.JobFailing,
         PlatformIncidentKindNames.NotificationQueueStuck,
-        PlatformIncidentKindNames.BillingOutboxStuck
+        PlatformIncidentKindNames.BillingOutboxStuck,
+        PlatformIncidentKindNames.NotificationQueueFailing,
+        PlatformIncidentKindNames.BillingOutboxFailing
     ];
 
     /// <summary>Задания, чья остановка стоит денег: счета не выставляются, письма не уходят.</summary>
@@ -94,30 +100,32 @@ public static class PlatformHealthRules
             }
         }
 
-        if (snapshot.NotificationFailed > 0 || snapshot.NotificationStuck > 0)
+        if (snapshot.NotificationStuck > 0)
         {
-            problems.Add(new DetectedProblem(
-                PlatformIncidentKindNames.NotificationQueueStuck,
-                PlatformIncidentKindNames.NotificationQueueStuck,
-                PlatformIncidentSeverityNames.Critical,
-                Details(
-                    ("failed", snapshot.NotificationFailed.ToString(CultureInfo.InvariantCulture)),
-                    ("stuck", snapshot.NotificationStuck.ToString(CultureInfo.InvariantCulture)))));
+            problems.Add(Queue(PlatformIncidentKindNames.NotificationQueueStuck, "stuck", snapshot.NotificationStuck));
         }
 
-        if (snapshot.BillingOutboxFailed > 0 || snapshot.BillingOutboxStuck > 0)
+        if (snapshot.NotificationFailed > 0)
         {
-            problems.Add(new DetectedProblem(
-                PlatformIncidentKindNames.BillingOutboxStuck,
-                PlatformIncidentKindNames.BillingOutboxStuck,
-                PlatformIncidentSeverityNames.Critical,
-                Details(
-                    ("failed", snapshot.BillingOutboxFailed.ToString(CultureInfo.InvariantCulture)),
-                    ("stuck", snapshot.BillingOutboxStuck.ToString(CultureInfo.InvariantCulture)))));
+            problems.Add(Queue(PlatformIncidentKindNames.NotificationQueueFailing, "failed", snapshot.NotificationFailed));
+        }
+
+        if (snapshot.BillingOutboxStuck > 0)
+        {
+            problems.Add(Queue(PlatformIncidentKindNames.BillingOutboxStuck, "stuck", snapshot.BillingOutboxStuck));
+        }
+
+        if (snapshot.BillingOutboxFailed > 0)
+        {
+            problems.Add(Queue(PlatformIncidentKindNames.BillingOutboxFailing, "failed", snapshot.BillingOutboxFailed));
         }
 
         return problems;
     }
+
+    private static DetectedProblem Queue(string kind, string counterName, int count) =>
+        new(kind, kind, PlatformIncidentSeverityNames.Critical,
+            Details((counterName, count.ToString(CultureInfo.InvariantCulture))));
 
     private static TimeSpan Max(TimeSpan left, TimeSpan right) => left > right ? left : right;
 

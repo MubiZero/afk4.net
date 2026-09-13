@@ -24,11 +24,25 @@ public sealed record IncidentDto(
     DateTimeOffset OpenedAtUtc,
     DateTimeOffset LastSeenAtUtc);
 
+/// <summary>
+/// Одна провалившаяся строка очереди. Без причины провала счётчик «провалено» не диагностируем:
+/// видно, что письма не уходят, и не видно почему. Адрес маскирован — домен для разбора важен,
+/// полный адрес человека нет.
+/// </summary>
+public sealed record QueueFailureDto(
+    string QueueName,
+    DateTimeOffset? FailedAtUtc,
+    string Kind,
+    string RecipientMasked,
+    int AttemptCount,
+    string? LastError);
+
 public sealed record PlatformHealthOverviewDto(
     DateTimeOffset GeneratedAtUtc,
     IReadOnlyList<JobHealthDto> Jobs,
     IReadOnlyList<QueueHealthDto> Queues,
-    IReadOnlyList<IncidentDto> OpenIncidents);
+    IReadOnlyList<IncidentDto> OpenIncidents,
+    IReadOnlyList<QueueFailureDto> RecentFailures);
 
 public static class PlatformQueueNames
 {

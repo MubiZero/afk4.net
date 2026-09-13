@@ -690,9 +690,19 @@ export interface Incident {
   lastSeenAtUtc: string;
 }
 
+export interface QueueFailure {
+  queueName: string;
+  failedAtUtc: string | null;
+  kind: string;
+  recipientMasked: string;
+  attemptCount: number;
+  lastError: string | null;
+}
+
 export interface HealthOverview {
   generatedAtUtc: string;
   jobs: JobHealth[];
   queues: QueueHealth[];
   openIncidents: Incident[];
+  recentFailures: QueueFailure[];
 }

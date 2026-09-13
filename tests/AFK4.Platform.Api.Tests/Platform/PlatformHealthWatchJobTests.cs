@@ -34,7 +34,10 @@ public sealed class PlatformHealthWatchJobTests
         factory.Services.GetRequiredService<PlatformJobIntervalCatalog>(),
         NullLogger<PlatformHealthWatchJob>.Instance);
 
-    private static async Task SeedFailedNotificationAsync(IServiceProvider services)
+    private static Task SeedFailedNotificationAsync(IServiceProvider services) =>
+        SeedFailedNotificationAsync(services, DateTimeOffset.UtcNow);
+
+    private static async Task SeedFailedNotificationAsync(IServiceProvider services, DateTimeOffset failedUtc)
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -52,13 +55,14 @@ public sealed class PlatformHealthWatchJobTests
             BodyHtml = "test",
             Status = NotificationOutboxStatus.Failed,
             NextAttemptUtc = DateTimeOffset.UtcNow,
-            CreatedUtc = DateTimeOffset.UtcNow
+            CreatedUtc = failedUtc,
+            FailedUtc = failedUtc
         });
         await db.SaveChangesAsync();
     }
 
     [Fact]
-    public async Task StuckNotificationQueue_OpensIncidentAndSendsAlert()
+    public async Task FailedNotification_OpensFailingIncidentAndSendsAlert()
     {
         var smtp = new CapturingSmtp();
         await using var factory = new PlatformApiFactory(extraServices: services =>
@@ -76,7 +80,7 @@ public sealed class PlatformHealthWatchJobTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var incident = Assert.Single(db.PlatformIncidents
-            .Where(row => row.Kind == PlatformIncidentKindNames.NotificationQueueStuck));
+            .Where(row => row.Kind == PlatformIncidentKindNames.NotificationQueueFailing));
         Assert.Null(incident.ResolvedAtUtc);
 
         Assert.NotEmpty(smtp.Sent);
@@ -111,12 +115,36 @@ public sealed class PlatformHealthWatchJobTests
         await using var verifyScope = factory.Services.CreateAsyncScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var incident = Assert.Single(verifyDb.PlatformIncidents
-            .Where(row => row.Kind == PlatformIncidentKindNames.NotificationQueueStuck));
+            .Where(row => row.Kind == PlatformIncidentKindNames.NotificationQueueFailing));
         Assert.NotNull(incident.ResolvedAtUtc);
 
         Assert.DoesNotContain(
             await verifyDb.PlatformIncidents.Where(row => row.ResolvedAtUtc == null).ToListAsync(),
-            row => row.Kind == PlatformIncidentKindNames.NotificationQueueStuck);
+            row => row.Kind == PlatformIncidentKindNames.NotificationQueueFailing);
+    }
+
+    // `Failed` — статус терминальный: строка с ним лежит в таблице вечно. Пока провалы считались
+    // за всю историю, одна августовская ошибка держала критический инцидент открытым навсегда,
+    // а постоянно горящий красный индикатор перестают читать.
+    [Fact]
+    public async Task OldFailure_DoesNotOpenAnIncident()
+    {
+        var smtp = new CapturingSmtp();
+        await using var factory = new PlatformApiFactory(extraServices: services =>
+        {
+            services.RemoveAll<ISmtpTransport>();
+            services.AddSingleton<ISmtpTransport>(smtp);
+        });
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.SeedPlatformAdminAsync(factory, "health-watch3@platform.test", "Watcher");
+        await SeedFailedNotificationAsync(factory.Services, DateTimeOffset.UtcNow - TimeSpan.FromDays(30));
+
+        var job = BuildJob(factory, TimeProvider.System);
+        await job.RunOnceAsync(CancellationToken.None);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(db.PlatformIncidents.Where(row => row.Kind == PlatformIncidentKindNames.NotificationQueueFailing));
     }
 
     [Fact]

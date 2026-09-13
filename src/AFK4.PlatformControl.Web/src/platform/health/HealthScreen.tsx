@@ -4,7 +4,7 @@ import { ErrorState, LoadingCards } from '@/components/ui/states';
 import { Page } from '@/components/layout/Page';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import type { HealthApi } from '@/api/platformClients/health';
-import type { HealthOverview, IncidentSeverity, JobHealth, QueueHealth } from '@/api/types';
+import type { HealthOverview, IncidentSeverity, JobHealth, QueueFailure, QueueHealth } from '@/api/types';
 import { useHealth } from './useHealth';
 import { hasCritical, jobStatus, sortIncidents } from './healthModel';
 
@@ -26,7 +26,9 @@ const INCIDENT_LABEL_KEYS: Record<string, MessageKey> = {
   job_overdue: 'platform.health.incident.job_overdue',
   job_failing: 'platform.health.incident.job_failing',
   notification_queue_stuck: 'platform.health.incident.notification_queue_stuck',
-  billing_outbox_stuck: 'platform.health.incident.billing_outbox_stuck'
+  billing_outbox_stuck: 'platform.health.incident.billing_outbox_stuck',
+  notification_queue_failing: 'platform.health.incident.notification_queue_failing',
+  billing_outbox_failing: 'platform.health.incident.billing_outbox_failing'
 };
 
 const QUEUE_LABEL_KEYS: Record<string, MessageKey> = {
@@ -66,6 +68,7 @@ function HealthOverviewView({ overview }: { overview: HealthOverview }) {
       <IncidentsCard overview={overview} />
       <JobsCard jobs={overview.jobs} />
       <QueuesCard queues={overview.queues} />
+      <FailuresCard failures={overview.recentFailures} />
     </>
   );
 }
@@ -95,6 +98,48 @@ function IncidentsCard({ overview }: { overview: HealthOverview }) {
                 <Badge variant={incident.severity === 'critical' ? 'destructive' : 'warning'}>
                   {translateSeverity(t, incident.severity)}
                 </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Счётчик «провалено» без причины нечитаем: видно, что не уходит, и не видно почему.
+// Разбор проваленной доставки начинается отсюда, а не с прямого доступа к базе.
+function FailuresCard({ failures }: { failures: QueueFailure[] }) {
+  const { t, formatDate } = useI18n();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('platform.health.failures.title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {failures.length === 0 ? (
+          <CardDescription>{t('platform.health.failures.empty')}</CardDescription>
+        ) : (
+          <ul className="pc-queue">
+            {failures.map((failure, index) => (
+              <li key={`${failure.queueName}-${failure.failedAtUtc ?? index}`} className="pc-queue-row" data-testid="failure-row">
+                <span className="pc-queue-id">
+                  <strong>{translate(t, QUEUE_LABEL_KEYS, failure.queueName)}</strong>
+                  <span>
+                    {failure.kind}
+                    {failure.recipientMasked === '' ? '' : ` · ${failure.recipientMasked}`}
+                  </span>
+                  {/* Техническая строка от канала доставки — экран под правом платформенной роли. */}
+                  {failure.lastError === null ? null : <span>{failure.lastError}</span>}
+                </span>
+                <span className="pc-cell-actions">
+                  <Badge variant="secondary">
+                    {t('platform.health.failures.attempts', { count: failure.attemptCount })}
+                  </Badge>
+                  {failure.failedAtUtc === null ? null : (
+                    <Badge variant="destructive">{formatDate(failure.failedAtUtc)}</Badge>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
