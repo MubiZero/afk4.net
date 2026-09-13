@@ -49,7 +49,7 @@ describe('HealthScreen', () => {
   it('shows a critical incident with its translated title and severity label', async () => {
     render(
       <I18nProvider>
-        <HealthScreen client={fakeClient(overview({ openIncidents: [incident({ kind: 'job_overdue', severity: 'critical' })] }))} />
+        <HealthScreen canSendTestEmail client={fakeClient(overview({ openIncidents: [incident({ kind: 'job_overdue', severity: 'critical' })] }))} />
       </I18nProvider>
     );
     await waitFor(() => expect(screen.getByText('Задание не отрабатывает')).toBeInTheDocument());
@@ -59,7 +59,7 @@ describe('HealthScreen', () => {
   it('shows the empty-incidents copy and no incident titles when there are none', async () => {
     render(
       <I18nProvider>
-        <HealthScreen client={fakeClient(overview({ openIncidents: [] }))} />
+        <HealthScreen canSendTestEmail client={fakeClient(overview({ openIncidents: [] }))} />
       </I18nProvider>
     );
     await waitFor(() => expect(screen.getByText('Открытых проблем нет')).toBeInTheDocument());
@@ -69,7 +69,7 @@ describe('HealthScreen', () => {
   it('shows an error state with retry, never the "no incidents" copy, when the load fails', async () => {
     render(
       <I18nProvider>
-        <HealthScreen client={fakeClient(() => Promise.reject(new Error('network')))} />
+        <HealthScreen canSendTestEmail client={fakeClient(() => Promise.reject(new Error('network')))} />
       </I18nProvider>
     );
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
@@ -81,7 +81,7 @@ describe('HealthScreen', () => {
 // Счётчик «провалено» без причины отправлял админа в базу — ради этой строки секция и живёт.
 it('shows why a queued message failed', async () => {
   render(
-    <I18nProvider><HealthScreen client={fakeClient(overview({
+    <I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({
       recentFailures: [{
         queueName: 'notifications',
         failedAtUtc: '2026-08-07T10:00:00Z',
@@ -99,7 +99,7 @@ it('shows why a queued message failed', async () => {
 
 it('says so when there are no recent failures', async () => {
   render(
-    <I18nProvider><HealthScreen client={fakeClient(overview({ recentFailures: [] }))} /></I18nProvider>
+    <I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({ recentFailures: [] }))} /></I18nProvider>
   );
   expect(await screen.findByText('Свежих провалов нет')).toBeTruthy();
 });
@@ -110,7 +110,7 @@ it('shows the delivery error when the test email fails', async () => {
     getOverview: mock().mockResolvedValue(overview({})),
     sendTestEmail: mock().mockResolvedValue({ delivered: false, error: 'Connection refused' })
   };
-  render(<I18nProvider><HealthScreen client={client} /></I18nProvider>);
+  render(<I18nProvider><HealthScreen client={client} canSendTestEmail /></I18nProvider>);
 
   fireEvent.change(await screen.findByLabelText('Куда отправить'), { target: { value: 'me@mubi.dev' } });
   fireEvent.click(screen.getByRole('button', { name: 'Отправить проверочное письмо' }));
@@ -124,7 +124,7 @@ it('confirms a delivered test email', async () => {
     getOverview: mock().mockResolvedValue(overview({})),
     sendTestEmail: mock().mockResolvedValue({ delivered: true, error: null })
   };
-  render(<I18nProvider><HealthScreen client={client} /></I18nProvider>);
+  render(<I18nProvider><HealthScreen client={client} canSendTestEmail /></I18nProvider>);
 
   fireEvent.change(await screen.findByLabelText('Куда отправить'), { target: { value: 'me@mubi.dev' } });
   fireEvent.click(screen.getByRole('button', { name: 'Отправить проверочное письмо' }));
@@ -134,7 +134,20 @@ it('confirms a delivered test email', async () => {
 
 // Про ненастроенное хранилище узнать должны мы, а не клуб при первой загрузке логотипа.
 it('warns when file storage is not configured', async () => {
-  render(<I18nProvider><HealthScreen client={fakeClient(overview({ mediaStorageConfigured: false }))} /></I18nProvider>);
+  render(<I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({ mediaStorageConfigured: false }))} /></I18nProvider>);
 
   expect(await screen.findByText(/Не настроено: логотипы и фото зала/)).toBeTruthy();
+});
+
+// Отправку проверочного письма бэкенд спрашивает по отдельному праву. Пока карточка не имела
+// своего гейта, кнопка была активна у того, кому нельзя, и отвечала только отказом.
+it('hides the test email card without the permission', async () => {
+  render(
+    <I18nProvider>
+      <HealthScreen client={fakeClient(overview({}))} canSendTestEmail={false} />
+    </I18nProvider>
+  );
+
+  expect(await screen.findByText('Здоровье платформы')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Отправить проверочное письмо' })).toBeNull();
 });

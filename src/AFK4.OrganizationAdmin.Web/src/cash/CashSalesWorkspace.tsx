@@ -22,7 +22,11 @@ export function CashSalesWorkspace({
     permissionNames.refundPosSale,
     permissionNames.voidPosSale
   ]);
-  const canOrders = hasAnyPermission(session, [permissionNames.createPosSale]);
+  // Лента гейтится тем же правом, что сервер спрашивает на «Принять/Выдать/Отменить»
+  // (ShopOrderEndpoints). Пока она висела на createPosSale, кассир видел заказы и получал
+  // 403 на каждое действие: кнопка, которая выглядит рабочей и не работает, дороже
+  // отсутствующей — она обещает, что заказ обслужен.
+  const canOrders = hasAnyPermission(session, [permissionNames.manageShopOrders]);
 
   return (
     <main className="workspace-screen cash-sales-screen">

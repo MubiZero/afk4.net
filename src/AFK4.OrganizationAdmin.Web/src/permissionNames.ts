@@ -33,6 +33,7 @@ export const permissionNames = {
   viewInventory: 'organization.inventory.view',
   manageInventoryStock: 'organization.inventory.stock.manage',
   managePosCatalog: 'organization.pos.catalog.manage',
+  manageShopOrders: 'organization.shop.orders.manage',
   viewReceipt: 'organization.receipts.view',
   viewDiagnostics: 'organization.diagnostics.view',
   manageBranchStaff: 'organization.identity.branch_staff.manage',

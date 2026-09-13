@@ -129,7 +129,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'settings' ? <SettingsScreen client={client.admins} twoFactorClient={client.twoFactor} rolesClient={client.roles} session={session} />
         : route.kind === 'announcements' ? <AnnouncementsScreen client={client.announcements} />
         : route.kind === 'people' ? <PeopleScreen client={client.people} />
-        : route.kind === 'health' ? <HealthScreen client={client.health} />
+        : route.kind === 'health' ? <HealthScreen client={client.health} canSendTestEmail={can(session, 'health.test_email.send')} />
         : <UnavailableScreen />}</Suspense>
     </AppShell>
   );

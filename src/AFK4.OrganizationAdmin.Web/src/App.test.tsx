@@ -2728,6 +2728,7 @@ const allOperatorPermissions = [
   'organization.inventory.view',
   'organization.inventory.stock.manage',
   'organization.pos.catalog.manage',
+  'organization.shop.orders.manage',
   'organization.receipts.view',
   'organization.diagnostics.view',
   'organization.identity.branch_staff.manage',
