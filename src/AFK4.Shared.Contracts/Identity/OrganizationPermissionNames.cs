@@ -85,6 +85,11 @@ public static class OrganizationPermissionNames
 
     public const string VoidPosSale = "organization.pos.sales.void";
 
+    /// Отменить СВОЙ чек, пробитый только что, без старшего — узкое подмножество VoidPosSale.
+    /// Границы правила и довод за него живут в <c>Pos/PosSelfVoidPolicy.cs</c>: право само по
+    /// себе ничего не разрешает, пока продажа не своя, не в текущей открытой смене и не свежая.
+    public const string VoidOwnRecentPosSale = "organization.pos.sales.void_own_recent";
+
     public const string ManageInventoryStock = "organization.inventory.stock.manage";
 
     public const string ViewInventory = "organization.inventory.view";

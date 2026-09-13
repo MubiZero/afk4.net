@@ -5,6 +5,9 @@ import { ToastProvider } from '../operatorToast';
 
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 const refundSale = mock(async () => ({}));
+const voidSale = mock(async () => ({}));
+// Смена филиала, в которой пробит чек: без неё отмена своей продажи невозможна по определению.
+const getCurrentShift = mock(async () => ({ shiftId: 'shift-open' }));
 const getSalesReport = mock(async () => ({
   grossSalesTotal: m(41000),
   refundsTotal: m(3000),
@@ -12,6 +15,7 @@ const getSalesReport = mock(async () => ({
 }));
 const getSale = mock(async () => ({
   posSaleId: 's1', state: 'paid', total: m(1200),
+  shiftId: 'shift-open', createdByStaffUserId: 'cashier-1', createdAtUtc: new Date().toISOString(),
   lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200), lineTotal: m(1200) }],
   payments: [{ method: 'cash', amount: m(700) }, { method: 'card', amount: m(500) }],
   latestReceipt: { receiptId: 'r1', receiptNumber: '1048', total: m(1200) }
@@ -21,7 +25,7 @@ const getReceipt = mock(async () => ({ receiptId: 'r1', receiptNumber: '1048', r
 const actualHelpers = await import('../operatorHelpers');
 mock.module('../operatorHelpers', () => ({
   ...actualHelpers,
-  createAuthenticatedOperatorClients: () => ({ shifts: { getSalesReport }, pos: { getSale, getReceipt, refundSale } })
+  createAuthenticatedOperatorClients: () => ({ shifts: { getSalesReport, getCurrentShift }, pos: { getSale, getReceipt, refundSale, voidSale } })
 }));
 
 const { CashReceiptsLedger } = await import('./CashReceiptsLedger');
@@ -32,14 +36,20 @@ afterAll(() => {
   }).__afk4RealOperatorHelpers);
 });
 
-const session = { permissions: ['organization.receipts.view', 'organization.pos.sales.refund'], organizationId: 'o' };
+const session = {
+  staffUserId: 'cashier-1',
+  permissions: ['organization.receipts.view', 'organization.pos.sales.refund'],
+  organizationId: 'o'
+};
 const backend = { config: { platformBaseUrl: 'http://test' }, session: { accessToken: 't', ...session }, branchId: 'b1' };
 
-function renderReceipts() {
+function renderReceipts(overrides: Partial<typeof session> = {}) {
+  const merged = { ...session, ...overrides };
+  const mergedBackend = { ...backend, session: { accessToken: 't', ...merged } };
   render(
     <I18nProvider initialLocale="ru">
       <ToastProvider>
-        <CashReceiptsLedger backend={backend as never} branchId="b1" currencyCode="TJS" session={session as never} />
+        <CashReceiptsLedger backend={mergedBackend as never} branchId="b1" currencyCode="TJS" session={merged as never} />
       </ToastProvider>
     </I18nProvider>
   );
@@ -52,6 +62,8 @@ describe('CashReceiptsLedger', () => {
     getSale.mockClear();
     getReceipt.mockClear();
     refundSale.mockClear();
+    voidSale.mockClear();
+    getCurrentShift.mockClear();
     mock.restore();
   });
 
@@ -88,5 +100,56 @@ describe('CashReceiptsLedger', () => {
     expect((refundSale.mock.calls[0] as unknown[])?.[0]).toBe('s1');
     await waitFor(() => expect(getSalesReport.mock.calls.length).toBeGreaterThan(reportLoadsBeforeRefund));
     expect(await screen.findByText('Возврат')).toBeInTheDocument();
+  });
+
+  // Отмены не было в интерфейсе ни для кого: серверный маршрут существовал, клиентский метод
+  // был объявлен и не вызывался. Кассир при этом не мог исправить собственную опечатку вовсе —
+  // ошибка не исправлялась, а обходилась, и расходилась история продаж.
+  it('кассир отменяет свой только что пробитый чек', async () => {
+    renderReceipts({ permissions: ['organization.receipts.view', 'organization.pos.sales.void_own_recent'] });
+    fireEvent.click(await screen.findByRole('row', { name: /Оплачен/ }));
+
+    const voidButton = await screen.findByRole('button', { name: 'Отменить чек' });
+    fireEvent.click(voidButton);
+
+    fireEvent.change(screen.getByLabelText('Почему отменяем'), { target: { value: 'Пробил не тот товар' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отмену' }));
+
+    await waitFor(() => expect(voidSale).toHaveBeenCalled());
+  });
+
+  // Окно закрывает бытовую опечатку и не открывает возврат задним числом: чужой чек кассиру
+  // не отменить, даже свежий.
+  it('чужой чек кассиру отменить нечем', async () => {
+    getSale.mockImplementationOnce(async () => ({
+      posSaleId: 's1', state: 'paid', total: m(1200),
+      shiftId: 'shift-open', createdByStaffUserId: 'someone-else', createdAtUtc: new Date().toISOString(),
+      lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200), lineTotal: m(1200) }],
+      payments: [{ method: 'cash', amount: m(1200) }],
+      latestReceipt: { receiptId: 'r1', receiptNumber: '1048', total: m(1200) }
+    }));
+
+    renderReceipts({ permissions: ['organization.receipts.view', 'organization.pos.sales.void_own_recent'] });
+    fireEvent.click(await screen.findByRole('row', { name: /Оплачен/ }));
+    await screen.findByLabelText('Детали выбранной записи');
+
+    await waitFor(() => expect(getSale).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Отменить чек' })).toBeNull();
+  });
+
+  // Старший отменяет что угодно: его право шире, и окно к нему не применяется.
+  it('старший смены отменяет и чужой чек', async () => {
+    getSale.mockImplementationOnce(async () => ({
+      posSaleId: 's1', state: 'paid', total: m(1200),
+      shiftId: 'shift-old', createdByStaffUserId: 'someone-else', createdAtUtc: '2026-06-25T08:00:00Z',
+      lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200), lineTotal: m(1200) }],
+      payments: [{ method: 'cash', amount: m(1200) }],
+      latestReceipt: { receiptId: 'r1', receiptNumber: '1048', total: m(1200) }
+    }));
+
+    renderReceipts({ permissions: ['organization.receipts.view', 'organization.pos.sales.void'] });
+    fireEvent.click(await screen.findByRole('row', { name: /Оплачен/ }));
+
+    expect(await screen.findByRole('button', { name: 'Отменить чек' })).toBeInTheDocument();
   });
 });

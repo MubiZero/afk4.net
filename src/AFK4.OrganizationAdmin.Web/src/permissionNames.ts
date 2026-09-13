@@ -30,6 +30,7 @@ export const permissionNames = {
   payPosSale: 'organization.pos.sales.pay',
   refundPosSale: 'organization.pos.sales.refund',
   voidPosSale: 'organization.pos.sales.void',
+  voidOwnRecentPosSale: 'organization.pos.sales.void_own_recent',
   viewInventory: 'organization.inventory.view',
   manageInventoryStock: 'organization.inventory.stock.manage',
   managePosCatalog: 'organization.pos.catalog.manage',
