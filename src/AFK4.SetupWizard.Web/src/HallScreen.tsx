@@ -8,6 +8,8 @@ export interface HallClient {
 }
 
 interface HallScreenProps {
+  /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
+  stepNumber: number;
   client: HallClient;
   zones: WizardZone[];
   ownerName: string;
@@ -16,7 +18,7 @@ interface HallScreenProps {
   onBack(): void;
 }
 
-export function HallScreen({ client, zones, ownerName, branchName, onContinue, onBack }: HallScreenProps) {
+export function HallScreen({ stepNumber, client, zones, ownerName, branchName, onContinue, onBack }: HallScreenProps) {
   const { t } = useI18n();
   const [zoneId, setZoneId] = useState(zones[0]?.zoneId ?? '');
   // «ПК» — канон терминов проекта, поэтому и место называется так же.
@@ -49,7 +51,7 @@ export function HallScreen({ client, zones, ownerName, branchName, onContinue, o
       <div className="wizard-screen-head">
         <span className="wizard-screen-context">{ownerName} · {branchName}</span>
         <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>6</span>
+          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
           <h1>{t('setup.wizard.hall.title')}</h1>
         </div>
         <p>{t('setup.wizard.hall.subtitle')}</p>

@@ -12,6 +12,7 @@ function renderScreen(client: BrandingClient, onContinue = mock()) {
   render(
     <I18nProvider>
       <BrandingScreen
+      stepNumber={1}
         client={client}
         ownerName="Владелец"
         branchName="Главный"
@@ -74,6 +75,7 @@ it('uses the uploaded logo when one is chosen', async () => {
   render(
     <I18nProvider>
       <BrandingScreen
+      stepNumber={1}
         client={{ presets: mock().mockResolvedValue({ presets: PRESETS }), save, uploadLogo }}
         ownerName="Владелец"
         branchName="Главный"
@@ -96,6 +98,7 @@ it('stays unchanged when the file dialog is dismissed', async () => {
   render(
     <I18nProvider>
       <BrandingScreen
+      stepNumber={1}
         client={{ presets: mock().mockResolvedValue({ presets: PRESETS }), save: mock(), uploadLogo }}
         ownerName="Владелец"
         branchName="Главный"

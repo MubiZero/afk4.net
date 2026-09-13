@@ -3,6 +3,8 @@ import { useI18n } from '@afk4/i18n';
 import type { WizardBranch } from './wizardApi';
 
 interface BranchSelectionScreenProps {
+  /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
+  stepNumber: number;
   ownerName: string;
   branches: WizardBranch[];
   onSelect(branch: WizardBranch): void;
@@ -10,6 +12,7 @@ interface BranchSelectionScreenProps {
 }
 
 export function BranchSelectionScreen({
+  stepNumber,
   ownerName,
   branches,
   onSelect,
@@ -22,7 +25,7 @@ export function BranchSelectionScreen({
       <div className="wizard-screen-head">
         <span className="wizard-screen-context">{ownerName}</span>
         <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>2</span>
+          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
           <h1>{t('setup.wizard.branch.title')}</h1>
         </div>
         <p>{t('setup.wizard.branch.subtitle')}</p>

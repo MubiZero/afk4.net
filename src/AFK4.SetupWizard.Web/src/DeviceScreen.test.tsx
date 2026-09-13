@@ -41,6 +41,7 @@ function renderScreen(props: Partial<Parameters<typeof DeviceScreen>[0]> = {}) {
   render(
     <I18nProvider>
       <DeviceScreen
+        stepNumber={1}
         installClient={{ createSeat, enrollDevice }}
         ownerName="Сотрудник"
         branch={BRANCH}
@@ -114,5 +115,60 @@ describe('DeviceScreen (create-only)', () => {
     submit();
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Сервер недоступен'));
     expect(enrollDevice).not.toHaveBeenCalled();
+  });
+});
+
+// Зал заводится на рабочем месте управляющего, а потом каждый игровой ПК проходит этот экран.
+// Пока он всегда создавал новое место, собственный счастливый путь мастера плодил дубли: на
+// десять машин в зале получалось двадцать мест.
+describe('выбор уже заведённого места', () => {
+  const EXISTING: WizardSeat = {
+    seatId: 's-7', pcName: 'ПК-7', zoneId: 'z-1', zoneName: 'Main Hall', sortOrder: 7,
+    status: 'Free', deviceId: null, deviceName: null, isOnline: null,
+  };
+  const OTHER: WizardSeat = { ...EXISTING, seatId: 's-2', pcName: 'ПК-2', sortOrder: 2 };
+  const BRANCH_WITH_SEATS: WizardBranch = {
+    ...BRANCH,
+    seats: [OTHER, EXISTING],
+    freeSeatIds: ['s-2', 's-7'],
+  };
+
+  beforeEach(() => {
+    createSeat.mockClear();
+    enrollDevice.mockClear();
+  });
+
+  it('привязывает ПК к выбранному месту и НЕ создаёт новое', async () => {
+    const { onEnrolled } = renderScreen({ branch: BRANCH_WITH_SEATS, defaultDisplayName: 'ПК-7' });
+
+    submit();
+
+    await waitFor(() => expect(enrollDevice).toHaveBeenCalled());
+    expect(createSeat).not.toHaveBeenCalled();
+    expect(enrollDevice).toHaveBeenCalledWith(expect.objectContaining({ seatId: 's-7' }));
+    expect(onEnrolled).toHaveBeenCalled();
+  });
+
+  // Умолчание — место с именем этой машины: человек подтверждает догадку, а не ищет себя в списке.
+  it('по умолчанию предлагает место с именем машины', () => {
+    renderScreen({ branch: BRANCH_WITH_SEATS, defaultDisplayName: 'ПК-7' });
+
+    expect((screen.getByLabelText(/какое это место/i) as HTMLSelectElement).value).toBe('s-7');
+  });
+
+  it('позволяет всё-таки завести новое место', async () => {
+    renderScreen({ branch: BRANCH_WITH_SEATS, defaultDisplayName: 'ПК-7' });
+
+    fireEvent.change(screen.getByLabelText(/какое это место/i), { target: { value: '__new__' } });
+    submit();
+
+    await waitFor(() => expect(createSeat).toHaveBeenCalled());
+  });
+
+  // Пустой зал: спрашивать не о чем, экран остаётся прежним.
+  it('не спрашивает про место, когда свободных нет', () => {
+    renderScreen();
+
+    expect(screen.queryByLabelText(/какое это место/i)).toBeNull();
   });
 });

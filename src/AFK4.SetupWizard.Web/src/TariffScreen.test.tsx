@@ -7,6 +7,7 @@ function renderScreen(client: TariffClient, onContinue = mock()) {
   render(
     <I18nProvider>
       <TariffScreen
+      stepNumber={1}
         client={client}
         ownerName="Владелец"
         branchName="Главный"

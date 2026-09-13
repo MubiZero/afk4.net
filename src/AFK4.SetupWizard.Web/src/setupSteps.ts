@@ -26,6 +26,54 @@ function isDone(step: WizardStep, setup: ClubSetupState): boolean {
   }
 }
 
+/// Форма конкретного прогона мастера: от неё зависит, какие шаги вообще будут показаны.
+export interface WizardRunShape {
+  /// Роль машины. `null` — пользователь ещё не дошёл до вопроса; тогда считаем по рабочему
+  /// месту управляющего, то есть по самому длинному пути. Степпер, который после ответа
+  /// становится короче, читается как «оказалось быстрее»; тот, который растёт, — как обман.
+  role: WizardRole | null;
+  /// Сколько филиалов у клуба: при одном выбирать не из чего и шаг не показывается.
+  branchCount: number;
+  setup: ClubSetupState;
+}
+
+/**
+ * Шаги, которые в этом прогоне реально будут показаны, по порядку.
+ *
+ * Нужно затем, что степпер раньше всегда рисовал девять позиций с зашитыми номерами, включая
+ * четыре, которых на игровом ПК не бывает никогда. Номера внутри экранов были зашиты отдельно и
+ * с ним расходились: 'branding' и 'device' оба объявляли себя четвёртым шагом, потому что каждый
+ * был пронумерован по своему пути.
+ */
+export function visibleSteps(shape: WizardRunShape): WizardStep[] {
+  const steps: WizardStep[] = ['phoneLogin'];
+
+  if (shape.branchCount > 1) {
+    steps.push('branchSelection');
+  }
+  steps.push('role');
+
+  if ((shape.role ?? 'manager_workstation') === 'manager_workstation') {
+    for (const step of SETUP_STEPS) {
+      if (!isDone(step, shape.setup)) {
+        steps.push(step);
+      }
+    }
+  }
+
+  steps.push('device', 'finished');
+  return steps;
+}
+
+/// Шаг, на который ведёт «Назад», либо null, если назад некуда. Раньше маршрут назад был
+/// зашит парами ('hall' → 'staff' и так далее) и не знал о пропусках: в клубе, где сотрудники
+/// уже заведены, «назад» с зала открывало пропущенный экран сотрудников.
+export function previousVisibleStep(current: WizardStep, shape: WizardRunShape): WizardStep | null {
+  const steps = visibleSteps(shape);
+  const index = steps.indexOf(current);
+  return index > 0 ? steps[index - 1] : null;
+}
+
 /**
  * Следующий шаг настройки после `after`, либо 'device', когда настраивать больше нечего.
  * На игровом ПК настройка клуба не показывается вовсе: там ставят железо.

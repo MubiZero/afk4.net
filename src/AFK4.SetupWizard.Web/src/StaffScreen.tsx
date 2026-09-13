@@ -17,6 +17,8 @@ export interface StaffClient {
 }
 
 interface StaffScreenProps {
+  /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
+  stepNumber: number;
   client: StaffClient;
   ownerName: string;
   branchName: string;
@@ -24,7 +26,7 @@ interface StaffScreenProps {
   onBack(): void;
 }
 
-export function StaffScreen({ client, ownerName, branchName, onContinue, onBack }: StaffScreenProps) {
+export function StaffScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: StaffScreenProps) {
   const { t, formatDate } = useI18n();
   const [displayName, setDisplayName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -56,7 +58,7 @@ export function StaffScreen({ client, ownerName, branchName, onContinue, onBack 
       <div className="wizard-screen-head">
         <span className="wizard-screen-context">{ownerName} · {branchName}</span>
         <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>5</span>
+          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
           <h1>{t('setup.wizard.staff.title')}</h1>
         </div>
         <p>{t('setup.wizard.staff.subtitle')}</p>

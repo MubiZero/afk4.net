@@ -4,6 +4,8 @@ import { useI18n } from '@afk4/i18n';
 import type { WizardRole } from './wizardApi';
 
 interface RoleScreenProps {
+  /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
+  stepNumber: number;
   ownerName: string;
   branchName: string;
   initialRole: WizardRole;
@@ -12,6 +14,7 @@ interface RoleScreenProps {
 }
 
 export function RoleScreen({
+  stepNumber,
   ownerName,
   branchName,
   initialRole,
@@ -26,7 +29,7 @@ export function RoleScreen({
       <div className="wizard-screen-head">
         <span className="wizard-screen-context">{ownerName} · {branchName}</span>
         <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>3</span>
+          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
           <h1>{t('setup.wizard.role.title')}</h1>
         </div>
         <p>{t('setup.wizard.role.subtitle')}</p>

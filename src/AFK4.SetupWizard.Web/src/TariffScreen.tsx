@@ -7,6 +7,8 @@ export interface TariffClient {
 }
 
 interface TariffScreenProps {
+  /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
+  stepNumber: number;
   client: TariffClient;
   ownerName: string;
   branchName: string;
@@ -14,7 +16,7 @@ interface TariffScreenProps {
   onBack(): void;
 }
 
-export function TariffScreen({ client, ownerName, branchName, onContinue, onBack }: TariffScreenProps) {
+export function TariffScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: TariffScreenProps) {
   const { t } = useI18n();
   const [name, setName] = useState(t('setup.wizard.tariff.defaultName'));
   const [pricePerHour, setPricePerHour] = useState('10');
@@ -46,7 +48,7 @@ export function TariffScreen({ client, ownerName, branchName, onContinue, onBack
       <div className="wizard-screen-head">
         <span className="wizard-screen-context">{ownerName} · {branchName}</span>
         <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>7</span>
+          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
           <h1>{t('setup.wizard.tariff.title')}</h1>
         </div>
         <p>{t('setup.wizard.tariff.subtitle')}</p>
