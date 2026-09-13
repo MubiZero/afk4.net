@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text.Json;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Branding;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -159,6 +160,24 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
 
         response.EnsureSuccessStatusCode();
         return await ReadRequiredAsync<InstallCreateSeatResponse>(response, cancellationToken);
+    }
+
+    public async Task UpdateBrandingAsync(
+        Guid organizationId,
+        string accessToken,
+        string? logoUrl,
+        string? accentColor,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, BrandingRoutes.Organization(organizationId))
+        {
+            Content = JsonContent.Create(
+                new UpdateOrganizationBrandingRequest(logoUrl, accentColor), options: JsonOptions),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<InstallEnrollResponse> EnrollAuthenticatedAsync(

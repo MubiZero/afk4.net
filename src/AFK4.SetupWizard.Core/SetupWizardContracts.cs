@@ -72,6 +72,14 @@ public interface ISetupWizardApiClient
         string name,
         CancellationToken cancellationToken);
 
+    /// <summary>Оформление клуба: логотип и цвет. Мастер ставит их один раз при установке.</summary>
+    Task UpdateBrandingAsync(
+        Guid organizationId,
+        string accessToken,
+        string? logoUrl,
+        string? accentColor,
+        CancellationToken cancellationToken);
+
     Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
         Guid organizationId,
         string accessToken,

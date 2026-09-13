@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Branding;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Diagnostics;
@@ -142,6 +143,74 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
+
+        // Оформление клуба целиком: логотип и цвет читают публичная витрина, приложение игрока и
+        // оболочка на игровом ПК, а записать их до сих пор было нечем — поля заполнял только сидер
+        // для разработки. Живёт на организации, а не на филиале: бренд у сети один, а логотип зала
+        // (обложка, галерея) — это другое и настраивается в профиле филиала.
+        app.MapPatch("branding", async (
+            UpdateOrganizationBrandingRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(
+                OrganizationPermissionNames.ManageBranchSettings);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var logoUrl = Trimmed(request.LogoUrl);
+            var accentColor = Trimmed(request.AccentColor);
+
+            if (accentColor is not null && !BrandingColor.IsHex(accentColor))
+            {
+                return Results.BadRequest(new { Error = "AccentColor must be a hex colour such as #C8FF00." });
+            }
+
+            if (logoUrl is not null && !BrandingColor.IsSafeImageUrl(logoUrl))
+            {
+                return Results.BadRequest(new { Error = "LogoUrl must be an absolute http(s) URL." });
+            }
+
+            var organizationId = authorization.StaffContext!.OrganizationId;
+            var organization = await dbContext.Organizations
+                .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+
+            if (organization is null)
+            {
+                return Results.NotFound();
+            }
+
+            organization.LogoUrl = logoUrl;
+            organization.AccentColor = accentColor is null ? null : accentColor.ToUpperInvariant();
+            organization.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            // Оформление принадлежит организации, а не залу, поэтому запись в журнале без филиала.
+            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                OrganizationId: organizationId,
+                BranchId: null,
+                ActorStaffUserId: authorization.StaffContext.StaffUserId,
+                Action: AuditActionNames.UpdateOrganizationBranding,
+                TargetType: "Organization",
+                TargetId: organizationId.ToString("D"),
+                Outcome: AuditOutcome.Succeeded,
+                SourceApp: "PlatformApi",
+                DetailsJson: JsonSerializer.Serialize(new { organization.LogoUrl, organization.AccentColor })),
+                cancellationToken);
+
+            return Results.Ok(new OrganizationBrandingDto(
+                organization.OrganizationId, organization.Name, organization.LogoUrl, organization.AccentColor, []));
+        });
 
         app.MapPatch("branches/{branchId:guid}/profile", async (
             Guid branchId,

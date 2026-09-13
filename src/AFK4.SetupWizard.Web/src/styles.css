@@ -1508,3 +1508,55 @@ textarea,
   color: var(--text-primary);
   font-size: var(--text-lg);
 }
+
+/* Оформление клуба: пресеты логотипа и палитра цвета. */
+.wizard-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.wizard-preset {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.wizard-preset img {
+  width: 100%;
+  height: 100%;
+}
+
+.wizard-preset.is-selected {
+  border-color: currentColor;
+}
+
+.wizard-preset > svg {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+}
+
+.wizard-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wizard-color {
+  width: 34px;
+  height: 34px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.wizard-color.is-selected {
+  border-color: currentColor;
+  transform: scale(1.08);
+}

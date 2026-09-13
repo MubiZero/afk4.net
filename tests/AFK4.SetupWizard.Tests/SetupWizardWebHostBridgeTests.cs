@@ -69,6 +69,66 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.Empty(deps.Api.DiscoverCalls);
     }
 
+    // --- оформление -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task SaveBranding_SendsChoiceWithTheOrganizationFromSignIn()
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        var response = await Send(
+            bridge,
+            "wizard:saveBranding",
+            """{"logoUrl":" https://api.afk4.net/branding/presets/bolt.svg ","accentColor":"#C8FF00"}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.NotNull(deps.Api.Branding);
+        Assert.Equal("https://api.afk4.net/branding/presets/bolt.svg", deps.Api.Branding!.Value.LogoUrl);
+        Assert.Equal("#C8FF00", deps.Api.Branding.Value.AccentColor);
+    }
+
+    [Fact]
+    public async Task SaveBranding_BeforeSignIn_IsRefused()
+    {
+        var bridge = CreateBridge(out var deps);
+
+        var response = await Send(bridge, "wizard:saveBranding", """{"logoUrl":null,"accentColor":"#C8FF00"}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Null(deps.Api.Branding);
+    }
+
+    // Пропуск шага — это тоже выбор: пустые значения снимают оформление, а не молча ничего не делают.
+    [Fact]
+    public async Task SaveBranding_WithBlankValues_ClearsTheLook()
+    {
+        var bridge = CreateBridge(out var deps);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        await Send(bridge, "wizard:saveBranding", """{"logoUrl":"  ","accentColor":null}""");
+
+        Assert.NotNull(deps.Api.Branding);
+        Assert.Null(deps.Api.Branding!.Value.LogoUrl);
+        Assert.Null(deps.Api.Branding.Value.AccentColor);
+    }
+
+    [Fact]
+    public async Task BrandingPresets_AreServedAsPlatformUrls()
+    {
+        var bridge = CreateBridge(out _);
+
+        var response = await Send(bridge, "wizard:brandingPresets", "{}");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        var presets = response.GetProperty("payload").GetProperty("presets");
+        Assert.Equal(10, presets.GetArrayLength());
+        Assert.EndsWith(
+            "/branding/presets/bolt.svg",
+            presets[0].GetProperty("url").GetString(),
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task PhoneSignIn_KeepsTokenInsideHost_AndUsesItForNextCall()
     {
@@ -425,6 +485,16 @@ public sealed class SetupWizardWebHostBridgeTests
         {
             SeatCreated = true;
             return Task.FromResult(new InstallCreateSeatResponse(OrganizationId, branchId, zoneId, SeatId, name, 1));
+        }
+
+        // Что мастер отправил как оформление клуба.
+        public (Guid OrganizationId, string? LogoUrl, string? AccentColor)? Branding { get; private set; }
+
+        public Task UpdateBrandingAsync(
+            Guid organizationId, string accessToken, string? logoUrl, string? accentColor, CancellationToken cancellationToken)
+        {
+            Branding = (organizationId, logoUrl, accentColor);
+            return Task.CompletedTask;
         }
 
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
