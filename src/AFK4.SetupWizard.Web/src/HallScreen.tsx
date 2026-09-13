@@ -21,8 +21,11 @@ interface HallScreenProps {
 export function HallScreen({ stepNumber, client, zones, ownerName, branchName, onContinue, onBack }: HallScreenProps) {
   const { t } = useI18n();
   const [zoneId, setZoneId] = useState(zones[0]?.zoneId ?? '');
-  // «ПК» — канон терминов проекта, поэтому и место называется так же.
-  const [namePrefix, setNamePrefix] = useState('ПК');
+  // «ПК» — канон терминов проекта, поэтому и место называется так же. Но строка всё равно из
+  // каталога: мастер переключается на en/tg прямо в титлбаре, и подставлять кириллицу в
+  // английский интерфейс нельзя.
+  const defaultPrefix = t('setup.wizard.hall.prefixDefault');
+  const [namePrefix, setNamePrefix] = useState(defaultPrefix);
   const [count, setCount] = useState('10');
   const [createdNames, setCreatedNames] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
@@ -94,8 +97,8 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         />
         <small>
           {t('setup.wizard.hall.example', {
-            name: `${namePrefix.trim() || 'ПК'}-1`,
-            name2: `${namePrefix.trim() || 'ПК'}-2`,
+            name: `${namePrefix.trim() || defaultPrefix}-1`,
+            name2: `${namePrefix.trim() || defaultPrefix}-2`,
           })}
         </small>
       </div>

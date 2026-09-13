@@ -26,12 +26,17 @@ export function CashTerminalSplit({
   register,
   inspector,
   inspectorOpen,
+  inspectorLabel,
   closeLabel,
   onCloseInspector
 }: {
   register: ReactNode;
   inspector: ReactNode;
   inspectorOpen: boolean;
+  /// Подпись панели для скринридера. Приходит пропсом, как и closeLabel: компонент
+  /// презентационный и каталога не знает. Раньше строка была вшита по-русски — единственный
+  /// такой случай во всём Organization Admin.
+  inspectorLabel: string;
   closeLabel: string;
   onCloseInspector: () => void;
 }) {
@@ -47,7 +52,7 @@ export function CashTerminalSplit({
   return (
     <div className={`cash-terminal-split${inspectorOpen ? ' inspector-open' : ''}`}>
       <section className="cash-terminal-register">{register}</section>
-      <aside className="cash-terminal-inspector" aria-label="Детали выбранной записи">
+      <aside className="cash-terminal-inspector" aria-label={inspectorLabel}>
         <button type="button" className="cash-inspector-close" aria-label={closeLabel} onClick={onCloseInspector}>
           <X size={16} aria-hidden="true" />
         </button>

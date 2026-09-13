@@ -30,7 +30,7 @@ describe('organization permission names', () => {
 
     expect(serverPermissions.length).toBeGreaterThan(0);
 
-    const clientPermissions = new Set(Object.values(permissionNames));
+    const clientPermissions = new Set<string>(Object.values(permissionNames));
     const missing = serverPermissions.filter((permission) => !clientPermissions.has(permission));
 
     expect(missing).toEqual([]);

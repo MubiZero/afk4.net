@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/messages';
 
 export type UpdatesClient = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout'>;
 type OrganizationsClient = Pick<OrganizationsApi, 'listOrganizations'>;
@@ -29,7 +30,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
   client: UpdatesClient;
   organizationsClient: OrganizationsClient;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const [packages, setPackages] = useState<PlatformUpdatePackage[] | null>(null);
   const [rollouts, setRollouts] = useState<PlatformUpdateRollout[] | null>(null);
@@ -301,11 +302,21 @@ function componentLabel(value: string): string {
   } as Record<string, string>)[value] ?? value;
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-}
+
+
+// Состояние приходит с сервера машинным словом. Печатать его как есть значило показывать
+// «registered» посреди русского экрана — это не термин и не бренд, а непереведённая строка.
+const STATE_LABELS: Record<string, MessageKey> = {
+  registered: 'platform.updates.state.registered',
+  validated: 'platform.updates.state.validated',
+  rejected: 'platform.updates.state.rejected',
+  retired: 'platform.updates.state.retired'
+};
 
 function StateBadge({ state }: { state: string }) {
+  const { t } = useI18n();
   const variant: BadgeVariant = state === 'validated' ? 'success' : state === 'rejected' || state === 'retired' ? 'destructive' : 'outline';
-  return <Badge variant={variant}>{state}</Badge>;
+  const label = STATE_LABELS[state];
+  // Незнакомое состояние показываем как есть: молча спрятать его хуже, чем показать сырым.
+  return <Badge variant={variant}>{label ? t(label) : state}</Badge>;
 }

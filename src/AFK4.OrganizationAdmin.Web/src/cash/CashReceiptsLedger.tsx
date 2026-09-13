@@ -196,6 +196,7 @@ export function CashReceiptsLedger({
         { label: t('op.pos.strip.refunds'), value: <Money minorUnits={readMoney(report, 'refundsTotal')?.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'danger' }
       ]} />
       <CashTerminalSplit
+          inspectorLabel={t('op.cash.inspector.aria')}
         inspectorOpen={selected !== undefined}
         closeLabel={t('common.close')}
         onCloseInspector={() => { detailRequest.current += 1; setSelectedSaleId(''); setDetailState({ status: 'idle', saleId: '', error: null }); }}
