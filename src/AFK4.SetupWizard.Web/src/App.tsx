@@ -23,6 +23,7 @@ import {
   getBootstrapConfig,
   inviteStaff,
   saveBranding,
+  uploadLogo,
   type WizardBranch,
   type WizardDiscoverResponse,
   type WizardEnrollResult,
@@ -295,8 +296,12 @@ export function App() {
   );
 
   const brandingClient = useMemo(
-    () => ({ presets: brandingPresets, save: saveBranding }),
-    [],
+    () => ({
+      presets: brandingPresets,
+      save: saveBranding,
+      uploadLogo: () => uploadLogo(state.branch?.branchId ?? ''),
+    }),
+    [state.branch?.branchId],
   );
 
   const stepAnnouncement = useMemo(() => {

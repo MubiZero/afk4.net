@@ -26,7 +26,7 @@ function renderScreen(client: BrandingClient, onContinue = mock()) {
 describe('BrandingScreen', () => {
   it('saves the chosen preset and colour', async () => {
     const save = mock().mockResolvedValue({ saved: true });
-    const onContinue = renderScreen({ presets: mock().mockResolvedValue({ presets: PRESETS }), save });
+    const onContinue = renderScreen({ presets: mock().mockResolvedValue({ presets: PRESETS }), save, uploadLogo: mock() });
 
     fireEvent.click(await screen.findByRole('radio', { name: 'bolt' }));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить и дальше' }));
@@ -38,7 +38,7 @@ describe('BrandingScreen', () => {
   // Клуб должен открыться и без логотипа: оформление ставится позже в панели управляющего.
   it('lets the step be skipped without saving anything', async () => {
     const save = mock();
-    const onContinue = renderScreen({ presets: mock().mockResolvedValue({ presets: PRESETS }), save });
+    const onContinue = renderScreen({ presets: mock().mockResolvedValue({ presets: PRESETS }), save, uploadLogo: mock() });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Пропустить' }));
 
@@ -48,7 +48,7 @@ describe('BrandingScreen', () => {
 
   // Пресеты приходят с платформы: если их не отдали, шаг обязан остаться проходимым.
   it('still works when presets cannot be loaded', async () => {
-    renderScreen({ presets: mock().mockRejectedValue(new Error('offline')), save: mock() });
+    renderScreen({ presets: mock().mockRejectedValue(new Error('offline')), save: mock() , uploadLogo: mock()});
 
     expect(await screen.findByRole('button', { name: 'Пропустить' })).toBeTruthy();
   });
@@ -57,7 +57,7 @@ describe('BrandingScreen', () => {
   it('keeps the step open when saving fails', async () => {
     const onContinue = renderScreen({
       presets: mock().mockResolvedValue({ presets: PRESETS }),
-      save: mock().mockRejectedValue(new Error('network')),
+      save: mock().mockRejectedValue(new Error('network')), uploadLogo: mock(),
     });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Сохранить и дальше' }));
@@ -65,4 +65,48 @@ describe('BrandingScreen', () => {
     await waitFor(() => expect(screen.getByText(/Не удалось сохранить оформление/)).toBeTruthy());
     expect(onContinue).not.toHaveBeenCalled();
   });
+});
+
+// Свой логотип выбирается нативным окном: веб получает только адрес уже загруженного файла.
+it('uses the uploaded logo when one is chosen', async () => {
+  const save = mock().mockResolvedValue({ saved: true });
+  const uploadLogo = mock().mockResolvedValue({ logoUrl: 'https://cdn.afk4.net/logo.png' });
+  render(
+    <I18nProvider>
+      <BrandingScreen
+        client={{ presets: mock().mockResolvedValue({ presets: PRESETS }), save, uploadLogo }}
+        ownerName="Владелец"
+        branchName="Главный"
+        onContinue={mock()}
+        onBack={mock()}
+      />
+    </I18nProvider>,
+  );
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Загрузить свой логотип' }));
+  await waitFor(() => expect(screen.getByAltText('Загруженный логотип')).toBeTruthy());
+
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить и дальше' }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith('https://cdn.afk4.net/logo.png', expect.any(String)));
+});
+
+// Закрытое окно выбора — не ошибка: экран должен остаться как был.
+it('stays unchanged when the file dialog is dismissed', async () => {
+  const uploadLogo = mock().mockResolvedValue({ logoUrl: null });
+  render(
+    <I18nProvider>
+      <BrandingScreen
+        client={{ presets: mock().mockResolvedValue({ presets: PRESETS }), save: mock(), uploadLogo }}
+        ownerName="Владелец"
+        branchName="Главный"
+        onContinue={mock()}
+        onBack={mock()}
+      />
+    </I18nProvider>,
+  );
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Загрузить свой логотип' }));
+
+  await waitFor(() => expect(uploadLogo).toHaveBeenCalled());
+  expect(screen.queryByAltText('Загруженный логотип')).toBeNull();
 });

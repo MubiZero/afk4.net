@@ -15,7 +15,8 @@ public sealed class SetupWizardWebHostBridge(
     ISetupWizardCompletionAction completionAction,
     ISetupWizardShellProvisioner shellProvisioner,
     ISetupWizardShellProvisioner operatorProvisioner,
-    ISetupWizardOperatorLauncher operatorLauncher)
+    ISetupWizardOperatorLauncher operatorLauncher,
+    ILogoFilePicker? logoFilePicker = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -71,6 +72,7 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:createSeats" => await CreateSeatsAsync(request.Payload, cancellationToken),
                 "wizard:createTariff" => await CreateTariffAsync(request.Payload, cancellationToken),
                 "wizard:saveBranding" => await SaveBrandingAsync(request.Payload, cancellationToken),
+                "wizard:uploadLogo" => await UploadLogoAsync(request.Payload, cancellationToken),
                 "wizard:provisionShell" => FinalizeForRole(ReadProvisionRole(request.Payload)),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
@@ -289,6 +291,33 @@ public sealed class SetupWizardWebHostBridge(
             BrandingPresets.Ids
                 .Select(id => new WizardBrandingPreset(id, BrandingPresets.Url(SetupWizardDefaults.PlatformBaseUrl, id)))
                 .ToArray());
+
+    // Свой логотип: окно выбора файла открывает нативный хост — у WebView2 своего нет, а тащить
+    // путь к файлу из веба было бы и небезопасно, и невозможно.
+    private async Task<object> UploadLogoAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        if (logoFilePicker is null)
+        {
+            throw new InvalidOperationException("File picker is unavailable in this host.");
+        }
+
+        var request = DeserializePayload<WizardUploadLogoPayload>(payload);
+        var filePath = logoFilePicker.PickImage();
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            // Человек закрыл диалог — это не ошибка, экран просто остаётся как был.
+            return new WizardLogoUploaded(null);
+        }
+
+        var media = await apiClient.UploadOrganizationLogoAsync(
+            RequireOrganizationId(),
+            ParseGuid(request.BranchId, nameof(request.BranchId)),
+            RequireAccessToken(),
+            filePath,
+            cancellationToken);
+
+        return new WizardLogoUploaded(media.Url);
+    }
 
     private async Task<object> SaveBrandingAsync(JsonElement payload, CancellationToken cancellationToken)
     {
@@ -629,6 +658,10 @@ public sealed class SetupWizardWebHostBridge(
     private sealed record WizardBrandingPresets(IReadOnlyList<WizardBrandingPreset> Presets);
 
     private sealed record WizardBrandingSaved(bool Saved);
+
+    private sealed record WizardUploadLogoPayload(string? BranchId);
+
+    private sealed record WizardLogoUploaded(string? LogoUrl);
 
     private sealed record WizardStaffInvitePayload(string? BranchId, string? DisplayName, string? PhoneNumber, string? RoleName);
 

@@ -122,6 +122,11 @@ export function brandingPresets(): Promise<{ presets: WizardBrandingPreset[] }> 
   return postHostRequest<{ presets: WizardBrandingPreset[] }>('wizard:brandingPresets');
 }
 
+/** Свой логотип: окно выбора файла открывает нативный хост, сюда возвращается адрес загруженного. */
+export function uploadLogo(branchId: string): Promise<{ logoUrl?: string | null }> {
+  return postHostRequest<{ logoUrl?: string | null }>('wizard:uploadLogo', { branchId });
+}
+
 export function saveBranding(logoUrl: string | null, accentColor: string | null): Promise<{ saved: boolean }> {
   return postHostRequest<{ saved: boolean }>('wizard:saveBranding', { logoUrl, accentColor });
 }

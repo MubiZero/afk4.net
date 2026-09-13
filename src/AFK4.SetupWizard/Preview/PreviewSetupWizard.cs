@@ -4,6 +4,7 @@ using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Tariffs;
+using AFK4.Shared.Contracts.Media;
 
 namespace AFK4.SetupWizard.Preview;
 
@@ -97,6 +98,14 @@ internal static class PreviewSetupWizard
             string roleName,
             CancellationToken cancellationToken)
             => Task.FromResult(new StaffInviteDto(Guid.NewGuid(), "123456", DateTimeOffset.UtcNow.AddDays(1)));
+
+        public Task<UploadedMediaDto> UploadOrganizationLogoAsync(
+            Guid organizationId,
+            Guid branchId,
+            string accessToken,
+            string filePath,
+            CancellationToken cancellationToken)
+            => Task.FromResult(new UploadedMediaDto(Guid.NewGuid(), "https://cdn.afk4.net/preview-logo.png", "image/png", 1024));
 
         public Task<TariffDto> CreateTariffAsync(
             Guid organizationId,
