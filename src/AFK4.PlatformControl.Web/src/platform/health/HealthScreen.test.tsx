@@ -35,7 +35,7 @@ function queue(overrides: Partial<QueueHealth> = {}): QueueHealth {
 }
 
 function overview(overrides: Partial<HealthOverview> = {}): HealthOverview {
-  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [job()], queues: [queue()], openIncidents: [], ...overrides };
+  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [job()], queues: [queue()], openIncidents: [], recentFailures: [], ...overrides };
 }
 
 function fakeClient(result: HealthOverview | (() => Promise<HealthOverview>)) {
@@ -73,4 +73,30 @@ describe('HealthScreen', () => {
     expect(screen.getByText('Повторить')).toBeInTheDocument();
     expect(screen.queryByText('Открытых проблем нет')).not.toBeInTheDocument();
   });
+});
+
+// Счётчик «провалено» без причины отправлял админа в базу — ради этой строки секция и живёт.
+it('shows why a queued message failed', async () => {
+  render(
+    <I18nProvider><HealthScreen client={fakeClient(overview({
+      recentFailures: [{
+        queueName: 'notifications',
+        failedAtUtc: '2026-08-07T10:00:00Z',
+        kind: 'owner.invite',
+        recipientMasked: 'i***@mubi.dev',
+        attemptCount: 1,
+        lastError: 'Notification SMTP FromAddress is not configured.'
+      }]
+    }))} /></I18nProvider>
+  );
+
+  expect(await screen.findByText('Notification SMTP FromAddress is not configured.')).toBeTruthy();
+  expect(screen.getByText(/i\*\*\*@mubi\.dev/)).toBeTruthy();
+});
+
+it('says so when there are no recent failures', async () => {
+  render(
+    <I18nProvider><HealthScreen client={fakeClient(overview({ recentFailures: [] }))} /></I18nProvider>
+  );
+  expect(await screen.findByText('Свежих провалов нет')).toBeTruthy();
 });

@@ -112,12 +112,20 @@ public sealed class PlatformHealthWatchJob(
         }
 
         var stuckBefore = now - healthOptions.QueueStuckThreshold;
+        // Провалы считаются за окно: `Failed` не уходит из таблицы сам, и счёт за всю историю
+        // держал бы инцидент открытым навсегда. Строки без отметки о провале — это провалы,
+        // случившиеся до появления колонки; в свежее окно они не попадают.
+        var failedSince = now - healthOptions.QueueFailureWindow;
         var notificationFailed = await db.NotificationOutbox
-            .CountAsync(row => row.Status == NotificationOutboxStatus.Failed, cancellationToken);
+            .CountAsync(
+                row => row.Status == NotificationOutboxStatus.Failed && row.FailedUtc != null && row.FailedUtc >= failedSince,
+                cancellationToken);
         var notificationStuck = await db.NotificationOutbox
             .CountAsync(row => row.Status == NotificationOutboxStatus.Pending && row.CreatedUtc < stuckBefore, cancellationToken);
         var outboxFailed = await db.OutboxMessages
-            .CountAsync(row => row.Status == OutboxMessageStatus.Failed, cancellationToken);
+            .CountAsync(
+                row => row.Status == OutboxMessageStatus.Failed && row.FailedUtc != null && row.FailedUtc >= failedSince,
+                cancellationToken);
         var outboxStuck = await db.OutboxMessages
             .CountAsync(row => row.Status == OutboxMessageStatus.Pending && row.CreatedAtUtc < stuckBefore, cancellationToken);
 

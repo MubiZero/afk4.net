@@ -109,14 +109,35 @@ public sealed class PlatformHealthRulesTests
         Assert.Empty(problems);
     }
 
+    // Провал и застревание — разные болезни: канал отказал против «очередь не разбирается».
+    // Пока они делили один вид инцидента, подпись врала про одно из двух.
     [Fact]
-    public void StuckNotificationQueue_IsCritical()
+    public void FailedNotifications_OpenTheFailingIncident()
     {
         var problems = PlatformHealthRules.Evaluate(new HealthSnapshot([], 2, 0, 0, 0, Now), Now);
 
         var problem = Assert.Single(problems);
-        Assert.Equal(PlatformIncidentKindNames.NotificationQueueStuck, problem.Kind);
+        Assert.Equal(PlatformIncidentKindNames.NotificationQueueFailing, problem.Kind);
         Assert.Equal(PlatformIncidentSeverityNames.Critical, problem.Severity);
+    }
+
+    [Fact]
+    public void StuckNotifications_OpenTheStuckIncident()
+    {
+        var problems = PlatformHealthRules.Evaluate(new HealthSnapshot([], 0, 2, 0, 0, Now), Now);
+
+        var problem = Assert.Single(problems);
+        Assert.Equal(PlatformIncidentKindNames.NotificationQueueStuck, problem.Kind);
+    }
+
+    [Fact]
+    public void FailedAndStuckAtOnce_OpenTwoSeparateIncidents()
+    {
+        var problems = PlatformHealthRules.Evaluate(new HealthSnapshot([], 1, 1, 0, 0, Now), Now);
+
+        Assert.Equal(2, problems.Count);
+        Assert.Contains(problems, problem => problem.Kind == PlatformIncidentKindNames.NotificationQueueFailing);
+        Assert.Contains(problems, problem => problem.Kind == PlatformIncidentKindNames.NotificationQueueStuck);
     }
 
     [Fact]
@@ -127,5 +148,14 @@ public sealed class PlatformHealthRulesTests
         var problem = Assert.Single(problems);
         Assert.Equal(PlatformIncidentKindNames.BillingOutboxStuck, problem.Kind);
         Assert.Equal(PlatformIncidentSeverityNames.Critical, problem.Severity);
+    }
+
+    [Fact]
+    public void FailedBillingOutbox_OpensTheFailingIncident()
+    {
+        var problems = PlatformHealthRules.Evaluate(new HealthSnapshot([], 0, 0, 3, 0, Now), Now);
+
+        var problem = Assert.Single(problems);
+        Assert.Equal(PlatformIncidentKindNames.BillingOutboxFailing, problem.Kind);
     }
 }

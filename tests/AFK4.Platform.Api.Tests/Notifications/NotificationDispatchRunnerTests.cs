@@ -106,6 +106,8 @@ public sealed class NotificationDispatchRunnerTests
         Assert.Equal(NotificationOutboxStatus.Failed, row.Status);
         Assert.Equal(1, row.AttemptCount);
         Assert.Contains("bad address", row.LastError, StringComparison.Ordinal);
+        // Без отметки времени «провалено» — счётчик за всю историю, и он никогда не вернётся к нулю.
+        Assert.Equal(Now, row.FailedUtc);
     }
 
     [Fact]
