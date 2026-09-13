@@ -2,6 +2,7 @@ using System.Net;
 using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Tariffs;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -28,7 +29,8 @@ public sealed class WizardRouteContractTests
             InstallRoutes.AuthenticatedSeats(OrganizationId),
             InstallRoutes.AuthenticatedEnroll(OrganizationId),
             BrandingRoutes.Organization(OrganizationId),
-            StaffRoutes.Invites(OrganizationId, BranchId));
+            StaffRoutes.Invites(OrganizationId, BranchId),
+            TariffRoutes.Tariffs(OrganizationId, BranchId));
 
     [Theory]
     [MemberData(nameof(InstallRoutePaths))]

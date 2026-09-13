@@ -6,6 +6,7 @@ using System.Text.Json;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Branding;
+using AFK4.Shared.Contracts.Tariffs;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -204,6 +205,58 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
 
         response.EnsureSuccessStatusCode();
         return await ReadRequiredAsync<StaffInviteDto>(response, cancellationToken);
+    }
+
+    public async Task<TariffDto> CreateTariffAsync(
+        Guid organizationId,
+        Guid branchId,
+        string accessToken,
+        string name,
+        long pricePerHourMinorUnits,
+        CancellationToken cancellationToken)
+    {
+        var tariff = await SendAsync<CreateTariffRequest, TariffDto>(
+            TariffRoutes.Tariffs(organizationId, branchId),
+            new CreateTariffRequest(organizationId, name, Guid.NewGuid().ToString("N")),
+            accessToken,
+            cancellationToken);
+
+        // Цена в системе живёт за минуту, а называют её за час — как и в панели управляющего.
+        // Минимум в одну минорную единицу: бесплатный тариф заводится снятием с продажи, а не нулём.
+        var pricePerMinute = Math.Max(1, (long)Math.Round(pricePerHourMinorUnits / 60d));
+
+        await SendAsync<CreateTariffVersionRequest, TariffVersionDto>(
+            TariffRoutes.Versions(organizationId, branchId, tariff.TariffId),
+            new CreateTariffVersionRequest(
+                organizationId,
+                tariff.TariffId,
+                CurrencyCode: "TJS",
+                PricePerMinuteMinorUnits: pricePerMinute,
+                MinimumBillableMinutes: 1,
+                RoundingIncrementMinutes: 1,
+                EffectiveFromUtc: DateTimeOffset.UtcNow,
+                IdempotencyKey: Guid.NewGuid().ToString("N")),
+            accessToken,
+            cancellationToken);
+
+        return tariff;
+    }
+
+    private async Task<TResponse> SendAsync<TRequest, TResponse>(
+        string path,
+        TRequest body,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(body, options: JsonOptions),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        return await ReadRequiredAsync<TResponse>(response, cancellationToken);
     }
 
     public async Task<InstallEnrollResponse> EnrollAuthenticatedAsync(

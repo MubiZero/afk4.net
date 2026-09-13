@@ -9,13 +9,17 @@ import { FinishedScreen } from './FinishedScreen';
 import { ForgotPasswordScreen, type SignInPrefill } from './ForgotPasswordScreen';
 import { PhoneLoginScreen } from './PhoneLoginScreen';
 import { BrandingScreen } from './BrandingScreen';
+import { HallScreen } from './HallScreen';
 import { StaffScreen } from './StaffScreen';
+import { TariffScreen } from './TariffScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
 import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
 import {
   authenticatedInstallClient,
   brandingPresets,
+  createSeats,
+  createTariff,
   getBootstrapConfig,
   inviteStaff,
   saveBranding,
@@ -65,8 +69,10 @@ const STEP_POSITION: Record<WizardStep, number> = {
   role: 2,
   branding: 3,
   staff: 4,
-  device: 5,
-  finished: 6,
+  hall: 5,
+  tariff: 6,
+  device: 7,
+  finished: 8,
 };
 
 const THEME_STORAGE_KEY = 'afk4.setupWizard.theme';
@@ -196,7 +202,23 @@ export function App() {
   }, []);
 
   const handleStaffContinue = useCallback(() => {
+    setState((prev) => ({ ...prev, step: 'hall' }));
+  }, []);
+
+  const handleHallContinue = useCallback(() => {
+    setState((prev) => ({ ...prev, step: 'tariff' }));
+  }, []);
+
+  const handleTariffContinue = useCallback(() => {
     setState((prev) => ({ ...prev, step: 'device' }));
+  }, []);
+
+  const backToStaff = useCallback(() => {
+    setState((prev) => ({ ...prev, step: 'staff' }));
+  }, []);
+
+  const backToHall = useCallback(() => {
+    setState((prev) => ({ ...prev, step: 'hall' }));
   }, []);
 
   const backToBranding = useCallback(() => {
@@ -248,6 +270,22 @@ export function App() {
 
   // Мост прячется здесь: экран получает две функции и ничего не знает про нативный хост.
   // Филиал известен только здесь, поэтому экран получает готовый клиент с уже вшитым филиалом.
+  const hallClient = useCallback(
+    (branchId: string) => ({
+      createSeats: (zoneId: string, namePrefix: string, count: number) =>
+        createSeats(branchId, zoneId, namePrefix, count),
+    }),
+    [],
+  );
+
+  const tariffClient = useCallback(
+    (branchId: string) => ({
+      createTariff: (name: string, pricePerHourMinorUnits: number) =>
+        createTariff(branchId, name, pricePerHourMinorUnits),
+    }),
+    [],
+  );
+
   const staffClient = useCallback(
     (branchId: string) => ({
       invite: (displayName: string, phoneNumber: string, roleName: string) =>
@@ -269,10 +307,14 @@ export function App() {
       role: 'setup.wizard.stepper.role',
       branding: 'setup.wizard.stepper.branding',
       staff: 'setup.wizard.stepper.staff',
+      hall: 'setup.wizard.stepper.hall',
+      tariff: 'setup.wizard.stepper.tariff',
       device: 'setup.wizard.stepper.device',
       finished: 'setup.wizard.stepper.done',
     };
-    const order = ['phoneLogin', 'branchSelection', 'role', 'branding', 'staff', 'device', 'finished'];
+    const order = [
+      'phoneLogin', 'branchSelection', 'role', 'branding', 'staff', 'hall', 'tariff', 'device', 'finished',
+    ];
     const announceStep = state.step === 'forgotPassword' ? 'phoneLogin' : state.step;
     const stepNumber = order.indexOf(announceStep) + 1;
     return `${t('setup.wizard.common.step')} ${stepNumber}: ${t(stepLabelKey[state.step])}`;
@@ -427,6 +469,27 @@ export function App() {
             branchName={state.branch.branchName}
             onContinue={handleStaffContinue}
             onBack={backToBranding}
+          />
+        )}
+
+        {state.step === 'hall' && state.branch && (
+          <HallScreen
+            client={hallClient(state.branch.branchId)}
+            zones={state.branch.zones}
+            ownerName={state.ownerName}
+            branchName={state.branch.branchName}
+            onContinue={handleHallContinue}
+            onBack={backToStaff}
+          />
+        )}
+
+        {state.step === 'tariff' && state.branch && (
+          <TariffScreen
+            client={tariffClient(state.branch.branchId)}
+            ownerName={state.ownerName}
+            branchName={state.branch.branchName}
+            onContinue={handleTariffContinue}
+            onBack={backToHall}
           />
         )}
 
