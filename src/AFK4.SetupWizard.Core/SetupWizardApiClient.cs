@@ -180,6 +180,32 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task<StaffInviteDto> InviteStaffAsync(
+        Guid organizationId,
+        Guid branchId,
+        string accessToken,
+        string displayName,
+        string phoneNumber,
+        string roleName,
+        CancellationToken cancellationToken)
+    {
+        // Логин сотрудника — его же номер в цифрах: на установке лишнее поле стоит дороже, чем
+        // красивый логин, а вход по телефону в системе и так есть.
+        var userName = new string(phoneNumber.Where(char.IsDigit).ToArray());
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, StaffRoutes.Invites(organizationId, branchId))
+        {
+            Content = JsonContent.Create(
+                new CreateStaffInviteRequest(organizationId, userName, displayName, phoneNumber, null, [roleName]),
+                options: JsonOptions),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        return await ReadRequiredAsync<StaffInviteDto>(response, cancellationToken);
+    }
+
     public async Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
         Guid organizationId,
         string accessToken,

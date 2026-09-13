@@ -126,6 +126,23 @@ export function saveBranding(logoUrl: string | null, accentColor: string | null)
   return postHostRequest<{ saved: boolean }>('wizard:saveBranding', { logoUrl, accentColor });
 }
 
+export interface WizardStaffInvited {
+  displayName: string;
+  roleName: string;
+  code: string;
+  expiresAtUtc: string;
+}
+
+/** Приглашение сотрудника: код уходит ему в SMS, пароль он задаёт себе сам. */
+export function inviteStaff(
+  branchId: string,
+  displayName: string,
+  phoneNumber: string,
+  roleName: string,
+): Promise<WizardStaffInvited> {
+  return postHostRequest<WizardStaffInvited>('wizard:inviteStaff', { branchId, displayName, phoneNumber, roleName });
+}
+
 export function discoverAuthenticated(): Promise<WizardDiscoverResponse> {
   return postHostRequest<WizardDiscoverResponse>('wizard:discoverAuth');
 }
