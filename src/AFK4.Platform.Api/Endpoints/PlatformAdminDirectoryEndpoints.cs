@@ -55,6 +55,56 @@ internal static class PlatformAdminDirectoryEndpoints
             return Results.Ok(items);
         });
 
+        // Список приглашений. Экран «сотрудники платформы» грузит его вместе со списком админов
+        // одним Promise.all, поэтому отсутствие этого маршрута гасило не карточку приглашений,
+        // а ВЕСЬ экран — включая рабочий список админов. Сервис `ListInvitationsAsync` был на
+        // месте с самого начала, наружу его никто не вывел; тесты панели ходили в свой мок и
+        // ничего не замечали.
+        app.MapGet("/api/platform/admins/invitations", async (
+            PlatformAdminAuthorizationService authorizationService,
+            PlatformAdminDirectoryService directoryService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManagePlatformAdmins);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: Guid.Empty,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    action: AuditActionNames.ViewPlatformAdmins,
+                    targetType: "PlatformAdminInvitation",
+                    targetId: null,
+                    outcome: AuditOutcome.Denied,
+                    details: new { authorization.DenialReason },
+                    cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var invitations = await directoryService.ListInvitationsAsync(cancellationToken);
+
+            // Как и у списка админов: в details только счётчик. Коды приглашений в журнал не
+            // попадают никогда — код выдаётся ровно один раз, при создании.
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: Guid.Empty,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                action: AuditActionNames.ViewPlatformAdmins,
+                targetType: "PlatformAdminInvitation",
+                targetId: null,
+                outcome: AuditOutcome.Succeeded,
+                details: new { Count = invitations.Count },
+                cancellationToken);
+
+            return Results.Ok(invitations);
+        });
+
         app.MapPost("/api/platform/admins/invitations", async (
             CreatePlatformAdminInvitationRequest request,
             PlatformAdminAuthorizationService authorizationService,
