@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Platform;
+using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Platform.Updates;
 using AFK4.Shared.Contracts.Updates;
@@ -213,6 +215,124 @@ public sealed class UpdateEndpointTests
         });
         await db.SaveChangesAsync();
         return (packageId, rolloutId);
+    }
+
+    // Раскатка останавливается ровно тем, что ПК перестают получать сборку — это и есть смысл
+    // кнопки «Остановить». Раньше маршрут /state не звала ни одна кнопка и не покрывал ни один
+    // тест: опубликованное уезжало на весь парк, и прекратить раздачу было нечем.
+    [Fact]
+    public async Task PausedRollout_StopsBeingOfferedToDevices()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        var release = await SeedValidatedRolloutAsync(factory);
+        Assert.Single((await CheckForUpdatesAsync(client, enrollment)).Updates);
+
+        using var adminClient = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, adminClient, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        var paused = await adminClient.PostAsJsonAsync(
+            $"/api/platform/updates/rollouts/{release.RolloutId:D}/state",
+            new ChangePlatformUpdateRolloutStateRequest(UpdateRolloutStateNames.Paused, "Клубы сообщают о падениях"));
+
+        Assert.Equal(HttpStatusCode.OK, paused.StatusCode);
+        Assert.Empty((await CheckForUpdatesAsync(client, enrollment)).Updates);
+    }
+
+    // Пометка к откату тоже прекращает раздачу — в интерфейсе это сказано прямо, и сказано верно.
+    [Fact]
+    public async Task RollbackRequestedRollout_StopsBeingOfferedToDevices()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        var release = await SeedValidatedRolloutAsync(factory);
+
+        using var adminClient = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, adminClient, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await adminClient.PostAsJsonAsync(
+            $"/api/platform/updates/rollouts/{release.RolloutId:D}/state",
+            new ChangePlatformUpdateRolloutStateRequest(UpdateRolloutStateNames.RollbackRequested, "Версия ломает кассу"));
+
+        Assert.Empty((await CheckForUpdatesAsync(client, enrollment)).Updates);
+    }
+
+    [Fact]
+    public async Task ResumedRollout_IsOfferedToDevicesAgain()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        var release = await SeedValidatedRolloutAsync(factory);
+        using var adminClient = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, adminClient, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        var statePath = $"/api/platform/updates/rollouts/{release.RolloutId:D}/state";
+        await adminClient.PostAsJsonAsync(statePath,
+            new ChangePlatformUpdateRolloutStateRequest(UpdateRolloutStateNames.Paused, "Проверяем жалобу"));
+
+        await adminClient.PostAsJsonAsync(statePath,
+            new ChangePlatformUpdateRolloutStateRequest(UpdateRolloutStateNames.Active, "Жалоба не подтвердилась"));
+
+        Assert.Single((await CheckForUpdatesAsync(client, enrollment)).Updates);
+    }
+
+    // Причина обязательна: по ней в журнале потом восстанавливают, почему парк остался без сборки.
+    [Fact]
+    public async Task RolloutStateChange_WithoutReason_IsRejected()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var release = await SeedValidatedRolloutAsync(factory);
+        using var adminClient = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, adminClient, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+
+        var response = await adminClient.PostAsJsonAsync(
+            $"/api/platform/updates/rollouts/{release.RolloutId:D}/state",
+            new ChangePlatformUpdateRolloutStateRequest(UpdateRolloutStateNames.Paused, "   "));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RolledBackRollout_IsTerminalAndRefusesFurtherChanges()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var release = await SeedValidatedRolloutAsync(factory);
+        using var adminClient = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, adminClient, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        var statePath = $"/api/platform/updates/rollouts/{release.RolloutId:D}/state";
+        await adminClient.PostAsJsonAsync(statePath,
+            new ChangePlatformUpdateRolloutStateRequest(UpdateRolloutStateNames.RolledBack, "Откат выполнен"));
+
+        var again = await adminClient.PostAsJsonAsync(statePath,
+            new ChangePlatformUpdateRolloutStateRequest(UpdateRolloutStateNames.Active, "Передумали"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, again.StatusCode);
+    }
+
+    private static async Task<DeviceUpdateCheckResponse> CheckForUpdatesAsync(
+        HttpClient client,
+        DeviceEnrollmentResponse enrollment)
+    {
+        var request = new DeviceUpdateCheckRequest(
+            enrollment.OrganizationId, enrollment.BranchId, enrollment.DeviceId, UpdateChannelNames.Beta,
+            DateTimeOffset.Parse("2026-07-29T14:05:00Z"),
+            [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]);
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{enrollment.DeviceId}/updates/check")
+        {
+            Content = JsonContent.Create(request)
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+
+        var response = await client.SendAsync(message);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<DeviceUpdateCheckResponse>())!;
     }
 
     private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)

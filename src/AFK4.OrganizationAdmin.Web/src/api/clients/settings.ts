@@ -190,6 +190,22 @@ export interface AssignDeviceSeatRequest extends Record<string, unknown> {
 }
 
 
+// Настройки самого филиала (BranchSettingsDto). Полей ровно столько, сколько на сервере, и они
+// названы честно: PUT заменяет запись целиком, поэтому отправлять её надо загруженной, а не
+// собранной из одного изменённого флага — иначе язык филиала стирается заодно с переключателем.
+export interface BranchSettingsDto {
+  organizationId: Guid;
+  branchId: Guid;
+  requireManualDeviceApproval: boolean;
+  preferredLocale: string;
+}
+
+export interface UpdateBranchSettingsRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  requireManualDeviceApproval: boolean;
+  preferredLocale: string;
+}
+
 // Настройки приёма гостей филиала (BranchBookingSettingsDto). `updatedAtUtc === null` означает
 // «филиал ничего не настраивал» — значения не нулевые, а по умолчанию, и это разные вещи.
 export interface BranchBookingSettingsDto {
@@ -223,6 +239,14 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     updateBranchProfile(branchId: Guid, request: UpdateBranchProfileRequest): Promise<BranchProfileDto> {
       return api.patch<BranchProfileDto, UpdateBranchProfileRequest>(`branches/${branchId}/profile`, request);
+    },
+    // Настройки филиала. Ручное подтверждение новых ПК жило только здесь и не имело ни одного
+    // клиента: включить проверку было нечем, поэтому очередь подтверждения никогда не наполнялась.
+    getBranchSettings(branchId: Guid): Promise<BranchSettingsDto> {
+      return api.get<BranchSettingsDto>(`branches/${branchId}/settings`);
+    },
+    updateBranchSettings(branchId: Guid, request: UpdateBranchSettingsRequest): Promise<BranchSettingsDto> {
+      return api.put<BranchSettingsDto, UpdateBranchSettingsRequest>(`branches/${branchId}/settings`, request);
     },
     getBookingSettings(branchId: Guid): Promise<BranchBookingSettingsDto> {
       return api.get<BranchBookingSettingsDto>(`branches/${branchId}/booking-settings`);

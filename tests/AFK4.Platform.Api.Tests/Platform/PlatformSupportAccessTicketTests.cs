@@ -102,7 +102,7 @@ public sealed class PlatformSupportAccessTicketTests
 
         var before = await service.AuthenticateSessionAsync(
             session!.SessionToken, "organization.branch_settings.manage", CancellationToken.None);
-        await service.RevokeAsync(issue.Grant.GrantId, adminId, CancellationToken.None);
+        await service.RevokeAsync(issue.Grant.GrantId, adminId, allowAnyIssuer: false, CancellationToken.None);
         var after = await service.AuthenticateSessionAsync(
             session.SessionToken, "organization.branch_settings.manage", CancellationToken.None);
 

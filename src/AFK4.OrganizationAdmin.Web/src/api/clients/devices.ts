@@ -20,6 +20,9 @@ export interface DeviceCommandSearchQuery {
 }
 export interface RenameDeviceRequest { organizationId: Guid; displayName: string }
 export interface RemoveDeviceRequest { organizationId: Guid; reason: string }
+// Один и тот же запрос у подтверждения и отказа: причина нужна отказу — по ней потом понимают,
+// почему машину не пустили, — а подтверждению не обязательна.
+export interface DeviceStateChangeRequest { organizationId: Guid; reason?: string | null }
 
 export function createDeviceClient(api: PlatformApiClient) {
   return {
@@ -52,6 +55,17 @@ export function createDeviceClient(api: PlatformApiClient) {
     },
     removeDevice(deviceId: Guid, request: RemoveDeviceRequest): Promise<DeviceInventoryItemDto> {
       return api.post<DeviceInventoryItemDto, RemoveDeviceRequest>(`devices/${deviceId}/remove`, request);
+    },
+    // Машины, ждущие решения человека. Появляются, только когда в филиале включено ручное
+    // подтверждение: иначе ПК встаёт в строй сам, и очередь всегда пуста.
+    listPendingDevices(branchId: Guid): Promise<DeviceInventoryItemDto[]> {
+      return api.get<DeviceInventoryItemDto[]>(`branches/${branchId}/devices/pending`);
+    },
+    approveDevice(deviceId: Guid, request: DeviceStateChangeRequest): Promise<DeviceInventoryItemDto> {
+      return api.post<DeviceInventoryItemDto, DeviceStateChangeRequest>(`devices/${deviceId}/approve`, request);
+    },
+    rejectDevice(deviceId: Guid, request: DeviceStateChangeRequest): Promise<DeviceInventoryItemDto> {
+      return api.post<DeviceInventoryItemDto, DeviceStateChangeRequest>(`devices/${deviceId}/reject`, request);
     },
     rotateDeviceCredential(deviceId: Guid): Promise<RotateDeviceCredentialResponse> {
       return api.post<RotateDeviceCredentialResponse>(`devices/${deviceId}/credentials/rotate`);

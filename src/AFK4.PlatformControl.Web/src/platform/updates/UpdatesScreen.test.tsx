@@ -1,8 +1,19 @@
-import { describe, expect, it, mock } from 'bun:test';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { UpdatesScreen } from './UpdatesScreen';
+
+afterEach(cleanup);
+
+function rolloutRow(state: string) {
+  return {
+    updateRolloutId: 'r1', updatePackageId: 'p1', component: 'organization_admin', version: '1.4.0',
+    channel: 'stable', state, targetKind: 'organization', organizationIds: ['org-1'], branchIds: [],
+    deviceIds: [], batchPercent: 100, reason: 'Публикация', createdByPlatformAdminUserId: 'a1',
+    createdAtUtc: '2026-07-29T11:00:00Z', startsAtUtc: '2026-07-29T11:00:00Z', completedAtUtc: null
+  };
+}
 
 const packageRow = {
   updatePackageId: 'p1', component: 'organization_admin', version: '1.4.0', channel: 'stable',
@@ -12,13 +23,14 @@ const packageRow = {
   validatedByPlatformAdminUserId: null, validatedAtUtc: null, retiredAtUtc: null
 };
 
-function setup(state: string = 'registered') {
+function setup(state: string = 'registered', rollouts: unknown[] = []) {
   const updates = {
     listPackages: mock().mockResolvedValue([{ ...packageRow, state }]),
-    listRollouts: mock().mockResolvedValue([]),
+    listRollouts: mock().mockResolvedValue(rollouts),
     registerPackage: mock(),
     changePackageState: mock().mockResolvedValue({ ...packageRow, state: 'validated' }),
-    createRollout: mock().mockResolvedValue({})
+    createRollout: mock().mockResolvedValue({}),
+    changeRolloutState: mock().mockResolvedValue(rolloutRow('paused'))
   };
   const organizations = {
     listOrganizations: mock().mockResolvedValue([
@@ -57,6 +69,57 @@ describe('UpdatesScreen', () => {
     expect(request.targetKind).toBe('organization');
     expect(request.organizationIds).toEqual(['org-1', 'org-2']);
     expect(request.batchPercent).toBe(100);
+  });
+
+  // Остановка и пометка к откату существовали на сервере и не вызывались ниоткуда: плохая сборка
+  // уезжала на весь парк, и прекратить раздачу было нечем.
+  it('stops a rollout that is already going out, with a reason for the journal', async () => {
+    const { updates } = setup('validated', [rolloutRow('active')]);
+    await screen.findByText('Раскатывается');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить' }));
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Клубы сообщают о падениях' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить раскатку' }));
+
+    await waitFor(() => expect(updates.changeRolloutState)
+      .toHaveBeenCalledWith('r1', 'paused', 'Клубы сообщают о падениях'));
+  });
+
+  it('resumes a stopped rollout and can still flag it for rollback', async () => {
+    const { updates } = setup('validated', [rolloutRow('paused')]);
+    await screen.findByText('Остановлена');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Пометить к откату' }));
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Версия ломает кассу' } });
+    // Подпись кнопки подтверждения намеренно отличается от подписи в строке: одинаковые подписи в
+    // одном дереве означают, что ни тест, ни человек с клавиатуры не отличают «открыть» от «сделать».
+    fireEvent.click(screen.getByRole('button', { name: 'Пометить раскатку к откату' }));
+
+    await waitFor(() => expect(updates.changeRolloutState)
+      .toHaveBeenCalledWith('r1', 'rollback-requested', 'Версия ломает кассу'));
+    expect(screen.getByRole('button', { name: 'Возобновить' })).toBeInTheDocument();
+  });
+
+  // Сервер отвечает отказом на попытку изменить завершённую раскатку, поэтому кнопки, которая
+  // обещает это сделать, быть не должно.
+  it('offers nothing for a rollout that is already finished', async () => {
+    setup('validated', [rolloutRow('rolled-back')]);
+    await screen.findByText('Откачена');
+
+    expect(screen.queryByRole('button', { name: 'Остановить' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Возобновить' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Пометить к откату' })).toBeNull();
+  });
+
+  // Причина обязательна на сервере: без неё запрос вернётся отказом, а человек не поймёт почему.
+  it('will not send a state change without a reason', async () => {
+    const { updates } = setup('validated', [rolloutRow('active')]);
+    await screen.findByText('Раскатывается');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить раскатку' }));
+
+    expect(updates.changeRolloutState).not.toHaveBeenCalled();
   });
 
   it('offers no staged rollout controls', async () => {

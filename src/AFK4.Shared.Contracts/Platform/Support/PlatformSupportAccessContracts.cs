@@ -13,6 +13,20 @@ public sealed record PlatformSupportAccessGrantDto(
     DateTimeOffset ExpiresAtUtc,
     DateTimeOffset? RevokedAtUtc);
 
+// Живой доступ в клуб, каким его видит тот, кто решает — оставить или оборвать. Отдельно от
+// PlatformSupportAccessGrantDto: чтобы понять, кого обрывать, нужно имя выдавшего (Guid ничего не
+// говорит), а чтобы понять, стоит ли, — вошёл ли он вообще. Невостребованный билет означает, что
+// внутрь никто не заходил.
+public sealed record PlatformSupportAccessGrantListItem(
+    Guid GrantId,
+    Guid OrganizationId,
+    string Reason,
+    DateTimeOffset IssuedAtUtc,
+    DateTimeOffset ExpiresAtUtc,
+    Guid PlatformAdminUserId,
+    string PlatformAdminDisplayName,
+    DateTimeOffset? EnteredAtUtc);
+
 public sealed record PlatformSupportAccessGrantIssue(
     PlatformSupportAccessGrantDto Grant,
     string Ticket,

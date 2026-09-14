@@ -7,6 +7,7 @@ import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +16,7 @@ import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
 
-export type UpdatesClient = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout'>;
+export type UpdatesClient = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout' | 'changeRolloutState'>;
 type OrganizationsClient = Pick<OrganizationsApi, 'listOrganizations'>;
 
 // Раздел «Обновления»: сборка публикуется — и её получают ВСЕ клубы.
@@ -39,6 +40,8 @@ export function UpdatesScreen({ client, organizationsClient }: {
   const [stateTarget, setStateTarget] = useState<{ id: string; state: string } | null>(null);
   const [publishTarget, setPublishTarget] = useState<PlatformUpdatePackage | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [rolloutAction, setRolloutAction] = useState<RolloutAction | null>(null);
+  const [changingRollout, setChangingRollout] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -82,10 +85,28 @@ export function UpdatesScreen({ client, organizationsClient }: {
     }
   }
 
+  async function changeRolloutState(action: RolloutAction, reason: string) {
+    setChangingRollout(true);
+    try {
+      await client.changeRolloutState(action.rollout.updateRolloutId, action.next, reason);
+      setRolloutAction(null);
+      await load();
+      toast({ title: t('platform.updates.rollout.changed'), variant: 'success' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
+    } finally {
+      setChangingRollout(false);
+    }
+  }
+
   if (error !== null) return <Page title={t('nav.platform.updates')}><ErrorState message={error} retryLabel={t('common.retry')} onRetry={() => void load()} /></Page>;
   if (packages === null || rollouts === null) return <Page title={t('nav.platform.updates')}><LoadingCards count={3} /></Page>;
 
-  const publishedPackageIds = new Set(rollouts.map(rollout => rollout.updatePackageId));
+  // Список выкаток приходит от новых к старым, поэтому первая найденная для пакета — последняя.
+  const rolloutByPackageId = new Map<string, PlatformUpdateRollout>();
+  for (const rollout of rollouts) {
+    if (!rolloutByPackageId.has(rollout.updatePackageId)) rolloutByPackageId.set(rollout.updatePackageId, rollout);
+  }
 
   return (
     <Page
@@ -113,7 +134,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
                 <TableCell>{row.channel}</TableCell>
                 <TableCell>
                   <StateBadge state={row.state} />
-                  {publishedPackageIds.has(row.updatePackageId) ? <Badge variant="success">{t('platform.updates.state.published')}</Badge> : null}
+                  <RolloutBadge rollout={rolloutByPackageId.get(row.updatePackageId)} />
                 </TableCell>
                 <TableCell>{formatDate(row.createdAtUtc)}</TableCell>
                 <TableCell>
@@ -123,9 +144,13 @@ export function UpdatesScreen({ client, organizationsClient }: {
                         {t('platform.updates.package.validate')}
                       </Button>
                     ) : null}
-                    {row.state === 'validated' && !publishedPackageIds.has(row.updatePackageId) ? (
+                    {row.state === 'validated' && rolloutByPackageId.get(row.updatePackageId) === undefined ? (
                       <Button size="sm" onClick={() => setPublishTarget(row)}>{t('platform.updates.publish.action')}</Button>
                     ) : null}
+                    <RolloutActions
+                      rollout={rolloutByPackageId.get(row.updatePackageId)}
+                      onAct={setRolloutAction}
+                    />
                     {row.state === 'validated' ? (
                       <Button size="sm" variant="outline" onClick={() => setStateTarget({ id: row.updatePackageId, state: 'retired' })}>
                         {t('platform.updates.package.retire')}
@@ -156,7 +181,97 @@ export function UpdatesScreen({ client, organizationsClient }: {
           </>
         }
       />
+
+      <ConfirmDialog
+        open={rolloutAction !== null}
+        title={rolloutAction === null ? '' : t(ROLLOUT_ACTION_COPY[rolloutAction.next].title)}
+        description={rolloutAction === null ? undefined : t(ROLLOUT_ACTION_COPY[rolloutAction.next].body)}
+        confirmLabel={rolloutAction === null ? '' : t(ROLLOUT_ACTION_COPY[rolloutAction.next].confirm)}
+        cancelLabel={t('common.cancel')}
+        reasonLabel={t('platform.updates.rollout.reasonLabel')}
+        destructive={rolloutAction?.next !== 'active'}
+        pending={changingRollout}
+        onConfirm={reason => { if (rolloutAction !== null) void changeRolloutState(rolloutAction, reason); }}
+        onOpenChange={open => { if (!open) setRolloutAction(null); }}
+      />
     </Page>
+  );
+}
+
+// Три состояния, в которые раскатку переводит человек. Остальные значения сервера — итоговые
+// (раскатана, откачена, отменена) и меняются не отсюда.
+type RolloutNextState = 'paused' | 'active' | 'rollback-requested';
+
+interface RolloutAction {
+  rollout: PlatformUpdateRollout;
+  next: RolloutNextState;
+}
+
+const ROLLOUT_ACTION_COPY: Record<RolloutNextState, { title: MessageKey; body: MessageKey; confirm: MessageKey }> = {
+  paused: {
+    title: 'platform.updates.rollout.pause.title',
+    body: 'platform.updates.rollout.pause.body',
+    confirm: 'platform.updates.rollout.pause.confirm'
+  },
+  active: {
+    title: 'platform.updates.rollout.resume.title',
+    body: 'platform.updates.rollout.resume.body',
+    confirm: 'platform.updates.rollout.resume.confirm'
+  },
+  'rollback-requested': {
+    title: 'platform.updates.rollout.rollback.title',
+    body: 'platform.updates.rollout.rollback.body',
+    confirm: 'platform.updates.rollout.rollback.confirm'
+  }
+};
+
+const ROLLOUT_STATE_LABEL: Record<string, MessageKey> = {
+  active: 'platform.updates.rollout.state.active',
+  paused: 'platform.updates.rollout.state.paused',
+  'rollback-requested': 'platform.updates.rollout.state.rollbackRequested',
+  'rolled-back': 'platform.updates.rollout.state.rolledBack',
+  completed: 'platform.updates.rollout.state.completed',
+  cancelled: 'platform.updates.rollout.state.cancelled'
+};
+
+function RolloutBadge({ rollout }: { rollout: PlatformUpdateRollout | undefined }) {
+  const { t } = useI18n();
+  if (rollout === undefined) return null;
+  const label = ROLLOUT_STATE_LABEL[rollout.state];
+  // Незнакомое состояние показывается как есть: выдумать ему подпись нельзя, а промолчать —
+  // значит спрятать выкатку, которая существует.
+  if (label === undefined) return <Badge variant="outline">{rollout.state}</Badge>;
+  const variant: BadgeVariant = rollout.state === 'active' ? 'success'
+    : rollout.state === 'completed' ? 'success'
+    : rollout.state === 'paused' || rollout.state === 'rollback-requested' ? 'warning'
+    : 'outline';
+  return <Badge variant={variant}>{t(label)}</Badge>;
+}
+
+function RolloutActions({ rollout, onAct }: {
+  rollout: PlatformUpdateRollout | undefined;
+  onAct: (action: RolloutAction) => void;
+}) {
+  const { t } = useI18n();
+  if (rollout === undefined) return null;
+  // Раскатана, откачена, отменена — итог; сервер их менять не даст, и кнопка обещала бы неправду.
+  if (rollout.state !== 'active' && rollout.state !== 'paused') return null;
+
+  return (
+    <>
+      {rollout.state === 'active' ? (
+        <Button size="sm" variant="outline" onClick={() => onAct({ rollout, next: 'paused' })}>
+          {t('platform.updates.rollout.pause')}
+        </Button>
+      ) : (
+        <Button size="sm" variant="outline" onClick={() => onAct({ rollout, next: 'active' })}>
+          {t('platform.updates.rollout.resume')}
+        </Button>
+      )}
+      <Button size="sm" variant="destructive" onClick={() => onAct({ rollout, next: 'rollback-requested' })}>
+        {t('platform.updates.rollout.rollback')}
+      </Button>
+    </>
   );
 }
 

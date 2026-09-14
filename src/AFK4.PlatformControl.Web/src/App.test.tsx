@@ -67,6 +67,26 @@ describe('Platform Control admin-only routing', () => {
     globalThis.fetch = originalFetch;
   });
 
+  // Экран активации один, а приглашений два. Без параметра он обслуживал только владельца, и
+  // приглашённый администратор платформы упирался в форму, которая шлёт его код не туда.
+  it('opens the platform-admin activation form from the invitation link', () => {
+    window.history.replaceState(null, '', '/account-activation?kind=platform-admin&code=invite-1');
+    renderApp();
+
+    expect(screen.getByRole('heading', { name: 'Активация администратора платформы' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Имя и фамилия')).toBeInTheDocument();
+  });
+
+  // Ссылки на активацию владельца уже разосланы и приходят без параметра — они обязаны и дальше
+  // открывать форму владельца.
+  it('keeps a link without the parameter on the owner activation form', () => {
+    window.history.replaceState(null, '', '/account-activation?code=invite-1');
+    renderApp();
+
+    expect(screen.getByRole('heading', { name: 'Активация по коду' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Имя и фамилия')).toBeNull();
+  });
+
   it('resolves only canonical admin routes', () => {
     expect(resolvePlatformRoute('/')).toEqual({ kind: 'overview', view: 'now' });
     expect(resolvePlatformRoute('/admin/organizations')).toMatchObject({ kind: 'overview' });
