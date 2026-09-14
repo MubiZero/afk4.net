@@ -34,4 +34,20 @@ describe('BranchesDestination', () => {
     await waitFor(() => expect(screen.getByText('Душанбе')).toBeInTheDocument());
     expect(screen.getByText('Центр')).toBeInTheDocument();
   });
+
+  // Кнопка «Добавить филиал» стояла здесь вечно выключенной с подписью «пока недоступно».
+  // Обещание, которое никто не собирался выполнять из этого приложения: новый филиал меняет
+  // лимит ПК по тарифу и счёт клуба, и открывает его платформа.
+  it('не показывает выключенную кнопку добавления филиала', async () => {
+    const { BranchesDestination } = await import('./BranchesDestination');
+    render(
+      <I18nProvider initialLocale="ru">
+        <BranchesDestination backend={backend as never} />
+      </I18nProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText('Душанбе')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Добавить филиал' })).toBeNull();
+    expect(screen.getByText(/Новый филиал открывает платформа/)).toBeInTheDocument();
+  });
 });

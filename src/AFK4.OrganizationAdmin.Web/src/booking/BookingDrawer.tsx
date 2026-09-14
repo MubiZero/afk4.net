@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, Wallet, X } from 'lucide-react';
+import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, UserRoundX, Wallet, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
@@ -52,6 +52,7 @@ export interface BookingDrawerProps {
   onMove: (targetSeatId: string) => void;
   onCancel: () => void;
   onReject: (reasonCode: string, note: string | null) => void;
+  onMarkNoShow: () => void;
   onConfirm: (item: BookingItem) => void;
   onOpenMap: (seatId: string) => void;
 }
@@ -100,8 +101,14 @@ export function BookingDrawer(props: BookingDrawerProps) {
   // Панель отказа живёт в карточке, а не в модалке: причина выбирается там же, где видно, кому и
   // на какое время отказывают.
   const [rejecting, setRejecting] = useState(false);
+  // Неявка терминальна и может стоить игроку предоплаты, поэтому спрашивается отдельно — тем же
+  // способом, что и отказ: прямо в карточке, где видно, кому и на какое время её ставят.
+  const [confirmingNoShow, setConfirmingNoShow] = useState(false);
   const { t } = useI18n();
   const { mode, selected, freeSeats, allSeats, draft, busy, canManage, canStartSessions, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
+  // «Уже началась» считается от текущего момента — ровно как на сервере: человек не опоздал, пока
+  // его время не наступило.
+  const actions = bookingDetailActions(selected?.state ?? '', selected !== null && selected.startMs <= Date.now());
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
 
@@ -298,14 +305,17 @@ export function BookingDrawer(props: BookingDrawerProps) {
 
           <div className="booking-action-grid">
             <button type="button" disabled={!selected.seatId || busy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
-            {bookingDetailActions(selected.state).canStart && (
+            {actions.canStart && (
               <button type="button" disabled={!canManage || !canStartSessions || busy || !selected.seatId} onClick={props.onStart}><UserRoundPlus size={15} />{t('op.booking.actions.startSession')}</button>
             )}
-            {bookingDetailActions(selected.state).canConfirm && (
+            {actions.canConfirm && (
               <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</button>
             )}
-            {bookingDetailActions(selected.state).canReject && (
+            {actions.canReject && (
               <button type="button" className="danger" disabled={!canManage || busy} onClick={() => setRejecting(true)}><X size={15} />{t('op.booking.actions.reject')}</button>
+            )}
+            {actions.canMarkNoShow && (
+              <button type="button" className="danger" disabled={!canManage || busy} onClick={() => setConfirmingNoShow(true)}><UserRoundX size={15} />{t('op.booking.actions.noShow')}</button>
             )}
             <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancel}><Square size={15} />{t('op.booking.actions.cancel')}</button>
             {selected.reservationGroupId && groupSize > 1 && (
@@ -313,7 +323,27 @@ export function BookingDrawer(props: BookingDrawerProps) {
             )}
           </div>
 
-          {rejecting && bookingDetailActions(selected.state).canReject && (
+          {confirmingNoShow && actions.canMarkNoShow && (
+            <div className="booking-reject" role="group" aria-label={t('op.booking.noShow.confirmTitle')}>
+              <p className="booking-reject-title">{t('op.booking.noShow.confirmTitle')}</p>
+              <p className="booking-reject-hint">{t('op.booking.noShow.confirmBody')}</p>
+              <div className="booking-action-grid">
+                <button
+                  type="button"
+                  className="danger"
+                  disabled={busy}
+                  onClick={() => { setConfirmingNoShow(false); props.onMarkNoShow(); }}
+                >
+                  {t('op.booking.noShow.confirmAction')}
+                </button>
+                <button type="button" disabled={busy} onClick={() => setConfirmingNoShow(false)}>
+                  {t('op.booking.reject.back')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {rejecting && actions.canReject && (
             <RejectPanel
               busy={busy}
               onSend={(reasonCode, note) => {

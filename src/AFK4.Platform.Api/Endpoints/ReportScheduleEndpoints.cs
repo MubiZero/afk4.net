@@ -121,6 +121,19 @@ internal static class ReportScheduleEndpoints
                 return Results.BadRequest(new { Error = validation });
             }
 
+            // Проверка «уже есть такая» — не защита от гонки (два одновременных запроса пройдут
+            // оба; уникального индекса на эту тройку в схеме нет), а защита от обычного случая:
+            // человек не помнит, заводил ли он уже эту рассылку, и заводит вторую.
+            if (await reportScheduleService.ExistsAsync(
+                request.OrganizationId, branchId, request.ReportType, request.Frequency, cancellationToken))
+            {
+                return Results.Conflict(new
+                {
+                    Error = "schedule_exists",
+                    Message = "This branch already has a schedule for the same report and frequency."
+                });
+            }
+
             var dto = await reportScheduleService.CreateAsync(
                 request.OrganizationId,
                 branchId,

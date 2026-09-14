@@ -61,7 +61,10 @@ public sealed class EfInventoryServiceTests
         Assert.NotNull(first.Response);
         Assert.NotNull(second.Response);
         Assert.Equal(first.Response.CategoryId, second.Response.CategoryId);
-        Assert.Equal("DRINKS", first.Response.Name);
+        // Имя хранится таким, каким его ввели. Верхний регистр здесь раньше и стоял — нормализация
+        // для сравнения «такая уже есть» записывалась в отображаемое поле, и этот тест закреплял
+        // как правильное то, из-за чего в меню бара появлялось «СНЕКИ» вместо «Снеки».
+        Assert.Equal("Drinks", first.Response.Name);
         Assert.True(first.Response.IsActive);
         Assert.Single(await db.PosProductCategories.ToListAsync());
         Assert.Single(await db.BillingCommandIdempotency.ToListAsync());

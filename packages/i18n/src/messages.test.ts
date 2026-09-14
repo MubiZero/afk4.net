@@ -347,8 +347,7 @@ it('includes the network branches rollup screen keys', () => {
     'op.network.branches.rename.title',
     'op.network.branches.field.name',
     'op.network.branches.field.city',
-    'op.network.branches.add',
-    'op.network.branches.add.unavailable'
+    'op.network.branches.add.viaPlatform'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();

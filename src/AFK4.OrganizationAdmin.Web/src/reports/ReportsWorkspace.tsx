@@ -4,6 +4,7 @@ import { EmptyState } from '../operatorPrimitives';
 import type { OperatorBackendContext, WorkspaceId } from '../operatorTypes';
 import { RevenueReport } from './RevenueReport';
 import { ShiftCashReport } from './ShiftCashReport';
+import { ReportSchedules } from './ReportSchedules';
 import { SummaryReport } from './SummaryReport';
 import { allowedReportsDestinations, type ReportsDestinationId } from './reportsNav';
 
@@ -26,7 +27,9 @@ export function ReportsWorkspace({ backend, currencyCode, onNavigate }: {
     ? <SummaryReport backend={backend} onNavigate={onNavigate} />
     : current === 'shiftsCash'
       ? <ShiftCashReport backend={backend} currencyCode={currencyCode} />
-      : <RevenueReport backend={backend} currencyCode={currencyCode} />;
+      : current === 'schedules'
+        ? <ReportSchedules backend={backend} />
+        : <RevenueReport backend={backend} currencyCode={currencyCode} />;
 
   return (
     <section className="reports-workspace">

@@ -138,6 +138,8 @@ public static class AuditActionNames
 
     public const string CreateProductCategory = "pos.categories.create";
 
+    public const string RenameProductCategory = "pos.categories.rename";
+
     public const string CreateProduct = "pos.products.create";
 
     public const string UpdateProduct = "pos.products.update";

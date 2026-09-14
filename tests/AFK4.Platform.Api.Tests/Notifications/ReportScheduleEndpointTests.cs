@@ -53,6 +53,46 @@ public sealed class ReportScheduleEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // Вторая такая же рассылка означает два одинаковых письма владельцу каждый период. Стойка её
+    // и не предлагает, но экран — не единственный вход: маршрут открыт любому, у кого есть право
+    // видеть отчёты.
+    [Fact]
+    public async Task Create_SameReportAndFrequencyTwice_Returns409()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var path = $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules";
+        var request = new CreateReportScheduleRequest(
+            TestIds.OrganizationId, ScheduledReportTypeNames.Sales, ReportScheduleFrequencyNames.Daily);
+        await client.PostAsJsonAsync(path, request);
+
+        var second = await client.PostAsJsonAsync(path, request);
+
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        var list = await client.GetFromJsonAsync<List<ReportScheduleDto>>(path);
+        Assert.Single(list!);
+    }
+
+    // А та же рассылка с другой частотой — это другая рассылка, и запрещать её не за что.
+    [Fact]
+    public async Task Create_SameReportDifferentFrequency_IsAllowed()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var path = $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules";
+        await client.PostAsJsonAsync(path, new CreateReportScheduleRequest(
+            TestIds.OrganizationId, ScheduledReportTypeNames.Sales, ReportScheduleFrequencyNames.Daily));
+
+        var second = await client.PostAsJsonAsync(path, new CreateReportScheduleRequest(
+            TestIds.OrganizationId, ScheduledReportTypeNames.Sales, ReportScheduleFrequencyNames.Monthly));
+
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var list = await client.GetFromJsonAsync<List<ReportScheduleDto>>(path);
+        Assert.Equal(2, list!.Count);
+    }
+
     [Fact]
     public async Task Create_Unauthenticated_Returns401()
     {

@@ -6,6 +6,21 @@ namespace AFK4.Platform.Api.Reports;
 
 public sealed class EfReportScheduleService(PlatformDbContext dbContext, TimeProvider timeProvider) : IReportScheduleService
 {
+    public Task<bool> ExistsAsync(
+        Guid organizationId,
+        Guid branchId,
+        string reportType,
+        string frequency,
+        CancellationToken cancellationToken) =>
+        dbContext.ReportSchedules
+            .AsNoTracking()
+            .AnyAsync(
+                schedule => schedule.OrganizationId == organizationId
+                    && schedule.BranchId == branchId
+                    && schedule.ReportType == reportType
+                    && schedule.Frequency == frequency,
+                cancellationToken);
+
     public async Task<ReportScheduleDto> CreateAsync(
         Guid organizationId,
         Guid branchId,

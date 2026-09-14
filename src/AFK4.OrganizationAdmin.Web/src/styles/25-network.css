@@ -86,15 +86,8 @@
   justify-content: flex-end;
 }
 
-.network-branches-add {
-  margin-top: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .network-branches-add-note {
-  margin: 0;
+  margin: 20px 0 0;
   color: var(--text-muted);
   font-size: 13px;
 }

@@ -55,6 +55,13 @@ export interface SeatReservationRequest {
   expectedVersion: number;
 }
 
+// Версия здесь необязательна, и это не небрежность: повторный клик по уже отмеченной неявке
+// сервер отвечает той же бронью, а не конфликтом версий — удерживать за одну неявку дважды нельзя.
+export interface MarkReservationNoShowRequest {
+  organizationId: Guid;
+  expectedVersion?: number | null;
+}
+
 export interface CancelReservationRequest {
   organizationId: Guid;
   reason: string;
@@ -110,6 +117,9 @@ export function createReservationClient(api: PlatformApiClient) {
     },
     seat(reservationId: Guid, request: SeatReservationRequest): Promise<ReservationDto> {
       return api.post<ReservationDto, SeatReservationRequest>(`reservations/${reservationId}/seat`, request);
+    },
+    noShow(reservationId: Guid, request: MarkReservationNoShowRequest): Promise<ReservationDto> {
+      return api.post<ReservationDto, MarkReservationNoShowRequest>(`reservations/${reservationId}/no-show`, request);
     },
     cancel(reservationId: Guid, request: CancelReservationRequest): Promise<ReservationDto> {
       return api.post<ReservationDto, CancelReservationRequest>(`reservations/${reservationId}/cancel`, request);

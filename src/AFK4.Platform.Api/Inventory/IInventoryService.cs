@@ -27,6 +27,18 @@ public interface IInventoryService
         CancellationToken cancellationToken);
 
 
+    Task<IReadOnlyList<PosProductCategoryDto>> ListCategoriesAsync(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<PosProductCategoryDto>> RenameCategoryAsync(
+        Guid branchId,
+        Guid categoryId,
+        Guid actorStaffUserId,
+        RenameProductCategoryRequest request,
+        CancellationToken cancellationToken);
+
     Task<BillingCommandServiceResult<PosProductCategoryDto>> CreateCategoryAsync(
         Guid branchId,
         Guid actorStaffUserId,

@@ -7,13 +7,13 @@ function session(permissions: string[]) {
 }
 
 describe('reportsNav', () => {
-  it('lists summary/shifts-and-cash/revenue in order', () => {
-    expect(reportsDestinations.map((d) => d.id)).toEqual(['summary', 'shiftsCash', 'revenue']);
+  it('lists summary/shifts-and-cash/revenue/schedules in order', () => {
+    expect(reportsDestinations.map((d) => d.id)).toEqual(['summary', 'shiftsCash', 'revenue', 'schedules']);
   });
 
   it('shows all report tabs for reports.view', () => {
     const ids = allowedReportsDestinations(session([permissionNames.viewReports])).map((d) => d.id);
-    expect(ids).toEqual(['summary', 'shiftsCash', 'revenue']);
+    expect(ids).toEqual(['summary', 'shiftsCash', 'revenue', 'schedules']);
   });
 
   it('shows no report tabs for audit.view alone', () => {
@@ -21,9 +21,9 @@ describe('reportsNav', () => {
     expect(ids).toEqual([]);
   });
 
-  it('shows all three when both permissions present', () => {
+  it('shows every tab when both permissions present', () => {
     const ids = allowedReportsDestinations(session([permissionNames.viewReports, permissionNames.viewAudit])).map((d) => d.id);
-    expect(ids).toEqual(['summary', 'shiftsCash', 'revenue']);
+    expect(ids).toEqual(['summary', 'shiftsCash', 'revenue', 'schedules']);
   });
 
   it('hides section entirely with no relevant permission', () => {

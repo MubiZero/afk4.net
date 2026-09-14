@@ -29,8 +29,34 @@ export interface ReportShiftRowDto {
 
 export interface CashOperationRowDto { operationId: Guid; shiftId?: Guid | null; sourceType: string; operationType: string; cashImpact: MoneyDto; reason: string; createdAtUtc: string }
 
+// Регулярная рассылка отчёта. Поля названы ровно как на сервере (ReportScheduleDto): письмо уходит
+// владельцу клуба, и адрес сервер разрешает сам — стойка его не выбирает и не видит.
+export interface ReportScheduleDto {
+  reportScheduleId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  reportType: string;
+  frequency: string;
+  isActive: boolean;
+  nextRunUtc: string;
+  lastRunUtc?: string | null;
+  createdAtUtc: string;
+}
+
+export interface CreateReportScheduleRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  reportType: string;
+  frequency: string;
+}
+
 export function createReportsClient(api: PlatformApiClient) {
   return {
+    listReportSchedules: (branchId: Guid) =>
+      api.get<ReportScheduleDto[]>(`branches/${branchId}/report-schedules`),
+    createReportSchedule: (branchId: Guid, request: CreateReportScheduleRequest) =>
+      api.post<ReportScheduleDto, CreateReportScheduleRequest>(`branches/${branchId}/report-schedules`, request),
+    deleteReportSchedule: (branchId: Guid, scheduleId: Guid) =>
+      api.delete<{ message: string }>(`branches/${branchId}/report-schedules/${scheduleId}`),
     getWorkspaceSummary: (branchId: Guid, query: OrganizationAdminReportQuery) => api.get<OrganizationAdminSummaryReportDto>(`branches/${branchId}/reports/workspace/summary`, query),
     getWorkspaceShiftCash: (branchId: Guid, query: OrganizationAdminReportQuery) => api.get<OrganizationAdminShiftCashReportDto>(`branches/${branchId}/reports/workspace/shifts-cash`, query),
     getWorkspaceRevenue: (branchId: Guid, query: OrganizationAdminReportQuery) => api.get<OrganizationAdminRevenueReportDto>(`branches/${branchId}/reports/workspace/revenue`, query),

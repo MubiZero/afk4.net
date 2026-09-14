@@ -13,10 +13,22 @@ import {
 } from './bookingModel';
 
 it('bookingDetailActions: pending confirms, confirmed starts, terminal states expose neither', () => {
-  expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false, canReject: true });
-  expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true, canReject: false });
-  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false, canReject: false });
-  expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false, canReject: false });
+  expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false, canReject: true, canMarkNoShow: false });
+  expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true, canReject: false, canMarkNoShow: false });
+  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false, canReject: false, canMarkNoShow: false });
+  expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false, canReject: false, canMarkNoShow: false });
+});
+
+// Повторяет правило сервера (ReservationNoShow.WhyNot) и не смягчает его. Если бы неявку
+// разрешили ставить заявке, на которую клуб сам не ответил, молчание стойки превратилось бы в
+// прогул игрока — с ударом по его репутации в сети и удержанием предоплаты.
+it('bookingDetailActions: неявка — только у начавшейся подтверждённой брони', () => {
+  expect(bookingDetailActions('confirmed', true).canMarkNoShow).toBe(true);
+  expect(bookingDetailActions('confirmed', false).canMarkNoShow).toBe(false);
+  expect(bookingDetailActions('pending', true).canMarkNoShow).toBe(false);
+  expect(bookingDetailActions('seated', true).canMarkNoShow).toBe(false);
+  expect(bookingDetailActions('no_show', true).canMarkNoShow).toBe(false);
+  expect(bookingDetailActions('cancelled', true).canMarkNoShow).toBe(false);
 });
 
 // Отказать можно только в заявке, которую ещё не приняли: подтверждённую бронь клуб отменяет, и
