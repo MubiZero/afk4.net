@@ -1031,6 +1031,51 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(dtos);
         }).RequireRateLimiting("player-me");
 
+        // Перенос собственной брони. До него переносили отменой и повторной бронью: место на те
+        // секунды, что человек ищет новое время, уходило в общий доступ, а замороженная предоплата
+        // возвращалась и замораживалась заново — и если денег за эти секунды не осталось, второй
+        // брони уже не было.
+        app.MapPatch("/api/me/reservations/{reservationId:guid}", async (
+            Guid reservationId,
+            MovePlayerReservationRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            IReservationService reservationService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await reservationService.MoveOnlineAsync(
+                reservationId,
+                player.PlayerAccountId,
+                request.StartsAtUtc,
+                request.SeatId,
+                request.ExpectedVersion,
+                cancellationToken);
+
+            if (result.NotFound)
+            {
+                return Results.NotFound();
+            }
+
+            // Занятый слот — это не ошибка запроса, а ответ «не получилось, выберите другое»:
+            // экран показывает их по-разному.
+            if (result.Conflict)
+            {
+                return Results.Conflict(new { Error = result.Error });
+            }
+
+            if (!result.Succeeded)
+            {
+                return Results.BadRequest(new { Error = result.Error });
+            }
+
+            return Results.Ok(ToPlayerReservationDto(result.Response!));
+        }).RequireRateLimiting("player-me");
+
         app.MapDelete("/api/me/reservations/{reservationId:guid}", async (
             Guid reservationId,
             IPlayerContextAccessor playerContextAccessor,

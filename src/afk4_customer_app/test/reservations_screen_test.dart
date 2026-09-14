@@ -601,4 +601,55 @@ void main() {
     expect(find.text('Броней пока нет'), findsOneWidget);
     expect(find.text('Не удалось загрузить брони.'), findsNothing);
   });
+
+
+  // Переносили отменой и повторной бронью: место на те секунды, что человек ищет новое время,
+  // уходило в общий доступ, а предоплата возвращалась и замораживалась заново.
+  testWidgets('бронь переносится на новое время', (tester) async {
+    late final FakeHttpClient http;
+    http = FakeHttpClient((request) => request.method == 'PATCH'
+        ? (jsonEncode(_reservation()), 200)
+        : (jsonEncode([_reservation()]), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Перенести'));
+    await tester.pumpAndSettle();
+    expect(find.text('Перенести бронь'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Перенести'));
+    await tester.pumpAndSettle();
+
+    final sent = http.requests.where((r) => r.method == 'PATCH').toList();
+    expect(sent, hasLength(1));
+    expect(sent.single.url.path, '/api/me/reservations/r1');
+    expect(http.bodies.last.containsKey('startsAtUtc'), isTrue);
+    // Длительности в запросе нет: «перенести» отвечает на вопрос «когда», а не «как теперь».
+    expect(http.bodies.last.containsKey('durationMinutes'), isFalse);
+  });
+
+  // Занятый слот — не поломка, а «выберите другое время»: это разные надписи.
+  testWidgets('занятое время названо занятым, а не ошибкой', (tester) async {
+    final http = FakeHttpClient((request) => request.method == 'PATCH'
+        ? (jsonEncode({'error': 'seat_taken'}), 409)
+        : (jsonEncode([_reservation()]), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Перенести'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Перенести'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('На это время место занято. Выберите другое.'), findsOneWidget);
+  });
+
+  // У компании несколько мест, и перенос половины разделил бы её на две брони — это другое
+  // решение, а не та же кнопка.
+  testWidgets('у брони на компанию кнопки переноса нет', (tester) async {
+    await tester.pumpWidget(harness(_serve(_companyJson())));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Перенести'), findsNothing);
+  });
 }

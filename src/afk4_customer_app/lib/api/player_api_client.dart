@@ -455,6 +455,26 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();
   }
 
+  /// Перенести собственную бронь. Длительность остаётся прежней: «перенести» — это то же самое
+  /// на другое время, а изменить длину — другое решение с другой ценой.
+  Future<PlayerReservation> moveReservation(
+    String reservationId, {
+    required DateTime startsAtUtc,
+    String? seatId,
+    int? expectedVersion,
+  }) async {
+    final body = await sendJson(
+      'PATCH',
+      '/api/me/reservations/${Uri.encodeComponent(reservationId)}',
+      {
+        'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
+        'seatId': ?seatId,
+        'expectedVersion': ?expectedVersion,
+      },
+    );
+    return _parse(body, PlayerReservation.fromJson);
+  }
+
   Future<PlayerReservation> cancelReservation(String reservationId) async {
     final body = await sendJson(
         'DELETE', '/api/me/reservations/${Uri.encodeComponent(reservationId)}');
