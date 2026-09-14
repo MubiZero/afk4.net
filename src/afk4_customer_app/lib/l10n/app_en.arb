@@ -144,6 +144,7 @@
   "customerClubsNoAccountHint": "This club's wallet opens with your first booking or top-up. Every club keeps its own money.",
   "customerClubsOpen": "Open",
   "customerCommonBack": "← Back",
+  "customerCommonCancel": "Cancel",
   "customerCommonDayAtTime": "{day}, {time}",
   "@customerCommonDayAtTime": {
     "placeholders": {
@@ -366,6 +367,9 @@
   "customerNavReservations": "Bookings",
   "customerNavWallet": "Wallet",
   "customerNewsTitle": "Club news",
+  "customerNotificationsEmpty": "Nothing has arrived yet. Whatever the club sends you will show up here.",
+  "customerNotificationsError": "Notifications could not be loaded.",
+  "customerNotificationsTitle": "Notifications",
   "customerOfflineStale": "No connection — the data may be out of date",
   "customerPackagesBonus": "+{bonus} free",
   "@customerPackagesBonus": {
@@ -532,6 +536,14 @@
   "customerPlayStarting": "Starting…",
   "customerPlayTitle": "Start playing",
   "customerProfileChangePhone": "Change the number",
+  "customerProfileDeleteBlockedBalance": "There is still money in your wallet. Collect it at the club counter, then come back here.",
+  "customerProfileDeleteBlockedDebt": "You still owe the club. Clear the debt — from your wallet or at the counter.",
+  "customerProfileDeleteBlockedSession": "Your session is running right now. End it and try again.",
+  "customerProfileDeleteBody": "You will be signed out, and your name and number will stop identifying you. The club keeps its operation records — that is its accounting. The account cannot be restored, but you can register again with the same number.",
+  "customerProfileDeleteConfirm": "Delete",
+  "customerProfileDeleteError": "The account could not be deleted. Try again.",
+  "customerProfileDeleteTitle": "Delete your account?",
+  "customerProfileDeleteAccount": "Delete my account",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Tajik",
@@ -687,6 +699,13 @@
   },
   "customerReservationsHoldNote": "The amount is held on your wallet and comes back if you cancel",
   "customerReservationsLoadError": "Failed to load reservations.",
+  "customerReservationsMove": "Reschedule",
+  "customerReservationsMoveConfirm": "Reschedule",
+  "customerReservationsMoveError": "The booking could not be rescheduled. Try again.",
+  "customerReservationsMoveTaken": "The seat is taken at that time. Pick another one.",
+  "customerReservationsMoveTitle": "Reschedule the booking",
+  "customerReservationsMoveWhen": "New time",
+  "customerReservationsMoved": "Booking rescheduled",
   "customerReservationsNewTitle": "New booking",
   "customerReservationsNoFunds": "Your wallet doesn't cover this booking; top it up and try again",
   "customerReservationsNoSeat": "No seat",
@@ -877,6 +896,7 @@
   "customerShopLoadError": "Couldn't load the menu",
   "customerShopNewOrder": "Order more",
   "customerShopOrderTitle": "Your order",
+  "customerShopPastTitle": "Past orders",
   "customerShopPlace": "Order for {amount}",
   "@customerShopPlace": {
     "placeholders": {
@@ -929,6 +949,17 @@
   "customerTariffUnavailableNow": "Not available right now",
   "customerWalletAmount": "Amount",
   "customerWalletAmountError": "Enter an amount greater than zero",
+  "customerWalletDebtPaid": "Debt cleared",
+  "customerWalletDebtPay": "Pay off {amount}",
+  "@customerWalletDebtPay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerWalletDebtPayError": "The debt could not be cleared. Try again.",
+  "customerWalletDebtPayNote": "You can clear it from your wallet or at the club counter.",
   "customerWalletGate": "To top up your wallet online, confirm your phone number.",
   "customerWalletGateAction": "Confirm the number",
   "customerWalletHeld": "Held for bookings",
@@ -946,6 +977,9 @@
   "customerWalletOnlineSlow": "The bank has not answered yet. If the payment went through, the money arrives on its own — check the balance in a couple of minutes.",
   "customerWalletOnlineUnavailable": "This club is not taking online payments right now. Pay at the desk.",
   "customerWalletOnlineWaiting": "Waiting for the bank…",
+  "customerWalletPendingCancel": "Cancel the request",
+  "customerWalletPendingCancelError": "The request could not be cancelled. Try again.",
+  "customerWalletPendingCancelled": "Request cancelled",
   "customerWalletPendingHint": "A request for {amount} is awaiting credit",
   "@customerWalletPendingHint": {
     "placeholders": {

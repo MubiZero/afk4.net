@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Localization;
+using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,9 @@ namespace AFK4.Platform.Api.Endpoints;
 /// </summary>
 internal static class MeEndpoints
 {
+    /// Сколько уведомлений держать в списке. Дальше человек не листает, а очередь растёт быстро.
+    private const int NotificationFeedLimit = 50;
+
     public static void MapMeEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me", async (
@@ -92,6 +96,197 @@ internal static class MeEndpoints
         // Имя и язык — ровно те два поля, которые спрашиваются при регистрации, и единственные,
         // которые человек про себя называет сам. PIN сюда не входит: он задаётся отдельно и в ту
         // секунду, когда впервые нужен.
+        // Центр уведомлений. Пуш до сих пор был единственным способом узнать о событии, и
+        // пропущенный пуш — выключенные уведомления, переустановленное приложение, мёртвый
+        // токен — было невозможно прочитать нигде.
+        //
+        // Отдельного хранилища у списка нет: текст уже отрисован и лежит в той же очереди, из
+        // которой уходил пуш. Показываются и недоставленные — именно они и есть та дыра.
+        app.MapGet("/api/me/notifications", async (
+            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var context = personContextAccessor.Current;
+            if (context is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var person = await dbContext.PlatformPersons
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    candidate => candidate.PlatformPersonId == context.PlatformPersonId,
+                    cancellationToken);
+            if (person is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var accountIds = await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .Where(account => account.PlatformPersonId == person.PlatformPersonId)
+                .Select(account => account.PlayerAccountId)
+                .ToListAsync(cancellationToken);
+
+            var rows = await dbContext.NotificationOutbox
+                .AsNoTracking()
+                .Where(row => row.PlayerAccountId != null
+                    && accountIds.Contains(row.PlayerAccountId.Value)
+                    // Подавленное — это то, от чего человек сам отказался: показывать его в
+                    // списке значит вернуть ему то, что он выключил.
+                    && row.Status != NotificationOutboxStatus.Suppressed
+                    && row.BodyText != string.Empty)
+                .OrderByDescending(row => row.CreatedUtc)
+                .Take(NotificationFeedLimit)
+                .ToListAsync(cancellationToken);
+
+            var readAt = person.NotificationsReadAtUtc;
+            var items = rows
+                .Select(row => new PlayerNotificationDto(
+                    row.NotificationOutboxId,
+                    row.TemplateKey,
+                    row.Subject,
+                    row.BodyText,
+                    row.BranchId,
+                    row.CreatedUtc,
+                    IsUnread: readAt is null || row.CreatedUtc > readAt.Value))
+                .ToList();
+
+            return Results.Ok(new PlayerNotificationsDto(items, items.Count(item => item.IsUnread)));
+        }).RequireRateLimiting("player-me");
+
+        // Открыл список — значит прочитал всё, что в нём было. Отметка одна на всё: список
+        // уведомлений читают целиком, и строка «прочитано» на каждое сообщение здесь ничего бы не
+        // добавила, кроме таблицы.
+        app.MapPost("/api/me/notifications/read", async (
+            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var context = personContextAccessor.Current;
+            if (context is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var person = await dbContext.PlatformPersons.SingleOrDefaultAsync(
+                candidate => candidate.PlatformPersonId == context.PlatformPersonId,
+                cancellationToken);
+            if (person is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            person.NotificationsReadAtUtc = timeProvider.GetUtcNow();
+            person.UpdatedAtUtc = person.NotificationsReadAtUtc.Value;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        }).RequireRateLimiting("player-me");
+
+        // Удаление собственной учётной записи. Требование App Store к любому приложению с
+        // регистрацией — и до сих пор его не было ни на одном слое.
+        //
+        // Отказ при долге и при остатке — не перестраховка. Деньги на кошельке принадлежат
+        // человеку, а долг он должен клубу: обнулить нажатием в телефоне и то и другое значит
+        // решить чужой денежный вопрос молча и необратимо. Поэтому сначала касса, потом удаление.
+        //
+        // Записи журнала остаются: это бухгалтерия клуба, а не личные данные. Обезличивается
+        // личность — имя, телефон, PIN, — и номер освобождается: иначе «удалить аккаунт» навсегда
+        // забирало бы у человека его же телефон.
+        app.MapDelete("/api/me", async (
+            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var context = personContextAccessor.Current;
+            if (context is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var person = await dbContext.PlatformPersons.SingleOrDefaultAsync(
+                candidate => candidate.PlatformPersonId == context.PlatformPersonId,
+                cancellationToken);
+            if (person is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var accountIds = await dbContext.PlayerAccounts
+                .Where(account => account.PlatformPersonId == person.PlatformPersonId)
+                .Select(account => account.PlayerAccountId)
+                .ToListAsync(cancellationToken);
+
+            var liveStates = new[]
+            {
+                SessionStateNames.Requested,
+                SessionStateNames.Active,
+                SessionStateNames.Paused,
+                SessionStateNames.Ending
+            };
+            if (await dbContext.Sessions.AnyAsync(
+                session => session.PlayerAccountId != null
+                    && accountIds.Contains(session.PlayerAccountId.Value)
+                    && liveStates.Contains(session.State),
+                cancellationToken))
+            {
+                return Results.Conflict(new { Error = "active_session" });
+            }
+
+            foreach (var accountId in accountIds)
+            {
+                var balances = await LedgerBalanceProjector.GetClubBalancesAsync(
+                    dbContext, accountId, cancellationToken);
+                if (balances.DebtMinorUnits > 0)
+                {
+                    return Results.Conflict(new { Error = "outstanding_debt" });
+                }
+
+                // Придержанное под брони — тоже деньги человека, просто обещанные клубу. Остаток
+                // ноль при замороженной тысяче не значит «денег нет».
+                if (balances.WalletMinorUnits + balances.HeldMinorUnits > 0)
+                {
+                    return Results.Conflict(new { Error = "remaining_balance" });
+                }
+            }
+
+            var now = timeProvider.GetUtcNow();
+
+            // Номер заменяется идентификатором самой личности: он уникален по построению, поэтому
+            // уникальный индекс на телефон не подведёт, и на канонический номер («+» и цифры) не
+            // похож ни одним символом — значит поиском по телефону эта запись больше не находится.
+            person.PhoneNumber = person.PlatformPersonId.ToString("N");
+            person.DisplayName = "Удалённая учётная запись";
+            person.PreferredLocale = null;
+            person.PhoneVerifiedAtUtc = null;
+            person.PinHash = null;
+            person.PinSetAtUtc = null;
+            person.IsActive = false;
+            person.UpdatedAtUtc = now;
+
+            var accounts = await dbContext.PlayerAccounts
+                .Where(account => account.PlatformPersonId == person.PlatformPersonId)
+                .ToListAsync(cancellationToken);
+            foreach (var account in accounts)
+            {
+                account.DisplayName = person.DisplayName;
+                account.PhoneNumber = null;
+                account.IsActive = false;
+            }
+
+            // Вход обрывается сразу: токены, выданные до удаления, иначе прожили бы свой срок.
+            dbContext.PlatformPersonAccessTokens.RemoveRange(
+                dbContext.PlatformPersonAccessTokens.Where(token => token.PlatformPersonId == person.PlatformPersonId));
+            dbContext.PlatformPersonRefreshTokens.RemoveRange(
+                dbContext.PlatformPersonRefreshTokens.Where(token => token.PlatformPersonId == person.PlatformPersonId));
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        }).RequireRateLimiting("player-me");
+
         app.MapPatch("/api/me", async (
             UpdateMyProfileRequest request,
             IPlatformPersonContextAccessor personContextAccessor,

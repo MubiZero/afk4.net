@@ -11,6 +11,7 @@ import '../money/money.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
 import '../shell/app_scaffold.dart';
+import 'date_time_field.dart';
 import 'new_reservation_sheet.dart';
 
 /// Что не так со временем — до отправки. Сервер проверяет то же самое, но отвечает общей
@@ -207,6 +208,38 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     }
   }
 
+  /// Перенос брони: другое время, то же место и та же длительность.
+  ///
+  /// Компанию отсюда не переносим: у неё несколько мест, и перенос половины разделил бы её на
+  /// две — это другое решение, а не та же кнопка.
+  Future<void> _move(ReservationEntry entry) async {
+    final l = L.of(context);
+    final reservation = entry.first;
+    final chosen = await showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _MoveSheet(initial: reservation.startsAtUtc.toLocal()),
+    );
+    if (chosen == null || !mounted) return;
+
+    try {
+      // Версия не передаётся: приложение её не знает, а сервер без неё просто берёт бронь как
+      // есть. Гонка здесь — это перенос и отмена в двух местах одновременно; отменённую бронь
+      // перенос не тронет, потому что переносить можно только живую.
+      await widget.api.moveReservation(reservation.reservationId, startsAtUtc: chosen);
+      if (!mounted) return;
+      _say(l.customerReservationsMoved);
+      await _refresh();
+    } on PlayerApiException catch (error) {
+      if (!mounted) return;
+      // Занятый слот — не поломка, а «выберите другое время»: это разные надписи.
+      _say(error.statusCode == 409
+          ? l.customerReservationsMoveTaken
+          : l.customerReservationsMoveError);
+    }
+  }
+
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -285,6 +318,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                           entry: entry,
                           now: widget.clock(),
                           onCancel: () => _cancel(entry),
+                          onMove: entry.isCompany ? null : () => _move(entry),
                         ),
                       ),
                   ],
@@ -411,11 +445,15 @@ class _ReservationCard extends StatelessWidget {
     required this.entry,
     required this.now,
     required this.onCancel,
+    required this.onMove,
   });
 
   final ReservationEntry entry;
   final DateTime now;
   final VoidCallback onCancel;
+
+  /// null — переносить нечего или некуда: компанию отсюда не переносят.
+  final VoidCallback? onMove;
 
   PlayerReservation get reservation => entry.first;
 
@@ -537,18 +575,72 @@ class _ReservationCard extends StatelessWidget {
                 style: theme.textTheme.bodyMedium,
               ),
             if (entry.isCancellable)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: onCancel,
-                  style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-                  child: Text(entry.isCompany
-                      ? l.customerReservationsCancelCompany
-                      : l.customerReservationsCancel),
-                ),
+              Row(
+                children: [
+                  if (onMove != null)
+                    TextButton(onPressed: onMove, child: Text(l.customerReservationsMove)),
+                  TextButton(
+                    onPressed: onCancel,
+                    style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+                    child: Text(entry.isCompany
+                        ? l.customerReservationsCancelCompany
+                        : l.customerReservationsCancel),
+                  ),
+                ],
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// Лист переноса: один выбор времени и одна кнопка. Места и длительности здесь нет намеренно —
+/// «перенести» отвечает на вопрос «когда», а не «как теперь».
+class _MoveSheet extends StatefulWidget {
+  const _MoveSheet({required this.initial});
+
+  final DateTime initial;
+
+  @override
+  State<_MoveSheet> createState() => _MoveSheetState();
+}
+
+class _MoveSheetState extends State<_MoveSheet> {
+  DateTime? _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.initial;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final chosen = _value;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(l.customerReservationsMoveTitle, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 16),
+          DateTimeField(
+            label: l.customerReservationsMoveWhen,
+            value: chosen,
+            firstAllowed: DateTime.now(),
+            onChanged: (value) => setState(() => _value = value),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: chosen == null ? null : () => Navigator.of(context).pop(chosen),
+            child: Text(l.customerReservationsMoveConfirm),
+          ),
+        ],
       ),
     );
   }

@@ -1217,6 +1217,141 @@ public sealed class EfReservationService(
             (await ProjectAsync([reservation], cancellationToken))[0]);
     }
 
+    public async Task<ReservationServiceResult<ReservationDto>> MoveOnlineAsync(
+        Guid reservationId,
+        Guid playerAccountId,
+        DateTimeOffset startsAtUtc,
+        Guid? seatId,
+        int? expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        var reservation = await dbContext.Reservations
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.ReservationId == reservationId &&
+                    candidate.PlayerAccountId == playerAccountId,
+                cancellationToken);
+
+        // Чужая бронь отвечает «не найдено», а не «нельзя»: иначе отказ подсказывал бы, что такая
+        // бронь существует.
+        if (reservation is null)
+        {
+            return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+
+        if (expectedVersion is { } version && GuardVersion(reservation, version) is { } versionConflict)
+        {
+            return versionConflict;
+        }
+
+        if (!CanChange(reservation))
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Only pending or confirmed reservations can be moved.");
+        }
+
+        var durationMinutes = DurationMinutes(reservation);
+        var nextSeatId = seatId ?? reservation.SeatId;
+        var nextEndsAtUtc = startsAtUtc.AddMinutes(durationMinutes);
+
+        if (nextSeatId == reservation.SeatId && startsAtUtc == reservation.StartsAtUtc)
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
+        }
+
+        var validation = await ValidateReservationShapeAsync(
+            reservation.OrganizationId,
+            reservation.BranchId,
+            reservation.PlayerAccountId,
+            nextSeatId,
+            reservation.CustomerName,
+            startsAtUtc,
+            durationMinutes,
+            reservation.Source,
+            cancellationToken);
+        if (validation is not null)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(validation);
+        }
+
+        var conflict = await FindConflictAsync(
+            reservation.OrganizationId,
+            reservation.BranchId,
+            nextSeatId,
+            startsAtUtc,
+            nextEndsAtUtc,
+            reservation.ReservationId,
+            cancellationToken);
+        if (conflict is not null)
+        {
+            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
+        }
+
+        var now = timeProvider.GetUtcNow();
+
+        // Цена зависит от времени суток: перенос вечерней брони на утро меняет сумму, и держать
+        // заморозку под вчерашнюю цену значит однажды посадить человека за ПК, за который
+        // заморожено меньше, чем он стоит.
+        var pricing = await PriceOnlineBookingAsync(
+            reservation.OrganizationId,
+            reservation.BranchId,
+            reservation.TariffVersionId,
+            durationMinutes,
+            startsAtUtc,
+            now,
+            cancellationToken);
+        if (pricing.Error is not null)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(pricing.Error);
+        }
+
+        var estimate = pricing.Estimate;
+        if (estimate is not null)
+        {
+            var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+                dbContext, playerAccountId, cancellationToken);
+            // Старая заморозка возвращается в остаток вместе с переносом, поэтому денег нужно
+            // ровно на разницу, а не на всю новую сумму: перенос на час позже не должен требовать
+            // второй оплаты того же часа.
+            var released = reservation.EstimatedCostMinorUnits ?? 0;
+            var available = (wallet?.WalletBalance.MinorUnits ?? 0) + released;
+            if (available < estimate.AmountMinorUnits)
+            {
+                return ReservationServiceResult<ReservationDto>.Invalid("insufficient_funds");
+            }
+
+            await ReservationHold.ReleaseAsync(
+                dbContext, reservation.ReservationId, ReservationHoldCauses.Moved, now, cancellationToken);
+            dbContext.LedgerEntries.Add(
+                ReservationHold.Create(reservation, estimate.AmountMinorUnits, estimate.CurrencyCode, now));
+        }
+
+        reservation.SeatId = nextSeatId;
+        reservation.StartsAtUtc = startsAtUtc;
+        reservation.EndsAtUtc = nextEndsAtUtc;
+        reservation.EstimatedCostMinorUnits = estimate?.AmountMinorUnits;
+        reservation.CurrencyCode = estimate?.CurrencyCode;
+        // Обещание ответа едет вместе с бронью: отвечать после её начала уже некому.
+        if (reservation.RespondByUtc is { } respondByUtc && respondByUtc > startsAtUtc)
+        {
+            reservation.RespondByUtc = startsAtUtc;
+        }
+
+        reservation.UpdatedByStaffUserId = Guid.Empty;
+        reservation.UpdatedAtUtc = now;
+        reservation.Version++;
+
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
+
+        return ReservationServiceResult<ReservationDto>.Ok(
+            (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
+
     private const int MaxBookingAttempts = 3;
 
     /// <summary>

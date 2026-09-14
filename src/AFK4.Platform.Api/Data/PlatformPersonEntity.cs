@@ -44,6 +44,13 @@ public sealed class PlatformPersonEntity
     /// </summary>
     public bool ShowsPresenceToFriends { get; set; } = true;
 
+    /// <summary>
+    /// Докуда человек прочитал свои уведомления. Отметка одна на всё, а не строка на каждое
+    /// сообщение: список уведомлений читают целиком, открыв его, и отдельной таблицы «прочитано»
+    /// ради этого заводить незачем. Null — не открывал ни разу.
+    /// </summary>
+    public DateTimeOffset? NotificationsReadAtUtc { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; }

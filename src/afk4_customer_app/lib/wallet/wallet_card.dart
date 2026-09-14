@@ -63,9 +63,71 @@ class _WalletCardState extends State<WalletCard> {
   bool get _topUpEnabled => widget.features == null || widget.features!.contains('online_topup');
 
   /// Заявка, которой игрок ещё ждёт. Именно она отвечает на вопрос «я же пополнял».
-  TopUpIntent? get _awaiting => _intents
-      .where((intent) => intent.state != 'fulfilled' && !intent.isExpired)
-      .firstOrNull;
+  ///
+  /// Ждущей считается только незавершённая. Раньше здесь стояло «любая, кроме исполненной», и
+  /// отменённая на стойке заявка ещё сутки висела у игрока как ожидающая — до тех пор, пока её
+  /// не признавали просроченной по времени создания.
+  TopUpIntent? get _awaiting =>
+      _intents.where((intent) => intent.state == 'pending' && !intent.isExpired).firstOrNull;
+
+  bool _cancellingIntent = false;
+  bool _payingDebt = false;
+
+  /// Сколько можно закрыть прямо сейчас: весь долг, если денег хватает, иначе весь остаток.
+  /// Частичное гашение — не поблажка: долг в две тысячи при тысяче на кошельке иначе нельзя
+  /// тронуть вовсе.
+  int get _debtPaymentMinorUnits =>
+      widget.debtBalance.minorUnits < widget.walletBalance.minorUnits
+          ? widget.debtBalance.minorUnits
+          : widget.walletBalance.minorUnits;
+
+  bool get _canPayDebt =>
+      widget.debtBalance.minorUnits > 0 && _debtPaymentMinorUnits > 0;
+
+  Future<void> _payDebt() async {
+    final l = L.of(context);
+    setState(() => _payingDebt = true);
+    try {
+      await widget.api.payDebtFromWallet(
+        amountMinorUnits: _debtPaymentMinorUnits,
+        currencyCode: widget.debtBalance.currencyCode,
+      );
+      if (!mounted) return;
+      await widget.onToppedUp?.call();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletDebtPaid)),
+      );
+    } on PlayerApiException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletDebtPayError)),
+      );
+    } finally {
+      if (mounted) setState(() => _payingDebt = false);
+    }
+  }
+
+  Future<void> _cancelIntent(TopUpIntent intent) async {
+    final l = L.of(context);
+    setState(() => _cancellingIntent = true);
+    try {
+      await widget.api.cancelTopUpIntent(intent.paymentIntentId);
+      if (!mounted) return;
+      await _refreshIntents();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletPendingCancelled)),
+      );
+    } on PlayerApiException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletPendingCancelError)),
+      );
+    } finally {
+      if (mounted) setState(() => _cancellingIntent = false);
+    }
+  }
 
   Future<void> _refreshIntents() async {
     try {
@@ -189,10 +251,23 @@ class _WalletCardState extends State<WalletCard> {
                 style: TextStyle(color: theme.colorScheme.error),
               ),
               Text(
-                l.customerDashboardDebtNote,
+                _canPayDebt ? l.customerWalletDebtPayNote : l.customerDashboardDebtNote,
                 style:
                     theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
+              // Деньги на кошельке есть, а долг закрыть было нечем: надпись отправляла на стойку
+              // клуба, хотя платить можно было отсюда.
+              if (_canPayDebt)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton(
+                    onPressed: _payingDebt ? null : _payDebt,
+                    child: Text(l.customerWalletDebtPay(
+                      formatMoney(_debtPaymentMinorUnits, widget.debtBalance.currencyCode,
+                          locale: locale),
+                    )),
+                  ),
+                ),
             ],
             if (awaiting != null) ...[
               const SizedBox(height: 8),
@@ -202,6 +277,15 @@ class _WalletCardState extends State<WalletCard> {
                 ),
                 style:
                     theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              // Передумать было нельзя: заявка висела сутки и отвечала «да» на вопрос «я же
+              // пополнял», пока её не признавали просроченной.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: _cancellingIntent ? null : () => _cancelIntent(awaiting),
+                  child: Text(l.customerWalletPendingCancel),
+                ),
               ),
             ],
             if (_topUpEnabled) ...[

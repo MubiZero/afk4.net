@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../auth/player_session.dart';
 import 'dto.dart';
+import 'idempotency.dart';
 
 /// Ошибка запроса к API. Несёт код состояния: 410 на коде — «код устарел», 403 на
 /// действии — «возможность выключена», и на экране это разные тексты.
@@ -454,6 +455,26 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();
   }
 
+  /// Перенести собственную бронь. Длительность остаётся прежней: «перенести» — это то же самое
+  /// на другое время, а изменить длину — другое решение с другой ценой.
+  Future<PlayerReservation> moveReservation(
+    String reservationId, {
+    required DateTime startsAtUtc,
+    String? seatId,
+    int? expectedVersion,
+  }) async {
+    final body = await sendJson(
+      'PATCH',
+      '/api/me/reservations/${Uri.encodeComponent(reservationId)}',
+      {
+        'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
+        'seatId': ?seatId,
+        'expectedVersion': ?expectedVersion,
+      },
+    );
+    return _parse(body, PlayerReservation.fromJson);
+  }
+
   Future<PlayerReservation> cancelReservation(String reservationId) async {
     final body = await sendJson(
         'DELETE', '/api/me/reservations/${Uri.encodeComponent(reservationId)}');
@@ -536,6 +557,46 @@ class PlayerApiClient {
   Future<ShopOrder> cancelShopOrder(String orderId) async => _parse(
         await sendJson('POST', '/api/me/shop/orders/${Uri.encodeComponent(orderId)}/cancel'),
         ShopOrder.fromJson,
+      );
+
+  /// Уведомления игрока: те же события, что уходят пушем, включая недоехавшие.
+  Future<PlayerNotifications> getNotifications() async =>
+      _parse(await getJson('/api/me/notifications'), PlayerNotifications.fromJson);
+
+  /// Открыл список — прочитал всё, что в нём было.
+  Future<void> markNotificationsRead() async {
+    final response = await _send('POST', '/api/me/notifications/read');
+    if (response.statusCode != 204) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
+  /// Удалить собственную учётную запись. Отказ приходит кодом причины: остались деньги, остался
+  /// долг или человек прямо сейчас за ПК.
+  Future<void> deleteAccount() async {
+    final response = await _send('DELETE', '/api/me');
+    if (response.statusCode != 204) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
+  /// Погасить долг деньгами с собственного кошелька. Сумма явная, а не «весь долг»: человек
+  /// вправе закрыть часть, и «весь» на момент нажатия и на момент записи — разные числа.
+  Future<WalletBalances> payDebtFromWallet({
+    required int amountMinorUnits,
+    required String currencyCode,
+  }) async {
+    final body = await sendJson('POST', '/api/me/wallet/debt-payment', {
+      'amount': {'currencyCode': currencyCode, 'minorUnits': amountMinorUnits},
+      'idempotencyKey': newIdempotencyKey(),
+    });
+    return _parse(body, WalletBalances.fromJson);
+  }
+
+  /// Отказаться от собственной незавершённой заявки. В ответ приходит она же — уже отменённой.
+  Future<TopUpIntent> cancelTopUpIntent(String intentId) async => _parse(
+        await sendJson('DELETE', '/api/me/wallet/top-up-intents/${Uri.encodeComponent(intentId)}'),
+        TopUpIntent.fromJson,
       );
 
   Future<List<TopUpIntent>> getTopUpIntents() async {

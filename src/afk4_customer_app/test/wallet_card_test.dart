@@ -79,8 +79,9 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('Долг'), findsOneWidget);
-    // Пополнение кошелька долг не закрывает — гасят его на кассе, и обещать иное нельзя.
-    expect(find.text('Погасить долг можно на стойке клуба'), findsOneWidget);
+    // Деньги на кошельке есть, поэтому карточка предлагает закрыть долг отсюда, а не отправляет
+    // к стойке. К стойке она отправляет только тогда, когда платить нечем — см. тест ниже.
+    expect(find.text('Можно закрыть деньгами с кошелька или на стойке клуба.'), findsOneWidget);
   });
 
   testWidgets('заявка уходит на сервер в минорных единицах', (tester) async {
@@ -237,5 +238,106 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Придержано под брони'), findsNothing);
+  });
+
+  // Отказаться от заявки было нельзя: она висела ожидающей сутки и всё это время отвечала «да»
+  // на вопрос «я же пополнял».
+  testWidgets('ожидающую заявку можно отменить', (tester) async {
+    final methods = <String>[];
+    var cancelled = false;
+    final http = FakeHttpClient((request) {
+      methods.add('${request.method} ${request.url.path}');
+      if (request.method == 'DELETE') {
+        cancelled = true;
+        return (jsonEncode(_intent(state: 'cancelled')), 200);
+      }
+      return (cancelled ? _intentListJson(state: 'cancelled') : _intentListJson(), 200);
+    });
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+    expect(find.text('Отменить заявку'), findsOneWidget);
+
+    await tester.tap(find.text('Отменить заявку'));
+    await tester.pumpAndSettle();
+
+    expect(methods, contains('DELETE /api/me/wallet/top-up-intents/i1'));
+    expect(find.text('Отменить заявку'), findsNothing);
+  });
+
+  // Отменённая на стойке заявка ещё сутки висела у игрока как ожидающая: ждущей считалась любая,
+  // кроме исполненной.
+  testWidgets('отменённая заявка не показывается как ожидающая', (tester) async {
+    final http = FakeHttpClient((_) => (_intentListJson(state: 'cancelled'), 200));
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Отменить заявку'), findsNothing);
+  });
+
+  testWidgets('исполненная заявка тоже не ожидающая', (tester) async {
+    final http = FakeHttpClient((_) => (_intentListJson(state: 'fulfilled'), 200));
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Отменить заявку'), findsNothing);
+  });
+
+  // Долг игрок только видел, а надпись отправляла его на стойку — при том, что деньги лежали на
+  // его же кошельке.
+  testWidgets('долг гасится с кошелька, когда денег хватает', (tester) async {
+    late final FakeHttpClient http;
+    http = FakeHttpClient((request) {
+      if (request.method == 'POST' && request.url.path.endsWith('/debt-payment')) {
+        return (
+          jsonEncode({
+            'walletBalance': {'currencyCode': 'TJS', 'minorUnits': 7000},
+            'heldBalance': {'currencyCode': 'TJS', 'minorUnits': 0},
+            'debtBalance': {'currencyCode': 'TJS', 'minorUnits': 0},
+          }),
+          200
+        );
+      }
+      return ('[]', 200);
+    });
+    await tester.pumpWidget(harness(clientWith(http), wallet: 10000, debt: 3000));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Погасить 30,00 с.'), findsOneWidget);
+    await tester.tap(find.text('Погасить 30,00 с.'));
+    await tester.pumpAndSettle();
+
+    expect(http.paths, contains('/api/me/wallet/debt-payment'));
+    final sent = http.bodies.last;
+    expect((sent['amount'] as Map<String, dynamic>)['minorUnits'], 3000);
+    expect(sent['idempotencyKey'], isA<String>());
+  });
+
+  // Долг больше остатка — закрывается то, что есть. Иначе долг в две тысячи при тысяче на
+  // кошельке нельзя было бы тронуть вовсе.
+  testWidgets('когда денег меньше долга, предлагается закрыть остаток', (tester) async {
+    final http = FakeHttpClient((_) => ('[]', 200));
+    await tester.pumpWidget(harness(clientWith(http), wallet: 1000, debt: 3000));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Погасить 10,00 с.'), findsOneWidget);
+  });
+
+  // Пустой кошелёк: платить нечем, и обещать кнопкой нечего — остаётся стойка.
+  testWidgets('без денег на кошельке кнопки гашения нет', (tester) async {
+    final http = FakeHttpClient((_) => ('[]', 200));
+    await tester.pumpWidget(harness(clientWith(http), wallet: 0, debt: 3000));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(OutlinedButton, 'Погасить 0,00 с.'), findsNothing);
+    expect(find.text('Погасить долг можно на стойке клуба'), findsOneWidget);
+  });
+
+  testWidgets('без долга кнопки гашения нет', (tester) async {
+    final http = FakeHttpClient((_) => ('[]', 200));
+    await tester.pumpWidget(harness(clientWith(http), wallet: 10000, debt: 0));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OutlinedButton), findsNothing);
+    expect(find.textContaining('Погасить'), findsNothing);
   });
 }

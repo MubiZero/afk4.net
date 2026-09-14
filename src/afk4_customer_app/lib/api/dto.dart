@@ -81,6 +81,72 @@ class ActiveSession {
       );
 }
 
+/// Три числа кошелька после денежной операции: столько же, сколько отдаёт сервер, и ни полем
+/// больше. Отдельно от PlayerDashboard намеренно — в этом ответе нет идущей сессии, и делать вид,
+/// что она просто «пустая», значит однажды показать «сессии нет» там, где она есть.
+class WalletBalances {
+  const WalletBalances({
+    required this.walletBalance,
+    required this.heldBalance,
+    required this.debtBalance,
+  });
+
+  final Money walletBalance;
+  final Money heldBalance;
+  final Money debtBalance;
+
+  factory WalletBalances.fromJson(Map<String, dynamic> json) => WalletBalances(
+        walletBalance: Money.fromJson(json['walletBalance'] as Map<String, dynamic>),
+        heldBalance: Money.fromJson(json['heldBalance'] as Map<String, dynamic>),
+        debtBalance: Money.fromJson(json['debtBalance'] as Map<String, dynamic>),
+      );
+}
+
+/// Уведомление в списке: что случилось, когда и прочитано ли.
+class PlayerNotification {
+  const PlayerNotification({
+    required this.notificationId,
+    required this.templateKey,
+    required this.subject,
+    required this.body,
+    required this.createdAtUtc,
+    required this.isUnread,
+  });
+
+  final String notificationId;
+
+  /// Служебное имя события (`player.order_ready` и подобные). Экран по нему ставит значок —
+  /// показывать его человеку незачем.
+  final String templateKey;
+  final String subject;
+  final String body;
+  final DateTime createdAtUtc;
+  final bool isUnread;
+
+  factory PlayerNotification.fromJson(Map<String, dynamic> json) => PlayerNotification(
+        notificationId: json['notificationId'] as String,
+        templateKey: json['templateKey'] as String,
+        subject: json['subject'] as String,
+        body: json['body'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        isUnread: json['isUnread'] as bool,
+      );
+}
+
+class PlayerNotifications {
+  const PlayerNotifications({required this.notifications, required this.unreadCount});
+
+  final List<PlayerNotification> notifications;
+  final int unreadCount;
+
+  factory PlayerNotifications.fromJson(Map<String, dynamic> json) => PlayerNotifications(
+        notifications: (json['notifications'] as List? ?? const [])
+            .map((item) => PlayerNotification.fromJson(item as Map<String, dynamic>))
+            .toList(),
+        unreadCount: (json['unreadCount'] as num).toInt(),
+      );
+}
+
 class PlayerDashboard {
   const PlayerDashboard({
     required this.walletBalance,
@@ -998,12 +1064,17 @@ class ShopOrder {
     required this.status,
     required this.total,
     required this.lines,
+    required this.placedAtUtc,
   });
 
   final String id;
   final String status;
   final Money total;
   final List<ShopOrderLine> lines;
+
+  /// Когда заказ оформили. Нужно списку прошлых заказов: без времени «принесли» и «отменён»
+  /// сливаются в кучу одинаковых строк.
+  final DateTime placedAtUtc;
 
   /// Отменить можно, пока заказ не выдан: после «принесли» отменять нечего.
   bool get isCancellable => status == 'placed' || status == 'accepted';
@@ -1018,6 +1089,7 @@ class ShopOrder {
         lines: (json['lines'] as List? ?? const [])
             .map((line) => ShopOrderLine.fromJson(line as Map<String, dynamic>))
             .toList(),
+        placedAtUtc: DateTime.parse(json['placedAtUtc'] as String),
       );
 }
 

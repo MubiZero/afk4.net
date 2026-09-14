@@ -495,6 +495,57 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(new PlayerTopUpMethodsDto(Counter: true, Online: online));
         }).RequireRateLimiting("player-me");
 
+        // Погасить долг собственными деньгами с кошелька. Раньше долг игрок только видел, а
+        // надпись отправляла его на стойку клуба — при том, что деньги могли лежать на его же
+        // кошельке, и закрыть долг до следующего визита было нечем.
+        //
+        // Смена здесь не нужна и не спрашивается, в отличие от того же действия на стойке:
+        // наличные не двигаются, ящик не открывается. Записей две — долг минус и кошелёк минус, —
+        // иначе сумма возникала бы из ниоткуда.
+        app.MapPost("/api/me/wallet/debt-payment", async (
+            PlayerDebtPaymentRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            IBillingCommandService billingCommandService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                return Results.BadRequest(new { Error = "IdempotencyKey is required." });
+            }
+
+            // Филиал берётся домашний: долг принадлежит счёту в клубе, а не тому залу, из которого
+            // человек сейчас смотрит в телефон.
+            var branchId = await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .Where(account => account.PlayerAccountId == player.PlayerAccountId)
+                .Select(account => (Guid?)account.HomeBranchId)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (branchId is null)
+            {
+                return Results.NotFound(new { Error = "Player account was not found." });
+            }
+
+            var result = await billingCommandService.PayDebtFromWalletAsync(
+                player.PlayerAccountId,
+                player.OrganizationId,
+                branchId.Value,
+                SystemActorIds.PlayerSelfService,
+                request.Amount,
+                request.IdempotencyKey,
+                cancellationToken);
+
+            return result.Succeeded
+                ? Results.Ok(result.Response)
+                : ToHttpResult(result);
+        }).RequireRateLimiting("player-me");
+
         app.MapGet("/api/me/wallet/top-up-intents", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
@@ -532,6 +583,65 @@ internal static class PlayerSelfServiceEndpoints
                 .ToList();
 
             return Results.Ok(dtos);
+        }).RequireRateLimiting("player-me");
+
+        // Отменить свою же незавершённую заявку на пополнение. Раньше отказаться от неё игрок не
+        // мог никак: заявка висела в карточке кошелька «вы пополняете» ровно сутки, пока её не
+        // признавали просроченной по времени создания.
+        //
+        // Гонка с завершением на стойке существует и здесь такая же, как у стойки: обе стороны
+        // читают состояние и пишут своё, побеждает последняя запись. Денег это не двигает — их
+        // двигает журнал, а не эта строка, — но состояние может разойтись с фактом. Убрать гонку
+        // можно только условным UPDATE, которого не поддерживает провайдер в тестах.
+        app.MapDelete("/api/me/wallet/top-up-intents/{intentId:guid}", async (
+            Guid intentId,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var intent = await dbContext.PaymentIntents.SingleOrDefaultAsync(
+                candidate => candidate.PaymentIntentId == intentId
+                    && candidate.PlayerAccountId == player.PlayerAccountId,
+                cancellationToken);
+            if (intent is null)
+            {
+                return Results.NotFound(new { Error = "Top-up request was not found." });
+            }
+
+            if (intent.State != "pending" && intent.State != "cancelled")
+            {
+                return Results.Conflict(new { Error = "Only a pending top-up request can be cancelled." });
+            }
+
+            // Уже отменённая отвечает собой: повторное нажатие и вторая вкладка — не ошибка.
+            if (intent.State == "pending")
+            {
+                intent.State = "cancelled";
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            // Ответ несёт саму заявку, как отмена заказа и брони: экрану нужно новое состояние, а
+            // не пустота, за которой пришлось бы идти вторым запросом.
+            return Results.Ok(new PlayerTopUpIntentDto(
+                intent.PaymentIntentId,
+                intent.AmountMinorUnits,
+                intent.CurrencyCode,
+                intent.State,
+                intent.Purpose,
+                intent.Method,
+                intent.CreatedAtUtc,
+                intent.FulfilledAtUtc,
+                IsExpired: false,
+                PayUrl: intent.GatewayPayUrl,
+                Comment: intent.GatewayComment,
+                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc));
         }).RequireRateLimiting("player-me");
 
         // Intentionally no online_topup feature gate on this route. The intent behind it was
@@ -919,6 +1029,51 @@ internal static class PlayerSelfServiceEndpoints
                 .ToList();
 
             return Results.Ok(dtos);
+        }).RequireRateLimiting("player-me");
+
+        // Перенос собственной брони. До него переносили отменой и повторной бронью: место на те
+        // секунды, что человек ищет новое время, уходило в общий доступ, а замороженная предоплата
+        // возвращалась и замораживалась заново — и если денег за эти секунды не осталось, второй
+        // брони уже не было.
+        app.MapPatch("/api/me/reservations/{reservationId:guid}", async (
+            Guid reservationId,
+            MovePlayerReservationRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            IReservationService reservationService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await reservationService.MoveOnlineAsync(
+                reservationId,
+                player.PlayerAccountId,
+                request.StartsAtUtc,
+                request.SeatId,
+                request.ExpectedVersion,
+                cancellationToken);
+
+            if (result.NotFound)
+            {
+                return Results.NotFound();
+            }
+
+            // Занятый слот — это не ошибка запроса, а ответ «не получилось, выберите другое»:
+            // экран показывает их по-разному.
+            if (result.Conflict)
+            {
+                return Results.Conflict(new { Error = result.Error });
+            }
+
+            if (!result.Succeeded)
+            {
+                return Results.BadRequest(new { Error = result.Error });
+            }
+
+            return Results.Ok(ToPlayerReservationDto(result.Response!));
         }).RequireRateLimiting("player-me");
 
         app.MapDelete("/api/me/reservations/{reservationId:guid}", async (
