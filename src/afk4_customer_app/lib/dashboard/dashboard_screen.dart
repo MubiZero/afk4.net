@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../api/dto.dart';
+import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../loyalty/loyalty_screen.dart';
@@ -369,6 +370,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _refresh();
   }
 
+  /// Игрок сам заканчивает сессию.
+  ///
+  /// Подтверждение обязательно: место освобождается сразу, и случайное нажатие выгоняет
+  /// человека из-за ПК. Зато после — сразу сумма возврата, а не «смотрите в истории»: «я встал
+  /// раньше» и «мне вернули столько-то» это одно событие.
+  Future<void> _endSession(ActiveSession session) async {
+    final l = L.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l.customerSessionEndTitle),
+        content: Text(l.customerSessionEndBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l.customerSessionEndCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l.customerSessionEndConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final ended = await widget.api.endSession(
+        sessionId: session.sessionId,
+        idempotencyKey: newIdempotencyKey(),
+      );
+      if (!mounted) return;
+      unawaited(HapticFeedback.lightImpact());
+      final locale = Localizations.localeOf(context).languageCode;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ended.refunded.minorUnits > 0
+            ? l.customerSessionEndRefunded(
+                formatMoney(ended.refunded.minorUnits, ended.refunded.currencyCode, locale: locale))
+            : l.customerSessionEndNoRefund),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerSessionEndFailed)));
+    }
+    await _refresh();
+  }
+
   List<QuickAction> _actions(L l, PlayerDashboard data) => [
         if (widget.onOpenReservations != null)
           QuickAction(
@@ -487,6 +535,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     session: data.activeSession!,
                     fetchedAt: _fetchedAt ?? widget.clock(),
                     onExtend: () => _extend(data.activeSession!),
+                    onEnd: () => _endSession(data.activeSession!),
                     clock: widget.clock,
                   )
                 else

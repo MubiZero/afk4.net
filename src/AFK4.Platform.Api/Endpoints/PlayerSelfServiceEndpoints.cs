@@ -1106,6 +1106,175 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(result.Response);
         }).RequireRateLimiting("player-me");
 
+        // Игрок сам встаёт из-за ПК.
+        //
+        // До этого «пульт места» не умел главную команду пульта: сесть можно было из приложения,
+        // а встать — только позвав оператора. Предоплаченная сессия при этом списывается ЦЕЛИКОМ
+        // в момент старта, поэтому ранний выход — не «доплатить разницу», а «вернуть переплату»:
+        // расчёт в PrepaidEarlyEndSettlement, цена фактического времени — по правилам ТАРИФА
+        // (минимальная тарифицируемая длительность и шаг округления), ровно как у стойки.
+        app.MapPost("/api/me/sessions/{sessionId:guid}/end", async (
+            Guid sessionId,
+            PlayerSelfEndSessionRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            ISessionCommandService sessionCommandService,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null) return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                return Results.BadRequest(new { error = "idempotency_key_required" });
+            }
+
+            var session = await dbContext.Sessions.AsNoTracking().SingleOrDefaultAsync(
+                s => s.SessionId == sessionId, cancellationToken);
+
+            // Чужая сессия неотличима от несуществующей — тем же правилом, что и продление.
+            if (session is null
+                || session.PlayerAccountId != player.PlayerAccountId
+                || session.State is not (SessionStateNames.Active or SessionStateNames.Paused))
+            {
+                return Results.NotFound();
+            }
+
+            var now = timeProvider.GetUtcNow();
+            var settlement = new PrepaidEarlyEndSettlement(0, 0);
+            var billedMinutes = 0;
+            var currencyCode = "TJS";
+
+            // Возврат считается только для предоплаченной сессии. У постоплатной долг и так
+            // выставляется по фактическому времени на закрытии, у гостевой и комплиментарной
+            // возвращать нечего.
+            if (string.Equals(session.BillingMode, BillingModeNames.PrepaidWallet, StringComparison.Ordinal)
+                && session.StartedAtUtc is { } startedAt
+                && Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId))
+            {
+                var version = await dbContext.TariffVersions.AsNoTracking().SingleOrDefaultAsync(
+                    v => v.OrganizationId == session.OrganizationId
+                         && v.BranchId == session.BranchId
+                         && v.TariffVersionId == tariffVersionId,
+                    cancellationToken);
+
+                if (version is not null)
+                {
+                    currencyCode = version.CurrencyCode;
+                    var pricing = new TariffPricing(
+                        version.PricePerMinuteMinorUnits,
+                        version.MinimumBillableMinutes,
+                        version.RoundingIncrementMinutes,
+                        version.CurrencyCode);
+
+                    var actual = TariffBilling.ComputeForElapsed(now - startedAt, pricing);
+
+                    // Начисления по этой сессии. Списания отрицательные, поэтому заряд берётся
+                    // со знаком минус; кешбэк положительный.
+                    var sessionEntries = await dbContext.LedgerEntries.AsNoTracking()
+                        .Where(entry => entry.SessionId == sessionId
+                                        && entry.PlayerAccountId == player.PlayerAccountId)
+                        .Select(entry => new { entry.LedgerEntryId, entry.EntryType, entry.AmountMinorUnits })
+                        .ToListAsync(cancellationToken);
+
+                    var charged = -sessionEntries
+                        .Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge)
+                        .Sum(entry => entry.AmountMinorUnits);
+                    var cashback = sessionEntries
+                        .Where(entry => entry.EntryType == LedgerEntryTypeNames.Cashback)
+                        .Sum(entry => entry.AmountMinorUnits);
+
+                    billedMinutes = actual?.BillableMinutes ?? 0;
+
+                    // Дважды вернуть одни и те же деньги не получится по двум причинам, и обе
+                    // выше по коду, а не здесь. Повторный вызов упирается в проверку состояния:
+                    // после первого закрытия сессия уже не Active. Одновременные вызовы разводит
+                    // оптимистичная версия сессии — эти записи попадают в ТУ ЖЕ транзакцию, что
+                    // и смена состояния (EndSessionAsync сохраняет их своим SaveChanges), и
+                    // проигравший откатывается целиком.
+                    //
+                    // Отдельного «вычесть уже возвращённое» здесь сознательно нет: до него
+                    // никогда не доходит дело, а страж, который не может сработать, читается как
+                    // защита и ею не является.
+                    settlement = PrepaidEarlyEndSettlement.Compute(
+                        charged,
+                        actual?.AmountMinorUnits ?? charged,
+                        cashback);
+
+                    if (settlement.MovesMoney)
+                    {
+                        var chargeEntryId = sessionEntries
+                            .FirstOrDefault(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge)
+                            ?.LedgerEntryId;
+                        var cashbackEntryId = sessionEntries
+                            .FirstOrDefault(entry => entry.EntryType == LedgerEntryTypeNames.Cashback)
+                            ?.LedgerEntryId;
+
+                        if (settlement.RefundMinorUnits > 0)
+                        {
+                            dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+                                session.OrganizationId,
+                                session.BranchId,
+                                player.PlayerAccountId,
+                                sessionId,
+                                playerPackageId: null,
+                                LedgerEntryTypeNames.Refund,
+                                LedgerAccountTypeNames.Wallet,
+                                settlement.RefundMinorUnits,
+                                quantitySeconds: 0,
+                                version.CurrencyCode,
+                                LedgerEntryTypeNames.Refund,
+                                $"session:{sessionId:D}:early-end refund",
+                                chargeEntryId,
+                                SystemActorIds.PlayerSelfService,
+                                now));
+                        }
+
+                        // Кешбэк разматывается вместе с деньгами. Иначе: оплатить восемь часов,
+                        // встать через пять минут, забрать деньги и оставить кешбэк за восемь.
+                        if (settlement.CashbackReversalMinorUnits > 0)
+                        {
+                            dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+                                session.OrganizationId,
+                                session.BranchId,
+                                player.PlayerAccountId,
+                                sessionId,
+                                playerPackageId: null,
+                                LedgerEntryTypeNames.Reversal,
+                                LedgerAccountTypeNames.Wallet,
+                                -settlement.CashbackReversalMinorUnits,
+                                quantitySeconds: 0,
+                                version.CurrencyCode,
+                                LedgerEntryTypeNames.Reversal,
+                                $"session:{sessionId:D}:early-end cashback reversal",
+                                cashbackEntryId,
+                                SystemActorIds.PlayerSelfService,
+                                now));
+                        }
+                    }
+                }
+            }
+
+            var endResult = await sessionCommandService.EndSessionAsync(
+                sessionId,
+                SystemActorIds.PlayerSelfService,
+                new EndSessionRequest("player ended the session", request.IdempotencyKey),
+                cancellationToken);
+
+            if (endResult.NotFound) return Results.NotFound();
+            if (endResult.Conflict) return Results.Conflict(new { error = endResult.Error });
+            if (!endResult.Succeeded) return Results.BadRequest(new { error = endResult.Error });
+
+            // Возвратные записи сохраняются тем же SaveChanges, что и закрытие сессии: иначе
+            // существовал бы момент, когда сессия закрыта, а деньги не вернулись.
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(new PlayerSelfEndSessionResponse(
+                billedMinutes,
+                new MoneyDto(currencyCode, settlement.RefundMinorUnits)));
+        }).RequireRateLimiting("player-me");
+
     }
 
     /// <summary>
