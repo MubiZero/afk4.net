@@ -367,6 +367,9 @@
   "customerNavReservations": "Брони",
   "customerNavWallet": "Кошелёк",
   "customerNewsTitle": "Новости клуба",
+  "customerNotificationsEmpty": "Пока ничего не приходило. Здесь появится то, что клуб вам присылал.",
+  "customerNotificationsError": "Не удалось загрузить уведомления.",
+  "customerNotificationsTitle": "Уведомления",
   "customerOfflineStale": "Нет связи — данные могут устареть",
   "customerPackagesBonus": "+{bonus} в подарок",
   "@customerPackagesBonus": {

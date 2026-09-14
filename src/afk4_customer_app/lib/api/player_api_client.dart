@@ -539,6 +539,18 @@ class PlayerApiClient {
         ShopOrder.fromJson,
       );
 
+  /// Уведомления игрока: те же события, что уходят пушем, включая недоехавшие.
+  Future<PlayerNotifications> getNotifications() async =>
+      _parse(await getJson('/api/me/notifications'), PlayerNotifications.fromJson);
+
+  /// Открыл список — прочитал всё, что в нём было.
+  Future<void> markNotificationsRead() async {
+    final response = await _send('POST', '/api/me/notifications/read');
+    if (response.statusCode != 204) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
   /// Удалить собственную учётную запись. Отказ приходит кодом причины: остались деньги, остался
   /// долг или человек прямо сейчас за ПК.
   Future<void> deleteAccount() async {

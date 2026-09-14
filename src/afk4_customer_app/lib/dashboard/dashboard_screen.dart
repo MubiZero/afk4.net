@@ -10,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../loyalty/loyalty_screen.dart';
 import '../money/money.dart';
 import '../news/news_section.dart';
+import '../notifications/notifications_screen.dart';
 import '../organization/organization.dart';
 import '../events/events_screen.dart';
 import '../friends/friends_screen.dart';
@@ -95,6 +96,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime? _fetchedAt;
   bool _failed = false;
 
+  /// Сколько непрочитанного лежит в уведомлениях. Ноль — значка нет вовсе.
+  int _unreadNotifications = 0;
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final feed = await widget.api.getNotifications();
+      if (mounted) setState(() => _unreadNotifications = feed.unreadCount);
+    } on PlayerApiException {
+      // Счётчик — украшение шапки: без него главный экран полностью рабочий.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NotificationsScreen(
+          api: widget.api,
+          onRead: () {
+            if (mounted) setState(() => _unreadNotifications = 0);
+          },
+        ),
+      ),
+    );
+  }
+
   /// Филиал игрока — из профиля. Нужен, чтобы предложить сесть за свободный ПК: и места, и
   /// тарифы у клуба свои. null — профиль ещё не прочитан или филиала у аккаунта нет.
   String? _branchId;
@@ -129,6 +155,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _refresh();
     _loadBranch();
     _loadPendingReview();
+    _loadUnreadNotifications();
     _poll = Timer.periodic(_refreshEvery, (_) => _refresh());
   }
 
@@ -491,6 +518,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       place: _branchName ?? widget.organization.name,
       placeLogoUrl: widget.organization.logoUrl,
       title: widget.displayName,
+      // Колокольчик в шапке главной, а не отдельный раздел внизу: уведомления читают по поводу,
+      // а не заходят в них специально. Значок числа стоит только когда непрочитанное есть —
+      // пустой кружок «0» сообщал бы об отсутствии.
+      actions: [
+        IconButton(
+          tooltip: L.of(context).customerNotificationsTitle,
+          onPressed: _openNotifications,
+          icon: Badge.count(
+            count: _unreadNotifications,
+            isLabelVisible: _unreadNotifications > 0,
+            child: const Icon(Icons.notifications_outlined),
+          ),
+        ),
+      ],
       onRefresh: _refresh,
       slivers: [
         SliverPadding(

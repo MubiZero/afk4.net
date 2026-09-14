@@ -367,6 +367,9 @@
   "customerNavReservations": "Bookings",
   "customerNavWallet": "Wallet",
   "customerNewsTitle": "Club news",
+  "customerNotificationsEmpty": "Nothing has arrived yet. Whatever the club sends you will show up here.",
+  "customerNotificationsError": "Notifications could not be loaded.",
+  "customerNotificationsTitle": "Notifications",
   "customerOfflineStale": "No connection — the data may be out of date",
   "customerPackagesBonus": "+{bonus} free",
   "@customerPackagesBonus": {

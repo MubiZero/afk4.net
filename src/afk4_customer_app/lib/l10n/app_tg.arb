@@ -367,6 +367,9 @@
   "customerNavReservations": "Бронҳо",
   "customerNavWallet": "Ҳамён",
   "customerNewsTitle": "Хабарҳои клуб",
+  "customerNotificationsEmpty": "Ҳоло чизе наомадааст. Он чи клуб ба шумо мефиристад, дар ин ҷо пайдо мешавад.",
+  "customerNotificationsError": "Огоҳиномаҳоро бор кардан нашуд.",
+  "customerNotificationsTitle": "Огоҳиномаҳо",
   "customerOfflineStale": "Алоқа нест — маълумот метавонад кӯҳна бошад",
   "customerPackagesBonus": "+{bonus} тӯҳфа",
   "@customerPackagesBonus": {

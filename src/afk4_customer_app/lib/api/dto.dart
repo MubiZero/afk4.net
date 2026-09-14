@@ -102,6 +102,51 @@ class WalletBalances {
       );
 }
 
+/// Уведомление в списке: что случилось, когда и прочитано ли.
+class PlayerNotification {
+  const PlayerNotification({
+    required this.notificationId,
+    required this.templateKey,
+    required this.subject,
+    required this.body,
+    required this.createdAtUtc,
+    required this.isUnread,
+  });
+
+  final String notificationId;
+
+  /// Служебное имя события (`player.order_ready` и подобные). Экран по нему ставит значок —
+  /// показывать его человеку незачем.
+  final String templateKey;
+  final String subject;
+  final String body;
+  final DateTime createdAtUtc;
+  final bool isUnread;
+
+  factory PlayerNotification.fromJson(Map<String, dynamic> json) => PlayerNotification(
+        notificationId: json['notificationId'] as String,
+        templateKey: json['templateKey'] as String,
+        subject: json['subject'] as String,
+        body: json['body'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        isUnread: json['isUnread'] as bool,
+      );
+}
+
+class PlayerNotifications {
+  const PlayerNotifications({required this.notifications, required this.unreadCount});
+
+  final List<PlayerNotification> notifications;
+  final int unreadCount;
+
+  factory PlayerNotifications.fromJson(Map<String, dynamic> json) => PlayerNotifications(
+        notifications: (json['notifications'] as List? ?? const [])
+            .map((item) => PlayerNotification.fromJson(item as Map<String, dynamic>))
+            .toList(),
+        unreadCount: (json['unreadCount'] as num).toInt(),
+      );
+}
+
 class PlayerDashboard {
   const PlayerDashboard({
     required this.walletBalance,
