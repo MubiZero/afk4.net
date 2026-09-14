@@ -8,6 +8,18 @@ namespace AFK4.Platform.Api.Reports;
 /// </summary>
 public interface IReportScheduleService
 {
+    /// <summary>
+    /// Есть ли у филиала уже такая же рассылка. Две одинаковые означают два одинаковых письма
+    /// владельцу каждый период — вреда счетам нет, но чинить это владелец будет удалением, а
+    /// предотвращает стойка.
+    /// </summary>
+    Task<bool> ExistsAsync(
+        Guid organizationId,
+        Guid branchId,
+        string reportType,
+        string frequency,
+        CancellationToken cancellationToken);
+
     Task<ReportScheduleDto> CreateAsync(
         Guid organizationId,
         Guid branchId,
