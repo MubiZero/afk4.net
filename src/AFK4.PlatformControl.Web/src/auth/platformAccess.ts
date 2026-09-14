@@ -21,7 +21,8 @@ export type PlatformCapability =
   | 'announcements.manage'
   | 'offboarding.manage'
   | 'people.network_ban.manage'
-  | 'health.read';
+  | 'health.read'
+  | 'health.test_email.send';
 
 const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'organizations.read': ['platform.organizations.view'],
@@ -69,7 +70,12 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'announcements.manage': ['platform.announcements.manage'],
   'offboarding.manage': ['platform.organizations.offboarding.manage'],
   'people.network_ban.manage': ['platform.people.network_ban.manage'],
-  'health.read': ['platform.health.view']
+  'health.read': ['platform.health.view'],
+  // Отдельно от `health.read`: экран здоровья открыт по `platform.health.view`, а отправку
+  // проверочного письма бэкенд спрашивает ровно по `platform.health.test_email.send`. Пока
+  // карточка отправки не имела своего гейта, кнопка была активна у тех, кому нельзя, и
+  // единственным ответом на нажатие был отказ.
+  'health.test_email.send': ['platform.health.test_email.send']
 };
 
 export function can(session: PlatformAdminSession, capability: PlatformCapability): boolean {

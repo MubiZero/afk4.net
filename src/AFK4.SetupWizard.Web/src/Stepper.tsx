@@ -14,55 +14,49 @@ export type WizardStep =
   | 'device'
   | 'finished';
 
-const STEPS: { id: WizardStep; index: number; labelKey: MessageKey }[] = [
-  { id: 'phoneLogin', index: 1, labelKey: 'setup.wizard.stepper.signIn' },
-  { id: 'branchSelection', index: 2, labelKey: 'setup.wizard.stepper.branch' },
-  { id: 'role', index: 3, labelKey: 'setup.wizard.stepper.role' },
-  { id: 'branding', index: 4, labelKey: 'setup.wizard.stepper.branding' },
-  { id: 'staff', index: 5, labelKey: 'setup.wizard.stepper.staff' },
-  { id: 'hall', index: 6, labelKey: 'setup.wizard.stepper.hall' },
-  { id: 'tariff', index: 7, labelKey: 'setup.wizard.stepper.tariff' },
-  { id: 'device', index: 8, labelKey: 'setup.wizard.stepper.device' },
-  { id: 'finished', index: 9, labelKey: 'setup.wizard.stepper.done' },
-];
-
-// The forgot-password screen shares stepper position 1 with the sign-in screen.
-const STEP_TO_INDEX: Record<WizardStep, number> = {
-  phoneLogin: 0,
-  forgotPassword: 0,
-  branchSelection: 1,
-  role: 2,
-  branding: 3,
-  staff: 4,
-  hall: 5,
-  tariff: 6,
-  device: 7,
-  finished: 8,
+const STEP_LABELS: Record<WizardStep, MessageKey> = {
+  phoneLogin: 'setup.wizard.stepper.signIn',
+  // Сброс пароля — ответвление от входа, своей позиции в степпере у него нет.
+  forgotPassword: 'setup.wizard.stepper.signIn',
+  branchSelection: 'setup.wizard.stepper.branch',
+  role: 'setup.wizard.stepper.role',
+  branding: 'setup.wizard.stepper.branding',
+  staff: 'setup.wizard.stepper.staff',
+  hall: 'setup.wizard.stepper.hall',
+  tariff: 'setup.wizard.stepper.tariff',
+  device: 'setup.wizard.stepper.device',
+  finished: 'setup.wizard.stepper.done',
 };
 
 interface StepperProps {
+  /// Шаги ИМЕННО ЭТОГО прогона, по порядку — см. visibleSteps. Раньше здесь был зашитый список
+  /// из девяти позиций: на игровом ПК четыре из них не показывались никогда, а нумерация всё
+  /// равно доходила до девяти.
+  steps: readonly WizardStep[];
   current: WizardStep;
 }
 
-export function Stepper({ current }: StepperProps) {
+export function Stepper({ steps, current }: StepperProps) {
   const { t } = useI18n();
-  const currentIndex = STEP_TO_INDEX[current];
+  // Сброс пароля живёт на позиции входа: экран есть, отдельного шага нет.
+  const resolved = current === 'forgotPassword' ? 'phoneLogin' : current;
+  const currentIndex = steps.indexOf(resolved);
 
   return (
     <ol className="wizard-stepper" aria-label={t('setup.wizard.stepper.label')}>
-      {STEPS.map((step, index) => {
+      {steps.map((step, index) => {
         const status = stateForIndex(index, currentIndex);
-        const isLast = index === STEPS.length - 1;
+        const isLast = index === steps.length - 1;
         return (
-          <Fragment key={step.id}>
+          <Fragment key={step}>
             <li
               className={`wizard-stepper-item ${status}`}
               aria-current={status === 'active' ? 'step' : undefined}
             >
               <span className="wizard-stepper-dot" aria-hidden>
-                {status === 'done' ? <Check size={14} strokeWidth={3} /> : step.index}
+                {status === 'done' ? <Check size={14} strokeWidth={3} /> : index + 1}
               </span>
-              <span className="wizard-stepper-label">{t(step.labelKey)}</span>
+              <span className="wizard-stepper-label">{t(STEP_LABELS[step])}</span>
             </li>
             {!isLast && <span className="wizard-stepper-separator" aria-hidden />}
           </Fragment>

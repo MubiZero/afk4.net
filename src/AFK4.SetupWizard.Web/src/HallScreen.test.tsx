@@ -12,6 +12,7 @@ function renderScreen(client: HallClient, onContinue = mock()) {
   render(
     <I18nProvider>
       <HallScreen
+      stepNumber={1}
         client={client}
         zones={ZONES}
         ownerName="Владелец"

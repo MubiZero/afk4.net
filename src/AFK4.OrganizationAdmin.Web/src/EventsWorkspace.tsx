@@ -76,6 +76,9 @@ export function EventsWorkspace({
 
   const [items, setItems] = useState<TournamentDto[]>([]);
   const [participants, setParticipants] = useState<TournamentParticipantDto[]>([]);
+  // По этому списку встречают людей на входе. Сбой загрузки, показанный как «никто не
+  // записался», отправляет их домой — поэтому отказ говорится вслух.
+  const [participantsFailed, setParticipantsFailed] = useState(false);
   const [form, setForm] = useState({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -106,13 +109,18 @@ export function EventsWorkspace({
   useEffect(() => {
     if (client === null || selected === null) {
       setParticipants([]);
+      setParticipantsFailed(false);
       return undefined;
     }
     let active = true;
+    setParticipantsFailed(false);
     client.participants(selected.tournamentId).then((list) => {
-      if (active) setParticipants(list);
+      if (!active) return;
+      setParticipants(list);
     }).catch(() => {
-      if (active) setParticipants([]);
+      if (!active) return;
+      setParticipants([]);
+      setParticipantsFailed(true);
     });
     return () => { active = false; };
   }, [client, selected?.tournamentId]);
@@ -360,7 +368,9 @@ export function EventsWorkspace({
           {selected !== null && (
             <section className="mgmt-drawer-section">
               <h3 className="mgmt-section-title">{t('op.events.participants')}</h3>
-              {participants.length === 0 ? (
+              {participantsFailed ? (
+                <p className="mgmt-drawer-hint ui-inline-error" role="alert">{t('op.events.participantsFailed')}</p>
+              ) : participants.length === 0 ? (
                 <p className="mgmt-drawer-hint">{t('op.events.participantsEmpty')}</p>
               ) : (
                 participants.map((participant) => (

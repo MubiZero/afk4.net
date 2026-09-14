@@ -58,7 +58,7 @@ const backend = {
 };
 
 function renderTicker(b: unknown = backend) {
-  render(<I18nProvider><ToastProvider><PosOrdersTicker backend={b as never} /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><PosOrdersTicker backend={b as never} canCancel /></ToastProvider></I18nProvider>);
 }
 
 describe('PosOrdersTicker', () => {

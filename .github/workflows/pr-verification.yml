@@ -55,6 +55,9 @@ jobs:
           )
           $webPrefixes = @(
             ".github/workflows/pr-verification.yml",
+            # Правка логотипов и фавиконок обязана поднимать веб-дорожку: её набор проверяет,
+            # что каждое веб-приложение везёт актуальный фавикон, а не плейсхолдер.
+            "brand/",
             "packages/",
             "src/AFK4.PlatformControl.Web/",
             "src/AFK4.OrganizationAdmin.Web/",
@@ -235,6 +238,11 @@ jobs:
             (cd "$dir" && bun run test)
             echo "::endgroup::"
           done
+
+      # У brand нет своей рабочей области (нет package.json), поэтому он не попадал в цикл выше
+      # и его набор краснел, никем не замеченный: он ссылался на favicon удалённого веб-игрока.
+      - name: Test brand assets
+        run: bun test brand/afk4-brand.test.ts
 
       - name: Build web apps
         run: |

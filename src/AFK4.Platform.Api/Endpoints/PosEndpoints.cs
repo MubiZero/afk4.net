@@ -849,6 +849,10 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
+        // Отмена продажи вынимает деньги из смены, поэтому право на неё — контроль. Но у контроля
+        // был побочный эффект: кассир, пробивший не тот товар, звал старшего даже через десять
+        // секунд, и ошибка чаще обходилась, чем исправлялась. Узкое право VoidOwnRecentPosSale
+        // закрывает ровно бытовую опечатку; границы — в PosSelfVoidPolicy.
         app.MapPost("pos/sales/{saleId:guid}/void", async (
             Guid saleId,
             VoidPosSaleRequest request,
@@ -856,15 +860,18 @@ internal static class PosEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
+            IOpenShiftResolver openShiftResolver,
+            TimeProvider timeProvider,
             IPosService posService,
             CancellationToken cancellationToken) =>
         {
+            // Грузим по узкому праву: оно есть у всех, у кого есть широкое, плюс у кассира.
             var sale = await LoadPosSaleScopedEndpointAsync(
                 dbContext,
                 staffContextAccessor,
                 authorizationService,
                 saleId,
-                OrganizationPermissionNames.VoidPosSale,
+                OrganizationPermissionNames.VoidOwnRecentPosSale,
                 cancellationToken);
             if (sale.Result is not null)
             {
@@ -892,6 +899,41 @@ internal static class PosEndpoints
             if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
             {
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            // Широкое право отменяет что угодно. Без него — только своё и только свежее.
+            var unrestricted = await authorizationService.RequireBranchPermissionAsync(
+                sale.BranchId,
+                OrganizationPermissionNames.VoidPosSale,
+                cancellationToken);
+
+            if (!unrestricted.IsAllowed)
+            {
+                var openShift = await openShiftResolver.GetOpenShiftIdAsync(
+                    authorization.StaffContext.OrganizationId, sale.BranchId, cancellationToken);
+
+                var allowedBySelfVoid = PosSelfVoidPolicy.CanSelfVoid(
+                    sale.Entity!,
+                    authorization.StaffContext.StaffUserId,
+                    openShift.Succeeded ? openShift.Response : null,
+                    timeProvider.GetUtcNow());
+
+                if (!allowedBySelfVoid)
+                {
+                    await WriteAuditAsync(
+                        auditRecordWriter,
+                        authorization.StaffContext.OrganizationId,
+                        sale.BranchId,
+                        authorization.StaffContext.StaffUserId,
+                        AuditActionNames.VoidPosSale,
+                        "PosSale",
+                        saleId.ToString("D"),
+                        AuditOutcome.Denied,
+                        new { Reason = "self_void_window_closed" },
+                        cancellationToken);
+
+                    return Results.StatusCode(StatusCodes.Status403Forbidden);
+                }
             }
 
             var result = await posService.VoidSaleAsync(

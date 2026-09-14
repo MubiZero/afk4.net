@@ -41,7 +41,7 @@ describe('CashRegisterRows', () => {
 describe('CashTerminalSplit', () => {
   it('renders a stable inspector and closes it explicitly', () => {
     const onClose = mock();
-    render(<CashTerminalSplit register={<div>Реестр</div>} inspector={<div>Деталь</div>} inspectorOpen closeLabel="Закрыть детали" onCloseInspector={onClose} />);
+    render(<CashTerminalSplit inspectorLabel="Детали выбранной записи" register={<div>Реестр</div>} inspector={<div>Деталь</div>} inspectorOpen closeLabel="Закрыть детали" onCloseInspector={onClose} />);
     expect(screen.getByLabelText('Детали выбранной записи')).toHaveTextContent('Деталь');
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть детали' }));
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -49,7 +49,7 @@ describe('CashTerminalSplit', () => {
 
   it('closes an open inspector with Escape', () => {
     const onClose = mock(() => {});
-    render(<CashTerminalSplit register={<div>Register</div>} inspector={<div>Detail</div>} inspectorOpen closeLabel="Close" onCloseInspector={onClose} />);
+    render(<CashTerminalSplit inspectorLabel="Детали" register={<div>Register</div>} inspector={<div>Detail</div>} inspectorOpen closeLabel="Close" onCloseInspector={onClose} />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });

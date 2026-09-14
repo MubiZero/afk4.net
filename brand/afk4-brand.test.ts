@@ -74,8 +74,13 @@ test("favicon ico is generated and non-empty", () => {
 import { join as pjoin } from "node:path";
 const REPO = pjoin(BRAND, "..");
 
+// Ровно те веб-приложения, которые сейчас существуют. AFK4.Customer.Web удалён 02.09.2026
+// вместе с веб-игроком, но остался здесь — и тест краснел, никем не замеченный: каталог brand
+// не входил ни в одну дорожку проверки. Теперь входит (scripts/verify.sh, lane_web).
+//
+// Мастер установки и оболочка игрового ПК живут в WebView2 без вкладки браузера, favicon им
+// не нужен — их в списке нет намеренно, а не по забывчивости.
 const WEB_FAVICONS = [
-  "src/AFK4.Customer.Web/public/favicon.svg",
   "src/AFK4.PlatformControl.Web/public/favicon.svg",
   "src/AFK4.OrganizationAdmin.Web/public/favicon.svg",
 ];

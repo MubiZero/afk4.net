@@ -35,6 +35,7 @@ export function CashShiftCommandBar({
   session,
   shiftId,
   isOpen,
+  openedByStaffUserId = null,
   expectedCash,
   currencyCode,
   revenue = null,
@@ -45,6 +46,9 @@ export function CashShiftCommandBar({
   session: OperatorAuthSession | null;
   shiftId: string | null;
   isOpen: boolean;
+  /// Кто открыл текущую смену. Нужен для узкого права «закрыть свою»: без него кнопка либо
+  /// пряталась бы у кассира вовсе, либо обещала бы то, на что сервер ответит отказом.
+  openedByStaffUserId?: string | null;
   expectedCash: { currencyCode: string; minorUnits: number } | null;
   currencyCode: string;
   revenue?: ShiftRevenueDto | null;
@@ -74,7 +78,17 @@ export function CashShiftCommandBar({
 
   const canOpen = !isOpen && hasPermission(session, permissionNames.openShift);
   const canCash = isOpen && hasPermission(session, permissionNames.manageShiftCash);
-  const canClose = isOpen && hasPermission(session, permissionNames.closeShift);
+  // Широкое право закрывает любую смену; кассир — только свою, ту, которую сам открыл. Сверку
+  // кассы это не отменяет, а расхождение сверх допуска по-прежнему потребует второго человека:
+  // «закрыть поверх недостачи» в одиночку нельзя.
+  const canCloseAny = isOpen && hasPermission(session, permissionNames.closeShift);
+  const canCloseOwn = isOpen
+    && !canCloseAny
+    && session !== null
+    && openedByStaffUserId !== null
+    && openedByStaffUserId === session.staffUserId
+    && hasPermission(session, permissionNames.closeOwnShift);
+  const canClose = canCloseAny || canCloseOwn;
   const canXReport = isOpen && hasPermission(session, permissionNames.viewReports);
 
   const run = async (label: string, fn: (actions: CashShiftActionsClient) => Promise<void>) => {

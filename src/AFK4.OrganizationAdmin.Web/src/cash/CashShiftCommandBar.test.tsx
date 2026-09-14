@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 const backend = { config: { platformBaseUrl: 'x' }, session: { accessToken: 't', organizationId: 'org1' }, branchId: 'b1' } as never;
 const allPerms = ['organization.shifts.open', 'organization.shifts.close', 'organization.shifts.cash.manage'];
-const session = (perms: string[]) => ({ permissions: perms, organizationId: 'org1' } as unknown as OperatorAuthSession);
+const session = (perms: string[]) => ({ staffUserId: 'me', permissions: perms, organizationId: 'org1' } as unknown as OperatorAuthSession);
 
 function fakeActions(): CashShiftActionsClient & { calls: Record<string, unknown[]> } {
   const calls: Record<string, unknown[]> = { open: [], movement: [], close: [] };
@@ -22,7 +22,14 @@ function fakeActions(): CashShiftActionsClient & { calls: Record<string, unknown
   };
 }
 
-function renderBar(opts: { isOpen: boolean; perms?: string[]; actions?: CashShiftActionsClient; onShiftChanged?: () => void; revenue?: ShiftRevenueDto | null }) {
+function renderBar(opts: {
+  isOpen: boolean;
+  perms?: string[];
+  actions?: CashShiftActionsClient;
+  onShiftChanged?: () => void;
+  revenue?: ShiftRevenueDto | null;
+  openedByStaffUserId?: string | null;
+}) {
   render(
     <I18nProvider initialLocale="ru">
       <ToastProvider>
@@ -31,6 +38,7 @@ function renderBar(opts: { isOpen: boolean; perms?: string[]; actions?: CashShif
           session={session(opts.perms ?? allPerms)}
           shiftId={opts.isOpen ? 's1' : null}
           isOpen={opts.isOpen}
+          openedByStaffUserId={opts.openedByStaffUserId ?? 'me'}
           expectedCash={{ currencyCode: 'TJS', minorUnits: 11500 }}
           currencyCode="TJS"
           revenue={opts.revenue ?? null}
@@ -126,5 +134,38 @@ describe('CashShiftCommandBar', () => {
     fireEvent.change(within(dialog).getByLabelText('Факт в кассе'), { target: { value: '1850.00' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Закрыть смену' }));
     expect(await screen.findByText('Z-отчёт')).toBeInTheDocument();
+  });
+
+  // Гейт после входа ЗАСТАВЛЯЕТ кассира открыть смену, а закрыть её он не мог: в шесть утра он
+  // один. Узкое право закрывает ровно свою смену и сверку кассы не отменяет.
+  it('кассир закрывает свою смену', () => {
+    renderBar({
+      isOpen: true,
+      perms: ['organization.shifts.open', 'organization.shifts.view', 'organization.shifts.close_own'],
+      openedByStaffUserId: 'me'
+    });
+
+    expect(screen.getByRole('button', { name: 'Закрыть смену' })).toBeInTheDocument();
+  });
+
+  it('чужую смену кассир закрыть не может', () => {
+    renderBar({
+      isOpen: true,
+      perms: ['organization.shifts.open', 'organization.shifts.view', 'organization.shifts.close_own'],
+      openedByStaffUserId: 'someone-else'
+    });
+
+    expect(screen.queryByRole('button', { name: 'Закрыть смену' })).not.toBeInTheDocument();
+  });
+
+  // Широкое право к правилу «только своя» не относится.
+  it('старший закрывает и чужую смену', () => {
+    renderBar({
+      isOpen: true,
+      perms: ['organization.shifts.view', 'organization.shifts.close'],
+      openedByStaffUserId: 'someone-else'
+    });
+
+    expect(screen.getByRole('button', { name: 'Закрыть смену' })).toBeInTheDocument();
   });
 });

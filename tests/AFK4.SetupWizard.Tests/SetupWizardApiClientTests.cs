@@ -31,7 +31,7 @@ public sealed class SetupWizardApiClientTests
         Assert.Equal("access-123", result.AccessToken);
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Post, request.Method);
-        Assert.Equal("/api/auth/staff/sign-in-by-phone", request.RequestUri!.AbsolutePath);
+        Assert.Equal(StaffAuthRoutes.SignInByPhone, request.RequestUri!.AbsolutePath);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class SetupWizardApiClientTests
         Assert.Equal("access-123", result.SignedIn!.AccessToken);
         Assert.Empty(result.Clubs);
         var request = Assert.Single(handler.Requests);
-        Assert.Equal("/api/auth/staff/sign-in-by-login", request.RequestUri!.AbsolutePath);
+        Assert.Equal(StaffAuthRoutes.SignInByLogin, request.RequestUri!.AbsolutePath);
         Assert.Contains("owner@club.tj", handler.RequestBodies.Single());
     }
 
@@ -90,7 +90,7 @@ public sealed class SetupWizardApiClientTests
     }
 
     [Fact]
-    public async Task SignInToClubAsync_PostsOrganizationScopedSignIn()
+    public async Task SignInToClubAsync_PostsChosenOrganizationInTheBody()
     {
         var expected = new StaffSignInResponse(
             Guid.NewGuid(), OrganizationId, "Сотрудник", "access-123",
@@ -103,7 +103,7 @@ public sealed class SetupWizardApiClientTests
 
         Assert.Equal("access-123", result.AccessToken);
         var request = Assert.Single(handler.Requests);
-        Assert.Equal("/api/auth/staff/sign-in", request.RequestUri!.AbsolutePath);
+        Assert.Equal(StaffAuthRoutes.SignIn, request.RequestUri!.AbsolutePath);
         var body = handler.RequestBodies.Single();
         Assert.Contains(OrganizationId.ToString("D"), body);
         Assert.Contains("owner@club.tj", body);

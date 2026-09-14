@@ -65,6 +65,17 @@ public static class OrganizationPermissionNames
 
     public const string CloseShift = "organization.shifts.close";
 
+    /// Закрыть СВОЮ смену — ту, которую сам и открыл. Узкое подмножество CloseShift.
+    ///
+    /// Контроль от этого не слабеет: сверка кассы обязательна для всех (CountedCash), а
+    /// расхождение сверх допуска филиала по-прежнему требует подписи второго человека, который
+    /// не открывал и не закрывает смену (§5.7, EfShiftService). То есть «закрыть поверх
+    /// недостачи» в одиночку нельзя было и не станет можно.
+    ///
+    /// Без этого права ночной кассир, которого гейт после входа ЗАСТАВИЛ открыть смену, не мог
+    /// её закрыть: в шесть утра он один, а закрывать обязан кто-то другой.
+    public const string CloseOwnShift = "organization.shifts.close_own";
+
     public const string ViewShift = "organization.shifts.view";
 
     public const string ManageShiftCash = "organization.shifts.cash.manage";
@@ -84,6 +95,11 @@ public static class OrganizationPermissionNames
     public const string RefundPosSale = "organization.pos.sales.refund";
 
     public const string VoidPosSale = "organization.pos.sales.void";
+
+    /// Отменить СВОЙ чек, пробитый только что, без старшего — узкое подмножество VoidPosSale.
+    /// Границы правила и довод за него живут в <c>Pos/PosSelfVoidPolicy.cs</c>: право само по
+    /// себе ничего не разрешает, пока продажа не своя, не в текущей открытой смене и не свежая.
+    public const string VoidOwnRecentPosSale = "organization.pos.sales.void_own_recent";
 
     public const string ManageInventoryStock = "organization.inventory.stock.manage";
 
@@ -111,6 +127,16 @@ public static class OrganizationPermissionNames
 
     // Owner-only: connect/manage the club's DC-Bank payment cards (dcgate gateways).
     public const string ManagePaymentGateways = "organization.payments.gateways.manage";
+
+    // Очередь заказов бара разведена на два права по одной границе: двигаются ли деньги.
+    //
+    // Serve — увидеть очередь, принять заказ, выдать его. Это чистая смена статуса, ничего не
+    // списывается и не возвращается: заказ оплачен в момент оформления. Выдаёт еду кассир, ему
+    // это право и нужно.
+    //
+    // Manage — отменить заказ, а отмена идёт через денежный координатор и возвращает деньги.
+    // Это денежное действие и остаётся за тем же кругом, что возвраты в кассе.
+    public const string ServeShopOrders = "organization.shop.orders.serve";
 
     public const string ManageShopOrders = "organization.shop.orders.manage";
 

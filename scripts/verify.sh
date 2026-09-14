@@ -60,7 +60,7 @@ detect_lanes() {
         run_dotnet=dotnet ;;
     esac
     case "$path" in
-      packages/*|src/AFK4.PlatformControl.Web/*|src/AFK4.OrganizationAdmin.Web/*|src/AFK4.SetupWizard.Web/*|src/AFK4.Player.Shell.Web/*|package.json|bun.lock|bunfig.toml|.github/workflows/pr-verification.yml)
+      brand/*|packages/*|src/AFK4.PlatformControl.Web/*|src/AFK4.OrganizationAdmin.Web/*|src/AFK4.SetupWizard.Web/*|src/AFK4.Player.Shell.Web/*|package.json|bun.lock|bunfig.toml|.github/workflows/pr-verification.yml)
         run_web=web ;;
     esac
     case "$path" in
@@ -164,6 +164,11 @@ lane_web() {
     echo "── test $dir"
     (cd "$dir" && bun run test)
   done
+
+  # brand своей рабочей области не имеет (нет package.json), поэтому в цикл выше не попадает —
+  # и ровно поэтому его набор однажды покраснел незамеченным.
+  echo "── test brand"
+  bun test brand/afk4-brand.test.ts
 
   # Сборка — это ещё и проверка типов: `bun test` типы не смотрит, и ошибка доезжает до CI.
   for dir in \

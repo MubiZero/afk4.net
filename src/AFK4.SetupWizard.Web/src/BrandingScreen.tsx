@@ -15,6 +15,8 @@ export interface BrandingClient {
 }
 
 interface BrandingScreenProps {
+  /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
+  stepNumber: number;
   client: BrandingClient;
   ownerName: string;
   branchName: string;
@@ -22,7 +24,7 @@ interface BrandingScreenProps {
   onBack(): void;
 }
 
-export function BrandingScreen({ client, ownerName, branchName, onContinue, onBack }: BrandingScreenProps) {
+export function BrandingScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: BrandingScreenProps) {
   const { t } = useI18n();
   const [presets, setPresets] = useState<WizardBrandingPreset[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function BrandingScreen({ client, ownerName, branchName, onContinue, onBa
       <div className="wizard-screen-head">
         <span className="wizard-screen-context">{ownerName} · {branchName}</span>
         <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>4</span>
+          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
           <h1>{t('setup.wizard.branding.title')}</h1>
         </div>
         <p>{t('setup.wizard.branding.subtitle')}</p>

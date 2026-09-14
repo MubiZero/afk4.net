@@ -46,9 +46,10 @@ const SEVERITY_LABEL_KEYS: Record<IncidentSeverity, MessageKey> = {
 
 export interface HealthScreenProps {
   client: Pick<HealthApi, 'getOverview' | 'sendTestEmail'>;
+  canSendTestEmail: boolean;
 }
 
-export function HealthScreen({ client }: HealthScreenProps) {
+export function HealthScreen({ client, canSendTestEmail }: HealthScreenProps) {
   const { t } = useI18n();
   const state = useHealth(client);
 
@@ -61,7 +62,7 @@ export function HealthScreen({ client }: HealthScreenProps) {
       ) : (
         <>
           <HealthOverviewView overview={state.data} />
-          <TestEmailCard client={client} />
+          {canSendTestEmail && <TestEmailCard client={client} />}
         </>
       )}
     </Page>

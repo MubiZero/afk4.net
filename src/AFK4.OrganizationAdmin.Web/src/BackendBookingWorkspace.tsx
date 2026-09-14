@@ -95,6 +95,10 @@ export function BackendBookingWorkspace({
   useFeedbackToasts(feedback);
   const [reservationResult, setReservationResult] = useState<ReservationSearchResultDto | null>(null);
   const [sessionResult, setSessionResult] = useState<SessionTimelineResult | null>(null);
+  // Идущие сессии накладываются на таймлайн поверх броней. Их молчаливая пропажа рисует зал
+  // свободнее, чем он есть, — и оператор сажает человека на занятое место. Брони при этом
+  // загрузились, поэтому это предупреждение над таймлайном, а не отказ всего экрана.
+  const [sessionsFailed, setSessionsFailed] = useState(false);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
@@ -195,12 +199,21 @@ export function BackendBookingWorkspace({
     const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
     if (!hasPermission(backend.session, permissionNames.viewSessions)) {
       setSessionResult(null);
+      setSessionsFailed(false);
       return undefined;
     }
 
     clients.sessions.timeline(backend.branchId, { fromUtc: bookingFromUtc, toUtc: bookingToUtc, limit: null })
-      .then((result) => { if (!disposed) setSessionResult(result); })
-      .catch(() => { if (!disposed) setSessionResult(null); });
+      .then((result) => {
+        if (disposed) return;
+        setSessionResult(result);
+        setSessionsFailed(false);
+      })
+      .catch(() => {
+        if (disposed) return;
+        setSessionResult(null);
+        setSessionsFailed(true);
+      });
 
     return () => { disposed = true; };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
@@ -637,6 +650,10 @@ export function BackendBookingWorkspace({
 
       {loadStatus === 'failed' && (
         <p className="workspace-error" role="alert">{loadError ?? t('op.booking.load.failed')}</p>
+      )}
+
+      {loadStatus !== 'failed' && sessionsFailed && (
+        <p className="workspace-error" role="alert">{t('op.booking.sessions.failed')}</p>
       )}
 
       <BookingRequestsLane

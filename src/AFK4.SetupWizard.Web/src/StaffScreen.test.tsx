@@ -7,6 +7,7 @@ function renderScreen(client: StaffClient, onContinue = mock()) {
   render(
     <I18nProvider>
       <StaffScreen
+      stepNumber={1}
         client={client}
         ownerName="Владелец"
         branchName="Главный"

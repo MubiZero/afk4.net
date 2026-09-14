@@ -90,6 +90,7 @@ export function CashOperationsLedger({
         { label: t('op.cash.journal.cashOut'), value: <Money minorUnits={readMoney(report, 'cashOutTotal')?.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'danger' }
       ]} />
       <CashTerminalSplit
+          inspectorLabel={t('op.cash.inspector.aria')}
         inspectorOpen={selected !== null}
         closeLabel={t('common.close')}
         onCloseInspector={() => setSelectedId('')}

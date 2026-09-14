@@ -51,7 +51,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         CancellationToken cancellationToken)
     {
         using var response = await httpClient.PostAsJsonAsync(
-            "api/auth/staff/sign-in-by-phone",
+            StaffAuthRoutes.SignInByPhone,
             new StaffSignInByPhoneRequest(phoneNumber, password),
             JsonOptions,
             cancellationToken);
@@ -66,7 +66,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         CancellationToken cancellationToken)
     {
         using var response = await httpClient.PostAsJsonAsync(
-            "api/auth/staff/sign-in-by-login",
+            StaffAuthRoutes.SignInByLogin,
             new StaffSignInByLoginRequest(login, password),
             JsonOptions,
             cancellationToken);
@@ -89,7 +89,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         CancellationToken cancellationToken)
     {
         using var response = await httpClient.PostAsJsonAsync(
-            "api/auth/staff/sign-in",
+            StaffAuthRoutes.SignIn,
             new StaffSignInRequest(organizationId, login, password),
             JsonOptions,
             cancellationToken);

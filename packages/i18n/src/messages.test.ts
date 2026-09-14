@@ -68,7 +68,10 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'platform.plan.scale', 'platform.plan.starter', 'platform.organization.subscriptionForm.plan', 'op.helper.update.component.organizationAdmin',
     'setup.wizard.finished.summary.branch', 'setup.wizard.stepper.branch', 'platform.organization.tab.history', 'platform.settings.column.twoFactor',
     // Чистый шаблон склейки «{day}, {time}» — переводить в нём нечего.
-    'customer.common.dayAtTime'
+    'customer.common.dayAtTime',
+    // «ПК» — канон термина, и таджикский каталог уже пользуется им как есть («Номи ПК»).
+    // В английском это 'PC', то есть совпадение с ru здесь — перевод, а не копия ради паритета.
+    'setup.wizard.hall.prefixDefault'
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { ArrowRightLeft, ReceiptText, Undo2 } from 'lucide-react';
+import { ArrowRightLeft, Ban, ReceiptText, Undo2 } from 'lucide-react';
 import {
   buildPosReceiptText,
   createAuthenticatedOperatorClients,
@@ -23,6 +23,7 @@ import {
   safeReceiptFileName
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { canSelfVoidSale } from './selfVoid';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
@@ -65,8 +66,11 @@ export function CashReceiptsLedger({
   const [receiptDetail, setReceiptDetail] = useState<ReceiptDto | null>(null);
   const [detailState, setDetailState] = useState<ReceiptDetailState>({ status: 'idle', saleId: '', error: null });
   const detailRequest = useRef(0);
-  const [criticalAction, setCriticalAction] = useState<'refund' | null>(null);
+  const [criticalAction, setCriticalAction] = useState<'refund' | 'void' | null>(null);
+  // Открытая смена филиала: без неё отменить свою продажу нельзя — закрытая смена уже сведена.
+  const [openShiftId, setOpenShiftId] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState(() => t('op.pos.defaultRefundReason'));
+  const [voidReason, setVoidReason] = useState('');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
   const [nonce, setNonce] = useState(0);
@@ -83,6 +87,17 @@ export function CashReceiptsLedger({
     return () => { active = false; };
   }, [clients, branchId, nonce]);
 
+  useEffect(() => {
+    if (clients === null) { setOpenShiftId(null); return undefined; }
+    let active = true;
+    clients.shifts.getCurrentShift(branchId)
+      .then((shift) => { if (active) setOpenShiftId(shift === null ? null : readString(shift, 'shiftId') || null); })
+      // Молча: без открытой смены отмена просто не предлагается, и отдельным отказом на экране
+      // чеков это ничего не объясняет.
+      .catch(() => { if (active) setOpenShiftId(null); });
+    return () => { active = false; };
+  }, [clients, branchId, nonce]);
+
   const rows = readArray<Record<string, unknown>>(report, 'rows');
   const selected = rows.find((row) => readString(row, 'posSaleId') === selectedSaleId);
   const selectedId = readString(selected, 'posSaleId');
@@ -91,6 +106,27 @@ export function CashReceiptsLedger({
     && selectedId.length > 0
     && readString(selected, 'state').toLowerCase() === 'paid'
     && hasPermission(session, permissionNames.refundPosSale);
+  // Отмена вынимает деньги из смены. Широкое право отменяет что угодно; кассир — только свой
+  // только что пробитый чек, и ровно это правило зеркалит selfVoid.ts (решает всё равно сервер).
+  const saleIsVoidable = selectedId.length > 0
+    && ['sale', 'paid'].includes(readString(selected, 'state').toLowerCase());
+  const canVoidAny = backend !== null && saleIsVoidable && hasPermission(session, permissionNames.voidPosSale);
+  const canSelfVoid = backend !== null
+    && saleIsVoidable
+    && !canVoidAny
+    && session !== null
+    && saleDetail !== null
+    && hasPermission(session, permissionNames.voidOwnRecentPosSale)
+    && canSelfVoidSale({
+      createdByStaffUserId: readString(saleDetail, 'createdByStaffUserId'),
+      createdAtUtc: readString(saleDetail, 'createdAtUtc'),
+      saleShiftId: readString(saleDetail, 'shiftId'),
+      actorStaffUserId: session.staffUserId,
+      openShiftId,
+      nowMs: Date.now()
+    });
+  const canVoid = canVoidAny || canSelfVoid;
+
   const paymentMethodLabel = (method: string) => {
     if (method.toLowerCase() === 'card') return t('op.checkout.method.card');
     if (['wallet', 'deposit'].includes(method.toLowerCase())) return t('op.checkout.method.wallet');
@@ -125,6 +161,33 @@ export function CashReceiptsLedger({
       const detail = projectOperatorError(error, t).detail;
       setDetailState({ status: 'failed', saleId, error: detail });
       setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail });
+    }
+  };
+
+  // Отмена. Отдельно от возврата: возврат оставляет продажу в истории и заводит обратную
+  // запись, отмена убирает саму продажу — исход другой, и подтверждение у него своё.
+  const voidSelected = async () => {
+    setCriticalAction(null);
+    setFeedback({ label: t('op.pos.feedback.void'), state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!canVoid) {
+        throw new Error(t('op.pos.error.noPermissionVoid'));
+      }
+      if (!selectedId) throw new Error(t('op.pos.error.selectReceiptFromList'));
+      const reason = voidReason.trim();
+      if (!reason) throw new Error(t('op.pos.error.enterVoidReason'));
+      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.voidSale(selectedId, {
+        organizationId: nextBackend.session.organizationId,
+        reason,
+        idempotencyKey: createIdempotencyKey('pos-void')
+      });
+      setFeedback({ label: t('op.pos.feedback.void'), state: 'confirmed' });
+      setVoidReason('');
+      setNonce((value) => value + 1);
+      void loadSaleDetail(selectedId);
+    } catch (error) {
+      setFeedback({ label: t('op.pos.feedback.void'), state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -196,6 +259,7 @@ export function CashReceiptsLedger({
         { label: t('op.pos.strip.refunds'), value: <Money minorUnits={readMoney(report, 'refundsTotal')?.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'danger' }
       ]} />
       <CashTerminalSplit
+          inspectorLabel={t('op.cash.inspector.aria')}
         inspectorOpen={selected !== undefined}
         closeLabel={t('common.close')}
         onCloseInspector={() => { detailRequest.current += 1; setSelectedSaleId(''); setDetailState({ status: 'idle', saleId: '', error: null }); }}
@@ -214,11 +278,29 @@ export function CashReceiptsLedger({
             {receiptDetail !== null ? <div className="pos-receipt-detail"><span>{t('op.pos.receipts.platformReceipt')}</span><strong>№ {readString(receiptDetail, 'receiptNumber', t('op.pos.receipts.receiptFallback'))}</strong><p>{posReceiptTypeLabel(readString(receiptDetail, 'receiptType', 'sale'), t)}</p></div> : null}
             <div className="pos-receipt-actions">
               {canRefund ? <button type="button" disabled={feedback.state === 'pending'} onClick={() => { setFeedback(emptyFeedback); setCriticalAction('refund'); }}><Undo2 size={13} aria-hidden="true" />{t('op.pos.quick.refundLabel')}</button> : null}
+              {canVoid ? <button type="button" disabled={feedback.state === 'pending'} onClick={() => { setFeedback(emptyFeedback); setCriticalAction('void'); }}><Ban size={13} aria-hidden="true" />{t('op.pos.quick.voidLabel')}</button> : null}
               <button type="button" disabled={feedback.state === 'pending'} onClick={printReceipt}><ReceiptText size={13} aria-hidden="true" />{t('op.pos.receipts.printBtn')}</button>
               <button type="button" disabled={feedback.state === 'pending'} onClick={exportReceipt}><ArrowRightLeft size={13} aria-hidden="true" />{t('op.pos.receipts.exportBtn')}</button>
             </div>
           </div> : <p className="cash-inspector-empty">{t('op.cash.receipts.selectHint')}</p>}
       />
+
+      {criticalAction === 'void' && (
+        <CriticalActionConfirmation
+          title={t('op.pos.quick.voidConfirmTitle')}
+          detail={t('op.pos.quick.voidConfirmDetail', { amount: formatMoney(readMoney(selected, 'total'), currencyCode) })}
+          impact={t('op.pos.quick.voidConfirmImpact')}
+          confirmLabel={t('op.pos.quick.voidConfirmBtn')}
+          disabled={feedback.state === 'pending'}
+          onCancel={() => setCriticalAction(null)}
+          onConfirm={() => void voidSelected()}
+        >
+          <label className="critical-confirmation-field">
+            <span>{t('op.pos.quick.voidReasonLabel')}</span>
+            <input value={voidReason} disabled={feedback.state === 'pending'} onChange={(event) => setVoidReason(event.currentTarget.value)} />
+          </label>
+        </CriticalActionConfirmation>
+      )}
 
       {criticalAction === 'refund' && (
         <CriticalActionConfirmation

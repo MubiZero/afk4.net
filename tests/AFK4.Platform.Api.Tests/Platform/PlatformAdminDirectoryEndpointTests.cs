@@ -54,6 +54,40 @@ public sealed class PlatformAdminDirectoryEndpointTests
         Assert.Contains(items!, item => item.PlatformAdminUserId == admin.PlatformAdminId && item.IsActive);
     }
 
+    // Экран «сотрудники платформы» грузит админов и приглашения одним Promise.all, поэтому
+    // отсутствие этого маршрута гасило весь экран, а не одну карточку. Сервис был на месте,
+    // наружу его не вывели, а тесты панели ходили в свой мок.
+    [Fact]
+    public async Task FullAdmin_ListsInvitations()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+
+        var created = await client.PostAsJsonAsync(
+            "/api/platform/admins/invitations",
+            new CreatePlatformAdminInvitationRequest(PlatformAdminRoleNames.PlatformSupport, 24));
+        created.EnsureSuccessStatusCode();
+
+        var invitations = await client.GetFromJsonAsync<PlatformAdminInvitationDto[]>(
+            "/api/platform/admins/invitations");
+
+        Assert.NotNull(invitations);
+        Assert.Contains(invitations!, invitation => invitation.Role == PlatformAdminRoleNames.PlatformSupport);
+    }
+
+    [Fact]
+    public async Task SupportRole_CannotListInvitations()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformSupport]);
+
+        var response = await client.GetAsync("/api/platform/admins/invitations");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     [Fact]
     public async Task DisablingLastFullAdmin_Returns409()
     {

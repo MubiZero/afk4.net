@@ -65,6 +65,10 @@
   --border-soft: #2a2a2a;
   --border-default: #3a3a3a;
   --border-strong: #555555;
+  /* Кант интерактивного контрола. Отдельно от --border-default: под 1.4.11 граница кнопки и
+     поля — это то, чем контрол вообще опознаётся, ей нужны 3:1 к подложке, а разделителю
+     строк в плотной таблице такой вес противопоказан. */
+  --border-control: #6e6e6e;
   --border-accent: #2f6b58;
 
   --text-primary: rgba(255, 255, 255, 0.92);
@@ -72,6 +76,9 @@
   --text-secondary: rgba(255, 255, 255, 0.70);
   --text-tertiary: rgba(255, 255, 255, 0.55);
   --text-quaternary: rgba(255, 255, 255, 0.38);
+  /* Плейсхолдер — настоящий текст, а не выключенный контрол: под 1.4.3 он обязан читаться.
+     На --text-quaternary (это доля «disabled» из Material) он давал 3.5:1 и не проходил. */
+  --text-placeholder: rgba(255, 255, 255, 0.55);
   --text-on-accent: #0a1a14;
 
   --accent: #2cc592;
@@ -79,6 +86,10 @@
   --accent-pressed: #1ea877;
   --accent-soft: #143830;
   --accent-ring: rgba(44, 197, 146, 0.32);
+  /* Кольцо фокуса живёт отдельно от заливки кнопки: у них противоположные требования —
+     кольцу нужен контраст с ПОВЕРХНОСТЬЮ, заливке — с надписью на ней. Пока это был один
+     --accent-hover, светлая тема не могла удовлетворить оба сразу. */
+  --focus-outline: #4dd6a6;
   --accent-rgb: 44, 197, 146;
   --accent-glow: rgba(44, 197, 146, 0.30);
   --accent-text: #4dd6a6;
@@ -118,23 +129,31 @@
   --border-soft: #e2e8f0;
   --border-default: #cbd5e1;
   --border-strong: #94a3b8;
+  --border-control: #7d8ca0;
   --border-accent: #8ed0b6;
 
   --text-primary: #0f172a;
   --text-strong: #334155;
   --text-secondary: #475569;
-  --text-tertiary: #64748b;
+  --text-tertiary: #5f6e82;
   --text-quaternary: #94a3b8;
+  --text-placeholder: #5f6e82;
   --text-on-accent: #0f172a;
 
   --accent: #0b9e74;
-  --accent-hover: #0a8a66;
-  --accent-pressed: #07664c;
+  /* Ramp светлой темы идёт ВВЕРХ по светлоте, а не вниз: надпись на кнопке тёмная
+     (--text-on-accent), и затемнение заливки на наведении опускало её до 4.1:1, а на нажатии
+     до 2.6:1. Кольцу фокуса это больше не мешает — оно переехало на --focus-outline. */
+  --accent-hover: #0fa87d;
+  --accent-pressed: #13b083;
   --accent-soft: #d9e6e1;
   --accent-ring: rgba(11, 158, 116, 0.22);
+  --focus-outline: #087a53;
   --accent-rgb: 11, 158, 116;
   --accent-glow: rgba(11, 158, 116, 0.24);
-  --accent-text: #0b9e74;
+  /* Этим цветом набраны суммы в кассе, остатки склада и ghost-кнопки. На #0b9e74 они давали
+     3.0:1 — ниже AA для обычного текста. */
+  --accent-text: #087a53;
   --accent-on-soft: #07664c;
   --accent-bright: #06402f;
 

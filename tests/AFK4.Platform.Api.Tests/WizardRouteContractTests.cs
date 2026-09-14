@@ -2,6 +2,7 @@ using System.Net;
 using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Media;
 using AFK4.Shared.Contracts.Tariffs;
 
 namespace AFK4.Platform.Api.Tests;
@@ -11,12 +12,19 @@ namespace AFK4.Platform.Api.Tests;
 /// <c>/api/install/auth/*</c>, сервер отвечал только под <c>/api/organizations/{id}/install/auth/*</c>,
 /// и обе стороны были зелёными — каждая проверяла себя. На живом API это было 404, то есть enroll
 /// игрового ПК не работал вовсе.
+///
+/// Ровно то же самое обнаружилось у входа и не было починено тогда же: маршруты
+/// <c>auth/staff/sign-in*</c> тоже жили строкой в двух местах, и мастер падал на первом экране —
+/// то есть не работал ни enroll, ни всё, что за ним. Поэтому список ниже покрывает ВЕСЬ путь
+/// мастера, а не только установочные вызовы: новый адрес мастера обязан попадать сюда сразу.
 /// </summary>
 public sealed class WizardRouteContractTests
 {
     private static readonly Guid OrganizationId = Guid.Parse("3f1d2a44-9c1e-4f7b-9a0d-2b6c5e8a1f30");
 
     private static readonly Guid BranchId = Guid.Parse("6c2f9b18-70a4-4d53-8f0e-1d9b4c7a2e55");
+
+    private static readonly Guid TariffId = Guid.Parse("b4e0a1c7-5d32-4e88-9f11-73a6c0d2e945");
 
     /// <summary>
     /// Всё, куда ходит мастер установки. Список общий для обеих проверок намеренно: маршрут,
@@ -25,11 +33,23 @@ public sealed class WizardRouteContractTests
     /// </summary>
     public static TheoryData<string> InstallRoutePaths() =>
         new(
+            // Вход. Ровно та же ошибка повторилась здесь и жила до 13.09.2026: мастер слал на
+            // корневые адреса, сервер отвечал только под /api/organizations/{id}/..., и мастер
+            // получал 404 на ПЕРВОМ экране — то есть ни один клуб нельзя было поставить. Тест
+            // мастера при этом был зелёным: он проверял, что клиент шлёт на строку, которую сам
+            // же и объявил.
+            StaffAuthRoutes.SignIn,
+            StaffAuthRoutes.SignInByLogin,
+            StaffAuthRoutes.SignInByPhone,
             InstallRoutes.AuthenticatedDiscover(OrganizationId),
             InstallRoutes.AuthenticatedSeats(OrganizationId),
             InstallRoutes.AuthenticatedEnroll(OrganizationId),
             BrandingRoutes.Organization(OrganizationId),
             StaffRoutes.Invites(OrganizationId, BranchId),
+            // Мастер зовёт их следом за созданием тарифа и загрузкой логотипа: маркер у обоих
+            // стоит, но без этой строки регрессию никто не сторожил.
+            TariffRoutes.Versions(OrganizationId, BranchId, TariffId),
+            MediaRoutes.BranchMedia(OrganizationId, BranchId),
             TariffRoutes.Tariffs(OrganizationId, BranchId));
 
     [Theory]

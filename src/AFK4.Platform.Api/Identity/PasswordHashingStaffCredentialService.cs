@@ -68,7 +68,7 @@ public sealed class PasswordHashingStaffCredentialService(
     }
 
     public async Task<StaffLoginResolution> SignInByLoginAsync(
-        Guid organizationId,
+        Guid? organizationId,
         StaffSignInByLoginRequest request,
         CancellationToken cancellationToken)
     {
@@ -82,7 +82,11 @@ public sealed class PasswordHashingStaffCredentialService(
         var loweredLogin = request.Login.Trim().ToLowerInvariant();
         var candidates = await dbContext.StaffUsers
             .AsNoTracking()
-            .Where(candidate => candidate.OrganizationId == organizationId &&
+            // organizationId == null — вход из мастера установки, где организация ещё не
+            // известна. Перебором это не становится: в matched попадают только те записи,
+            // для которых пароль уже сошёлся, поэтому наружу уходят имена клубов, где эта же
+            // пара логин/пароль и так работает.
+            .Where(candidate => (organizationId == null || candidate.OrganizationId == organizationId) &&
                 candidate.IsActive &&
                 (candidate.NormalizedUserName == normalizedLogin ||
                  (candidate.Email != null && candidate.Email.ToLower() == loweredLogin)))

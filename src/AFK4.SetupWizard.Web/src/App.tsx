@@ -14,7 +14,7 @@ import { StaffScreen } from './StaffScreen';
 import { TariffScreen } from './TariffScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
-import { nextSetupStep } from './setupSteps';
+import { nextSetupStep, previousVisibleStep, visibleSteps } from './setupSteps';
 import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
 import {
   authenticatedInstallClient,
@@ -107,6 +107,37 @@ export function App() {
   const [confirmClose, setConfirmClose] = useState(false);
   const config = useMemo(() => getBootstrapConfig(), []);
   const defaultDisplayName = config?.machineName ?? 'AFK4-PC';
+
+  // Форма прогона: какие шаги вообще будут показаны. Роль считается известной только после
+  // экрана роли — до него state.role держит значение по умолчанию, а не ответ человека.
+  const runShape = useMemo(
+    () => ({
+      role: STEP_POSITION[state.step] > STEP_POSITION.role ? state.role : null,
+      branchCount: state.branches.length,
+      setup: { brandingConfigured: state.brandingConfigured, branch: state.branch },
+    }),
+    [state.step, state.role, state.branches.length, state.brandingConfigured, state.branch],
+  );
+  const steps = useMemo(() => visibleSteps(runShape), [runShape]);
+  // Номер шага для крупной цифры у заголовка. Раньше он был зашит в каждом экране и с
+  // степпером расходился: 'branding' и 'device' оба объявляли себя четвёртым.
+  const stepNumber = steps.indexOf(state.step) + 1;
+
+  const goBack = useCallback(
+    (from: WizardStep) => {
+      setState((prev) => {
+        const shape = {
+          role: STEP_POSITION[from] > STEP_POSITION.role ? prev.role : null,
+          branchCount: prev.branches.length,
+          setup: { brandingConfigured: prev.brandingConfigured, branch: prev.branch },
+        };
+        const target = previousVisibleStep(from, shape);
+        // Назад с первого шага — это сброс к чистому входу, а не «шаг минус один».
+        return target === null ? initialState : { ...prev, step: target };
+      });
+    },
+    [],
+  );
 
   // Направление перехода: сравниваем позицию нового шага с предыдущей (ref обновляется в effect
   // уже после коммита, поэтому на рендере смены экрана он ещё держит старую позицию).
@@ -237,22 +268,6 @@ export function App() {
     }));
   }, []);
 
-  const backToStaff = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'staff' }));
-  }, []);
-
-  const backToHall = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'hall' }));
-  }, []);
-
-  const backToBranding = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'branding' }));
-  }, []);
-
-  const backToRoleFromBranding = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'role' }));
-  }, []);
-
   const handleEnrolled = useCallback(
     (result: WizardEnrollResult, selectedSeat: WizardSeat | null) => {
       setState((prev) => ({ ...prev, enrollResult: result, selectedSeat, step: 'finished' }));
@@ -273,10 +288,6 @@ export function App() {
   }, []);
 
   const installClient = useMemo<WizardInstallClient>(() => authenticatedInstallClient(), []);
-
-  const backToRole = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'role' }));
-  }, []);
 
   const handleHeaderPointerDown = useCallback((event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0) {
@@ -340,13 +351,13 @@ export function App() {
       device: 'setup.wizard.stepper.device',
       finished: 'setup.wizard.stepper.done',
     };
-    const order = [
-      'phoneLogin', 'branchSelection', 'role', 'branding', 'staff', 'hall', 'tariff', 'device', 'finished',
-    ];
+    // Номер берётся из шагов ЭТОГО прогона — того же списка, что рисует степпер. Со своим
+    // зашитым порядком живой регион объявлял бы «шаг 8 из девяти» там, где на экране пятый
+    // из пяти.
     const announceStep = state.step === 'forgotPassword' ? 'phoneLogin' : state.step;
-    const stepNumber = order.indexOf(announceStep) + 1;
-    return `${t('setup.wizard.common.step')} ${stepNumber}: ${t(stepLabelKey[state.step])}`;
-  }, [state.step, t]);
+    const position = steps.indexOf(announceStep) + 1;
+    return `${t('setup.wizard.common.step')} ${position}: ${t(stepLabelKey[state.step])}`;
+  }, [state.step, steps, t]);
 
   return (
     <div className="wizard-shell">
@@ -361,7 +372,7 @@ export function App() {
           </div>
         </div>
         <div className="wizard-titlebar-stepper" data-no-drag>
-          <Stepper current={state.step} />
+          <Stepper steps={steps} current={state.step} />
         </div>
         <div className="wizard-titlebar-controls" data-no-drag>
           <button
@@ -463,6 +474,7 @@ export function App() {
 
         {state.step === 'branchSelection' && (
           <BranchSelectionScreen
+            stepNumber={stepNumber}
             ownerName={state.ownerName}
             branches={state.branches}
             onSelect={handleSelectBranch}
@@ -472,6 +484,7 @@ export function App() {
 
         {state.step === 'role' && state.branch && (
           <RoleScreen
+            stepNumber={stepNumber}
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             initialRole={state.role}
@@ -482,47 +495,52 @@ export function App() {
 
         {state.step === 'branding' && state.branch && (
           <BrandingScreen
+            stepNumber={stepNumber}
             client={brandingClient}
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleBrandingContinue}
-            onBack={backToRoleFromBranding}
+            onBack={() => goBack('branding')}
           />
         )}
 
         {state.step === 'staff' && state.branch && (
           <StaffScreen
+            stepNumber={stepNumber}
             client={staffClient(state.branch.branchId)}
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleStaffContinue}
-            onBack={backToBranding}
+            onBack={() => goBack('staff')}
           />
         )}
 
         {state.step === 'hall' && state.branch && (
           <HallScreen
+            stepNumber={stepNumber}
             client={hallClient(state.branch.branchId)}
             zones={state.branch.zones}
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleHallContinue}
-            onBack={backToStaff}
+            onBack={() => goBack('hall')}
           />
         )}
 
         {state.step === 'tariff' && state.branch && (
           <TariffScreen
+            stepNumber={stepNumber}
             client={tariffClient(state.branch.branchId)}
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleTariffContinue}
-            onBack={backToHall}
+            onBack={() => goBack('tariff')}
           />
         )}
 
         {state.step === 'device' && state.branch && (
           <DeviceScreen
+            stepNumber={stepNumber}
             installClient={installClient}
             ownerName={state.ownerName}
             branch={state.branch}
@@ -530,7 +548,7 @@ export function App() {
             defaultDisplayName={defaultDisplayName}
             onEnrolled={handleEnrolled}
             onBusyChange={setInstalling}
-            onBack={backToRole}
+            onBack={() => goBack('device')}
           />
         )}
 

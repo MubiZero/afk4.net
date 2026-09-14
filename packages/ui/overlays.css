@@ -170,7 +170,7 @@
 .toast-close:hover { color: var(--text-primary, #f4f6fb); }
 .toast-close:focus-visible,
 .toast-action:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -209,7 +209,7 @@
   cursor: pointer;
 }
 .empty-state-action:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -254,7 +254,7 @@
 }
 
 .command-palette-input:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 1px;
 }
 

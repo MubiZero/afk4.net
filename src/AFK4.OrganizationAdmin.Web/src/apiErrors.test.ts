@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { projectOperatorError } from './apiErrors';
+import { projectOperatorError, requiresManagerApproval } from './apiErrors';
 import { PlatformApiError } from './platformApi';
 
 const t = createTranslator('ru');
@@ -110,5 +110,35 @@ describe('projectOperatorError', () => {
     const projection = projectOperatorError(error, t);
 
     expect(projection.detail).toContain('40');
+  });
+});
+
+// Развилка «сумма выше порога сотрудника»: сервер отвечает 409 с requiresApproval, и это не
+// запрет, а предложение отправить старшему. Жёсткий лимит (422) отправлять некуда — спутать
+// их значит пообещать очередь одобрений там, где её не будет.
+describe('requiresManagerApproval', () => {
+  const error = (status: number, body: string) =>
+    new PlatformApiError('failed', status, 'Conflict', body);
+
+  it('распознаёт отказ по порогу', () => {
+    expect(requiresManagerApproval(
+      error(409, JSON.stringify({ error: 'Amount exceeds the approval threshold', requiresApproval: true }))
+    )).toBe(true);
+  });
+
+  it('не путает его с жёстким лимитом', () => {
+    expect(requiresManagerApproval(
+      error(422, JSON.stringify({ error: 'Amount exceeds the configured per-transaction or daily cap.' }))
+    )).toBe(false);
+  });
+
+  it('не срабатывает на другом конфликте', () => {
+    expect(requiresManagerApproval(error(409, JSON.stringify({ error: 'version_conflict' })))).toBe(false);
+  });
+
+  it('переживает нечитаемое тело и посторонние ошибки', () => {
+    expect(requiresManagerApproval(error(409, 'not json'))).toBe(false);
+    expect(requiresManagerApproval(new Error('boom'))).toBe(false);
+    expect(requiresManagerApproval(undefined)).toBe(false);
   });
 });

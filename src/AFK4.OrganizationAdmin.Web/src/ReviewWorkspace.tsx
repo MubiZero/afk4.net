@@ -206,6 +206,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
 
       {activeSegment === 'queue' && (
         <CashTerminalSplit
+          inspectorLabel={t('op.cash.inspector.aria')}
           inspectorOpen={selectedRequest !== null}
           closeLabel={t('common.close')}
           onCloseInspector={() => { setSelectedRequestId(''); setRejectingId(''); setDecisionReason(''); }}

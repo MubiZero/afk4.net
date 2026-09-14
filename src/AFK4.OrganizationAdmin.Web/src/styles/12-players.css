@@ -372,6 +372,18 @@
   line-height: 1.5;
 }
 
+/* Сумма в диалоге одобрения — то, из-за чего операция и не прошла: моно и табличные цифры,
+   как везде, где в этом интерфейсе показаны деньги. */
+.clients-confirm-amount {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
 .panel-modal.danger .panel-modal-head {
   border-bottom-color: var(--danger);
 }

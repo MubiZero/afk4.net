@@ -46,7 +46,7 @@
 }
 
 .titlebar-toolbtn:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -197,7 +197,7 @@
 }
 
 .auth-form input::placeholder {
-  color: var(--text-quaternary);
+  color: var(--text-placeholder);
 }
 
 .auth-form input:hover {
@@ -302,7 +302,7 @@
 }
 
 .auth-password-toggle:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -320,7 +320,7 @@
 }
 
 .auth-link-inline:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -368,7 +368,7 @@
 }
 
 .auth-primary:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -441,7 +441,7 @@
 }
 
 .auth-channel-toggle button:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -474,7 +474,7 @@
 }
 
 .auth-club-option:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -522,7 +522,7 @@
 }
 
 .auth-link:focus-visible {
-  outline: 2px solid var(--accent-hover);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
   border-radius: 4px;
 }
