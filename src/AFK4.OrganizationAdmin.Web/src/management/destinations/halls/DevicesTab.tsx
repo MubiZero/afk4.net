@@ -19,7 +19,9 @@ import {
 import type { DeviceInventoryItemDto } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
-type Device = Record<string, unknown>;
+// Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
+// сервера, и поле, которого в ответе нет, теперь заметит компилятор.
+type Device = DeviceInventoryItemDto;
 type SeatOption = { seatId: string; label: string };
 
 interface DevicesTabProps {

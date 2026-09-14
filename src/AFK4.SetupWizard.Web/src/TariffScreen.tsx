@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import { majorToMinor } from '@afk4/money';
 
 export interface TariffClient {
   createTariff(name: string, pricePerHourMinorUnits: number): Promise<{ name: string }>;
@@ -33,8 +34,10 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
     setFailed(false);
     try {
       // Цена вводится в сомони, а хранится в дирамах: копейки считаются целыми, иначе округление
-      // однажды съест или подарит минуту игры.
-      const result = await client.createTariff(name.trim(), Math.round(parsedPrice * 100));
+      // однажды съест или подарит минуту игры. Перевод — общий на весь проект: свой
+      // `Math.round(x * 100)` округлял 1.005 вниз, потому что в двоичной дроби это 1.00499999…,
+      // и мастер расходился с остальными экранами на дирам.
+      const result = await client.createTariff(name.trim(), majorToMinor(parsedPrice));
       setCreated(result.name);
     } catch {
       setFailed(true);
@@ -58,7 +61,6 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         <label className="wizard-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
         <input
           id="tariff-name"
-          className="wizard-input"
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
@@ -68,7 +70,6 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         <label className="wizard-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
         <input
           id="tariff-price"
-          className="wizard-input"
           type="number"
           min={1}
           step="0.5"
@@ -77,20 +78,20 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         />
       </div>
 
-      <button type="button" className="wizard-button is-ghost" onClick={() => void create()} disabled={!canCreate}>
-        {saving ? <Loader2 size={16} className="wizard-spin" aria-hidden /> : <Check size={16} aria-hidden />}
+      <button type="button" className="wizard-secondary" onClick={() => void create()} disabled={!canCreate}>
+        {saving ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
         {t('setup.wizard.tariff.create')}
       </button>
 
-      {failed ? <p className="wizard-error">{t('setup.wizard.tariff.failed')}</p> : null}
-      {created === null ? null : <p className="wizard-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
+      {failed ? <p className="wizard-alert">{t('setup.wizard.tariff.failed')}</p> : null}
+      {created === null ? null : <p className="wizard-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-button is-ghost" onClick={onBack}>
+        <button type="button" className="wizard-secondary" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="wizard-button" onClick={onContinue} disabled={saving}>
+        <button type="button" className="wizard-primary" onClick={onContinue} disabled={saving}>
           <ArrowRight size={16} aria-hidden />
           {created === null ? t('setup.wizard.tariff.skip') : t('setup.wizard.tariff.next')}
         </button>

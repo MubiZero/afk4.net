@@ -7,6 +7,10 @@ interface FinishedScreenProps {
   result: WizardEnrollResult;
   branchName: string;
   selectedSeat: WizardSeat | null;
+
+  /// Номер этого шага. Считает его App по видимым шагам прогона: здесь была зашита пятёрка, и
+  /// прогон, где часть шагов пропущена, заканчивался «шагом 5» из трёх.
+  stepNumber: number;
 }
 
 // Known update channels → shared i18n labels (reused from the Operator helper catalog).
@@ -16,7 +20,7 @@ const CHANNEL_LABEL_KEYS: Record<string, MessageKey> = {
   internal: 'op.helper.update.channel.internal',
 };
 
-export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScreenProps) {
+export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }: FinishedScreenProps) {
   const { t } = useI18n();
   const isPending = result.enrollmentState.toLowerCase() === 'pending';
   const roleLabel = result.role === 'gaming_pc'
@@ -38,7 +42,7 @@ export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScr
             </span>
           )}
           <span className="wizard-eyebrow">
-            {t('setup.wizard.common.step')} 5 · {t('setup.wizard.finished.done')}
+            {t('setup.wizard.common.step')} {stepNumber} · {t('setup.wizard.finished.done')}
           </span>
           <h1>
             {isPending
@@ -110,9 +114,11 @@ function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: 
 
   return (
     <div className="wizard-shell-status is-error" role="alert">
-      <span>
+      {/* Код установщика нужен тому, кто будет разбираться, но человеку у ПК он ничего не
+          говорит: «(msiexec 1603)» рядом с русской фразой читается как часть поломки. Он
+          остаётся в подсказке и в журнале, а на экране — только то, что делать дальше. */}
+      <span title={outcome.exitCode !== null ? `msiexec ${outcome.exitCode}` : undefined}>
         {t('setup.wizard.finished.shell.failed')}
-        {outcome.exitCode !== null ? ` (msiexec ${outcome.exitCode})` : ''}
       </span>
       <button
         type="button"

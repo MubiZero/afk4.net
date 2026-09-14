@@ -29,7 +29,9 @@ describe('BrandingScreen', () => {
     const save = mock().mockResolvedValue({ saved: true });
     const onContinue = renderScreen({ presets: mock().mockResolvedValue({ presets: PRESETS }), save, uploadLogo: mock() });
 
-    fireEvent.click(await screen.findByRole('radio', { name: 'bolt' }));
+    // Кнопка-переключатель, а не radio: нажатие по выбранному снимает выбор, и «без логотипа» —
+    // законное состояние. Подпись человеческая: диктор читал служебное имя файла «bolt».
+    fireEvent.click(await screen.findByRole('button', { name: 'Вариант 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить и дальше' }));
 
     await waitFor(() => expect(onContinue).toHaveBeenCalled());

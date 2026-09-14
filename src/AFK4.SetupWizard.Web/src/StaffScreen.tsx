@@ -68,7 +68,6 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         <label className="wizard-field-label" htmlFor="staff-name">{t('setup.wizard.staff.name')}</label>
         <input
           id="staff-name"
-          className="wizard-input"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
         />
@@ -78,7 +77,6 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         <label className="wizard-field-label" htmlFor="staff-phone">{t('setup.wizard.staff.phone')}</label>
         <input
           id="staff-phone"
-          className="wizard-input"
           type="tel"
           inputMode="tel"
           placeholder="+992 90 000-00-00"
@@ -91,7 +89,6 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         <label className="wizard-field-label" htmlFor="staff-role">{t('setup.wizard.staff.role')}</label>
         <select
           id="staff-role"
-          className="wizard-input"
           value={roleName}
           onChange={(event) => setRoleName(event.target.value)}
         >
@@ -101,18 +98,18 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         </select>
       </div>
 
-      <button type="button" className="wizard-button is-ghost" onClick={() => void invite()} disabled={!canSend}>
-        {sending ? <Loader2 size={16} className="wizard-spin" aria-hidden /> : <UserPlus size={16} aria-hidden />}
+      <button type="button" className="wizard-secondary" onClick={() => void invite()} disabled={!canSend}>
+        {sending ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : <UserPlus size={16} aria-hidden />}
         {t('setup.wizard.staff.add')}
       </button>
 
-      {failed ? <p className="wizard-error">{t('setup.wizard.staff.failed')}</p> : null}
+      {failed ? <p className="wizard-alert">{t('setup.wizard.staff.failed')}</p> : null}
 
       {invited.length > 0 ? (
         <ul className="wizard-staff-list">
           {invited.map((staff) => (
             <li key={staff.code}>
-              <span className="wizard-staff-name">
+              <span>
                 {staff.displayName} · {t(`roles.${staff.roleName}` as MessageKey)}
               </span>
               {/* Код показываем здесь же: SMS может не дойти, а человек стоит рядом. */}
@@ -126,11 +123,11 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
       ) : null}
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-button is-ghost" onClick={onBack}>
+        <button type="button" className="wizard-secondary" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="wizard-button" onClick={onContinue} disabled={sending}>
+        <button type="button" className="wizard-primary" onClick={onContinue} disabled={sending}>
           <ArrowRight size={16} aria-hidden />
           {invited.length > 0 ? t('setup.wizard.staff.next') : t('setup.wizard.staff.skip')}
         </button>

@@ -47,6 +47,9 @@ export class HostBridgeRequestError extends Error {
   }
 }
 
+/** Код отказа «мост не ответил вовремя». Отличается от кодов, которые присылает сам мост. */
+export const hostBridgeTimeoutCode = 'host_timeout';
+
 export function isHostBridgeUnavailableError(error: unknown): boolean {
   return error instanceof HostBridgeUnavailableError
     || (error instanceof Error && error.message === hostBridgeUnavailableMessage);
@@ -72,7 +75,10 @@ export function postHostRequest<TPayload>(
   return new Promise<TPayload>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error('Native host bridge request timed out.'));
+      // Своим кодом, а не безымянным Error: иначе экран не отличит «мост молчит» от «сервер
+      // отказал» и покажет английскую строку вместо объяснения.
+      reject(new HostBridgeRequestError(
+        'Native host bridge request timed out.', hostBridgeTimeoutCode, null));
     }, timeoutMs);
 
     const onMessage = (event: HostBridgeMessageEvent) => {

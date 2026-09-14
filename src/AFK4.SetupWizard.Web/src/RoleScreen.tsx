@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Briefcase, Check, Monitor } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { WizardRole } from './wizardApi';
+import { handleRadioGroupKeys, radioTabIndex } from './radioGroup';
+
+// Порядок здесь и порядок кнопок ниже — одно и то же: по нему ходят стрелки.
+const ROLES: readonly WizardRole[] = ['gaming_pc', 'manager_workstation'];
 
 interface RoleScreenProps {
   /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
@@ -39,13 +43,14 @@ export function RoleScreen({
         className="wizard-segment wizard-segment-stack"
         role="radiogroup"
         aria-label={t('setup.wizard.role.aria')}
+        onKeyDown={(event) => handleRadioGroupKeys(event, ROLES, role, (next) => setRole(next as WizardRole))}
       >
         <button
           type="button"
           role="radio"
           className="wizard-segment-button"
           aria-checked={role === 'gaming_pc'}
-          aria-pressed={role === 'gaming_pc'}
+          tabIndex={radioTabIndex(0, ROLES.indexOf(role))}
           onClick={() => setRole('gaming_pc')}
         >
           <span className="wizard-segment-icon">
@@ -64,7 +69,7 @@ export function RoleScreen({
           role="radio"
           className="wizard-segment-button"
           aria-checked={role === 'manager_workstation'}
-          aria-pressed={role === 'manager_workstation'}
+          tabIndex={radioTabIndex(1, ROLES.indexOf(role))}
           onClick={() => setRole('manager_workstation')}
         >
           <span className="wizard-segment-icon">

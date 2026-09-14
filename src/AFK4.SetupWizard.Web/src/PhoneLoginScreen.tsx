@@ -164,7 +164,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
 
         <button
           type="button"
-          className="wizard-link-action wizard-fallback-link"
+          className="wizard-link-action"
           onClick={() => { setClubChoices(null); setRequest({ kind: 'idle' }); }}
         >
           {t('setup.wizard.common.back')}

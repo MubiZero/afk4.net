@@ -2,8 +2,43 @@ import { PlatformApiClient } from '../../platformApi';
 import type { Guid, MoneyDto, ReportQuery } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
 
-export type ShiftDto = Record<string, unknown>;
-export type CashMovementDto = Record<string, unknown>;
+/**
+ * Смена, как её отдаёт сервер (ShiftDto). Поля перечислены поимённо, а не спрятаны за
+ * `Record<string, unknown>`: пока стояла заглушка, клиент не знал о смене ничего, и опечатка в
+ * имени поля не отличалась от правильного имени ничем.
+ *
+ * Совпадение с сервером проверяется, а не обещается: см. `contractParity.test.ts`.
+ */
+export interface ShiftDto {
+  shiftId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  openedByStaffUserId: Guid;
+  closedByStaffUserId: Guid | null;
+  state: string;
+  startingCash: MoneyDto;
+  countedCash: MoneyDto | null;
+  expectedCash: MoneyDto | null;
+  difference: MoneyDto | null;
+  openingNote: string;
+  closingNote: string;
+  openedAtUtc: string;
+  closedAtUtc: string | null;
+  managerSignOffStaffUserId: Guid | null;
+  signOffReason: string | null;
+}
+
+export interface CashMovementDto {
+  cashMovementId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  shiftId: Guid;
+  createdByStaffUserId: Guid;
+  movementType: string;
+  amount: MoneyDto;
+  reason: string;
+  createdAtUtc: string;
+}
 export type ReportResultDto = Record<string, unknown>;
 
 export interface OpenShiftRequest {
