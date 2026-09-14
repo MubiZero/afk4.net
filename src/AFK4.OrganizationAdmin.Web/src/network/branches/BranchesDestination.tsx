@@ -103,10 +103,10 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
             </div>
           )}
 
-          <div className="network-branches-add">
-            <button type="button" className="ui-btn" disabled>{t('op.network.branches.add')}</button>
-            <p className="network-branches-add-note">{t('op.network.branches.add.unavailable')}</p>
-          </div>
+          {/* Кнопки здесь нет намеренно, и надпись объясняет почему, а не отговаривается словом
+              «пока». Новый филиал меняет лимит ПК в тарифе и счёт клуба — это разговор с
+              платформой, а не действие стойки, и вечно выключенная кнопка обещала обратное. */}
+          <p className="network-branches-add-note">{t('op.network.branches.add.viaPlatform')}</p>
 
           {renameTarget !== null && backend !== null && (
             <RenameBranchModal
