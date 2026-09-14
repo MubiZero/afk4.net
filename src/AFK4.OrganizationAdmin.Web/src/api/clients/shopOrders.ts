@@ -23,6 +23,11 @@ export interface ShopOrderDto {
   deliveredAtUtc: string | null;
   cancelledAtUtc: string | null;
   version: number;
+
+  /// Продажа, которой этот заказ оплачен. Сервер отдаёт её с самого начала, клиент не объявлял —
+  /// и связь «заказ в баре → чек» была невидима: по заказу нельзя было дойти до его денег.
+  /// Пустая у заказа, продажа по которому ещё не создана.
+  posSaleId: Guid | null;
 }
 
 export function createShopOrderClient(api: PlatformApiClient) {

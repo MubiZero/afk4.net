@@ -5,7 +5,33 @@ import { normalizeDeviceCommandQuery } from '../queryHelpers';
 export type DeviceCommandDto = Record<string, unknown>;
 export type DeviceCommandStatusDto = Record<string, unknown>;
 export type DeviceDetailDto = Record<string, unknown>;
-export type DeviceInventoryItemDto = Record<string, unknown>;
+/**
+ * ПК в списке филиала (DeviceInventoryItemDto). Поля перечислены поимённо — совпадение с
+ * сервером проверяется в `contractParity.test.ts`, а не держится на памяти.
+ */
+export interface DeviceInventoryItemDto {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  enrolledAtUtc: string;
+  lastHeartbeatAtUtc: string | null;
+  isOnline: boolean;
+  isLocked: boolean;
+  seatId: Guid | null;
+  seatName: string | null;
+  zoneId: Guid | null;
+  zoneName: string | null;
+  activeCredentialCount: number;
+  installedAppCount: number;
+  pendingCommandCount: number;
+  failedCommandCount: number;
+  displayName: string;
+  role: string;
+  enrollmentState: string;
+}
 export type DeviceEnrollmentCodeDto = Record<string, unknown>;
 export type RotateDeviceCredentialResponse = Record<string, unknown>;
 export type RevokeDeviceCredentialResponse = Record<string, unknown>;
