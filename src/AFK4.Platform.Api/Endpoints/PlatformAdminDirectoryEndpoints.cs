@@ -317,17 +317,28 @@ internal static class PlatformAdminDirectoryEndpoints
                     details: new { Error = error.ToString() },
                     cancellationToken);
 
-                return error == PlatformAdminDirectoryError.UserNameTaken
-                    ? Results.Conflict(new
+                return error switch
+                {
+                    PlatformAdminDirectoryError.UserNameTaken => Results.Conflict(new
                     {
                         Error = "username_taken",
                         Message = "This username is already in use."
-                    })
-                    : Results.BadRequest(new
+                    }),
+
+                    // Reported for every code, live or dead, because the check runs before the
+                    // lookup — so this answer carries no information about the code itself.
+                    PlatformAdminDirectoryError.InvalidAccountDetails => Results.BadRequest(new
+                    {
+                        Error = "invalid_details",
+                        Message = "Login, display name, or password does not meet the requirements."
+                    }),
+
+                    _ => Results.BadRequest(new
                     {
                         Error = "invalid_invitation",
                         Message = "The invitation code is invalid, expired, or already used."
-                    });
+                    })
+                };
             }
 
             await WritePlatformAuditAsync(

@@ -23,6 +23,13 @@ public sealed class PlatformAdminDirectoryService(
     public const int MinInvitationLifetimeHours = 1;
     public const int MaxInvitationLifetimeHours = 30 * 24;
 
+    // Same limits the organization-owner activation enforces (EfPlatformOrganizationService).
+    // This endpoint creates a PLATFORM administrator from an anonymous request, so it cannot be
+    // the laxer of the two.
+    public const int MinPasswordLength = 8;
+    public const int MaxUserNameLength = 256;
+    public const int MaxDisplayNameLength = 160;
+
     public async Task<IReadOnlyList<PlatformAdminListItem>> ListAsync(CancellationToken cancellationToken)
     {
         var admins = await dbContext.PlatformAdminUsers
@@ -238,10 +245,43 @@ public sealed class PlatformAdminDirectoryService(
     // (code unknown / expired / revoked / already accepted) collapses to the same
     // InvalidInvitationCode error — the caller must not be able to tell those apart, or invitation
     // codes become guessable by probing response differences.
+    /// <summary>Returns why the supplied account details are unusable, or null when they are fine.</summary>
+    private static string? ValidateAccountDetails(AcceptPlatformAdminInvitationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code))
+        {
+            return "Code is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.UserName) || request.UserName.Trim().Length > MaxUserNameLength)
+        {
+            return $"UserName is required and must contain {MaxUserNameLength} characters or fewer.";
+        }
+
+        if (request.DisplayName is not null && request.DisplayName.Trim().Length > MaxDisplayNameLength)
+        {
+            return $"DisplayName must contain {MaxDisplayNameLength} characters or fewer.";
+        }
+
+        return string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < MinPasswordLength
+            ? $"Password must contain at least {MinPasswordLength} characters."
+            : null;
+    }
+
     public async Task<(PlatformAdminUserEntity? User, PlatformAdminDirectoryError Error)> AcceptInvitationAsync(
         AcceptPlatformAdminInvitationRequest request,
         CancellationToken cancellationToken)
     {
+        // Validation runs before the code is even hashed, and that order is the point: if bad
+        // account details were reported only after a successful code lookup, the two failures
+        // would differ per code and a caller could enumerate live invitations by sending a
+        // deliberately short password and watching which codes answer differently. It also means
+        // a typo in the password never burns a one-shot invitation.
+        if (ValidateAccountDetails(request) is not null)
+        {
+            return (null, PlatformAdminDirectoryError.InvalidAccountDetails);
+        }
+
         var now = timeProvider.GetUtcNow();
         var codeHash = HashCode(request.Code);
 

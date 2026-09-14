@@ -76,6 +76,80 @@ public sealed class PlatformAdminInvitationActivationTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // The account details are validated before the code is looked up, so a mistyped password must
+    // not consume a one-shot invitation. Before the check existed there was nothing to consume it
+    // with: the endpoint accepted a one-character password and created a platform administrator.
+    [Fact]
+    public async Task WeakPassword_IsRejected_AndLeavesTheInvitationUsable()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        var created = await client.PostAsJsonAsync("/api/platform/admins/invitations",
+            new CreatePlatformAdminInvitationRequest(PlatformAdminRoleNames.PlatformSupport, 72));
+        var invitation = await created.Content.ReadFromJsonAsync<CreatePlatformAdminInvitationResponse>();
+
+        using var anonymous = factory.CreateClient();
+        var rejected = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
+            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "short"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.False(await db.PlatformAdminUsers.AnyAsync(x => x.NormalizedUserName == "SUPPORT1"));
+            Assert.Equal("pending", (await db.PlatformAdminInvitations.SingleAsync()).Status);
+        }
+
+        var accepted = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
+            new AcceptPlatformAdminInvitationRequest(invitation.Code, "support1", "Первая поддержка", "S3cret!passphrase"));
+
+        Assert.Equal(HttpStatusCode.NoContent, accepted.StatusCode);
+    }
+
+    [Fact]
+    public async Task BlankUserName_IsRejected()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        var created = await client.PostAsJsonAsync("/api/platform/admins/invitations",
+            new CreatePlatformAdminInvitationRequest(PlatformAdminRoleNames.PlatformSupport, 72));
+        var invitation = await created.Content.ReadFromJsonAsync<CreatePlatformAdminInvitationResponse>();
+
+        using var anonymous = factory.CreateClient();
+        var response = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
+            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "   ", "Первая поддержка", "S3cret!passphrase"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await db.PlatformAdminUsers.Where(x => x.NormalizedUserName == string.Empty).ToListAsync());
+    }
+
+    // Invitation codes stay unguessable only while every failure looks the same. If bad details
+    // were reported after the lookup, a live code would answer "invalid_details" and a dead one
+    // "invalid_invitation" for the very same request — enough to sweep the code space.
+    [Fact]
+    public async Task InvalidDetails_AnswerTheSameForLiveAndDeadCode()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        var created = await client.PostAsJsonAsync("/api/platform/admins/invitations",
+            new CreatePlatformAdminInvitationRequest(PlatformAdminRoleNames.PlatformSupport, 72));
+        var invitation = await created.Content.ReadFromJsonAsync<CreatePlatformAdminInvitationResponse>();
+
+        using var anonymous = factory.CreateClient();
+        var live = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
+            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "short"));
+        var dead = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
+            new AcceptPlatformAdminInvitationRequest("no-such-code-at-all", "support1", "Первая поддержка", "short"));
+
+        Assert.Equal(live.StatusCode, dead.StatusCode);
+        Assert.Equal(await live.Content.ReadAsStringAsync(), await dead.Content.ReadAsStringAsync());
+    }
+
     // Regression for a code-review finding: the AcceptInvitationAsync username-taken check
     // (AnyAsync over NormalizedUserName) is read-then-write. Two concurrent accepts for TWO
     // DIFFERENT valid invitations that both request the same login can each pass that check before

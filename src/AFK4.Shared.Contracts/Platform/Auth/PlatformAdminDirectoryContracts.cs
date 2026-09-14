@@ -51,6 +51,12 @@ public enum PlatformAdminDirectoryError
 
     // Requested invitation lifetime falls outside the allowed range (see
     // PlatformAdminDirectoryService.MinInvitationLifetimeHours / MaxInvitationLifetimeHours).
+    InvalidInvitationLifetime,
+
+    // The account details supplied alongside the code (login, display name, password) fail the
+    // same rules the organization-owner activation applies. Deliberately checked BEFORE the code
+    // is looked up, so a caller probing codes with a deliberately invalid password always gets
+    // this answer and can never tell a live code from a dead one by the response shape.
     // Add new values after this one; keep this last so the ordering comments above stay true.
-    InvalidInvitationLifetime
+    InvalidAccountDetails
 }

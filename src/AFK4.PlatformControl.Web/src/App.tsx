@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AccountActivation } from './account-activation/AccountActivation';
-import { AccountActivationApi } from './account-activation/accountActivationApi';
+import { AccountActivationApi, type AccountActivationKind } from './account-activation/accountActivationApi';
 import { PlatformApiClient } from './api/platformApi';
 import type { CreateOrganizationResponse, OrganizationOwnerInvite } from './api/types';
 import { can, type PlatformCapability } from './auth/platformAccess';
@@ -29,7 +29,7 @@ const AnnouncementsScreen = lazy(() => import('./platform/announcements/Announce
 const PeopleScreen = lazy(() => import('./platform/people/PeopleScreen').then(module => ({ default: module.PeopleScreen })));
 const HealthScreen = lazy(() => import('./platform/health/HealthScreen').then(module => ({ default: module.HealthScreen })));
 
-type AppRoute = PlatformRoute | { kind: 'accountActivation'; code: string | null };
+type AppRoute = PlatformRoute | { kind: 'accountActivation'; code: string | null; activation: AccountActivationKind };
 
 export interface AppProps { apiBaseUrl: string; }
 
@@ -61,7 +61,7 @@ export default function App({ apiBaseUrl }: AppProps) {
   }, []);
 
   if (route.kind === 'accountActivation') {
-    return <AccountActivation client={activationClient} initialCode={route.code} />;
+    return <AccountActivation client={activationClient} initialCode={route.code} kind={route.activation} />;
   }
   if (route.kind === 'notFound') return <NotFound path={route.path} onHome={() => navigate({ kind: 'overview', view: 'now' })} />;
   if (session === null) return <SignIn client={client} onSignedIn={() => setSession(client.getSession())} />;
@@ -157,7 +157,11 @@ function activePath(route: Exclude<PlatformRoute, { kind: 'notFound' }>): string
 
 function readCurrentRoute(): AppRoute {
   if (window.location.pathname === '/account-activation') {
-    return { kind: 'accountActivation', code: new URLSearchParams(window.location.search).get('code') };
+    const query = new URLSearchParams(window.location.search);
+    // Владелец остаётся значением по умолчанию: ссылки на активацию владельца уже разосланы и
+    // приходят без этого параметра.
+    const activation: AccountActivationKind = query.get('kind') === 'platform-admin' ? 'platform-admin' : 'organization-owner';
+    return { kind: 'accountActivation', code: query.get('code'), activation };
   }
   return resolvePlatformRoute(window.location.pathname, window.location.search);
 }

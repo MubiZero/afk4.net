@@ -50,6 +50,18 @@ export function canChangeRole(item: PlatformAdminListItem, selfId: string, items
   return changeRoleBlockReasonKey(item, selfId, items) === null;
 }
 
+/**
+ * Ссылка, по которой приглашённый администратор заводит себе учётную запись.
+ *
+ * Раньше диалог отдавал только сам код — а страницы, куда его ввести, в приложении не
+ * существовало: серверная точка активации была, позвать её было неоткуда. Ссылка несёт и код, и
+ * вид приглашения, потому что по самому коду вид не определить: коды владельца и администратора
+ * платформы намеренно неразличимы.
+ */
+export function platformAdminActivationUrl(origin: string, code: string): string {
+  return `${origin.replace(/\/+$/u, '')}/account-activation?kind=platform-admin&code=${encodeURIComponent(code)}`;
+}
+
 export function roleLabelKey(role: string): MessageKey {
   if (role === ROLE_PLATFORM_ADMIN) return 'platform.settings.role.admin';
   if (role === ROLE_PLATFORM_SUPPORT) return 'platform.settings.role.support';
