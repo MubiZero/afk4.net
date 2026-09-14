@@ -930,6 +930,17 @@
   "customerTariffUnavailableNow": "Not available right now",
   "customerWalletAmount": "Amount",
   "customerWalletAmountError": "Enter an amount greater than zero",
+  "customerWalletDebtPaid": "Debt cleared",
+  "customerWalletDebtPay": "Pay off {amount}",
+  "@customerWalletDebtPay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerWalletDebtPayError": "The debt could not be cleared. Try again.",
+  "customerWalletDebtPayNote": "You can clear it from your wallet or at the club counter.",
   "customerWalletGate": "To top up your wallet online, confirm your phone number.",
   "customerWalletGateAction": "Confirm the number",
   "customerWalletHeld": "Held for bookings",

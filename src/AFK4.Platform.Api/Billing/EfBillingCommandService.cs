@@ -21,6 +21,10 @@ public sealed class EfBillingCommandService(
     private const string RefundOperation = "refund";
     private const string ManualCorrectionOperation = "manual-correction";
     private const string DebtPaymentOperation = "debt-payment";
+
+    // Своя операция идемпотентности: у стойки и у игрока разные источники денег, и ключ одного
+    // не должен молча возвращать результат другого.
+    private const string WalletDebtPaymentOperation = "wallet-debt-payment";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<BillingCommandServiceResult<PlayerAccountDto>> CreatePlayerAccountAsync(
@@ -595,6 +599,120 @@ public sealed class EfBillingCommandService(
                 timeProvider.GetUtcNow(),
                 openShift.ShiftId),
             additionalEntries: null,
+            cancellationToken);
+    }
+
+    public async Task<BillingCommandServiceResult<WalletSummaryDto>> PayDebtFromWalletAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        Guid actorStaffUserId,
+        MoneyDto amount,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        var hashInput = new { playerAccountId, organizationId, branchId, amount };
+        var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
+            organizationId,
+            branchId,
+            WalletDebtPaymentOperation,
+            idempotencyKey,
+            hashInput,
+            cancellationToken);
+
+        if (idempotency is not null)
+        {
+            return idempotency;
+        }
+
+        var player = await FindPlayerAsync(organizationId, branchId, playerAccountId, cancellationToken);
+        if (player is null)
+        {
+            return BillingCommandServiceResult<WalletSummaryDto>.Missing("Player account was not found.");
+        }
+
+        if (amount.MinorUnits <= 0)
+        {
+            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Debt payment amount must be positive.");
+        }
+
+        var currencyValidation = await GetLedgerCurrencyForWriteAsync<WalletSummaryDto>(
+            playerAccountId,
+            amount.CurrencyCode,
+            cancellationToken);
+        if (currencyValidation.Error is not null)
+        {
+            return currencyValidation.Error;
+        }
+
+        var current = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerAccountId, cancellationToken);
+        if (current is null)
+        {
+            return BillingCommandServiceResult<WalletSummaryDto>.Missing("Player wallet summary was not found.");
+        }
+
+        if (current.DebtBalance.MinorUnits < amount.MinorUnits)
+        {
+            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Debt payment cannot exceed current debt balance.");
+        }
+
+        // Остаток кошелька и есть то, что можно потратить: заморозка под бронь — отрицательная
+        // запись журнала, она уже вычтена (см. LedgerBalanceProjector). «Придержано» объясняет,
+        // куда делась часть остатка, а не хранит деньги отдельно, и вычитать его второй раз значит
+        // отказать игроку, у которого деньги есть.
+        if (current.WalletBalance.MinorUnits < amount.MinorUnits)
+        {
+            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Wallet balance is not enough to pay this debt.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var reason = LedgerEntryTypeNames.DebtPayment;
+
+        return await ExecuteLedgerSummaryCommandAsync(
+            organizationId,
+            branchId,
+            WalletDebtPaymentOperation,
+            idempotencyKey,
+            hashInput,
+            hashInput,
+            BillingEntryFactory.Create(
+                organizationId,
+                branchId,
+                playerAccountId,
+                sessionId: null,
+                playerPackageId: null,
+                LedgerEntryTypeNames.DebtPayment,
+                LedgerAccountTypeNames.Debt,
+                -amount.MinorUnits,
+                quantitySeconds: 0,
+                currencyValidation.CurrencyCode,
+                description: LedgerEntryTypeNames.DebtPayment,
+                reason,
+                reversesLedgerEntryId: null,
+                actorStaffUserId,
+                now,
+                // Смены нет и быть не должно: наличные не двигались, ящик не открывался.
+                shiftId: null),
+            additionalEntries:
+            [
+                BillingEntryFactory.Create(
+                    organizationId,
+                    branchId,
+                    playerAccountId,
+                    sessionId: null,
+                    playerPackageId: null,
+                    LedgerEntryTypeNames.WalletPayment,
+                    LedgerAccountTypeNames.Wallet,
+                    -amount.MinorUnits,
+                    quantitySeconds: 0,
+                    currencyValidation.CurrencyCode,
+                    description: LedgerEntryTypeNames.WalletPayment,
+                    reason,
+                    reversesLedgerEntryId: null,
+                    actorStaffUserId,
+                    now,
+                    shiftId: null)
+            ],
             cancellationToken);
     }
 

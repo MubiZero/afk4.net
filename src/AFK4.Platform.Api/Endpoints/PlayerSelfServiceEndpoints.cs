@@ -495,6 +495,57 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(new PlayerTopUpMethodsDto(Counter: true, Online: online));
         }).RequireRateLimiting("player-me");
 
+        // Погасить долг собственными деньгами с кошелька. Раньше долг игрок только видел, а
+        // надпись отправляла его на стойку клуба — при том, что деньги могли лежать на его же
+        // кошельке, и закрыть долг до следующего визита было нечем.
+        //
+        // Смена здесь не нужна и не спрашивается, в отличие от того же действия на стойке:
+        // наличные не двигаются, ящик не открывается. Записей две — долг минус и кошелёк минус, —
+        // иначе сумма возникала бы из ниоткуда.
+        app.MapPost("/api/me/wallet/debt-payment", async (
+            PlayerDebtPaymentRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            IBillingCommandService billingCommandService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                return Results.BadRequest(new { Error = "IdempotencyKey is required." });
+            }
+
+            // Филиал берётся домашний: долг принадлежит счёту в клубе, а не тому залу, из которого
+            // человек сейчас смотрит в телефон.
+            var branchId = await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .Where(account => account.PlayerAccountId == player.PlayerAccountId)
+                .Select(account => (Guid?)account.HomeBranchId)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (branchId is null)
+            {
+                return Results.NotFound(new { Error = "Player account was not found." });
+            }
+
+            var result = await billingCommandService.PayDebtFromWalletAsync(
+                player.PlayerAccountId,
+                player.OrganizationId,
+                branchId.Value,
+                SystemActorIds.PlayerSelfService,
+                request.Amount,
+                request.IdempotencyKey,
+                cancellationToken);
+
+            return result.Succeeded
+                ? Results.Ok(result.Response)
+                : ToHttpResult(result);
+        }).RequireRateLimiting("player-me");
+
         app.MapGet("/api/me/wallet/top-up-intents", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,

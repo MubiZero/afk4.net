@@ -930,6 +930,17 @@
   "customerTariffUnavailableNow": "Сейчас недоступен",
   "customerWalletAmount": "Сумма",
   "customerWalletAmountError": "Введите сумму больше нуля",
+  "customerWalletDebtPaid": "Долг погашен",
+  "customerWalletDebtPay": "Погасить {amount}",
+  "@customerWalletDebtPay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerWalletDebtPayError": "Не удалось погасить долг. Попробуйте ещё раз.",
+  "customerWalletDebtPayNote": "Можно закрыть деньгами с кошелька или на стойке клуба.",
   "customerWalletGate": "Чтобы пополнять кошелёк онлайн, подтвердите свой номер телефона.",
   "customerWalletGateAction": "Подтвердить номер",
   "customerWalletHeld": "Придержано под брони",

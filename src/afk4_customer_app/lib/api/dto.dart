@@ -81,6 +81,27 @@ class ActiveSession {
       );
 }
 
+/// Три числа кошелька после денежной операции: столько же, сколько отдаёт сервер, и ни полем
+/// больше. Отдельно от PlayerDashboard намеренно — в этом ответе нет идущей сессии, и делать вид,
+/// что она просто «пустая», значит однажды показать «сессии нет» там, где она есть.
+class WalletBalances {
+  const WalletBalances({
+    required this.walletBalance,
+    required this.heldBalance,
+    required this.debtBalance,
+  });
+
+  final Money walletBalance;
+  final Money heldBalance;
+  final Money debtBalance;
+
+  factory WalletBalances.fromJson(Map<String, dynamic> json) => WalletBalances(
+        walletBalance: Money.fromJson(json['walletBalance'] as Map<String, dynamic>),
+        heldBalance: Money.fromJson(json['heldBalance'] as Map<String, dynamic>),
+        debtBalance: Money.fromJson(json['debtBalance'] as Map<String, dynamic>),
+      );
+}
+
 class PlayerDashboard {
   const PlayerDashboard({
     required this.walletBalance,

@@ -61,4 +61,22 @@ public interface IBillingCommandService
         Guid actorStaffUserId,
         PayDebtRequest request,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Игрок гасит долг собственными деньгами с кошелька.
+    ///
+    /// Отличие от <see cref="PayDebtAsync"/> не в том, кто нажал, а в том, откуда деньги. У стойки
+    /// они приходят наличными в ящик, поэтому там нужна открытая смена и хватает одной записи —
+    /// уменьшения долга. Здесь деньги уже лежат на кошельке этого же игрока: записи две, долг
+    /// минус и кошелёк минус, иначе сумма возникала бы из ниоткуда. Смена не нужна и не
+    /// спрашивается: ящик не открывается, а игрок платит из дома в три часа ночи.
+    /// </summary>
+    Task<BillingCommandServiceResult<WalletSummaryDto>> PayDebtFromWalletAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        Guid actorStaffUserId,
+        MoneyDto amount,
+        string idempotencyKey,
+        CancellationToken cancellationToken);
 }

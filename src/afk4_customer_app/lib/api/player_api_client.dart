@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../auth/player_session.dart';
 import 'dto.dart';
+import 'idempotency.dart';
 
 /// Ошибка запроса к API. Несёт код состояния: 410 на коде — «код устарел», 403 на
 /// действии — «возможность выключена», и на экране это разные тексты.
@@ -537,6 +538,19 @@ class PlayerApiClient {
         await sendJson('POST', '/api/me/shop/orders/${Uri.encodeComponent(orderId)}/cancel'),
         ShopOrder.fromJson,
       );
+
+  /// Погасить долг деньгами с собственного кошелька. Сумма явная, а не «весь долг»: человек
+  /// вправе закрыть часть, и «весь» на момент нажатия и на момент записи — разные числа.
+  Future<WalletBalances> payDebtFromWallet({
+    required int amountMinorUnits,
+    required String currencyCode,
+  }) async {
+    final body = await sendJson('POST', '/api/me/wallet/debt-payment', {
+      'amount': {'currencyCode': currencyCode, 'minorUnits': amountMinorUnits},
+      'idempotencyKey': newIdempotencyKey(),
+    });
+    return _parse(body, WalletBalances.fromJson);
+  }
 
   /// Отказаться от собственной незавершённой заявки. В ответ приходит она же — уже отменённой.
   Future<TopUpIntent> cancelTopUpIntent(String intentId) async => _parse(

@@ -930,6 +930,17 @@
   "customerTariffUnavailableNow": "Ҳоло дастрас нест",
   "customerWalletAmount": "Маблағ",
   "customerWalletAmountError": "Маблағи аз сифр зиёдро ворид кунед",
+  "customerWalletDebtPaid": "Қарз пӯшонида шуд",
+  "customerWalletDebtPay": "{amount}-ро пӯшонидан",
+  "@customerWalletDebtPay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerWalletDebtPayError": "Қарзро пӯшонидан нашуд. Бори дигар кӯшиш кунед.",
+  "customerWalletDebtPayNote": "Онро бо пули ҳамён ё дар назди клуб пӯшонидан мумкин аст.",
   "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефони худро тасдиқ кунед.",
   "customerWalletGateAction": "Рақамро тасдиқ кунед",
   "customerWalletHeld": "Барои фармоишҳо нигоҳ дошта шудааст",

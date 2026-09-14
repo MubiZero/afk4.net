@@ -71,6 +71,42 @@ class _WalletCardState extends State<WalletCard> {
       _intents.where((intent) => intent.state == 'pending' && !intent.isExpired).firstOrNull;
 
   bool _cancellingIntent = false;
+  bool _payingDebt = false;
+
+  /// Сколько можно закрыть прямо сейчас: весь долг, если денег хватает, иначе весь остаток.
+  /// Частичное гашение — не поблажка: долг в две тысячи при тысяче на кошельке иначе нельзя
+  /// тронуть вовсе.
+  int get _debtPaymentMinorUnits =>
+      widget.debtBalance.minorUnits < widget.walletBalance.minorUnits
+          ? widget.debtBalance.minorUnits
+          : widget.walletBalance.minorUnits;
+
+  bool get _canPayDebt =>
+      widget.debtBalance.minorUnits > 0 && _debtPaymentMinorUnits > 0;
+
+  Future<void> _payDebt() async {
+    final l = L.of(context);
+    setState(() => _payingDebt = true);
+    try {
+      await widget.api.payDebtFromWallet(
+        amountMinorUnits: _debtPaymentMinorUnits,
+        currencyCode: widget.debtBalance.currencyCode,
+      );
+      if (!mounted) return;
+      await widget.onToppedUp?.call();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletDebtPaid)),
+      );
+    } on PlayerApiException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletDebtPayError)),
+      );
+    } finally {
+      if (mounted) setState(() => _payingDebt = false);
+    }
+  }
 
   Future<void> _cancelIntent(TopUpIntent intent) async {
     final l = L.of(context);
@@ -215,10 +251,23 @@ class _WalletCardState extends State<WalletCard> {
                 style: TextStyle(color: theme.colorScheme.error),
               ),
               Text(
-                l.customerDashboardDebtNote,
+                _canPayDebt ? l.customerWalletDebtPayNote : l.customerDashboardDebtNote,
                 style:
                     theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
+              // Деньги на кошельке есть, а долг закрыть было нечем: надпись отправляла на стойку
+              // клуба, хотя платить можно было отсюда.
+              if (_canPayDebt)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton(
+                    onPressed: _payingDebt ? null : _payDebt,
+                    child: Text(l.customerWalletDebtPay(
+                      formatMoney(_debtPaymentMinorUnits, widget.debtBalance.currencyCode,
+                          locale: locale),
+                    )),
+                  ),
+                ),
             ],
             if (awaiting != null) ...[
               const SizedBox(height: 8),
