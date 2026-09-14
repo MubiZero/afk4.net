@@ -557,6 +557,7 @@ export function App() {
             result={state.enrollResult}
             branchName={state.branch.branchName}
             selectedSeat={state.selectedSeat}
+            stepNumber={stepNumber}
           />
         )}
       </main>

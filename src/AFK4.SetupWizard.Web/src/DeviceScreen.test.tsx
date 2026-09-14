@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { WizardBranch, WizardEnrollResult, WizardSeat } from './wizardApi';
 import { DeviceScreen } from './DeviceScreen';
+import { HostBridgeRequestError, hostBridgeTimeoutCode } from './hostBridge';
 
 const ZONE = { zoneId: 'z-1', name: 'Main Hall', sortOrder: 0 };
 const BRANCH: WizardBranch = {
@@ -107,14 +108,43 @@ describe('DeviceScreen (create-only)', () => {
     expect(enrollDevice).not.toHaveBeenCalled();
   });
 
-  it('shows an error and skips enroll when seat creation fails', async () => {
+  // Отказ объясняется по коду моста, а не пересказом исключения. Прошлая версия этого теста
+  // бросала Error с русским текстом и проверяла, что он появился на экране, — то есть закрепляла
+  // как правильное ровно то, из-за чего в русский мастер приезжали «Seat name is required.» и
+  // «Platform API returned 500 for /api/…».
+  it('объясняет неудачу создания места и не регистрирует ПК', async () => {
     createSeat.mockImplementation(async () => {
-      throw new Error('Сервер недоступен');
+      throw new HostBridgeRequestError('Platform API returned 500 for /api/…', 'wizard_create_seat_failed', null);
     });
     renderScreen();
     submit();
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Сервер недоступен'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent)
+      .toContain('Не удалось создать место'));
+    expect(screen.getByRole('alert').textContent).not.toContain('Platform API');
     expect(enrollDevice).not.toHaveBeenCalled();
+  });
+
+  // Незнакомый код — общая надпись, а не пересказ английской строки: выдумывать объяснение коду,
+  // которого мы не знаем, хуже, чем сказать «не получилось».
+  it('незнакомую ошибку называет общими словами, не показывая её текст', async () => {
+    createSeat.mockImplementation(async () => {
+      throw new Error('No such host is known.');
+    });
+    renderScreen();
+    submit();
+    await waitFor(() => expect(screen.getByRole('alert').textContent)
+      .toContain('Не удалось выполнить действие'));
+    expect(screen.getByRole('alert').textContent).not.toContain('No such host');
+  });
+
+  it('молчание моста называет молчанием моста', async () => {
+    createSeat.mockImplementation(async () => {
+      throw new HostBridgeRequestError('Native host bridge request timed out.', hostBridgeTimeoutCode, null);
+    });
+    renderScreen();
+    submit();
+    await waitFor(() => expect(screen.getByRole('alert').textContent)
+      .toContain('не ответил вовремя'));
   });
 });
 

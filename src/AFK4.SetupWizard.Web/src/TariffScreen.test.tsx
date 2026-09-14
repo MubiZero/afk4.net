@@ -33,6 +33,19 @@ describe('TariffScreen', () => {
     expect(screen.getByText(/Тариф «Дневной» создан/)).toBeTruthy();
   });
 
+  // Свой `Math.round(x * 100)` округлял 1.005 вниз: в двоичной дроби это 1.00499999…, и мастер
+  // расходился с остальными экранами на дирам. Общий перевод из @afk4/money округляет как человек.
+  it('округляет цену так же, как остальные экраны', async () => {
+    const createTariff = mock().mockResolvedValue({ name: 'Дневной' });
+    renderScreen({ createTariff });
+
+    fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Дневной' } });
+    fireEvent.change(screen.getByLabelText('Цена за час, сомони'), { target: { value: '1.005' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
+
+    await waitFor(() => expect(createTariff).toHaveBeenCalledWith('Дневной', 101));
+  });
+
   it('does not create a tariff without a price', () => {
     const createTariff = mock();
     renderScreen({ createTariff });

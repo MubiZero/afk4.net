@@ -271,7 +271,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         </div>
       )}
 
-      <button type="button" className="wizard-link-action wizard-fallback-link" onClick={handleBack}>
+      <button type="button" className="wizard-link-action" onClick={handleBack}>
         <ArrowLeft aria-hidden />
         <span>{step === 'verify' ? t('setup.wizard.common.back') : t('auth.forgot.back')}</span>
       </button>

@@ -1,5 +1,5 @@
-import { it, expect } from 'bun:test';
-import { formatNumber, formatCurrency, formatDateParts } from './index';
+import { describe, it, expect } from 'bun:test';
+import { formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, localPhoneDigits } from './index';
 
 it('formats numbers with locale grouping and options', () => {
   // ru-RU groups thousands with a non-breaking space (U+00A0); normalise any
@@ -25,4 +25,26 @@ it('formats date parts from an ISO string', () => {
 it('accepts a Date instance', () => {
   const out = formatDateParts(new Date('2026-06-01T00:00:00.000Z'), 'ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
   expect(out).toBe('01.06.2026');
+});
+
+// Маска телефона переехала сюда из двух приложений сразу: у админки клуба и у мастера установки
+// лежали побайтно одинаковые копии. Проверки тоже были в двух местах — теперь одни.
+describe('телефон Таджикистана', () => {
+  it('оставляет девять локальных цифр и срезает код страны', () => {
+    expect(localPhoneDigits('+992 93 738 00 70')).toBe('937380070');
+    expect(localPhoneDigits('937380070')).toBe('937380070');
+    expect(localPhoneDigits('9373800709999')).toBe('937380070');
+    expect(localPhoneDigits('')).toBe('');
+  });
+
+  it('раскладывает маску 2-3-2-2 и не рисует пустые группы', () => {
+    expect(formatLocal('937380070')).toBe('93 738 00 70');
+    expect(formatLocal('93')).toBe('93');
+    expect(formatLocal('')).toBe('');
+  });
+
+  it('на сервер уходит код страны и девять цифр', () => {
+    expect(fullPhoneDigits('93 738 00 70')).toBe('992937380070');
+    expect(fullPhoneDigits('+992937380070')).toBe('992937380070');
+  });
 });

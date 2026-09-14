@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import type { MessageKey } from '@afk4/i18n';
 import type { WizardBrandingPreset } from './wizardApi';
+import { handleRadioGroupKeys, radioTabIndex } from './radioGroup';
 
 // Цвет клуба доезжает до приложения игрока и до оболочки игрового ПК. Палитра задана здесь, а не
 // свободным вводом: на первом шаге важнее быстро выбрать читаемый цвет, чем подобрать оттенок.
 const COLORS = ['#C8FF00', '#FF3B30', '#FF9F0A', '#30D158', '#0A84FF', '#BF5AF2', '#FF375F', '#64D2FF'];
+
+// Названия цветов для тех, кто не видит образцы. Диктор читал сам код — «решётка це восемь эф эф
+// ноль ноль», — и выбрать по нему было невозможно.
+const COLOR_LABEL_KEYS: Record<string, MessageKey> = {
+  '#C8FF00': 'setup.wizard.branding.color.lime',
+  '#FF3B30': 'setup.wizard.branding.color.red',
+  '#FF9F0A': 'setup.wizard.branding.color.orange',
+  '#30D158': 'setup.wizard.branding.color.green',
+  '#0A84FF': 'setup.wizard.branding.color.blue',
+  '#BF5AF2': 'setup.wizard.branding.color.purple',
+  '#FF375F': 'setup.wizard.branding.color.pink',
+  '#64D2FF': 'setup.wizard.branding.color.sky'
+};
 
 // Клиент приходит пропсом, как у DeviceScreen: экран не знает про мост, а тест не подменяет модуль.
 export interface BrandingClient {
@@ -95,14 +110,17 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
 
       <div className="wizard-field">
         <span className="wizard-field-label">{t('setup.wizard.branding.logo')}</span>
-        <div className="wizard-preset-grid" role="radiogroup" aria-label={t('setup.wizard.branding.logo')}>
-          {presets.map((preset) => (
+        {/* Не radiogroup: нажатие по выбранному снимает выбор, а переключатель так не умеет —
+            выбранный остаётся выбранным, пока не выбрали другой. Здесь это кнопки-переключатели,
+            и «без логотипа» — законное состояние: клуб откроется и без него. */}
+        <div className="wizard-preset-grid" role="group" aria-label={t('setup.wizard.branding.logo')}>
+          {presets.map((preset, index) => (
             <button
               key={preset.id}
               type="button"
-              role="radio"
-              aria-checked={logoUrl === preset.url}
-              aria-label={preset.id}
+              aria-pressed={logoUrl === preset.url}
+              // Не `preset.id`: диктор читал служебное имя файла вместо «вариант 2».
+              aria-label={t('setup.wizard.branding.logoOption', { index: index + 1 })}
               className={logoUrl === preset.url ? 'wizard-preset is-selected' : 'wizard-preset'}
               style={{ background: accentColor }}
               onClick={() => setLogoUrl(logoUrl === preset.url ? null : preset.url)}
@@ -115,8 +133,8 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
       </div>
 
       <div className="wizard-field">
-        <button type="button" className="wizard-button is-ghost" onClick={() => void upload()} disabled={uploading}>
-          {uploading ? <Loader2 size={16} className="wizard-spin" aria-hidden /> : null}
+        <button type="button" className="wizard-secondary" onClick={() => void upload()} disabled={uploading}>
+          {uploading ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : null}
           {t('setup.wizard.branding.upload')}
         </button>
         {ownLogoUrl === null ? null : (
@@ -124,19 +142,26 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
             <img src={ownLogoUrl} alt={t('setup.wizard.branding.ownLogo')} />
           </span>
         )}
-        {uploadFailed ? <p className="wizard-error">{t('setup.wizard.branding.uploadFailed')}</p> : null}
+        {uploadFailed ? <p className="wizard-alert">{t('setup.wizard.branding.uploadFailed')}</p> : null}
       </div>
 
       <div className="wizard-field">
         <span className="wizard-field-label">{t('setup.wizard.branding.color')}</span>
-        <div className="wizard-color-row" role="radiogroup" aria-label={t('setup.wizard.branding.color')}>
-          {COLORS.map((color) => (
+        <div
+          className="wizard-color-row"
+          role="radiogroup"
+          aria-label={t('setup.wizard.branding.color')}
+          onKeyDown={(event) => handleRadioGroupKeys(event, COLORS, accentColor, setAccentColor)}
+        >
+          {COLORS.map((color, index) => (
             <button
               key={color}
               type="button"
               role="radio"
               aria-checked={accentColor === color}
-              aria-label={color}
+              tabIndex={radioTabIndex(index, COLORS.indexOf(accentColor))}
+              // Не сам код цвета: диктор читал «решётка це восемь эф эф ноль ноль».
+              aria-label={t(COLOR_LABEL_KEYS[color] ?? 'setup.wizard.branding.color')}
               className={accentColor === color ? 'wizard-color is-selected' : 'wizard-color'}
               style={{ background: color }}
               onClick={() => setAccentColor(color)}
@@ -145,20 +170,20 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         </div>
       </div>
 
-      {failed ? <p className="wizard-error">{t('setup.wizard.branding.failed')}</p> : null}
+      {failed ? <p className="wizard-alert">{t('setup.wizard.branding.failed')}</p> : null}
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-button is-ghost" onClick={onBack}>
+        <button type="button" className="wizard-secondary" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
         {/* Оформление можно пропустить: клуб откроется и без логотипа, а поставить его
             управляющий сможет в панели. */}
-        <button type="button" className="wizard-button is-ghost" onClick={onContinue} disabled={saving}>
+        <button type="button" className="wizard-secondary" onClick={onContinue} disabled={saving}>
           {t('setup.wizard.branding.skip')}
         </button>
-        <button type="button" className="wizard-button" onClick={() => void save()} disabled={saving}>
-          {saving ? <Loader2 size={16} className="wizard-spin" aria-hidden /> : <ArrowRight size={16} aria-hidden />}
+        <button type="button" className="wizard-primary" onClick={() => void save()} disabled={saving}>
+          {saving ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : <ArrowRight size={16} aria-hidden />}
           {t('setup.wizard.branding.save')}
         </button>
       </div>
