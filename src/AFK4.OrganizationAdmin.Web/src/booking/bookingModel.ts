@@ -142,13 +142,20 @@ export function bookingStateLabelKey(state: string): BookingStateKey {
 
 // Отказать можно в заявке, которую ещё не приняли: подтверждённую бронь клуб отменяет, и это
 // другой разговор с человеком, которому уже пообещали место.
+//
+// Неявка повторяет правило сервера (ReservationNoShow.WhyNot), а не смягчает его: не приехать
+// можно только на подтверждённую бронь и только после её начала. Заявка, на которую клуб сам не
+// ответил, — это молчание клуба, а не чужая неявка, и превращать одно в другое одним кликом
+// нельзя. Не начавшаяся бронь — тем более: человек ещё не опоздал.
 export function bookingDetailActions(
-  state: string
-): { canConfirm: boolean; canStart: boolean; canReject: boolean } {
+  state: string,
+  startedByNow = false
+): { canConfirm: boolean; canStart: boolean; canReject: boolean; canMarkNoShow: boolean } {
   return {
     canConfirm: state === 'pending',
     canStart: state === 'confirmed',
-    canReject: state === 'pending'
+    canReject: state === 'pending',
+    canMarkNoShow: state === 'confirmed' && startedByNow
   };
 }
 

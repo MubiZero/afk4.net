@@ -36,16 +36,16 @@ function renderDrawer(groupConflicts = new Set<string>()) {
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
     groupConflicts, groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose: () => {},
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
-    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {},
+    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {}, onMarkNoShow: () => {},
     onConfirm: () => {}, onOpenMap: () => {}
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
 }
 
-function detail(state: string, onConfirm = () => {}, onStart = () => {}) {
+function detail(state: string, onConfirm = () => {}, onStart = () => {}, onMarkNoShow = () => {}, startMs = Date.now() + 60_000) {
   const item = {
     reservationId: 'r1', reservationGroupId: '', version: 2, state, source: 'operator',
-    startMs: Date.now() + 60_000, endMs: Date.now() + 3_660_000, durationMinutes: 60,
+    startMs, endMs: startMs + 3_600_000, durationMinutes: 60,
     customerName: 'Мадина', phoneNumber: '+992900000000', note: '', playerAccountId: 'p1',
     platformPersonId: '', seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: '',
     respondByMs: null
@@ -55,7 +55,7 @@ function detail(state: string, onConfirm = () => {}, onStart = () => {}) {
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null,
     seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(),
     onClose: () => {}, onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {},
-    onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {}, onReject: () => {},
+    onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {}, onReject: () => {}, onMarkNoShow,
     onConfirm, onOpenMap: () => {}
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
@@ -68,7 +68,7 @@ it('blocks drawer close while a reservation command is pending', () => {
     canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
     groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose,
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
-    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {},
+    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {}, onMarkNoShow: () => {},
     onConfirm: () => {}, onOpenMap: () => {}
   };
   const result = render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
@@ -121,4 +121,31 @@ describe('BookingDrawer reservation lifecycle actions', () => {
       cleanup();
     }
   });
+});
+
+// Отметить неявку было нельзя ниоткуда: серверный маршрут существовал, клиентского метода не было
+// вовсе, а в панели «не приехал» оставалось только читать как состояние, поставленное таймером.
+// Таймер же трогает лишь брони с замороженными деньгами — остальные висели «подтверждёнными»
+// вечно, занимая место в полосе.
+it('неявка отмечается у начавшейся подтверждённой брони и только после подтверждения', () => {
+  const onMarkNoShow = mock(() => {});
+  const result = detail('confirmed', () => {}, () => {}, onMarkNoShow, Date.now() - 60_000);
+
+  fireEvent.click(result.getByRole('button', { name: 'Не приехал' }));
+  expect(onMarkNoShow).not.toHaveBeenCalled();
+
+  fireEvent.click(result.getByRole('button', { name: 'Отметить неявку' }));
+  expect(onMarkNoShow).toHaveBeenCalledTimes(1);
+});
+
+// Человек не опоздал, пока его время не наступило.
+it('у ещё не начавшейся брони кнопки неявки нет', () => {
+  const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000);
+  expect(result.queryByRole('button', { name: 'Не приехал' })).toBeNull();
+});
+
+// Заявка, на которую клуб сам не ответил, — это молчание стойки, а не прогул игрока.
+it('у неотвеченной заявки кнопки неявки нет', () => {
+  const result = detail('pending', () => {}, () => {}, () => {}, Date.now() - 60_000);
+  expect(result.queryByRole('button', { name: 'Не приехал' })).toBeNull();
 });

@@ -259,6 +259,7 @@ describe('operator API clients', () => {
     await clients.reservations.confirm(reservationId, { organizationId, expectedVersion: 5 });
     await clients.reservations.seat(reservationId, { organizationId, expectedVersion: 6 });
     await clients.reservations.cancel(reservationId, { organizationId, reason: 'client called', expectedVersion: 7 });
+    await clients.reservations.noShow(reservationId, { organizationId, expectedVersion: 9 });
     await clients.reservations.startSession(reservationId, startSessionRequest);
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
@@ -268,6 +269,7 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/reservations/${reservationId}/confirm`,
       `POST /api/organizations/organization-id/reservations/${reservationId}/seat`,
       `POST /api/organizations/organization-id/reservations/${reservationId}/cancel`,
+      `POST /api/organizations/organization-id/reservations/${reservationId}/no-show`,
       `POST /api/organizations/organization-id/reservations/${reservationId}/start-session`
     ]);
     expect(calls[1].body).toEqual(createRequest);
@@ -275,7 +277,8 @@ describe('operator API clients', () => {
     expect(calls[3].body).toEqual({ organizationId, expectedVersion: 5 });
     expect(calls[4].body).toEqual({ organizationId, expectedVersion: 6 });
     expect(calls[5].body).toEqual({ organizationId, reason: 'client called', expectedVersion: 7 });
-    expect(calls[6].body).toEqual(startSessionRequest);
+    expect(calls[6].body).toEqual({ organizationId, expectedVersion: 9 });
+    expect(calls[7].body).toEqual(startSessionRequest);
   });
 
   it('maps settings, device, diagnostics, updates, and audit clients', async () => {

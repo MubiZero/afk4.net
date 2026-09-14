@@ -13,6 +13,8 @@ import {
   createAuthenticatedOperatorClients,
   emptyFeedback,
   createIdempotencyKey,
+  formatMinorUnits,
+  isRecord,
   projectPlayerClient,
   formatTime,
   readArray,
@@ -244,7 +246,11 @@ export function BackendBookingWorkspace({
   const runReservationAction = async (
     label: string,
     operation: (clients: ReturnType<typeof createOperatorApiClients>) => Promise<unknown>,
-    afterSuccess?: () => void
+    afterSuccess?: () => void,
+    // Что сказать об успехе, когда у ответа есть что сказать. Пустой успех — норма для большинства
+    // действий, но неявка возвращает удержанную сумму, и прятать её незачем: оператор всё равно
+    // спросит, сколько ушло клубу.
+    successDetail?: (result: unknown) => string | undefined
   ) => {
     setFeedback({ label, state: 'pending' });
     try {
@@ -253,8 +259,8 @@ export function BackendBookingWorkspace({
         throw new Error(t('op.booking.error.noPermission'));
       }
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      await operation(clients);
-      setFeedback({ label, state: 'confirmed' });
+      const result = await operation(clients);
+      setFeedback({ label, state: 'confirmed', detail: successDetail?.(result) });
       setReloadVersion((v) => v + 1);
       afterSuccess?.();
     } catch (error) {
@@ -400,6 +406,30 @@ export function BackendBookingWorkspace({
         expectedVersion: selectedItem.version
       });
     });
+
+  // Неявка. Не отмена и не отказ: место освобождается, а предоплата уходит по правилам филиала —
+  // удержала ли она что-нибудь, знает только сервер, поэтому сумма берётся из его же ответа, а не
+  // угадывается по настройкам.
+  const markNoShow = () => runReservationAction(
+    t('op.booking.actions.noShow'),
+    async (clients) => {
+      const nextBackend = requireBackend(backend, t);
+      if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+      if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
+      return await clients.reservations.noShow(selectedReservationId, {
+        organizationId: nextBackend.session.organizationId,
+        expectedVersion: selectedItem.version
+      });
+    },
+    undefined,
+    (result) => {
+      const retained = isRecord(result) ? result.retainedAmountMinorUnits : null;
+      // Пустое поле — это «не удерживали вовсе», а ноль читался бы как «удержали нисколько».
+      return typeof retained === 'number'
+        ? t('op.booking.noShow.retained', { amount: formatMinorUnits(retained, currencyCode) })
+        : t('op.booking.noShow.retainedNothing');
+    }
+  );
 
   // Отмена всей группы: отменяем каждую активную бронь с тем же ReservationGroupId по очереди.
   const cancelReservationGroup = () => runReservationAction(t('op.booking.group.cancelAll'), async (clients) => {
@@ -714,6 +744,7 @@ export function BackendBookingWorkspace({
             onMove={moveReservation}
             onCancel={cancelReservation}
             onReject={rejectReservation}
+            onMarkNoShow={markNoShow}
             onConfirm={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
             onOpenMap={onOpenSeat}
           />

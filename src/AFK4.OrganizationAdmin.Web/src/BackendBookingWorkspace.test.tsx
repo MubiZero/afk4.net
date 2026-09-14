@@ -420,3 +420,66 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     expect(bodies[1].idempotencyKey).not.toBe(bodies[0].idempotencyKey);
   });
 });
+
+// Удержание — это деньги игрока, оставшиеся клубу. Сколько именно осталось, знает только сервер:
+// по настройке филиала и по тому, была ли заморозка вообще. Считать это на стойке значит однажды
+// назвать сумму, которой в кассе нет.
+describe('BackendBookingWorkspace no-show', () => {
+  function pastConfirmedReservation() {
+    return confirmedReservation({
+      reservationId: 'reservation-no-show',
+      startsAtUtc: new Date(Date.now() - 3_600_000).toISOString(),
+      customerName: 'Не приехавший гость'
+    });
+  }
+
+  function mountWithNoShowResponse(noShowBody: Record<string, unknown>) {
+    const calls: Record<string, unknown>[] = [];
+    const reservation = pastConfirmedReservation();
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') return json({ reservations: [reservation], limit: 40 });
+      if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
+      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/no-show')) {
+        calls.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return json(noShowBody);
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    render(
+      <I18nProvider><ToastProvider>
+        <BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={() => {}} />
+      </ToastProvider></I18nProvider>
+    );
+    return calls;
+  }
+
+  it('отмечает неявку с текущей версией брони и называет удержанную сумму', async () => {
+    const calls = mountWithNoShowResponse({
+      reservationId: 'reservation-no-show', version: 4, state: 'no_show', retainedAmountMinorUnits: 15000
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Не приехавший гость' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Не приехал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отметить неявку' }));
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({ expectedVersion: 3 });
+    expect(await screen.findByText(/Клуб удержал/)).toBeInTheDocument();
+  });
+
+  // Пустое поле — это «не удерживали вовсе». Ноль читался бы как «удержали нисколько», а филиал,
+  // который предоплату не держит, вообще ничего не удерживал.
+  it('не выдаёт отсутствие удержания за нулевое удержание', async () => {
+    mountWithNoShowResponse({
+      reservationId: 'reservation-no-show', version: 4, state: 'no_show', retainedAmountMinorUnits: null
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Не приехавший гость' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Не приехал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отметить неявку' }));
+
+    expect(await screen.findByText(/Ничего не удерживали/)).toBeInTheDocument();
+  });
+});
