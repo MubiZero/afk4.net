@@ -539,6 +539,15 @@ class PlayerApiClient {
         ShopOrder.fromJson,
       );
 
+  /// Удалить собственную учётную запись. Отказ приходит кодом причины: остались деньги, остался
+  /// долг или человек прямо сейчас за ПК.
+  Future<void> deleteAccount() async {
+    final response = await _send('DELETE', '/api/me');
+    if (response.statusCode != 204) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
   /// Погасить долг деньгами с собственного кошелька. Сумма явная, а не «весь долг»: человек
   /// вправе закрыть часть, и «весь» на момент нажатия и на момент записи — разные числа.
   Future<WalletBalances> payDebtFromWallet({

@@ -182,4 +182,74 @@ void main() {
     expect(find.byType(BrandMark), findsOneWidget);
     expect(find.text('Работает на AFK4.NET'), findsOneWidget);
   });
+
+  // Удаления учётной записи не было ни на сервере, ни здесь, хотя App Store требует его от любого
+  // приложения с регистрацией.
+  testWidgets('удаление спрашивается и уводит из приложения', (tester) async {
+    var signedOut = false;
+    late final FakeHttpClient http;
+    http = FakeHttpClient((request) =>
+        request.method == 'DELETE' ? ('', 204) : (_profileJson(), 200));
+    await tester.pumpWidget(harness(http, onSignOut: () => signedOut = true));
+    await tester.pumpAndSettle();
+
+    // Кнопка стоит в самом низу настроек — до неё надо доскроллить, как доскроллит человек.
+    await tester.ensureVisible(find.text('Удалить учётную запись'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить учётную запись'));
+    await tester.pumpAndSettle();
+    expect(find.text('Удалить учётную запись?'), findsOneWidget);
+    // Пока не подтвердили — ничего не ушло.
+    expect(http.requests.any((r) => r.method == 'DELETE'), isFalse);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Удалить'));
+    await tester.pumpAndSettle();
+
+    expect(http.requests.any((r) => r.method == 'DELETE'), isTrue);
+    expect(signedOut, isTrue);
+  });
+
+  testWidgets('отказ от подтверждения ничего не удаляет', (tester) async {
+    final http = FakeHttpClient((_) => (_profileJson(), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    // Кнопка стоит в самом низу настроек — до неё надо доскроллить, как доскроллит человек.
+    await tester.ensureVisible(find.text('Удалить учётную запись'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить учётную запись'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Отмена'));
+    await tester.pumpAndSettle();
+
+    expect(http.requests.any((r) => r.method == 'DELETE'), isFalse);
+  });
+
+  // Три причины отказа — три разных следующих шага человека. Одна надпись «не удалось» не помогла
+  // бы ни в одном из трёх случаев.
+  testWidgets('отказ называет причину, а не «что-то пошло не так»', (tester) async {
+    for (final (code, expected) in [
+      ('remaining_balance', 'На кошельке остались деньги. Заберите их на стойке клуба — и возвращайтесь сюда.'),
+      ('outstanding_debt', 'За вами числится долг. Погасите его — с кошелька или на стойке клуба.'),
+      ('active_session', 'Сейчас идёт ваша сессия. Завершите её и попробуйте снова.'),
+    ]) {
+      final http = FakeHttpClient((request) => request.method == 'DELETE'
+          ? (jsonEncode({'error': code}), 409)
+          : (_profileJson(), 200));
+      await tester.pumpWidget(harness(http));
+      await tester.pumpAndSettle();
+
+      // Кнопка стоит в самом низу настроек — до неё надо доскроллить, как доскроллит человек.
+    await tester.ensureVisible(find.text('Удалить учётную запись'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить учётную запись'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Удалить'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(expected), findsOneWidget, reason: code);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
+  });
 }

@@ -60,6 +60,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
   PlayerProfile? _profile;
   bool _saving = false;
   bool _pushEnabled = false;
+  bool _deleting = false;
+
+  /// Удаление спрашивается отдельно и называет последствие: восстановить учётную запись нельзя,
+  /// а деньги и долг остаются вопросом к клубу, а не к кнопке.
+  Future<void> _confirmDelete() async {
+    final l = L.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l.customerProfileDeleteTitle),
+        content: Text(l.customerProfileDeleteBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l.customerCommonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l.customerProfileDeleteConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _delete();
+  }
+
+  Future<void> _delete() async {
+    final l = L.of(context);
+    setState(() => _deleting = true);
+    try {
+      await widget.api.deleteAccount();
+      if (!mounted) return;
+      widget.onSignOut();
+    } on PlayerApiException catch (error) {
+      if (!mounted) return;
+      // Причина отказа приходит кодом, и каждая из них — разный следующий шаг человека: забрать
+      // остаток, погасить долг или встать из-за ПК. Одна надпись «не удалось» не помогла бы ни в
+      // одном из трёх случаев.
+      final message = switch (error.message) {
+        'remaining_balance' => l.customerProfileDeleteBlockedBalance,
+        'outstanding_debt' => l.customerProfileDeleteBlockedDebt,
+        'active_session' => l.customerProfileDeleteBlockedSession,
+        _ => l.customerProfileDeleteError,
+      };
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
 
   @override
   void initState() {
@@ -405,6 +455,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: widget.onSignOut,
               style: OutlinedButton.styleFrom(foregroundColor: theme.colorScheme.error),
               child: Text(l.customerProfileSignOut),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: _deleting ? null : _confirmDelete,
+              style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+              child: Text(l.customerProfileDeleteAccount),
             ),
           ),
         ],

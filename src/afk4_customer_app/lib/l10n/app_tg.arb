@@ -144,6 +144,7 @@
   "customerClubsNoAccountHint": "Ҳамёни ин клуб бо фармоиш ё пуркунии аввал кушода мешавад. Пули ҳар клуб алоҳида аст.",
   "customerClubsOpen": "Гузаштан",
   "customerCommonBack": "← Бозгашт",
+  "customerCommonCancel": "Бекор кардан",
   "customerCommonDayAtTime": "{day}, {time}",
   "@customerCommonDayAtTime": {
     "placeholders": {
@@ -532,6 +533,14 @@
   "customerPlayStarting": "Оғоз карда истодаем…",
   "customerPlayTitle": "Оғози бозӣ",
   "customerProfileChangePhone": "Иваз кардани рақам",
+  "customerProfileDeleteBlockedBalance": "Дар ҳамён пул мондааст. Онро дар назди клуб гиред ва ба ин ҷо баргардед.",
+  "customerProfileDeleteBlockedDebt": "Шумо қарздоред. Қарзро пӯшонед — аз ҳамён ё дар назди клуб.",
+  "customerProfileDeleteBlockedSession": "Ҳоло ҷаласаи шумо давом дорад. Онро анҷом диҳед ва бори дигар кӯшиш кунед.",
+  "customerProfileDeleteBody": "Вуруд аз байн меравад, ном ва рақам дигар шуморо нишон намедиҳанд. Таърихи амалиёт дар клуб мемонад — ин баҳисобгирии ӯст. Ҳисобро баргардондан мумкин нест, вале бо ҳамон рақам аз нав сабти ном шудан мумкин аст.",
+  "customerProfileDeleteConfirm": "Нест кардан",
+  "customerProfileDeleteError": "Ҳисоби корбариро нест кардан нашуд. Бори дигар кӯшиш кунед.",
+  "customerProfileDeleteTitle": "Ҳисоби корбариро нест мекунед?",
+  "customerProfileDeleteAccount": "Ҳисоби корбариро нест кардан",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русӣ",
   "customerProfileLangTg": "Тоҷикӣ",

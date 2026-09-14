@@ -144,6 +144,7 @@
   "customerClubsNoAccountHint": "This club's wallet opens with your first booking or top-up. Every club keeps its own money.",
   "customerClubsOpen": "Open",
   "customerCommonBack": "← Back",
+  "customerCommonCancel": "Cancel",
   "customerCommonDayAtTime": "{day}, {time}",
   "@customerCommonDayAtTime": {
     "placeholders": {
@@ -532,6 +533,14 @@
   "customerPlayStarting": "Starting…",
   "customerPlayTitle": "Start playing",
   "customerProfileChangePhone": "Change the number",
+  "customerProfileDeleteBlockedBalance": "There is still money in your wallet. Collect it at the club counter, then come back here.",
+  "customerProfileDeleteBlockedDebt": "You still owe the club. Clear the debt — from your wallet or at the counter.",
+  "customerProfileDeleteBlockedSession": "Your session is running right now. End it and try again.",
+  "customerProfileDeleteBody": "You will be signed out, and your name and number will stop identifying you. The club keeps its operation records — that is its accounting. The account cannot be restored, but you can register again with the same number.",
+  "customerProfileDeleteConfirm": "Delete",
+  "customerProfileDeleteError": "The account could not be deleted. Try again.",
+  "customerProfileDeleteTitle": "Delete your account?",
+  "customerProfileDeleteAccount": "Delete my account",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Tajik",

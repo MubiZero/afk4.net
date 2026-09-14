@@ -144,6 +144,7 @@
   "customerClubsNoAccountHint": "Кошелёк этого клуба откроется с первой брони или пополнения. Деньги у каждого клуба свои.",
   "customerClubsOpen": "Перейти",
   "customerCommonBack": "← Назад",
+  "customerCommonCancel": "Отмена",
   "customerCommonDayAtTime": "{day}, {time}",
   "@customerCommonDayAtTime": {
     "placeholders": {
@@ -532,6 +533,14 @@
   "customerPlayStarting": "Запускаем…",
   "customerPlayTitle": "Начать игру",
   "customerProfileChangePhone": "Изменить номер",
+  "customerProfileDeleteBlockedBalance": "На кошельке остались деньги. Заберите их на стойке клуба — и возвращайтесь сюда.",
+  "customerProfileDeleteBlockedDebt": "За вами числится долг. Погасите его — с кошелька или на стойке клуба.",
+  "customerProfileDeleteBlockedSession": "Сейчас идёт ваша сессия. Завершите её и попробуйте снова.",
+  "customerProfileDeleteBody": "Вход пропадёт, имя и номер перестанут вас называть. История операций остаётся у клуба — это его бухгалтерия. Восстановить учётную запись будет нельзя, но зарегистрироваться на тот же номер заново можно.",
+  "customerProfileDeleteConfirm": "Удалить",
+  "customerProfileDeleteError": "Не удалось удалить учётную запись. Попробуйте ещё раз.",
+  "customerProfileDeleteTitle": "Удалить учётную запись?",
+  "customerProfileDeleteAccount": "Удалить учётную запись",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Таджикский",
