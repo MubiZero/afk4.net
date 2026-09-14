@@ -35,8 +35,10 @@ internal static class SupportAccessSessionEndpoints
                 return Results.Unauthorized();
             }
 
+            // Выход из своей же сессии: расширять область до чужих доступов здесь незачем и нечем —
+            // сессия знает ровно один грант, свой.
             await supportAccessService.RevokeAsync(
-                support.GrantId, support.PlatformAdminUserId, cancellationToken);
+                support.GrantId, support.PlatformAdminUserId, allowAnyIssuer: false, cancellationToken);
             return Results.NoContent();
         }).AllowPlatformSupportAccess(PlatformSupportSelfPermission);
     }

@@ -191,6 +191,20 @@ export interface SupportAccessGrant {
   revokedAtUtc: string | null;
 }
 
+// Действующий доступ в клуб глазами того, кто решает — оставить или оборвать. Имя выдавшего и
+// отметка о входе идут отдельно от SupportAccessGrant: по Guid не понять, кого обрывать, а
+// невостребованный билет означает, что внутрь никто так и не заходил.
+export interface SupportAccessGrantListItem {
+  grantId: string;
+  organizationId: string;
+  reason: string;
+  issuedAtUtc: string;
+  expiresAtUtc: string;
+  platformAdminUserId: string;
+  platformAdminDisplayName: string;
+  enteredAtUtc: string | null;
+}
+
 export interface SupportAccessGrantIssue {
   grant: SupportAccessGrant;
   ticket: string;

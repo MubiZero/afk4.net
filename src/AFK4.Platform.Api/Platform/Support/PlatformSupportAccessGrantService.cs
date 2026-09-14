@@ -44,13 +44,50 @@ public sealed class PlatformSupportAccessGrantService(
         return ToDto(entity);
     }
 
+    // Действующие доступы в один клуб. Истёкшие и отозванные не показываются намеренно: вопрос,
+    // на который отвечает этот список, — «кто внутри прямо сейчас», а прошлое лежит в журнале
+    // аудита и там полнее.
+    public async Task<IReadOnlyList<PlatformSupportAccessGrantListItem>> ListActiveAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        return await dbContext.PlatformSupportAccessGrants
+            .AsNoTracking()
+            .Where(grant => grant.OrganizationId == organizationId
+                && grant.RevokedAtUtc == null
+                && grant.ExpiresAtUtc > now)
+            .OrderBy(grant => grant.ExpiresAtUtc)
+            .Join(
+                dbContext.PlatformAdminUsers.AsNoTracking(),
+                grant => grant.PlatformAdminUserId,
+                admin => admin.PlatformAdminUserId,
+                (grant, admin) => new PlatformSupportAccessGrantListItem(
+                    grant.GrantId,
+                    grant.OrganizationId,
+                    grant.Reason,
+                    grant.IssuedAtUtc,
+                    grant.ExpiresAtUtc,
+                    grant.PlatformAdminUserId,
+                    admin.DisplayName,
+                    grant.TicketUsedAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <param name="allowAnyIssuer">
+    /// Разрешает оборвать чужой доступ. Своё выданное можно отозвать всегда; чужое — только тому,
+    /// кто и так распоряжается учётными записями администраторов: он может отключить самого
+    /// выдавшего, то есть уже способен прервать этот доступ, просто грубее. Без этого доступ,
+    /// выданный ушедшим домой коллегой, нельзя было прервать никому.
+    /// </param>
     public async Task<PlatformSupportAccessGrantEntity?> RevokeAsync(
         Guid grantId,
         Guid platformAdminUserId,
+        bool allowAnyIssuer,
         CancellationToken cancellationToken)
     {
         var entity = await dbContext.PlatformSupportAccessGrants.SingleOrDefaultAsync(
-            x => x.GrantId == grantId && x.PlatformAdminUserId == platformAdminUserId,
+            x => x.GrantId == grantId && (allowAnyIssuer || x.PlatformAdminUserId == platformAdminUserId),
             cancellationToken);
         if (entity is null || entity.RevokedAtUtc is not null) return null;
         entity.RevokedAtUtc = timeProvider.GetUtcNow();

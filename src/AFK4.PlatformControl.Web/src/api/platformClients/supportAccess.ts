@@ -1,5 +1,5 @@
 import type { PlatformTransport } from '../platformTransport';
-import type { SupportAccessGrantIssue } from '../types';
+import type { SupportAccessGrantIssue, SupportAccessGrantListItem } from '../types';
 
 export class SupportAccessApi {
   public constructor(private readonly transport: PlatformTransport) {}
@@ -14,6 +14,11 @@ export class SupportAccessApi {
       reason,
       lifetimeMinutes
     });
+  }
+
+  public listGrants(organizationId: string): Promise<SupportAccessGrantListItem[]> {
+    return this.transport.send<SupportAccessGrantListItem[]>(
+      'GET', `/api/platform/support-access-grants?organizationId=${organizationId}`);
   }
 
   public revokeGrant(grantId: string): Promise<void> {
