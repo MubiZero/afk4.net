@@ -42,6 +42,7 @@ export function HallsDevicesDestination({
   const canViewDeviceDetail = hasPermission(session, permissionNames.viewDeviceDetail);
   const canRotateDeviceCredential = hasPermission(session, permissionNames.rotateDeviceCredential);
   const canRevokeDeviceCredential = hasPermission(session, permissionNames.revokeDeviceCredential);
+  const canManageBranchSettings = hasPermission(session, permissionNames.manageBranchSettings);
 
   const layoutSeatOptions = useMemo(() => zoneRows.flatMap((zone) =>
     readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
@@ -97,6 +98,7 @@ export function HallsDevicesDestination({
           canViewDeviceDetail={canViewDeviceDetail}
           canRotateDeviceCredential={canRotateDeviceCredential}
           canRevokeDeviceCredential={canRevokeDeviceCredential}
+          canManageBranchSettings={canManageBranchSettings}
           onDeviceInventoryChange={onDeviceInventoryChange ?? (() => {})}
           onReload={onReload ?? (async () => {})}
           onFeedback={onFeedback ?? (() => {})}

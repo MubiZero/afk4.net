@@ -393,8 +393,17 @@ describe('operator API clients', () => {
       allowNegativeStock: true,
       isActive: false
     });
+    await clients.settings.getBranchSettings(branchId);
+    await clients.settings.updateBranchSettings(branchId, {
+      organizationId,
+      requireManualDeviceApproval: true,
+      preferredLocale: 'ru'
+    });
     await clients.settings.assignDeviceSeat(branchId, deviceId, { organizationId, seatId });
     await clients.devices.listDevices(branchId);
+    await clients.devices.listPendingDevices(branchId);
+    await clients.devices.approveDevice(deviceId, { organizationId });
+    await clients.devices.rejectDevice(deviceId, { organizationId, reason: 'Не наш ПК' });
     await clients.devices.createEnrollmentCode(branchId, organizationId, 900);
     await clients.devices.dispatchDeviceCommand(deviceId, { type: 'lock', payload: { reason: 'operator' } });
     await clients.devices.listDeviceCommands(deviceId, { limit: 25 });
@@ -437,8 +446,13 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/branches/${branchId}/pos/categories`,
       `POST /api/organizations/organization-id/branches/${branchId}/pos/products`,
       `PATCH /api/organizations/organization-id/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`,
+      `GET /api/organizations/organization-id/branches/${branchId}/settings`,
+      `PUT /api/organizations/organization-id/branches/${branchId}/settings`,
       `POST /api/organizations/organization-id/branches/${branchId}/devices/${deviceId}/seat-assignment`,
       `GET /api/organizations/organization-id/branches/${branchId}/devices`,
+      `GET /api/organizations/organization-id/branches/${branchId}/devices/pending`,
+      `POST /api/organizations/organization-id/devices/${deviceId}/approve`,
+      `POST /api/organizations/organization-id/devices/${deviceId}/reject`,
       `POST /api/organizations/organization-id/branches/${branchId}/device-enrollment-codes`,
       `POST /api/organizations/organization-id/devices/${deviceId}/commands`,
       `GET /api/organizations/organization-id/devices/${deviceId}/commands?limit=25`,
@@ -481,7 +495,7 @@ describe('operator API clients', () => {
     expect(calls[10].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'VIP-01', sortOrder: 40 });
     expect(calls[12].body).toEqual({ organizationId, name: 'Standard Plus', isActive: false });
     expect(calls[13].body).toMatchObject({ organizationId, pricePerMinuteMinorUnits: 75, isActive: false });
-    expect(calls[30].body).toEqual({
+    expect(calls[35].body).toEqual({
       organizationId,
       maintenanceWindowStart: '03:00:00',
       maintenanceWindowEnd: '05:00:00'
@@ -491,8 +505,11 @@ describe('operator API clients', () => {
     expect(calls[17].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
     expect(calls[18].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
     expect(calls[19].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
-    expect(calls[22].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[23].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(calls[21].body).toEqual({ organizationId, requireManualDeviceApproval: true, preferredLocale: 'ru' });
+    expect(calls[25].body).toEqual({ organizationId });
+    expect(calls[26].body).toEqual({ organizationId, reason: 'Не наш ПК' });
+    expect(calls[27].body).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(calls[28].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 
   it('maps money-action review endpoints and audit amount filters', async () => {

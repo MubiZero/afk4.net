@@ -3,6 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { KeyRound, Lock, MonitorSmartphone, Unlock, Wifi, WifiOff } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
+import { PendingDevicesSection } from './PendingDevicesSection';
 import { CriticalActionConfirmation, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
@@ -29,6 +30,7 @@ interface DevicesTabProps {
   canViewDeviceDetail: boolean;
   canRotateDeviceCredential: boolean;
   canRevokeDeviceCredential: boolean;
+  canManageBranchSettings: boolean;
   onDeviceInventoryChange: (inventory: DeviceInventoryItemDto[]) => void;
   onReload: (nextBackend: OperatorBackendContext) => Promise<void>;
   onFeedback: (feedback: Feedback) => void;
@@ -49,6 +51,7 @@ export function DevicesTab({
   canViewDeviceDetail,
   canRotateDeviceCredential,
   canRevokeDeviceCredential,
+  canManageBranchSettings,
   onDeviceInventoryChange,
   onReload,
   onFeedback
@@ -278,6 +281,14 @@ export function DevicesTab({
 
   return (
     <>
+      <PendingDevicesSection
+        backend={backend}
+        canViewDeviceDetail={canViewDeviceDetail}
+        canApproveDevice={canAssignDeviceSeat}
+        canManageBranchSettings={canManageBranchSettings}
+        onApproved={onReload}
+        onFeedback={onFeedback}
+      />
       <div className="mgmt-master-detail">
         <MgmtTable<Device>
           columns={[
