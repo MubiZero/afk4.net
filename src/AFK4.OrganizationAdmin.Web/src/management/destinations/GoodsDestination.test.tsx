@@ -16,13 +16,15 @@ const createProduct = mock(async () => ({
   isActive: true
 }));
 const updateProduct = mock(async () => ({ productId: 'p1' }));
+const listProductCategories = mock(async () => [] as unknown[]);
+const renameProductCategory = mock(async () => ({ categoryId: 'cat-new', name: 'Снеки' }));
 const getProductBarcodes = mock(async () => []);
 
 const actualHelpers = await import('../../operatorHelpers');
 mock.module('../../operatorHelpers', () => ({
   ...actualHelpers,
   createAuthenticatedOperatorClients: () => ({
-    settings: { createProductCategory, createProduct, updateProduct, getProductBarcodes }
+    settings: { createProductCategory, createProduct, updateProduct, getProductBarcodes, listProductCategories, renameProductCategory }
   })
 }));
 
@@ -40,6 +42,8 @@ afterEach(() => {
   createProduct.mockClear();
   updateProduct.mockClear();
   getProductBarcodes.mockClear();
+  listProductCategories.mockClear();
+  renameProductCategory.mockClear();
 });
 
 const wrap = (ui: React.ReactNode) =>
@@ -341,5 +345,45 @@ describe('GoodsDestination', () => {
       isActive: true
     })));
     await waitFor(() => expect(onReload).toHaveBeenCalled());
+  });
+});
+
+// Переименования категории не существовало ни на сервере, ни в интерфейсе: опечатка, сделанная
+// при заведении первого товара, оставалась в меню бара навсегда — завести заново и перевесить на
+// новую категорию каждый товар по одному было единственным выходом.
+describe('GoodsDestination categories', () => {
+  it('переименовывает категорию и перечитывает справочник', async () => {
+    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки' }]);
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Переименовать' }));
+    fireEvent.change(screen.getByLabelText('Новое название категории'), { target: { value: ' Напитки и соки ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(renameProductCategory).toHaveBeenCalledWith('b1', 'cat1', {
+      organizationId: 'o1',
+      name: 'Напитки и соки'
+    }));
+    // Справочник перечитывается: без этого переименованная категория осталась бы со старым именем
+    // до перезагрузки страницы.
+    await waitFor(() => expect(listProductCategories.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  // В справочнике показывается то, что на сервере действительно есть. Категория, известная лишь по
+  // товару, переименованию не подлежит, и кнопка рядом с ней обещала бы несуществующее.
+  it('не предлагает переименовать категорию, которой нет в справочнике', async () => {
+    listProductCategories.mockImplementation(async () => []);
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+
+    await screen.findByText('Категорий пока нет — первая заводится вместе с товаром.');
+    expect(screen.queryByRole('button', { name: 'Переименовать' })).toBeNull();
+  });
+
+  it('без права на каталог кнопки переименования нет', async () => {
+    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки' }]);
+    wrap(<GoodsDestination backend={backend} session={session([])} currencyCode="TJS" catalog={[cola]} />);
+
+    await screen.findAllByText('Напитки');
+    expect(screen.queryByRole('button', { name: 'Переименовать' })).toBeNull();
   });
 });

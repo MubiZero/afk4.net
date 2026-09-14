@@ -76,6 +76,98 @@ internal static class PosEndpoints
 {
     public static void MapPosEndpoints(this IEndpointRouteBuilder app)
     {
+        // Список категорий отдельным маршрутом. Раньше его не было вовсе, и стойка собирала
+        // категории из каталога товаров: категория без единого товара пропадала из выбора после
+        // перезагрузки, а имя подставлялось как «категория <первые 8 символов guid>».
+        app.MapGet("branches/{branchId:guid}/pos/categories", async (
+            Guid branchId,
+            StaffAuthorizationService authorizationService,
+            IInventoryService inventoryService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ViewInventory,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            return Results.Ok(await inventoryService.ListCategoriesAsync(
+                authorization.StaffContext!.OrganizationId, branchId, cancellationToken));
+        });
+
+        app.MapPatch("branches/{branchId:guid}/pos/categories/{categoryId:guid}", async (
+            Guid branchId,
+            Guid categoryId,
+            RenameProductCategoryRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IInventoryService inventoryService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ManagePosCatalog,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.RenameProductCategory,
+                    "PosProductCategory",
+                    categoryId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { request.Name, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await inventoryService.RenameCategoryAsync(
+                branchId, categoryId, authorization.StaffContext.StaffUserId, request, cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                return ToHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.RenameProductCategory,
+                "PosProductCategory",
+                categoryId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.Name },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
         app.MapPost("branches/{branchId:guid}/pos/categories", async (
             Guid branchId,
             CreateProductCategoryRequest request,

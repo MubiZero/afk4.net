@@ -157,6 +157,11 @@ export interface UpdatePackageDefinitionRequest extends Record<string, unknown> 
   organizationId: Guid;
 }
 
+export interface RenameProductCategoryRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  name: string;
+}
+
 export interface CreateProductCategoryRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
@@ -316,6 +321,15 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     updatePackageDefinition(branchId: Guid, packageDefinitionId: Guid, request: UpdatePackageDefinitionRequest): Promise<PackageDefinitionDto> {
       return api.patch<PackageDefinitionDto, UpdatePackageDefinitionRequest>(`branches/${branchId}/packages/${packageDefinitionId}`, request);
+    },
+    // Список категорий филиала. До него категории собирались из каталога товаров: категория без
+    // единого товара исчезала из выбора после перезагрузки, а её имя подставлялось как «категория
+    // <первые 8 символов guid>».
+    listProductCategories(branchId: Guid): Promise<PosProductCategoryDto[]> {
+      return api.get<PosProductCategoryDto[]>(`branches/${branchId}/pos/categories`);
+    },
+    renameProductCategory(branchId: Guid, categoryId: Guid, request: RenameProductCategoryRequest): Promise<PosProductCategoryDto> {
+      return api.patch<PosProductCategoryDto, RenameProductCategoryRequest>(`branches/${branchId}/pos/categories/${categoryId}`, request);
     },
     createProductCategory(branchId: Guid, request: CreateProductCategoryRequest): Promise<PosProductCategoryDto> {
       return api.post<PosProductCategoryDto, CreateProductCategoryRequest>(`branches/${branchId}/pos/categories`, request);

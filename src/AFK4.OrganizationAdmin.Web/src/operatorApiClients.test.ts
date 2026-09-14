@@ -371,10 +371,15 @@ describe('operator API clients', () => {
       expiresAfterDays: 45,
       isActive: false
     });
+    await clients.settings.listProductCategories(branchId);
     await clients.settings.createProductCategory(branchId, {
       organizationId,
       name: 'Snacks',
       idempotencyKey: 'idem-category'
+    });
+    await clients.settings.renameProductCategory(branchId, '77777777-7777-7777-7777-777777777777', {
+      organizationId,
+      name: 'Снеки'
     });
     await clients.settings.createProduct(branchId, {
       organizationId,
@@ -446,7 +451,9 @@ describe('operator API clients', () => {
       `GET /api/organizations/organization-id/branches/${branchId}/packages/options`,
       `POST /api/organizations/organization-id/branches/${branchId}/packages`,
       `PATCH /api/organizations/organization-id/branches/${branchId}/packages/abababab-abab-abab-abab-abababababab`,
+      `GET /api/organizations/organization-id/branches/${branchId}/pos/categories`,
       `POST /api/organizations/organization-id/branches/${branchId}/pos/categories`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/pos/categories/77777777-7777-7777-7777-777777777777`,
       `POST /api/organizations/organization-id/branches/${branchId}/pos/products`,
       `PATCH /api/organizations/organization-id/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`,
       `GET /api/organizations/organization-id/branches/${branchId}/settings`,
@@ -498,21 +505,22 @@ describe('operator API clients', () => {
     expect(calls[10].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'VIP-01', sortOrder: 40 });
     expect(calls[12].body).toEqual({ organizationId, name: 'Standard Plus', isActive: false });
     expect(calls[13].body).toMatchObject({ organizationId, pricePerMinuteMinorUnits: 75, isActive: false });
-    expect(calls[35].body).toEqual({
+    expect(calls[37].body).toEqual({
       organizationId,
       maintenanceWindowStart: '03:00:00',
       maintenanceWindowEnd: '05:00:00'
     });
     expect(calls[15].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
     expect(calls[16].body).toMatchObject({ organizationId, name: 'Night 6h', includedSeconds: 21600, isActive: false });
-    expect(calls[17].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
-    expect(calls[18].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
-    expect(calls[19].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
-    expect(calls[21].body).toEqual({ organizationId, requireManualDeviceApproval: true, preferredLocale: 'ru' });
-    expect(calls[25].body).toEqual({ organizationId });
-    expect(calls[26].body).toEqual({ organizationId, reason: 'Не наш ПК' });
-    expect(calls[27].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[28].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(calls[18].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
+    expect(calls[19].body).toEqual({ organizationId, name: 'Снеки' });
+    expect(calls[20].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
+    expect(calls[21].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
+    expect(calls[23].body).toEqual({ organizationId, requireManualDeviceApproval: true, preferredLocale: 'ru' });
+    expect(calls[27].body).toEqual({ organizationId });
+    expect(calls[28].body).toEqual({ organizationId, reason: 'Не наш ПК' });
+    expect(calls[29].body).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(calls[30].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 
   it('maps money-action review endpoints and audit amount filters', async () => {

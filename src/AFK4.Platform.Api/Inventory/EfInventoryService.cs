@@ -20,6 +20,61 @@ public sealed class EfInventoryService(
     private const string StockMovementCreateOperation = "stock-movement-create";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    public async Task<IReadOnlyList<PosProductCategoryDto>> ListCategoriesAsync(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var categories = await dbContext.PosProductCategories
+            .AsNoTracking()
+            .Where(category => category.OrganizationId == organizationId && category.BranchId == branchId)
+            .OrderBy(category => category.Name)
+            .ToListAsync(cancellationToken);
+        return categories.Select(ToDto).ToList();
+    }
+
+    public async Task<BillingCommandServiceResult<PosProductCategoryDto>> RenameCategoryAsync(
+        Guid branchId,
+        Guid categoryId,
+        Guid actorStaffUserId,
+        RenameProductCategoryRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Category name is required.");
+        }
+
+        var category = await dbContext.PosProductCategories.SingleOrDefaultAsync(
+            candidate => candidate.CategoryId == categoryId
+                && candidate.OrganizationId == request.OrganizationId
+                && candidate.BranchId == branchId,
+            cancellationToken);
+        if (category is null)
+        {
+            return BillingCommandServiceResult<PosProductCategoryDto>.Missing("Product category was not found.");
+        }
+
+        var normalizedName = NormalizeName(request.Name);
+        // Себя исключаем: смена регистра в собственном имени — не столкновение с самим собой.
+        var taken = await dbContext.PosProductCategories
+            .AsNoTracking()
+            .AnyAsync(
+                candidate => candidate.OrganizationId == request.OrganizationId
+                    && candidate.BranchId == branchId
+                    && candidate.CategoryId != categoryId
+                    && candidate.Name.ToUpper() == normalizedName,
+                cancellationToken);
+        if (taken)
+        {
+            return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Product category name already exists.");
+        }
+
+        category.Name = request.Name.Trim();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return BillingCommandServiceResult<PosProductCategoryDto>.Ok(ToDto(category));
+    }
+
     public async Task<BillingCommandServiceResult<PosProductCategoryDto>> CreateCategoryAsync(
         Guid branchId,
         Guid actorStaffUserId,
@@ -56,7 +111,7 @@ public sealed class EfInventoryService(
                 category =>
                     category.OrganizationId == request.OrganizationId &&
                     category.BranchId == branchId &&
-                    category.Name == normalizedName,
+                    category.Name.ToUpper() == normalizedName,
                 cancellationToken);
 
         if (exists)
@@ -72,7 +127,10 @@ public sealed class EfInventoryService(
                 CategoryId = Guid.NewGuid(),
                 OrganizationId = request.OrganizationId,
                 BranchId = branchId,
-                Name = normalizedName,
+                // Хранится введённое имя, а не приведённое к верхнему регистру: NormalizeName нужен
+                // для сравнения «такая уже есть», и запись его результата в отображаемое поле
+                // превращала «Снеки» в «СНЕКИ» на всех экранах разом.
+                Name = request.Name.Trim(),
                 IsActive = true,
                 CreatedAtUtc = now
             };

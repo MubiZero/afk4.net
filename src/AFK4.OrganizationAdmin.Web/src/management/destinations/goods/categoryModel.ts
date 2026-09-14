@@ -5,12 +5,29 @@ export interface CategoryOption {
   label: string;
 }
 
+/**
+ * Список категорий для выбора.
+ *
+ * Главный источник — сам справочник категорий филиала. Товары остаются запасным: если у товара
+ * стоит категория, которой в справочнике нет, скрыть такой товар из выбора хуже, чем показать его
+ * категорию под заглушкой. Заведённые в этом же окне идут третьими — на случай, когда справочник
+ * ещё не перечитан.
+ *
+ * Раньше справочника не существовало вовсе, и весь список собирался из товаров: категория без
+ * единого товара пропадала после перезагрузки, а имя показывалось как «категория 3f2a91c4».
+ */
 export function deriveCategoryOptions(
+  categories: readonly unknown[],
   products: readonly unknown[],
   sessionCategories: readonly CategoryOption[],
   unknownPrefix: string
 ): CategoryOption[] {
   const options = new Map<string, string>();
+  for (const category of categories) {
+    const categoryId = readString(category, 'categoryId');
+    if (!categoryId) continue;
+    options.set(categoryId, readString(category, 'name') || `${unknownPrefix} ${categoryId.slice(0, 8)}`);
+  }
   for (const product of products) {
     const categoryId = readString(product, 'categoryId');
     if (!categoryId || options.has(categoryId)) continue;

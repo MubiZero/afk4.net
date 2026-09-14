@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Archive, ArchiveRestore, Package, Pencil } from 'lucide-react';
 import { ManagementScreen } from '../ManagementScreen';
@@ -24,6 +24,7 @@ import {
 } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
 import { deriveCategoryOptions, type CategoryOption } from './goods/categoryModel';
+import { CategoriesPanel } from './goods/CategoriesPanel';
 
 type Product = Record<string, unknown>;
 
@@ -72,6 +73,7 @@ export function GoodsDestination({
   const [categoryMode, setCategoryMode] = useState<'existing' | 'new'>('new');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [sessionCategories, setSessionCategories] = useState<CategoryOption[]>([]);
+  const [categories, setCategories] = useState<unknown[]>([]);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('0.00');
@@ -85,6 +87,16 @@ export function GoodsDestination({
     onDirtyChange?.(false);
   }, [onDirtyChange]);
 
+  // Справочник категорий приходит своим запросом: каталог товаров о категориях без товаров
+  // ничего не знает, а именно они и терялись.
+  const loadCategories = useCallback(async () => {
+    if (backend === null) return;
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    setCategories(await clients.settings.listProductCategories(backend.branchId).catch(() => []));
+  }, [backend]);
+
+  useEffect(() => { void loadCategories(); }, [loadCategories]);
+
   // Если выбранный товар пропал из выборки (снят/reload) — закрыть drawer, а не показывать
   // устаревшую запись.
   useEffect(() => {
@@ -94,7 +106,11 @@ export function GoodsDestination({
 
   const selectedProduct = catalogRows.find((product) => readString(product, 'productId') === selectedProductId) ?? null;
   const selectedProductIsActive = readBoolean(selectedProduct, 'isActive', true);
-  const categoryOptions = deriveCategoryOptions(catalogRows, sessionCategories, t('op.management.goods.categoryUnknown'));
+  const categoryOptions = deriveCategoryOptions(categories, catalogRows, sessionCategories, t('op.management.goods.categoryUnknown'));
+  // Справочник — только то, что на сервере действительно есть. Категория, известная лишь по
+  // товару, в выбор попадает (иначе товар останется без подписи), а сюда — нет: переименовать её
+  // всё равно нельзя, и кнопка обещала бы несуществующее.
+  const directoryCategories = deriveCategoryOptions(categories, [], [], t('op.management.goods.categoryUnknown'));
 
   // Засев формы drawer'а из выбранного товара.
   useEffect(() => {
@@ -335,6 +351,13 @@ export function GoodsDestination({
       errorDetail={errorDetail}
       onRetry={onRetry}
     >
+      <CategoriesPanel
+        backend={backend}
+        categories={directoryCategories}
+        canManage={canManagePosCatalog}
+        onRenamed={loadCategories}
+        onFeedback={onFeedback ?? (() => {})}
+      />
       <div className="mgmt-master-detail">
         <MgmtTable<Product>
           columns={[
