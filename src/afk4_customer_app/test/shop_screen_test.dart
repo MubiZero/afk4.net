@@ -26,9 +26,17 @@ String _catalogJson() => jsonEncode([
       },
     ]);
 
-Map<String, dynamic> _order({String status = 'placed', int total = 1200}) => {
-      'id': 'o1',
+Map<String, dynamic> _order({
+  String status = 'placed',
+  int total = 1200,
+  String id = 'o1',
+  String placedAtUtc = '2026-09-14T10:00:00Z',
+}) => {
+      'id': id,
       'status': status,
+      // Сервер отдаёт это поле всегда (ShopOrderDto.PlacedAtUtc не обнуляемое) — заглушка обязана
+      // повторять ответ, а не то подмножество, которым пользуется экран сегодня.
+      'placedAtUtc': placedAtUtc,
       'total': {'currencyCode': 'TJS', 'minorUnits': total},
       'lines': [
         {
@@ -235,5 +243,51 @@ void main() {
       tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
       isNull,
     );
+  });
+
+  // Сервер отдавал все заказы игрока, а приложение оставляло один незакрытый и выбрасывало
+  // остальные. На вопрос «мне вчерашний заказ принесли или отменили?» ответить было негде: в
+  // покупках видна продажа, но не судьба самого заказа.
+  testWidgets('прошлые заказы видны под меню, новые сверху', (tester) async {
+    final http = _serve(
+      catalog: _catalogJson(),
+      orders: jsonEncode([
+        _order(id: 'o1', status: 'delivered', placedAtUtc: '2026-09-13T10:00:00Z'),
+        _order(id: 'o2', status: 'cancelled', placedAtUtc: '2026-09-14T10:00:00Z'),
+      ]),
+    );
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Прошлые заказы'), findsOneWidget);
+    expect(find.text('Заказ принесли'), findsOneWidget);
+    expect(find.text('Заказ отменён'), findsOneWidget);
+    final cancelled = tester.getTopLeft(find.text('Заказ отменён')).dy;
+    final delivered = tester.getTopLeft(find.text('Заказ принесли')).dy;
+    expect(cancelled, lessThan(delivered));
+  });
+
+  // Незакрытый заказ занимает весь экран: меню и история за ним не нужны, пока он в работе.
+  testWidgets('при открытом заказе прошлых заказов не видно', (tester) async {
+    final http = _serve(
+      catalog: _catalogJson(),
+      orders: jsonEncode([
+        _order(id: 'o1', status: 'delivered', placedAtUtc: '2026-09-13T10:00:00Z'),
+        _order(id: 'o2', status: 'placed', placedAtUtc: '2026-09-14T10:00:00Z'),
+      ]),
+    );
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Заказ принят, готовим'), findsOneWidget);
+    expect(find.text('Прошлые заказы'), findsNothing);
+  });
+
+  testWidgets('без прошлых заказов заголовка истории нет', (tester) async {
+    final http = _serve(catalog: _catalogJson());
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Прошлые заказы'), findsNothing);
   });
 }

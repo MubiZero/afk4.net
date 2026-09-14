@@ -534,6 +534,65 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(dtos);
         }).RequireRateLimiting("player-me");
 
+        // Отменить свою же незавершённую заявку на пополнение. Раньше отказаться от неё игрок не
+        // мог никак: заявка висела в карточке кошелька «вы пополняете» ровно сутки, пока её не
+        // признавали просроченной по времени создания.
+        //
+        // Гонка с завершением на стойке существует и здесь такая же, как у стойки: обе стороны
+        // читают состояние и пишут своё, побеждает последняя запись. Денег это не двигает — их
+        // двигает журнал, а не эта строка, — но состояние может разойтись с фактом. Убрать гонку
+        // можно только условным UPDATE, которого не поддерживает провайдер в тестах.
+        app.MapDelete("/api/me/wallet/top-up-intents/{intentId:guid}", async (
+            Guid intentId,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var intent = await dbContext.PaymentIntents.SingleOrDefaultAsync(
+                candidate => candidate.PaymentIntentId == intentId
+                    && candidate.PlayerAccountId == player.PlayerAccountId,
+                cancellationToken);
+            if (intent is null)
+            {
+                return Results.NotFound(new { Error = "Top-up request was not found." });
+            }
+
+            if (intent.State != "pending" && intent.State != "cancelled")
+            {
+                return Results.Conflict(new { Error = "Only a pending top-up request can be cancelled." });
+            }
+
+            // Уже отменённая отвечает собой: повторное нажатие и вторая вкладка — не ошибка.
+            if (intent.State == "pending")
+            {
+                intent.State = "cancelled";
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            // Ответ несёт саму заявку, как отмена заказа и брони: экрану нужно новое состояние, а
+            // не пустота, за которой пришлось бы идти вторым запросом.
+            return Results.Ok(new PlayerTopUpIntentDto(
+                intent.PaymentIntentId,
+                intent.AmountMinorUnits,
+                intent.CurrencyCode,
+                intent.State,
+                intent.Purpose,
+                intent.Method,
+                intent.CreatedAtUtc,
+                intent.FulfilledAtUtc,
+                IsExpired: false,
+                PayUrl: intent.GatewayPayUrl,
+                Comment: intent.GatewayComment,
+                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc));
+        }).RequireRateLimiting("player-me");
+
         // Intentionally no online_topup feature gate on this route. The intent behind it was
         // already legally created while the feature was on (that creation path IS gated, at
         // POST .../top-up-intent) — the player may already have paid the bank by the time this

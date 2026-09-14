@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../api/dto.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
+import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
@@ -41,6 +42,9 @@ class _ShopScreenState extends State<ShopScreen> {
   final Map<String, int> _cart = {};
 
   ShopOrder? _order;
+
+  /// Закрытые заказы — принесённые и отменённые, новые сверху.
+  List<ShopOrder> _pastOrders = const [];
   Timer? _poll;
   bool _placing = false;
   String? _error;
@@ -68,6 +72,11 @@ class _ShopScreenState extends State<ShopScreen> {
         _catalog = catalog;
         _loadFailed = false;
         _order = orders.where((order) => order.isOpen).firstOrNull;
+        // Закрытые заказы больше не выбрасываются. Сервер и раньше отдавал их все, а приложение
+        // оставляло один незакрытый — и на вопрос «принесли мне вчерашний заказ или отменили?»
+        // ответить было негде: в покупках видна только продажа, без судьбы самого заказа.
+        _pastOrders = orders.where((order) => !order.isOpen).toList()
+          ..sort((a, b) => b.placedAtUtc.compareTo(a.placedAtUtc));
       });
       if (_order != null) _startPolling();
     } on PlayerApiException {
@@ -198,6 +207,47 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
+  Widget _pastOrders_(L l) {
+    final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Text(l.customerShopPastTitle, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        for (final order in _pastOrders)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_pastStatus(l, order.status)),
+                      Text(
+                        formatDateTime(l, order.placedAtUtc, locale),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(formatMoney(order.total.minorUnits, order.total.currencyCode, locale: locale)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _pastStatus(L l, String status) => switch (status) {
+        'delivered' => l.customerShopStatusDelivered,
+        _ => l.customerShopStatusCancelled,
+      };
+
   Widget _body(L l) {
     final theme = Theme.of(context);
     final order = _order;
@@ -225,9 +275,12 @@ class _ShopScreenState extends State<ShopScreen> {
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: catalog.length,
+      // Последняя строка — прошлые заказы, когда они есть: список меню и история живут в одном
+      // прокручиваемом полотне, чтобы за меню не пряталась вторая прокрутка.
+      itemCount: catalog.length + (_pastOrders.isEmpty ? 0 : 1),
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, index) {
+        if (index == catalog.length) return _pastOrders_(l);
         final product = catalog[index];
         return _ProductTile(
           product: product,

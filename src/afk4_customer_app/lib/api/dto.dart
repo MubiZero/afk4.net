@@ -998,12 +998,17 @@ class ShopOrder {
     required this.status,
     required this.total,
     required this.lines,
+    required this.placedAtUtc,
   });
 
   final String id;
   final String status;
   final Money total;
   final List<ShopOrderLine> lines;
+
+  /// Когда заказ оформили. Нужно списку прошлых заказов: без времени «принесли» и «отменён»
+  /// сливаются в кучу одинаковых строк.
+  final DateTime placedAtUtc;
 
   /// Отменить можно, пока заказ не выдан: после «принесли» отменять нечего.
   bool get isCancellable => status == 'placed' || status == 'accepted';
@@ -1018,6 +1023,7 @@ class ShopOrder {
         lines: (json['lines'] as List? ?? const [])
             .map((line) => ShopOrderLine.fromJson(line as Map<String, dynamic>))
             .toList(),
+        placedAtUtc: DateTime.parse(json['placedAtUtc'] as String),
       );
 }
 

@@ -877,6 +877,7 @@
   "customerShopLoadError": "Не удалось загрузить меню",
   "customerShopNewOrder": "Заказать ещё",
   "customerShopOrderTitle": "Ваш заказ",
+  "customerShopPastTitle": "Прошлые заказы",
   "customerShopPlace": "Заказать за {amount}",
   "@customerShopPlace": {
     "placeholders": {
@@ -946,6 +947,9 @@
   "customerWalletOnlineSlow": "Банк пока не ответил. Если оплата прошла, деньги зачислятся сами — проверьте баланс через пару минут.",
   "customerWalletOnlineUnavailable": "Этот клуб сейчас не принимает оплату онлайн. Внесите на стойке.",
   "customerWalletOnlineWaiting": "Ждём подтверждения банка…",
+  "customerWalletPendingCancel": "Отменить заявку",
+  "customerWalletPendingCancelError": "Не удалось отменить заявку. Попробуйте ещё раз.",
+  "customerWalletPendingCancelled": "Заявка отменена",
   "customerWalletPendingHint": "Заявка на {amount} ждёт зачисления",
   "@customerWalletPendingHint": {
     "placeholders": {

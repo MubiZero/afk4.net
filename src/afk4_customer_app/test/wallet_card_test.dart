@@ -238,4 +238,46 @@ void main() {
 
     expect(find.textContaining('Придержано под брони'), findsNothing);
   });
+
+  // Отказаться от заявки было нельзя: она висела ожидающей сутки и всё это время отвечала «да»
+  // на вопрос «я же пополнял».
+  testWidgets('ожидающую заявку можно отменить', (tester) async {
+    final methods = <String>[];
+    var cancelled = false;
+    final http = FakeHttpClient((request) {
+      methods.add('${request.method} ${request.url.path}');
+      if (request.method == 'DELETE') {
+        cancelled = true;
+        return (jsonEncode(_intent(state: 'cancelled')), 200);
+      }
+      return (cancelled ? _intentListJson(state: 'cancelled') : _intentListJson(), 200);
+    });
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+    expect(find.text('Отменить заявку'), findsOneWidget);
+
+    await tester.tap(find.text('Отменить заявку'));
+    await tester.pumpAndSettle();
+
+    expect(methods, contains('DELETE /api/me/wallet/top-up-intents/i1'));
+    expect(find.text('Отменить заявку'), findsNothing);
+  });
+
+  // Отменённая на стойке заявка ещё сутки висела у игрока как ожидающая: ждущей считалась любая,
+  // кроме исполненной.
+  testWidgets('отменённая заявка не показывается как ожидающая', (tester) async {
+    final http = FakeHttpClient((_) => (_intentListJson(state: 'cancelled'), 200));
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Отменить заявку'), findsNothing);
+  });
+
+  testWidgets('исполненная заявка тоже не ожидающая', (tester) async {
+    final http = FakeHttpClient((_) => (_intentListJson(state: 'fulfilled'), 200));
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Отменить заявку'), findsNothing);
+  });
 }

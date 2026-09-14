@@ -538,6 +538,12 @@ class PlayerApiClient {
         ShopOrder.fromJson,
       );
 
+  /// Отказаться от собственной незавершённой заявки. В ответ приходит она же — уже отменённой.
+  Future<TopUpIntent> cancelTopUpIntent(String intentId) async => _parse(
+        await sendJson('DELETE', '/api/me/wallet/top-up-intents/${Uri.encodeComponent(intentId)}'),
+        TopUpIntent.fromJson,
+      );
+
   Future<List<TopUpIntent>> getTopUpIntents() async {
     final list = await getJsonList('/api/me/wallet/top-up-intents');
     return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();

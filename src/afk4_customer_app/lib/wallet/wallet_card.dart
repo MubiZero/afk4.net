@@ -63,9 +63,35 @@ class _WalletCardState extends State<WalletCard> {
   bool get _topUpEnabled => widget.features == null || widget.features!.contains('online_topup');
 
   /// Заявка, которой игрок ещё ждёт. Именно она отвечает на вопрос «я же пополнял».
-  TopUpIntent? get _awaiting => _intents
-      .where((intent) => intent.state != 'fulfilled' && !intent.isExpired)
-      .firstOrNull;
+  ///
+  /// Ждущей считается только незавершённая. Раньше здесь стояло «любая, кроме исполненной», и
+  /// отменённая на стойке заявка ещё сутки висела у игрока как ожидающая — до тех пор, пока её
+  /// не признавали просроченной по времени создания.
+  TopUpIntent? get _awaiting =>
+      _intents.where((intent) => intent.state == 'pending' && !intent.isExpired).firstOrNull;
+
+  bool _cancellingIntent = false;
+
+  Future<void> _cancelIntent(TopUpIntent intent) async {
+    final l = L.of(context);
+    setState(() => _cancellingIntent = true);
+    try {
+      await widget.api.cancelTopUpIntent(intent.paymentIntentId);
+      if (!mounted) return;
+      await _refreshIntents();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletPendingCancelled)),
+      );
+    } on PlayerApiException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerWalletPendingCancelError)),
+      );
+    } finally {
+      if (mounted) setState(() => _cancellingIntent = false);
+    }
+  }
 
   Future<void> _refreshIntents() async {
     try {
@@ -202,6 +228,15 @@ class _WalletCardState extends State<WalletCard> {
                 ),
                 style:
                     theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              // Передумать было нельзя: заявка висела сутки и отвечала «да» на вопрос «я же
+              // пополнял», пока её не признавали просроченной.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: _cancellingIntent ? null : () => _cancelIntent(awaiting),
+                  child: Text(l.customerWalletPendingCancel),
+                ),
               ),
             ],
             if (_topUpEnabled) ...[
