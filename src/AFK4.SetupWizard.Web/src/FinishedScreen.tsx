@@ -92,7 +92,7 @@ export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }:
         )}
 
         <div className="wizard-actions is-end">
-          <button type="button" className="wizard-primary wizard-finished-close" onClick={closeWizard}>
+          <button type="button" className="ui-btn ui-btn--primary wizard-finished-close" onClick={closeWizard}>
             <span>{t('setup.wizard.finished.close')}</span>
           </button>
         </div>
@@ -122,7 +122,7 @@ function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: 
       </span>
       <button
         type="button"
-        className="wizard-secondary"
+        className="ui-btn"
         disabled={busy}
         onClick={async () => {
           setBusy(true);

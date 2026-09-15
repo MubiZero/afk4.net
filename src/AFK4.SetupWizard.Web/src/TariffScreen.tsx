@@ -57,8 +57,8 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         <p>{t('setup.wizard.tariff.subtitle')}</p>
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
         <input
           id="tariff-name"
           value={name}
@@ -66,8 +66,8 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         />
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
         <input
           id="tariff-price"
           type="number"
@@ -78,20 +78,20 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         />
       </div>
 
-      <button type="button" className="wizard-secondary" onClick={() => void create()} disabled={!canCreate}>
+      <button type="button" className="ui-btn" onClick={() => void create()} disabled={!canCreate}>
         {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
         {t('setup.wizard.tariff.create')}
       </button>
 
       {failed ? <p className="ui-alert">{t('setup.wizard.tariff.failed')}</p> : null}
-      {created === null ? null : <p className="wizard-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
+      {created === null ? null : <p className="ui-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-secondary" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="wizard-primary" onClick={onContinue} disabled={saving}>
+        <button type="button" className="ui-btn ui-btn--primary" onClick={onContinue} disabled={saving}>
           <ArrowRight size={16} aria-hidden />
           {created === null ? t('setup.wizard.tariff.skip') : t('setup.wizard.tariff.next')}
         </button>

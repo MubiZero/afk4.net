@@ -108,8 +108,8 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         <p>{t('setup.wizard.branding.subtitle')}</p>
       </div>
 
-      <div className="wizard-field">
-        <span className="wizard-field-label">{t('setup.wizard.branding.logo')}</span>
+      <div className="ui-field">
+        <span className="ui-field-label">{t('setup.wizard.branding.logo')}</span>
         {/* Не radiogroup: нажатие по выбранному снимает выбор, а переключатель так не умеет —
             выбранный остаётся выбранным, пока не выбрали другой. Здесь это кнопки-переключатели,
             и «без логотипа» — законное состояние: клуб откроется и без него. */}
@@ -132,8 +132,8 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         </div>
       </div>
 
-      <div className="wizard-field">
-        <button type="button" className="wizard-secondary" onClick={() => void upload()} disabled={uploading}>
+      <div className="ui-field">
+        <button type="button" className="ui-btn" onClick={() => void upload()} disabled={uploading}>
           {uploading ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : null}
           {t('setup.wizard.branding.upload')}
         </button>
@@ -145,8 +145,8 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         {uploadFailed ? <p className="ui-alert">{t('setup.wizard.branding.uploadFailed')}</p> : null}
       </div>
 
-      <div className="wizard-field">
-        <span className="wizard-field-label">{t('setup.wizard.branding.color')}</span>
+      <div className="ui-field">
+        <span className="ui-field-label">{t('setup.wizard.branding.color')}</span>
         <div
           className="wizard-color-row"
           role="radiogroup"
@@ -173,16 +173,16 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
       {failed ? <p className="ui-alert">{t('setup.wizard.branding.failed')}</p> : null}
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-secondary" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
         {/* Оформление можно пропустить: клуб откроется и без логотипа, а поставить его
             управляющий сможет в панели. */}
-        <button type="button" className="wizard-secondary" onClick={onContinue} disabled={saving}>
+        <button type="button" className="ui-btn" onClick={onContinue} disabled={saving}>
           {t('setup.wizard.branding.skip')}
         </button>
-        <button type="button" className="wizard-primary" onClick={() => void save()} disabled={saving}>
+        <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()} disabled={saving}>
           {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <ArrowRight size={16} aria-hidden />}
           {t('setup.wizard.branding.save')}
         </button>

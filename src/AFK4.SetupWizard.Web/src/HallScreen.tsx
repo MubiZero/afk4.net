@@ -60,8 +60,8 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         <p>{t('setup.wizard.hall.subtitle')}</p>
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="hall-zone">{t('setup.wizard.hall.zone')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="hall-zone">{t('setup.wizard.hall.zone')}</label>
         <select
           id="hall-zone"
           value={zoneId}
@@ -73,8 +73,8 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         </select>
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="hall-prefix">{t('setup.wizard.hall.prefix')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="hall-prefix">{t('setup.wizard.hall.prefix')}</label>
         <input
           id="hall-prefix"
           value={namePrefix}
@@ -82,8 +82,8 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         />
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="hall-count">{t('setup.wizard.hall.count')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="hall-count">{t('setup.wizard.hall.count')}</label>
         <input
           id="hall-count"
           type="number"
@@ -100,22 +100,22 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         </small>
       </div>
 
-      <button type="button" className="wizard-secondary" onClick={() => void create()} disabled={!canCreate}>
+      <button type="button" className="ui-btn" onClick={() => void create()} disabled={!canCreate}>
         {creating ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
         {t('setup.wizard.hall.create')}
       </button>
 
       {failed ? <p className="ui-alert">{t('setup.wizard.hall.failed')}</p> : null}
       {createdNames.length > 0 ? (
-        <p className="wizard-field-hint">{t('setup.wizard.hall.created', { count: createdNames.length })}</p>
+        <p className="ui-field-hint">{t('setup.wizard.hall.created', { count: createdNames.length })}</p>
       ) : null}
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-secondary" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="wizard-primary" onClick={onContinue} disabled={creating}>
+        <button type="button" className="ui-btn ui-btn--primary" onClick={onContinue} disabled={creating}>
           <ArrowRight size={16} aria-hidden />
           {createdNames.length > 0 ? t('setup.wizard.hall.next') : t('setup.wizard.hall.skip')}
         </button>

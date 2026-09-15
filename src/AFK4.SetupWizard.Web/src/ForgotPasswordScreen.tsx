@@ -128,7 +128,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         <div className="wizard-actions is-end">
           <button
             type="button"
-            className="wizard-primary"
+            className="ui-btn ui-btn--primary"
             onClick={() => onBack(identity ? { channel, identity } : undefined)}
           >
             <span>{t('auth.forgot.phone.toSignIn')}</span>
@@ -147,11 +147,11 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
 
       {step === 'verify' ? (
         <form className="wizard-form" onSubmit={submitReset} noValidate>
-          <p className="wizard-field-hint">
+          <p className="ui-field-hint">
             {channel === 'email' ? t('auth.forgot.email.sent') : t('auth.forgot.phone.sent')}
           </p>
-          <label className="wizard-field">
-            <span className="wizard-field-label">
+          <label className="ui-field">
+            <span className="ui-field-label">
               {channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')}
             </span>
             <input
@@ -163,10 +163,10 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
               disabled={isBusy}
               aria-describedby="reset-code-hint"
             />
-            <span id="reset-code-hint" className="wizard-field-hint">{t('auth.forgot.code.hint')}</span>
+            <span id="reset-code-hint" className="ui-field-hint">{t('auth.forgot.code.hint')}</span>
           </label>
-          <label className="wizard-field">
-            <span className="wizard-field-label">{t('auth.forgot.phone.newPassword')}</span>
+          <label className="ui-field">
+            <span className="ui-field-label">{t('auth.forgot.phone.newPassword')}</span>
             <input
               type="password"
               value={newPassword}
@@ -175,9 +175,9 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
               disabled={isBusy}
               aria-describedby="reset-password-hint"
             />
-            <span id="reset-password-hint" className="wizard-field-hint">{t('auth.forgot.newPassword.hint')}</span>
+            <span id="reset-password-hint" className="ui-field-hint">{t('auth.forgot.newPassword.hint')}</span>
           </label>
-          <button type="submit" className="wizard-primary" disabled={!canReset}>
+          <button type="submit" className="ui-btn ui-btn--primary" disabled={!canReset}>
             {isBusy ? (
               <>
                 <Loader2 className="ui-spinner" aria-hidden />
@@ -190,8 +190,8 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         </form>
       ) : channel === 'email' ? (
         <form className="wizard-form" onSubmit={submitRequest} noValidate>
-          <label className="wizard-field">
-            <span className="wizard-field-label">{t('auth.forgot.email.field')}</span>
+          <label className="ui-field">
+            <span className="ui-field-label">{t('auth.forgot.email.field')}</span>
             <input
               value={emailLogin}
               onChange={(event) => { setEmailLogin(event.target.value); clearError(); }}
@@ -201,7 +201,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
               autoFocus
             />
           </label>
-          <button type="submit" className="wizard-primary" disabled={!canRequest}>
+          <button type="submit" className="ui-btn ui-btn--primary" disabled={!canRequest}>
             {isBusy ? (
               <>
                 <Loader2 className="ui-spinner" aria-hidden />
@@ -214,12 +214,12 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         </form>
       ) : (
         <form className="wizard-form" onSubmit={submitRequest} noValidate>
-          <label className="wizard-field">
-            <span className="wizard-field-label">{t('auth.forgot.phone.field')}</span>
-            <div className="wizard-phone-field">
-              <span className="wizard-phone-prefix" aria-hidden>+992</span>
+          <label className="ui-field">
+            <span className="ui-field-label">{t('auth.forgot.phone.field')}</span>
+            <div className="ui-phone-field">
+              <span className="ui-phone-prefix" aria-hidden>+992</span>
               <input
-                className="wizard-phone-input"
+                className="ui-phone-input"
                 type="tel"
                 value={phone}
                 onChange={(event) => { setPhone(formatLocal(event.target.value)); clearError(); }}
@@ -235,12 +235,12 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
               />
             </div>
             {showPhoneHint && (
-              <span id="reset-phone-hint" className="wizard-field-hint">
+              <span id="reset-phone-hint" className="ui-field-hint">
                 {t('auth.forgot.phone.error.invalidPhone')}
               </span>
             )}
           </label>
-          <button type="submit" className="wizard-primary" disabled={!canRequest}>
+          <button type="submit" className="ui-btn ui-btn--primary" disabled={!canRequest}>
             {isBusy ? (
               <>
                 <Loader2 className="ui-spinner" aria-hidden />

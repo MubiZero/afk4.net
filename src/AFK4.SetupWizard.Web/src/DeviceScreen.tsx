@@ -151,8 +151,8 @@ export function DeviceScreen({
 
       <form className="wizard-form" onSubmit={handleSubmit} noValidate>
         {freeSeats.length > 0 && (
-          <label className="wizard-field">
-            <span className="wizard-field-label">{t('setup.wizard.device.seat.label')}</span>
+          <label className="ui-field">
+            <span className="ui-field-label">{t('setup.wizard.device.seat.label')}</span>
             <select value={seatChoice} onChange={(event) => setSeatChoice(event.target.value)}>
               {freeSeats.map((seat) => (
                 <option key={seat.seatId} value={seat.seatId}>
@@ -161,12 +161,12 @@ export function DeviceScreen({
               ))}
               <option value={NEW_SEAT}>{t('setup.wizard.device.seat.new')}</option>
             </select>
-            <span className="wizard-field-hint">{t('setup.wizard.device.seat.hint')}</span>
+            <span className="ui-field-hint">{t('setup.wizard.device.seat.hint')}</span>
           </label>
         )}
 
-        <label className="wizard-field">
-          <span className="wizard-field-label">{t('setup.wizard.device.field.name')}</span>
+        <label className="ui-field">
+          <span className="ui-field-label">{t('setup.wizard.device.field.name')}</span>
           <input
             type="text"
             value={displayName}
@@ -188,11 +188,11 @@ export function DeviceScreen({
         )}
 
         <div className="wizard-actions">
-          <button type="button" className="wizard-secondary" onClick={onBack} disabled={busy}>
+          <button type="button" className="ui-btn" onClick={onBack} disabled={busy}>
             <ArrowLeft aria-hidden />
             <span>{t('setup.wizard.common.back')}</span>
           </button>
-          <button type="submit" className="wizard-primary" disabled={!canEnroll || busy}>
+          <button type="submit" className="ui-btn ui-btn--primary" disabled={!canEnroll || busy}>
             {busy ? (
               <>
                 <Loader2 className="ui-spinner" aria-hidden />

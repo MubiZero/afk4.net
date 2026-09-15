@@ -11,8 +11,10 @@ import { BrandLogo } from './BrandLogo';
 export function AuthFrame({ children }: { children: ReactNode }) {
   const { t } = useI18n();
 
+  // Вход — свободный экран: одна задача во весь монитор, спешить некуда, и рука должна
+  // попадать без прицеливания. Плотная консоль начинается уже за ним.
   return (
-    <div className="operator-shell auth-shell">
+    <div className="operator-shell auth-shell" data-density="comfortable">
       <WindowResizeHandles />
       <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">

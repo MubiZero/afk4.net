@@ -64,8 +64,8 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         <p>{t('setup.wizard.staff.subtitle')}</p>
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="staff-name">{t('setup.wizard.staff.name')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="staff-name">{t('setup.wizard.staff.name')}</label>
         <input
           id="staff-name"
           value={displayName}
@@ -73,8 +73,8 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         />
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="staff-phone">{t('setup.wizard.staff.phone')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="staff-phone">{t('setup.wizard.staff.phone')}</label>
         <input
           id="staff-phone"
           type="tel"
@@ -85,8 +85,8 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         />
       </div>
 
-      <div className="wizard-field">
-        <label className="wizard-field-label" htmlFor="staff-role">{t('setup.wizard.staff.role')}</label>
+      <div className="ui-field">
+        <label className="ui-field-label" htmlFor="staff-role">{t('setup.wizard.staff.role')}</label>
         <select
           id="staff-role"
           value={roleName}
@@ -98,7 +98,7 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         </select>
       </div>
 
-      <button type="button" className="wizard-secondary" onClick={() => void invite()} disabled={!canSend}>
+      <button type="button" className="ui-btn" onClick={() => void invite()} disabled={!canSend}>
         {sending ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <UserPlus size={16} aria-hidden />}
         {t('setup.wizard.staff.add')}
       </button>
@@ -123,11 +123,11 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
       ) : null}
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-secondary" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="wizard-primary" onClick={onContinue} disabled={sending}>
+        <button type="button" className="ui-btn ui-btn--primary" onClick={onContinue} disabled={sending}>
           <ArrowRight size={16} aria-hidden />
           {invited.length > 0 ? t('setup.wizard.staff.next') : t('setup.wizard.staff.skip')}
         </button>

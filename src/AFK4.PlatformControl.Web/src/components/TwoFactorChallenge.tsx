@@ -58,8 +58,8 @@ export function TwoFactorChallenge({ onSubmit, onCancel, expiresAtUtc, onExpired
           </div>
         ) : null}
 
-        <div className="auth-field">
-          <label className="auth-field-label" htmlFor="two-factor-code">{t('auth.twoFactor.field.code')}</label>
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="two-factor-code">{t('auth.twoFactor.field.code')}</label>
           <input
             id="two-factor-code"
             name="code"
@@ -74,13 +74,13 @@ export function TwoFactorChallenge({ onSubmit, onCancel, expiresAtUtc, onExpired
           />
         </div>
 
-        <button type="submit" className="auth-primary" disabled={isSubmitting || code.trim().length === 0}>
+        <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isSubmitting || code.trim().length === 0}>
           {isSubmitting ? <Loader2 className="ui-spinner" aria-hidden="true" /> : null}
           {isSubmitting ? t('auth.twoFactor.action.confirming') : t('auth.twoFactor.action.confirm')}
           {isSubmitting ? null : <ArrowRight aria-hidden="true" />}
         </button>
 
-        <button type="button" className="auth-password-toggle" onClick={onCancel} disabled={isSubmitting}>
+        <button type="button" className="ui-password-toggle" onClick={onCancel} disabled={isSubmitting}>
           {t('auth.twoFactor.action.back')}
         </button>
       </form>

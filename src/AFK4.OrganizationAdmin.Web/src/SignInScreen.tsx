@@ -194,16 +194,16 @@ export function SignInScreen({
         </header>
 
         <form className="auth-form" onSubmit={submit} noValidate>
-          <label className="auth-field">
-            <span className="auth-field-label">
+          <label className="ui-field">
+            <span className="ui-field-label">
               {mode === 'phone' ? t('op.auth.field.phone') : t('op.auth.field.credentials')}
             </span>
-            <div className={mode === 'phone' ? 'auth-phone-field' : undefined}>
-              {mode === 'phone' && <span className="auth-phone-prefix" aria-hidden>+992</span>}
+            <div className={mode === 'phone' ? 'ui-phone-field' : undefined}>
+              {mode === 'phone' && <span className="ui-phone-prefix" aria-hidden>+992</span>}
               <input
                 // key пересоздаёт инпут на смене режима — чисто сбрасывает autofill/IME-состояние.
                 key={mode}
-                className={mode === 'phone' ? 'auth-phone-input' : undefined}
+                className={mode === 'phone' ? 'ui-phone-input' : undefined}
                 type={mode === 'phone' ? 'tel' : 'text'}
                 inputMode={mode === 'phone' ? 'tel' : undefined}
                 value={identity}
@@ -220,18 +220,18 @@ export function SignInScreen({
               />
             </div>
             {identityHint !== null && (
-              <span id="operator-identity-hint" className="auth-field-hint">{identityHint}</span>
+              <span id="operator-identity-hint" className="ui-field-hint">{identityHint}</span>
             )}
           </label>
 
-          <div className="auth-field">
-            <div className="auth-field-label auth-label-with-action">
+          <div className="ui-field">
+            <div className="ui-field-label ui-label-row">
               <label htmlFor="operator-password">{t('auth.field.password')}</label>
               <button type="button" className="auth-link-inline" onClick={onForgotPassword}>
                 {t('auth.forgot.link')}
               </button>
             </div>
-            <div className="auth-password">
+            <div className="ui-password">
               <input
                 id="operator-password"
                 type={showPassword ? 'text' : 'password'}
@@ -241,7 +241,7 @@ export function SignInScreen({
               />
               <button
                 type="button"
-                className="auth-password-toggle"
+                className="ui-password-toggle"
                 aria-pressed={showPassword}
                 aria-label={showPassword ? t('op.auth.hidePassword') : t('op.auth.showPassword')}
                 onClick={() => setShowPassword((value) => !value)}
@@ -258,7 +258,7 @@ export function SignInScreen({
             </div>
           )}
 
-          <button type="submit" className="auth-primary" disabled={isBusy || isChecking}>
+          <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isBusy || isChecking}>
             {isBusy ? (
               <>
                 <Loader2 className="ui-spinner" size={18} aria-hidden />

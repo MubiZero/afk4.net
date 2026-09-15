@@ -9,7 +9,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
+  gap: var(--control-gap);
   height: var(--control-h);
   padding: 0 var(--control-pad);
   border: 1px solid var(--border-control);
@@ -212,8 +212,23 @@
 .ui-card--elevated { background: var(--surface-elevated); box-shadow: var(--shadow-card); }
 
 /* ============ Field ============ */
-.ui-field { display: grid; gap: var(--space-1); }
-.ui-field > label { color: var(--text-secondary); font-size: var(--field-label-font); font-weight: 600; }
+/* Поле ввода — одно на все поверхности.
+ *
+ * Их было три: `ui-field` в консоли (36px/11px), `auth-field` на входе (42px/14px) и
+ * `wizard-field` в мастере (44px/16px), с разными фонами и разной обводкой. Отличала их
+ * плотность, а не замысел, — и она теперь приходит токенами экрана.
+ *
+ * Капс-микролейбл просит широкий трекинг, иначе буквы слипаются; это свойство самого приёма,
+ * а не плотности, поэтому одинаково везде. */
+.ui-field { position: relative; display: grid; gap: var(--field-gap); }
+.ui-field > label,
+.ui-field-label {
+  color: var(--text-secondary);
+  font-size: var(--field-label-font);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 .ui-field > input,
 .ui-field > select {
   height: var(--control-h);
@@ -240,6 +255,89 @@
   background: var(--surface-muted);
   cursor: not-allowed;
 }
+.ui-field > input[aria-invalid="true"] { border-color: var(--danger); }
+.ui-field > input[aria-invalid="true"]:focus { box-shadow: var(--focus-ring-danger); }
+
+/* Подсказка под полем держит высоту всегда: без неё появление ошибки дёргает вёрстку. */
+.ui-field-hint {
+  min-height: var(--field-hint-min-h);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.ui-field > input[aria-invalid="true"] ~ .ui-field-hint { color: var(--danger-text); }
+
+/* Лейбл и действие рядом с ним — «Забыли пароль?» у поля пароля. */
+.ui-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Телефон: код страны пришит к полю, чтобы человек не гадал, вводить ли +992. */
+.ui-phone-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-h);
+  border: 1px solid var(--border-control);
+  border-radius: var(--control-radius);
+  padding: 0 var(--control-pad);
+  background: var(--surface-sunken);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.ui-phone-field:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.ui-phone-field:has(> input[aria-invalid="true"]) { border-color: var(--danger); }
+.ui-phone-field:has(> input[aria-invalid="true"]):focus-within { box-shadow: var(--focus-ring-danger); }
+
+.ui-phone-prefix {
+  color: var(--text-tertiary);
+  font-size: var(--control-font);
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-phone-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--control-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  outline: 0;
+}
+
+/* Пароль: кнопка «показать» внутри поля, поэтому справа оставлено место под неё. */
+.ui-password { position: relative; display: flex; }
+.ui-password > input { flex: 1; padding-right: 40px; }
+
+.ui-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.ui-password-toggle:hover { color: var(--text-primary); }
+.ui-password-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
 .ui-field-error { color: var(--danger-text); font-size: var(--text-xs); }
 
 /* ============ Media upload ============ */

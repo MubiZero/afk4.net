@@ -43,6 +43,9 @@
   --alert-min-h: 38px;
   --alert-pad: var(--space-2) var(--space-3);
   --alert-font: 12px;
+  --control-gap: var(--space-1);
+  --field-gap: var(--space-1);
+  --field-hint-min-h: 15px;
 
   /* Motion */
   --duration-fast: 120ms;
@@ -83,6 +86,9 @@
   --alert-min-h: 40px;
   --alert-pad: 10px 14px;
   --alert-font: var(--text-sm);
+  --control-gap: var(--space-2);
+  --field-gap: 10px;
+  --field-hint-min-h: 16px;
 }
 
 [data-theme="dark"] {

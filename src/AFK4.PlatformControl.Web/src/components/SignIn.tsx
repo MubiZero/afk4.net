@@ -133,8 +133,8 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
               </div>
             ) : null}
 
-            <div className="auth-field">
-              <label className="auth-field-label" htmlFor="signin-username">{t('auth.field.login')}</label>
+            <div className="ui-field">
+              <label className="ui-field-label" htmlFor="signin-username">{t('auth.field.login')}</label>
               <input
                 id="signin-username"
                 name="userName"
@@ -147,9 +147,9 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
               />
             </div>
 
-            <div className="auth-field">
-              <label className="auth-field-label" htmlFor="signin-password">{t('auth.field.password')}</label>
-              <div className="auth-password">
+            <div className="ui-field">
+              <label className="ui-field-label" htmlFor="signin-password">{t('auth.field.password')}</label>
+              <div className="ui-password">
                 <input
                   id="signin-password"
                   name="password"
@@ -162,7 +162,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
                 />
                 <button
                   type="button"
-                  className="auth-password-toggle"
+                  className="ui-password-toggle"
                   aria-label={t(showPassword ? 'auth.password.hide' : 'auth.password.show')}
                   onClick={() => setShowPassword(value => !value)}
                 >
@@ -171,7 +171,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
               </div>
             </div>
 
-            <button type="submit" className="auth-primary" disabled={isSubmitting}>
+            <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="ui-spinner" aria-hidden="true" /> : null}
               {isSubmitting ? t('auth.action.signingIn') : t('auth.action.signIn')}
               {isSubmitting ? null : <ArrowRight aria-hidden="true" />}
