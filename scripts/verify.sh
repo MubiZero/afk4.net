@@ -65,12 +65,15 @@ detect_lanes() {
     esac
     # Контракты — исходник типов веба: правка записи C# обязана поднимать веб-дорожку, иначе
     # расхождение уедет в сгенерированный файл незамеченным.
+    # Контракты — исходник типов и веба, и мобильного приложения: правка записи C# обязана
+    # поднимать обе дорожки, иначе расхождение уедет в сгенерированные файлы незамеченным.
     case "$path" in
       src/AFK4.Shared.Contracts/*)
-        run_web=web ;;
+        run_web=web
+        run_flutter=flutter ;;
     esac
     case "$path" in
-      locales/*|packages/i18n/*|src/afk4_customer_app/*|.github/workflows/pr-verification.yml)
+      locales/*|packages/i18n/*|packages/contracts/*|src/afk4_customer_app/*|.github/workflows/pr-verification.yml)
         run_flutter=flutter ;;
     esac
   done <<< "$changed"
@@ -282,7 +285,7 @@ if printf '%s\n' "${lanes[@]}" | grep -qx web; then
   step "Контракты сгенерированы заново"
   # То же свойство, что у локализации: перегенерация ничего не меняет. Ловит правку записи C#
   # без перегенерации — а это ровно тот молчаливый дрейф, ради которого генератор и заведён.
-  generated="packages/contracts/src"
+  generated="packages/contracts/src src/afk4_customer_app/lib/api/contracts.dart"
   before=$(git hash-object $(git ls-files $generated) | shasum)
   if ! (cd packages/contracts && bun run gen) >"$logs/contracts.log" 2>&1; then
     tail -30 "$logs/contracts.log"
