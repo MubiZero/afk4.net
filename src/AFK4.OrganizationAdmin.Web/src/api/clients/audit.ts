@@ -3,9 +3,8 @@ import type { Guid } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
 
 /**
- * Запись журнала действий (AuditRecordDto). В `contractParity.test.ts` её нет намеренно:
- * два последних поля объявлены в C# не параметрами записи, а свойствами `{ get; init; }`,
- * и разбор списка параметров их не видит. Сверяется родитель — AuditSearchResultDto.
+ * Запись журнала действий (AuditRecordDto). Поля сверяются в `contractParity.test.ts`, включая
+ * два последних — они объявлены в C# не параметрами записи, а свойствами `{ get; init; }`.
  */
 export interface AuditRecordDto {
   auditRecordId: Guid;
