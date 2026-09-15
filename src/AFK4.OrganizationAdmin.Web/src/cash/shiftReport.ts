@@ -1,6 +1,6 @@
 import type { MessageKey } from '@afk4/i18n';
-import type { ShiftRevenueDto } from '../operatorApiClients';
-import { escapeHtml, formatMoney, formatTime, readMoney } from '../operatorHelpers';
+import type { ShiftDto, ShiftRevenueDto } from '../operatorApiClients';
+import { escapeHtml, formatMoney, formatTime } from '../operatorHelpers';
 
 type Money = { currencyCode: string; minorUnits: number };
 type TFunc = (key: MessageKey) => string;
@@ -16,12 +16,10 @@ export interface ShiftReportData {
 
 // X = снимок текущей выручки/сверки как есть. Z = тот же снимок, но counted/difference/closedAt
 // берём из ответа close (выручки в ответе close нет — она остаётся из снимка revenue).
-export function buildShiftReportData(revenue: ShiftRevenueDto, closeResult?: Record<string, unknown> | null): ShiftReportData {
-  const counted = closeResult ? readMoney(closeResult, 'countedCash') : revenue.cash.counted;
-  const difference = closeResult ? readMoney(closeResult, 'difference') : revenue.cash.difference;
-  const closedAtUtc = closeResult
-    ? (typeof closeResult.closedAtUtc === 'string' ? closeResult.closedAtUtc : null)
-    : revenue.closedAtUtc;
+export function buildShiftReportData(revenue: ShiftRevenueDto, closeResult?: ShiftDto | null): ShiftReportData {
+  const counted = closeResult ? closeResult.countedCash : revenue.cash.counted;
+  const difference = closeResult ? closeResult.difference : revenue.cash.difference;
+  const closedAtUtc = closeResult ? closeResult.closedAtUtc : revenue.closedAtUtc;
   return {
     openedAtUtc: revenue.openedAtUtc,
     closedAtUtc,

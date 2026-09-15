@@ -185,17 +185,19 @@ function shiftHistory() {
 // Приходно-расходные операции кассового ящика (НЕ продажи): открытие · внесение · изъятие · возврат.
 // Лента в «Смене» (последние 6) и «Журнале кассы» (полный список + поиск + сводка).
 function cashOperationReport() {
-  const row = (operationId: string, operationType: string, impactMinor: number, reason: string, minutesBack: number) =>
-    ({ operationId, operationType, cashImpact: money(impactMinor), reason, createdAtUtc: minutesAgoUtc(minutesBack) });
+  const row = (operationId: string, operationType: string, impactMinor: number, reason: string, minutesBack: number, createdByDisplayName: string) =>
+    ({ operationId, operationType, cashImpact: money(impactMinor), reason, createdAtUtc: minutesAgoUtc(minutesBack), createdByDisplayName });
   return {
     cashInTotal: money(150000),  // открытие 1000 + внесение 500
     cashOutTotal: money(92000),  // изъятие 800 + возврат 120
     netCashTotal: money(58000),  // 1500 − 920
+    // Смену открыл один человек, инкассацию сделал другой — иначе колонка «Оператор» в превью
+    // выглядит рабочей и на одинаковых именах, даже если она снова начнёт врать.
     rows: [
-      row('co-04', 'cash_out', -80000, 'Инкассация в сейф', 30),
-      row('co-03', 'cash_in', 50000, 'Доложен разменный фонд', 120),
-      row('co-02', 'refund', -12000, 'Возврат за отменённый заказ', 180),
-      row('co-01', 'opening', 100000, 'Открытие смены · разменный фонд', 240)
+      row('co-04', 'cash_out', -80000, 'Инкассация в сейф', 30, 'Мадина К.'),
+      row('co-03', 'cash_in', 50000, 'Доложен разменный фонд', 120, 'Зарина Н.'),
+      row('co-02', 'refund', -12000, 'Возврат за отменённый заказ', 180, 'Мадина К.'),
+      row('co-01', 'opening', 100000, 'Открытие смены · разменный фонд', 240, 'Зарина Н.')
     ]
   };
 }

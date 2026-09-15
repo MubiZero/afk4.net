@@ -26,6 +26,7 @@ import type {
   PcControlActionId,
   PcControlActionResult
 } from './operatorTypes';
+import type { SessionActionResponse } from './operatorApiClients';
 import { permissionNames, hasPermission } from './operatorPermissions';
 import {
   defaultSessionDurationMinutes,
@@ -246,7 +247,7 @@ export function useFloorMap({
     }
 
     const clients = createAuthenticatedOperatorClients(config, session);
-    let response: unknown;
+    let response: SessionActionResponse;
     if (request.type === 'start') {
       if (!hasPermission(session, permissionNames.startSession)) {
         throw new Error(t('op.shell.err.noPermStart'));

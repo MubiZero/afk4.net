@@ -264,6 +264,45 @@ const PAIRS: Pair[] = [
     contract: 'Reports/ReportScheduleContracts.cs',
     client: 'clients/reports.ts',
     type: 'ReportScheduleDto'
+  },
+  // Сессии — весь денежный путь стойки: старт, продление, перенос, завершение, расчёт. До этого
+  // ни один ответ семейства под проверкой не стоял, и `compValueMinorUnits` уехал у клиента молча.
+  { record: 'SessionDto', contract: 'Sessions/SessionDto.cs', client: 'clients/sessions.ts', type: 'SessionDto' },
+  {
+    record: 'SessionLeaseDto',
+    contract: 'Sessions/SessionLeaseDto.cs',
+    client: 'clients/sessions.ts',
+    type: 'SessionLeaseDto'
+  },
+  {
+    record: 'SessionCommandResponse',
+    contract: 'Sessions/SessionCommandResponse.cs',
+    client: 'clients/sessions.ts',
+    type: 'SessionCommandResponse'
+  },
+  {
+    record: 'SessionCheckoutResponse',
+    contract: 'Sessions/SessionCheckoutResponse.cs',
+    client: 'clients/sessions.ts',
+    type: 'SessionCheckoutResponse'
+  },
+  {
+    record: 'SessionCheckoutQuoteResponse',
+    contract: 'Sessions/SessionCheckoutQuoteResponse.cs',
+    client: 'clients/sessions.ts',
+    type: 'SessionCheckoutQuoteResponse'
+  },
+  {
+    record: 'SessionTimelineItemDto',
+    contract: 'Sessions/SessionTimelineDto.cs',
+    client: 'clients/sessions.ts',
+    type: 'SessionTimelineItemDto'
+  },
+  {
+    record: 'SessionTimelineResult',
+    contract: 'Sessions/SessionTimelineDto.cs',
+    client: 'clients/sessions.ts',
+    type: 'SessionTimelineResult'
   }
 ];
 

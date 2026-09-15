@@ -12,4 +12,7 @@ public sealed record CashOperationReportRowDto(
     string OperationType,
     MoneyDto CashImpact,
     string Reason,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    // Кто провёл операцию. Журнал кассы отвечает на вопрос «кто взял деньги», а идентификатор
+    // сотрудника на этот вопрос не отвечает: показывать кассиру GUID — то же, что не показывать.
+    string CreatedByDisplayName = "");

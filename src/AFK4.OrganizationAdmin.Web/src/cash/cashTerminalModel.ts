@@ -1,6 +1,6 @@
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission, hasPermission, permissionNames } from '../operatorPermissions';
-import { readString } from '../operatorHelpers';
+import type { CashOperationReportRowDto } from '../operatorApiClients';
 
 export type CashJournalSegment = 'ops' | 'receipts' | 'review';
 
@@ -18,27 +18,16 @@ export function visibleCashJournalSegments(session: OperatorAuthSession | null):
   return result;
 }
 
-export function resolveRegisterSelection(
-  rows: Record<string, unknown>[],
-  selectedId: string,
-  idKey: string
-): string {
-  if (rows.some((row) => readString(row, idKey) === selectedId)) {
-    return selectedId;
-  }
-  return rows.length === 0 ? '' : readString(rows[0], idKey);
-}
-
 export function filterCashOperationRows(
-  rows: Record<string, unknown>[],
+  rows: readonly CashOperationReportRowDto[],
   query: string,
   operationType: string,
   operationTypeLabel: (operationType: string) => string = (value) => value
-): Record<string, unknown>[] {
+): CashOperationReportRowDto[] {
   const needle = query.trim().toLocaleLowerCase();
   return rows.filter((row) => {
-    const type = readString(row, 'operationType');
+    const type = row.operationType;
     return (operationType === 'all' || type === operationType)
-      && (needle === '' || `${type} ${operationTypeLabel(type)} ${readString(row, 'reason')}`.toLocaleLowerCase().includes(needle));
+      && (needle === '' || `${type} ${operationTypeLabel(type)} ${row.reason}`.toLocaleLowerCase().includes(needle));
   });
 }
