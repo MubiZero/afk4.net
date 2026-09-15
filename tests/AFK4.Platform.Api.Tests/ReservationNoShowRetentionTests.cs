@@ -143,6 +143,41 @@ public sealed class ReservationNoShowRetentionTests
         Assert.Equal(5_000, await WalletAsync(options));
     }
 
+    /// <summary>
+    /// Игрок приехал, сессию ещё не начали — неявки нет.
+    ///
+    /// Раньше снять этот взвод можно было только запуском сессии: человек, который стоит у стойки
+    /// и платит, по истечении grace-окна терял предоплату и репутацию. Кнопки «Пришёл» не было ни на
+    /// одном экране, хотя маршрут существовал.
+    /// </summary>
+    [Fact]
+    public async Task SeatedReservation_IsNeverResolvedAsANoShow()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, keepPrepaymentOnNoShow: true, openShift: true);
+        var booked = await BookAsync(options);
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var service = new EfReservationService(db, new FixedTimeProvider(Start.AddMinutes(5)));
+            var seated = await service.SeatAsync(
+                booked.Response!.ReservationId,
+                StaffId,
+                new SeatReservationRequest(OrgId, booked.Response.Version),
+                CancellationToken.None);
+            Assert.True(seated.Succeeded);
+        }
+
+        // Далеко за grace-окном филиала — и всё равно разбирать нечего.
+        Assert.Equal(0, await RunAsync(options, Start.AddMinutes(90)));
+
+        await using var readDb = new PlatformDbContext(options);
+        var reservation = await readDb.Reservations.SingleAsync();
+        Assert.Equal(ReservationStateNames.Seated, reservation.State);
+        Assert.False(await readDb.LedgerEntries.AnyAsync(
+            entry => entry.EntryType == LedgerEntryTypeNames.ReservationNoShowFee));
+    }
+
     /// <summary>Филиал, который место не держит вовсе: неявка разбирается сразу после начала.</summary>
     [Fact]
     public async Task NoShow_WithZeroHoldMinutes_ResolvesRightAfterTheStart()
