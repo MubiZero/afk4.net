@@ -25,6 +25,9 @@ Map<String, dynamic> _request({String id = 'r1', String name = 'Ясин'}) => {
       'friendRequestId': id,
       'platformPersonId': 'p3',
       'displayName': name,
+      // Сервер отдаёт это поле всегда (FriendRequestDto.CreatedAtUtc не обнуляемое) — заглушка
+      // повторяет ответ целиком, а не то подмножество, которым пользуется экран сегодня.
+      'createdAtUtc': '2026-09-14T10:00:00Z',
     };
 
 String _view({

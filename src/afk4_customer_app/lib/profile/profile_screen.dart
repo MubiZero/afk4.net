@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../push/push_service.dart';
 import '../l10n/app_localizations.dart';
@@ -32,7 +32,7 @@ class ProfileScreen extends StatefulWidget {
 
   /// Личность: имя, номер и признак «PIN задан». null — список клубов не спросился, тогда
   /// экран обходится клубным профилем, как раньше.
-  final MePerson? person;
+  final MePersonDto? person;
 
   /// Есть ли у игрока счёт в этом клубе. Пока нет, клубного профиля не существует.
   final bool accountOpen;
@@ -57,7 +57,7 @@ enum _Load { loading, failed, ready }
 
 class _ProfileScreenState extends State<ProfileScreen> {
   _Load _state = _Load.loading;
-  PlayerProfile? _profile;
+  PlayerProfileDto? _profile;
   bool _saving = false;
   bool _pushEnabled = false;
   bool _deleting = false;
@@ -312,7 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Карточки вместо одного столбца контролов: кто я, чем сажусь за ПК, как со мной говорить,
   /// как отсюда выйти. Раньше настройка языка и кнопка выхода отличались друг от друга только
   /// текстом, и глазу не за что было зацепиться при беглом просмотре.
-  List<Widget> _body(L l, ThemeData theme, PlayerProfile? profile) {
+  List<Widget> _body(L l, ThemeData theme, PlayerProfileDto? profile) {
     final current = Localizations.localeOf(context).languageCode;
     final person = widget.person;
 

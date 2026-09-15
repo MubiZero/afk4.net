@@ -33,10 +33,18 @@ Map<String, dynamic> _order({
   String placedAtUtc = '2026-09-14T10:00:00Z',
 }) => {
       'id': id,
+      // Кому и куда заказ — на экране игрока не показывается, но в ответе есть всегда:
+      // заглушка обязана повторять ответ, а не то подмножество, которым пользуется экран
+      // сегодня.
+      'branchId': 'b1',
+      'seatId': 's1',
+      'playerAccountId': 'a1',
+      'playerDisplayName': 'Далер',
       'status': status,
       // Сервер отдаёт это поле всегда (ShopOrderDto.PlacedAtUtc не обнуляемое) — заглушка обязана
       // повторять ответ, а не то подмножество, которым пользуется экран сегодня.
       'placedAtUtc': placedAtUtc,
+      'version': 1,
       'total': {'currencyCode': 'TJS', 'minorUnits': total},
       'lines': [
         {

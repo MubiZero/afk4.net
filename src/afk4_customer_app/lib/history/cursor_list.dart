@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 
 typedef FetchPage<T> = Future<CursorPage<T>> Function(String? cursor);

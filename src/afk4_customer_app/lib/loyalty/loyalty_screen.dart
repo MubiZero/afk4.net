@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
@@ -31,7 +32,7 @@ class LoyaltyScreen extends StatefulWidget {
 }
 
 class _LoyaltyScreenState extends State<LoyaltyScreen> {
-  PlayerLoyalty? _data;
+  PlayerLoyaltyDto? _data;
   bool _failed = false;
 
   @override
@@ -139,7 +140,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
 class _EarnedCard extends StatelessWidget {
   const _EarnedCard({required this.total});
 
-  final Money total;
+  final MoneyDto total;
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +207,7 @@ class _Rule extends StatelessWidget {
 class _EntryRow extends StatelessWidget {
   const _EntryRow({required this.entry});
 
-  final CashbackEntry entry;
+  final CashbackEntryDto entry;
 
   String _source(L l) => switch (entry.source) {
         'topup' => l.customerLoyaltySourceTopUp,
@@ -241,7 +242,7 @@ class _EntryRow extends StatelessWidget {
           ),
         ),
         Text(
-          '+${formatMoney(entry.amount.minorUnits, entry.amount.currencyCode, locale: locale)}',
+          '+${formatMoney(entry.amountMinorUnits, entry.currencyCode, locale: locale)}',
           style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary),
         ),
       ],

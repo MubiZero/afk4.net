@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:afk4_customer_app/api/dto.dart';
+import 'package:afk4_customer_app/api/contracts.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/profile/pin_sheet.dart';
@@ -11,7 +11,7 @@ import 'package:afk4_customer_app/profile/profile_screen.dart';
 
 import 'support/fake_http.dart';
 
-MePerson _person({bool pinSet = false}) => MePerson.fromJson({
+MePersonDto _person({bool pinSet = false}) => MePersonDto.fromJson({
       'platformPersonId': 'pp1',
       'phoneNumber': '+992900000000',
       'displayName': 'Иван',
@@ -37,7 +37,7 @@ Widget sheetHarness(FakeHttpClient http, {bool pinSet = false}) => MaterialApp(
       ),
     );
 
-Widget profileHarness(FakeHttpClient http, {MePerson? person}) => MaterialApp(
+Widget profileHarness(FakeHttpClient http, {MePersonDto? person}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,

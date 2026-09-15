@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
@@ -35,16 +36,16 @@ class _ShopScreenState extends State<ShopScreen> {
   /// и игрок смотрит на этот экран, пока ждёт.
   static const Duration _pollEvery = Duration(seconds: 5);
 
-  List<ShopProduct>? _catalog;
+  List<ShopCatalogItemDto>? _catalog;
   bool _loadFailed = false;
 
   /// Сколько чего в корзине. Товары без строки здесь просто не заказаны.
   final Map<String, int> _cart = {};
 
-  ShopOrder? _order;
+  ShopOrderDto? _order;
 
   /// Закрытые заказы — принесённые и отменённые, новые сверху.
-  List<ShopOrder> _pastOrders = const [];
+  List<ShopOrderDto> _pastOrders = const [];
   Timer? _poll;
   bool _placing = false;
   String? _error;
@@ -105,7 +106,7 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   int get _cartTotalMinorUnits {
-    final catalog = _catalog ?? const <ShopProduct>[];
+    final catalog = _catalog ?? const <ShopCatalogItemDto>[];
     var total = 0;
     for (final product in catalog) {
       total += product.price.minorUnits * (_cart[product.productId] ?? 0);
@@ -116,7 +117,7 @@ class _ShopScreenState extends State<ShopScreen> {
   String get _currencyCode =>
       _catalog?.firstOrNull?.price.currencyCode ?? _order?.total.currencyCode ?? 'TJS';
 
-  void _changeQuantity(ShopProduct product, int delta) {
+  void _changeQuantity(ShopCatalogItemDto product, int delta) {
     final next = (_cart[product.productId] ?? 0) + delta;
     setState(() {
       if (next <= 0) {
@@ -332,7 +333,7 @@ class _ShopScreenState extends State<ShopScreen> {
 class _ProductTile extends StatelessWidget {
   const _ProductTile({required this.product, required this.quantity, required this.onChange});
 
-  final ShopProduct product;
+  final ShopCatalogItemDto product;
   final int quantity;
   final ValueChanged<int> onChange;
 
@@ -423,7 +424,7 @@ class _EmptyMenu extends StatelessWidget {
 class _OrderCard extends StatelessWidget {
   const _OrderCard({required this.order, required this.onCancel, required this.onBackToMenu});
 
-  final ShopOrder order;
+  final ShopOrderDto order;
   final VoidCallback onCancel;
   final VoidCallback onBackToMenu;
 

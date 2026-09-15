@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../organization/branch_choice.dart';
@@ -62,7 +63,7 @@ enum _Load { loading, failed, ready }
 
 class _ReservationsScreenState extends State<ReservationsScreen> {
   _Load _state = _Load.loading;
-  List<PlayerReservation> _reservations = const [];
+  List<PlayerReservationDto> _reservations = const [];
 
   /// Как часто перерисовывается обратный отсчёт у заявки, ждущей ответа. Минута — шаг, в
   /// котором он и показан; чаще незачем, реже — цифра застынет на глазах.
@@ -379,17 +380,17 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 class ReservationEntry {
   ReservationEntry(this.reservations);
 
-  final List<PlayerReservation> reservations;
+  final List<PlayerReservationDto> reservations;
 
   bool get isCompany => reservations.length > 1;
 
-  PlayerReservation get first => reservations.first;
+  PlayerReservationDto get first => reservations.first;
 
   String? get groupId => first.reservationGroupId;
 
   /// Места, которые ещё в силе. Отменённые из счёта уходят: «4 места» рядом с двумя
   /// отменёнными — это неправда о брони.
-  List<PlayerReservation> get live =>
+  List<PlayerReservationDto> get live =>
       reservations
           .where((r) =>
               r.state != 'cancelled' && r.state != 'no_show' && r.state != 'rejected')
@@ -416,7 +417,7 @@ class ReservationEntry {
 
 /// Собирает брони в строки списка: компании — под своим идентификатором группы, одиночные —
 /// сами по себе. Порядок сервера сохраняется: он уже отсортирован по времени.
-List<ReservationEntry> groupReservations(List<PlayerReservation> reservations) {
+List<ReservationEntry> groupReservations(List<PlayerReservationDto> reservations) {
   final entries = <ReservationEntry>[];
   final byGroup = <String, ReservationEntry>{};
 
@@ -455,7 +456,7 @@ class _ReservationCard extends StatelessWidget {
   /// null — переносить нечего или некуда: компанию отсюда не переносят.
   final VoidCallback? onMove;
 
-  PlayerReservation get reservation => entry.first;
+  PlayerReservationDto get reservation => entry.first;
 
   /// Состояние словами. Незнакомое приходит с сервера как есть — лучше сырой код, чем
   /// уверенное враньё про «подтверждена».
