@@ -1,5 +1,6 @@
 import { readString, readNumber, readBoolean, readMoney } from '../operatorHelpers';
 import type { PosProductDto } from '../api/clients/pos';
+import type { PosCategoryDirectory } from '../posCategoryDirectory';
 
 export interface StockItem {
   productId: string;
@@ -29,14 +30,16 @@ export function stockValueMinorUnits(item: StockItem): number {
   return Math.max(item.stockOnHand, 0) * item.avgCostMinorUnits;
 }
 
-export function mapCatalogToStock(catalog: PosProductDto[]): StockItem[] {
+// Справочник необязателен: сводке в шапке имена категорий не нужны, и лишний запрос ради них
+// был бы платой ни за что. Ленте они нужны — она его и передаёт.
+export function mapCatalogToStock(catalog: PosProductDto[], categories?: PosCategoryDirectory): StockItem[] {
   return catalog
     .filter((product) => readBoolean(product, 'trackStock'))
     .map((product) => ({
       productId: readString(product, 'productId'),
       name: readString(product, 'name'),
       sku: readString(product, 'sku', ''),
-      category: readString(product, 'categoryName', ''),
+      category: categories?.get(readString(product, 'categoryId'))?.name ?? '',
       stockOnHand: readNumber(product, 'stockOnHand', 0),
       reorderThreshold: readNumber(product, 'reorderThreshold', 0),
       avgCostMinorUnits: readNumber(product, 'avgCostMinorUnits', 0),

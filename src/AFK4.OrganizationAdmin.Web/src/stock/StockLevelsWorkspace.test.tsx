@@ -2,13 +2,17 @@ import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 
+// У товара с сервера есть только `categoryId` — имя живёт в справочнике категорий филиала.
 const getCatalog = mock(async () => ([
-  { productId: 'p1', name: 'Энергетик Red Bull', sku: 'ENERGY-RB', trackStock: true, stockOnHand: 8, reorderThreshold: 10, avgCostMinorUnits: 900, price: { currencyCode: 'TJS', minorUnits: 1800 } },
-  { productId: 'p2', name: 'Cola 0.5', sku: 'COLA-05', trackStock: true, stockOnHand: 12, reorderThreshold: 6, avgCostMinorUnits: 400, price: { currencyCode: 'TJS', minorUnits: 1000 } },
-  { productId: 'p3', name: 'Вода 0.5', sku: 'WATER-05', trackStock: true, stockOnHand: 0, reorderThreshold: 5, avgCostMinorUnits: 100, price: { currencyCode: 'TJS', minorUnits: 300 } },
+  { productId: 'p1', name: 'Энергетик Red Bull', sku: 'ENERGY-RB', categoryId: 'cat-drinks', trackStock: true, stockOnHand: 8, reorderThreshold: 10, avgCostMinorUnits: 900, price: { currencyCode: 'TJS', minorUnits: 1800 } },
+  { productId: 'p2', name: 'Cola 0.5', sku: 'COLA-05', categoryId: 'cat-drinks', trackStock: true, stockOnHand: 12, reorderThreshold: 6, avgCostMinorUnits: 400, price: { currencyCode: 'TJS', minorUnits: 1000 } },
+  { productId: 'p3', name: 'Вода 0.5', sku: 'WATER-05', categoryId: 'cat-gone', trackStock: true, stockOnHand: 0, reorderThreshold: 5, avgCostMinorUnits: 100, price: { currencyCode: 'TJS', minorUnits: 300 } },
+]));
+const listProductCategories = mock(async () => ([
+  { categoryId: 'cat-drinks', organizationId: 'o', branchId: 'b', name: 'Напитки', isActive: true, sortOrder: 0 }
 ]));
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
-mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ pos: { getCatalog }, inventory: {} }) }));
+mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ pos: { getCatalog }, settings: { listProductCategories }, inventory: {} }) }));
 
 const { StockLevelsWorkspace } = await import('./StockLevelsWorkspace');
 
@@ -31,6 +35,16 @@ describe('StockLevelsWorkspace', () => {
     expect(container.querySelectorAll('.ui-chip--status.is-danger')).toHaveLength(0);
     // фильтр-кнопка тоже видна как реальный текст в DOM
     expect(screen.getByRole('button', { name: /на исходе/i })).toBeInTheDocument();
+  });
+
+  // Подпись категории на карточке читалась у товара полем `categoryName`, которого сервер не
+  // отдаёт вовсе, — и не появлялась никогда.
+  it('подписывает карточку именем категории из справочника', async () => {
+    view();
+    await screen.findByText('Cola 0.5');
+    expect(screen.getAllByText('Напитки')).toHaveLength(2);
+    // Категории «cat-gone» в справочнике нет — подписи нет, а не «cat-gone».
+    expect(screen.queryByText('cat-gone')).toBeNull();
   });
 
   it('два героя сводки: «Стоимость склада» нейтральный, «Нужно дозаказать» тонирован по худшему статусу', async () => {

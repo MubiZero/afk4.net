@@ -9,6 +9,7 @@ import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
+import { readCategoryDirectory } from '../posCategoryDirectory';
 import {
   mapCatalogToStock,
   stockStatus,
@@ -60,10 +61,15 @@ export function StockLevelsWorkspace({
     let alive = true;
     setLoading(true);
     setLoadError(null);
-    clients.pos.getCatalog(backend.branchId)
-      .then((catalog) => {
+    // Каталог и справочник категорий берутся вместе: без второго у товара есть только
+    // `categoryId`, и подпись категории на карточке не появлялась вовсе.
+    Promise.all([
+      clients.pos.getCatalog(backend.branchId),
+      clients.settings.listProductCategories(backend.branchId).catch(() => [])
+    ])
+      .then(([catalog, categories]) => {
         if (!alive) return;
-        setItems(mapCatalogToStock(catalog));
+        setItems(mapCatalogToStock(catalog, readCategoryDirectory(categories)));
       })
       .catch((error) => {
         if (alive) setLoadError(projectOperatorError(error, t).detail);
