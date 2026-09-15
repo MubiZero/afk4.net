@@ -37,8 +37,12 @@ describe('разбор контрактов', () => {
     expect(tariff.type).toBe('string');
     expect(tariff.nullable).toBe(true);
     expect(tariff.doc.join(' ')).toContain('врать');
-    // Хвостовой комментарий поясняет параметр, закончившийся на той же строке.
-    expect(session.fields.find((field) => field.name === 'durationMode')!.doc).toEqual(['"open" | "fixed"']);
+    // Хвостовой комментарий поясняет параметр, закончившийся на той же строке. Сверяется
+    // вхождение, а не весь текст: объяснение над параметром дописывают, и проверка, требующая
+    // его слово в слово, ломается на каждой правке комментария, ничего при этом не защищая.
+    const duration = session.fields.find((field) => field.name === 'durationMode')!;
+    expect(duration.type).toBe('string');
+    expect(duration.doc).toContain('"open" | "fixed"');
   });
 
   it('снимает пространство имён с полного имени типа', () => {
