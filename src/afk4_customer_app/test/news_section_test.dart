@@ -9,17 +9,14 @@ import 'package:afk4_customer_app/news/news_section.dart';
 
 import 'support/fake_http.dart';
 
+// Ровно то, что отдаёт `/api/me/news` (PlayerNewsItemDto), а не админский NewsItemDto: у него
+// другие имена и другой набор полей, и подделка под него делала экран рабочим только в проверке.
 Map<String, dynamic> _item({required String id, required String title, String body = ''}) => {
       'id': id,
-      'branchId': null,
       'title': title,
       'body': body,
       'imageUrl': null,
-      'isPublished': true,
-      'publishAtUtc': '2026-08-10T09:00:00Z',
-      'expiresAtUtc': null,
-      'createdAtUtc': '2026-08-10T09:00:00Z',
-      'updatedAtUtc': '2026-08-10T09:00:00Z',
+      'publishedAtUtc': '2026-08-10T09:00:00Z',
     };
 
 Widget harness(PlayerApiClient api) => MaterialApp(

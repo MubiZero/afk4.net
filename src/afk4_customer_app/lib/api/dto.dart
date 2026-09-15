@@ -1185,9 +1185,10 @@ class NewsItem {
         title: json['title'] as String,
         body: json['body'] as String? ?? '',
         imageUrl: json['imageUrl'] as String?,
-        // Дата публикации может быть не проставлена — тогда новость живёт с момента создания.
-        publishedAtUtc: DateTime.parse(
-            (json['publishAtUtc'] ?? json['createdAtUtc']) as String),
+        // `publishedAtUtc` — ровно то имя, что отдаёт PlayerNewsItemDto. Раньше здесь читались
+        // `publishAtUtc` и `createdAtUtc` — поля админского NewsItemDto, которых в ответе игроку
+        // нет вовсе: разбор падал на первой же опубликованной новости.
+        publishedAtUtc: DateTime.parse(json['publishedAtUtc'] as String),
       );
 }
 
