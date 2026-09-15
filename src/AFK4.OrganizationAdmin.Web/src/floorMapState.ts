@@ -197,6 +197,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     isDeviceLocked,
     hasActiveSession,
     activeSessionId: dto.activeSessionId,
+    sessionVersion: dto.sessionVersion,
     rawState: dto.state,
     remainingSeconds,
     remainingDeadlineMs,
@@ -258,6 +259,7 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
     isDeviceLocked: status.isLocked,
     hasActiveSession,
     activeSessionId: seat.activeSessionId,
+    sessionVersion: seat.sessionVersion,
     rawState: nextRawState,
     remainingSeconds: hasActiveSession ? seat.remainingSeconds : null,
     remainingDeadlineMs: hasActiveSession ? seat.remainingDeadlineMs : null
