@@ -70,6 +70,9 @@ jobs:
             ".github/workflows/pr-verification.yml",
             "locales/",
             "packages/i18n/",
+            # Классы DTO мобильного приложения рождаются из записей C# тем же генератором.
+            "packages/contracts/",
+            "src/AFK4.Shared.Contracts/",
             "src/afk4_customer_app/"
           )
           $webFiles = @(
@@ -221,7 +224,7 @@ jobs:
         run: |
           set -e
           (cd packages/contracts && bun run gen)
-          git diff --exit-code -- packages/contracts/src
+          git diff --exit-code -- packages/contracts/src src/afk4_customer_app/lib/api/contracts.dart
 
       # bun's --filter does not match the src/AFK4.*.Web workspaces, so iterate
       # the workspace dirs explicitly; each runs in its own dir to pick up its bunfig.
