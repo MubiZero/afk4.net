@@ -170,7 +170,8 @@ export function GoodsDestination({
           idempotencyKey: createIdempotencyKey('pos-category-create')
         });
         categoryId = readString(category, 'categoryId');
-        if (categoryId) setSessionCategories((categories) => [...categories, { categoryId, label: trimmedCategoryName }]);
+        // Только что заведённая категория всегда видимая: скрытие — отдельное решение владельца.
+        if (categoryId) setSessionCategories((categories) => [...categories, { categoryId, label: trimmedCategoryName, isActive: true }]);
       }
       if (!categoryId) {
         throw new Error(t('op.settings.pos.error.categoryNotConfirmed'));
@@ -355,7 +356,7 @@ export function GoodsDestination({
         backend={backend}
         categories={directoryCategories}
         canManage={canManagePosCatalog}
-        onRenamed={loadCategories}
+        onChanged={loadCategories}
         onFeedback={onFeedback ?? (() => {})}
       />
       <div className="mgmt-master-detail">

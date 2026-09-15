@@ -38,6 +38,12 @@ const PAIRS: Pair[] = [
     contract: 'Devices/DeviceInventoryItemDto.cs',
     client: 'clients/devices.ts',
     type: 'DeviceInventoryItemDto'
+  },
+  {
+    record: 'PosProductCategoryDto',
+    contract: 'Pos/PosProductCategoryDto.cs',
+    client: 'clients/pos.ts',
+    type: 'PosProductCategoryDto'
   }
 ];
 

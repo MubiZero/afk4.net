@@ -55,7 +55,7 @@ public sealed class PosCategoryEndpointTests
 
         var renamed = await client.PatchAsJsonAsync(
             $"{CategoriesPath}/{category!.CategoryId:D}",
-            new RenameProductCategoryRequest(TestIds.OrganizationId, "Снэки"));
+            new UpdateProductCategoryRequest(TestIds.OrganizationId, "Снэки"));
 
         Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
         var updated = await renamed.Content.ReadFromJsonAsync<PosProductCategoryDto>();
@@ -78,7 +78,7 @@ public sealed class PosCategoryEndpointTests
 
         var renamed = await client.PatchAsJsonAsync(
             $"{CategoriesPath}/{category!.CategoryId:D}",
-            new RenameProductCategoryRequest(TestIds.OrganizationId, "напитки"));
+            new UpdateProductCategoryRequest(TestIds.OrganizationId, "напитки"));
 
         Assert.Equal(HttpStatusCode.BadRequest, renamed.StatusCode);
     }
@@ -95,7 +95,7 @@ public sealed class PosCategoryEndpointTests
 
         var renamed = await client.PatchAsJsonAsync(
             $"{CategoriesPath}/{category!.CategoryId:D}",
-            new RenameProductCategoryRequest(TestIds.OrganizationId, "Снеки"));
+            new UpdateProductCategoryRequest(TestIds.OrganizationId, "Снеки"));
 
         Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
         Assert.Equal("Снеки", (await renamed.Content.ReadFromJsonAsync<PosProductCategoryDto>())!.Name);
@@ -110,7 +110,7 @@ public sealed class PosCategoryEndpointTests
 
         var renamed = await client.PatchAsJsonAsync(
             $"{CategoriesPath}/{Guid.NewGuid():D}",
-            new RenameProductCategoryRequest(TestIds.OrganizationId, "Снеки"));
+            new UpdateProductCategoryRequest(TestIds.OrganizationId, "Снеки"));
 
         Assert.Equal(HttpStatusCode.NotFound, renamed.StatusCode);
     }
@@ -127,9 +127,127 @@ public sealed class PosCategoryEndpointTests
 
         var renamed = await client.PatchAsJsonAsync(
             $"{CategoriesPath}/{Guid.NewGuid():D}",
-            new RenameProductCategoryRequest(TestIds.OrganizationId, "Снэки"));
+            new UpdateProductCategoryRequest(TestIds.OrganizationId, "Снэки"));
 
         Assert.Equal(HttpStatusCode.Forbidden, renamed.StatusCode);
+    }
+
+    // Удаления нет нарочно: что делать с товарами удаляемой категории — решение владельца, а не
+    // кнопки. Скрытие убирает категорию со стойки, не трогая ни товары, ни историю чеков.
+    [Fact]
+    public async Task HiddenCategory_StaysInTheDirectoryWithItsName()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var created = await CreateAsync(client, "Снеки", "category-hide-1");
+        var category = await created.Content.ReadFromJsonAsync<PosProductCategoryDto>();
+
+        var hidden = await client.PatchAsJsonAsync(
+            $"{CategoriesPath}/{category!.CategoryId:D}",
+            new UpdateProductCategoryRequest(TestIds.OrganizationId, IsActive: false));
+
+        Assert.Equal(HttpStatusCode.OK, hidden.StatusCode);
+        var categories = await client.GetFromJsonAsync<PosProductCategoryDto[]>(CategoriesPath);
+        var listed = Assert.Single(categories!);
+        Assert.False(listed.IsActive);
+        Assert.Equal("Снеки", listed.Name);
+    }
+
+    // Запрос без имени не должен затирать название пустотой — и наоборот.
+    [Fact]
+    public async Task RenameDoesNotChangeVisibility_AndHidingDoesNotChangeTheName()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var created = await CreateAsync(client, "Снеки", "category-partial-1");
+        var category = await created.Content.ReadFromJsonAsync<PosProductCategoryDto>();
+        var path = $"{CategoriesPath}/{category!.CategoryId:D}";
+
+        await client.PatchAsJsonAsync(path, new UpdateProductCategoryRequest(TestIds.OrganizationId, IsActive: false));
+        var renamed = await client.PatchAsJsonAsync(path, new UpdateProductCategoryRequest(TestIds.OrganizationId, "Снэки"));
+
+        var updated = await renamed.Content.ReadFromJsonAsync<PosProductCategoryDto>();
+        Assert.Equal("Снэки", updated!.Name);
+        Assert.False(updated.IsActive);
+    }
+
+    // Пустая правка — не «готово»: ответить успехом значит подтвердить изменение, которого не было.
+    [Fact]
+    public async Task UpdateWithNeitherNameNorVisibility_IsRejected()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var created = await CreateAsync(client, "Снеки", "category-empty-1");
+        var category = await created.Content.ReadFromJsonAsync<PosProductCategoryDto>();
+
+        var response = await client.PatchAsJsonAsync(
+            $"{CategoriesPath}/{category!.CategoryId:D}",
+            new UpdateProductCategoryRequest(TestIds.OrganizationId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Новая категория встаёт в конец ручной расстановки, а не перед ней.
+    [Fact]
+    public async Task ReorderedCategories_KeepTheSentOrder_AndANewOneGoesLast()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var batteries = (await (await CreateAsync(client, "Батарейки", "order-1")).Content
+            .ReadFromJsonAsync<PosProductCategoryDto>())!;
+        var drinks = (await (await CreateAsync(client, "Напитки", "order-2")).Content
+            .ReadFromJsonAsync<PosProductCategoryDto>())!;
+
+        var reordered = await client.PostAsJsonAsync(
+            $"{CategoriesPath}/order",
+            new ReorderProductCategoriesRequest(
+                TestIds.OrganizationId,
+                new[] { drinks.CategoryId, batteries.CategoryId }));
+        Assert.Equal(HttpStatusCode.OK, reordered.StatusCode);
+        await CreateAsync(client, "Снеки", "order-3");
+
+        var categories = await client.GetFromJsonAsync<PosProductCategoryDto[]>(CategoriesPath);
+
+        Assert.Equal(
+            new[] { "Напитки", "Батарейки", "Снеки" },
+            categories!.Select(category => category.Name).ToArray());
+    }
+
+    // Частичный список значит, что кто-то завёл категорию, пока экран был открыт. Расставить по
+    // устаревшему списку — тихо уронить чужую работу в конец.
+    [Fact]
+    public async Task ReorderWithAnIncompleteList_IsRejected()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var first = (await (await CreateAsync(client, "Батарейки", "partial-1")).Content
+            .ReadFromJsonAsync<PosProductCategoryDto>())!;
+        await CreateAsync(client, "Напитки", "partial-2");
+
+        var response = await client.PostAsJsonAsync(
+            $"{CategoriesPath}/order",
+            new ReorderProductCategoriesRequest(TestIds.OrganizationId, new[] { first.CategoryId }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReorderWithoutCatalogPermission_Returns403()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
+
+        var response = await client.PostAsJsonAsync(
+            $"{CategoriesPath}/order",
+            new ReorderProductCategoriesRequest(TestIds.OrganizationId, new[] { Guid.NewGuid() }));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     // Читать справочник может каждый, кто читает склад: бухгалтеру категории видны, распоряжаться
