@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Payments.Dc;
 using AFK4.Platform.Api.Security;
 using AFK4.Shared.Contracts.Identity;
@@ -90,11 +91,12 @@ internal static class DcTopUpEndpoints
                 i => i.PaymentIntentId == intentId && i.OrganizationId == orgId && i.BranchId == branchId, ct);
             if (intent is null || intent.Method != "dc")
                 return Results.NotFound(new { Error = "DC top-up was not found." });
-            if (intent.State != "pending")
+            // Условие «всё ещё ожидает» — часть самой записи: отдельная проверка перед ней оставляла
+            // зазор, в который помещалось завершение со стойки.
+            if (!await PaymentIntentClaim.TryMoveFromPendingAsync(
+                    db, intent, PaymentIntentClaim.Cancelled, null, ct))
                 return Results.Conflict(new { Error = "Only a pending DC top-up can be cancelled." });
 
-            intent.State = "cancelled";
-            await db.SaveChangesAsync(ct);
             return Results.NoContent();
         });
     }

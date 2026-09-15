@@ -1,12 +1,9 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import {
-  HostBridgeUnavailableError,
-  isHostBridgeUnavailableError,
-  postHostRequest,
-  postHostWindowCommand,
-  postHostWindowTheme,
-  type HostBridgeMessageEvent
-} from './hostBridge';
+import { postHostWindowCommand, postHostWindowResize, postHostWindowTheme } from './hostBridge';
+
+// Протокол моста проверяется в @afk4/host-bridge — один раз на обе оболочки. Здесь остаётся то,
+// что принадлежит именно этому нативному хосту: имена оконных команд. Они разные у двух хостов,
+// и именно на этом расхождении держался форк.
 
 describe('postHostWindowCommand', () => {
   afterEach(() => {
@@ -54,111 +51,18 @@ describe('postHostWindowTheme', () => {
   });
 });
 
-describe('postHostRequest', () => {
+describe('postHostWindowResize', () => {
   afterEach(() => {
     delete window.chrome;
-    mock.restore();
   });
 
-  it('posts a request and resolves the matching host response', async () => {
-    const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
-    const postMessage = mock((message: unknown) => {
-      const request = message as { requestId: string };
-      queueMicrotask(() => {
-        for (const listener of listeners) {
-          listener({
-            data: {
-              type: 'host:response',
-              requestId: request.requestId,
-              ok: true,
-              payload: { displayName: 'Cashier One' }
-            }
-          });
-        }
-      });
-    });
-    window.chrome = {
-      webview: {
-        postMessage,
-        addEventListener: (_type, listener) => listeners.add(listener),
-        removeEventListener: (_type, listener) => listeners.delete(listener)
-      }
-    };
+  // Изменение размера за край понимает только хост оболочки: у мастера такой команды нет.
+  it('posts the dragged edge to the native host', () => {
+    const postMessage = mock();
+    window.chrome = { webview: { postMessage } };
 
-    await expect(postHostRequest<{ displayName: string }>('auth:loadToken')).resolves.toEqual({
-      displayName: 'Cashier One'
-    });
-    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'auth:loadToken',
-      requestId: expect.any(String)
-    }));
-  });
+    postHostWindowResize('bottom-right');
 
-  it('rejects failed host responses', async () => {
-    const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
-    window.chrome = {
-      webview: {
-        postMessage: (message: unknown) => {
-          const request = message as { requestId: string };
-          queueMicrotask(() => {
-            for (const listener of listeners) {
-              listener({
-                data: {
-                  type: 'host:response',
-                  requestId: request.requestId,
-                  ok: false,
-                  error: { code: 'auth_failed', message: 'Invalid credentials.' }
-                }
-              });
-            }
-          });
-        },
-        addEventListener: (_type, listener) => listeners.add(listener),
-        removeEventListener: (_type, listener) => listeners.delete(listener)
-      }
-    };
-
-    await expect(postHostRequest('auth:signIn')).rejects.toThrow('Invalid credentials.');
-  });
-
-  it('rejects with code and remainingAttempts from an error response', async () => {
-    const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
-    window.chrome = {
-      webview: {
-        postMessage: (message: unknown) => {
-          const request = message as { requestId: string };
-          queueMicrotask(() => {
-            for (const listener of listeners) {
-              listener({
-                data: {
-                  type: 'host:response',
-                  requestId: request.requestId,
-                  ok: false,
-                  error: { code: 'invalid_code', message: 'bad code', remainingAttempts: 2 }
-                }
-              });
-            }
-          });
-        },
-        addEventListener: (_type, listener) => listeners.add(listener),
-        removeEventListener: (_type, listener) => listeners.delete(listener)
-      }
-    };
-
-    await expect(postHostRequest('auth:resetByPhone', {})).rejects.toMatchObject({
-      code: 'invalid_code',
-      remainingAttempts: 2,
-      message: 'bad code'
-    });
-  });
-
-  it('rejects when the native bridge is unavailable', async () => {
-    await expect(postHostRequest('auth:loadToken')).rejects.toThrow(HostBridgeUnavailableError);
-  });
-
-  it('identifies host bridge availability failures', () => {
-    expect(isHostBridgeUnavailableError(new HostBridgeUnavailableError())).toBe(true);
-    expect(isHostBridgeUnavailableError(new Error('Native host bridge is unavailable.'))).toBe(true);
-    expect(isHostBridgeUnavailableError(new Error('Native host bridge request timed out.'))).toBe(false);
+    expect(postMessage).toHaveBeenCalledWith({ type: 'window:resize', edge: 'bottom-right' });
   });
 });

@@ -14,7 +14,13 @@ namespace AFK4.Agent.Service.Tests;
 public sealed class WorkerTests
 {
     private static readonly TimeSpan WorkerStopTimeout = TimeSpan.FromSeconds(20);
-    private static readonly TimeSpan WorkerObservationTimeout = TimeSpan.FromSeconds(15);
+    // Минута, а не пятнадцать секунд — столько же, сколько уже ждёт AgentUpdateWorkerTests.
+    //
+    // Пятнадцати хватает на свободной машине и не хватает на занятой: работник поднимает фоновые
+    // задачи и ходит через HTTP-заглушку, и на Windows-раннере один такой кадр уже занимал 22 секунды.
+    // Запас ничего не ослабляет: проходящая проверка проходит так же быстро, дольше становится только
+    // рассказ о настоящей поломке.
+    private static readonly TimeSpan WorkerObservationTimeout = TimeSpan.FromSeconds(60);
 
     [Fact]
     public async Task ExecuteAsync_AttemptsHeartbeatWhenRealtimeStartupThrowsNonCancellationException()

@@ -107,7 +107,7 @@ internal static class PosEndpoints
         app.MapPatch("branches/{branchId:guid}/pos/categories/{categoryId:guid}", async (
             Guid branchId,
             Guid categoryId,
-            RenameProductCategoryRequest request,
+            UpdateProductCategoryRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IInventoryService inventoryService,
@@ -130,11 +130,11 @@ internal static class PosEndpoints
                     authorization.StaffContext!.OrganizationId,
                     branchId,
                     authorization.StaffContext.StaffUserId,
-                    AuditActionNames.RenameProductCategory,
+                    AuditActionNames.UpdateProductCategory,
                     "PosProductCategory",
                     categoryId.ToString("D"),
                     AuditOutcome.Denied,
-                    new { request.Name, authorization.DenialReason },
+                    new { request.Name, request.IsActive, authorization.DenialReason },
                     cancellationToken);
 
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -145,7 +145,7 @@ internal static class PosEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
-            var result = await inventoryService.RenameCategoryAsync(
+            var result = await inventoryService.UpdateCategoryAsync(
                 branchId, categoryId, authorization.StaffContext.StaffUserId, request, cancellationToken);
 
             if (!result.Succeeded)
@@ -158,11 +158,76 @@ internal static class PosEndpoints
                 authorization.StaffContext.OrganizationId,
                 branchId,
                 authorization.StaffContext.StaffUserId,
-                AuditActionNames.RenameProductCategory,
+                AuditActionNames.UpdateProductCategory,
                 "PosProductCategory",
                 categoryId.ToString("D"),
                 AuditOutcome.Succeeded,
-                new { request.Name },
+                new { request.Name, request.IsActive },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
+        // Порядок категорий на стойке — это скорость кассира, а не вкусовщина: алфавит ставил «Батарейки»
+        // перед «Напитками», которые берут в десять раз чаще.
+        app.MapPost("branches/{branchId:guid}/pos/categories/order", async (
+            Guid branchId,
+            ReorderProductCategoriesRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IInventoryService inventoryService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ManagePosCatalog,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.ReorderProductCategories,
+                    "PosProductCategory",
+                    null,
+                    AuditOutcome.Denied,
+                    new { Count = request.CategoryIds.Count, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await inventoryService.ReorderCategoriesAsync(
+                branchId, authorization.StaffContext.StaffUserId, request, cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                return ToHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.ReorderProductCategories,
+                "PosProductCategory",
+                null,
+                AuditOutcome.Succeeded,
+                new { Order = request.CategoryIds },
                 cancellationToken);
 
             return Results.Ok(result.Response);

@@ -156,7 +156,7 @@ lane_web() {
   # Список дословно повторяет CI: рабочая область, забытая здесь, — это не «пока не покрыта», а
   # набор тестов, который краснеет, и никто об этом не узнаёт.
   for dir in \
-    packages/formatting packages/i18n packages/money \
+    packages/formatting packages/host-bridge packages/i18n packages/money \
     packages/tokens packages/ui \
     src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
     src/AFK4.SetupWizard.Web \

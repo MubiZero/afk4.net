@@ -121,6 +121,28 @@ public sealed class EfPosServiceTests
         Assert.Empty(await db.PosSales.ToListAsync());
     }
 
+    // Скрытие категории должно снимать с продажи все её товары. Без этого заслона сканер штрихкода
+    // продолжал бы продавать убранное из меню, и «скрыть» означало бы только «убрать с глаз».
+    [Fact]
+    public async Task CreateSaleAsync_RefusesAProductFromAHiddenCategory_AndNamesTheCategory()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, categoryIsActive: false, categoryName: "Снеки");
+        var service = CreateService(db);
+
+        var result = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreateSaleRequest(shift.ShiftId, product.ProductId, "sale-hidden-1"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        // Имя категории в отказе: кассиру надо знать, что именно включить обратно.
+        Assert.Contains("Снеки", result.Error);
+        Assert.Empty(await db.PosSales.ToListAsync());
+    }
+
     [Fact]
     public async Task CreateSaleAsync_SnapshotsProductNameQuantityUnitPriceLineTotalAndSaleTotal()
     {
@@ -871,15 +893,17 @@ public sealed class EfPosServiceTests
         long priceMinorUnits = 1200,
         bool trackStock = true,
         bool allowNegativeStock = false,
-        long avgCostMinorUnits = 0)
+        long avgCostMinorUnits = 0,
+        bool categoryIsActive = true,
+        string categoryName = "Напитки")
     {
         var category = new PosProductCategoryEntity
         {
             CategoryId = Guid.NewGuid(),
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            Name = "DRINKS",
-            IsActive = true,
+            Name = categoryName,
+            IsActive = categoryIsActive,
             CreatedAtUtc = Now
         };
         var product = new PosProductEntity

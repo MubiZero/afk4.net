@@ -280,9 +280,17 @@ export interface UpdatePackageDefinitionRequest extends Record<string, unknown> 
   organizationId: Guid;
 }
 
-export interface RenameProductCategoryRequest extends Record<string, unknown> {
+export interface UpdateProductCategoryRequest extends Record<string, unknown> {
   organizationId: Guid;
-  name: string;
+  /** Пропущенное остаётся как было — переименование не гасит категорию заодно. */
+  name?: string;
+  isActive?: boolean;
+}
+
+export interface ReorderProductCategoriesRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  /** Весь список целиком, сверху вниз. */
+  categoryIds: Guid[];
 }
 
 export interface CreateProductCategoryRequest extends Record<string, unknown> {
@@ -451,8 +459,11 @@ export function createSettingsClient(api: PlatformApiClient) {
     listProductCategories(branchId: Guid): Promise<PosProductCategoryDto[]> {
       return api.get<PosProductCategoryDto[]>(`branches/${branchId}/pos/categories`);
     },
-    renameProductCategory(branchId: Guid, categoryId: Guid, request: RenameProductCategoryRequest): Promise<PosProductCategoryDto> {
-      return api.patch<PosProductCategoryDto, RenameProductCategoryRequest>(`branches/${branchId}/pos/categories/${categoryId}`, request);
+    updateProductCategory(branchId: Guid, categoryId: Guid, request: UpdateProductCategoryRequest): Promise<PosProductCategoryDto> {
+      return api.patch<PosProductCategoryDto, UpdateProductCategoryRequest>(`branches/${branchId}/pos/categories/${categoryId}`, request);
+    },
+    reorderProductCategories(branchId: Guid, request: ReorderProductCategoriesRequest): Promise<PosProductCategoryDto[]> {
+      return api.post<PosProductCategoryDto[], ReorderProductCategoriesRequest>(`branches/${branchId}/pos/categories/order`, request);
     },
     createProductCategory(branchId: Guid, request: CreateProductCategoryRequest): Promise<PosProductCategoryDto> {
       return api.post<PosProductCategoryDto, CreateProductCategoryRequest>(`branches/${branchId}/pos/categories`, request);

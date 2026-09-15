@@ -3211,6 +3211,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
                     b.HasKey("CategoryId");
 
                     b.HasIndex("OrganizationId", "BranchId", "Name")

@@ -8,13 +8,26 @@ using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service.Tests;
 
+/// <summary>
+/// Канал сервера-заглушки заводится на потоке теста, а не внутри фоновой задачи.
+///
+/// Раньше тест стартовал <c>ServeOnceAsync</c> и тут же звал клиента, а экземпляр канала создавался внутри
+/// задачи. На загруженном Windows-раннере задача из пула могла не получить поток дольше, чем весь
+/// пятисекундный таймаут клиента: клиент сдавался и закрывал канал, а сервер, наконец дождавшись
+/// своей очереди, читал конец потока и падал с EndOfStreamException. Выглядело это как случайное мигание
+/// разными методами класса.
+///
+/// Сигнала «сервер готов» здесь намеренно нет: на Unix привязка случается внутри WaitForConnectionAsync,
+/// и любой такой сигнал был бы преждевременным. На Windows экземпляр создаёт сам конструктор, поэтому
+/// вызова на потоке теста достаточно; на Unix клиент переспрашивает сам, как и раньше.
+/// </summary>
 public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClientTests
 {
     [Fact]
     public async Task QueryState_WritesAuthenticatedFramedRequestAndReadsResponse()
     {
         var pipeName = $"afk4-admin-update-{Guid.NewGuid():N}";
-        var requestTask = ServeOnceAsync(pipeName, new(LocalUpdateCoordinationStatuses.Idle, "ready"));
+        var requestTask = ServeOnceAsync(CreateServerPipe(pipeName), new(LocalUpdateCoordinationStatuses.Idle, "ready"));
         var client = CreateClient(pipeName, "machine-secret", 5000);
 
         var result = await client.QueryStateAsync(CancellationToken.None);
@@ -29,7 +42,7 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClientTests
     public async Task RequestShutdown_SendsReleaseIdentity()
     {
         var pipeName = $"afk4-admin-update-{Guid.NewGuid():N}";
-        var requestTask = ServeOnceAsync(pipeName, new(LocalUpdateCoordinationStatuses.ShutdownAcknowledged, "closing"));
+        var requestTask = ServeOnceAsync(CreateServerPipe(pipeName), new(LocalUpdateCoordinationStatuses.ShutdownAcknowledged, "closing"));
         var client = CreateClient(pipeName, "machine-secret", 5000);
         var rolloutId = Guid.NewGuid(); var packageId = Guid.NewGuid();
 
@@ -55,7 +68,7 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClientTests
     public async Task QueryState_WhenServerDoesNotAnswer_ReturnsNotRunningAfterTimeout()
     {
         var pipeName = $"afk4-admin-update-{Guid.NewGuid():N}";
-        var serverTask = AcceptWithoutAnswerAsync(pipeName, TimeSpan.FromMilliseconds(250));
+        var serverTask = AcceptWithoutAnswerAsync(CreateServerPipe(pipeName), TimeSpan.FromMilliseconds(250));
         var client = CreateClient(pipeName, "machine-secret", 25);
 
         var result = await client.QueryStateAsync(CancellationToken.None);
@@ -77,9 +90,14 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClientTests
     private static NamedPipeOrganizationAdminUpdateCoordinatorClient CreateClient(string pipeName, string secret, int timeout) =>
         new(Options.Create(new AgentOptions { OrganizationAdminUpdateCoordinationPipeName = pipeName, OrganizationAdminUpdateCoordinationSecret = secret, OrganizationAdminUpdateCoordinationTimeoutMilliseconds = timeout }));
 
-    private static async Task<LocalUpdateCoordinationRequest> ServeOnceAsync(string pipeName, LocalUpdateCoordinationResponse response)
+    private static NamedPipeServerStream CreateServerPipe(string pipeName) =>
+        new(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+
+    private static async Task<LocalUpdateCoordinationRequest> ServeOnceAsync(
+        NamedPipeServerStream server,
+        LocalUpdateCoordinationResponse response)
     {
-        await using var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        await using var pipe = server;
         await pipe.WaitForConnectionAsync();
         var prefix = new byte[4]; await pipe.ReadExactlyAsync(prefix);
         var payload = new byte[BinaryPrimitives.ReadInt32BigEndian(prefix)]; await pipe.ReadExactlyAsync(payload);
@@ -90,9 +108,9 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClientTests
         return request;
     }
 
-    private static async Task AcceptWithoutAnswerAsync(string pipeName, TimeSpan delay)
+    private static async Task AcceptWithoutAnswerAsync(NamedPipeServerStream server, TimeSpan delay)
     {
-        await using var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        await using var pipe = server;
         await pipe.WaitForConnectionAsync();
         await Task.Delay(delay);
     }

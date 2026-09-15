@@ -102,7 +102,10 @@ export interface PosProductCategoryDto {
   organizationId: Guid;
   branchId: Guid;
   name: string;
+  /** Видна ли категория на стойке и в магазине оболочки. */
   isActive: boolean;
+  /** Место в списке, по возрастанию. */
+  sortOrder: number;
   createdAtUtc: string;
 }
 

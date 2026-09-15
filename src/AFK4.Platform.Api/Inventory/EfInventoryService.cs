@@ -28,19 +28,30 @@ public sealed class EfInventoryService(
         var categories = await dbContext.PosProductCategories
             .AsNoTracking()
             .Where(category => category.OrganizationId == organizationId && category.BranchId == branchId)
-            .OrderBy(category => category.Name)
+            // Имя вторым ключом: у категорий, заведённых до первой перестановки, SortOrder один
+            // и тот же, и без него порядок списка был бы произвольным от запроса к запросу.
+            .OrderBy(category => category.SortOrder)
+            .ThenBy(category => category.Name)
             .ToListAsync(cancellationToken);
         return categories.Select(ToDto).ToList();
     }
 
-    public async Task<BillingCommandServiceResult<PosProductCategoryDto>> RenameCategoryAsync(
+    public async Task<BillingCommandServiceResult<PosProductCategoryDto>> UpdateCategoryAsync(
         Guid branchId,
         Guid categoryId,
         Guid actorStaffUserId,
-        RenameProductCategoryRequest request,
+        UpdateProductCategoryRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
+        // Пустой запрос — не ошибка клиента, а бессмысленная команда: отвечать на неё «готово» значит
+        // подтвердить изменение, которого не было.
+        if (request.Name is null && request.IsActive is null)
+        {
+            return BillingCommandServiceResult<PosProductCategoryDto>.Invalid(
+                "Category update must carry a name or a visibility change.");
+        }
+
+        if (request.Name is not null && string.IsNullOrWhiteSpace(request.Name))
         {
             return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Category name is required.");
         }
@@ -55,24 +66,78 @@ public sealed class EfInventoryService(
             return BillingCommandServiceResult<PosProductCategoryDto>.Missing("Product category was not found.");
         }
 
-        var normalizedName = NormalizeName(request.Name);
-        // Себя исключаем: смена регистра в собственном имени — не столкновение с самим собой.
-        var taken = await dbContext.PosProductCategories
-            .AsNoTracking()
-            .AnyAsync(
-                candidate => candidate.OrganizationId == request.OrganizationId
-                    && candidate.BranchId == branchId
-                    && candidate.CategoryId != categoryId
-                    && candidate.Name.ToUpper() == normalizedName,
-                cancellationToken);
-        if (taken)
+        if (request.Name is not null)
         {
-            return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Product category name already exists.");
+            var normalizedName = NormalizeName(request.Name);
+            // Себя исключаем: смена регистра в собственном имени — не столкновение с самим собой.
+            var taken = await dbContext.PosProductCategories
+                .AsNoTracking()
+                .AnyAsync(
+                    candidate => candidate.OrganizationId == request.OrganizationId
+                        && candidate.BranchId == branchId
+                        && candidate.CategoryId != categoryId
+                        && candidate.Name.ToUpper() == normalizedName,
+                    cancellationToken);
+            if (taken)
+            {
+                return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Product category name already exists.");
+            }
+
+            category.Name = request.Name.Trim();
         }
 
-        category.Name = request.Name.Trim();
+        if (request.IsActive is bool isActive)
+        {
+            category.IsActive = isActive;
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
         return BillingCommandServiceResult<PosProductCategoryDto>.Ok(ToDto(category));
+    }
+
+    public async Task<BillingCommandServiceResult<IReadOnlyList<PosProductCategoryDto>>> ReorderCategoriesAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        ReorderProductCategoriesRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.CategoryIds.Count == 0)
+        {
+            return BillingCommandServiceResult<IReadOnlyList<PosProductCategoryDto>>.Invalid(
+                "Category order must list at least one category.");
+        }
+
+        if (request.CategoryIds.Distinct().Count() != request.CategoryIds.Count)
+        {
+            return BillingCommandServiceResult<IReadOnlyList<PosProductCategoryDto>>.Invalid(
+                "Category order must not repeat a category.");
+        }
+
+        var categories = await dbContext.PosProductCategories
+            .Where(category => category.OrganizationId == request.OrganizationId && category.BranchId == branchId)
+            .ToListAsync(cancellationToken);
+
+        // Прислан должен быть весь список. Частичный значит, что кто-то завёл или убрал категорию,
+        // пока этот экран был открыт: расставить по устаревшему списку — тихо уронить чужую работу в конец.
+        var known = categories.Select(category => category.CategoryId).ToHashSet();
+        if (!known.SetEquals(request.CategoryIds))
+        {
+            return BillingCommandServiceResult<IReadOnlyList<PosProductCategoryDto>>.Invalid(
+                "Category order must list every category of the branch exactly once.");
+        }
+
+        var byId = categories.ToDictionary(category => category.CategoryId);
+        for (var index = 0; index < request.CategoryIds.Count; index += 1)
+        {
+            byId[request.CategoryIds[index]].SortOrder = index;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        IReadOnlyList<PosProductCategoryDto> response = request.CategoryIds
+            .Select(categoryId => ToDto(byId[categoryId]))
+            .ToList();
+        return BillingCommandServiceResult<IReadOnlyList<PosProductCategoryDto>>.Ok(response);
     }
 
     public async Task<BillingCommandServiceResult<PosProductCategoryDto>> CreateCategoryAsync(
@@ -122,11 +187,18 @@ public sealed class EfInventoryService(
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
+            // Новая категория встаёт в конец, а не в начало: порядок на стойке расставлен руками,
+            // и свежезаведённый «Мерч» не должен прыгать перед «Напитками» только потому, что он новый.
+            var lastSortOrder = await dbContext.PosProductCategories
+                .Where(candidate =>
+                    candidate.OrganizationId == request.OrganizationId && candidate.BranchId == branchId)
+                .MaxAsync(candidate => (int?)candidate.SortOrder, cancellationToken);
             var category = new PosProductCategoryEntity
             {
                 CategoryId = Guid.NewGuid(),
                 OrganizationId = request.OrganizationId,
                 BranchId = branchId,
+                SortOrder = (lastSortOrder ?? -1) + 1,
                 // Хранится введённое имя, а не приведённое к верхнему регистру: NormalizeName нужен
                 // для сравнения «такая уже есть», и запись его результата в отображаемое поле
                 // превращала «Снеки» в «СНЕКИ» на всех экранах разом.
@@ -1001,6 +1073,7 @@ public sealed class EfInventoryService(
             category.BranchId,
             category.Name,
             category.IsActive,
+            category.SortOrder,
             category.CreatedAtUtc);
     }
 

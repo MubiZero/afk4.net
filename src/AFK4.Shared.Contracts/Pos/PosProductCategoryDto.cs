@@ -6,4 +6,5 @@ public sealed record PosProductCategoryDto(
     Guid BranchId,
     string Name,
     bool IsActive,
+    int SortOrder,
     DateTimeOffset CreatedAtUtc);
