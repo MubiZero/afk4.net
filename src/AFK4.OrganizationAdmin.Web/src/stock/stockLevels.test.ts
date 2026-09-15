@@ -29,7 +29,7 @@ describe('mapCatalogToStock', () => {
         productId: 'p1',
         name: 'Кола',
         sku: 'COLA',
-        categoryName: 'Напитки',
+        categoryId: 'cat-drinks',
         trackStock: true,
         stockOnHand: 5,
         reorderThreshold: 2,
@@ -37,9 +37,13 @@ describe('mapCatalogToStock', () => {
         price: { currencyCode: 'TJS', minorUnits: 1000 },
       },
     ];
-    const [mapped] = mapCatalogToStock(catalog as never);
+    const directory = new Map([['cat-drinks', { name: 'Напитки', sortOrder: 0, isActive: true }]]);
+    const [mapped] = mapCatalogToStock(catalog as never, directory);
     expect(mapped.priceMinorUnits).toBe(1000);
     expect(mapped.avgCostMinorUnits).toBe(500);
+    // Имя категории приходит из справочника: у товара есть только `categoryId`.
+    expect(mapped.category).toBe('Напитки');
+    expect(mapCatalogToStock(catalog as never)[0].category).toBe('');
   });
 
   it('фильтрует товары без trackStock', () => {

@@ -42,7 +42,9 @@ export function deriveCategoryOptions(
     // справочнике значило бы придумать решение, которого никто не принимал.
     options.set(categoryId, {
       categoryId,
-      label: readString(product, 'categoryName') || `${unknownPrefix} ${categoryId.slice(0, 8)}`,
+      // Имени категории у товара нет — сервер отдаёт только `categoryId`, поэтому заглушка тут
+      // не запасной вариант, а единственный.
+      label: `${unknownPrefix} ${categoryId.slice(0, 8)}`,
       isActive: true
     });
   }
