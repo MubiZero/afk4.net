@@ -716,6 +716,9 @@ internal static class PlayerSelfServiceEndpoints
                 if (!await PaymentIntentClaim.TryMoveFromPendingAsync(
                         dbContext, intent, PaymentIntentClaim.Fulfilled, timeProvider.GetUtcNow(), cancellationToken))
                 {
+                    // Проиграли гонку — решение по заявке принял кто-то другой (вебхук банка или отмена
+                    // самого игрока). Называть исход отсюда нечем и незачем: следующий опрос прочтёт уже
+                    // записанное состояние выше и ответит «paid» или «failed» — ценой одного интервала.
                     return Results.Ok(new { payment = "pending" });
                 }
 
