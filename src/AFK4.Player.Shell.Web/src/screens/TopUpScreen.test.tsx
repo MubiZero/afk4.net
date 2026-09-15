@@ -21,6 +21,21 @@ describe('TopUpScreen', () => {
     await waitFor(() => expect(screen.getByTestId('topup-qr')).toBeInTheDocument());
   });
 
+  // Банк присылает собственный QR, и только он. Раньше экран требовал `payUrl` и без него не
+  // показывал кода вовсе — то есть ровно в том случае, ради которого банк код и выдаёт.
+  it('рисует код банка, даже когда веб-ссылки нет', async () => {
+    const api = fakeApi({
+      createTopUpIntent: async () => ({
+        paymentIntentId: 'p1', amountMinorUnits: 5000, currencyCode: 'TJS', state: 'pending',
+        purpose: 'wallet_topup', method: 'eskhata', createdAtUtc: '', fulfilledAtUtc: null,
+        isExpired: false, payUrl: null, comment: 'счёт 42', gatewayExpiresAtUtc: null,
+        qr: '00020101021226580014', deepLink: null
+      })
+    });
+    render(<TopUpScreen api={api} amountMinorUnits={5000} pollIntervalMs={5} />);
+    await waitFor(() => expect(screen.getByTestId('topup-qr')).toBeInTheDocument());
+  });
+
   it('shows success once the intent is fulfilled', async () => {
     let polls = 0;
     const api = fakeApi({

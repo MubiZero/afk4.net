@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import type { PlayerTopUpIntentDto } from '../apiTypes';
 import type { ShellApi } from '../shellApi';
 import { toPaymentStatus, type PaymentStatus } from '../paymentStatus';
+import { topUpQrPayload } from '../topUpQrPayload';
 
 export interface TopUpScreenProps {
   api: ShellApi;
@@ -25,10 +26,12 @@ export function TopUpScreen({ api, amountMinorUnits, pollIntervalMs = 3000 }: To
       .catch(() => setOffline(true));
   }, [api, amountMinorUnits]);
 
+  const payload = intent === null ? null : topUpQrPayload(intent);
+
   useEffect(() => {
-    if (!intent?.payUrl) return;
-    QRCode.toDataURL(intent.payUrl).then(setQr).catch(() => setQr(null));
-  }, [intent?.payUrl]);
+    if (payload === null) return;
+    QRCode.toDataURL(payload).then(setQr).catch(() => setQr(null));
+  }, [payload]);
 
   useEffect(() => {
     if (!intent || status !== 'pending') return;
