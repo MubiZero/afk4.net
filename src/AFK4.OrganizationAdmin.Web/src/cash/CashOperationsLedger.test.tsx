@@ -7,6 +7,16 @@ afterEach(cleanup);
 const backend = { config: { platformBaseUrl: 'x' }, session: { accessToken: 't' }, branchId: 'b1' } as never;
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 
+// Ответ целиком, а не одно поле `rows`: до типизации фикстуры отдавали кусок ответа,
+// который сервер так никогда не присылал.
+const emptyReport = () => ({
+  rows: [],
+  limit: 50,
+  cashInTotal: m(0),
+  cashOutTotal: m(0),
+  netCashTotal: m(0)
+});
+
 function renderLedger(rows: Record<string, unknown>[]) {
   render(
     <I18nProvider initialLocale="ru">
@@ -14,7 +24,7 @@ function renderLedger(rows: Record<string, unknown>[]) {
         backend={backend}
         branchId="b1"
         currencyCode="TJS"
-        reports={{ getCashOperationReport: async () => ({ rows, cashInTotal: m(5000), cashOutTotal: m(2000), netCashTotal: m(3000) }) }}
+        reports={{ getCashOperationReport: async () => ({ rows: rows as never, limit: 50, cashInTotal: m(5000), cashOutTotal: m(2000), netCashTotal: m(3000) }) }}
       />
     </I18nProvider>
   );
@@ -68,7 +78,7 @@ describe('CashOperationsLedger', () => {
           reports={{ getCashOperationReport: async () => {
             calls += 1;
             if (calls === 1) throw new Error('report failed');
-            return { rows: [] };
+            return emptyReport();
           } }}
         />
       </I18nProvider>
@@ -93,7 +103,7 @@ describe('CashOperationsLedger', () => {
           backend={brokenBackend}
           branchId="b"
           currencyCode="TJS"
-          reports={{ getCashOperationReport: async () => ({ rows: [] }) }}
+          reports={{ getCashOperationReport: async () => emptyReport() }}
         />
       </I18nProvider>
     );

@@ -13,11 +13,12 @@ import {
 import { projectOperatorError } from '../apiErrors';
 import { Money } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
+import type { CashOperationReportResultDto } from '../operatorApiClients';
 import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
 import { filterCashOperationRows } from './cashTerminalModel';
 
 interface LedgerReports {
-  getCashOperationReport(branchId: string, query?: { limit?: number }): Promise<Record<string, unknown>>;
+  getCashOperationReport(branchId: string, query?: { limit?: number }): Promise<CashOperationReportResultDto>;
 }
 
 // Поисковая лента приходно-расходных кассовых операций (cash_in/cash_out) поверх getCashOperationReport.
@@ -42,7 +43,7 @@ export function CashOperationsLedger({
     [backend?.config, backend?.session, injectedReports]
   );
 
-  const [report, setReport] = useState<Record<string, unknown> | null>(null);
+  const [report, setReport] = useState<CashOperationReportResultDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);

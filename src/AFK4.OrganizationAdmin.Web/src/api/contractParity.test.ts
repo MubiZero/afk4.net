@@ -32,6 +32,48 @@ const PAIRS: Pair[] = [
   { record: 'ShopOrderDto', contract: 'Shop/ShopOrderDto.cs', client: 'clients/shopOrders.ts', type: 'ShopOrderDto' },
   { record: 'ShopOrderLineDto', contract: 'Shop/ShopOrderLineDto.cs', client: 'clients/shopOrders.ts', type: 'ShopOrderLineDto' },
   { record: 'ShiftDto', contract: 'Shifts/ShiftDto.cs', client: 'clients/shifts.ts', type: 'ShiftDto' },
+  // Пять отчётов смены и их строки. Раньше все пять ответов были одним `ReportResultDto` —
+  // именем, которого на сервере нет вовсе.
+  { record: 'ShiftReportResultDto', contract: 'Reports/ShiftReportResultDto.cs', client: 'clients/shifts.ts', type: 'ShiftReportResultDto' },
+  { record: 'ShiftReportRowDto', contract: 'Reports/ShiftReportRowDto.cs', client: 'clients/shifts.ts', type: 'ShiftReportRowDto' },
+  { record: 'SalesReportResultDto', contract: 'Reports/SalesReportResultDto.cs', client: 'clients/shifts.ts', type: 'SalesReportResultDto' },
+  { record: 'SalesReportRowDto', contract: 'Reports/SalesReportRowDto.cs', client: 'clients/shifts.ts', type: 'SalesReportRowDto' },
+  {
+    record: 'GameplayTimeReportResultDto',
+    contract: 'Reports/GameplayTimeReportResultDto.cs',
+    client: 'clients/shifts.ts',
+    type: 'GameplayTimeReportResultDto'
+  },
+  {
+    record: 'GameplayTimeReportRowDto',
+    contract: 'Reports/GameplayTimeReportRowDto.cs',
+    client: 'clients/shifts.ts',
+    type: 'GameplayTimeReportRowDto'
+  },
+  {
+    record: 'CashOperationReportResultDto',
+    contract: 'Reports/CashOperationReportResultDto.cs',
+    client: 'clients/shifts.ts',
+    type: 'CashOperationReportResultDto'
+  },
+  {
+    record: 'CashOperationReportRowDto',
+    contract: 'Reports/CashOperationReportRowDto.cs',
+    client: 'clients/shifts.ts',
+    type: 'CashOperationReportRowDto'
+  },
+  {
+    record: 'OperatorActionReportResultDto',
+    contract: 'Reports/OperatorActionReportResultDto.cs',
+    client: 'clients/shifts.ts',
+    type: 'OperatorActionReportResultDto'
+  },
+  {
+    record: 'OperatorActionReportRowDto',
+    contract: 'Reports/OperatorActionReportRowDto.cs',
+    client: 'clients/shifts.ts',
+    type: 'OperatorActionReportRowDto'
+  },
   { record: 'CashMovementDto', contract: 'Shifts/CashMovementDto.cs', client: 'clients/shifts.ts', type: 'CashMovementDto' },
   {
     record: 'DeviceInventoryItemDto',
