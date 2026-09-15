@@ -1,14 +1,27 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid, MoneyDto } from '../types';
+import type {
+  CreateReportScheduleRequest,
+  OrganizationAdminRevenueReportDto,
+  OrganizationAdminShiftCashReportDto,
+  OrganizationAdminSummaryReportDto,
+  ReportScheduleDto,
+  UpdateReportScheduleRequest,
+} from '@afk4/contracts';
+export type {
+  CreateReportScheduleRequest,
+  OrganizationAdminActiveShiftDto,
+  OrganizationAdminReportAttentionDto,
+  OrganizationAdminReportFiguresDto,
+  OrganizationAdminReportPeriodDto,
+  OrganizationAdminRevenueReportDto,
+  OrganizationAdminRevenueTrendPointDto,
+  OrganizationAdminShiftCashReportDto,
+  OrganizationAdminSummaryReportDto,
+  ReportScheduleDto,
+  UpdateReportScheduleRequest,
+} from '@afk4/contracts';
 
-export interface OrganizationAdminReportPeriodDto { fromDate: string; toDate: string; timeZone: string; fromUtc: string; toUtc: string }
-export interface OrganizationAdminReportAttentionDto { kind: string; title: string; detail: string; targetId?: Guid | null; amount?: MoneyDto | null }
-export interface OrganizationAdminReportFiguresDto { netRevenue: MoneyDto; gameplayRevenue: MoneyDto; posNetSales: MoneyDto; gameplaySeconds: number }
-export interface OrganizationAdminRevenueTrendPointDto { date: string; netRevenue: MoneyDto }
-export interface OrganizationAdminActiveShiftDto { shiftId: Guid; openedByStaffUserId: Guid; openedAtUtc: string; expectedCash: MoneyDto; isProvisional: boolean }
-export interface OrganizationAdminSummaryReportDto { period: OrganizationAdminReportPeriodDto; attentionTotalCount: number; attentionItems: OrganizationAdminReportAttentionDto[]; figures: OrganizationAdminReportFiguresDto; trend: OrganizationAdminRevenueTrendPointDto[]; activeShift?: OrganizationAdminActiveShiftDto | null }
-export interface OrganizationAdminShiftCashReportDto { period: OrganizationAdminReportPeriodDto; shifts: ReportShiftRowDto[]; cashOperations: CashOperationRowDto[]; cashInTotal: MoneyDto; cashOutTotal: MoneyDto; netCashTotal: MoneyDto }
-export interface OrganizationAdminRevenueReportDto { period: OrganizationAdminReportPeriodDto; grossRevenue: MoneyDto; refunds: MoneyDto; netRevenue: MoneyDto; gameplayRevenue: MoneyDto; gameplaySeconds: number; posNetSales: MoneyDto; comparison: { previousNetRevenue: MoneyDto; differenceMinorUnits: number; changePercent?: number | null }; sources: Array<{ source: string; revenue: MoneyDto }>; paymentMethods: Array<{ key: string; label: string; revenue: MoneyDto }>; operators: Array<{ key: string; label: string; revenue: MoneyDto }> }
 export type OrganizationAdminReportQuery = Record<string, string> & { fromDate: string; toDate: string };
 
 export interface ReportShiftRowDto {
@@ -28,33 +41,6 @@ export interface ReportShiftRowDto {
 }
 
 export interface CashOperationRowDto { operationId: Guid; shiftId?: Guid | null; sourceType: string; operationType: string; cashImpact: MoneyDto; reason: string; createdAtUtc: string }
-
-// Регулярная рассылка отчёта. Поля названы ровно как на сервере (ReportScheduleDto): письмо уходит
-// владельцу клуба, и адрес сервер разрешает сам — стойка его не выбирает и не видит.
-export interface ReportScheduleDto {
-  reportScheduleId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  reportType: string;
-  frequency: string;
-  isActive: boolean;
-  nextRunUtc: string;
-  lastRunUtc?: string | null;
-  createdAtUtc: string;
-}
-
-export interface CreateReportScheduleRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  reportType: string;
-  frequency: string;
-}
-
-// Правка рассылки: пропущенное поле остаётся как было — пауза не сбрасывает частоту.
-export interface UpdateReportScheduleRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  frequency?: string;
-  isActive?: boolean;
-}
 
 export function createReportsClient(api: PlatformApiClient) {
   return {

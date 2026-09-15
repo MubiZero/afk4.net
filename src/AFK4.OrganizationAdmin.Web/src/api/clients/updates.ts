@@ -1,38 +1,11 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
-
-export interface DeviceUpdateStatusSnapshotDto {
-  deviceId: Guid;
-  updateRolloutId: Guid;
-  updatePackageId: Guid;
-  component: string;
-  installedVersion: string;
-  targetVersion: string;
-  status: string;
-  message: string;
-  updatedAtUtc: string;
-}
-
-export interface UpdateRolloutStatusDto {
-  updateRolloutId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  updatePackageId: Guid;
-  component: string;
-  version: string;
-  channel: string;
-  state: string;
-  startsAtUtc: string;
-  deviceStatuses: DeviceUpdateStatusSnapshotDto[];
-}
-
-export interface OrganizationAdminUpdatePreferenceDto {
-  organizationId: Guid;
-  branchId: Guid;
-  maintenanceWindowStart: string;
-  maintenanceWindowEnd: string;
-  timeZone: string;
-}
+import type { OrganizationAdminUpdatePreferenceDto, UpdateRolloutStatusDto } from '@afk4/contracts';
+export type {
+  DeviceUpdateStatusSnapshotDto,
+  OrganizationAdminUpdatePreferenceDto,
+  UpdateRolloutStatusDto,
+} from '@afk4/contracts';
 
 export function createUpdateClient(api: PlatformApiClient) {
   return {

@@ -1,9 +1,5 @@
-export type Guid = string;
 
-export interface MoneyDto {
-  currencyCode: string;
-  minorUnits: number;
-}
+export type { Guid, MoneyDto } from '@afk4/contracts';
 
 export interface ReportQuery {
   fromUtc?: string | Date | null;

@@ -1,17 +1,6 @@
 import { organizationAdminHeaders } from '../organizationAdminCompatibility';
-
-export interface StaffSignInResponse {
-  staffUserId: string;
-  organizationId: string;
-  displayName: string;
-  accessToken: string;
-  accessTokenExpiresAtUtc: string;
-  refreshToken: string;
-  refreshTokenExpiresAtUtc: string;
-  branchIds: string[];
-  permissions: string[];
-  roleNames?: string[];
-}
+import type { StaffSignInResponse } from '@afk4/contracts';
+export type { StaffSignInResponse } from '@afk4/contracts';
 
 export interface ClubChoice { organizationId: string; name: string; }
 

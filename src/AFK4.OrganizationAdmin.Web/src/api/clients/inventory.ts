@@ -1,35 +1,12 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { Guid, MoneyDto, ReportQuery } from '../types';
+import type { Guid, ReportQuery } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
-
-/** Движение товара на складе (StockMovementDto). Поля сверяются в `contractParity.test.ts`. */
-export interface StockMovementDto {
-  stockMovementId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  productId: Guid;
-  movementType: string;
-  quantityDelta: number;
-  unitCost: MoneyDto;
-  reason: string;
-  createdByStaffUserId: Guid;
-  createdAtUtc: string;
-  createdByDisplayName?: string | null;
-}
+import type { CreateStockMovementRequest, StockMovementDto } from '@afk4/contracts';
+export type { CreateStockMovementRequest, StockMovementDto } from '@afk4/contracts';
 
 export type StockMovementSearchQuery = ReportQuery & {
   productId?: Guid | null;
 };
-
-export interface CreateStockMovementRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  productId: Guid;
-  movementType: string;
-  quantityDelta: number;
-  unitCost: MoneyDto;
-  reason: string;
-  idempotencyKey: string;
-}
 
 export function createInventoryClient(api: PlatformApiClient) {
   return {

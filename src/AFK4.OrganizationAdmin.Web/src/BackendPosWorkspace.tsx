@@ -426,13 +426,11 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         const sale = await clients.pos.createSale(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
           shiftId,
+          // Только товар и количество: имя, цену и сумму сервер берёт из каталога и присланному
+          // не верит, а слать их значило бы делать вид, что стойка назначает цену.
           lines: cartItems.map((item) => ({
             productId: item.productId!,
-            quantity: item.quantity,
-            unitPrice: {
-              currencyCode,
-              minorUnits: item.priceMinorUnits
-            }
+            quantity: item.quantity
           })),
           idempotencyKey: attempt.createSaleKey,
           playerAccountId: selectedPosPlayerId

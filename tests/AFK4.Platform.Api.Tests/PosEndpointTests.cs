@@ -363,7 +363,7 @@ public sealed class PosEndpointTests
             new CreatePosSaleRequest(
                 TestIds.OrganizationId,
                 shift.ShiftId,
-                [new PosSaleLineDto(product.ProductId, string.Empty, 2, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))],
+                [new CreatePosSaleLineDto(product.ProductId, 2)],
                 "sale-001",
                 player.PlayerAccountId));
         Assert.Equal(PosSaleStateNames.Draft, sale.State);
@@ -412,7 +412,7 @@ public sealed class PosEndpointTests
             new CreatePosSaleRequest(
                 TestIds.OrganizationId,
                 shift.ShiftId,
-                [new PosSaleLineDto(product.ProductId, string.Empty, 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))],
+                [new CreatePosSaleLineDto(product.ProductId, 1)],
                 "sale-void-001"));
         var voided = await PostOkAsync<PosSaleDto>(
             client,
@@ -717,7 +717,7 @@ public sealed class PosEndpointTests
             new EndpointCase(
                 HttpMethod.Post,
                 $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/sales",
-                new CreatePosSaleRequest(TestIds.OrganizationId, shiftId, [new PosSaleLineDto(Guid.NewGuid(), string.Empty, 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))], "sale-001")),
+                new CreatePosSaleRequest(TestIds.OrganizationId, shiftId, [new CreatePosSaleLineDto(Guid.NewGuid(), 1)], "sale-001")),
             new EndpointCase(
                 HttpMethod.Post,
                 $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/payments/manual",

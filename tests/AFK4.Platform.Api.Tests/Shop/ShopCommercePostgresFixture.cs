@@ -320,7 +320,7 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
             new CreatePosSaleRequest(
                 OrganizationId,
                 shiftId,
-                [new PosSaleLineDto(ProductId, string.Empty, 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))],
+                [new CreatePosSaleLineDto(ProductId, 1)],
                 idempotencyKey),
             CancellationToken.None);
     }

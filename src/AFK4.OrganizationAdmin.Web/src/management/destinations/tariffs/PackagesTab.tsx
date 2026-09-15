@@ -22,7 +22,7 @@ import {
 import type { PackageOptionDto } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
-type PackageOption = Record<string, unknown>;
+type PackageOption = PackageOptionDto;
 
 interface RetirePackageAction {
   packageDefinitionId: string;

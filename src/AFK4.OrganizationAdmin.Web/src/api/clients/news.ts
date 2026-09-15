@@ -1,22 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-
-export interface NewsItemDto {
-  id: string;
-  branchId: string | null;
-  title: string;
-  body: string;
-  imageUrl: string | null;
-  isPublished: boolean;
-  publishAtUtc: string | null;
-  expiresAtUtc: string | null;
-  createdAtUtc: string;
-  updatedAtUtc: string;
-}
-
-export interface OwnerBranchSummaryDto {
-  branchId: string;
-  name: string;
-}
+import type { NewsItemDto, OwnerBranchSummaryDto } from '@afk4/contracts';
+export type { NewsItemDto, OwnerBranchSummaryDto } from '@afk4/contracts';
 
 export interface NewsItemInput {
   branchId: string | null;

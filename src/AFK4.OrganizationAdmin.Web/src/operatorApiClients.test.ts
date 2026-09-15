@@ -220,6 +220,7 @@ describe('operator API clients', () => {
     const { clients, calls } = createRecordedClients();
     const createRequest = {
       organizationId,
+      playerAccountId: null,
       seatId,
       customerName: 'Aziz P.',
       phoneNumber: '+992900000001',
@@ -231,8 +232,10 @@ describe('operator API clients', () => {
     const updateRequest = {
       organizationId,
       expectedVersion: 4,
+      playerAccountId: null,
       seatId,
       customerName: 'Aziz Prime',
+      phoneNumber: '+992900000001',
       startsAtUtc: '2026-05-21T17:00:00.000Z',
       durationMinutes: 90,
       source: 'operator',
@@ -397,6 +400,8 @@ describe('operator API clients', () => {
       price: { currencyCode: 'TJS', minorUnits: 3550 },
       trackStock: true,
       allowNegativeStock: false,
+      reorderThreshold: 5,
+      availableInShell: true,
       idempotencyKey: 'idem-product'
     });
     await clients.settings.updateProduct(branchId, '77777777-7777-7777-7777-777777777777', {

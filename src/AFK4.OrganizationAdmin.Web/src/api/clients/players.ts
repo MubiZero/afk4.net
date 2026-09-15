@@ -1,152 +1,45 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { Guid, MoneyDto } from '../types';
-
-// Зеркала контрактов AFK4.Shared.Contracts (camelCase).
-export interface PlayerSearchResultDto {
-  playerAccountId: Guid;
-  displayName: string;
-  phoneNumber: string | null;
-  walletBalanceMinorUnits: number;
-  debtBalanceMinorUnits: number;
-  activePackageCount: number;
-  isActive: boolean;
-  createdAtUtc: string;
-  lastActivityAtUtc: string | null;
-  activePackageName: string | null;
-  activePackageRemainingMinutes: number;
-  // Кто это в сети и откуда взялся. Личность есть не у всех: карточки, заведённые стойкой до
-  // общего котла, к платформе не привязаны, и репутацию по ним не спросить.
-  platformPersonId: Guid | null;
-  createdFromApp: boolean;
-}
-
-export interface PlayerAccountDto {
-  playerAccountId: Guid;
-  organizationId: Guid;
-  homeBranchId: Guid;
-  displayName: string;
-  phoneNumber: string | null;
-  isActive: boolean;
-  createdAtUtc: string;
-  platformPersonId: Guid | null;
-  createdFromApp: boolean;
-}
-
-export interface LedgerEntryDto {
-  ledgerEntryId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  playerAccountId: Guid;
-  sessionId: Guid | null;
-  playerPackageId: Guid | null;
-  entryType: string;
-  accountType: string;
-  amount: MoneyDto;
-  quantitySeconds: number;
-  description: string;
-  reason: string;
-  reversesLedgerEntryId: Guid | null;
-  createdByStaffUserId: Guid;
-  createdAtUtc: string;
-}
-
-export interface WalletSummaryDto {
-  playerAccountId: Guid;
-  walletBalance: MoneyDto;
-  // Заморожено под будущие брони. Из walletBalance уже вычтено — это не второй кошелёк,
-  // а объяснение, куда делась часть остатка.
-  heldBalance: MoneyDto;
-  debtBalance: MoneyDto;
-  recentEntries: LedgerEntryDto[];
-}
-
-// Ровно четыре числа, которые сеть сообщает клубу о человеке (PlayerReputationDto).
-// Ни названия чужих клубов, ни дат, ни сумм здесь нет и быть не может.
-export interface PlayerReputationDto {
-  networkVisits: number;
-  networkNoShows: number;
-  networkBanned: boolean;
-  calculatedAtUtc: string;
-}
-
-export interface PlayerReputationLookupRequest {
-  phoneNumber: string;
-}
+import type { Guid } from '../types';
+import type {
+  CreatePlayerAccountRequest,
+  LedgerEntryDto,
+  ManualLedgerCorrectionRequest,
+  PayDebtRequest,
+  PlayerAccountDto,
+  PlayerPackageDto,
+  PlayerReputationDto,
+  PlayerReputationLookupRequest,
+  PlayerSearchResultDto,
+  PurchasePackageRequest,
+  RefundLedgerEntryRequest,
+  SetPlayerActiveStateRequest,
+  TopUpWalletRequest,
+  UpdatePlayerAccountRequest,
+  WalletSummaryDto,
+} from '@afk4/contracts';
+export type {
+  CreatePlayerAccountRequest,
+  LedgerEntryDto,
+  ManualLedgerCorrectionRequest,
+  PayDebtRequest,
+  PlayerAccountDto,
+  PlayerPackageDto,
+  PlayerReputationDto,
+  PlayerReputationLookupRequest,
+  PlayerSearchResultDto,
+  PurchasePackageRequest,
+  RefundLedgerEntryRequest,
+  SetPlayerActiveStateRequest,
+  TopUpWalletRequest,
+  UpdatePlayerAccountRequest,
+  WalletSummaryDto,
+} from '@afk4/contracts';
 
 // Зеркало AFK4.Shared.Contracts.Common.CursorPage<T> (camelCase): страница + курсор следующей
 // страницы (null = больше нет).
 export interface CursorPageDto<T> {
   items: T[];
   nextCursor: string | null;
-}
-
-export interface PlayerPackageDto {
-  playerPackageId: Guid;
-  packageDefinitionId: Guid;
-  playerAccountId: Guid;
-  name: string;
-  purchasedPrice: MoneyDto;
-  includedSeconds: number;
-  bonusSeconds: number;
-  remainingIncludedSeconds: number;
-  remainingBonusSeconds: number;
-  purchasedAtUtc: string;
-  expiresAtUtc: string | null;
-}
-
-export interface CreatePlayerAccountRequest {
-  organizationId: Guid;
-  displayName: string;
-  phoneNumber: string | null;
-  idempotencyKey: string;
-}
-
-export interface TopUpWalletRequest {
-  organizationId: Guid;
-  amount: MoneyDto;
-  reason: string;
-  idempotencyKey: string;
-}
-
-export interface PayDebtRequest {
-  organizationId: Guid;
-  amount: MoneyDto;
-  reason: string;
-  idempotencyKey: string;
-}
-
-export interface PurchasePackageRequest {
-  organizationId: Guid;
-  packageDefinitionId: Guid;
-  idempotencyKey: string;
-}
-
-export interface ManualLedgerCorrectionRequest {
-  organizationId: Guid;
-  accountType: string;
-  amount: MoneyDto;
-  quantitySeconds: number;
-  reason: string;
-  idempotencyKey: string;
-}
-
-export interface RefundLedgerEntryRequest {
-  organizationId: Guid;
-  ledgerEntryId: Guid;
-  amount: MoneyDto;
-  reason: string;
-  idempotencyKey: string;
-}
-
-export interface UpdatePlayerAccountRequest {
-  organizationId: Guid;
-  displayName: string;
-  phoneNumber: string | null;
-}
-
-export interface SetPlayerActiveStateRequest {
-  organizationId: Guid;
-  isActive: boolean;
 }
 
 export function createPlayerClient(api: PlatformApiClient) {

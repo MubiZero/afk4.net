@@ -2,28 +2,22 @@
 // @types/bun (pulled in for bun:test) redefines the global `fetch` type with a required
 // `preconnect` member that mock implementations don't carry. The api clients only ever
 // call this as a function, so this narrower contract is the correct one.
+import type { PlatformAdminSignInResponse } from '@afk4/contracts';
+export type {
+  CreateBranchRequest,
+  CreateOrganizationRequest,
+  CreateOrganizationResponse,
+  CreatePlanRequest,
+  CreatePlatformUpdatePackageRequest,
+  CreatePlatformUpdateRolloutRequest,
+  PlatformAdminListItem,
+  PlatformAdminSignInChallengeResponse,
+  PlatformAdminSignInResponse,
+  UpdatePlanRequest,
+  UpdateSubscriptionRequest,
+} from '@afk4/contracts';
+
 export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-
-export interface PlatformAdminSignInResponse {
-  platformAdminId: string;
-  userName: string;
-  displayName: string;
-  accessToken: string;
-  accessTokenExpiresAtUtc: string;
-  refreshToken: string;
-  refreshTokenExpiresAtUtc: string;
-  roles: string[];
-  permissions: string[];
-}
-
-// First step of sign-in: password alone no longer issues a working session. The caller must
-// present `challengeToken` to one of the /auth/2fa/* routes (setup or verify) to receive a real
-// PlatformAdminSignInResponse. The token is short-lived (2 minutes) and opaque.
-export interface PlatformAdminSignInChallengeResponse {
-  challengeToken: string;
-  expiresAtUtc: string;
-  twoFactorConfigured: boolean;
-}
 
 export interface TwoFactorSetupResponse {
   secret: string;
@@ -109,33 +103,12 @@ export interface OrganizationFeatureState {
   defaultValue: boolean;
 }
 
-export interface CreateBranchRequest {
-  slug: string;
-  name: string;
-  city: string;
-  preferredTimeZone: string | null;
-}
-
 export interface PlanLimitExceeded {
   code: string;
   limitName: string;
   limit: number;
   current: number;
   planCode: string;
-}
-
-export interface CreateOrganizationRequest {
-  organizationSlug: string;
-  organizationName: string;
-  branchSlug: string;
-  branchName: string;
-  branchCity: string;
-  planCode: string;
-  subscriptionStatus: string;
-  limits: OrganizationLimits | null;
-  ownerUserName: string | null;
-  ownerDisplayName: string | null;
-  organizationOwnerInviteLifetime: string | null;
 }
 
 export interface OrganizationOwnerInvite {
@@ -166,11 +139,6 @@ export interface OrganizationOwnerInviteSummary {
   revokedAtUtc: string | null;
   revokedReason: string | null;
   createdAtUtc: string;
-}
-
-export interface CreateOrganizationResponse {
-  organization: OrganizationDetail;
-  organizationOwnerInvite: OrganizationOwnerInvite;
 }
 
 export interface OrganizationSupportNote {
@@ -247,30 +215,6 @@ export interface PlatformUpdateRollout {
   createdAtUtc: string;
   startsAtUtc: string;
   completedAtUtc: string | null;
-}
-
-export interface CreatePlatformUpdatePackageRequest {
-  component: string;
-  version: string;
-  channel: string;
-  artifactUri: string;
-  sha256: string;
-  signature: string;
-  signatureAlgorithm: string;
-  sizeBytes: number;
-  releaseNotes: string;
-}
-
-export interface CreatePlatformUpdateRolloutRequest {
-  updatePackageId: string;
-  channel: string;
-  targetKind: string;
-  organizationIds: string[];
-  branchIds: string[];
-  deviceIds: string[];
-  batchPercent: number;
-  startsAtUtc: string;
-  reason: string;
 }
 
 export interface OrganizationHealthError {
@@ -365,32 +309,6 @@ export interface SubscriptionPlan {
   sortOrder: number;
 }
 
-export interface CreatePlanRequest {
-  planCode: string;
-  name: string;
-  priceMinorUnits: number;
-  currencyCode: string;
-  billingInterval: string;
-  maxBranches: number | null;
-  maxDevicesPerBranch: number | null;
-  maxConcurrentSessions: number | null;
-  maxStaffUsersPerBranch: number | null;
-  sortOrder: number;
-}
-
-export interface UpdatePlanRequest {
-  name: string;
-  priceMinorUnits: number;
-  currencyCode: string;
-  billingInterval: string;
-  maxBranches: number | null;
-  maxDevicesPerBranch: number | null;
-  maxConcurrentSessions: number | null;
-  maxStaffUsersPerBranch: number | null;
-  isActive: boolean;
-  sortOrder: number;
-}
-
 export interface OrganizationSubscription {
   organizationSubscriptionId: string;
   organizationId: string;
@@ -406,17 +324,6 @@ export interface OrganizationSubscription {
   createdAtUtc: string;
   updatedAtUtc: string;
   paymentGraceUntilUtc: string | null;
-}
-
-export interface UpdateSubscriptionRequest {
-  planCode: string | null;
-  billingInterval: string | null;
-  status: string | null;
-  cancelAtPeriodEnd: boolean | null;
-  amountMinorUnits: number | null;
-  currentPeriodEndUtc: string | null;
-  paymentGraceUntilUtc: string | null;
-  clearPaymentGrace: boolean | null;
 }
 
 export interface Invoice {
@@ -603,17 +510,6 @@ export interface PlatformAnnouncement {
   publishedAtUtc: string | null;
   emailDispatched: boolean;
   readCount: number;
-}
-
-export interface PlatformAdminListItem {
-  platformAdminUserId: string;
-  userName: string;
-  displayName: string;
-  role: string;
-  isActive: boolean;
-  twoFactorEnabled: boolean;
-  lastSignInAtUtc: string | null;
-  createdAtUtc: string;
 }
 
 export interface PlatformAdminInvitation {

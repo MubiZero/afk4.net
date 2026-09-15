@@ -1,34 +1,7 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { Guid, MoneyDto } from '../types';
-
-export interface ShopOrderLineDto {
-  productId: Guid;
-  name: string;
-  unitPrice: MoneyDto;
-  quantity: number;
-  lineTotal: MoneyDto;
-}
-
-export interface ShopOrderDto {
-  id: Guid;
-  branchId: Guid;
-  seatId: Guid;
-  playerAccountId: Guid;
-  playerDisplayName: string;
-  status: string;
-  total: MoneyDto;
-  lines: ShopOrderLineDto[];
-  placedAtUtc: string;
-  acceptedAtUtc: string | null;
-  deliveredAtUtc: string | null;
-  cancelledAtUtc: string | null;
-  version: number;
-
-  /// Продажа, которой этот заказ оплачен. Сервер отдаёт её с самого начала, клиент не объявлял —
-  /// и связь «заказ в баре → чек» была невидима: по заказу нельзя было дойти до его денег.
-  /// Пустая у заказа, продажа по которому ещё не создана.
-  posSaleId: Guid | null;
-}
+import type { Guid } from '../types';
+import type { ShopOrderDto } from '@afk4/contracts';
+export type { ShopOrderDto, ShopOrderLineDto } from '@afk4/contracts';
 
 export function createShopOrderClient(api: PlatformApiClient) {
   return {
