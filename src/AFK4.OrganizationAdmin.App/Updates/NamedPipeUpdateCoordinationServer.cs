@@ -22,25 +22,52 @@ public sealed class NamedPipeUpdateCoordinationServer(
     private readonly CancellationTokenSource lifetime = new();
     private Task? serverTask;
 
-    public void Start() => serverTask ??= Task.Run(() => RunAsync(lifetime.Token));
-
-    private async Task RunAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Запускает приём. Первый экземпляр канала создаётся здесь, а не внутри фоновой задачи:
+    /// иначе Start() возвращается раньше, чем каналу есть куда стучаться, и агент, позвавший сразу после,
+    /// получает «оболочка не запущена» при запущенной оболочке. На загруженной машине задача из пула
+    /// может не получить поток несколько секунд — больше, чем весь таймаут звонящего.
+    /// </summary>
+    public void Start()
     {
-        while (!cancellationToken.IsCancellationRequested)
+        if (serverTask is not null)
+        {
+            return;
+        }
+
+        var listening = CreatePipe();
+        serverTask = Task.Run(() => RunAsync(listening, lifetime.Token));
+    }
+
+    private async Task RunAsync(NamedPipeServerStream listening, CancellationToken cancellationToken)
+    {
+        var pipe = listening;
+        while (true)
         {
             try
             {
-                await using var pipe = CreatePipe();
-                await pipe.WaitForConnectionAsync(cancellationToken);
-                var request = await ReadAsync(pipe, cancellationToken);
-                var response = await HandleAsync(request, cancellationToken);
-                await WriteAsync(pipe, response, cancellationToken);
-                if (response.Status == LocalUpdateCoordinationStatuses.ShutdownAcknowledged) shutdown();
+                await using (pipe)
+                {
+                    await pipe.WaitForConnectionAsync(cancellationToken);
+                    var request = await ReadAsync(pipe, cancellationToken);
+                    var response = await HandleAsync(request, cancellationToken);
+                    await WriteAsync(pipe, response, cancellationToken);
+                    if (response.Status == LocalUpdateCoordinationStatuses.ShutdownAcknowledged) shutdown();
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { break; }
             catch (IOException) { }
             catch (JsonException) { }
             catch (InvalidDataException) { }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            // Канал держит один экземпляр за раз, поэтому следующий заводится только после закрытия
+            // предыдущего. Звонящий в этот зазор переспрашивает сам в пределах своего таймаута.
+            pipe = CreatePipe();
         }
     }
 

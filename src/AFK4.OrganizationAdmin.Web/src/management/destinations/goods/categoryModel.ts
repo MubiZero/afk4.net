@@ -1,8 +1,10 @@
-import { readString } from '../../../operatorHelpers';
+import { readBoolean, readString } from '../../../operatorHelpers';
 
 export interface CategoryOption {
   categoryId: string;
   label: string;
+  /** Скрытая категория не предлагается на стойке и в магазине оболочки вместе со своими товарами. */
+  isActive: boolean;
 }
 
 /**
@@ -22,19 +24,30 @@ export function deriveCategoryOptions(
   sessionCategories: readonly CategoryOption[],
   unknownPrefix: string
 ): CategoryOption[] {
-  const options = new Map<string, string>();
+  const options = new Map<string, CategoryOption>();
+  // Справочник приходит уже в своём порядке (sortOrder на сервере), и пересортировка здесь его бы потеряла.
   for (const category of categories) {
     const categoryId = readString(category, 'categoryId');
     if (!categoryId) continue;
-    options.set(categoryId, readString(category, 'name') || `${unknownPrefix} ${categoryId.slice(0, 8)}`);
+    options.set(categoryId, {
+      categoryId,
+      label: readString(category, 'name') || `${unknownPrefix} ${categoryId.slice(0, 8)}`,
+      isActive: readBoolean(category, 'isActive')
+    });
   }
   for (const product of products) {
     const categoryId = readString(product, 'categoryId');
     if (!categoryId || options.has(categoryId)) continue;
-    options.set(categoryId, readString(product, 'categoryName') || `${unknownPrefix} ${categoryId.slice(0, 8)}`);
+    // Категория, известная только по товару, считается видимой: скрыть её за отсутствие в
+    // справочнике значило бы придумать решение, которого никто не принимал.
+    options.set(categoryId, {
+      categoryId,
+      label: readString(product, 'categoryName') || `${unknownPrefix} ${categoryId.slice(0, 8)}`,
+      isActive: true
+    });
   }
   for (const category of sessionCategories) {
-    if (category.categoryId && !options.has(category.categoryId)) options.set(category.categoryId, category.label);
+    if (category.categoryId && !options.has(category.categoryId)) options.set(category.categoryId, category);
   }
-  return [...options].map(([categoryId, label]) => ({ categoryId, label }));
+  return [...options.values()];
 }

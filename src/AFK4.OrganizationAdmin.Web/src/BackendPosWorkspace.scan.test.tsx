@@ -10,7 +10,7 @@ const getCatalog = mock(async () => ([
     productId: 'p1',
     name: 'Cola',
     sku: 'SKU-1',
-    categoryName: 'Напитки',
+    categoryId: 'c1',
     stockOnHand: 10,
     barcodes: ['111'],
     price: { currencyCode: 'TJS', minorUnits: 1200 }
@@ -19,13 +19,17 @@ const getCatalog = mock(async () => ([
     productId: 'p2',
     name: 'Water',
     sku: 'SKU-2',
-    categoryName: 'Напитки',
+    categoryId: 'c1',
     stockOnHand: 5,
     barcodes: ['222'],
     price: { currencyCode: 'TJS', minorUnits: 600 }
   }
 ]));
 const getCurrentShift = mock(async () => ({ shiftId: 'shift-1' }));
+// Имя категории стойка берёт из справочника филиала, а не из товара: у PosProductDto такого поля нет.
+const listProductCategories = mock(async () => ([
+  { categoryId: 'c1', name: 'Напитки', isActive: true, sortOrder: 0 }
+]));
 
 const actualHelpers = await import('./operatorHelpers');
 mock.module('./operatorHelpers', () => ({
@@ -33,6 +37,7 @@ mock.module('./operatorHelpers', () => ({
   createAuthenticatedOperatorClients: () => ({
     pos: { getCatalog, createSale: mock(async () => ({})), paySaleManual: mock(async () => ({})) },
     shifts: { getCurrentShift },
+    settings: { listProductCategories },
     players: { searchPlayers: mock(async () => []) }
   })
 }));

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, UserRoundX, Wallet, X } from 'lucide-react';
+import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundCheck, UserRoundPlus, UserRoundX, Wallet, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
@@ -49,6 +49,8 @@ export interface BookingDrawerProps {
   onRemoveSeat: (seatId: string) => void;
   onCancelGroup: () => void;
   onStart: () => void;
+  /** Отметить приход без запуска сессии. */
+  onSeat: () => void;
   onMove: (targetSeatId: string) => void;
   onCancel: () => void;
   onReject: (reasonCode: string, note: string | null) => void;
@@ -307,6 +309,9 @@ export function BookingDrawer(props: BookingDrawerProps) {
             <button type="button" disabled={!selected.seatId || busy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
             {actions.canStart && (
               <button type="button" disabled={!canManage || !canStartSessions || busy || !selected.seatId} onClick={props.onStart}><UserRoundPlus size={15} />{t('op.booking.actions.startSession')}</button>
+            )}
+            {actions.canSeat && (
+              <button type="button" disabled={!canManage || busy || !selected.seatId} onClick={props.onSeat}><UserRoundCheck size={15} />{t('op.booking.actions.seat')}</button>
             )}
             {actions.canConfirm && (
               <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</button>

@@ -393,6 +393,30 @@ export function BackendBookingWorkspace({
     });
   });
 
+  // Отметка прихода без запуска сессии.
+  //
+  // Обычный путь стойки идёт через «Начать сессию», но без этой кнопки игрок, который приехал и
+  // стоит у стойки — платит, выбирает пакет, ждёт освобождения места, — проходил как неявка:
+  // ReservationNoShowRunner смотрит ровно на SeatedAtUtc, и по истечении grace-окна филиала удерживал
+  // предоплату и портил репутацию человеку, который стоял перед кассой. Маршрут и клиентский
+  // метод существовали с самого начала и не вызывались ниоткуда.
+  const seatReservation = () => runReservationAction(
+    t('op.booking.actions.seat'),
+    async (clients) => {
+      const nextBackend = requireBackend(backend, t);
+      if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+      if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
+      return await clients.reservations.seat(selectedReservationId, {
+        organizationId: nextBackend.session.organizationId,
+        expectedVersion: selectedItem.version
+      });
+    },
+    undefined,
+    // Главное последствие нажатия — не смена состояния в списке, а то, что автоматика больше не
+    // пометит этого человека неявившимся. Об этом и стоит сказать вслух.
+    () => t('op.booking.seat.done')
+  );
+
   // Отказ в заявке: не отмена, поэтому и действие своё. Деньги игроку вернёт сервер целиком.
   const rejectReservation = (reasonCode: string, note: string | null) =>
     runReservationAction(t('op.booking.actions.reject'), async (clients) => {
@@ -741,6 +765,7 @@ export function BackendBookingWorkspace({
             onRemoveSeat={removeGroupSeat}
             onCancelGroup={cancelReservationGroup}
             onStart={openReservationStart}
+            onSeat={seatReservation}
             onMove={moveReservation}
             onCancel={cancelReservation}
             onReject={rejectReservation}

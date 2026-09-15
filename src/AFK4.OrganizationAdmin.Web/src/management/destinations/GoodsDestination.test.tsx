@@ -17,14 +17,15 @@ const createProduct = mock(async () => ({
 }));
 const updateProduct = mock(async () => ({ productId: 'p1' }));
 const listProductCategories = mock(async () => [] as unknown[]);
-const renameProductCategory = mock(async () => ({ categoryId: 'cat-new', name: 'Снеки' }));
+const updateProductCategory = mock(async () => ({ categoryId: 'cat-new', name: 'Снеки' }));
+const reorderProductCategories = mock(async () => ([]));
 const getProductBarcodes = mock(async () => []);
 
 const actualHelpers = await import('../../operatorHelpers');
 mock.module('../../operatorHelpers', () => ({
   ...actualHelpers,
   createAuthenticatedOperatorClients: () => ({
-    settings: { createProductCategory, createProduct, updateProduct, getProductBarcodes, listProductCategories, renameProductCategory }
+    settings: { createProductCategory, createProduct, updateProduct, getProductBarcodes, listProductCategories, updateProductCategory, reorderProductCategories }
   })
 }));
 
@@ -43,7 +44,8 @@ afterEach(() => {
   updateProduct.mockClear();
   getProductBarcodes.mockClear();
   listProductCategories.mockClear();
-  renameProductCategory.mockClear();
+  updateProductCategory.mockClear();
+  reorderProductCategories.mockClear();
 });
 
 const wrap = (ui: React.ReactNode) =>
@@ -353,14 +355,15 @@ describe('GoodsDestination', () => {
 // новую категорию каждый товар по одному было единственным выходом.
 describe('GoodsDestination categories', () => {
   it('переименовывает категорию и перечитывает справочник', async () => {
-    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки' }]);
+    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки', isActive: true, sortOrder: 0 }]);
     wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Переименовать' }));
     fireEvent.change(screen.getByLabelText('Новое название категории'), { target: { value: ' Напитки и соки ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(renameProductCategory).toHaveBeenCalledWith('b1', 'cat1', {
+    // Имя идёт без isActive: переименование не должно заодно менять видимость.
+    await waitFor(() => expect(updateProductCategory).toHaveBeenCalledWith('b1', 'cat1', {
       organizationId: 'o1',
       name: 'Напитки и соки'
     }));
@@ -379,8 +382,63 @@ describe('GoodsDestination categories', () => {
     expect(screen.queryByRole('button', { name: 'Переименовать' })).toBeNull();
   });
 
+  // Удаления нет и не будет: скрытие убирает категорию со стойки, но оставляет товары и историю чеков.
+  it('скрывает категорию одним полем, не трогая имя', async () => {
+    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки', isActive: true, sortOrder: 0 }]);
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Скрыть' }));
+
+    await waitFor(() => expect(updateProductCategory).toHaveBeenCalledWith('b1', 'cat1', {
+      organizationId: 'o1',
+      isActive: false
+    }));
+  });
+
+  // Скрытая категория остаётся на экране с пометкой: иначе вернуть её было бы нечем.
+  it('показывает скрытую категорию с кнопкой возврата', async () => {
+    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки', isActive: false, sortOrder: 0 }]);
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+
+    expect(await screen.findByRole('button', { name: 'Показать' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Показать' }));
+    await waitFor(() => expect(updateProductCategory).toHaveBeenCalledWith('b1', 'cat1', {
+      organizationId: 'o1',
+      isActive: true
+    }));
+  });
+
+  // Перестановка шлёт весь список целиком — сервер не принимает частичный.
+  it('переставляет категорию вверх и шлёт полный порядок', async () => {
+    listProductCategories.mockImplementation(async () => [
+      { categoryId: 'cat1', name: 'Батарейки', isActive: true, sortOrder: 0 },
+      { categoryId: 'cat2', name: 'Напитки', isActive: true, sortOrder: 1 }
+    ]);
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Переместить «Напитки» выше' }));
+
+    await waitFor(() => expect(reorderProductCategories).toHaveBeenCalledWith('b1', {
+      organizationId: 'o1',
+      categoryIds: ['cat2', 'cat1']
+    }));
+  });
+
+  // У крайних строк двигаться некуда, и кнопка об этом говорит сама, а не молча ничего не делает.
+  it('гасит стрелки на краях списка', async () => {
+    listProductCategories.mockImplementation(async () => [
+      { categoryId: 'cat1', name: 'Батарейки', isActive: true, sortOrder: 0 },
+      { categoryId: 'cat2', name: 'Напитки', isActive: true, sortOrder: 1 }
+    ]);
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+
+    expect(await screen.findByRole('button', { name: 'Переместить «Батарейки» выше' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Переместить «Напитки» ниже' })).toBeDisabled();
+  });
+
   it('без права на каталог кнопки переименования нет', async () => {
-    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки' }]);
+    listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки', isActive: true, sortOrder: 0 }]);
     wrap(<GoodsDestination backend={backend} session={session([])} currencyCode="TJS" catalog={[cola]} />);
 
     await screen.findAllByText('Напитки');

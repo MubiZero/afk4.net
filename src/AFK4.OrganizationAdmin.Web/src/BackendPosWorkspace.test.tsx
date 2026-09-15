@@ -9,7 +9,8 @@ const backendProduct = {
   productId: 'product-1',
   name: 'Cola',
   sku: 'COLA',
-  categoryName: 'Напитки',
+  // Именно categoryId: поля categoryName в PosProductDto нет, и имя категории стойка берёт из справочника.
+  categoryId: 'category-1',
   price: { currencyCode: 'TJS', minorUnits: 10_000 },
   trackStock: true,
   stockOnHand: 4,
@@ -49,6 +50,17 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
   }
   if (url.endsWith('/api/organizations/organization-1/branches/branch-1/shifts/current')) {
     return jsonResponse({ shiftId: 'shift-1' });
+  }
+  if (url.endsWith('/api/organizations/organization-1/branches/branch-1/pos/categories')) {
+    return jsonResponse([{
+      categoryId: 'category-1',
+      organizationId: 'organization-1',
+      branchId: 'branch-1',
+      name: 'Напитки',
+      isActive: true,
+      sortOrder: 0,
+      createdAtUtc: '2026-07-14T08:00:00Z'
+    }]);
   }
   if (url.includes('/api/organizations/organization-1/branches/branch-1/players?')) {
     return jsonResponse([linkedPlayer]);

@@ -6,6 +6,7 @@ import type {
   PaymentPartDto,
   PackageOptionDto,
   PlayerSearchResultDto,
+  PosProductCategoryDto,
   PosProductDto,
   SettlePosSaleRequest,
   ShiftDto
@@ -41,6 +42,8 @@ type PosCatalogItem = {
   productId?: string;
   name: string;
   priceMinorUnits: number;
+  categoryId?: string;
+  /** Отображаемое имя категории из справочника филиала. */
   category: string;
   note: string;
   trackStock: boolean;
@@ -108,16 +111,44 @@ function makeFixtureProducts(t: ReturnType<typeof useI18n>['t']): PosCatalogItem
   ];
 }
 
-function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>['t']): PosCatalogItem {
+/**
+ * Справочник категорий филиала: имя, место в ряду и видимость.
+ *
+ * Без него чипсы категорий собирались из поля `categoryName`, которого сервер не отдаёт вовсе:
+ * чтение падало на `categoryId`, и кассир видел ряд GUID'ов вместо «Напитки · Еда · Услуги».
+ */
+type PosCategoryDirectory = ReadonlyMap<string, { name: string; sortOrder: number; isActive: boolean }>;
+
+function readCategoryDirectory(categories: readonly PosProductCategoryDto[]): PosCategoryDirectory {
+  const directory = new Map<string, { name: string; sortOrder: number; isActive: boolean }>();
+  for (const category of categories) {
+    const categoryId = readString(category, 'categoryId');
+    if (!categoryId) continue;
+    directory.set(categoryId, {
+      name: readString(category, 'name'),
+      sortOrder: readNumber(category, 'sortOrder', 0),
+      isActive: readBoolean(category, 'isActive')
+    });
+  }
+  return directory;
+}
+
+function projectPosProduct(
+  product: PosProductDto,
+  t: ReturnType<typeof useI18n>['t'],
+  directory: PosCategoryDirectory
+): PosCatalogItem {
   const price = readMoney(product, 'price');
   const sku = readString(product, 'sku', 'SKU');
   const stockOnHand = readNumber(product, 'stockOnHand', 0);
   const reorderThreshold = readNumber(product, 'reorderThreshold', 0);
+  const categoryId = readString(product, 'categoryId');
   return {
     productId: readString(product, 'productId') || undefined,
     name: readString(product, 'name', t('op.pos.catalog.productFallback')),
     priceMinorUnits: price?.minorUnits ?? 0,
-    category: readString(product, 'categoryName', readString(product, 'categoryId', t('op.pos.catalog.categoryFallback'))),
+    categoryId: categoryId || undefined,
+    category: directory.get(categoryId)?.name || t('op.pos.catalog.categoryFallback'),
     note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
     trackStock: readBoolean(product, 'trackStock'),
     stockOnHand,
@@ -186,14 +217,29 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     setLoadStatus('loading');
     try {
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [nextCatalog, nextShift] = await Promise.all([
+      const [nextCatalog, nextShift, nextCategories] = await Promise.all([
         clients.pos.getCatalog(nextBackend.branchId),
-        clients.shifts.getCurrentShift(nextBackend.branchId)
+        clients.shifts.getCurrentShift(nextBackend.branchId),
+        clients.settings.listProductCategories(nextBackend.branchId)
       ]);
 
-      const products = Array.isArray(nextCatalog)
-        ? nextCatalog.map((product) => projectPosProduct(product, t))
-        : [];
+      const directory = readCategoryDirectory(Array.isArray(nextCategories) ? nextCategories : []);
+      const products = (Array.isArray(nextCatalog) ? nextCatalog : [])
+        // Товары скрытой категории на стойке не показываются: сервер их всё равно не продаст,
+        // а плитка, которая отказывает при нажатии, — обещание, которое нечем выполнить.
+        .filter((product) => directory.get(readString(product, 'categoryId'))?.isActive !== false)
+        .map((product) => projectPosProduct(product, t, directory));
+
+      // Порядок чипсов идёт за порядком справочника: ниже они собираются через Set по первому
+      // встреченному товару, и без этой сортировки ряд строился бы по алфавиту имён товаров.
+      const sortOrderByCategory = new Map(
+        [...directory].map(([categoryId, entry]) => [categoryId, entry.sortOrder] as const)
+      );
+      products.sort((left, right) => {
+        const leftOrder = sortOrderByCategory.get(left.categoryId ?? '') ?? Number.MAX_SAFE_INTEGER;
+        const rightOrder = sortOrderByCategory.get(right.categoryId ?? '') ?? Number.MAX_SAFE_INTEGER;
+        return leftOrder === rightOrder ? left.name.localeCompare(right.name) : leftOrder - rightOrder;
+      });
 
       const backendProducts = products.filter((product) => product.source === 'backend' && product.productId);
       setCatalog(products);

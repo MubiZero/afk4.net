@@ -24,6 +24,7 @@ WORKDIR /src
 # graph). Copy just the manifests first to keep the install layer cached across source changes.
 COPY package.json bun.lock ./
 COPY packages/formatting/package.json ./packages/formatting/
+COPY packages/host-bridge/package.json ./packages/host-bridge/
 COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/money/package.json ./packages/money/
 COPY packages/tokens/package.json ./packages/tokens/

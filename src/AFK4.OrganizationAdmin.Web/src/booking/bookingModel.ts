@@ -150,10 +150,19 @@ export function bookingStateLabelKey(state: string): BookingStateKey {
 export function bookingDetailActions(
   state: string,
   startedByNow = false
-): { canConfirm: boolean; canStart: boolean; canReject: boolean; canMarkNoShow: boolean } {
+): {
+  canConfirm: boolean;
+  canStart: boolean;
+  canSeat: boolean;
+  canReject: boolean;
+  canMarkNoShow: boolean;
+} {
   return {
     canConfirm: state === 'pending',
     canStart: state === 'confirmed',
+    // Отметка прихода повторяет правило сервера (SeatAsync): усадить можно и заявку —
+    // сама посадка и есть ответ клуба, и сервер проставляет подтверждение сам.
+    canSeat: state === 'pending' || state === 'confirmed',
     canReject: state === 'pending',
     canMarkNoShow: state === 'confirmed' && startedByNow
   };

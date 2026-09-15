@@ -54,6 +54,12 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
+  /* Знак AFK4: три активные клетки по диагонали и шесть тихих. Значения взяты из канона
+     (brand/afk4-mark.svg и afk4-mark-light.svg) и живут здесь, чтобы знак, нарисованный в разметке,
+     шёл за темой, а не держал свою копию хексов. */
+  --brand-mark-active: #2DD4A7;
+  --brand-mark-quiet: #173028;
+
   --surface-canvas: #121212;
   --surface-elevated: #1e1e1e;
   --surface-card: #242424;
@@ -117,6 +123,9 @@
 
 [data-theme="light"] {
   color-scheme: light;
+
+  --brand-mark-active: #0B9E74;
+  --brand-mark-quiet: #D9E6E1;
 
   --surface-canvas: #eef2f7;
   --surface-elevated: #ffffff;

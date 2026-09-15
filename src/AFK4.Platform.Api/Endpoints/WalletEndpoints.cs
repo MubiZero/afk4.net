@@ -172,11 +172,18 @@ internal static class WalletEndpoints
                 return inactiveGuard;
             }
 
-            // The intent id is the idempotency key: it is the authoritative guard against a
-            // double wallet credit. If two operators fulfil the same intent concurrently, both
-            // pass the in-memory State == "pending" fast-path above, but TopUpWalletAsync
-            // deduplicates on this key and writes exactly one ledger entry. The State flip below
-            // is then idempotent (same values written twice is harmless).
+            // Заявка занимается до денег, а не после. Проверка State == "pending" выше от гонки не
+            // спасает: отмена успевала встать между ней и записью, и кошелёк оставался пополненным при
+            // заявке, помеченной отменённой.
+            var claimedAtUtc = timeProvider.GetUtcNow();
+            if (!await PaymentIntentClaim.TryMoveFromPendingAsync(
+                    dbContext, intent, PaymentIntentClaim.Fulfilled, claimedAtUtc, cancellationToken))
+            {
+                return Results.Conflict(new { Error = "Payment intent is not pending." });
+            }
+
+            // Идентификатор заявки остаётся ключом идемпотентности: повторный запрос не даст
+            // второй записи в журнале даже если захват и зачисление разошлись по попыткам.
             var topUpRequest = new TopUpWalletRequest(
                 intent.OrganizationId,
                 new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
@@ -192,14 +199,14 @@ internal static class WalletEndpoints
 
             if (!billingResult.Succeeded)
             {
+                // Заявка возвращается в «ожидает»: иначе она осталась бы в «завершено» без денег, и ни
+                // повторить, ни отменить её было бы нельзя.
+                await PaymentIntentClaim.TryReleaseAsync(dbContext, intent, cancellationToken);
                 return ToHttpResult(billingResult);
             }
 
-            intent.State = "fulfilled";
-            intent.FulfilledAtUtc = timeProvider.GetUtcNow();
             // FulfilledByLedgerEntryId left null (v1): TopUpWalletAsync returns WalletSummaryDto,
             // not the created ledger entry id.
-            await dbContext.SaveChangesAsync(cancellationToken);
 
             await WriteAuditAsync(
                 auditRecordWriter,

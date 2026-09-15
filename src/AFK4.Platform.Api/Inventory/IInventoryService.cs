@@ -32,11 +32,17 @@ public interface IInventoryService
         Guid branchId,
         CancellationToken cancellationToken);
 
-    Task<BillingCommandServiceResult<PosProductCategoryDto>> RenameCategoryAsync(
+    Task<BillingCommandServiceResult<PosProductCategoryDto>> UpdateCategoryAsync(
         Guid branchId,
         Guid categoryId,
         Guid actorStaffUserId,
-        RenameProductCategoryRequest request,
+        UpdateProductCategoryRequest request,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<IReadOnlyList<PosProductCategoryDto>>> ReorderCategoriesAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        ReorderProductCategoriesRequest request,
         CancellationToken cancellationToken);
 
     Task<BillingCommandServiceResult<PosProductCategoryDto>> CreateCategoryAsync(

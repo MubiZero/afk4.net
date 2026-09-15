@@ -141,7 +141,10 @@ public static class AuditActionNames
 
     public const string CreateProductCategory = "pos.categories.create";
 
-    public const string RenameProductCategory = "pos.categories.rename";
+    /// <summary>Правка категории: имя, видимость или оба сразу.</summary>
+    public const string UpdateProductCategory = "pos.categories.update";
+
+    public const string ReorderProductCategories = "pos.categories.reorder";
 
     public const string CreateProduct = "pos.products.create";
 

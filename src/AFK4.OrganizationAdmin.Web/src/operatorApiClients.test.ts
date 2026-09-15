@@ -78,8 +78,8 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/sessions/${sessionId}/transfer`,
       `POST /api/organizations/organization-id/sessions/${sessionId}/end`
     ]);
-    expect(calls[2].body).toEqual(startRequest);
-    expect(calls[5].body).toEqual(endRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/sessions/start`)).toEqual(startRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/sessions/${sessionId}/end`)).toEqual(endRequest);
   });
 
   it('maps POS, player, and shift clients including query and CSV routes', async () => {
@@ -172,12 +172,12 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/shifts/${shiftId}/close`,
       `GET /api/organizations/organization-id/branches/${branchId}/reports/sales/export.csv?fromUtc=2026-05-21T01%3A02%3A03.000Z&toUtc=2026-05-21T02%3A03%3A04.000Z&limit=50`
     ]);
-    expect(calls[1].body).toEqual(stockRequest);
-    expect(calls[3].body).toEqual(saleRequest);
-    expect(calls[4].body).toEqual(paymentRequest);
-    expect(calls[5].body).toEqual(refundRequest);
-    expect(calls[6].body).toEqual(voidRequest);
-    expect(calls[10].body).toEqual({
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/inventory/stock-movements`)).toEqual(stockRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/pos/sales`)).toEqual(saleRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/pos/sales/${saleId}/payments/manual`)).toEqual(paymentRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/pos/sales/${saleId}/refunds`)).toEqual(refundRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/pos/sales/${saleId}/void`)).toEqual(voidRequest);
+    expect(bodyOf(calls, 'POST /api/organizations/organization-id/players/12121212-1212-1212-1212-121212121212/packages/purchases')).toEqual({
       organizationId,
       packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
       idempotencyKey: 'idem-package'
@@ -201,7 +201,7 @@ describe('operator API clients', () => {
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       `POST /api/organizations/organization-id/pos/sales/${saleId}/settlements`
     ]);
-    expect(calls[0].body).toEqual(request);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/pos/sales/${saleId}/settlements`)).toEqual(request);
   });
 
   it('returns null for no current shift', async () => {
@@ -272,13 +272,13 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/reservations/${reservationId}/no-show`,
       `POST /api/organizations/organization-id/reservations/${reservationId}/start-session`
     ]);
-    expect(calls[1].body).toEqual(createRequest);
-    expect(calls[2].body).toEqual(updateRequest);
-    expect(calls[3].body).toEqual({ organizationId, expectedVersion: 5 });
-    expect(calls[4].body).toEqual({ organizationId, expectedVersion: 6 });
-    expect(calls[5].body).toEqual({ organizationId, reason: 'client called', expectedVersion: 7 });
-    expect(calls[6].body).toEqual({ organizationId, expectedVersion: 9 });
-    expect(calls[7].body).toEqual(startSessionRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/reservations`)).toEqual(createRequest);
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/reservations/${reservationId}`)).toEqual(updateRequest);
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/reservations/${reservationId}/confirm`)).toEqual({ organizationId, expectedVersion: 5 });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/reservations/${reservationId}/seat`)).toEqual({ organizationId, expectedVersion: 6 });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/reservations/${reservationId}/cancel`)).toEqual({ organizationId, reason: 'client called', expectedVersion: 7 });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/reservations/${reservationId}/no-show`)).toEqual({ organizationId, expectedVersion: 9 });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/reservations/${reservationId}/start-session`)).toEqual(startSessionRequest);
   });
 
   it('maps settings, device, diagnostics, updates, and audit clients', async () => {
@@ -377,9 +377,17 @@ describe('operator API clients', () => {
       name: 'Snacks',
       idempotencyKey: 'idem-category'
     });
-    await clients.settings.renameProductCategory(branchId, '77777777-7777-7777-7777-777777777777', {
+    await clients.settings.updateProductCategory(branchId, '77777777-7777-7777-7777-777777777777', {
       organizationId,
       name: 'Снеки'
+    });
+    await clients.settings.updateProductCategory(branchId, '88888888-8888-8888-8888-888888888888', {
+      organizationId,
+      isActive: false
+    });
+    await clients.settings.reorderProductCategories(branchId, {
+      organizationId,
+      categoryIds: ['88888888-8888-8888-8888-888888888888', '77777777-7777-7777-7777-777777777777']
     });
     await clients.settings.createProduct(branchId, {
       organizationId,
@@ -454,6 +462,8 @@ describe('operator API clients', () => {
       `GET /api/organizations/organization-id/branches/${branchId}/pos/categories`,
       `POST /api/organizations/organization-id/branches/${branchId}/pos/categories`,
       `PATCH /api/organizations/organization-id/branches/${branchId}/pos/categories/77777777-7777-7777-7777-777777777777`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/pos/categories/88888888-8888-8888-8888-888888888888`,
+      `POST /api/organizations/organization-id/branches/${branchId}/pos/categories/order`,
       `POST /api/organizations/organization-id/branches/${branchId}/pos/products`,
       `PATCH /api/organizations/organization-id/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`,
       `GET /api/organizations/organization-id/branches/${branchId}/settings`,
@@ -474,11 +484,11 @@ describe('operator API clients', () => {
       `PUT /api/organizations/organization-id/branches/${branchId}/updates/preferences`,
       `GET /api/organizations/organization-id/branches/${branchId}/audit?action=session.end&outcome=success&targetType=session&limit=25`
     ]);
-    expect(calls[1].body).toEqual({ organizationId, userName: 'cashier2', displayName: 'Cashier Two' });
-    expect(calls[2].body).toEqual({ organizationId, roleNames: ['technician'] });
-    expect(calls[3].body).toEqual({ organizationId, isActive: false });
-    expect(calls[4].body).toEqual({ organizationId, newPassword: 'ChangeMe456!' });
-    expect(calls[6].body).toEqual({
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/profile`)).toEqual({ organizationId, userName: 'cashier2', displayName: 'Cashier Two' });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/roles`)).toEqual({ organizationId, roleNames: ['technician'] });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/state`)).toEqual({ organizationId, isActive: false });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/password-reset`)).toEqual({ organizationId, newPassword: 'ChangeMe456!' });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/profile`)).toEqual({
       organizationId,
       name: 'AFK4 Pilot',
       city: 'Dushanbe',
@@ -499,28 +509,34 @@ describe('operator API clients', () => {
       locale: 'ru',
       workingHours: defaultWorkingHours()
     });
-    expect(calls[7].body).toEqual({ organizationId, name: 'Main', sortOrder: 10 });
-    expect(calls[8].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'PC-01', sortOrder: 20 });
-    expect(calls[9].body).toEqual({ organizationId, name: 'VIP', sortOrder: 30 });
-    expect(calls[10].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'VIP-01', sortOrder: 40 });
-    expect(calls[12].body).toEqual({ organizationId, name: 'Standard Plus', isActive: false });
-    expect(calls[13].body).toMatchObject({ organizationId, pricePerMinuteMinorUnits: 75, isActive: false });
-    expect(calls[37].body).toEqual({
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/layout/zones`)).toEqual({ organizationId, name: 'Main', sortOrder: 10 });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/layout/seats`)).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'PC-01', sortOrder: 20 });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`)).toEqual({ organizationId, name: 'VIP', sortOrder: 30 });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`)).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'VIP-01', sortOrder: 40 });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111`)).toEqual({ organizationId, name: 'Standard Plus', isActive: false });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111/versions/22222222-2222-2222-2222-222222222222`)).toMatchObject({ organizationId, pricePerMinuteMinorUnits: 75, isActive: false });
+    expect(bodyOf(calls, `PUT /api/organizations/organization-id/branches/${branchId}/updates/preferences`)).toEqual({
       organizationId,
       maintenanceWindowStart: '03:00:00',
       maintenanceWindowEnd: '05:00:00'
     });
-    expect(calls[15].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
-    expect(calls[16].body).toMatchObject({ organizationId, name: 'Night 6h', includedSeconds: 21600, isActive: false });
-    expect(calls[18].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
-    expect(calls[19].body).toEqual({ organizationId, name: 'Снеки' });
-    expect(calls[20].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
-    expect(calls[21].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
-    expect(calls[23].body).toEqual({ organizationId, requireManualDeviceApproval: true, preferredLocale: 'ru' });
-    expect(calls[27].body).toEqual({ organizationId });
-    expect(calls[28].body).toEqual({ organizationId, reason: 'Не наш ПК' });
-    expect(calls[29].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[30].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/packages`)).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/packages/abababab-abab-abab-abab-abababababab`)).toMatchObject({ organizationId, name: 'Night 6h', includedSeconds: 21600, isActive: false });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/pos/categories`)).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/pos/categories/77777777-7777-7777-7777-777777777777`)).toEqual({ organizationId, name: 'Снеки' });
+    // Скрытие идёт тем же маршрутом и без имени: пропущенное поле не должно затирать название.
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/pos/categories/88888888-8888-8888-8888-888888888888`)).toEqual({ organizationId, isActive: false });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/pos/categories/order`)).toEqual({
+      organizationId,
+      categoryIds: ['88888888-8888-8888-8888-888888888888', '77777777-7777-7777-7777-777777777777']
+    });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/pos/products`)).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
+    expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`)).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
+    expect(bodyOf(calls, `PUT /api/organizations/organization-id/branches/${branchId}/settings`)).toEqual({ organizationId, requireManualDeviceApproval: true, preferredLocale: 'ru' });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/devices/${deviceId}/approve`)).toEqual({ organizationId });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/devices/${deviceId}/reject`)).toEqual({ organizationId, reason: 'Не наш ПК' });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/device-enrollment-codes`)).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/devices/${deviceId}/commands`)).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 
   it('maps money-action review endpoints and audit amount filters', async () => {
@@ -544,8 +560,8 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/branches/${branchId}/money-actions/${requestId}/reject`,
       `GET /api/organizations/organization-id/branches/${branchId}/audit?actorStaffUserId=3db1367b-88c6-4b1c-99c3-bcbb5f4d5134&minAmount=1000&maxAmount=5000&limit=50`
     ]);
-    expect(calls[1].body).toEqual({ decisionReason: null });
-    expect(calls[2].body).toEqual({ decisionReason: 'Нет чека' });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/money-actions/${requestId}/approve`)).toEqual({ decisionReason: null });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/money-actions/${requestId}/reject`)).toEqual({ decisionReason: 'Нет чека' });
   });
 
   it('maps layout delete clients with organization scoping', async () => {
@@ -565,6 +581,24 @@ interface RecordedCall {
   method: string;
   path: string;
   body: unknown;
+}
+
+/**
+ * Тело единственного записанного запроса на этот маршрут.
+ *
+ * Раньше проверки адресовались номером в списке (`calls[19].body`). Любая вставка маршрута в
+ * середину сценария сдвигала все последующие номера, и краснели чужие проверки, к правке отношения не
+ * имевшие. Маршрут — то, что проверка на самом деле имеет в виду.
+ *
+ * Ровно один, а не «первый подходящий»: два запроса на один маршрут делают проверку двусмысленной,
+ * и лучше сказать об этом вслух, чем молча взять один из двух.
+ */
+function bodyOf(calls: readonly RecordedCall[], route: string): unknown {
+  const matches = calls.filter((call) => `${call.method} ${call.path}` === route);
+  if (matches.length !== 1) {
+    throw new Error(`Ожидался ровно один запрос «${route}», найдено ${matches.length}.`);
+  }
+  return matches[0].body;
 }
 
 function createRecordedClients(respond?: (url: URL, init: RequestInit) => Response) {

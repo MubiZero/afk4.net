@@ -37,12 +37,19 @@ function renderDrawer(groupConflicts = new Set<string>()) {
     groupConflicts, groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose: () => {},
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
     onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {}, onMarkNoShow: () => {},
-    onConfirm: () => {}, onOpenMap: () => {}
+    onConfirm: () => {}, onOpenMap: () => {}, onSeat: () => {}
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
 }
 
-function detail(state: string, onConfirm = () => {}, onStart = () => {}, onMarkNoShow = () => {}, startMs = Date.now() + 60_000) {
+function detail(
+  state: string,
+  onConfirm = () => {},
+  onStart = () => {},
+  onMarkNoShow = () => {},
+  startMs = Date.now() + 60_000,
+  onSeat = () => {}
+) {
   const item = {
     reservationId: 'r1', reservationGroupId: '', version: 2, state, source: 'operator',
     startMs, endMs: startMs + 3_600_000, durationMinutes: 60,
@@ -56,7 +63,7 @@ function detail(state: string, onConfirm = () => {}, onStart = () => {}, onMarkN
     seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(),
     onClose: () => {}, onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {},
     onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {}, onReject: () => {}, onMarkNoShow,
-    onConfirm, onOpenMap: () => {}
+    onConfirm, onOpenMap: () => {}, onSeat
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
 }
@@ -69,7 +76,7 @@ it('blocks drawer close while a reservation command is pending', () => {
     groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose,
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
     onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {}, onMarkNoShow: () => {},
-    onConfirm: () => {}, onOpenMap: () => {}
+    onConfirm: () => {}, onOpenMap: () => {}, onSeat: () => {}
   };
   const result = render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
   const close = result.getByRole('button', { name: 'Отмена' });
@@ -148,4 +155,30 @@ it('у ещё не начавшейся брони кнопки неявки н�
 it('у неотвеченной заявки кнопки неявки нет', () => {
   const result = detail('pending', () => {}, () => {}, () => {}, Date.now() - 60_000);
   expect(result.queryByRole('button', { name: 'Не приехал' })).toBeNull();
+});
+
+// Отметить приход было нечем. Маршрут `reservations/{id}/seat` и клиентский метод существовали с
+// самого начала и не вызывались ниоткуда, а ReservationNoShowRunner смотрит ровно на SeatedAtUtc:
+// игрок, который приехал и стоит у стойки — платит, выбирает пакет, ждёт освобождения места, — по
+// истечении grace-окна филиала получал удержанную предоплату и испорченную репутацию. Единственным
+// способом снять этот взвод было «Начать сессию», то есть посадить человека за машину прямо сейчас.
+it('приход отмечается и у подтверждённой брони, и у неотвеченной заявки', () => {
+  for (const state of ['confirmed', 'pending']) {
+    const onSeat = mock(() => {});
+    const result = detail(state, () => {}, () => {}, () => {}, Date.now() - 60_000, onSeat);
+
+    fireEvent.click(result.getByRole('button', { name: 'Пришёл' }));
+    expect(onSeat).toHaveBeenCalledTimes(1);
+    cleanup();
+  }
+});
+
+// Уже посаженного сажать некуда, отменённую бронь — тем более: сервер откажет, и кнопка обещала бы
+// несуществующее.
+it('у посаженной и отменённой брони кнопки прихода нет', () => {
+  for (const state of ['seated', 'cancelled', 'no_show']) {
+    const result = detail(state);
+    expect(result.queryByRole('button', { name: 'Пришёл' })).toBeNull();
+    cleanup();
+  }
 });

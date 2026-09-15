@@ -40,6 +40,12 @@ const PAIRS: Pair[] = [
     type: 'DeviceInventoryItemDto'
   },
   {
+    record: 'PosProductCategoryDto',
+    contract: 'Pos/PosProductCategoryDto.cs',
+    client: 'clients/pos.ts',
+    type: 'PosProductCategoryDto'
+  },
+  {
     record: 'ReportScheduleDto',
     contract: 'Reports/ReportScheduleContracts.cs',
     client: 'clients/reports.ts',
