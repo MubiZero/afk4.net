@@ -23,7 +23,8 @@ import {
 import type { TariffOptionDto } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
-type Tariff = Record<string, unknown>;
+// Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
+type Tariff = TariffOptionDto;
 
 interface RetireTariffAction {
   tariffId: string;

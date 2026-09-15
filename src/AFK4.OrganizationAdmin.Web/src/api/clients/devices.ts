@@ -2,9 +2,47 @@ import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import { normalizeDeviceCommandQuery } from '../queryHelpers';
 
-export type DeviceCommandDto = Record<string, unknown>;
-export type DeviceCommandStatusDto = Record<string, unknown>;
-export type DeviceDetailDto = Record<string, unknown>;
+/** Отправленная машине команда (DeviceCommandDto). Поля сверяются в `contractParity.test.ts`. */
+export interface DeviceCommandDto {
+  commandId: Guid;
+  type: string;
+  createdAtUtc: string;
+  payload: Record<string, string>;
+}
+
+export interface DeviceCommandStatusDto {
+  deviceId: Guid;
+  commandId: Guid;
+  type: string;
+  status: string;
+  message: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+/** Карточка одного ПК. В отличие от DeviceInventoryItemDto несёт хвост последних команд. */
+export interface DeviceDetailDto {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  enrolledAtUtc: string;
+  lastHeartbeatAtUtc: string | null;
+  isOnline: boolean;
+  isLocked: boolean;
+  seatId: Guid | null;
+  seatName: string | null;
+  zoneId: Guid | null;
+  zoneName: string | null;
+  activeCredentialCount: number;
+  installedAppCount: number;
+  recentCommands: DeviceCommandStatusDto[];
+  displayName?: string;
+  role?: string;
+  enrollmentState?: string;
+}
 /**
  * ПК в списке филиала (DeviceInventoryItemDto). Поля перечислены поимённо — совпадение с
  * сервером проверяется в `contractParity.test.ts`, а не держится на памяти.
@@ -32,9 +70,31 @@ export interface DeviceInventoryItemDto {
   role: string;
   enrollmentState: string;
 }
-export type DeviceEnrollmentCodeDto = Record<string, unknown>;
-export type RotateDeviceCredentialResponse = Record<string, unknown>;
-export type RevokeDeviceCredentialResponse = Record<string, unknown>;
+export interface DeviceEnrollmentCodeDto {
+  organizationId: Guid;
+  branchId: Guid;
+  code: string;
+  expiresAtUtc: string;
+}
+
+// `credentialSecret` сервер показывает ровно один раз — в ответе на ротацию. В логи и в состояние
+// экрана его класть нельзя: второй раз его не покажут никому, включая владельца.
+export interface RotateDeviceCredentialResponse {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  credentialId: Guid;
+  credentialSecret: string;
+  rotatedAtUtc: string;
+}
+
+export interface RevokeDeviceCredentialResponse {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  credentialId: Guid;
+  revokedAtUtc: string;
+}
 
 export interface DispatchDeviceCommandRequest {
   type: string;

@@ -1,4 +1,3 @@
-import { readString } from '../../operatorHelpers';
 import type { BranchProfileDto, UpdateBranchProfileRequest } from '../../api/clients/settings';
 import { normalizeWorkingHours } from './workingHours';
 import type { ClubProfileForm } from './ClubProfileFields';
@@ -28,26 +27,26 @@ function coordinatePair(form: ClubProfileForm): { latitude: number | null; longi
 // «переименовать» обязано отправить весь профиль, не только name/city.
 export function mapProfileToForm(profile: BranchProfileDto): ClubProfileForm {
   return {
-    name: readString(profile, 'name', 'AFK4'),
-    city: readString(profile, 'city', ''),
-    description: readString(profile, 'description', ''),
-    address: readString(profile, 'address', ''),
-    phone: readString(profile, 'phone', ''),
-    telegram: readString(profile, 'telegram', ''),
-    website: readString(profile, 'website', ''),
-    instagram: readString(profile, 'instagram', ''),
-    logoUrl: (profile.logoUrl as string | null) ?? null,
-    logoMediaId: (profile.logoMediaId as string | null) ?? null,
-    coverImageUrl: (profile.coverImageUrl as string | null) ?? null,
-    coverMediaId: (profile.coverMediaId as string | null) ?? null,
-    photos: ((profile.photos as Array<{ url: string; mediaId: string | null }> | null) ?? []).map((photo) => ({
+    name: profile.name || 'AFK4',
+    city: profile.city ?? '',
+    description: profile.description ?? '',
+    address: profile.address ?? '',
+    phone: profile.phone ?? '',
+    telegram: profile.telegram ?? '',
+    website: profile.website ?? '',
+    instagram: profile.instagram ?? '',
+    logoUrl: profile.logoUrl ?? null,
+    logoMediaId: profile.logoMediaId ?? null,
+    coverImageUrl: profile.coverImageUrl ?? null,
+    coverMediaId: profile.coverMediaId ?? null,
+    photos: (profile.photos ?? []).map((photo) => ({
       url: photo.url,
       mediaId: photo.mediaId ?? null
     })),
     latitude: profile.latitude === null || profile.latitude === undefined ? '' : String(profile.latitude),
     longitude: profile.longitude === null || profile.longitude === undefined ? '' : String(profile.longitude),
-    timeZone: readString(profile, 'timeZone', 'Asia/Dushanbe'),
-    locale: readString(profile, 'locale', 'ru'),
+    timeZone: profile.timeZone || 'Asia/Dushanbe',
+    locale: profile.locale || 'ru',
     workingHours: normalizeWorkingHours(profile.workingHours)
   };
 }

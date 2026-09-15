@@ -39,6 +39,12 @@ export interface CashMovementDto {
   reason: string;
   createdAtUtc: string;
 }
+/**
+ * Одно имя на пять разных ответов: /reports/shifts, /sales, /gameplay-time, /cash-operations и
+ * /operator-actions отдают ShiftReportResultDto, SalesReportResultDto и так далее (см.
+ * AFK4.Shared.Contracts/Reports). Записи `ReportResultDto` на сервере нет вовсе, и выдумывать её
+ * у клиента нельзя — типизировать надо каждый отчёт отдельно, вместе с его строкой.
+ */
 export type ReportResultDto = Record<string, unknown>;
 
 export interface OpenShiftRequest {

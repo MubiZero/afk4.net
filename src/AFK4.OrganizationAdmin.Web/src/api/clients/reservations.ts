@@ -3,8 +3,55 @@ import type { Guid, ReportQuery } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
 import type { SessionCommandResponse } from './sessions';
 
-export type ReservationDto = Record<string, unknown>;
-export type ReservationSearchResultDto = Record<string, unknown>;
+/**
+ * Бронь, как её отдаёт сервер (ReservationDto). Совпадение полей проверяется
+ * в `contractParity.test.ts`.
+ *
+ * Хвост необязательных полей повторяет необязательные параметры C#-записи: их дописывали
+ * волнами (цена заявки, срок ответа, неявка, отказ), и старые вызовы сервера их не заполняли.
+ */
+export interface ReservationDto {
+  reservationId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  playerAccountId: Guid | null;
+  seatId: Guid | null;
+  seatName: string | null;
+  zoneName: string | null;
+  customerName: string;
+  phoneNumber: string | null;
+  startsAtUtc: string;
+  endsAtUtc: string;
+  durationMinutes: number;
+  state: string;
+  source: string;
+  note: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  cancelledAtUtc: string | null;
+  cancelReason: string;
+  reservationGroupId: Guid | null;
+  version?: number;
+  startedSessionId?: Guid | null;
+  tariffVersionId?: Guid | null;
+  tariffName?: string | null;
+  estimatedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
+  respondByUtc?: string | null;
+  confirmedAtUtc?: string | null;
+  platformPersonId?: Guid | null;
+  noShowAtUtc?: string | null;
+  // Пусто, а не ноль, когда за неявку не удерживали вовсе: ноль читался бы как «удержали нисколько».
+  retainedAmountMinorUnits?: number | null;
+  rejectedAtUtc?: string | null;
+  rejectReasonCode?: string | null;
+  rejectReasonNote?: string | null;
+}
+
+export interface ReservationSearchResultDto {
+  reservations: ReservationDto[];
+  limit: number;
+}
 
 export type ReservationSearchQuery = ReportQuery & {
   state?: string | null;

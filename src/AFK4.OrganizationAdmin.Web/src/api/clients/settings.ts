@@ -1,14 +1,117 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { Guid } from '../types';
+import type { Guid, MoneyDto } from '../types';
 import type { PosProductDto, PosProductCategoryDto } from './pos';
 
-export type StaffUserDto = Record<string, unknown>;
-export type BranchProfileDto = Record<string, unknown>;
-export type ZoneDto = Record<string, unknown>;
-export type SeatDto = Record<string, unknown>;
-export type TariffDto = Record<string, unknown>;
-export type TariffVersionDto = Record<string, unknown>;
-export type TariffOptionDto = Record<string, unknown>;
+/**
+ * Типы этого файла перечисляют поля поимённо, а совпадение с сервером проверяется
+ * в `contractParity.test.ts`, а не держится на памяти.
+ */
+export interface StaffUserDto {
+  staffUserId: Guid;
+  organizationId: Guid;
+  userName: string;
+  displayName: string;
+  isActive: boolean;
+  roleNames: string[];
+  createdAtUtc: string;
+}
+
+export interface BranchPhotoDto {
+  url: string;
+  mediaId: Guid | null;
+}
+
+export interface BranchProfileDto {
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  city: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  telegram: string | null;
+  website: string | null;
+  instagram: string | null;
+  logoUrl: string | null;
+  logoMediaId: Guid | null;
+  coverImageUrl: string | null;
+  coverMediaId: Guid | null;
+  photos: BranchPhotoDto[];
+  latitude: number | null;
+  longitude: number | null;
+  timeZone: string;
+  locale: string;
+  workingHours: BranchWorkingHoursDay[];
+  createdAtUtc: string;
+}
+
+export interface ZoneDto {
+  zoneId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  sortOrder: number;
+  createdAtUtc: string;
+  seats: SeatDto[];
+  hardwareSummary?: string | null;
+}
+
+export interface SeatDto {
+  seatId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
+  createdAtUtc: string;
+}
+
+/**
+ * Расписание тарифа: `appliesOnDaysMask` — биты дней недели с понедельника (1) по воскресенье (64),
+ * `0` значит «каждый день». Часы — минуты от полуночи по местному времени филиала.
+ */
+export interface TariffDto {
+  tariffId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  isActive: boolean;
+  createdAtUtc: string;
+  appliesOnDaysMask?: number;
+  appliesFromMinuteOfDay?: number | null;
+  appliesToMinuteOfDay?: number | null;
+}
+
+export interface TariffVersionDto {
+  tariffVersionId: Guid;
+  tariffId: Guid;
+  versionNumber: number;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: string;
+  retiredAtUtc: string | null;
+  createdAtUtc: string;
+}
+
+// `appliesNow` считает сервер по часовому поясу филиала — повторять этот расчёт у себя нельзя.
+export interface TariffOptionDto {
+  tariffId: Guid;
+  tariffVersionId: Guid;
+  name: string;
+  tariffRuleVersionId: string;
+  versionNumber: number;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: string;
+  appliesOnDaysMask?: number;
+  appliesFromMinuteOfDay?: number | null;
+  appliesToMinuteOfDay?: number | null;
+  appliesNow?: boolean;
+}
 export interface PackageOptionDto extends Record<string, unknown> {
   packageDefinitionId: Guid;
   name: string;
@@ -18,8 +121,28 @@ export interface PackageOptionDto extends Record<string, unknown> {
   bonusSeconds: number;
   expiresAfterDays: number;
 }
-export type PackageDefinitionDto = Record<string, unknown>;
-export type DeviceSeatAssignmentDto = Record<string, unknown>;
+export interface PackageDefinitionDto {
+  packageDefinitionId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  price: MoneyDto;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface DeviceSeatAssignmentDto {
+  deviceSeatAssignmentId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  deviceId: Guid;
+  attachedAtUtc: string;
+  detachedAtUtc: string | null;
+}
 
 export interface CreateStaffInviteRequest extends Record<string, unknown> {
   organizationId: Guid;
@@ -83,7 +206,7 @@ export interface UpdateBranchProfileRequest extends Record<string, unknown> {
   // Витрина клуба в приложении игрока: фото зала и точка на карте.
   coverImageUrl: string | null;
   coverMediaId: string | null;
-  photos: Array<{ url: string; mediaId: string | null }>;
+  photos: BranchPhotoDto[];
   latitude: number | null;
   longitude: number | null;
 }

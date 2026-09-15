@@ -24,7 +24,9 @@ export interface MoneyActionDecisionRequest extends Record<string, unknown> {
   decisionReason?: string | null;
 }
 
-export type MoneyActionDecisionResponse = Record<string, unknown>;
+// Одобрение и отказ отвечают тем же телом, что и подача заявки (MoneyActionSubmitResponse):
+// у сервера для решения отдельной записи нет, и заводить её у клиента значило бы выдумать контракт.
+export type MoneyActionDecisionResponse = MoneyActionSubmitResponse;
 
 /// Заявка на денежную операцию, которую сотруднику не даёт провести его порог. Форма повторяет
 /// серверный MoneyActionSubmitRequest: одобренная заявка выполняется сервером сама, поэтому
@@ -42,8 +44,14 @@ export interface MoneyActionSubmitRequest extends Record<string, unknown> {
   idempotencyKey: string;
 }
 
-export interface MoneyActionSubmitResponse extends Record<string, unknown> {
+/**
+ * Чем кончилась заявка. `resultingLedgerEntryId` заполнен, только когда операция уже проведена —
+ * у поданной на одобрение и у отклонённой его нет. Поля сверяются в `contractParity.test.ts`.
+ */
+export interface MoneyActionSubmitResponse {
   outcome: string;
+  resultingLedgerEntryId: Guid | null;
+  moneyActionRequestId: Guid | null;
 }
 
 export function createMoneyActionClient(api: PlatformApiClient) {

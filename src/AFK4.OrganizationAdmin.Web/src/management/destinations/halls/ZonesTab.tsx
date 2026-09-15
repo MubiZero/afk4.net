@@ -15,11 +15,12 @@ import {
   readString,
   requireBackend
 } from '../../../operatorHelpers';
-import type { ZoneDto } from '../../../operatorApiClients';
+import type { SeatDto, ZoneDto } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
-type Zone = Record<string, unknown>;
-type Seat = Record<string, unknown>;
+// Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
+type Zone = ZoneDto;
+type Seat = SeatDto;
 
 type ZoneModalState =
   | { mode: 'create-zone' }
