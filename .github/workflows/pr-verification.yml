@@ -59,6 +59,8 @@ jobs:
             # что каждое веб-приложение везёт актуальный фавикон, а не плейсхолдер.
             "brand/",
             "packages/",
+            # Контракты — исходник типов веба: правка записи C# обязана поднимать эту дорожку.
+            "src/AFK4.Shared.Contracts/",
             "src/AFK4.PlatformControl.Web/",
             "src/AFK4.OrganizationAdmin.Web/",
             "src/AFK4.SetupWizard.Web/",
@@ -211,6 +213,16 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Типы веба рождаются из записей C# тем же способом, что ARB из каталога строк.
+      # Перегенерируем и требуем чистого дерева: правка контракта без перегенерации иначе
+      # доедет до приложений как молча устаревший тип — ровно тот дрейф, ради которого
+      # генератор и заведён.
+      - name: Verify generated contracts are current
+        run: |
+          set -e
+          (cd packages/contracts && bun run gen)
+          git diff --exit-code -- packages/contracts/src
+
       # bun's --filter does not match the src/AFK4.*.Web workspaces, so iterate
       # the workspace dirs explicitly; each runs in its own dir to pick up its bunfig.
       # The list must hold every workspace with a `test` script — a workspace missing here is
@@ -225,7 +237,7 @@ jobs:
         run: |
           set -e
           for dir in \
-            packages/formatting packages/host-bridge packages/i18n packages/money \
+            packages/contracts packages/formatting packages/host-bridge packages/i18n packages/money \
             packages/tokens packages/ui \
             src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
             src/AFK4.SetupWizard.Web \

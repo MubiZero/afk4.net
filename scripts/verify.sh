@@ -63,6 +63,12 @@ detect_lanes() {
       brand/*|packages/*|src/AFK4.PlatformControl.Web/*|src/AFK4.OrganizationAdmin.Web/*|src/AFK4.SetupWizard.Web/*|src/AFK4.Player.Shell.Web/*|package.json|bun.lock|bunfig.toml|.github/workflows/pr-verification.yml)
         run_web=web ;;
     esac
+    # Контракты — исходник типов веба: правка записи C# обязана поднимать веб-дорожку, иначе
+    # расхождение уедет в сгенерированный файл незамеченным.
+    case "$path" in
+      src/AFK4.Shared.Contracts/*)
+        run_web=web ;;
+    esac
     case "$path" in
       locales/*|packages/i18n/*|src/afk4_customer_app/*|.github/workflows/pr-verification.yml)
         run_flutter=flutter ;;
@@ -266,6 +272,25 @@ if printf '%s\n' "${lanes[@]}" | grep -qx -e web -e flutter; then
   after=$(git hash-object $(git ls-files $generated) | shasum)
   if [ "$before" != "$after" ]; then
     echo "Каталог правили без перегенерации: (cd packages/i18n && bun run gen) поменял вывод — закоммить его." >&2
+    git status --short -- $generated >&2
+    exit 1
+  fi
+  echo "ок"
+fi
+
+if printf '%s\n' "${lanes[@]}" | grep -qx web; then
+  step "Контракты сгенерированы заново"
+  # То же свойство, что у локализации: перегенерация ничего не меняет. Ловит правку записи C#
+  # без перегенерации — а это ровно тот молчаливый дрейф, ради которого генератор и заведён.
+  generated="packages/contracts/src"
+  before=$(git hash-object $(git ls-files $generated) | shasum)
+  if ! (cd packages/contracts && bun run gen) >"$logs/contracts.log" 2>&1; then
+    tail -30 "$logs/contracts.log"
+    exit 1
+  fi
+  after=$(git hash-object $(git ls-files $generated) | shasum)
+  if [ "$before" != "$after" ]; then
+    echo "Контракты правили без перегенерации: (cd packages/contracts && bun run gen) поменял вывод — закоммить его." >&2
     git status --short -- $generated >&2
     exit 1
   fi
