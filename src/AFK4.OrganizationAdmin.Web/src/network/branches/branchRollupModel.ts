@@ -1,3 +1,5 @@
+import type { OperatorDashboardSummaryDto } from '../../operatorApiClients';
+
 export interface BranchKpis {
   devicesOnline: { online: number; total: number };
   activeSessions: number;
@@ -29,35 +31,20 @@ export interface BranchRollupEntry {
   branchId: string;
   name: string;
   city: string;
-  summary: Record<string, unknown> | null;
+  summary: OperatorDashboardSummaryDto | null;
 }
 
-function num(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
-function obj(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-}
-
-// Operator dashboard-summary DTO is loosely typed (Record<string, unknown>) on the client, so every
-// field is read defensively. Money fields are MoneyDto over the wire — { currencyCode, minorUnits }
-// (see AFK4.Shared.Contracts/Billing/MoneyDto.cs) — not { amount } and not amountMinorUnits.
-function toKpis(summary: Record<string, unknown>): BranchKpis {
-  const utilization = obj(summary.utilization);
-  const revenue = obj(summary.revenue);
-  const totalRevenue = obj(revenue.totalRevenue);
-  const alertPressure = obj(summary.alertPressure);
-  const online = num(utilization.onlineDevices);
-  const offline = num(utilization.offlineDevices);
+function toKpis(summary: OperatorDashboardSummaryDto): BranchKpis {
+  const { utilization, revenue, alertPressure } = summary;
+  const online = utilization.onlineDevices;
   return {
-    devicesOnline: { online, total: online + offline },
-    activeSessions: num(utilization.activeSessions),
+    devicesOnline: { online, total: online + utilization.offlineDevices },
+    activeSessions: utilization.activeSessions,
     revenue: {
-      minorUnits: num(totalRevenue.minorUnits),
-      currencyCode: typeof totalRevenue.currencyCode === 'string' ? totalRevenue.currencyCode : ''
+      minorUnits: revenue.totalRevenue.minorUnits,
+      currencyCode: revenue.totalRevenue.currencyCode
     },
-    attention: num(alertPressure.totalAlerts)
+    attention: alertPressure.totalAlerts
   };
 }
 

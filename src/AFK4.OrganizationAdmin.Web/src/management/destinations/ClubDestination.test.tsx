@@ -5,11 +5,27 @@ import { ToastProvider } from '../../operatorToast';
 import type { BranchProfileDto } from '../../api/clients/settings';
 
 const getBranchProfile = mock(async (): Promise<BranchProfileDto> => ({
+  organizationId: 'org-1',
+  branchId: 'branch-1',
   name: 'AFK4 Центр',
   city: 'Душанбе',
+  description: null,
+  address: null,
+  phone: null,
+  telegram: null,
+  website: null,
+  instagram: null,
+  logoUrl: null,
+  logoMediaId: null,
+  coverImageUrl: null,
+  coverMediaId: null,
+  photos: [],
+  latitude: null,
+  longitude: null,
   timeZone: 'Asia/Dushanbe',
   locale: 'ru',
-  workingHours: [1, 2, 3, 4, 5, 6, 7].map((d) => ({ dayOfWeek: d, isClosed: false, openTime: '10:00', closeTime: '22:00' }))
+  workingHours: [1, 2, 3, 4, 5, 6, 7].map((d) => ({ dayOfWeek: d, isClosed: false, openTime: '10:00', closeTime: '22:00' })),
+  createdAtUtc: '2026-01-01T00:00:00Z'
 }));
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../../operatorHelpers', () => ({

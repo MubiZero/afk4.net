@@ -17,7 +17,6 @@ import {
   readArray,
   readMoney,
   readNumber,
-  readRecord,
   readString,
   requireBackend,
   safeReceiptFileName
@@ -148,8 +147,7 @@ export function CashReceiptsLedger({
       if (!saleId) throw new Error(t('op.pos.error.selectReceiptFromList'));
       const built = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const sale = await built.pos.getSale(saleId);
-      const latestReceipt = readRecord(sale, 'latestReceipt');
-      const receiptId = readString(latestReceipt, 'receiptId');
+      const receiptId = sale.latestReceipt?.receiptId ?? '';
       const receipt = receiptId ? await built.pos.getReceipt(receiptId) : null;
       if (request !== detailRequest.current) return;
       setSaleDetail(sale);
@@ -216,7 +214,7 @@ export function CashReceiptsLedger({
     }
   };
 
-  const selectedReceiptRecord = receiptDetail ?? readRecord(saleDetail, 'latestReceipt');
+  const selectedReceiptRecord = receiptDetail ?? saleDetail?.latestReceipt ?? null;
 
   const printReceipt = () => {
     setFeedback({ label: t('op.pos.feedback.print'), state: 'pending' });
@@ -274,7 +272,9 @@ export function CashReceiptsLedger({
           : detailState.status === 'ready' && saleDetail !== null ? <div className="cash-receipt-inspector">
             <div className="cash-receipt-inspector-head"><span>{t('op.pos.receipts.detailsTitle')}</span><strong>{posSaleStateLabel(readString(saleDetail, 'state', 'sale'), t)}</strong><b>{readMoney(saleDetail, 'total') ? <Money minorUnits={readMoney(saleDetail, 'total')!.minorUnits} currencyCode={currencyCode} /> : '—'}</b></div>
             <section><h3>{t('op.cash.receipts.lines')}</h3>{readArray(saleDetail, 'lines').map((line) => <div className="cash-receipt-line" key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}><span>{readString(line, 'productName', t('op.pos.receipts.productFallback'))}<small>{readNumber(line, 'quantity', 0)} × <Money minorUnits={readMoney(line, 'unitPrice')?.minorUnits ?? 0} currencyCode={currencyCode} /></small></span><strong><Money minorUnits={readMoney(line, 'lineTotal')?.minorUnits ?? (readMoney(line, 'unitPrice')?.minorUnits ?? 0) * readNumber(line, 'quantity', 0)} currencyCode={currencyCode} /></strong></div>)}</section>
-            <section><h3>{t('op.cash.receipts.payments')}</h3>{readArray(saleDetail, 'payments').map((payment, index) => <div className="cash-receipt-payment" key={`${readString(payment, 'method', readString(payment, 'source'))}-${index}`}><span>{paymentMethodLabel(readString(payment, 'method', readString(payment, 'source')))}</span><strong><Money minorUnits={readMoney(payment, 'amount')?.minorUnits ?? 0} currencyCode={currencyCode} /></strong></div>)}</section>
+            {/* Секция читала поле `payments`, которого в PosSaleDto не было, и потому всегда оставалась
+                пустой. Поле добавлено в контракт: строки оплат в базе лежали всё это время. */}
+            <section><h3>{t('op.cash.receipts.payments')}</h3>{(saleDetail.payments ?? []).map((payment, index) => <div className="cash-receipt-payment" key={`${payment.paymentMethod}-${index}`}><span>{paymentMethodLabel(payment.paymentMethod)}</span><strong><Money minorUnits={payment.amount.minorUnits} currencyCode={currencyCode} /></strong></div>)}</section>
             {receiptDetail !== null ? <div className="pos-receipt-detail"><span>{t('op.pos.receipts.platformReceipt')}</span><strong>№ {readString(receiptDetail, 'receiptNumber', t('op.pos.receipts.receiptFallback'))}</strong><p>{posReceiptTypeLabel(readString(receiptDetail, 'receiptType', 'sale'), t)}</p></div> : null}
             <div className="pos-receipt-actions">
               {canRefund ? <button type="button" disabled={feedback.state === 'pending'} onClick={() => { setFeedback(emptyFeedback); setCriticalAction('refund'); }}><Undo2 size={13} aria-hidden="true" />{t('op.pos.quick.refundLabel')}</button> : null}

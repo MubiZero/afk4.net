@@ -20,8 +20,10 @@ import {
   staffRoleLabel
 } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
+import type { StaffUserDto } from '../../operatorApiClients';
 
-type StaffUser = Record<string, unknown>;
+// Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
+type StaffUser = StaffUserDto;
 
 export function toggleRole(current: string[], role: string): string[] {
   const next = current.includes(role)

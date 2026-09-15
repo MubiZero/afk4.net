@@ -2,7 +2,20 @@ import { PlatformApiClient } from '../../platformApi';
 import type { Guid, MoneyDto, ReportQuery } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
 
-export type StockMovementDto = Record<string, unknown>;
+/** Движение товара на складе (StockMovementDto). Поля сверяются в `contractParity.test.ts`. */
+export interface StockMovementDto {
+  stockMovementId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  productId: Guid;
+  movementType: string;
+  quantityDelta: number;
+  unitCost: MoneyDto;
+  reason: string;
+  createdByStaffUserId: Guid;
+  createdAtUtc: string;
+  createdByDisplayName?: string | null;
+}
 
 export type StockMovementSearchQuery = ReportQuery & {
   productId?: Guid | null;

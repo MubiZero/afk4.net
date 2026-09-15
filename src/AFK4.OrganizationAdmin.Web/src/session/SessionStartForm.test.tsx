@@ -4,12 +4,15 @@ import { I18nProvider } from '@afk4/i18n';
 import { useState } from 'react';
 import { SessionStartForm, createSessionStartSelection } from './SessionStartForm';
 import { PlatformApiError } from '../platformApi';
+import type { TariffOptionDto } from '../operatorApiClients';
 
 afterEach(cleanup);
 
-const tariffs = [{
-  tariffVersionId: 'tariff-1', tariffRuleVersionId: 'rule-1', name: 'Standard',
-  pricePerMinuteMinorUnits: 50
+const tariffs: TariffOptionDto[] = [{
+  tariffId: 'tariff-def-1', tariffVersionId: 'tariff-1', name: 'Standard', tariffRuleVersionId: 'rule-1',
+  versionNumber: 1, currencyCode: 'TJS', pricePerMinuteMinorUnits: 50, minimumBillableMinutes: 15,
+  roundingIncrementMinutes: 5, effectiveFromUtc: '2026-01-01T00:00:00Z', appliesOnDaysMask: 0,
+  appliesFromMinuteOfDay: null, appliesToMinuteOfDay: null, appliesNow: true
 }];
 
 describe('SessionStartForm', () => {

@@ -34,10 +34,7 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
-  const state = useBranchRollup(
-    client ?? { getOwnerBranches: async () => [], getBranchProfile: async () => ({}), getBranchSummary: async () => ({}) },
-    t('op.network.branches.unnamed')
-  );
+  const state = useBranchRollup(client, t('op.network.branches.unnamed'));
   const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
 
   const screenState = backend === null ? 'loading' : state.status === 'loading' ? 'loading' : state.status === 'error' ? 'error' : 'ready';

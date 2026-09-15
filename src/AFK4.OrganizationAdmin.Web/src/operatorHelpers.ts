@@ -3,7 +3,7 @@ import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
+import { createOperatorApiClients, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { refreshOperatorSession, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
 import { isAccessTokenExpired } from './auth/staffSessionStore';
@@ -659,7 +659,7 @@ export function shellModeLabel(mode: string, t: TFunc): string {
 
 export function describeTechModeResult(
   seat: SeatSummary,
-  device: Record<string, unknown>,
+  device: DeviceDetailDto,
   diagnostics: BranchDiagnosticsDto,
   t: TFunc
 ): string {
@@ -1216,7 +1216,7 @@ export function paymentSourceLabel(source: string, t: TFunc): string {
   }
 }
 
-export function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> | null, currencyCode: string, t: TFunc): string {
+export function buildPosReceiptText(sale: PosSaleDto, receipt: ReceiptDto | null, currencyCode: string, t: TFunc): string {
   const receiptNumber = readString(receipt, 'receiptNumber', t('op.pos.receipts.receiptFallback'));
   const receiptType = posReceiptTypeLabel(readString(receipt, 'receiptType', readString(sale, 'state', 'sale')), t);
   const createdAtUtc = readString(receipt, 'createdAtUtc', readString(sale, 'createdAtUtc'));
@@ -1250,7 +1250,7 @@ export function billingModeLabel(mode: SessionBillingModeId, t: TFunc) {
   return billingModeOptions(t).find((option) => option.id === mode)?.label ?? mode;
 }
 
-export function tariffOptionLabel(tariff: Record<string, unknown>, currencyCode: string, t: TFunc) {
+export function tariffOptionLabel(tariff: TariffOptionDto, currencyCode: string, t: TFunc) {
   const name = readString(tariff, 'name', t('op.helper.player.tariffFallback'));
   const price = readNumber(tariff, 'pricePerMinuteMinorUnits', 0);
   const currency = readString(tariff, 'currencyCode', currencyCode);
@@ -1264,7 +1264,7 @@ export function playerPackageLabel(playerPackage: PlayerPackageDto, t: TFunc) {
   return t('op.helper.player.packageLabel', { name, minutes });
 }
 
-export function describeDeviceCommandStatus(status: Record<string, unknown>, t: TFunc) {
+export function describeDeviceCommandStatus(status: DeviceCommandStatusDto, t: TFunc) {
   const type = readString(status, 'type', 'command');
   const state = readString(status, 'status', 'pending');
   const message = readString(status, 'message');
@@ -1376,7 +1376,7 @@ export async function describeDispatchedDeviceCommand(
   clients: ReturnType<typeof createAuthenticatedOperatorClients>,
   session: OperatorAuthSession,
   seat: SeatSummary,
-  command: Record<string, unknown>,
+  command: DeviceCommandDto,
   t: TFunc
 ): Promise<string> {
   const commandId = readString(command, 'commandId');

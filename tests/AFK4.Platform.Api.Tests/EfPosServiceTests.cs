@@ -24,6 +24,86 @@ public sealed class EfPosServiceTests
     private static readonly Guid ActorStaffUserId = Guid.Parse("55555555-5555-4555-8555-555555555555");
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T15:00:00Z");
 
+    /// <summary>
+    /// Карточка чека обязана знать, чем заплатили.
+    ///
+    /// Секция «Оплаты» на стойке читала поле `payments`, которого в PosSaleDto не было, и потому всегда
+    /// оставалась пустой. Ответ о расчёте видел только тот, кто рассчитывал; открывая чек из журнала
+    /// сменой позже, узнать было неоткуда, хотя строки оплат всё это время лежали в базе.
+    /// </summary>
+    [Fact]
+    public async Task GetSaleAsync_ReturnsHowTheSaleWasPaid()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, priceMinorUnits: 1_000);
+        var service = CreateService(db);
+        var created = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreateSaleRequest(shift.ShiftId, product.ProductId, "sale-paid-1"),
+            CancellationToken.None);
+        var saleId = created.Response!.PosSaleId;
+        db.Payments.Add(new PaymentEntity
+        {
+            PaymentId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PosSaleId = saleId,
+            ShiftId = shift.ShiftId,
+            CreatedByStaffUserId = ActorStaffUserId,
+            PaymentKind = "pos_sale",
+            Provider = "manual",
+            PaymentMethod = "cash",
+            CurrencyCode = "TJS",
+            AmountMinorUnits = 600,
+            CreatedAtUtc = Now
+        });
+        db.Payments.Add(new PaymentEntity
+        {
+            PaymentId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PosSaleId = saleId,
+            ShiftId = shift.ShiftId,
+            CreatedByStaffUserId = ActorStaffUserId,
+            PaymentKind = "pos_sale",
+            Provider = "manual",
+            PaymentMethod = "wallet",
+            CurrencyCode = "TJS",
+            AmountMinorUnits = 400,
+            CreatedAtUtc = Now.AddSeconds(1)
+        });
+        await db.SaveChangesAsync();
+
+        var sale = await service.GetSaleAsync(TestIds.OrganizationId, saleId, CancellationToken.None);
+
+        Assert.True(sale.Succeeded);
+        Assert.Equal(
+            new[] { ("cash", 600L), ("wallet", 400L) },
+            sale.Response!.Payments!.Select(part => (part.PaymentMethod, part.Amount.MinorUnits)).ToArray());
+    }
+
+    // У черновика оплат нет, и пустой список — правда, а не умолчание от незнания.
+    [Fact]
+    public async Task GetSaleAsync_OnADraft_ReturnsNoPayments()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        var service = CreateService(db);
+        var created = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreateSaleRequest(shift.ShiftId, product.ProductId, "sale-draft-1"),
+            CancellationToken.None);
+
+        var sale = await service.GetSaleAsync(
+            TestIds.OrganizationId, created.Response!.PosSaleId, CancellationToken.None);
+
+        Assert.Empty(sale.Response!.Payments!);
+    }
+
     [Fact]
     public async Task CreateSaleAsync_RequiresOpenShift()
     {

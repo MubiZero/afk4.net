@@ -16,7 +16,7 @@ import {
   readString,
   requireBackend
 } from '../../../operatorHelpers';
-import type { DeviceInventoryItemDto } from '../../../operatorApiClients';
+import type { DeviceDetailDto, DeviceInventoryItemDto, RotateDeviceCredentialResponse } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
 // Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
@@ -60,10 +60,10 @@ export function DevicesTab({
 }: DevicesTabProps) {
   const { t } = useI18n();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
+  const [deviceDetail, setDeviceDetail] = useState<DeviceDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [assignSeatId, setAssignSeatId] = useState('');
-  const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
+  const [rotatedCredential, setRotatedCredential] = useState<RotateDeviceCredentialResponse | null>(null);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
   const [criticalAction, setCriticalAction] = useState<{ kind: 'revoke' | 'remove'; deviceId: string } | null>(null);
   const [displayName, setDisplayName] = useState('');
