@@ -80,6 +80,8 @@ export interface PosSaleDto {
   latestReceipt?: ReceiptDto | null;
   playerAccountId?: Guid | null;
   shopOrderId?: Guid | null;
+  /** Чем заплатили. Пусто у черновика — его ещё не оплачивали. */
+  payments?: PaymentPartDto[] | null;
 }
 
 export interface ReceiptDto {

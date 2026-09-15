@@ -17,7 +17,9 @@ const getSale = mock(async () => ({
   posSaleId: 's1', state: 'paid', total: m(1200),
   shiftId: 'shift-open', createdByStaffUserId: 'cashier-1', createdAtUtc: new Date().toISOString(),
   lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200), lineTotal: m(1200) }],
-  payments: [{ method: 'cash', amount: m(700) }, { method: 'card', amount: m(500) }],
+  // Именно paymentMethod: раньше фикстура несла `method` и само поле `payments`, которого в
+  // PosSaleDto не было вовсе, — тест был зелёным и удостоверял секцию, всегда пустую в проде.
+  payments: [{ paymentMethod: 'cash', amount: m(700) }, { paymentMethod: 'card', amount: m(500) }],
   latestReceipt: { receiptId: 'r1', receiptNumber: '1048', total: m(1200) }
 }));
 const getReceipt = mock(async () => ({ receiptId: 'r1', receiptNumber: '1048', receiptType: 'sale', total: m(1200) }));
@@ -125,7 +127,7 @@ describe('CashReceiptsLedger', () => {
       posSaleId: 's1', state: 'paid', total: m(1200),
       shiftId: 'shift-open', createdByStaffUserId: 'someone-else', createdAtUtc: new Date().toISOString(),
       lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200), lineTotal: m(1200) }],
-      payments: [{ method: 'cash', amount: m(1200) }],
+      payments: [{ paymentMethod: 'cash', amount: m(1200) }],
       latestReceipt: { receiptId: 'r1', receiptNumber: '1048', total: m(1200) }
     }));
 
@@ -143,7 +145,7 @@ describe('CashReceiptsLedger', () => {
       posSaleId: 's1', state: 'paid', total: m(1200),
       shiftId: 'shift-old', createdByStaffUserId: 'someone-else', createdAtUtc: '2026-06-25T08:00:00Z',
       lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200), lineTotal: m(1200) }],
-      payments: [{ method: 'cash', amount: m(1200) }],
+      payments: [{ paymentMethod: 'cash', amount: m(1200) }],
       latestReceipt: { receiptId: 'r1', receiptNumber: '1048', total: m(1200) }
     }));
 

@@ -191,6 +191,9 @@ const PAIRS: Pair[] = [
   },
   { record: 'AuditSearchResultDto', contract: 'Audit/AuditSearchResultDto.cs', client: 'clients/audit.ts', type: 'AuditSearchResultDto' },
   { record: 'PosSaleDto', contract: 'Pos/PosSaleDto.cs', client: 'clients/pos.ts', type: 'PosSaleDto' },
+  // Часть оплаты чека. Под паритетом с тех пор, как оплаты доехали до PosSaleDto: секция
+  // «Оплаты» на стойке читала поле, которого в контракте не было, и всегда оставалась пустой.
+  { record: 'PaymentPartDto', contract: 'Sessions/PaymentPartDto.cs', client: 'clients/sessions.ts', type: 'PaymentPartDto' },
   { record: 'PosSaleLineDto', contract: 'Pos/PosSaleLineDto.cs', client: 'clients/pos.ts', type: 'PosSaleLineDto' },
   { record: 'ReceiptDto', contract: 'Receipts/ReceiptDto.cs', client: 'clients/pos.ts', type: 'ReceiptDto' },
   {

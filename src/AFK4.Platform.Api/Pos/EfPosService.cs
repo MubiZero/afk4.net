@@ -344,7 +344,22 @@ public sealed class EfPosService(
             .Select(order => (Guid?)order.ShopOrderId)
             .SingleOrDefaultAsync(cancellationToken);
 
-        return BillingCommandServiceResult<PosSaleDto>.Ok(ToDto(sale, lines, latestReceipt, shopOrderId));
+        // Чем заплатили — единственный путь, которым это узнаёт карточка чека. Ответ о расчёте видел
+        // только тот, кто рассчитывал; открывая чек из журнала позже, узнать было неоткуда.
+        var payments = await dbContext.Payments
+            .AsNoTracking()
+            .Where(payment =>
+                payment.OrganizationId == organizationId &&
+                payment.PosSaleId == posSaleId)
+            .OrderBy(payment => payment.CreatedAtUtc)
+            .ThenBy(payment => payment.PaymentId)
+            .Select(payment => new PaymentPartDto(
+                payment.PaymentMethod,
+                new MoneyDto(payment.CurrencyCode, payment.AmountMinorUnits)))
+            .ToListAsync(cancellationToken);
+
+        return BillingCommandServiceResult<PosSaleDto>.Ok(
+            ToDto(sale, lines, latestReceipt, shopOrderId, payments));
     }
 
     private static string? ValidateCreateSaleRequest(CreatePosSaleRequest request)
@@ -544,7 +559,8 @@ public sealed class EfPosService(
         PosSaleEntity sale,
         IReadOnlyList<PosSaleLineEntity> lines,
         ReceiptEntity? latestReceipt = null,
-        Guid? shopOrderId = null)
+        Guid? shopOrderId = null,
+        IReadOnlyList<PaymentPartDto>? payments = null)
     {
         return new PosSaleDto(
             sale.PosSaleId,
@@ -561,7 +577,8 @@ public sealed class EfPosService(
             sale.VoidedAtUtc,
             latestReceipt is null ? null : ToDto(latestReceipt, shopOrderId),
             sale.PlayerAccountId,
-            shopOrderId);
+            shopOrderId,
+            payments);
     }
 
     private static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId = null)
