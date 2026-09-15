@@ -58,14 +58,14 @@ export function PostAuthShiftGate({
 
         {checking && (
           <div className="shift-gate-loading" role="status">
-            <LoaderCircle className="auth-spinner" size={20} aria-hidden="true" />
+            <LoaderCircle className="ui-spinner" size={20} aria-hidden="true" />
             <span>{t('op.shiftGate.checking')}</span>
           </div>
         )}
 
         {checkFailed && (
           <>
-            <div className="auth-error" role="alert">
+            <div className="ui-alert" role="alert">
               <AlertTriangle size={17} aria-hidden="true" />
               <span>{controller.error}</span>
             </div>
@@ -102,14 +102,14 @@ export function PostAuthShiftGate({
               />
             </label>
             {(localError ?? controller.error) && (
-              <div className="auth-error" role="alert">
+              <div className="ui-alert" role="alert">
                 <AlertTriangle size={17} aria-hidden="true" />
                 <span>{localError ?? controller.error}</span>
               </div>
             )}
             <button type="submit" className="auth-primary" disabled={opening}>
               {opening
-                ? <LoaderCircle className="auth-spinner" size={16} aria-hidden="true" />
+                ? <LoaderCircle className="ui-spinner" size={16} aria-hidden="true" />
                 : <Unlock size={16} aria-hidden="true" />}
               <span>{t('op.cash.open.submit')}</span>
             </button>

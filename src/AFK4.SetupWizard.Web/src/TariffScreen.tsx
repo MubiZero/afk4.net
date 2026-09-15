@@ -79,11 +79,11 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
       </div>
 
       <button type="button" className="wizard-secondary" onClick={() => void create()} disabled={!canCreate}>
-        {saving ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
+        {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
         {t('setup.wizard.tariff.create')}
       </button>
 
-      {failed ? <p className="wizard-alert">{t('setup.wizard.tariff.failed')}</p> : null}
+      {failed ? <p className="ui-alert">{t('setup.wizard.tariff.failed')}</p> : null}
       {created === null ? null : <p className="wizard-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
 
       <div className="wizard-actions">

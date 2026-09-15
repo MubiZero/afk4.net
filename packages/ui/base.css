@@ -77,11 +77,6 @@ button {
   }
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* Галочка успеха «впрыгивает»: чуть проскочила масштаб и осела — физический «щелчок». */
 @keyframes check-pop {
@@ -101,9 +96,6 @@ button {
   }
 }
 
-.spin {
-  animation: spin 720ms linear infinite;
-}
 
 
 .workspace-screen {

@@ -10,13 +10,13 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  height: var(--control-md);
-  padding: 0 var(--space-3);
+  height: var(--control-h);
+  padding: 0 var(--control-pad);
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   background: var(--surface-card);
   color: var(--text-strong);
-  font-size: var(--text-xs);
+  font-size: var(--control-font);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -213,17 +213,17 @@
 
 /* ============ Field ============ */
 .ui-field { display: grid; gap: var(--space-1); }
-.ui-field > label { color: var(--text-secondary); font-size: var(--text-xs); font-weight: 600; }
+.ui-field > label { color: var(--text-secondary); font-size: var(--field-label-font); font-weight: 600; }
 .ui-field > input,
 .ui-field > select {
-  height: var(--control-md);
+  height: var(--control-h);
   min-width: 0;
-  padding: 0 var(--space-3);
+  padding: 0 var(--control-pad);
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   background: var(--surface-sunken);
   color: var(--text-primary);
-  font-size: var(--text-xs);
+  font-size: var(--control-font);
   outline: 0;
   transition: border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
@@ -537,4 +537,44 @@
   .ui-switch::after {
     transition-duration: 0.01ms;
   }
+}
+
+/* Одна плашка ошибки на всё.
+ *
+ * Их было три — `auth-error`, `workspace-error`, `wizard-alert`, — и различались они только
+ * высотой (38/—/40), паддингом (8px 12px / 10px 12px / 10px 14px) и шрифтом (12/12/13). Всё
+ * остальное совпадало байт в байт: рамка, левая полоса, фон, цвет, вес. Три ответа на один
+ * вопрос появились не от замысла, а от того, что каждый набор писали отдельно.
+ */
+.ui-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--alert-min-h);
+  border: 1px solid var(--danger-soft-border);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: var(--alert-pad);
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+  font-size: var(--alert-font);
+  font-weight: 700;
+}
+
+.ui-alert svg { flex: 0 0 auto; }
+
+/* Плашка внутри рабочей области отбивается от соседей; на экране входа и в мастере отступ
+   задаёт сам экран. */
+.ui-alert--spaced { margin: var(--space-2) 0; }
+
+/* Один спиннер вместо трёх: `.spin` 720ms, `auth-spin` 800ms и `wizard-spin` 800ms крутили одно
+   и то же с разной скоростью. Разница была невидимой и незамеченной. */
+.ui-spinner { animation: ui-spin 800ms linear infinite; }
+
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-spinner { animation-duration: 2400ms; }
 }

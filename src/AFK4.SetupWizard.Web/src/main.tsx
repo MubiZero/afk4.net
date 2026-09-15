@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@afk4/i18n';
 import { App } from './App';
-import '@afk4/tokens/tokens.css';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(

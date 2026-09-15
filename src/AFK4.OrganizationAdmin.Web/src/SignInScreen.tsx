@@ -162,7 +162,7 @@ export function SignInScreen({
           </div>
 
           {chooseClubError && (
-            <div className="auth-error" role="alert">
+            <div className="ui-alert" role="alert">
               <AlertTriangle size={16} aria-hidden />
               <span>{chooseClubError}</span>
             </div>
@@ -252,7 +252,7 @@ export function SignInScreen({
           </div>
 
           {error && (
-            <div className="auth-error" role="alert">
+            <div className="ui-alert" role="alert">
               <AlertTriangle size={16} aria-hidden />
               <span>{error}</span>
             </div>
@@ -261,7 +261,7 @@ export function SignInScreen({
           <button type="submit" className="auth-primary" disabled={isBusy || isChecking}>
             {isBusy ? (
               <>
-                <Loader2 className="auth-spinner" size={18} aria-hidden />
+                <Loader2 className="ui-spinner" size={18} aria-hidden />
                 <span>{t('auth.action.signingIn')}</span>
               </>
             ) : (

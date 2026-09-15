@@ -131,7 +131,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
   if (step.kind === 'error') {
     return (
       <section className="auth-panel">
-        <div className="auth-error" role="alert">
+        <div className="ui-alert" role="alert">
           <AlertTriangle size={16} aria-hidden="true" />
           <span>{step.message}</span>
         </div>
@@ -149,7 +149,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
           <h1>{t('auth.twoFactor.recovery.title')}</h1>
         </header>
 
-        <div className="auth-error" role="alert">
+        <div className="ui-alert" role="alert">
           <AlertTriangle size={16} aria-hidden="true" />
           <span>{t('auth.twoFactor.recovery.warning')}</span>
         </div>
@@ -164,7 +164,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
         </button>
 
         {copyFailed ? (
-          <div className="auth-error" role="alert">
+          <div className="ui-alert" role="alert">
             <AlertTriangle size={16} aria-hidden="true" />
             <span>{t('auth.twoFactor.recovery.copyFailed')}</span>
           </div>
@@ -213,7 +213,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
 
       <form className="auth-form" onSubmit={event => void handleConfirm(event)} noValidate>
         {confirmError !== null ? (
-          <div className="auth-error" role="alert">
+          <div className="ui-alert" role="alert">
             <AlertTriangle size={16} aria-hidden="true" />
             <span>{confirmError}</span>
           </div>
@@ -235,7 +235,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
         </div>
 
         <button type="submit" className="auth-primary" disabled={isConfirming || code.trim().length === 0}>
-          {isConfirming ? <Loader2 className="auth-spinner" aria-hidden="true" /> : null}
+          {isConfirming ? <Loader2 className="ui-spinner" aria-hidden="true" /> : null}
           {t('auth.twoFactor.setup.confirm')}
           {isConfirming ? null : <ArrowRight aria-hidden="true" />}
         </button>

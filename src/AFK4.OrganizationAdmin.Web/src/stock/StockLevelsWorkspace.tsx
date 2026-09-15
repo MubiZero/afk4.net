@@ -86,7 +86,7 @@ export function StockLevelsWorkspace({
   if (!canView) {
     return (
       <section className="cash-stock-levels">
-        <p className="workspace-error">{t('op.stock.levels.noPermission')}</p>
+        <p className="ui-alert ui-alert--spaced">{t('op.stock.levels.noPermission')}</p>
       </section>
     );
   }
@@ -101,7 +101,7 @@ export function StockLevelsWorkspace({
     return (
       <div className="stock-layout">
         <section className="cash-stock-levels">
-          <p className="workspace-error" role="alert">{loadError}</p>
+          <p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p>
         </section>
       </div>
     );

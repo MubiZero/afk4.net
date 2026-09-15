@@ -180,7 +180,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
           <button type="submit" className="wizard-primary" disabled={!canReset}>
             {isBusy ? (
               <>
-                <Loader2 className="wizard-spinner" aria-hidden />
+                <Loader2 className="ui-spinner" aria-hidden />
                 <span>{t('auth.forgot.phone.resetting')}</span>
               </>
             ) : (
@@ -204,7 +204,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
           <button type="submit" className="wizard-primary" disabled={!canRequest}>
             {isBusy ? (
               <>
-                <Loader2 className="wizard-spinner" aria-hidden />
+                <Loader2 className="ui-spinner" aria-hidden />
                 <span>{t('auth.forgot.email.submitting')}</span>
               </>
             ) : (
@@ -243,7 +243,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
           <button type="submit" className="wizard-primary" disabled={!canRequest}>
             {isBusy ? (
               <>
-                <Loader2 className="wizard-spinner" aria-hidden />
+                <Loader2 className="ui-spinner" aria-hidden />
                 <span>{t('auth.forgot.phone.submitting')}</span>
               </>
             ) : (
@@ -266,7 +266,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
       )}
 
       {error && (
-        <div role="alert" className="wizard-alert">
+        <div role="alert" className="ui-alert">
           {error}
         </div>
       )}

@@ -16,7 +16,7 @@ export function SupportAccessErrorScreen() {
           <h1>{t('support.access.error.title')}</h1>
         </header>
 
-        <div className="auth-error" role="alert">
+        <div className="ui-alert" role="alert">
           <AlertTriangle size={16} aria-hidden />
           <span>{t('support.access.error.body')}</span>
         </div>

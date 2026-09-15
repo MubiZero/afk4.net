@@ -94,7 +94,7 @@ export function InventoryWorkspace({
   const showSkeleton = useDeferredFlag(loading);
 
   if (!canManage) {
-    return <section className="stock-inventory"><p className="workspace-error">{t('op.stock.inventory.noPermission')}</p></section>;
+    return <section className="stock-inventory"><p className="ui-alert ui-alert--spaced">{t('op.stock.inventory.noPermission')}</p></section>;
   }
   if (loading && lines.length === 0) {
     return showSkeleton
@@ -102,7 +102,7 @@ export function InventoryWorkspace({
       : <div className="stock-layout" />;
   }
   if (loadError) {
-    return <div className="stock-layout"><section className="stock-inventory"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
+    return <div className="stock-layout"><section className="stock-inventory"><p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p></section></div>;
   }
 
   const totals = inventoryTotals(lines);

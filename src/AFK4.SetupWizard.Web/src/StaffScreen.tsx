@@ -99,11 +99,11 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
       </div>
 
       <button type="button" className="wizard-secondary" onClick={() => void invite()} disabled={!canSend}>
-        {sending ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : <UserPlus size={16} aria-hidden />}
+        {sending ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <UserPlus size={16} aria-hidden />}
         {t('setup.wizard.staff.add')}
       </button>
 
-      {failed ? <p className="wizard-alert">{t('setup.wizard.staff.failed')}</p> : null}
+      {failed ? <p className="ui-alert">{t('setup.wizard.staff.failed')}</p> : null}
 
       {invited.length > 0 ? (
         <ul className="wizard-staff-list">

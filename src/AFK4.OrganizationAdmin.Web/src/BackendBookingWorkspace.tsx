@@ -710,11 +710,11 @@ export function BackendBookingWorkspace({
       </section>
 
       {loadStatus === 'failed' && (
-        <p className="workspace-error" role="alert">{loadError ?? t('op.booking.load.failed')}</p>
+        <p className="ui-alert ui-alert--spaced" role="alert">{loadError ?? t('op.booking.load.failed')}</p>
       )}
 
       {loadStatus !== 'failed' && sessionsFailed && (
-        <p className="workspace-error" role="alert">{t('op.booking.sessions.failed')}</p>
+        <p className="ui-alert ui-alert--spaced" role="alert">{t('op.booking.sessions.failed')}</p>
       )}
 
       <BookingRequestsLane

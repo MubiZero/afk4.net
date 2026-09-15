@@ -101,11 +101,11 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
       </div>
 
       <button type="button" className="wizard-secondary" onClick={() => void create()} disabled={!canCreate}>
-        {creating ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
+        {creating ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
         {t('setup.wizard.hall.create')}
       </button>
 
-      {failed ? <p className="wizard-alert">{t('setup.wizard.hall.failed')}</p> : null}
+      {failed ? <p className="ui-alert">{t('setup.wizard.hall.failed')}</p> : null}
       {createdNames.length > 0 ? (
         <p className="wizard-field-hint">{t('setup.wizard.hall.created', { count: createdNames.length })}</p>
       ) : null}

@@ -134,7 +134,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
 
       <div className="wizard-field">
         <button type="button" className="wizard-secondary" onClick={() => void upload()} disabled={uploading}>
-          {uploading ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : null}
+          {uploading ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : null}
           {t('setup.wizard.branding.upload')}
         </button>
         {ownLogoUrl === null ? null : (
@@ -142,7 +142,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
             <img src={ownLogoUrl} alt={t('setup.wizard.branding.ownLogo')} />
           </span>
         )}
-        {uploadFailed ? <p className="wizard-alert">{t('setup.wizard.branding.uploadFailed')}</p> : null}
+        {uploadFailed ? <p className="ui-alert">{t('setup.wizard.branding.uploadFailed')}</p> : null}
       </div>
 
       <div className="wizard-field">
@@ -170,7 +170,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         </div>
       </div>
 
-      {failed ? <p className="wizard-alert">{t('setup.wizard.branding.failed')}</p> : null}
+      {failed ? <p className="ui-alert">{t('setup.wizard.branding.failed')}</p> : null}
 
       <div className="wizard-actions">
         <button type="button" className="wizard-secondary" onClick={onBack}>
@@ -183,7 +183,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
           {t('setup.wizard.branding.skip')}
         </button>
         <button type="button" className="wizard-primary" onClick={() => void save()} disabled={saving}>
-          {saving ? <Loader2 size={16} className="wizard-spinner" aria-hidden /> : <ArrowRight size={16} aria-hidden />}
+          {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <ArrowRight size={16} aria-hidden />}
           {t('setup.wizard.branding.save')}
         </button>
       </div>

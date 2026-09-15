@@ -41,7 +41,7 @@ export function BlockedOrganizationScreen({
             </p>
           </header>
 
-          <div className="auth-error" role="alert">
+          <div className="ui-alert" role="alert">
             <AlertTriangle size={16} />
             <span>
               {isDeletionPending

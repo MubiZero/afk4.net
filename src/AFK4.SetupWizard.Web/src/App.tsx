@@ -360,7 +360,8 @@ export function App() {
   }, [state.step, steps, t]);
 
   return (
-    <div className="wizard-shell">
+    // Плотность выбирает экран, а не приложение: мастер — одна задача во весь экран.
+    <div className="wizard-shell" data-density="comfortable">
       <header className="wizard-titlebar" onPointerDown={handleHeaderPointerDown}>
         <div className="wizard-brand">
           <BrandMark className="wizard-brand-logo" />
