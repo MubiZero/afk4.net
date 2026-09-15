@@ -78,6 +78,7 @@ public sealed class PosContractSerializationTests
             BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
             Name: "Drinks",
             IsActive: true,
+            SortOrder: 2,
             CreatedAtUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"));
 
         var copy = JsonSerializer.Deserialize<PosProductCategoryDto>(

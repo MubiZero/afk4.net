@@ -143,6 +143,36 @@ public sealed class PlayerShopEndpointTests
         await AssertLinkedRefundStateAsync(factory, placed.Id, placed.PosSaleId!.Value);
     }
 
+    // Скрытая категория убирает товар и из магазина оболочки. Иначе игрок заказал бы то, что стойка
+    // уже не продаёт, и узнавал бы об этом только отказом на расчёте.
+    [Fact]
+    public async Task GetCatalog_DropsProductsOfAHiddenCategory()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(client, seeded);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var cola = await db.PosProducts.SingleAsync(product => product.ProductId == seeded.ColaProductId);
+            db.PosProductCategories.Add(new PosProductCategoryEntity
+            {
+                CategoryId = cola.CategoryId,
+                OrganizationId = cola.OrganizationId,
+                BranchId = cola.BranchId,
+                Name = "Напитки",
+                IsActive = false,
+                CreatedAtUtc = DateTimeOffset.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var catalog = await client.GetFromJsonAsync<List<ShopCatalogItemDto>>("/api/me/shop/catalog");
+
+        Assert.Empty(catalog!);
+    }
+
     [Fact]
     public async Task GetCatalog_Unauthenticated_Returns401()
     {

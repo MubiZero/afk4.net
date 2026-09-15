@@ -35,8 +35,15 @@ internal static class PlayerShopEndpoints
                 .FirstOrDefaultAsync(ct);
             if (session is null) return Results.Ok(Array.Empty<ShopCatalogItemDto>());
 
+            // Скрытая категория убирает свои товары и из магазина оболочки: иначе игрок заказывал бы
+            // то, что стойка уже не продаёт, и узнавал об этом только отказом на расчёте.
+            var hiddenCategoryIds = await db.PosProductCategories.AsNoTracking()
+                .Where(c => c.BranchId == session.BranchId && !c.IsActive)
+                .Select(c => c.CategoryId)
+                .ToListAsync(ct);
             var products = await db.PosProducts.AsNoTracking()
-                .Where(p => p.BranchId == session.BranchId && p.IsActive && p.AvailableInShell)
+                .Where(p => p.BranchId == session.BranchId && p.IsActive && p.AvailableInShell
+                    && !hiddenCategoryIds.Contains(p.CategoryId))
                 .OrderBy(p => p.Name)
                 .ToListAsync(ct);
             var productIds = products.Select(p => p.ProductId).ToList();

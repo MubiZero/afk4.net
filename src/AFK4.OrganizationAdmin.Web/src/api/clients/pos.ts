@@ -54,7 +54,17 @@ export interface PosProductDto extends Record<string, unknown> {
 
 export type PosSaleDto = Record<string, unknown>;
 export type ReceiptDto = Record<string, unknown>;
-export type PosProductCategoryDto = Record<string, unknown>;
+export interface PosProductCategoryDto {
+  categoryId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  /** Видна ли категория на стойке и в магазине оболочки. */
+  isActive: boolean;
+  /** Место в списке, по возрастанию. */
+  sortOrder: number;
+  createdAtUtc: string;
+}
 
 export function createPosClient(api: PlatformApiClient) {
   return {

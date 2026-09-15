@@ -107,6 +107,25 @@ public sealed class EfPosService(
                 return BillingCommandServiceResult<PosSaleDto>.Missing("Product was not found.");
             }
 
+            // Скрытая категория снимает с продажи все свои товары — иначе сканер штрихкода продолжал бы
+            // продавать то, что убрали из меню, и «скрыть» означало бы только «убрать с глаз».
+            var saleCategoryIds = products.Values.Select(product => product.CategoryId).Distinct().ToList();
+            var hiddenCategoryName = await dbContext.PosProductCategories
+                .AsNoTracking()
+                .Where(category =>
+                    category.OrganizationId == request.OrganizationId &&
+                    category.BranchId == branchId &&
+                    !category.IsActive &&
+                    saleCategoryIds.Contains(category.CategoryId))
+                .Select(category => category.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (hiddenCategoryName is not null)
+            {
+                // Имя категории в отказе нарочно: кассиру надо знать, что именно включить обратно.
+                return BillingCommandServiceResult<PosSaleDto>.Invalid(
+                    $"Product category \"{hiddenCategoryName}\" is hidden and cannot be sold.");
+            }
+
             var currencyCode = products.Values.First().CurrencyCode;
             if (products.Values.Any(product =>
                     !string.Equals(product.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase)))
