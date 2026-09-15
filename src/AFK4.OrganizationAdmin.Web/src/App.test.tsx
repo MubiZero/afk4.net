@@ -627,6 +627,9 @@ describe('App', () => {
     const body = JSON.parse(String(postCall?.[1]?.body));
     expect(body.reason).toBe('operator');
     expect(body.idempotencyKey).toMatch(/^session-end-/);
+    // Версия, которую оператор видел, едет с действием: без неё сервер не отличит «завершаю то,
+    // что вижу» от «завершаю по устаревшему виду», и продление соседа затрётся молча.
+    expect(body.expectedVersion).toBe(7);
   });
 
   it('checks out an active session with a cash payment through the backend', async () => {
@@ -2796,6 +2799,7 @@ function createFloorMap() {
         agentVersion: '0.4',
         shellVersion: '0.4',
         activeSessionId: '22222222-2222-2222-2222-222222222222',
+        sessionVersion: 7,
         remainingSeconds: 2580
       },
       {

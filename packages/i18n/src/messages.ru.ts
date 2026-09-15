@@ -1124,6 +1124,7 @@ export const ru = {
   "op.error.code.sessionStartConflict": "Сессию нельзя запустить из-за конфликта. Обновите данные.",
   "op.error.code.sessionStartInvalid": "Проверьте параметры запуска сессии.",
   "op.error.code.versionConflict": "Данные уже изменились. Обновите их и повторите действие.",
+  "op.error.code.staleSessionVersion": "Сессия изменилась с тех пор, как вы её открыли. Экран обновлён — проверьте и повторите.",
   "op.eskhata.baseUrl": "Base URL",
   "op.eskhata.companyId": "Company ID",
   "op.eskhata.configure": "Настроить",

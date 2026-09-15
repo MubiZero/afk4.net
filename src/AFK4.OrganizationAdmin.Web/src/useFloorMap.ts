@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { useI18n } from '@afk4/i18n';
-import { projectOperatorError } from './apiErrors';
+import { isStaleSessionVersion, projectOperatorError } from './apiErrors';
 import { refreshOperatorSession, isUnauthorizedStaffAuthError, type OperatorAuthSession } from './authClient';
 import {
   createFixtureFloorMapState,
@@ -227,7 +227,7 @@ export function useFloorMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, authSession, activeBranchId, config.platformBaseUrl]);
 
-  const handleSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
+  const runSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
     const session = authSession;
     if (session === null) {
       throw new Error(t('op.shell.err.notSignedIn'));
@@ -247,6 +247,10 @@ export function useFloorMap({
     }
 
     const clients = createAuthenticatedOperatorClients(config, session);
+    // Каждое действие над сессией несёт версию, которую оператор видел. Сервер её проверяет и
+    // отвечает 409 `stale_version`, если сессию успели изменить: иначе теряется не одновременный
+    // доступ (его ловит база), а устаревший взгляд — второй оператор продлил, первый завершил по
+    // прежнему виду, и продление исчезло молча.
     let response: SessionActionResponse;
     if (request.type === 'start') {
       if (!hasPermission(session, permissionNames.startSession)) {
@@ -287,6 +291,7 @@ export function useFloorMap({
         additionalMinutes: request.minutes,
         tariffRuleVersionId: billing.tariffRuleVersionId,
         idempotencyKey: createIdempotencyKey('session-extend'),
+        expectedVersion: request.seat.sessionVersion ?? null,
         playerAccountId: billing.playerAccountId ?? null,
         billingMode: billing.mode === 'guest' ? '' : billing.mode,
         tariffVersionId: billing.tariffVersionId ?? null,
@@ -303,7 +308,8 @@ export function useFloorMap({
 
       response = await clients.sessions.transferSession(request.seat.activeSessionId, {
         targetSeatId: request.targetSeatId,
-        idempotencyKey: createIdempotencyKey('session-transfer')
+        idempotencyKey: createIdempotencyKey('session-transfer'),
+        expectedVersion: request.seat.sessionVersion ?? null
       });
     } else if (request.type === 'checkout') {
       if (!hasPermission(session, permissionNames.endSession)) {
@@ -317,7 +323,8 @@ export function useFloorMap({
       response = await clients.sessions.checkoutSession(request.seat.activeSessionId, {
         organizationId: session.organizationId,
         payments: request.payments,
-        idempotencyKey: createIdempotencyKey('session-checkout')
+        idempotencyKey: createIdempotencyKey('session-checkout'),
+        expectedVersion: request.seat.sessionVersion ?? null
       });
     } else {
       if (!hasPermission(session, permissionNames.endSession)) {
@@ -330,7 +337,8 @@ export function useFloorMap({
 
       response = await clients.sessions.endSession(request.seat.activeSessionId, {
         reason: 'operator',
-        idempotencyKey: createIdempotencyKey('session-end')
+        idempotencyKey: createIdempotencyKey('session-end'),
+        expectedVersion: request.seat.sessionVersion ?? null
       });
     }
 
@@ -437,6 +445,24 @@ export function useFloorMap({
     }
 
     throw new Error(t('op.shell.err.commandUnsupported'));
+  };
+
+  /**
+   * Устаревший взгляд лечится только свежим.
+   *
+   * Сервер отвечает 409 `stale_version`, когда сессию успели изменить с тех пор, как оператор её
+   * открыл. Без обновления карты он повторит то же действие с той же старой версией и упрётся в
+   * тот же отказ; отказ при этом остаётся — решает человек, а не экран за него.
+   */
+  const handleSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
+    try {
+      return await runSeatAction(request);
+    } catch (error) {
+      if (isStaleSessionVersion(error) && authSession !== null && activeBranchId) {
+        setFloorMap(await loadBackendFloorMapState(config, authSession, activeBranchId, t));
+      }
+      throw error;
+    }
   };
 
   return {

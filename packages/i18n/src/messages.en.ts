@@ -1124,6 +1124,7 @@ export const en = {
   "op.error.code.sessionStartConflict": "The session cannot start because of a conflict. Refresh the data.",
   "op.error.code.sessionStartInvalid": "Check the session start settings.",
   "op.error.code.versionConflict": "The data has changed. Refresh it and try again.",
+  "op.error.code.staleSessionVersion": "The session changed since you opened it. The screen is refreshed — check and try again.",
   "op.eskhata.baseUrl": "Base URL",
   "op.eskhata.companyId": "Company ID",
   "op.eskhata.configure": "Configure",

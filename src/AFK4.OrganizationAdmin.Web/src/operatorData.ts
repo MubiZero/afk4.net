@@ -40,6 +40,15 @@ export interface SeatSummary {
   isDeviceLocked?: boolean | null;
   hasActiveSession?: boolean;
   activeSessionId?: string | null;
+  /**
+   * Версия идущей сессии — её клиент возвращает следующим действием над ней.
+   *
+   * Сервер везёт её в `SeatStatusDto.sessionVersion` именно для этого, и проверяет присланное.
+   * Пока клиент её не возвращал, терялся не одновременный доступ (его ловит база), а устаревший
+   * взгляд: оператор открыл карточку, второй в это время продлил сессию, первый завершил её по
+   * своему прежнему виду — и продление молча затиралось.
+   */
+  sessionVersion?: number | null;
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;

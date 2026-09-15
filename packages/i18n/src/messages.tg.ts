@@ -1124,6 +1124,7 @@ export const tg = {
   "op.error.code.sessionStartConflict": "Сессия аз сабаби ихтилоф оғоз намешавад. Маълумотро нав кунед.",
   "op.error.code.sessionStartInvalid": "Параметрҳои оғози сессияро санҷед.",
   "op.error.code.versionConflict": "Маълумот аллакай тағйир ёфтааст. Онро нав карда, амалро такрор кунед.",
+  "op.error.code.staleSessionVersion": "Ҷаласа аз лаҳзаи кушоиш тағйир ёфт. Экран навсозӣ шуд — санҷед ва такрор кунед.",
   "op.eskhata.baseUrl": "Base URL",
   "op.eskhata.companyId": "Company ID",
   "op.eskhata.configure": "Танзим кардан",

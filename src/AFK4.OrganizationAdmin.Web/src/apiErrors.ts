@@ -22,12 +22,30 @@ const codeMessageKeys = {
   reservation_expired: 'op.error.code.reservationExpired',
   seat_unavailable: 'op.error.code.seatUnavailable',
   version_conflict: 'op.error.code.versionConflict',
+  // Сессию изменили с тех пор, как оператор её открыл. Отдельно от version_conflict: там речь про
+  // бронь, и оператору полезно знать, что именно устарело.
+  stale_version: 'op.error.code.staleSessionVersion',
   idempotency_key_required: 'op.error.code.idempotencyKeyRequired',
   idempotency_conflict: 'op.error.code.idempotencyConflict',
   session_start_invalid: 'op.error.code.sessionStartInvalid',
   session_start_conflict: 'op.error.code.sessionStartConflict',
   plan_limit_reached: 'op.error.code.planLimitReached'
 } as const satisfies Record<string, MessageKey>;
+
+/**
+ * Сессию изменили с тех пор, как оператор её открыл.
+ *
+ * Отдельный признак, а не просто 409: экран на него обновляет карту, и отличать этот отказ от
+ * прочих конфликтов нужно именно для этого.
+ */
+export function isStaleSessionVersion(error: unknown): boolean {
+  if (!(error instanceof PlatformApiError) || error.status !== 409) return false;
+  try {
+    return (JSON.parse(error.body) as { code?: string }).code === 'stale_version';
+  } catch {
+    return false;
+  }
+}
 
 /// Отказ «сумма выше порога сотрудника, но операция может быть проведена по одобрению».
 /// Сервер отвечает на него 409 с `requiresApproval: true` (EndpointHelpers.Audit) — это не
