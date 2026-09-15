@@ -149,7 +149,8 @@ export function bookingStateLabelKey(state: string): BookingStateKey {
 // нельзя. Не начавшаяся бронь — тем более: человек ещё не опоздал.
 export function bookingDetailActions(
   state: string,
-  startedByNow = false
+  startedByNow = false,
+  hasStartedSession = false
 ): {
   canConfirm: boolean;
   canStart: boolean;
@@ -159,7 +160,9 @@ export function bookingDetailActions(
 } {
   return {
     canConfirm: state === 'pending',
-    canStart: state === 'confirmed',
+    // Посаженная бронь без запущенной сессии — это отмеченный приход: человек у стойки, машина ещё
+    // не запущена. Забрать у него «Начать сессию» значило бы рвать связь брони с сессией.
+    canStart: (state === 'confirmed' || state === 'seated') && !hasStartedSession,
     // Отметка прихода повторяет правило сервера (SeatAsync): усадить можно и заявку —
     // сама посадка и есть ответ клуба, и сервер проставляет подтверждение сам.
     canSeat: state === 'pending' || state === 'confirmed',

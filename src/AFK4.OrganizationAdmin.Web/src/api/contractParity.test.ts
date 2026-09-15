@@ -232,6 +232,9 @@ const PAIRS: Pair[] = [
     type: 'OperatorDashboardRecentPaymentDto'
   },
   { record: 'AuditSearchResultDto', contract: 'Audit/AuditSearchResultDto.cs', client: 'clients/audit.ts', type: 'AuditSearchResultDto' },
+  // Два последних поля этой записи объявлены свойствами в теле, а не параметрами — раньше разбор их
+  // не видел, и сверять было нечем.
+  { record: 'AuditRecordDto', contract: 'Audit/AuditRecordDto.cs', client: 'clients/audit.ts', type: 'AuditRecordDto' },
   { record: 'PosSaleDto', contract: 'Pos/PosSaleDto.cs', client: 'clients/pos.ts', type: 'PosSaleDto' },
   // Часть оплаты чека. Под паритетом с тех пор, как оплаты доехали до PosSaleDto: секция
   // «Оплаты» на стойке читала поле, которого в контракте не было, и всегда оставалась пустой.
@@ -265,23 +268,27 @@ const PAIRS: Pair[] = [
 ];
 
 /** Имена параметров записи C# в том виде, в каком их отдаёт сериализатор: с маленькой буквы. */
+/**
+ * Имена полей записи C# в том виде, в каком их отдаёт сериализатор: с маленькой буквы.
+ *
+ * Читается и список параметров, и тело записи: поле можно объявить не параметром, а свойством
+ * (`public Guid? ActorPlatformAdminUserId { get; init; }`), и сериализуется оно наравне. Пока
+ * тело не читалось, `AuditRecordDto` под проверку было не поставить — два его последних поля
+ * парсер не видел вовсе, а поиск конца списка по `);` уезжал за конец записи.
+ */
 function serverFields(source: string, record: string): string[] {
   const start = source.indexOf(`record ${record}(`);
   if (start < 0) throw new Error(`Запись ${record} не найдена в контракте.`);
   const open = source.indexOf('(', start);
-  const close = source.indexOf(');', open);
-  const body = source
-    .slice(open + 1, close)
-    // Комментарии внутри списка параметров — обычное дело в этих файлах.
-    .replace(/\/\/[^\n]*/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const close = matchingParen(source, open);
+  const parameters = stripComments(source.slice(open + 1, close));
 
   const fields: string[] = [];
   // Тип может нести запятую внутри скобок (`IReadOnlyList<Guid>` не может, а `Dictionary<,>` да),
   // поэтому режем по запятым верхнего уровня.
   let depth = 0;
   let current = '';
-  for (const character of `${body},`) {
+  for (const character of `${parameters},`) {
     if (character === '<' || character === '(') depth += 1;
     if (character === '>' || character === ')') depth -= 1;
     if (character === ',' && depth === 0) {
@@ -290,12 +297,66 @@ function serverFields(source: string, record: string): string[] {
       if (parameter.length === 0) continue;
       // «Тип Имя» или «Тип Имя = значение».
       const name = parameter.split('=')[0].trim().split(/\s+/).pop()!;
-      fields.push(name.charAt(0).toLowerCase() + name.slice(1));
+      fields.push(camel(name));
       continue;
     }
     current += character;
   }
+
+  for (const name of bodyProperties(source, close)) {
+    // Свойство может повторять параметр — так `PosProductDto` нормализует `Barcodes`. Это одно
+    // и то же поле, и в ответе оно одно.
+    if (!fields.includes(name)) fields.push(name);
+  }
   return fields;
+}
+
+function camel(name: string): string {
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+function stripComments(text: string): string {
+  return text.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+/** Индекс скобки, закрывающей открытую в `open`. Считает вложенность, а не ищет первый `);`. */
+function matchingParen(source: string, open: number): number {
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === '(') depth += 1;
+    if (source[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  throw new Error('Не найдена закрывающая скобка списка параметров записи.');
+}
+
+/**
+ * Имена авто-свойств из тела записи, если тело есть. За списком параметров идёт либо `;`, либо
+ * `{ … }` — во втором случае поля могут быть объявлены там.
+ */
+function bodyProperties(source: string, close: number): string[] {
+  const rest = source.slice(close + 1);
+  const brace = rest.indexOf('{');
+  const semicolon = rest.indexOf(';');
+  if (brace < 0 || (semicolon >= 0 && semicolon < brace)) return [];
+
+  const body = stripComments(rest.slice(brace + 1, matchingBrace(rest, brace)));
+  return [...body.matchAll(/public\s+[^\s]+(?:<[^>]*>)?\??\s+([A-Z][A-Za-z0-9_]*)\s*\{\s*get\s*;/g)]
+    .map((match) => camel(match[1]));
+}
+
+function matchingBrace(source: string, open: number): number {
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  throw new Error('Не найдена закрывающая скобка тела записи.');
 }
 
 /** Имена полей TS-интерфейса. */
@@ -321,6 +382,53 @@ function clientFields(source: string, type: string): string[] {
     .replace(/\/\*[\s\S]*?\*\//g, '');
   return [...body.matchAll(/^\s*([a-zA-Z0-9_]+)\??\s*:/gm)].map((match) => match[1]);
 }
+
+// Сам разбор — тоже заслон, и он умеет ошибаться молча: пока тело записи не читалось, поля,
+// объявленные свойствами, просто не попадали в сверку, и пара выглядела бы сошедшейся, если бы
+// их не было и у клиента.
+describe('разбор контракта', () => {
+  it('читает и параметры записи, и поля из её тела', () => {
+    const source = `
+      public sealed record SampleDto(
+          Guid FirstId,
+          string Second)
+      {
+          public Guid? ThirdFromBody { get; init; }
+
+          public long? FourthFromBody { get; init; }
+      }`;
+
+    expect(serverFields(source, 'SampleDto')).toEqual([
+      'firstId', 'second', 'thirdFromBody', 'fourthFromBody'
+    ]);
+  });
+
+  // Запись без тела заканчивается на `);` — тела читать нечего, и уезжать за её конец нельзя.
+  it('не уходит за конец записи без тела', () => {
+    const source = `
+      public sealed record FirstDto(Guid OnlyId);
+
+      public sealed record SecondDto(string Other)
+      {
+          public int NotMine { get; init; }
+      }`;
+
+    expect(serverFields(source, 'FirstDto')).toEqual(['onlyId']);
+  });
+
+  // Свойство может повторять параметр — так нормализуют значение по умолчанию. В ответе поле одно.
+  it('не задваивает поле, объявленное и параметром, и свойством', () => {
+    const source = `
+      public sealed record NormalizingDto(
+          Guid Id,
+          IReadOnlyList<string>? Items = null)
+      {
+          public IReadOnlyList<string> Items { get; init; } = Items ?? Array.Empty<string>();
+      }`;
+
+    expect(serverFields(source, 'NormalizingDto')).toEqual(['id', 'items']);
+  });
+});
 
 describe('поля клиентских типов совпадают с контрактом сервера', () => {
   it('проверяет не пустой список типов', () => {

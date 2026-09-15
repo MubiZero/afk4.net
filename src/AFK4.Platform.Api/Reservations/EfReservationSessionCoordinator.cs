@@ -146,7 +146,12 @@ public sealed class EfReservationSessionCoordinator(
             return replay;
         }
 
-        if (reservation.StartedSessionId is not null || reservation.State == ReservationStateNames.Seated)
+        // Сессия уже запущена — это именно StartedSessionId, а не состояние «посажен».
+        //
+        // Раньше заслон ловил и Seated, и отметка прихода закрывала дверь к запуску: оператор отмечал, что
+        // человек пришёл, и больше не мог начать ему сессию с той же брони — бронь и сессия теряли связь.
+        // «Пришёл» и «сел за машину» — разные события, и между ними человек платит или ждёт.
+        if (reservation.StartedSessionId is not null)
         {
             return ReservationSessionStartResult.RequestConflict(
                 "reservation_already_started",
@@ -162,7 +167,10 @@ public sealed class EfReservationSessionCoordinator(
                 reservation.Version);
         }
 
-        if (reservation.State != ReservationStateNames.Confirmed)
+        // Seated тоже годится: это отмеченный приход без запущенной сессии, а посадка сама служит
+        // подтверждением клуба (см. SeatAsync).
+        if (reservation.State != ReservationStateNames.Confirmed &&
+            reservation.State != ReservationStateNames.Seated)
         {
             return ReservationSessionStartResult.RequestConflict(
                 "reservation_confirmation_required",
@@ -218,7 +226,9 @@ public sealed class EfReservationSessionCoordinator(
         StampCoordinatorRequestHash(reservation, sessionRequest, request);
 
         reservation.State = ReservationStateNames.Seated;
-        reservation.SeatedAtUtc = now;
+        // Первая отметка прихода сильнее: человек пришёл тогда, когда пришёл, а не тогда, когда
+        // до него дошли руки. Это же время читает разбор неявок.
+        reservation.SeatedAtUtc ??= now;
         reservation.StartedSessionId = stage.Result.Response.Session.SessionId;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;

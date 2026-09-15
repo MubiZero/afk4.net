@@ -110,7 +110,11 @@ export function BookingDrawer(props: BookingDrawerProps) {
   const { mode, selected, freeSeats, allSeats, draft, busy, canManage, canStartSessions, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
   // «Уже началась» считается от текущего момента — ровно как на сервере: человек не опоздал, пока
   // его время не наступило.
-  const actions = bookingDetailActions(selected?.state ?? '', selected !== null && selected.startMs <= Date.now());
+  const actions = bookingDetailActions(
+    selected?.state ?? '',
+    selected !== null && selected.startMs <= Date.now(),
+    Boolean(selected?.startedSessionId)
+  );
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
 
