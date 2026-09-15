@@ -6,7 +6,7 @@ import { ToastProvider } from '../operatorToast';
 
 afterEach(cleanup);
 
-// backend=null → компоненты не строят боевой клиент; сегменты гейтятся правами session.
+// backend=null → компоненты не строят боевой клиент и остаются в загрузке; сегменты гейтятся правами session.
 function renderJournal(permissions: string[]) {
   const session = { permissions, organizationId: 'o' } as never;
   render(
@@ -24,14 +24,14 @@ describe('CashJournalWorkspace', () => {
     expect(screen.getByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Согласования' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Проверка' })).toBeNull();
-    await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Загрузка операций…')).toBeInTheDocument());
   });
 
   it('операции, чеки и антифрод остаются доступны после изменений оплаты', async () => {
     renderJournal(['organization.reports.view', 'organization.receipts.view', 'organization.pos.sales.refund', 'organization.billing.money_action.approve']);
 
     expect(screen.getByRole('tab', { name: 'Кассовые операции' })).toHaveAttribute('aria-selected', 'true');
-    await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Загрузка операций…')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'Чеки' }));
     expect(screen.getByRole('tab', { name: 'Чеки' })).toHaveAttribute('aria-selected', 'true');
@@ -45,8 +45,9 @@ describe('CashJournalWorkspace', () => {
     renderJournal(['organization.reports.view']);
     // Один сегмент — таббар скрыт, сегмент «Согласования» не рендерится…
     expect(screen.queryByRole('tab', { name: 'Согласования' })).toBeNull();
-    // …но сама лента «Кассовые операции» отрисована (пустое состояние от инъект-репортс backend=null).
-    await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
+    // …но сама лента «Кассовые операции» отрисована. Без бэкенда она честно в загрузке:
+    // раньше сюда подсовывали клиент-заглушку, и экран утверждал «операций нет» там, где их не у кого спросить.
+    await waitFor(() => expect(screen.getByText('Загрузка операций…')).toBeInTheDocument());
   });
 
   it('сотрудник только с receipts.view попадает прямо в сегмент «Чеки»', () => {
@@ -58,7 +59,7 @@ describe('CashJournalWorkspace', () => {
 
   it('переключение на «Согласования» показывает встроенный ReviewWorkspace', async () => {
     renderJournal(['organization.reports.view', 'organization.billing.money_action.approve']);
-    await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Загрузка операций…')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('tab', { name: 'Согласования' }));
     // Два tablist'а = внешний (сегменты журнала) + внутренний (сегменты встроенного ReviewWorkspace):
     // доказывает, что встроенный review реально отрисовался, а не пустой фрагмент.

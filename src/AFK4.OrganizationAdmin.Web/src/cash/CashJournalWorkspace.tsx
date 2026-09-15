@@ -50,11 +50,14 @@ export function CashJournalWorkspace({
         </div>
       )}
 
-      {active === 'ops' && canOps && backend !== null && (
-        <CashOperationsLedger backend={backend} branchId={backend.branchId} currencyCode={currencyCode} />
-      )}
-      {active === 'ops' && canOps && backend === null && (
-        <CashOperationsLedger backend={null} branchId="" currencyCode={currencyCode} reports={{ getCashOperationReport: async () => ({ rows: [] }) }} />
+      {/* Без бэкенда лента честно остаётся в загрузке. Раньше сюда подсовывали клиент-заглушку
+          с пустым ответом, и экран утверждал «операций нет» там, где их просто не у кого спросить. */}
+      {active === 'ops' && canOps && (
+        <CashOperationsLedger
+          backend={backend}
+          branchId={backend?.branchId ?? ''}
+          currencyCode={currencyCode}
+        />
       )}
       {active === 'receipts' && canReceipts && backend !== null && (
         <CashReceiptsLedger backend={backend} branchId={backend.branchId} currencyCode={currencyCode} session={session} />

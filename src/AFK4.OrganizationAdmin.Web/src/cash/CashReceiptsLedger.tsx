@@ -27,7 +27,7 @@ import { hasPermission, permissionNames } from '../operatorPermissions';
 import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
-import type { PosSaleDto, ReceiptDto } from '../operatorApiClients';
+import type { PosSaleDto, ReceiptDto, SalesReportResultDto } from '../operatorApiClients';
 import { useFeedbackToasts } from '../useFeedbackToasts';
 import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
 
@@ -57,7 +57,7 @@ export function CashReceiptsLedger({
     [backend?.config, backend?.session]
   );
 
-  const [report, setReport] = useState<Record<string, unknown> | null>(null);
+  const [report, setReport] = useState<SalesReportResultDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedSaleId, setSelectedSaleId] = useState('');
