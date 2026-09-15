@@ -469,6 +469,35 @@ describe('BackendBookingWorkspace no-show', () => {
     expect(await screen.findByText(/Клуб удержал/)).toBeInTheDocument();
   });
 
+  // Отметка прихода снимает взвод автоматической неявки: раньше её было нечем снять, кроме запуска сессии.
+  it('отмечает приход текущей версией брони и говорит, что неявка отменена', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const reservation = pastConfirmedReservation();
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') return json({ reservations: [reservation], limit: 40 });
+      if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
+      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/seat')) {
+        calls.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return json({ reservationId: 'reservation-no-show', version: 4, state: 'seated' });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    render(
+      <I18nProvider><ToastProvider>
+        <BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={() => {}} />
+      </ToastProvider></I18nProvider>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Не приехавший гость' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Пришёл' }));
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({ expectedVersion: 3 });
+    expect(await screen.findByText(/автоматическая неявка отменена/)).toBeInTheDocument();
+  });
+
   // Пустое поле — это «не удерживали вовсе». Ноль читался бы как «удержали нисколько», а филиал,
   // который предоплату не держит, вообще ничего не удерживал.
   it('не выдаёт отсутствие удержания за нулевое удержание', async () => {

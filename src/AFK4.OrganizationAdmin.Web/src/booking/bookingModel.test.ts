@@ -13,10 +13,10 @@ import {
 } from './bookingModel';
 
 it('bookingDetailActions: pending confirms, confirmed starts, terminal states expose neither', () => {
-  expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false, canReject: true, canMarkNoShow: false });
-  expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true, canReject: false, canMarkNoShow: false });
-  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false, canReject: false, canMarkNoShow: false });
-  expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false, canReject: false, canMarkNoShow: false });
+  expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false, canSeat: true, canReject: true, canMarkNoShow: false });
+  expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true, canSeat: true, canReject: false, canMarkNoShow: false });
+  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false, canSeat: false, canReject: false, canMarkNoShow: false });
+  expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false, canSeat: false, canReject: false, canMarkNoShow: false });
 });
 
 // Повторяет правило сервера (ReservationNoShow.WhyNot) и не смягчает его. Если бы неявку
