@@ -1,5 +1,6 @@
 namespace AFK4.Shared.Contracts.Packages;
 
+/// <summary>Купленный пакет с остатком времени.</summary>
 public sealed record PlayerPackageDto(
     Guid PlayerPackageId,
     Guid PackageDefinitionId,

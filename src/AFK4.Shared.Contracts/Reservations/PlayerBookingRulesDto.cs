@@ -12,6 +12,8 @@ namespace AFK4.Shared.Contracts.Reservations;
 /// </param>
 public sealed record PlayerBookingRulesDto(
     Guid BranchId,
+    // `auto` — клуб подтверждает сам, `manual` — заявку смотрит администратор, `off` — брони из
+    // приложения не принимаются.
     string AcceptanceMode,
     int RespondWithinMinutes,
     bool PrepaymentRequired,

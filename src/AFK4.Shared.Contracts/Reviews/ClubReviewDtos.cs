@@ -10,11 +10,14 @@ public sealed record ClubReviewDto(
 
 /// The reviews page of a club: the average is what a player reads first, the reviews are why.
 public sealed record ClubReviewsPageDto(
+    // Пусто — оценок пока нет. Это не ноль звёзд.
     double? Rating,
     int ReviewCount,
     IReadOnlyList<ClubReviewDto> Items);
 
 /// A finished visit that has not been reviewed yet — what the app offers to rate.
+///
+/// Оценить предлагается один раз и только пока вечер свежий в памяти.
 public sealed record PendingClubReviewDto(
     Guid SessionId,
     string BranchName,

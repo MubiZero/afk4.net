@@ -10,6 +10,8 @@ namespace AFK4.Shared.Contracts.Notifications;
 /// </summary>
 public sealed record PlayerNotificationDto(
     Guid NotificationId,
+    // Служебное имя события (`player.order_ready` и подобные). Приложение по нему ставит значок —
+    // показывать его человеку незачем.
     string TemplateKey,
     string Subject,
     string Body,

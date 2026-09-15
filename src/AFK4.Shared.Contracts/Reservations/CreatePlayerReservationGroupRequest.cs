@@ -32,5 +32,7 @@ public sealed record CreatePlayerReservationGroupRequest(
 public sealed record PlayerReservationGroupDto(
     Guid ReservationGroupId,
     IReadOnlyList<PlayerReservationDto> Reservations,
+    // Сумма по всей компании — она же замороженная. Пусто — бронь без тарифа, её посчитают
+    // на стойке.
     long? TotalEstimatedCostMinorUnits,
     string? CurrencyCode);

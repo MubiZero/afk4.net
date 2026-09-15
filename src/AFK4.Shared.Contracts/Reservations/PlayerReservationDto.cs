@@ -11,12 +11,17 @@ namespace AFK4.Shared.Contracts.Reservations;
 public sealed record PlayerReservationDto(
     Guid ReservationId,
     Guid? SeatId,
+    // Пусто — клуб ещё не назначил конкретное место.
     string? SeatName,
     DateTimeOffset StartsAtUtc,
     DateTimeOffset EndsAtUtc,
+    // Отменить можно то, что ещё не состоялось: `pending` и `confirmed`. Отменённую или уже
+    // отыгранную бронь трогать нечего — кнопка там только сбивает с толку.
     string State,
     string? Note,
     Guid? TariffVersionId = null,
+    // Название выбранного тарифа и стоимость, посчитанная сервером при брони. Пусто — бронь
+    // завели на стойке, там же её и посчитают.
     string? TariffName = null,
     long? EstimatedCostMinorUnits = null,
     string? CurrencyCode = null,

@@ -24,6 +24,7 @@ public sealed record UpdateReferralSettingsRequest(
 /// назначает свои.
 /// </summary>
 public sealed record PlayerReferralDto(
+    // Клуб платит за приглашения. false — экран честно говорит, что программы нет.
     bool Enabled,
     string? Code,
     long ReferrerBonusMinorUnits,

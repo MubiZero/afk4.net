@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace AFK4.Shared.Contracts.Players;
 
+/// <summary>Чек визита: время, покупки и итог.</summary>
 public sealed record PlayerVisitReceiptDto(
     string ReceiptNumber,
     DateTimeOffset CreatedAtUtc,

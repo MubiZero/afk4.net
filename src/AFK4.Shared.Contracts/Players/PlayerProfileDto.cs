@@ -1,5 +1,7 @@
 namespace AFK4.Shared.Contracts.Players;
 
+// Профиль игрока: как его зовут, чем он подписан и что он разрешил присылать.
+//
 // HomeBranchId is what lets the app ask for the club's price list at all: the catalog endpoints are
 // per-branch, and until now the player had no way to learn which branch the account belongs to —
 // the server resolved it silently on every write. The name comes along so the app can say where it
@@ -9,6 +11,7 @@ public sealed record PlayerProfileDto(
     string DisplayName,
     string? PhoneNumber,
     bool PhoneVerified,
+    // Пусто — игрок не выбирал язык, и письма идут на языке клуба.
     string? PreferredLocale,
     bool MarketingOptIn,
     Guid? HomeBranchId = null,
