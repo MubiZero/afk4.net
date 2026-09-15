@@ -1,0 +1,5380 @@
+// Сгенерировано из src/AFK4.Shared.Contracts. Руками не править:
+// правка живёт в записи C#, а сюда приезжает через `bun run gen` в packages/contracts.
+
+/** Идентификатор. На проводе это строка, и сравнивать его надо как строку. */
+export type Guid = string;
+
+/** Момент времени, ISO-8601 с зоной: `2026-09-15T10:00:00+05:00`. */
+export type IsoDateTime = string;
+
+/** Дата без времени: `2026-09-15`. */
+export type IsoDate = string;
+
+/** Время без даты: `22:30`. */
+export type IsoTime = string;
+
+/** Длительность, ISO-8601: `PT2H30M`. */
+export type IsoDuration = string;
+
+/** Контракт: Identity/AccountActivation/AcceptOrganizationOwnerInviteRequest.cs */
+export interface AcceptOrganizationOwnerInviteRequest {
+  code: string;
+  userName: string;
+  displayName: string;
+  password: string;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
+export interface AcceptPlatformAdminInvitationRequest {
+  code: string;
+  userName: string;
+  displayName: string;
+  password: string;
+}
+
+/**
+ * Приём приглашения: номер, код из SMS и пароль, который человек придумывает себе сам.
+ *
+ * Контракт: Identity/AcceptStaffInviteRequest.cs
+ */
+export interface AcceptStaffInviteRequest {
+  phoneNumber: string;
+  code: string;
+  password: string;
+}
+
+/**
+ * Кем человек стал: клуб и его логин в нём.
+ *
+ * Контракт: Identity/AcceptStaffInviteRequest.cs
+ */
+export interface AcceptStaffInviteResponse {
+  organizationId: Guid;
+  userName: string;
+}
+
+/** Контракт: Players/ActiveSessionDto.cs */
+export interface ActiveSessionDto {
+  sessionId: Guid;
+  seatId: Guid;
+  seatName: string;
+  startedAtUtc: IsoDateTime;
+  /** "open" | "fixed" */
+  durationMode: string;
+  /** fixed only */
+  remainingSeconds: number | null;
+  /** open only */
+  accruedCostMinorUnits: number | null;
+  currencyCode: string;
+  /**
+   * По какой цене идёт счёт и где человек сидит. Растущая сумма без ставки — это число, которое
+   * нечем проверить: видно, что платишь, и не видно, за что. Цена — за час, а не за минуту:
+   * клуб продаёт часы, и в них же человек считает.
+   * Пусто там, где тарифа у сессии нет вовсе (гостевая, заведённая на стойке руками) — врать
+   * подставленной ставкой хуже, чем честно промолчать.
+   */
+  tariffName?: string | null;
+  pricePerHourMinorUnits?: number | null;
+  zoneName?: string | null;
+}
+
+/** Контракт: Inventory/AddProductBarcodeRequest.cs */
+export interface AddProductBarcodeRequest {
+  organizationId: Guid;
+  code: string;
+  isPrimary?: boolean;
+}
+
+/**
+ * Точка помесячного ряда. Год и месяц едут числами: название месяца — дело клиента,
+ * у которого есть язык пользователя.
+ *
+ * Контракт: Platform/Analytics/PlatformAnalyticsContracts.cs
+ */
+export interface AnalyticsMonthDto {
+  year: number;
+  month: number;
+  recurringMinorUnits: number;
+  oneOffMinorUnits: number;
+  joined: number;
+  left: number;
+  payingAtMonthEnd: number;
+}
+
+/**
+ * Анонс глазами клуба: только то, что ему показывают, плюс прочитал ли ЭТОТ сотрудник.
+ *
+ * Контракт: Platform/Announcements/AnnouncementContracts.cs
+ */
+export interface AnnouncementFeedItemDto {
+  announcementId: Guid;
+  title: string;
+  body: string;
+  severity: string;
+  showFromUtc: IsoDateTime;
+  showUntilUtc: IsoDateTime;
+  publishedAtUtc: IsoDateTime;
+  isRead: boolean;
+}
+
+/** Контракт: Devices/AssignDeviceSeatRequest.cs */
+export interface AssignDeviceSeatRequest {
+  organizationId: Guid;
+  seatId: Guid;
+}
+
+/** Контракт: Audit/AuditRecordDto.cs */
+export interface AuditRecordDto {
+  auditRecordId: Guid;
+  organizationId: Guid;
+  branchId: Guid | null;
+  actorStaffUserId: Guid | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  outcome: string;
+  sourceApp: string;
+  detailsJson: string;
+  createdAtUtc: IsoDateTime;
+  actorPlatformAdminUserId: Guid | null;
+  amountMinorUnits: number | null;
+}
+
+/** Контракт: Audit/AuditSearchResultDto.cs */
+export interface AuditSearchResultDto {
+  records: AuditRecordDto[];
+  limit: number;
+}
+
+/**
+ * Create-seat request for the authenticated (phone sign-in) install path. Org/staff come from the bearer token, so there is no owner code.
+ *
+ * Контракт: Install/AuthenticatedInstallRequests.cs
+ */
+export interface AuthenticatedInstallCreateSeatRequest {
+  branchId: Guid;
+  zoneId: Guid;
+  name: string;
+}
+
+/**
+ * Device-enroll request for the authenticated (phone sign-in) install path. Org/staff come from the bearer token, so there is no owner code.
+ *
+ * Контракт: Install/AuthenticatedInstallRequests.cs
+ */
+export interface AuthenticatedInstallEnrollRequest {
+  branchId: Guid;
+  seatId: Guid | null;
+  role: string;
+  displayName: string;
+  machineName: string;
+  devicePublicKey: string;
+}
+
+/**
+ * Настройки приёма гостей у филиала — то, что видит и правит клуб.
+ * UpdatedAtUtc пуст, пока филиал ничего не настраивал: значения в этом случае
+ * не «нулевые», а по умолчанию, и админу полезно отличать одно от другого.
+ *
+ * Контракт: Branches/BranchBookingSettingsDto.cs
+ */
+export interface BranchBookingSettingsDto {
+  organizationId: Guid;
+  branchId: Guid;
+  acceptanceMode: string;
+  respondWithinMinutes: number;
+  requirePrepaymentFromNewGuests: boolean;
+  maxActiveReservationsForNewGuests: number;
+  regularAfterVisits: number;
+  holdSeatAfterStartMinutes: number;
+  keepPrepaymentOnNoShow: boolean;
+  updatedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
+export interface BranchDiagnosticsDto {
+  organizationId: Guid;
+  branchId: Guid;
+  generatedAtUtc: IsoDateTime;
+  deviceSummary: DeviceDiagnosticsSummaryDto;
+  commandSummary: CommandDiagnosticsSummaryDto;
+  updateSummary: UpdateDiagnosticsSummaryDto;
+  staleDevices: StaleDeviceDiagnosticsDto[];
+}
+
+/**
+ * Одни свёрнутые сутки клуба. `AgentAlive == null` — «неизвестно», не «мёртв».
+ *
+ * Контракт: Platform/Analytics/BranchDynamicsContracts.cs
+ */
+export interface BranchDynamicsDayDto {
+  date: IsoDate;
+  sessionCount: number;
+  revenue: MoneyDto;
+  shiftOpenedCount: number;
+  agentAlive: boolean | null;
+}
+
+/** Контракт: Platform/Analytics/BranchDynamicsContracts.cs */
+export interface BranchDynamicsDto {
+  organizationId: Guid;
+  branchId: Guid;
+  fromDate: IsoDate;
+  toDate: IsoDate;
+  totalRevenue: MoneyDto;
+  totalSessionCount: number;
+  daysWithoutAgent: number;
+  daysWithUnknownAgent: number;
+  /** Сутки окна, за которые снимка нет вовсе. Нулями они НЕ дорисовываются. */
+  missingDayCount: number;
+  days: BranchDynamicsDayDto[];
+}
+
+/**
+ * Одно фото зала. MediaId нужен, чтобы удалить объект из хранилища вместе со
+ * строкой галереи; у фото, добавленного ссылкой, его нет.
+ *
+ * Контракт: Branches/BranchPhotoDto.cs
+ */
+export interface BranchPhotoDto {
+  url: string;
+  mediaId: Guid | null;
+}
+
+/** Контракт: Branches/BranchProfileDto.cs */
+export interface BranchProfileDto {
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  city: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  telegram: string | null;
+  website: string | null;
+  instagram: string | null;
+  logoUrl: string | null;
+  logoMediaId: Guid | null;
+  coverImageUrl: string | null;
+  coverMediaId: Guid | null;
+  photos: BranchPhotoDto[];
+  latitude: number | null;
+  longitude: number | null;
+  timeZone: string;
+  locale: string;
+  workingHours: BranchWorkingHoursDayDto[];
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Branches/BranchSettingsDto.cs */
+export interface BranchSettingsDto {
+  organizationId: Guid;
+  branchId: Guid;
+  requireManualDeviceApproval: boolean;
+  preferredLocale: string;
+}
+
+/**
+ * Один день расписания клуба. DayOfWeek по ISO-8601: 1=Пн … 7=Вс.
+ * Время — строка "HH:mm" (24ч); при IsClosed времена игнорируются.
+ *
+ * Контракт: Branches/BranchWorkingHoursDayDto.cs
+ */
+export interface BranchWorkingHoursDayDto {
+  dayOfWeek: number;
+  isClosed: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+}
+
+/**
+ * Зал сети настолько, насколько его нужно узнать при выборе: как зовут и где стоит.
+ *
+ * Контракт: Branding/OrganizationBrandingDto.cs
+ */
+export interface BrandingHallDto {
+  branchId: Guid;
+  name: string;
+  city: string;
+  address: string | null;
+}
+
+/** Контракт: Tariffs/CalculateTariffRequest.cs */
+export interface CalculateTariffRequest {
+  organizationId: Guid;
+  tariffVersionId: Guid;
+  durationMinutes: number;
+}
+
+/** Контракт: Reservations/ReservationRequests.cs */
+export interface CancelReservationRequest {
+  organizationId: Guid;
+  reason: string;
+  expectedVersion: number;
+}
+
+/** Контракт: Tournaments/TournamentDtos.cs */
+export interface CancelTournamentRequest {
+  reason: string;
+}
+
+/** Контракт: Loyalty/CashbackEntryDto.cs */
+export interface CashbackEntryDto {
+  amountMinorUnits: number;
+  currencyCode: string;
+  reason: string;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Shifts/CashMovementDto.cs */
+export interface CashMovementDto {
+  cashMovementId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  shiftId: Guid;
+  createdByStaffUserId: Guid;
+  movementType: string;
+  amount: MoneyDto;
+  reason: string;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Reports/CashOperationReportResultDto.cs */
+export interface CashOperationReportResultDto {
+  rows: CashOperationReportRowDto[];
+  limit: number;
+  cashInTotal: MoneyDto;
+  cashOutTotal: MoneyDto;
+  netCashTotal: MoneyDto;
+}
+
+/** Контракт: Reports/CashOperationReportRowDto.cs */
+export interface CashOperationReportRowDto {
+  operationId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  shiftId: Guid | null;
+  createdByStaffUserId: Guid;
+  sourceType: string;
+  operationType: string;
+  cashImpact: MoneyDto;
+  reason: string;
+  createdAtUtc: IsoDateTime;
+  /**
+   * Кто провёл операцию. Журнал кассы отвечает на вопрос «кто взял деньги», а идентификатор
+   * сотрудника на этот вопрос не отвечает: показывать кассиру GUID — то же, что не показывать.
+   */
+  createdByDisplayName?: string;
+}
+
+/** Контракт: Shifts/ShiftRevenueDto.cs */
+export interface CashReconciliationDto {
+  starting: MoneyDto;
+  expected: MoneyDto;
+  counted: MoneyDto | null;
+  difference: MoneyDto | null;
+}
+
+/** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
+export interface ChangePlatformUpdatePackageStateRequest {
+  state: string;
+  reason: string;
+}
+
+/** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
+export interface ChangePlatformUpdateRolloutStateRequest {
+  state: string;
+  reason: string;
+}
+
+/** Контракт: Loyalty/ReferralContracts.cs */
+export interface ClaimReferralCodeRequest {
+  code: string;
+}
+
+/** Контракт: Shifts/CloseShiftRequest.cs */
+export interface CloseShiftRequest {
+  organizationId: Guid;
+  countedCash: MoneyDto;
+  closingNote: string;
+  idempotencyKey: string;
+  /**
+   * Anti-fraud §5.7: required only when the cash discrepancy exceeds the branch tolerance; must be a
+   * manager other than the operator who opened or closed the shift.
+   */
+  managerSignOffStaffUserId?: Guid | null;
+  signOffReason?: string | null;
+}
+
+/**
+ * A physical club of the network: what the card shows and where the map puts its pin.
+ *
+ * Контракт: Branding/OrganizationDirectoryEntryDto.cs
+ */
+export interface ClubPlaceDto {
+  branchId: Guid;
+  name: string;
+  city: string;
+  address: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  /**
+   * Расписание клуба: игрок хочет знать не только где клуб, но и открыт ли он сейчас.
+   * Пустой список — расписание не задано.
+   */
+  workingHours?: BranchWorkingHoursDayDto[] | null;
+  /** Залы этого клуба: сколько мест и на чём играют. По железу клубы и сравнивают. */
+  zones?: ClubZoneDto[] | null;
+  /** Фото зала по порядку: обложка первой, дальше галерея. Пусто — клуб фото не прислал. */
+  photoUrls?: string[] | null;
+  /** Всего мест в зале — сумма по его зонам. */
+  seatCount?: number;
+  /**
+   * Сколько из них не занято прямо сейчас: ни сессии, ни чужой брони на ближайший час.
+   * Считается независимо от расписания — «открыт ли зал» решает тот, кто показывает число.
+   */
+  freeSeatCount?: number;
+}
+
+/**
+ * A review as the club's shop window shows it: who, how many stars, and what they wrote.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface ClubReviewDto {
+  reviewId: Guid;
+  authorName: string;
+  rating: number;
+  comment: string | null;
+  createdAtUtc: IsoDateTime;
+}
+
+/**
+ * The reviews page of a club: the average is what a player reads first, the reviews are why.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface ClubReviewsPageDto {
+  rating: number | null;
+  reviewCount: number;
+  items: ClubReviewDto[];
+}
+
+/**
+ * Зал клуба в витрине: название, сколько в нём мест, чем оснащён и сколько мест свободно.
+ *
+ * Контракт: Branding/OrganizationDirectoryEntryDto.cs
+ */
+export interface ClubZoneDto {
+  name: string;
+  seatCount: number;
+  hardwareSummary: string | null;
+  freeSeatCount?: number;
+}
+
+/** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
+export interface CommandDiagnosticsSummaryDto {
+  pendingCommands: number;
+  failedCommands: number;
+  recentFailures: FailedCommandDiagnosticsDto[];
+}
+
+/** Контракт: Updates/ComponentUpdateInstructionDto.cs */
+export interface ComponentUpdateInstructionDto {
+  updateRolloutId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  artifactUri: string;
+  sha256: string;
+  signature: string;
+  signatureAlgorithm: string;
+  sizeBytes: number;
+  releaseNotes: string;
+}
+
+/** Контракт: Reservations/ReservationRequests.cs */
+export interface ConfirmReservationRequest {
+  organizationId: Guid;
+  expectedVersion: number;
+}
+
+/**
+ * Заявка на добавление филиала существующему клубу.
+ *
+ * Контракт: Platform/Organizations/CreateBranchRequest.cs
+ */
+export interface CreateBranchRequest {
+  slug: string;
+  name: string;
+  city: string;
+  preferredTimeZone: string | null;
+}
+
+/** Контракт: Reviews/ClubReviewDtos.cs */
+export interface CreateClubReviewRequest {
+  sessionId: Guid;
+  rating: number;
+  comment: string | null;
+}
+
+/** Контракт: Payments/DcTopUpDtos.cs */
+export interface CreateDcTopUpRequest {
+  playerAccountId: Guid;
+  amountMinorUnits: number;
+  currencyCode: string | null;
+}
+
+/** Контракт: Devices/CreateDeviceEnrollmentCodeRequest.cs */
+export interface CreateDeviceEnrollmentCodeRequest {
+  organizationId: Guid;
+  expiresInSeconds: number;
+}
+
+/** Контракт: Platform/Billing/CreateInvoiceRequest.cs */
+export interface CreateInvoiceRequest {
+  kind: string;
+  amountMinorUnits: number;
+  description: string;
+  dueAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: News/CreateNewsItemRequest.cs */
+export interface CreateNewsItemRequest {
+  branchId: Guid | null;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  isPublished: boolean;
+  publishAtUtc: IsoDateTime | null;
+  expiresAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Identity/AccountActivation/CreateOrganizationOwnerInviteRequest.cs */
+export interface CreateOrganizationOwnerInviteRequest {
+  branchId: Guid;
+  ownerUserName: string | null;
+  ownerDisplayName: string | null;
+  lifetime: IsoDuration | null;
+  ownerEmail?: string | null;
+}
+
+/** Контракт: Platform/Organizations/CreateOrganizationRequest.cs */
+export interface CreateOrganizationRequest {
+  organizationSlug: string;
+  organizationName: string;
+  branchSlug: string;
+  branchName: string;
+  branchCity: string;
+  planCode: string;
+  subscriptionStatus: string;
+  limits: OrganizationLimitsDto | null;
+  ownerUserName: string | null;
+  ownerDisplayName: string | null;
+  organizationOwnerInviteLifetime: IsoDuration | null;
+}
+
+/** Контракт: Platform/Organizations/CreateOrganizationResponse.cs */
+export interface CreateOrganizationResponse {
+  organization: OrganizationDetailDto;
+  organizationOwnerInvite: OrganizationOwnerInviteDto;
+}
+
+/** Контракт: Platform/SupportNotes/CreateOrganizationSupportNoteRequest.cs */
+export interface CreateOrganizationSupportNoteRequest {
+  body: string;
+}
+
+/** Контракт: Packages/CreatePackageDefinitionRequest.cs */
+export interface CreatePackageDefinitionRequest {
+  organizationId: Guid;
+  name: string;
+  price: MoneyDto;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+  idempotencyKey: string;
+}
+
+/** Контракт: Platform/Billing/CreatePlanRequest.cs */
+export interface CreatePlanRequest {
+  planCode: string;
+  name: string;
+  priceMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  maxBranches: number | null;
+  maxDevicesPerBranch: number | null;
+  maxConcurrentSessions: number | null;
+  maxStaffUsersPerBranch: number | null;
+  sortOrder: number;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
+export interface CreatePlatformAdminInvitationRequest {
+  role: string;
+  lifetimeHours: number;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
+export interface CreatePlatformAdminInvitationResponse {
+  invitation: PlatformAdminInvitationDto;
+  code: string;
+}
+
+/** Контракт: Platform/Auth/PlatformRoleContracts.cs */
+export interface CreatePlatformRoleRequest {
+  roleName: string;
+  displayName: string;
+  description: string;
+  permissions: string[];
+}
+
+/** Контракт: Platform/Support/PlatformSupportAccessContracts.cs */
+export interface CreatePlatformSupportAccessGrantRequest {
+  organizationId: Guid;
+  reason: string;
+  lifetimeMinutes: number;
+}
+
+/** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
+export interface CreatePlatformUpdatePackageRequest {
+  component: string;
+  version: string;
+  channel: string;
+  artifactUri: string;
+  sha256: string;
+  signature: string;
+  signatureAlgorithm: string;
+  sizeBytes: number;
+  releaseNotes: string;
+}
+
+/** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
+export interface CreatePlatformUpdateRolloutRequest {
+  updatePackageId: Guid;
+  channel: string;
+  targetKind: string;
+  organizationIds: Guid[];
+  branchIds: Guid[];
+  deviceIds: Guid[];
+  batchPercent: number;
+  startsAtUtc: IsoDateTime;
+  reason: string;
+}
+
+/** Контракт: Billing/CreatePlayerAccountRequest.cs */
+export interface CreatePlayerAccountRequest {
+  organizationId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+  idempotencyKey: string;
+}
+
+/**
+ * Бронь на компанию: несколько мест на одно время одним действием.
+ * Мест здесь КОЛИЧЕСТВО, а не список. Игрок в приложении конкретную машину не выбирает — её
+ * назначает клуб, — поэтому просить его выбрать пять машин было бы просьбой о том, чего он не
+ * решает. Операторская групповая бронь наоборот берёт список: там человек тянет мышью по строкам
+ * таймлайна и точно знает, какие места отдаёт.
+ * Тариф один на всю компанию: сидят вместе, платят по одной цене, и разные тарифы внутри одной
+ * брони — это уже не «бронь на компанию», а несколько разных броней.
+ * <param name="BranchId">
+ * Филиал, в который компания придёт. Нужен только в первом действии в клубе, где счёта ещё нет:
+ * у сети с несколькими филиалами сервер не гадает, куда записать счёт.
+ * </param>
+ *
+ * Контракт: Reservations/CreatePlayerReservationGroupRequest.cs
+ */
+export interface CreatePlayerReservationGroupRequest {
+  seatCount: number;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  note: string | null;
+  tariffVersionId?: Guid | null;
+  branchId?: Guid | null;
+}
+
+/**
+ * Player-initiated reservation request.
+ * SeatId is optional (unassigned reservation). StartsAtUtc and EndsAtUtc are
+ * absolute — the service derives DurationMinutes internally.
+ * TariffVersionId carries the player's billing choice made in the app. It is optional so older
+ * clients keep working, but a booking without it cannot be priced: the hold slice needs the exact
+ * amount the player agreed to, not a branch-default guess. The package path (booking covered by
+ * already-purchased time) belongs to that same slice — reserving package minutes is a write on the
+ * package, not a field on the request.
+ * BranchId — филиал, в который игрок придёт. Нужен только в первом действии в клубе, где счёта
+ * ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. У игрока со
+ * счётом филиал уже известен, и присланный его не переписывает.
+ *
+ * Контракт: Reservations/CreatePlayerReservationRequest.cs
+ */
+export interface CreatePlayerReservationRequest {
+  seatId: Guid | null;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  note: string | null;
+  tariffVersionId?: Guid | null;
+  branchId?: Guid | null;
+}
+
+/** Контракт: Pos/CreatePosSaleRequest.cs */
+export interface CreatePosSaleRequest {
+  organizationId: Guid;
+  shiftId: Guid;
+  lines: PosSaleLineDto[];
+  idempotencyKey: string;
+  playerAccountId?: Guid | null;
+  /** When set, attaches this sale to an open session tab (settled at checkout). */
+  sessionId?: Guid | null;
+}
+
+/** Контракт: Pos/CreateProductCategoryRequest.cs */
+export interface CreateProductCategoryRequest {
+  organizationId: Guid;
+  name: string;
+  idempotencyKey: string;
+}
+
+/** Контракт: Pos/CreateProductRequest.cs */
+export interface CreateProductRequest {
+  organizationId: Guid;
+  categoryId: Guid;
+  name: string;
+  sku: string;
+  price: MoneyDto;
+  trackStock: boolean;
+  allowNegativeStock: boolean;
+  idempotencyKey: string;
+  reorderThreshold: number;
+  availableInShell: boolean;
+}
+
+/**
+ * Creates a recurring report delivery for a branch. ReportType is one of
+ * ScheduledReportTypeNames; Frequency one of
+ * ReportScheduleFrequencyNames.
+ *
+ * Контракт: Reports/ReportScheduleContracts.cs
+ */
+export interface CreateReportScheduleRequest {
+  organizationId: Guid;
+  reportType: string;
+  frequency: string;
+}
+
+/**
+ * Books several seats as one logical reservation (drag across timeline rows). All-or-nothing:
+ * if any seat conflicts with an existing reservation or session, the whole group is rejected and
+ * the conflicting seats are reported back so the operator can adjust the selection.
+ *
+ * Контракт: Reservations/ReservationGroup.cs
+ */
+export interface CreateReservationGroupRequest {
+  organizationId: Guid;
+  playerAccountId: Guid | null;
+  seatIds: Guid[];
+  customerName: string;
+  phoneNumber: string | null;
+  startsAtUtc: IsoDateTime;
+  durationMinutes: number;
+  source: string;
+  note: string | null;
+}
+
+/** Контракт: Reservations/ReservationRequests.cs */
+export interface CreateReservationRequest {
+  organizationId: Guid;
+  playerAccountId: Guid | null;
+  seatId: Guid | null;
+  customerName: string;
+  phoneNumber: string | null;
+  startsAtUtc: IsoDateTime;
+  durationMinutes: number;
+  source: string;
+  note: string | null;
+}
+
+/** Контракт: Layout/CreateSeatRequest.cs */
+export interface CreateSeatRequest {
+  organizationId: Guid;
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
+}
+
+/**
+ * Приглашение сотрудника по номеру телефона: человек принимает его коротким кодом из SMS и сам
+ * задаёт себе пароль. Единственный путь завести сотрудника — заведение с готовым паролем убрано
+ * намеренно, чтобы пароль знал только его владелец.
+ * <param name="Email">Необязательна: назвали — уйдёт и письмо, не назвали — хватит SMS.</param>
+ *
+ * Контракт: Identity/CreateStaffInviteRequest.cs
+ */
+export interface CreateStaffInviteRequest {
+  organizationId: Guid;
+  userName: string;
+  displayName: string;
+  phoneNumber: string;
+  email: string | null;
+  roleNames: string[];
+}
+
+/** Контракт: Inventory/CreateStockMovementRequest.cs */
+export interface CreateStockMovementRequest {
+  organizationId: Guid;
+  productId: Guid;
+  movementType: string;
+  quantityDelta: number;
+  unitCost: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/**
+ * `Schedule` не передан — новый тариф действует круглосуточно и каждый день.
+ *
+ * Контракт: Tariffs/CreateTariffRequest.cs
+ */
+export interface CreateTariffRequest {
+  organizationId: Guid;
+  name: string;
+  idempotencyKey: string;
+  schedule?: TariffScheduleDto | null;
+}
+
+/** Контракт: Tariffs/CreateTariffVersionRequest.cs */
+export interface CreateTariffVersionRequest {
+  organizationId: Guid;
+  tariffId: Guid;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: IsoDateTime;
+  idempotencyKey: string;
+}
+
+/** Контракт: Tournaments/TournamentDtos.cs */
+export interface CreateTournamentRequest {
+  branchId: Guid;
+  title: string;
+  description: string;
+  discipline: string;
+  startsAtUtc: IsoDateTime;
+  entryFeeMinorUnits: number;
+  capacity: number;
+}
+
+/** Контракт: Updates/CreateUpdatePackageRequest.cs */
+export interface CreateUpdatePackageRequest {
+  organizationId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  artifactUri: string;
+  sha256: string;
+  signature: string;
+  signatureAlgorithm: string;
+  sizeBytes: number;
+  releaseNotes: string;
+}
+
+/** Контракт: Updates/CreateUpdateRolloutRequest.cs */
+export interface CreateUpdateRolloutRequest {
+  organizationId: Guid;
+  updatePackageId: Guid;
+  channel: string;
+  targetKind: string;
+  targetDeviceIds: Guid[];
+  batchPercent: number;
+  startsAtUtc: IsoDateTime;
+  reason: string;
+}
+
+/** Контракт: Layout/CreateZoneRequest.cs */
+export interface CreateZoneRequest {
+  organizationId: Guid;
+  name: string;
+  sortOrder: number;
+  hardwareSummary?: string | null;
+}
+
+/**
+ * A page of results plus the cursor to fetch the next page (null when exhausted).
+ *
+ * Контракт: Common/CursorPage.cs
+ */
+export interface CursorPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
+/**
+ * GET-ответ: PAN не возвращаем — только факт наличия и last4.
+ *
+ * Контракт: Payments/DcPayLinkConfigDtos.cs
+ */
+export interface DcPayLinkConfigDto {
+  cardSet: boolean;
+  cardLast4: string;
+  commentTemplate: string;
+  isActive: boolean;
+}
+
+/** Контракт: Payments/DcTopUpDtos.cs */
+export interface DcTopUpDto {
+  intentId: Guid;
+  payUrl: string;
+  comment: string;
+  amountMinorUnits: number;
+  currencyCode: string;
+  cardLast4: string;
+}
+
+/**
+ * One club that needs a money decision: either it owes money, or it is still suspended
+ * after settling. Days overdue and the dunning stage answer "how long has this been ignored".
+ *
+ * Контракт: Platform/Billing/DebtRowDto.cs
+ */
+export interface DebtRowDto {
+  organizationId: Guid;
+  organizationName: string;
+  organizationSlug: string;
+  organizationStatus: string;
+  subscriptionStatus: string;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  oldestOverdueInvoiceNumber: number | null;
+  oldestOverdueInvoiceId: Guid | null;
+  daysOverdue: number;
+  dunningStage: number;
+  graceUntilUtc: IsoDateTime | null;
+  settledButSuspended: boolean;
+}
+
+/** Контракт: Devices/DeviceCommandDto.cs */
+export interface DeviceCommandDto {
+  commandId: Guid;
+  type: string;
+  createdAtUtc: IsoDateTime;
+  payload: Record<string, string>;
+}
+
+/** Контракт: Devices/DeviceCommandResultDto.cs */
+export interface DeviceCommandResultDto {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  commandId: Guid;
+  status: string;
+  message: string;
+  observedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Devices/DeviceCommandStatusDto.cs */
+export interface DeviceCommandStatusDto {
+  deviceId: Guid;
+  commandId: Guid;
+  type: string;
+  status: string;
+  message: string | null;
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Updates/DeviceComponentVersionDto.cs */
+export interface DeviceComponentVersionDto {
+  component: string;
+  version: string;
+}
+
+/** Контракт: Devices/DeviceConnectionRequest.cs */
+export interface DeviceConnectionRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  credentialSecret: string;
+  connectedAtUtc: IsoDateTime;
+  activeSessionId: Guid | null;
+  activeSessionLeaseExpiresAtUtc: IsoDateTime | null;
+  activeSessionLeaseSequence: number | null;
+}
+
+/** Контракт: Devices/DeviceDetailDto.cs */
+export interface DeviceDetailDto {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  enrolledAtUtc: IsoDateTime;
+  lastHeartbeatAtUtc: IsoDateTime | null;
+  isOnline: boolean;
+  isLocked: boolean;
+  seatId: Guid | null;
+  seatName: string | null;
+  zoneId: Guid | null;
+  zoneName: string | null;
+  activeCredentialCount: number;
+  installedAppCount: number;
+  recentCommands: DeviceCommandStatusDto[];
+  displayName?: string;
+  role?: string;
+  enrollmentState?: string;
+}
+
+/** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
+export interface DeviceDiagnosticsSummaryDto {
+  totalDevices: number;
+  onlineDevices: number;
+  lockedDevices: number;
+  staleDevices: number;
+  staleThresholdSeconds: number;
+  newestHeartbeatAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Devices/DeviceEnrollmentCodeDto.cs */
+export interface DeviceEnrollmentCodeDto {
+  organizationId: Guid;
+  branchId: Guid;
+  code: string;
+  expiresAtUtc: IsoDateTime;
+}
+
+/** Контракт: Devices/DeviceEnrollmentRequest.cs */
+export interface DeviceEnrollmentRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  enrollmentCode: string;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  requestedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Devices/DeviceEnrollmentResponse.cs */
+export interface DeviceEnrollmentResponse {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  credentialId: Guid;
+  credentialSecret: string;
+  enrolledAtUtc: IsoDateTime;
+}
+
+/** Контракт: Devices/DeviceHeartbeatRequest.cs */
+export interface DeviceHeartbeatRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  observedAtUtc: IsoDateTime;
+  isLocked: boolean;
+  activeSessionId: Guid | null;
+  activeSessionLeaseExpiresAtUtc: IsoDateTime | null;
+  activeSessionLeaseSequence: number | null;
+}
+
+/** Контракт: Devices/DeviceHeartbeatResponse.cs */
+export interface DeviceHeartbeatResponse {
+  serverTimeUtc: IsoDateTime;
+  heartbeatIntervalSeconds: number;
+  commands: DeviceCommandDto[];
+  /**
+   * Effective offline grace window (minutes) for this device's branch. The agent applies it locally
+   * to keep a paying customer playing for this long after the network actually drops (spec §6.1).
+   */
+  effectiveGraceMinutes?: number;
+  /**
+   * Код, который простаивающий ПК показывает на мониторе, чтобы человек мог сесть за него из
+   * приложения. Едет здесь, а не своим маршрутом: сердцебиение и так стучит раз в десять
+   * секунд, а код живёт минуты — вторая труба к тому же серверу за тем же самым ничего бы не
+   * добавила, кроме второго места, где это можно сломать.
+   * null, когда за ПК уже играют: звать к занятой машине незачем.
+   */
+  seatingCode?: string | null;
+  seatingCodeExpiresAtUtc?: IsoDateTime | null;
+  /**
+   * Клуб попросил сменить ключ этой машины. Агент меняет его сам и записывает новый — без
+   * визита к ПК и без простоя. Едет сердцебиением по той же причине, что и код посадки:
+   * вторая труба к тому же серверу за тем же самым ничего не добавила бы.
+   */
+  rotateCredential?: boolean;
+  /**
+   * Оформление клуба для экрана игрока: название, логотип, цвет. Едет сердцебиением по той же
+   * причине, что код посадки и ротация ключа. Хранить его в конфиге машины было бы хуже: клуб
+   * меняет логотип в панели, а не обходом всех ПК с переустановкой.
+   * null, когда оформление не задано, — оболочка показывает нейтральный экран.
+   */
+  branding?: ShellBrandingDto | null;
+}
+
+/** Контракт: Devices/DeviceInventoryItemDto.cs */
+export interface DeviceInventoryItemDto {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  enrolledAtUtc: IsoDateTime;
+  lastHeartbeatAtUtc: IsoDateTime | null;
+  isOnline: boolean;
+  isLocked: boolean;
+  seatId: Guid | null;
+  seatName: string | null;
+  zoneId: Guid | null;
+  zoneName: string | null;
+  activeCredentialCount: number;
+  installedAppCount: number;
+  pendingCommandCount: number;
+  failedCommandCount: number;
+  displayName?: string;
+  role?: string;
+  enrollmentState?: string;
+}
+
+/** Контракт: Devices/DeviceSeatAssignmentDto.cs */
+export interface DeviceSeatAssignmentDto {
+  deviceSeatAssignmentId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  deviceId: Guid;
+  attachedAtUtc: IsoDateTime;
+  detachedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Sessions/DeviceSessionSnapshotRequest.cs */
+export interface DeviceSessionSnapshotRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  activeSessionId: Guid | null;
+  activeLease: SessionLeaseDto | null;
+  isLocked: boolean;
+  pendingLocalEventCount: number;
+  observedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Devices/DeviceStateChangeRequest.cs */
+export interface DeviceStateChangeRequest {
+  organizationId: Guid;
+  reason?: string | null;
+}
+
+/** Контракт: Devices/DeviceStatusChangedDto.cs */
+export interface DeviceStatusChangedDto {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  machineName: string;
+  isOnline: boolean;
+  isLocked: boolean;
+  observedAtUtc: IsoDateTime;
+  displayName?: string;
+  role?: string;
+  enrollmentState?: string;
+  seatId?: Guid | null;
+}
+
+/** Контракт: Updates/DeviceUpdateCheckRequest.cs */
+export interface DeviceUpdateCheckRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  channel: string;
+  checkedAtUtc: IsoDateTime;
+  installedComponents: DeviceComponentVersionDto[];
+}
+
+/** Контракт: Updates/DeviceUpdateCheckResponse.cs */
+export interface DeviceUpdateCheckResponse {
+  serverTimeUtc: IsoDateTime;
+  updates: ComponentUpdateInstructionDto[];
+  organizationAdminPreference?: OrganizationAdminUpdatePreferenceDto | null;
+}
+
+/** Контракт: Updates/DeviceUpdateStatusReportRequest.cs */
+export interface DeviceUpdateStatusReportRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  updateRolloutId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  installedVersion: string;
+  targetVersion: string;
+  status: string;
+  message: string;
+  observedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Updates/DeviceUpdateStatusResultDto.cs */
+export interface DeviceUpdateStatusResultDto {
+  deviceId: Guid;
+  updateRolloutId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  status: string;
+  message: string;
+  updatedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Updates/UpdateRolloutStatusDto.cs */
+export interface DeviceUpdateStatusSnapshotDto {
+  deviceId: Guid;
+  updateRolloutId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  installedVersion: string;
+  targetVersion: string;
+  status: string;
+  message: string;
+  updatedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Devices/DispatchDeviceCommandRequest.cs */
+export interface DispatchDeviceCommandRequest {
+  type: string;
+  payload: Record<string, string>;
+}
+
+/**
+ * Чем смена заработала: проданным временем, товаром и удержанной за неявку предоплатой.
+ * NoShow стоит отдельно от Time намеренно: удержание — это
+ * не проданное время, и сложить их значит показать кассе наигранные часы, которых не было.
+ * В Total оно входит — это заработанные деньги, и потерять их в отчёте нельзя.
+ *
+ * Контракт: Shifts/ShiftRevenueDto.cs
+ */
+export interface EarnedBreakdownDto {
+  time: MoneyDto;
+  goods: MoneyDto;
+  noShow: MoneyDto;
+  total: MoneyDto;
+}
+
+/**
+ * Список включённых фич для клубского приложения.
+ *
+ * Контракт: Platform/Features/FeatureContracts.cs
+ */
+export interface EnabledFeaturesDto {
+  features: string[];
+}
+
+/** Контракт: Sessions/EndSessionRequest.cs */
+export interface EndSessionRequest {
+  reason: string;
+  idempotencyKey: string;
+  expectedVersion?: number | null;
+}
+
+/**
+ * GET response. The Hash key is never returned — only whether one is stored, so the UI can show
+ * "задан" without exposing the secret (mirrors how the dcgate apiKey is never round-tripped).
+ *
+ * Контракт: Payments/EskhataMerchantConfigDtos.cs
+ */
+export interface EskhataMerchantConfigDto {
+  baseUrl: string;
+  companyId: string;
+  merchantId: number;
+  hashKeySet: boolean;
+  status: string;
+}
+
+/** Контракт: Sessions/ExtendSessionRequest.cs */
+export interface ExtendSessionRequest {
+  additionalMinutes: number;
+  tariffRuleVersionId: string;
+  idempotencyKey: string;
+  playerAccountId?: Guid | null;
+  billingMode?: string;
+  tariffVersionId?: Guid | null;
+  playerPackageId?: Guid | null;
+  expectedVersion?: number | null;
+}
+
+/** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
+export interface FailedCommandDiagnosticsDto {
+  deviceId: Guid;
+  machineName: string;
+  commandId: Guid;
+  type: string;
+  status: string;
+  message: string | null;
+  updatedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
+export interface FailedUpdateDiagnosticsDto {
+  deviceId: Guid;
+  machineName: string;
+  updateRolloutId: Guid;
+  component: string;
+  targetVersion: string;
+  status: string;
+  message: string;
+  updatedAtUtc: IsoDateTime;
+}
+
+/** Контракт: FloorMap/FloorMapBulkUpdateResponse.cs */
+export interface FloorMapBulkSeatAssignment {
+  clientId: string;
+  seatId: Guid;
+}
+
+/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
+export interface FloorMapBulkSeatRequest {
+  seatId: Guid | null;
+  clientId: string;
+  zoneClientId: string;
+  name: string;
+  sortOrder: number;
+  posX?: number | null;
+  posY?: number | null;
+  rotation?: number;
+  seatType?: string;
+}
+
+/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
+export interface FloorMapBulkUpdateRequest {
+  organizationId: Guid;
+  zones: FloorMapBulkZoneRequest[];
+  seats: FloorMapBulkSeatRequest[];
+  walls?: FloorMapBulkWallRequest[] | null;
+}
+
+/** Контракт: FloorMap/FloorMapBulkUpdateResponse.cs */
+export interface FloorMapBulkUpdateResponse {
+  eTag: string;
+  zones: FloorMapBulkZoneAssignment[];
+  seats: FloorMapBulkSeatAssignment[];
+}
+
+/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
+export interface FloorMapBulkWallRequest {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** Контракт: FloorMap/FloorMapBulkUpdateResponse.cs */
+export interface FloorMapBulkZoneAssignment {
+  clientId: string;
+  zoneId: Guid;
+}
+
+/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
+export interface FloorMapBulkZoneRequest {
+  zoneId: Guid | null;
+  clientId: string;
+  name: string;
+  sortOrder: number;
+  geoX?: number | null;
+  geoY?: number | null;
+  geoWidth?: number | null;
+  geoHeight?: number | null;
+  color?: string | null;
+  zoneType?: string | null;
+}
+
+/** Контракт: FloorMap/FloorMapDto.cs */
+export interface FloorMapDto {
+  branchId: Guid;
+  branchName: string;
+  seats: SeatStatusDto[];
+  zones: FloorMapZoneDto[];
+  walls: FloorMapWallDto[];
+}
+
+/** Контракт: FloorMap/FloorMapDto.cs */
+export interface FloorMapWallDto {
+  wallId: Guid;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** Контракт: FloorMap/FloorMapDto.cs */
+export interface FloorMapZoneDto {
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
+  geoX: number | null;
+  geoY: number | null;
+  geoWidth: number | null;
+  geoHeight: number | null;
+  color: string | null;
+  zoneType: string | null;
+}
+
+/**
+ * Друг и то, единственное, что о нём видно: имя и «сейчас в зале» — если он сам это показывает.
+ * Ни телефона, ни денег, ни истории: дружба не даёт доступа к чужому счёту.
+ *
+ * Контракт: Friends/FriendDtos.cs
+ */
+export interface FriendDto {
+  platformPersonId: Guid;
+  displayName: string;
+  /**
+   * Где он сейчас играет. null — не в зале, или он скрыл своё присутствие. Разницы снаружи
+   * нет намеренно: иначе «скрыт» читалось бы как «он там, но прячется».
+   */
+  presence: FriendPresenceDto | null;
+}
+
+/**
+ * Клуб и зал, в которых друг сейчас за ПК.
+ *
+ * Контракт: Friends/FriendDtos.cs
+ */
+export interface FriendPresenceDto {
+  organizationName: string;
+  branchName: string;
+}
+
+/**
+ * Заявка в друзья. Пришедшую можно принять или отклонить, отправленную — только ждать:
+ * отзывать её незачем, а кнопка «отозвать» превратила бы список в пульт.
+ *
+ * Контракт: Friends/FriendDtos.cs
+ */
+export interface FriendRequestDto {
+  friendRequestId: Guid;
+  platformPersonId: Guid;
+  displayName: string;
+  createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Друзья целиком: принятые, пришедшие заявки и отправленные. Один ответ на весь экран —
+ * три запроса ради трёх списков платили бы сетью за одно открытие.
+ *
+ * Контракт: Friends/FriendDtos.cs
+ */
+export interface FriendsDto {
+  friends: FriendDto[];
+  incoming: FriendRequestDto[];
+  outgoing: FriendRequestDto[];
+  /**
+   * Видят ли друзья, что человек сейчас в зале. Выключено — список друзей у него остаётся,
+   * но его самого в залах никто не видит.
+   */
+  showsPresence: boolean;
+}
+
+/** Контракт: Reports/GameplayTimeReportResultDto.cs */
+export interface GameplayTimeReportResultDto {
+  rows: GameplayTimeReportRowDto[];
+  limit: number;
+  totalDurationSeconds: number;
+  totalPackageSeconds: number;
+  totalBonusSeconds: number;
+  gameplayRevenueTotal: MoneyDto;
+}
+
+/** Контракт: Reports/GameplayTimeReportRowDto.cs */
+export interface GameplayTimeReportRowDto {
+  sessionId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  deviceId: Guid;
+  createdByStaffUserId: Guid;
+  playerKind: string;
+  playerAccountId: Guid | null;
+  state: string;
+  durationSeconds: number;
+  packageSeconds: number;
+  bonusSeconds: number;
+  gameplayRevenue: MoneyDto;
+  startedAtUtc: IsoDateTime | null;
+  endedAtUtc: IsoDateTime | null;
+  endsAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Platform/Health/PlatformHealthContracts.cs */
+export interface IncidentDto {
+  incidentId: Guid;
+  kind: string;
+  dedupKey: string;
+  severity: string;
+  detailsJson: string;
+  openedAtUtc: IsoDateTime;
+  lastSeenAtUtc: IsoDateTime;
+}
+
+/** Контракт: Shifts/ShiftRevenueDto.cs */
+export interface InflowBreakdownDto {
+  cash: MoneyDto;
+  nonCash: MoneyDto;
+  walletTopUps: MoneyDto;
+  directTotal: MoneyDto;
+}
+
+/** Контракт: Install/InstallDiscoverResponse.cs */
+export interface InstallBranchDto {
+  branchId: Guid;
+  slug: string;
+  name: string;
+  floorMap: FloorMapDto;
+  freeSeatIds: Guid[];
+  /** В зале есть хотя бы один действующий тариф — значит платную сессию начать есть чем. */
+  hasTariff?: boolean;
+  /** В зале есть кто-то кроме владельца: приглашать первого сотрудника уже не нужно. */
+  hasStaffBesidesOwner?: boolean;
+}
+
+/** Контракт: Install/InstallCreateSeatResponse.cs */
+export interface InstallCreateSeatResponse {
+  organizationId: Guid;
+  branchId: Guid;
+  zoneId: Guid;
+  seatId: Guid;
+  name: string;
+  sortOrder: number;
+}
+
+/** Контракт: Install/InstallDiscoverResponse.cs */
+export interface InstallDiscoverResponse {
+  ownerDisplayName: string;
+  branches: InstallBranchDto[];
+  /**
+   * Оформление клуба уже задано. Мастер спрашивает про логотип и цвет только когда их нет:
+   * админских ПК в клубе бывает несколько, и на втором это был бы не вопрос, а шанс затереть
+   * настроенное. В конце списка и с умолчанием — старый мастер продолжит работать.
+   */
+  brandingConfigured?: boolean;
+}
+
+/** Контракт: Devices/InstalledAppDto.cs */
+export interface InstalledAppDto {
+  displayName: string;
+  version: string | null;
+  publisher: string | null;
+  installLocation: string | null;
+  installedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Devices/InstalledAppReportRequest.cs */
+export interface InstalledAppReportRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  reportedAtUtc: IsoDateTime;
+  apps: InstalledAppDto[];
+}
+
+/** Контракт: Install/InstallEnrollResponse.cs */
+export interface InstallEnrollResponse {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  credentialId: Guid;
+  credentialSecret: string;
+  enrollmentState: string;
+  apiBaseUrl: string;
+  updateChannel: string;
+  enrolledAtUtc: IsoDateTime;
+  leaseSigningPublicKeyPem: string;
+  updatePackageSigningPublicKeyPem: string;
+}
+
+/** Контракт: Inventory/InventoryStockDto.cs */
+export interface InventoryStockDto {
+  productId: Guid;
+  productName: string;
+  sku: string;
+  trackStock: boolean;
+  stockOnHand: number;
+}
+
+/** Контракт: Platform/Billing/InvoiceDto.cs */
+export interface InvoiceDto {
+  invoiceId: Guid;
+  organizationId: Guid;
+  number: number;
+  kind: string;
+  periodStartUtc: IsoDateTime;
+  periodEndUtc: IsoDateTime;
+  issuedAtUtc: IsoDateTime;
+  dueAtUtc: IsoDateTime;
+  amountMinorUnits: number;
+  currencyCode: string;
+  status: string;
+  paidAtUtc: IsoDateTime | null;
+  voidedAtUtc: IsoDateTime | null;
+  voidReason: string | null;
+  description: string;
+  grossAmountMinorUnits: number;
+  discountMinorUnits: number;
+}
+
+/** Контракт: Platform/Billing/InvoiceListItemDto.cs */
+export interface InvoiceListItemDto {
+  invoiceId: Guid;
+  organizationId: Guid;
+  organizationName: string;
+  organizationSlug: string;
+  number: number;
+  kind: string;
+  issuedAtUtc: IsoDateTime;
+  dueAtUtc: IsoDateTime;
+  amountMinorUnits: number;
+  currencyCode: string;
+  status: string;
+}
+
+/**
+ * Состояние одного задания. Kind/JobName едут кодом: клиент никогда не рендерит серверную
+ * строку как пользовательский текст — у каждого имени есть перевод в каталоге.
+ *
+ * Контракт: Platform/Health/PlatformHealthContracts.cs
+ */
+export interface JobHealthDto {
+  jobName: string;
+  lastRunAtUtc: IsoDateTime | null;
+  lastSuccessAtUtc: IsoDateTime | null;
+  lastOutcome: string | null;
+  lastItemsProcessed: number;
+  lastError: string | null;
+  consecutiveFailures: number;
+}
+
+/** Контракт: Shell/LauncherAppDto.cs */
+export interface LauncherAppDto {
+  appId: string;
+  displayName: string;
+  category: string;
+  iconUri: string | null;
+  isAvailable: boolean;
+}
+
+/** Контракт: Billing/LedgerEntryDto.cs */
+export interface LedgerEntryDto {
+  ledgerEntryId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  playerAccountId: Guid;
+  sessionId: Guid | null;
+  playerPackageId: Guid | null;
+  entryType: string;
+  accountType: string;
+  amount: MoneyDto;
+  quantitySeconds: number;
+  description: string;
+  reason: string;
+  reversesLedgerEntryId: Guid | null;
+  createdByStaffUserId: Guid;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Updates/LocalUpdateCoordinationMessage.cs */
+export interface LocalUpdateCoordinationRequest {
+  secret: string;
+  operation: string;
+  updateRolloutId: Guid | null;
+  updatePackageId: Guid | null;
+}
+
+/** Контракт: Updates/LocalUpdateCoordinationMessage.cs */
+export interface LocalUpdateCoordinationResponse {
+  status: string;
+  message: string;
+}
+
+/** Контракт: Loyalty/LoyaltySettingsDto.cs */
+export interface LoyaltySettingsDto {
+  topUpEnabled: boolean;
+  topUpPercentBasisPoints: number;
+  shopEnabled: boolean;
+  shopPercentBasisPoints: number;
+  sessionEnabled: boolean;
+  sessionPercentBasisPoints: number;
+  cashbackCapMinorUnits: number;
+  minimumSourceMinorUnits: number;
+}
+
+/** Контракт: Billing/ManualLedgerCorrectionRequest.cs */
+export interface ManualLedgerCorrectionRequest {
+  organizationId: Guid;
+  accountType: string;
+  amount: MoneyDto;
+  quantitySeconds: number;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/** Контракт: Payments/ManualPaymentRequest.cs */
+export interface ManualPaymentRequest {
+  organizationId: Guid;
+  paymentMethod: string;
+  amount: MoneyDto;
+  note: string;
+  idempotencyKey: string;
+}
+
+/** Контракт: Platform/Billing/MarkInvoicePaidRequest.cs */
+export interface MarkInvoicePaidRequest {
+  reference: string | null;
+}
+
+/**
+ * «Он не приехал» — сказанное человеком за стойкой, а не выведенное таймером.
+ * Автоматика ждёт столько, сколько велел филиал, и разбирает только брони с замороженными
+ * деньгами. Администратор видит пустое место раньше и знает про бронь без предоплаты то, чего
+ * не знает ни один таймер, — поэтому отметить неявку он может сам.
+ * <param name="ExpectedVersion">
+ * Версия брони, которую видел администратор. Пусто — не спорить о версиях: повторный клик по
+ * уже отмеченной неявке не должен выглядеть конфликтом.
+ * </param>
+ *
+ * Контракт: Reservations/MarkReservationNoShowRequest.cs
+ */
+export interface MarkReservationNoShowRequest {
+  organizationId: Guid;
+  expectedVersion?: number | null;
+}
+
+/**
+ * Человек и его клубы одним ответом. Приложение открывается на этом: сначала «кто я», потом
+ * «где у меня что». Общей суммы денег здесь нет и не будет — у каждого клуба своя касса, и
+ * складывать остатки разных клубов значит показать число, которое ниоткуда нельзя потратить.
+ *
+ * Контракт: Players/MeDto.cs
+ */
+export interface MeDto {
+  person: MePersonDto;
+  clubs: MyClubDto[];
+}
+
+/**
+ * Личность: то, что принадлежит человеку, а не клубу. PIN сюда не попадает никогда — только
+ * признак, задан он или ещё нет.
+ *
+ * Контракт: Players/MeDto.cs
+ */
+export interface MePersonDto {
+  platformPersonId: Guid;
+  phoneNumber: string;
+  displayName: string;
+  preferredLocale: string | null;
+  phoneVerified: boolean;
+  pinSet: boolean;
+  networkBanned: boolean;
+  networkBanReason: string | null;
+}
+
+/**
+ * Approve or reject a pending money action; the optional note is recorded on the request.
+ *
+ * Контракт: Billing/MoneyActionContracts.cs
+ */
+export interface MoneyActionDecisionRequest {
+  decisionReason: string | null;
+}
+
+/**
+ * A pending money action for the Manager Review screen (§5.5).
+ *
+ * Контракт: Billing/MoneyActionContracts.cs
+ */
+export interface MoneyActionRequestDto {
+  moneyActionRequestId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  shiftId: Guid;
+  actionType: string;
+  requestedByStaffUserId: Guid;
+  amountMinorUnits: number;
+  currencyCode: string;
+  reason: string;
+  state: string;
+  createdAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+}
+
+/**
+ * The pending-approvals feed.
+ *
+ * Контракт: Billing/MoneyActionContracts.cs
+ */
+export interface MoneyActionRequestListResponse {
+  requests: MoneyActionRequestDto[];
+}
+
+/**
+ * Submit a high-risk money action through the anti-fraud control layer (§5.2). The guard decides
+ * whether it executes now, is held for approval, or is refused on a cap breach. `ActionType` is
+ * `refund` or `manual_correction`; a debt-reducing correction is classified as a write-off
+ * server-side. `SignedAmountMinorUnits` is signed (corrections may be ±); refunds use its magnitude.
+ *
+ * Контракт: Billing/MoneyActionContracts.cs
+ */
+export interface MoneyActionSubmitRequest {
+  organizationId: Guid;
+  actionType: string;
+  playerAccountId: Guid;
+  ledgerEntryId: Guid | null;
+  accountType: string;
+  signedAmountMinorUnits: number;
+  currencyCode: string;
+  quantitySeconds: number;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/**
+ * Outcome of a submitted money action: `executed` / `pending_approval` / `rejected`.
+ *
+ * Контракт: Billing/MoneyActionContracts.cs
+ */
+export interface MoneyActionSubmitResponse {
+  outcome: string;
+  resultingLedgerEntryId: Guid | null;
+  moneyActionRequestId: Guid | null;
+}
+
+/** Контракт: Billing/MoneyDto.cs */
+export interface MoneyDto {
+  currencyCode: string;
+  minorUnits: number;
+}
+
+/** Контракт: Devices/MoveDeviceSeatRequest.cs */
+export interface MoveDeviceSeatRequest {
+  organizationId: Guid;
+  seatId: Guid;
+}
+
+/**
+ * Перенос собственной брони игроком: новое время и, если нужно, другое место.
+ * Длительности здесь нет намеренно. «Перенести» — это то же самое на другое время; изменить
+ * длину — другое решение с другой ценой, и прятать его в ту же кнопку значит однажды удивить
+ * человека суммой.
+ *
+ * Контракт: Reservations/MovePlayerReservationRequest.cs
+ */
+export interface MovePlayerReservationRequest {
+  startsAtUtc: IsoDateTime;
+  seatId?: Guid | null;
+  expectedVersion?: number | null;
+}
+
+/**
+ * Один клуб глазами игрока: сколько можно потратить, сколько придержано под брони, сколько
+ * он должен и сколько раз приходил.
+ *
+ * Контракт: Players/MeDto.cs
+ */
+export interface MyClubDto {
+  organizationId: Guid;
+  organizationName: string;
+  playerAccountId: Guid;
+  homeBranchId: Guid;
+  currencyCode: string;
+  walletBalanceMinorUnits: number;
+  heldMinorUnits: number;
+  debtMinorUnits: number;
+  visitCount: number;
+}
+
+/**
+ * Человек сети глазами платформы: ровно столько, сколько нужно, чтобы решить вопрос о запрете.
+ * Ни клубов, ни денег, ни визитов здесь нет — это клубные сведения, и панель платформы не место,
+ * где их собирают в одну карточку.
+ *
+ * Контракт: Platform/People/NetworkPeopleContracts.cs
+ */
+export interface NetworkPersonDto {
+  platformPersonId: Guid;
+  phoneNumber: string;
+  displayName: string;
+  registeredAtUtc: IsoDateTime;
+  networkBanAtUtc: IsoDateTime | null;
+  networkBanReason: string | null;
+}
+
+/**
+ * Спрос по точному номеру. Поиска по части номера нет намеренно.
+ *
+ * Контракт: Platform/People/NetworkPeopleContracts.cs
+ */
+export interface NetworkPersonLookupRequest {
+  phoneNumber: string;
+}
+
+/** Контракт: News/NewsItemDto.cs */
+export interface NewsItemDto {
+  id: Guid;
+  branchId: Guid | null;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  isPublished: boolean;
+  publishAtUtc: IsoDateTime | null;
+  expiresAtUtc: IsoDateTime | null;
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+}
+
+/**
+ * The outcome of a user-waiting send (OTP / password reset) after its first dispatch attempt.
+ *
+ * Контракт: Notifications/NotificationContracts.cs
+ */
+export interface NotificationDeliveryResult {
+  handle: NotificationHandle;
+  delivered: boolean;
+  error: string | null;
+}
+
+/**
+ * The result of enqueuing a notification: the outbox row id(s) and whether new rows were created
+ * (`false` when a duplicate NotificationRequest.IdempotencyKey collapsed the send).
+ *
+ * Контракт: Notifications/NotificationContracts.cs
+ */
+export interface NotificationHandle {
+  outboxIds: Guid[];
+  created: boolean;
+}
+
+/**
+ * A resolved delivery target. Locale is BCP-47-ish (ru/en/tg) resolved upstream; address fields are
+ * channel-specific. Staff/player ids provide audit linkage and a future in-app target.
+ *
+ * Контракт: Notifications/NotificationContracts.cs
+ */
+export interface NotificationRecipient {
+  locale: string;
+  emailAddress?: string | null;
+  phoneNumber?: string | null;
+  staffUserId?: Guid | null;
+  playerAccountId?: Guid | null;
+}
+
+/** Контракт: Shifts/OpenShiftRequest.cs */
+export interface OpenShiftRequest {
+  organizationId: Guid;
+  startingCash: MoneyDto;
+  openingNote: string;
+  idempotencyKey: string;
+}
+
+/** Контракт: Reports/OperatorActionReportResultDto.cs */
+export interface OperatorActionReportResultDto {
+  rows: OperatorActionReportRowDto[];
+  limit: number;
+  totalActionCount: number;
+}
+
+/** Контракт: Reports/OperatorActionReportRowDto.cs */
+export interface OperatorActionReportRowDto {
+  actorStaffUserId: Guid | null;
+  actorDisplayName: string;
+  action: string;
+  outcome: string;
+  count: number;
+  firstAtUtc: IsoDateTime;
+  lastAtUtc: IsoDateTime;
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardAlertPressureDto {
+  pendingCommands: number;
+  failedCommands: number;
+  offlineDevices: number;
+  endingSessions: number;
+  totalAlerts: number;
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardQueueItemDto {
+  tone: string;
+  target: string;
+  title: string;
+  detail: string;
+  seatId: Guid | null;
+  deviceId: Guid | null;
+  createdAtUtc: IsoDateTime;
+  sourceType: string;
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardRecentPaymentDto {
+  paymentId: Guid;
+  posSaleId: Guid | null;
+  shiftId: Guid;
+  createdByStaffUserId: Guid;
+  paymentKind: string;
+  paymentMethod: string;
+  amount: MoneyDto;
+  createdAtUtc: IsoDateTime;
+  sessionId?: Guid | null;
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardReservationSummaryDto {
+  activeReservations: number;
+  availableSlots: number;
+  source: string;
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardRevenueSummaryDto {
+  posNetSales: MoneyDto;
+  gameplayRevenue: MoneyDto;
+  totalRevenue: MoneyDto;
+  posCheckCount: number;
+  newPlayerCount: number;
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardShiftSummaryDto {
+  shiftId: Guid | null;
+  state: string;
+  openedAtUtc: IsoDateTime | null;
+  openedByStaffUserId: Guid | null;
+  expectedCash: MoneyDto;
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardSummaryDto {
+  organizationId: Guid;
+  branchId: Guid;
+  fromUtc: IsoDateTime;
+  toUtc: IsoDateTime;
+  generatedAtUtc: IsoDateTime;
+  shift: OperatorDashboardShiftSummaryDto;
+  revenue: OperatorDashboardRevenueSummaryDto;
+  utilization: OperatorDashboardUtilizationSummaryDto;
+  alertPressure: OperatorDashboardAlertPressureDto;
+  reservations: OperatorDashboardReservationSummaryDto;
+  focusQueue: OperatorDashboardQueueItemDto[];
+  recentPayments: OperatorDashboardRecentPaymentDto[];
+}
+
+/** Контракт: Dashboard/OperatorDashboardSummaryDto.cs */
+export interface OperatorDashboardUtilizationSummaryDto {
+  totalSeats: number;
+  activeSessions: number;
+  endingSessions: number;
+  onlineDevices: number;
+  offlineDevices: number;
+  sessionStarts: number;
+  utilizationPercent: number;
+}
+
+/** Контракт: Players/OperatorTopUpIntentDto.cs */
+export interface OperatorTopUpIntentDto {
+  paymentIntentId: Guid;
+  playerAccountId: Guid;
+  displayName: string;
+  amountMinorUnits: number;
+  currencyCode: string;
+  state: string;
+  method: string;
+  createdAtUtc: IsoDateTime;
+  seatName: string | null;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminActiveShiftDto {
+  shiftId: Guid;
+  openedByStaffUserId: Guid;
+  openedAtUtc: IsoDateTime;
+  expectedCash: MoneyDto;
+  isProvisional: boolean;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminReportAttentionDto {
+  kind: string;
+  title: string;
+  detail: string;
+  targetId: Guid | null;
+  amount: MoneyDto | null;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminReportFiguresDto {
+  netRevenue: MoneyDto;
+  gameplayRevenue: MoneyDto;
+  posNetSales: MoneyDto;
+  gameplaySeconds: number;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminReportPeriodDto {
+  fromDate: IsoDate;
+  toDate: IsoDate;
+  timeZone: string;
+  fromUtc: IsoDateTime;
+  toUtc: IsoDateTime;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminRevenueBreakdownDto {
+  key: string;
+  label: string;
+  revenue: MoneyDto;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminRevenueComparisonDto {
+  previousNetRevenue: MoneyDto;
+  differenceMinorUnits: number;
+  changePercent: number | null;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminRevenueReportDto {
+  period: OrganizationAdminReportPeriodDto;
+  grossRevenue: MoneyDto;
+  refunds: MoneyDto;
+  netRevenue: MoneyDto;
+  gameplayRevenue: MoneyDto;
+  gameplaySeconds: number;
+  posNetSales: MoneyDto;
+  comparison: OrganizationAdminRevenueComparisonDto;
+  sources: OrganizationAdminRevenueSourceDto[];
+  paymentMethods: OrganizationAdminRevenueBreakdownDto[];
+  operators: OrganizationAdminRevenueBreakdownDto[];
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminRevenueSourceDto {
+  source: string;
+  revenue: MoneyDto;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminRevenueTrendPointDto {
+  date: IsoDate;
+  netRevenue: MoneyDto;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminShiftCashReportDto {
+  period: OrganizationAdminReportPeriodDto;
+  shifts: ShiftReportRowDto[];
+  cashOperations: CashOperationReportRowDto[];
+  cashInTotal: MoneyDto;
+  cashOutTotal: MoneyDto;
+  netCashTotal: MoneyDto;
+}
+
+/** Контракт: Reports/OrganizationAdminReportContracts.cs */
+export interface OrganizationAdminSummaryReportDto {
+  period: OrganizationAdminReportPeriodDto;
+  attentionTotalCount: number;
+  attentionItems: OrganizationAdminReportAttentionDto[];
+  figures: OrganizationAdminReportFiguresDto;
+  trend: OrganizationAdminRevenueTrendPointDto[];
+  activeShift: OrganizationAdminActiveShiftDto | null;
+}
+
+/** Контракт: Updates/OrganizationAdminUpdatePreferenceDto.cs */
+export interface OrganizationAdminUpdatePreferenceDto {
+  organizationId: Guid;
+  branchId: Guid;
+  maintenanceWindowStart: IsoTime;
+  maintenanceWindowEnd: IsoTime;
+  timeZone: string;
+}
+
+/**
+ * Compact arrears summary for the club's own admin banner: enough to say what is owed and
+ * how late it is, without pulling the whole invoice list on every screen load.
+ *
+ * Контракт: Platform/Billing/OrganizationBillingStatusDto.cs
+ */
+export interface OrganizationBillingStatusDto {
+  inArrears: boolean;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  oldestOverdueInvoiceNumber: number | null;
+  daysOverdue: number;
+  graceUntilUtc: IsoDateTime | null;
+}
+
+/** Контракт: Platform/Organizations/OrganizationBranchDto.cs */
+export interface OrganizationBranchDto {
+  branchId: Guid;
+  slug: string;
+  name: string;
+  city: string;
+  createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Клуб, каким его видит своя веб-сборка: как он называется, как выглядит и из каких залов
+ * состоит.
+ * <param name="Halls">
+ * Залы сети — чтобы веб мог спросить «в какой вы придёте» до первого действия. Сеть из
+ * нескольких залов иначе оказывается тупиком: счёт человеку открывает бронь или пополнение, а
+ * зал для него сервер не гадает — и первый же запрос возвращает `branch_required`.
+ * Мобильное приложение берёт залы из каталога клубов; у веба каталога нет — он и так знает
+ * свой клуб, — поэтому залы едут сюда, вместе с остальным «что это за клуб».
+ * </param>
+ *
+ * Контракт: Branding/OrganizationBrandingDto.cs
+ */
+export interface OrganizationBrandingDto {
+  organizationId: Guid;
+  name: string;
+  logoUrl: string | null;
+  accentColor: string | null;
+  halls?: BrandingHallDto[] | null;
+}
+
+/** Контракт: Platform/Organizations/OrganizationDetailDto.cs */
+export interface OrganizationDetailDto {
+  organizationId: Guid;
+  slug: string;
+  name: string;
+  status: string;
+  statusReason: string | null;
+  statusChangedAtUtc: IsoDateTime | null;
+  planCode: string;
+  subscriptionStatus: string;
+  limits: OrganizationLimitsDto;
+  branches: OrganizationBranchDto[];
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  legalDetails?: string | null;
+  updateChannel?: string;
+  pinnedClientVersion?: string | null;
+}
+
+/**
+ * A club as it appears in the public picker: enough to choose it, nothing about how the
+ * business is doing. The mobile app has no hostname to derive a club from, so the player picks
+ * one from this list before signing in.
+ * The showcase fields below (places, price, seats) are what turns a list of names into a
+ * shop window: a player picks a club by where it is and what an hour costs, and a name alone
+ * answers neither question. They are optional so a club that filled nothing in still appears.
+ *
+ * Контракт: Branding/OrganizationDirectoryEntryDto.cs
+ */
+export interface OrganizationDirectoryEntryDto {
+  organizationId: Guid;
+  slug: string;
+  name: string;
+  logoUrl: string | null;
+  accentColor: string | null;
+  places?: ClubPlaceDto[] | null;
+  pricePerHourFromMinorUnits?: number | null;
+  currencyCode?: string | null;
+  seatCount?: number;
+  rating?: number | null;
+  reviewCount?: number;
+}
+
+/**
+ * Состояние фичи для клуба вместе с тем, ЧЕМ оно решено: «не куплено» и «не выкачено» —
+ * разные ответы клиенту, и панель обязана их различать.
+ *
+ * Контракт: Platform/Features/FeatureContracts.cs
+ */
+export interface OrganizationFeatureStateDto {
+  featureKey: string;
+  name: string;
+  description: string;
+  isEnabled: boolean;
+  decisionLevel: string;
+  overrideValue: boolean | null;
+  overrideReason: string | null;
+  overrideSetAtUtc: IsoDateTime | null;
+  planValue: boolean | null;
+  defaultValue: boolean;
+}
+
+/** Контракт: Platform/Health/OrganizationHealthDto.cs */
+export interface OrganizationHealthDto {
+  organizationId: Guid;
+  status: string;
+  branchCount: number;
+  deviceCount: number;
+  activeStaffUserCount: number;
+  latestStaffSignInAtUtc: IsoDateTime | null;
+  latestMigration: string | null;
+  recentErrorCount: number;
+  recentErrors: OrganizationHealthErrorDto[];
+}
+
+/** Контракт: Platform/Health/OrganizationHealthErrorDto.cs */
+export interface OrganizationHealthErrorDto {
+  createdAtUtc: IsoDateTime;
+  source: string;
+  action: string;
+  outcome: string;
+  message: string | null;
+}
+
+/** Контракт: Platform/Organizations/OrganizationLimitsDto.cs */
+export interface OrganizationLimitsDto {
+  maxBranches: number | null;
+  maxDevicesPerBranch: number | null;
+  maxConcurrentSessions: number | null;
+  maxStaffUsersPerBranch: number | null;
+}
+
+/**
+ * Состояние ухода клуба: где он в цикле «заявка → выгрузка → стирание».
+ *
+ * Контракт: Platform/Organizations/OffboardingContracts.cs
+ */
+export interface OrganizationOffboardingDto {
+  organizationId: Guid;
+  slug: string;
+  status: string;
+  purgeEligibleAtUtc: IsoDateTime | null;
+  purgedAtUtc: IsoDateTime | null;
+  canPurge: boolean;
+}
+
+/** Контракт: Identity/AccountActivation/OrganizationOwnerAccountActivationResult.cs */
+export interface OrganizationOwnerAccountActivationResult {
+  organizationId: Guid;
+  branchId: Guid;
+  nextStep: string;
+}
+
+/** Контракт: Identity/AccountActivation/OrganizationOwnerInviteDto.cs */
+export interface OrganizationOwnerInviteDto {
+  organizationOwnerInviteId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  code: string;
+  status: string;
+  ownerUserName: string | null;
+  ownerDisplayName: string | null;
+  expiresAtUtc: IsoDateTime;
+  acceptedAtUtc: IsoDateTime | null;
+  revokedAtUtc: IsoDateTime | null;
+  revokedReason: string | null;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Identity/AccountActivation/OrganizationOwnerInviteSummaryDto.cs */
+export interface OrganizationOwnerInviteSummaryDto {
+  organizationOwnerInviteId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  codeSuffix: string;
+  status: string;
+  ownerUserName: string | null;
+  ownerDisplayName: string | null;
+  expiresAtUtc: IsoDateTime;
+  acceptedAtUtc: IsoDateTime | null;
+  revokedAtUtc: IsoDateTime | null;
+  revokedReason: string | null;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Platform/Billing/OrganizationSubscriptionDto.cs */
+export interface OrganizationSubscriptionDto {
+  organizationSubscriptionId: Guid;
+  organizationId: Guid;
+  planCode: string;
+  status: string;
+  currentPeriodStartUtc: IsoDateTime;
+  currentPeriodEndUtc: IsoDateTime;
+  nextInvoiceUtc: IsoDateTime | null;
+  amountMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  cancelAtPeriodEnd: boolean;
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+  paymentGraceUntilUtc: IsoDateTime | null;
+  discountPercent: number | null;
+  discountAmountMinorUnits: number | null;
+  discountUntilUtc: IsoDateTime | null;
+  discountReason: string | null;
+}
+
+/** Контракт: Platform/Organizations/OrganizationSummaryDto.cs */
+export interface OrganizationSummaryDto {
+  organizationId: Guid;
+  slug: string;
+  name: string;
+  status: string;
+  planCode: string;
+  subscriptionStatus: string;
+  branchCount: number;
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+  recentErrorCount: number;
+  expiringOwnerInviteCount: number;
+  rolloutAttentionCount: number;
+}
+
+/** Контракт: Platform/SupportNotes/OrganizationSupportNoteDto.cs */
+export interface OrganizationSupportNoteDto {
+  organizationSupportNoteId: Guid;
+  organizationId: Guid;
+  authorPlatformAdminId: Guid;
+  authorDisplayName: string;
+  body: string;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: News/OwnerBranchSummaryDto.cs */
+export interface OwnerBranchSummaryDto {
+  branchId: Guid;
+  name: string;
+}
+
+/**
+ * Anti-fraud §5.6: the owner's daily "watch the staff" digest — per-actor refunds, comps, manual
+ * corrections / debt write-offs, and shift discrepancies for a single branch-day.
+ *
+ * Контракт: Reports/OwnerDailySummaryResultDto.cs
+ */
+export interface OwnerDailySummaryActorRowDto {
+  actorStaffUserId: Guid | null;
+  actorDisplayName: string;
+  refundCount: number;
+  refundTotalMinorUnits: number;
+  compCount: number;
+  compValueMinorUnits: number;
+  manualCorrectionCount: number;
+  manualCorrectionTotalMinorUnits: number;
+  writeOffCount: number;
+  writeOffTotalMinorUnits: number;
+  discrepancyShiftCount: number;
+  discrepancyTotalMinorUnits: number;
+}
+
+/** Контракт: Reports/OwnerDailySummaryResultDto.cs */
+export interface OwnerDailySummaryResultDto {
+  date: IsoDate;
+  currencyCode: string;
+  rows: OwnerDailySummaryActorRowDto[];
+  totalRefundMinorUnits: number;
+  totalCompCount: number;
+  totalCompValueMinorUnits: number;
+  totalManualCorrectionMinorUnits: number;
+  totalWriteOffMinorUnits: number;
+  totalDiscrepancyMinorUnits: number;
+}
+
+/** Контракт: Packages/PackageDefinitionDto.cs */
+export interface PackageDefinitionDto {
+  packageDefinitionId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  price: MoneyDto;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+  isActive: boolean;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Operator/PackageOptionDto.cs */
+export interface PackageOptionDto {
+  packageDefinitionId: Guid;
+  name: string;
+  currencyCode: string;
+  priceMinorUnits: number;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+}
+
+/** Контракт: Billing/PayDebtRequest.cs */
+export interface PayDebtRequest {
+  organizationId: Guid;
+  amount: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/**
+ * One part of a split payment: a method and the amount tendered with it.
+ *
+ * Контракт: Sessions/PaymentPartDto.cs
+ */
+export interface PaymentPartDto {
+  paymentMethod: string;
+  amount: MoneyDto;
+}
+
+/**
+ * A finished visit that has not been reviewed yet — what the app offers to rate.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface PendingClubReviewDto {
+  sessionId: Guid;
+  branchName: string;
+  seatName: string;
+  endedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Shop/PlaceShopOrderRequest.cs */
+export interface PlaceShopOrderRequest {
+  lines: ShopOrderLineInput[];
+  idempotencyKey: string;
+}
+
+/**
+ * Тело отказа по лимиту тарифа. Current и Limit едят
+ * клиенту, чтобы отказ читался как «филиалов 2 из 2», а не как «нельзя».
+ *
+ * Контракт: Platform/Organizations/PlanLimitExceededDto.cs
+ */
+export interface PlanLimitExceededDto {
+  code: string;
+  limitName: string;
+  limit: number;
+  current: number;
+  planCode: string;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
+export interface PlatformAdminInvitationDto {
+  invitationId: Guid;
+  role: string;
+  status: string;
+  expiresAtUtc: IsoDateTime;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
+export interface PlatformAdminListItem {
+  platformAdminUserId: Guid;
+  userName: string;
+  displayName: string;
+  role: string;
+  isActive: boolean;
+  twoFactorEnabled: boolean;
+  lastSignInAtUtc: IsoDateTime | null;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminRefreshTokenRequest.cs */
+export interface PlatformAdminRefreshTokenRequest {
+  refreshToken: string;
+}
+
+/**
+ * First step of sign-in: password alone no longer issues a working session. The caller must present
+ * this challenge token to one of the /auth/2fa/* routes (setup or verify) to receive the real
+ * PlatformAdminSignInResponse above. The token is short-lived and opaque — it authorizes nothing
+ * except those 2FA routes.
+ *
+ * Контракт: Platform/Auth/PlatformAdminSignInResponse.cs
+ */
+export interface PlatformAdminSignInChallengeResponse {
+  challengeToken: string;
+  expiresAtUtc: IsoDateTime;
+  twoFactorConfigured: boolean;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminSignInRequest.cs */
+export interface PlatformAdminSignInRequest {
+  userName: string;
+  password: string;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminSignInResponse.cs */
+export interface PlatformAdminSignInResponse {
+  platformAdminId: Guid;
+  userName: string;
+  displayName: string;
+  accessToken: string;
+  accessTokenExpiresAtUtc: IsoDateTime;
+  refreshToken: string;
+  refreshTokenExpiresAtUtc: IsoDateTime;
+  roles: string[];
+  permissions: string[];
+}
+
+/** Контракт: Platform/Auth/PlatformAdminSignOutRequest.cs */
+export interface PlatformAdminSignOutRequest {
+  refreshToken: string;
+}
+
+/** Контракт: Platform/Analytics/PlatformAnalyticsContracts.cs */
+export interface PlatformAnalyticsOverviewDto {
+  generatedAtUtc: IsoDateTime;
+  currencyCode: string;
+  months: AnalyticsMonthDto[];
+  currentMrrMinorUnits: number;
+  currentPayingClubs: number;
+  averageRevenuePerClubMinorUnits: number;
+  outstandingMinorUnits: number;
+}
+
+/**
+ * Анонс глазами платформы: что написано, кому, в каком он состоянии и дошёл ли.
+ *
+ * Контракт: Platform/Announcements/AnnouncementContracts.cs
+ */
+export interface PlatformAnnouncementDto {
+  announcementId: Guid;
+  title: string;
+  body: string;
+  severity: string;
+  showFromUtc: IsoDateTime;
+  showUntilUtc: IsoDateTime;
+  audienceKind: string;
+  audiencePlanCodes: string[];
+  audienceOrganizationIds: Guid[];
+  status: string;
+  publishedAtUtc: IsoDateTime | null;
+  emailDispatched: boolean;
+  readCount: number;
+}
+
+/** Контракт: Platform/Billing/PlatformBillingMetricsDto.cs */
+export interface PlatformBillingMetricsDto {
+  mrrMinorUnits: number;
+  currencyCode: string;
+  activeSubscriptions: number;
+  outstandingMinorUnits: number;
+  outstandingCount: number;
+  overdueMinorUnits: number;
+  overdueCount: number;
+}
+
+/** Контракт: Platform/Health/PlatformHealthContracts.cs */
+export interface PlatformHealthOverviewDto {
+  generatedAtUtc: IsoDateTime;
+  jobs: JobHealthDto[];
+  queues: QueueHealthDto[];
+  openIncidents: IncidentDto[];
+  recentFailures: QueueFailureDto[];
+  /**
+   * Хранилище файлов не настроено: логотипы и фото зала загрузить нельзя ни из мастера, ни из
+   * панели. Видно здесь, а не при первой попытке загрузки — иначе об этом узнаёт клуб, а не мы.
+   */
+  mediaStorageConfigured?: boolean;
+}
+
+/**
+ * Сессия человека. Первые восемь полей — дословно те же, что в PlayerSignInResponse,
+ * поэтому старый клиент читает этот ответ, не заметив разницы. Отличие одно и оно про модель:
+ * клуба может не быть вовсе — так выглядит человек, зарегистрировавшийся дома и ещё никуда не
+ * зашедший.
+ *
+ * Контракт: Identity/RegistrationContracts.cs
+ */
+export interface PlatformPersonSessionResponse {
+  playerAccountId: Guid | null;
+  organizationId: Guid | null;
+  displayName: string;
+  phoneVerified: boolean;
+  accessToken: string;
+  accessTokenExpiresAtUtc: IsoDateTime;
+  refreshToken: string;
+  refreshTokenExpiresAtUtc: IsoDateTime;
+  platformPersonId: Guid;
+  preferredLocale: string | null;
+  /** Спрошены ли имя и язык. Показывать ли экран «как вас зовут», решает сервер. */
+  profileCompleted: boolean;
+}
+
+/** Контракт: Platform/Pulse/PlatformPulseContracts.cs */
+export interface PlatformPulseDto {
+  generatedAtUtc: IsoDateTime;
+  organizations: PulseOrganizationDto[];
+}
+
+/**
+ * Роль платформы вместе с тем, что она даёт и сколько человек её носят.
+ *
+ * Контракт: Platform/Auth/PlatformRoleContracts.cs
+ */
+export interface PlatformRoleDto {
+  roleName: string;
+  displayName: string;
+  description: string;
+  isBuiltIn: boolean;
+  grantsAllPermissions: boolean;
+  permissions: string[];
+  adminCount: number;
+}
+
+/** Контракт: Platform/Search/PlatformSearchResultDto.cs */
+export interface PlatformSearchResultDto {
+  kind: string;
+  id: Guid;
+  title: string;
+  context: string;
+  href: string;
+}
+
+/** Контракт: Platform/Support/PlatformSupportAccessContracts.cs */
+export interface PlatformSupportAccessGrantDto {
+  grantId: Guid;
+  organizationId: Guid;
+  reason: string;
+  issuedAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+  revokedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Platform/Support/PlatformSupportAccessContracts.cs */
+export interface PlatformSupportAccessGrantIssue {
+  grant: PlatformSupportAccessGrantDto;
+  ticket: string;
+  adminUrl: string;
+}
+
+/**
+ * Живой доступ в клуб, каким его видит тот, кто решает — оставить или оборвать. Отдельно от
+ * PlatformSupportAccessGrantDto: чтобы понять, кого обрывать, нужно имя выдавшего (Guid ничего не
+ * говорит), а чтобы понять, стоит ли, — вошёл ли он вообще. Невостребованный билет означает, что
+ * внутрь никто не заходил.
+ *
+ * Контракт: Platform/Support/PlatformSupportAccessContracts.cs
+ */
+export interface PlatformSupportAccessGrantListItem {
+  grantId: Guid;
+  organizationId: Guid;
+  reason: string;
+  issuedAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+  platformAdminUserId: Guid;
+  platformAdminDisplayName: string;
+  enteredAtUtc: IsoDateTime | null;
+}
+
+/**
+ * The organization-admin shell is built around branches (it cannot render without at least one) —
+ * support needs to see the same list a club's own staff would, not just the organization name.
+ *
+ * Контракт: Platform/Support/PlatformSupportAccessContracts.cs
+ */
+export interface PlatformSupportSessionBranchDto {
+  branchId: Guid;
+  name: string;
+}
+
+/** Контракт: Platform/Support/PlatformSupportAccessContracts.cs */
+export interface PlatformSupportSessionDto {
+  sessionToken: string;
+  organizationId: Guid;
+  organizationName: string;
+  reason: string;
+  expiresAtUtc: IsoDateTime;
+  writableAreas: string[];
+  branches: PlatformSupportSessionBranchDto[];
+}
+
+/** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
+export interface PlatformUpdatePackageDto {
+  updatePackageId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  artifactUri: string;
+  sha256: string;
+  signature: string;
+  signatureAlgorithm: string;
+  sizeBytes: number;
+  state: string;
+  releaseNotes: string;
+  createdByPlatformAdminUserId: Guid;
+  createdAtUtc: IsoDateTime;
+  validatedByPlatformAdminUserId: Guid | null;
+  validatedAtUtc: IsoDateTime | null;
+  retiredAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
+export interface PlatformUpdateRolloutDto {
+  updateRolloutId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  state: string;
+  targetKind: string;
+  organizationIds: Guid[];
+  branchIds: Guid[];
+  deviceIds: Guid[];
+  batchPercent: number;
+  reason: string;
+  createdByPlatformAdminUserId: Guid;
+  createdAtUtc: IsoDateTime;
+  startsAtUtc: IsoDateTime;
+  completedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Billing/PlayerAccountDto.cs */
+export interface PlayerAccountDto {
+  playerAccountId: Guid;
+  organizationId: Guid;
+  homeBranchId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+  isActive: boolean;
+  createdAtUtc: IsoDateTime;
+  /**
+   * Личность за карточкой — то, чем оператор спрашивает сеть про знакомого ему человека, не
+   * диктуя его телефон в запись аудита. Null — нормальный случай: карточку завели на стойке,
+   * и никакой личности за ней пока нет.
+   */
+  platformPersonId?: Guid | null;
+  /**
+   * Карточка завелась сама, первым действием игрока из приложения. Список клиентов растёт без
+   * участия стойки, и это единственное, чем ей объяснить незнакомую строку.
+   */
+  createdFromApp?: boolean;
+}
+
+/**
+ * Одно достижение: код, порог и насколько игрок к нему подошёл. Прогресс виден и до
+ * получения — иначе список выглядит как набор запертых дверей без замочных скважин.
+ *
+ * Контракт: Players/PlayerAchievementsDto.cs
+ */
+export interface PlayerAchievementDto {
+  code: string;
+  progress: number;
+  target: number;
+  unlockedAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Игровой стаж как его видит игрок: уровень, часы за ПК и список достижений.
+ * Названия достижений сюда не попадают — только коды: подписи живут в приложении, где у них
+ * есть три языка. Сервер, который присылал бы «Ночной житель» строкой, говорил бы с игроком
+ * на языке базы данных.
+ *
+ * Контракт: Players/PlayerAchievementsDto.cs
+ */
+export interface PlayerAchievementsDto {
+  level: number;
+  visitCount: number;
+  playedMinutes: number;
+  /** Сколько минут до следующего уровня; null — уровень последний. */
+  minutesToNextLevel: number | null;
+  achievements: PlayerAchievementDto[];
+}
+
+/**
+ * Правила брони этого филиала для этого игрока — то, чем приложение объясняет «так решил клуб».
+ * Всё посчитано сервером под конкретного человека: предоплата нужна именно ему, потолок броней
+ * именно его. Ни одного поля про других игроков здесь нет и быть не должно — иначе приложение
+ * одного клуба становится окном в клиентскую базу.
+ * <param name="MaxActiveReservations">
+ * Пусто — значит потолка нет: игрок в этом филиале уже свой.
+ * </param>
+ *
+ * Контракт: Reservations/PlayerBookingRulesDto.cs
+ */
+export interface PlayerBookingRulesDto {
+  branchId: Guid;
+  acceptanceMode: string;
+  respondWithinMinutes: number;
+  prepaymentRequired: boolean;
+  activeReservations: number;
+  maxActiveReservations: number | null;
+  holdSeatAfterStartMinutes: number;
+}
+
+/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
+export interface PlayerCodeSignInRequest {
+  organizationId: Guid;
+  phoneNumber: string;
+  code: string;
+}
+
+/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
+export interface PlayerCodeSignInStartedResponse {
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+/**
+ * Просьба прислать код для входа. Ответ одинаков независимо от того, есть ли такой игрок.
+ *
+ * Контракт: Players/PlayerPhoneVerificationContracts.cs
+ */
+export interface PlayerCodeSignInStartRequest {
+  organizationId: Guid;
+  phoneNumber: string;
+}
+
+/**
+ * Главный экран игрока: три числа кошелька и текущая сессия, если она идёт.
+ * HeldBalance — придержанное под брони; из WalletBalance оно
+ * уже вычтено, и это ответ на вопрос «а куда делись мои деньги», а не четвёртое место их хранения.
+ *
+ * Контракт: Players/PlayerDashboardDto.cs
+ */
+export interface PlayerDashboardDto {
+  walletBalance: MoneyDto;
+  heldBalance: MoneyDto;
+  debtBalance: MoneyDto;
+  activeSession: ActiveSessionDto | null;
+}
+
+/**
+ * Гашение долга игроком с собственного кошелька. Сумма приходит явно, а не «весь долг»: человек
+ * вправе закрыть часть, а «весь» на момент нажатия и на момент записи — это разные числа.
+ *
+ * Контракт: Players/PlayerDebtPaymentContracts.cs
+ */
+export interface PlayerDebtPaymentRequest {
+  amount: MoneyDto;
+  idempotencyKey: string;
+}
+
+/**
+ * Строка выписки глазами игрока: что случилось с его деньгами и когда.
+ * Не то же самое, что LedgerEntryDto у стойки, и не должно им быть: там есть
+ * табельный номер проведшего сотрудника и служебная причина вида
+ * `reservation_hold:{guid}`. Оператору это нужно — он разбирает спор; игроку это чужая
+ * внутренняя кухня, которой в его выписке взяться неоткуда.
+ * <param name="EntryType">
+ * Что произошло, кодом из LedgerEntryTypeNames. Приложение называет его словами на
+ * языке человека — текст с сервера был бы на языке сервера.
+ * </param>
+ * <param name="QuantitySeconds">
+ * Сколько времени принесла или забрала запись: у пакетов и бонусных часов деньги — не вся правда.
+ * Ноль у обычных денежных строк.
+ * </param>
+ *
+ * Контракт: Players/PlayerLedgerEntryDto.cs
+ */
+export interface PlayerLedgerEntryDto {
+  ledgerEntryId: Guid;
+  entryType: string;
+  amount: MoneyDto;
+  quantitySeconds: number;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Loyalty/PlayerLoyaltyDto.cs */
+export interface PlayerLoyaltyDto {
+  topUpEnabled: boolean;
+  topUpPercentBasisPoints: number;
+  shopEnabled: boolean;
+  shopPercentBasisPoints: number;
+  sessionEnabled: boolean;
+  sessionPercentBasisPoints: number;
+  totalEarned: MoneyDto;
+  recent: CashbackEntryDto[];
+}
+
+/** Контракт: News/PlayerNewsItemDto.cs */
+export interface PlayerNewsItemDto {
+  id: Guid;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  publishedAtUtc: IsoDateTime;
+}
+
+/**
+ * Уведомление, каким его видит игрок в приложении.
+ * Берётся из той же очереди, что и пуш: отдельного хранилища у центра уведомлений нет и не нужно —
+ * текст уже отрисован и сохранён там, где сообщение ставилось в отправку. Поэтому список
+ * показывает и то, что до телефона не доехало: пуш, потерянный из-за выключенных уведомлений или
+ * переустановленного приложения, до сих пор было невозможно прочитать нигде.
+ *
+ * Контракт: Notifications/PlayerNotificationContracts.cs
+ */
+export interface PlayerNotificationDto {
+  notificationId: Guid;
+  templateKey: string;
+  subject: string;
+  body: string;
+  branchId: Guid | null;
+  createdAtUtc: IsoDateTime;
+  isUnread: boolean;
+}
+
+/** Контракт: Notifications/PlayerNotificationContracts.cs */
+export interface PlayerNotificationsDto {
+  notifications: PlayerNotificationDto[];
+  unreadCount: number;
+}
+
+/** Контракт: Packages/PlayerPackageDto.cs */
+export interface PlayerPackageDto {
+  playerPackageId: Guid;
+  packageDefinitionId: Guid;
+  playerAccountId: Guid;
+  name: string;
+  purchasedPrice: MoneyDto;
+  includedSeconds: number;
+  bonusSeconds: number;
+  remainingIncludedSeconds: number;
+  remainingBonusSeconds: number;
+  purchasedAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
+export interface PlayerPhoneConfirmedResponse {
+  phone: string;
+}
+
+/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
+export interface PlayerPhoneConfirmRequest {
+  code: string;
+}
+
+/**
+ * Asks for a code to be sent to Phone — the number the player claims.
+ *
+ * Контракт: Players/PlayerPhoneVerificationContracts.cs
+ */
+export interface PlayerPhoneStartVerificationRequest {
+  phone: string;
+}
+
+/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
+export interface PlayerPhoneStatusResponse {
+  phone: string | null;
+  phoneVerifiedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
+export interface PlayerPhoneVerificationStartedResponse {
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+/**
+ * HomeBranchId is what lets the app ask for the club's price list at all: the catalog endpoints are
+ * per-branch, and until now the player had no way to learn which branch the account belongs to —
+ * the server resolved it silently on every write. The name comes along so the app can say where it
+ * is booking without a second round-trip.
+ *
+ * Контракт: Players/PlayerProfileDto.cs
+ */
+export interface PlayerProfileDto {
+  playerAccountId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+  phoneVerified: boolean;
+  preferredLocale: string | null;
+  marketingOptIn: boolean;
+  homeBranchId?: Guid | null;
+  homeBranchName?: string | null;
+}
+
+/** Контракт: Players/PlayerPurchaseDto.cs */
+export interface PlayerPurchaseDto {
+  posSaleId: Guid;
+  createdAtUtc: IsoDateTime;
+  totalMinorUnits: number;
+  currencyCode: string;
+  lines: PlayerPurchaseLineDto[];
+}
+
+/** Контракт: Players/PlayerPurchaseLineDto.cs */
+export interface PlayerPurchaseLineDto {
+  productName: string;
+  quantity: number;
+  unitPriceMinorUnits: number;
+  lineTotalMinorUnits: number;
+}
+
+/**
+ * Экран «Приведи друга» глазами игрока: свой код, условия и что уже вышло.
+ * Суммы и условия приходят с сервера, а не зашиты в приложение: их назначает клуб, и каждый
+ * назначает свои.
+ *
+ * Контракт: Loyalty/ReferralContracts.cs
+ */
+export interface PlayerReferralDto {
+  enabled: boolean;
+  code: string | null;
+  referrerBonusMinorUnits: number;
+  inviteeBonusMinorUnits: number;
+  minimumTopUpMinorUnits: number;
+  currencyCode: string;
+  invitedCount: number;
+  rewardedCount: number;
+  earnedMinorUnits: number;
+  /** Игрок сам пришёл по чужому коду — второй раз назвать код нельзя. */
+  hasClaimedCode: boolean;
+  /** Назвать код ещё можно: приглашение не использовано и окно не закрылось. */
+  canClaimCode: boolean;
+}
+
+/** Контракт: Players/PlayerRefreshRequest.cs */
+export interface PlayerRefreshRequest {
+  refreshToken: string;
+}
+
+/**
+ * Единственный факт, который сеть сообщает клубу о незнакомом госте: можно ли ему доверять.
+ * Полей ровно четыре, и это граница приватности, а не текущая версия модели. Ни названия чужих
+ * клубов, ни даты визитов, ни суммы, ни филиалы, ни тарифы сюда не добавляются: «скрыто в UI» —
+ * не защита, операторское приложение ходит в тот же API, что и curl. Состав закреплён
+ * рефлексивным тестом, чтобы пятое поле не появилось «на минутку».
+ * <param name="NetworkVisits">Завершённых визитов во всей сети — точное число из суточного снимка.</param>
+ * <param name="NetworkNoShows">Броней, на которые человек не приехал, — из того же снимка.</param>
+ * <param name="NetworkBanned">Закрыт ли человеку вход в сеть решением платформы. Читается вживую: запрет не ждёт суток.</param>
+ * <param name="CalculatedAtUtc">На какой момент посчитан снимок. Значение общее для всей сети, а не личное: по личному времени пересчёта можно было бы вычислить, когда человек играл.</param>
+ *
+ * Контракт: Players/PlayerReputationDto.cs
+ */
+export interface PlayerReputationDto {
+  networkVisits: number;
+  networkNoShows: number;
+  networkBanned: boolean;
+  calculatedAtUtc: IsoDateTime;
+}
+
+/**
+ * Спрос репутации по точному номеру. Номер едет телом, а не в адресе: адреса оседают в логах
+ * прокси и в истории браузера, а это чужой телефон.
+ *
+ * Контракт: Players/PlayerReputationDto.cs
+ */
+export interface PlayerReputationLookupRequest {
+  phoneNumber: string;
+}
+
+/**
+ * Player-facing reservation view — no staff-only fields (no CustomerName separate from
+ * context, no CreatedByStaffUserId, no UpdatedBy, no ZoneName leak).
+ * The tariff and the estimated cost are the player's own choice priced by the server: the app must
+ * never re-derive the amount from the price list, because the minimum-billable and rounding rules
+ * live in billing and would drift the moment either side changed.
+ *
+ * Контракт: Reservations/PlayerReservationDto.cs
+ */
+export interface PlayerReservationDto {
+  reservationId: Guid;
+  seatId: Guid | null;
+  seatName: string | null;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  state: string;
+  note: string | null;
+  tariffVersionId?: Guid | null;
+  tariffName?: string | null;
+  estimatedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
+  /**
+   * Бронь на компанию: у всех мест группы он общий. Без него приложение показало бы компанию из
+   * четырёх человек четырьмя одинаковыми строками, между которыми не видно разницы.
+   */
+  reservationGroupId?: Guid | null;
+  /**
+   * Докуда клуб обещал ответить на заявку — по нему в приложении идёт обратный отсчёт. У
+   * подтверждённой брони его нет: отвечать больше не на что.
+   */
+  respondByUtc?: IsoDateTime | null;
+  /**
+   * Почему клуб отказал. Код — чтобы приложение сказало это на языке игрока; слова — то, что
+   * администратор добавил от себя. Без них отказ снова стал бы молчаливым исчезновением брони.
+   */
+  rejectReasonCode?: string | null;
+  rejectReasonNote?: string | null;
+}
+
+/**
+ * Что получилось из групповой брони: сама группа и её брони. Отдельного состояния у группы нет —
+ * оно складывается из состояний броней, а дублировать его значит однажды разойтись с ними.
+ *
+ * Контракт: Reservations/CreatePlayerReservationGroupRequest.cs
+ */
+export interface PlayerReservationGroupDto {
+  reservationGroupId: Guid;
+  reservations: PlayerReservationDto[];
+  totalEstimatedCostMinorUnits: number | null;
+  currencyCode: string | null;
+}
+
+/** Контракт: Operator/PlayerSearchResultDto.cs */
+export interface PlayerSearchResultDto {
+  playerAccountId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+  walletBalanceMinorUnits: number;
+  debtBalanceMinorUnits: number;
+  activePackageCount: number;
+  isActive: boolean;
+  createdAtUtc: IsoDateTime;
+  lastActivityAtUtc: IsoDateTime | null;
+  activePackageName: string | null;
+  activePackageRemainingMinutes: number;
+  /**
+   * См. Billing.PlayerAccountDto: те же два ответа на «кто это и откуда он взялся»,
+   * потому что в списке клиентов они нужны раньше, чем в карточке.
+   */
+  platformPersonId?: Guid | null;
+  createdFromApp?: boolean;
+}
+
+/**
+ * Место в зале глазами игрока: как называется, где стоит и свободно ли.
+ * Идентификатора устройства здесь больше нет: сессия начинается кодом с монитора, а не выбором из
+ * списка. Список остался витриной — «есть ли вообще куда сесть», — и занятое место в нём тоже
+ * нужно: «PC-07 занят» это ответ, а исчезнувшее место выглядит сбоем приложения.
+ *
+ * Контракт: Players/PlayerSeatDto.cs
+ */
+export interface PlayerSeatDto {
+  seatId: Guid;
+  seatName: string;
+  zoneName: string;
+  isAvailable: boolean;
+  /**
+   * Почему занято: "session" — за ним играют, "reservation" — забронировано на ближайшее время,
+   * "offline" — компьютер не на связи. null, когда место свободно.
+   */
+  unavailableReason: string | null;
+}
+
+/**
+ * Игрок сам заканчивает свою сессию и освобождает место.
+ *
+ * Контракт: Players/PlayerSelfEndSessionContracts.cs
+ */
+export interface PlayerSelfEndSessionRequest {
+  idempotencyKey: string;
+}
+
+/**
+ * Чем закончился ранний выход. Возврат показывается игроку явно: «я встал раньше» и «мне
+ * вернули столько-то» — это одно событие, и узнавать вторую половину из истории кошелька
+ * человек не должен.
+ * <param name="BilledMinutes">
+ * Сколько минут списано. Это не фактические минуты, а тарифицируемые: минимальная
+ * длительность и шаг округления тарифа уже применены, ровно как у стойки.
+ * </param>
+ *
+ * Контракт: Players/PlayerSelfEndSessionContracts.cs
+ */
+export interface PlayerSelfEndSessionResponse {
+  billedMinutes: number;
+  refunded: MoneyDto;
+}
+
+/** Контракт: Players/PlayerSelfExtendRequest.cs */
+export interface PlayerSelfExtendRequest {
+  additionalMinutes: number;
+  idempotencyKey: string;
+}
+
+/**
+ * Человек садится сам — назвав код с монитора той машины, перед которой стоит.
+ * Раньше здесь был идентификатор устройства, и приложение брало его из списка мест. Это значило,
+ * что занять свободный ПК можно было не приходя в клуб: сервер видел «игрок назвал устройство» и
+ * доказательства присутствия не имел никакого. Код видно только с экрана — он и есть
+ * доказательство, и живёт минуты, чтобы снятая на телефон цифра никому не пригодилась.
+ *
+ * Контракт: Players/PlayerSelfStartRequest.cs
+ */
+export interface PlayerSelfStartRequest {
+  seatingCode: string;
+  tariffRuleVersionId: string;
+  durationMinutes: number;
+  idempotencyKey: string;
+}
+
+/** Контракт: Shell/PlayerShellCommandDto.cs */
+export interface PlayerShellCommandDto {
+  commandId: Guid;
+  type: string;
+  createdAtUtc: IsoDateTime;
+  payload: Record<string, string>;
+}
+
+/** Контракт: Shell/PlayerShellCommandResultDto.cs */
+export interface PlayerShellCommandResultDto {
+  commandId: Guid;
+  status: string;
+  message: string;
+  observedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Shell/PlayerShellStateDto.cs */
+export interface PlayerShellStateDto {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  state: string;
+  sessionId: Guid | null;
+  leaseExpiresAtUtc: IsoDateTime | null;
+  remainingSeconds: number | null;
+  isOnline: boolean;
+  isGraceMode: boolean;
+  warningThresholdSeconds: number;
+  message: string;
+  launcherApps: LauncherAppDto[];
+  locale?: string;
+  warningKind?: string;
+  branding?: ShellBrandingDto | null;
+  /**
+   * Код с этого монитора: человек набирает его в приложении и садится именно за эту машину.
+   * Пусто, когда за ПК уже играют или связи с сервером нет — показать старый код значит
+   * позвать человека к машине, которую сервер ему не отдаст.
+   */
+  seatingCode?: string | null;
+}
+
+/**
+ * Самопосадка за игровой ПК: клуб, номер и сетевой PIN. Поле называется `Password` с тех
+ * времён, когда PIN был клубным паролем, — переименование сломало бы установленные в поле
+ * оболочки ради одного слова.
+ * <param name="BranchId">
+ * Филиал, у ПК которого стоит человек. Нужен ровно в одном случае: клуб с несколькими филиалами,
+ * а счёта у человека в нём ещё нет — гадать филиал за него нельзя, в отчётах это выглядело бы как
+ * два разных гостя. Клиенты, которые филиала не называют, работают как работали.
+ * </param>
+ *
+ * Контракт: Players/PlayerSignInRequest.cs
+ */
+export interface PlayerSignInRequest {
+  organizationId: Guid;
+  phoneNumber: string;
+  password: string;
+  branchId?: Guid | null;
+}
+
+/** Контракт: Players/PlayerSignInResponse.cs */
+export interface PlayerSignInResponse {
+  playerAccountId: Guid;
+  organizationId: Guid;
+  displayName: string;
+  phoneVerified: boolean;
+  accessToken: string;
+  accessTokenExpiresAtUtc: IsoDateTime;
+  refreshToken: string;
+  refreshTokenExpiresAtUtc: IsoDateTime;
+}
+
+/** Контракт: Players/PlayerTopUpIntentDto.cs */
+export interface PlayerTopUpIntentDto {
+  paymentIntentId: Guid;
+  amountMinorUnits: number;
+  currencyCode: string;
+  state: string;
+  purpose: string;
+  method: string;
+  createdAtUtc: IsoDateTime;
+  fulfilledAtUtc: IsoDateTime | null;
+  isExpired: boolean;
+  payUrl?: string | null;
+  comment?: string | null;
+  gatewayExpiresAtUtc?: IsoDateTime | null;
+  qr?: string | null;
+  deepLink?: string | null;
+}
+
+/**
+ * Player requests a wallet top-up.
+ * CurrencyCode defaults to "TJS" when null or blank.
+ * Method ∈ { "counter", "dcgate", "eskhata" }; null/blank → "counter" (operator-confirmed at the desk).
+ * BranchId — филиал, в который человек придёт. Он нужен только в первом действии в клубе, где
+ * счёта ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. Поле
+ * необязательное — клуб с одним филиалом называть нечего, а у человека со счётом филиал уже
+ * известен, и присланный не переписывает его.
+ *
+ * Контракт: Players/PlayerTopUpIntentRequest.cs
+ */
+export interface PlayerTopUpIntentRequest {
+  amountMinorUnits: number;
+  currencyCode: string | null;
+  method?: string | null;
+  branchId?: Guid | null;
+}
+
+/**
+ * Чем клуб принимает деньги прямо сейчас. Стойка — всегда: это наличные в кассе. Онлайн держится
+ * на двух вещах сразу — тариф платформы разрешает и у клуба заведён мерчант банка, — и приложение
+ * обязано узнать это до того, как предложит человеку кнопку.
+ *
+ * Контракт: Players/PlayerTopUpIntentDto.cs
+ */
+export interface PlayerTopUpMethodsDto {
+  counter: boolean;
+  online: boolean;
+}
+
+/**
+ * Событие глазами игрока: только то, по чему решают, идти ли. Черновиков здесь не бывает,
+ * а вместо списка участников — сколько мест осталось и записан ли он сам.
+ *
+ * Контракт: Tournaments/TournamentDtos.cs
+ */
+export interface PlayerTournamentDto {
+  tournamentId: Guid;
+  branchId: Guid;
+  branchName: string;
+  title: string;
+  description: string;
+  discipline: string;
+  startsAtUtc: IsoDateTime;
+  entryFee: MoneyDto;
+  capacity: number;
+  registeredCount: number;
+  isRegistered: boolean;
+  state: string;
+  cancelReason: string;
+}
+
+/** Контракт: Players/PlayerVisitDto.cs */
+export interface PlayerVisitDto {
+  sessionId: Guid;
+  seatId: Guid;
+  seatName: string;
+  startedAtUtc: IsoDateTime;
+  endedAtUtc: IsoDateTime | null;
+  timeChargeMinorUnits: number;
+  posTotalMinorUnits: number;
+  grandTotalMinorUnits: number;
+  currencyCode: string;
+  hasReceipt: boolean;
+}
+
+/** Контракт: Players/PlayerVisitReceiptDto.cs */
+export interface PlayerVisitReceiptDto {
+  receiptNumber: string;
+  createdAtUtc: IsoDateTime;
+  sessionId: Guid;
+  seatName: string;
+  startedAtUtc: IsoDateTime;
+  endedAtUtc: IsoDateTime | null;
+  timeChargeMinorUnits: number;
+  posLines: PlayerPurchaseLineDto[];
+  posTotalMinorUnits: number;
+  grandTotalMinorUnits: number;
+  currencyCode: string;
+}
+
+/** Контракт: Pos/PosProductCategoryDto.cs */
+export interface PosProductCategoryDto {
+  categoryId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Pos/PosProductDto.cs */
+export interface PosProductDto {
+  productId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  categoryId: Guid;
+  name: string;
+  sku: string;
+  price: MoneyDto;
+  trackStock: boolean;
+  allowNegativeStock: boolean;
+  isActive: boolean;
+  stockOnHand: number;
+  createdAtUtc: IsoDateTime;
+  reorderThreshold?: number;
+  availableInShell?: boolean;
+  avgCostMinorUnits?: number;
+  barcodes?: string[] | null;
+}
+
+/** Контракт: Pos/PosSaleDto.cs */
+export interface PosSaleDto {
+  posSaleId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  shiftId: Guid;
+  state: string;
+  lines: PosSaleLineDto[];
+  total: MoneyDto;
+  createdByStaffUserId: Guid;
+  createdAtUtc: IsoDateTime;
+  paidAtUtc: IsoDateTime | null;
+  refundedAtUtc: IsoDateTime | null;
+  voidedAtUtc: IsoDateTime | null;
+  latestReceipt?: ReceiptDto | null;
+  playerAccountId?: Guid | null;
+  shopOrderId?: Guid | null;
+  /**
+   * Чем за чек заплатили. Пусто у черновика — его ещё не оплачивали.
+   * До этого поля стойка рисовала в карточке чека секцию «Оплаты», которая всегда оставалась
+   * пустой: она читала поле, которого в контракте не было. Строки оплат в базе лежали всё это
+   * время — их просто не клали в ответ.
+   */
+  payments?: PaymentPartDto[] | null;
+}
+
+/** Контракт: Pos/PosSaleLineDto.cs */
+export interface PosSaleLineDto {
+  productId: Guid;
+  productName: string;
+  quantity: number;
+  unitPrice: MoneyDto;
+  lineTotal: MoneyDto;
+}
+
+/** Контракт: Inventory/ProductBarcodeDto.cs */
+export interface ProductBarcodeDto {
+  barcodeId: Guid;
+  productId: Guid;
+  code: string;
+  isPrimary: boolean;
+}
+
+/**
+ * DetailValue carries the single numeric figure behind an alert, meaning depends on Kind:
+ * minutes since the last agent heartbeat for AgentSilent, minutes since the shift was
+ * opened for ShiftNotClosed, count of devices that reported a failed install for
+ * RolloutFailed. It is null for alert kinds/situations with no such figure
+ * (PaymentOverdue always; AgentSilent when the device has never reported a heartbeat at
+ * all; RolloutFailed when the rollout was flagged manually before any device reported a
+ * failure). Clients must never render a raw backend string as user-facing alert text —
+ * every kind has a translated label, and any parameterized detail is built client-side
+ * from DetailValue, not shipped as pre-rendered prose.
+ *
+ * Контракт: Platform/Pulse/PlatformPulseContracts.cs
+ */
+export interface PulseAlertDto {
+  kind: string;
+  level: string;
+  detailValue: number | null;
+}
+
+/** Контракт: Platform/Pulse/PlatformPulseContracts.cs */
+export interface PulseClubDto {
+  branchId: Guid;
+  name: string;
+  city: string;
+  devicesOnline: number;
+  devicesTotal: number;
+  seatsOccupied: number;
+  seatsTotal: number;
+  shiftOpen: boolean;
+  shiftOpenedAtUtc: IsoDateTime | null;
+  lastHeartbeatAtUtc: IsoDateTime | null;
+  alerts: PulseAlertDto[];
+}
+
+/** Контракт: Platform/Pulse/PlatformPulseContracts.cs */
+export interface PulseOrganizationDto {
+  organizationId: Guid;
+  name: string;
+  status: string;
+  planCode: string;
+  subscriptionStatus: string;
+  alertLevel: string;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  alerts: PulseAlertDto[];
+  clubs: PulseClubDto[];
+}
+
+/**
+ * The player buying a package for themselves. Only the idempotency key comes from the client: the
+ * organization comes from the authenticated player and the branch and package from the route, so a
+ * caller cannot buy in someone else's name or out of another club's price list.
+ *
+ * Контракт: Players/PurchasePackageFromAppRequest.cs
+ */
+export interface PurchasePackageFromAppRequest {
+  idempotencyKey: string;
+}
+
+/** Контракт: Billing/PurchasePackageRequest.cs */
+export interface PurchasePackageRequest {
+  organizationId: Guid;
+  packageDefinitionId: Guid;
+  idempotencyKey: string;
+}
+
+/**
+ * Стирание подтверждается коротким именем клуба, набранным руками. Кнопка «да, я уверен» здесь
+ * недостаточна: ошибиться клубом в списке легко, набрать чужой slug по памяти — нет.
+ *
+ * Контракт: Platform/Organizations/OffboardingContracts.cs
+ */
+export interface PurgeOrganizationRequest {
+  slug: string;
+}
+
+/**
+ * Сколько строк унесло стирание — по группам, для записи в аудит и показа человеку.
+ *
+ * Контракт: Platform/Organizations/OffboardingContracts.cs
+ */
+export interface PurgeOrganizationResultDto {
+  players: number;
+  staffUsers: number;
+  sessions: number;
+  sales: number;
+  devices: number;
+  branches: number;
+  clubAuditRecords: number;
+}
+
+/**
+ * Одна провалившаяся строка очереди. Без причины провала счётчик «провалено» не диагностируем:
+ * видно, что письма не уходят, и не видно почему. Адрес маскирован — домен для разбора важен,
+ * полный адрес человека нет.
+ *
+ * Контракт: Platform/Health/PlatformHealthContracts.cs
+ */
+export interface QueueFailureDto {
+  queueName: string;
+  failedAtUtc: IsoDateTime | null;
+  kind: string;
+  recipientMasked: string;
+  attemptCount: number;
+  lastError: string | null;
+}
+
+/** Контракт: Platform/Health/PlatformHealthContracts.cs */
+export interface QueueHealthDto {
+  queueName: string;
+  pendingCount: number;
+  failedCount: number;
+  stuckCount: number;
+}
+
+/** Контракт: Receipts/ReceiptDto.cs */
+export interface ReceiptDto {
+  receiptId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  posSaleId: Guid | null;
+  receiptNumber: string;
+  receiptType: string;
+  total: MoneyDto;
+  createdAtUtc: IsoDateTime;
+  sessionId?: Guid | null;
+  shopOrderId?: Guid | null;
+}
+
+/** Контракт: Shifts/RecordCashMovementRequest.cs */
+export interface RecordCashMovementRequest {
+  organizationId: Guid;
+  movementType: string;
+  amount: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/** Контракт: Platform/Support/PlatformSupportAccessContracts.cs */
+export interface RedeemSupportAccessTicketRequest {
+  ticket: string;
+}
+
+/**
+ * Настройки «приведи друга» глазами клуба.
+ *
+ * Контракт: Loyalty/ReferralContracts.cs
+ */
+export interface ReferralSettingsDto {
+  enabled: boolean;
+  referrerBonusMinorUnits: number;
+  inviteeBonusMinorUnits: number;
+  minimumTopUpMinorUnits: number;
+  claimWindowDays: number;
+  maxRewardedPerReferrer: number;
+}
+
+/** Контракт: Billing/RefundLedgerEntryRequest.cs */
+export interface RefundLedgerEntryRequest {
+  organizationId: Guid;
+  ledgerEntryId: Guid;
+  amount: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/** Контракт: Pos/RefundPosSaleRequest.cs */
+export interface RefundPosSaleRequest {
+  organizationId: Guid;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/**
+ * Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — `android` или
+ * `ios`, локаль — язык приложения на этом устройстве.
+ *
+ * Контракт: Notifications/NotificationContracts.cs
+ */
+export interface RegisterPlayerDeviceRequest {
+  pushToken: string | null;
+  platform: string | null;
+  locale?: string | null;
+}
+
+/** Контракт: Identity/RegistrationContracts.cs */
+export interface RegistrationConfirmRequest {
+  phoneNumber: string;
+  code: string;
+}
+
+/**
+ * Ответ на просьбу прислать код. Он одинаков для знакомого и незнакомого номера — ни одного поля,
+ * по которому можно отличить одно от другого, здесь нет и быть не должно.
+ *
+ * Контракт: Identity/RegistrationContracts.cs
+ */
+export interface RegistrationStartedResponse {
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+/**
+ * Просьба прислать код на номер. Клуб здесь не называется: человек заводит себя сам.
+ *
+ * Контракт: Identity/RegistrationContracts.cs
+ */
+export interface RegistrationStartRequest {
+  phoneNumber: string;
+}
+
+/**
+ * «Не в этот раз» — сказанное клубом заявке, которую ещё не принимали.
+ * Отдельно от отмены намеренно: игрок ничего не отменял, деньги ему возвращаются целиком при
+ * любых настройках филиала, и в его сетевые числа этот отказ не попадает.
+ * <param name="ReasonCode">Код из RejectReasonCodes.</param>
+ * <param name="Note">
+ * Пояснение администратора своими словами. Обязательно при RejectReasonCodes.Other:
+ * код «своими словами» без слов — тот же пустой отказ, от которого уходили.
+ * </param>
+ *
+ * Контракт: Reservations/RejectReservationRequest.cs
+ */
+export interface RejectReservationRequest {
+  organizationId: Guid;
+  reasonCode: string;
+  note?: string | null;
+  expectedVersion?: number | null;
+}
+
+/** Контракт: Devices/RenameDeviceRequest.cs */
+export interface RenameDeviceRequest {
+  organizationId: Guid;
+  displayName: string;
+}
+
+/**
+ * Новый порядок категорий филиала: весь список целиком, сверху вниз.
+ * Список, а не пара «категория + номер»: порядок — свойство набора, и присланный целиком он не
+ * оставляет места расхождению. Пара «id + номер» на каждое перетаскивание порождала бы дыры и
+ * совпадения в нумерации, которые потом нечем разрешить.
+ *
+ * Контракт: Pos/ReorderProductCategoriesRequest.cs
+ */
+export interface ReorderProductCategoriesRequest {
+  organizationId: Guid;
+  categoryIds: Guid[];
+}
+
+/**
+ * A configured report schedule.
+ *
+ * Контракт: Reports/ReportScheduleContracts.cs
+ */
+export interface ReportScheduleDto {
+  reportScheduleId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  reportType: string;
+  frequency: string;
+  isActive: boolean;
+  nextRunUtc: IsoDateTime;
+  lastRunUtc: IsoDateTime | null;
+  createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Что случилось с бронью — стойке, прямо сейчас.
+ * Полоса заявок до сих пор обновлялась опросом: администратор видел чужое решение через
+ * несколько секунд, а два администратора на разных машинах какое-то время видели разное. Хуже
+ * того, решения принимают и таймеры — срок ответа истекает сам, — и о них узнать было неоткуда,
+ * кроме следующего опроса.
+ * Форма повторяет `SessionLifecycleChangedDto` намеренно: у операторского экрана уже есть
+ * приёмник таких событий с отбором по филиалу, и второй способ доставлять то же самое разошёлся
+ * бы с первым на первом же исправлении.
+ * <param name="Kind">Что именно произошло — ReservationChangeKinds.</param>
+ * <param name="State">Состояние брони после изменения.</param>
+ *
+ * Контракт: Reservations/ReservationChangedDto.cs
+ */
+export interface ReservationChangedDto {
+  organizationId: Guid;
+  branchId: Guid;
+  reservationId: Guid;
+  seatId: Guid | null;
+  kind: string;
+  state: string;
+  version: number;
+  startsAtUtc: IsoDateTime;
+  observedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Reservations/ReservationDto.cs */
+export interface ReservationDto {
+  reservationId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  playerAccountId: Guid | null;
+  seatId: Guid | null;
+  seatName: string | null;
+  zoneName: string | null;
+  customerName: string;
+  phoneNumber: string | null;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  durationMinutes: number;
+  state: string;
+  source: string;
+  note: string;
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+  cancelledAtUtc: IsoDateTime | null;
+  cancelReason: string;
+  reservationGroupId: Guid | null;
+  version?: number;
+  startedSessionId?: Guid | null;
+  /**
+   * Billing choice carried by a self-service booking, and the price the server computed for it.
+   * Null for desk-created bookings — those are still priced when the player is seated.
+   */
+  tariffVersionId?: Guid | null;
+  tariffName?: string | null;
+  estimatedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
+  /**
+   * Докуда клуб обещал ответить на заявку и когда ответил. Срок есть только у заявки, которая
+   * ждёт решения стойки; подтверждённую бронь по таймеру никто не снимает.
+   */
+  respondByUtc?: IsoDateTime | null;
+  confirmedAtUtc?: IsoDateTime | null;
+  /**
+   * Личность за счётом, с которого пришла заявка. Клуб, решающий её судьбу, спрашивает сеть
+   * этим идентификатором, а не телефоном гостя. У заявки, записанной на стойке одним номером,
+   * счёта ещё нет — и называть некого.
+   */
+  platformPersonId?: Guid | null;
+  /**
+   * Чем кончилась бронь, в которую человек не приехал: когда это признали и сколько филиал
+   * оставил себе по своей же настройке. Сумма пустая, а не нулевая, когда не удерживали вовсе:
+   * ноль читался бы как «удержали нисколько», хотя удержания не было.
+   */
+  noShowAtUtc?: IsoDateTime | null;
+  retainedAmountMinorUnits?: number | null;
+  /**
+   * Отказ клуба: когда, по какой причине из справочника и что администратор добавил словами.
+   * Причину читает игрок — поэтому код, а не текст: текст на языке стойки ему не поможет.
+   */
+  rejectedAtUtc?: IsoDateTime | null;
+  rejectReasonCode?: string | null;
+  rejectReasonNote?: string | null;
+}
+
+/** Контракт: Reservations/ReservationGroup.cs */
+export interface ReservationGroupConflictDto {
+  seatId: Guid;
+  reason: string;
+}
+
+/**
+ * Group-create outcome. On success ReservationGroupId and Reservations
+ * are populated and Conflicts is empty; on conflict it is the other way round.
+ *
+ * Контракт: Reservations/ReservationGroup.cs
+ */
+export interface ReservationGroupResultDto {
+  reservationGroupId: Guid | null;
+  reservations: ReservationDto[];
+  conflicts: ReservationGroupConflictDto[];
+}
+
+/**
+ * BillableMinutes can exceed the booked span — that is the point of showing it: an hour booked on a
+ * tariff with a two-hour minimum is billed as two hours, and the player sees why before booking.
+ * AmountMinorUnits — сумма за ВСЮ бронь, включая все её места. Отдавать цену одного места и
+ * оставлять умножение приложению значило бы показывать не то число, которое будет заморожено.
+ *
+ * Контракт: Reservations/ReservationQuoteContracts.cs
+ */
+export interface ReservationQuoteDto {
+  tariffVersionId: Guid;
+  tariffName: string;
+  requestedMinutes: number;
+  billableMinutes: number;
+  amountMinorUnits: number;
+  currencyCode: string;
+  seatCount?: number;
+}
+
+/**
+ * What a booking will cost before the player commits to it.
+ * The price is asked of the server rather than computed in the app on purpose: the minimum-billable
+ * floor and the rounding increment are billing rules, and a second implementation in the client
+ * would quietly disagree with the charge the moment either side changed.
+ * SeatCount умножает цену на число мест на стороне сервера. Умножение сложным не выглядит, но
+ * показанная и списанная суммы обязаны приходить из одного места: считаясь порознь, они однажды
+ * разойдутся — а это та цена, на которую игрок согласился.
+ *
+ * Контракт: Reservations/ReservationQuoteContracts.cs
+ */
+export interface ReservationQuoteRequest {
+  tariffVersionId: Guid;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  seatCount?: number;
+}
+
+/** Контракт: Reservations/ReservationDto.cs */
+export interface ReservationSearchResultDto {
+  reservations: ReservationDto[];
+  limit: number;
+}
+
+/** Контракт: Identity/ResetStaffUserPasswordRequest.cs */
+export interface ResetStaffUserPasswordRequest {
+  organizationId: Guid;
+  newPassword: string;
+}
+
+/** Контракт: Platform/Operator/ResolveOperatorConnectionRequest.cs */
+export interface ResolveOperatorConnectionRequest {
+  organizationSlug: string | null;
+  branchSlug: string | null;
+  setupCode: string | null;
+}
+
+/** Контракт: Platform/Operator/ResolveOperatorConnectionResponse.cs */
+export interface ResolveOperatorConnectionResponse {
+  organizationId: Guid;
+  organizationSlug: string;
+  organizationName: string;
+  organizationStatus: string;
+  organizationStatusReason: string | null;
+  branchId: Guid;
+  branchSlug: string;
+  branchName: string;
+  branchCity: string;
+  source: string;
+}
+
+/** Контракт: Devices/RevokeDeviceCredentialResponse.cs */
+export interface RevokeDeviceCredentialResponse {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  credentialId: Guid;
+  revokedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Identity/AccountActivation/RevokeOrganizationOwnerInviteRequest.cs */
+export interface RevokeOrganizationOwnerInviteRequest {
+  reason: string;
+}
+
+/** Контракт: Devices/RotateDeviceCredentialResponse.cs */
+export interface RotateDeviceCredentialResponse {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  credentialId: Guid;
+  credentialSecret: string;
+  rotatedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Reports/SalesReportResultDto.cs */
+export interface SalesReportResultDto {
+  rows: SalesReportRowDto[];
+  limit: number;
+  grossSalesTotal: MoneyDto;
+  refundsTotal: MoneyDto;
+  netSalesTotal: MoneyDto;
+  grossCostOfGoodsTotal: MoneyDto;
+  refundedCostOfGoodsTotal: MoneyDto;
+  netCostOfGoodsTotal: MoneyDto;
+}
+
+/** Контракт: Reports/SalesReportRowDto.cs */
+export interface SalesReportRowDto {
+  posSaleId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  shiftId: Guid;
+  createdByStaffUserId: Guid;
+  state: string;
+  total: MoneyDto;
+  paidAmount: MoneyDto;
+  refundAmount: MoneyDto;
+  lineCount: number;
+  itemQuantity: number;
+  createdAtUtc: IsoDateTime;
+  paidAtUtc: IsoDateTime | null;
+  refundedAtUtc: IsoDateTime | null;
+  voidedAtUtc: IsoDateTime | null;
+  grossCostOfGoods: MoneyDto;
+  refundedCostOfGoods: MoneyDto;
+  netCostOfGoods: MoneyDto;
+}
+
+/** Контракт: Platform/Announcements/AnnouncementContracts.cs */
+export interface SavePlatformAnnouncementRequest {
+  title: string;
+  body: string;
+  severity: string;
+  showFromUtc: IsoDateTime;
+  showUntilUtc: IsoDateTime;
+  audienceKind: string;
+  audiencePlanCodes: string[];
+  audienceOrganizationIds: Guid[];
+}
+
+/** Контракт: Layout/SeatDto.cs */
+export interface SeatDto {
+  seatId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Reservations/ReservationRequests.cs */
+export interface SeatReservationRequest {
+  organizationId: Guid;
+  expectedVersion: number;
+}
+
+/** Контракт: FloorMap/SeatStatusDto.cs */
+export interface SeatStatusDto {
+  seatId: Guid;
+  seatName: string;
+  zoneId: Guid;
+  zoneName: string;
+  sortOrder: number;
+  state: string;
+  deviceId: Guid | null;
+  deviceName: string | null;
+  isDeviceOnline: boolean | null;
+  isDeviceLocked: boolean | null;
+  lastHeartbeatAtUtc: IsoDateTime | null;
+  agentVersion: string | null;
+  shellVersion: string | null;
+  activeSessionId: Guid | null;
+  remainingSeconds: number | null;
+  /**
+   * Live accrued time cost for an open-tab session (count-up). Null for fixed
+   * sessions (which expose RemainingSeconds instead) and unbilled guests.
+   */
+  accruedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
+  /**
+   * Optimistic-concurrency version of the active session; the operator echoes it back as
+   * ExpectedVersion on a seat mutation so a stale view loses the race with a 409.
+   */
+  sessionVersion?: number | null;
+  /**
+   * Who is on the seat right now: the active session's player display name. Null for a
+   * guest session with no account, or a free seat.
+   */
+  playerDisplayName?: string | null;
+  /**
+   * The tariff the active session bills against. Null for guest/package sessions that
+   * carry no named tariff, or a free seat.
+   */
+  tariffName?: string | null;
+  /** When the active session started (UTC) — lets the operator show real elapsed time. */
+  sessionStartedAtUtc?: IsoDateTime | null;
+  /**
+   * Floor-plan layout: grid cell + orientation + host type. Null/default until the branch is
+   * arranged in the «План» editor (B2); the abstract grid view ignores these.
+   */
+  posX?: number | null;
+  posY?: number | null;
+  rotation?: number;
+  seatType?: string;
+}
+
+/**
+ * Агент просит выдать себе новый ключ, предъявив действующий заголовком. Организация и филиал
+ * в теле — те же, что в сердцебиении: сервер сверяет ключ именно с этой машиной, а не просто
+ * «с каким-нибудь».
+ *
+ * Контракт: Devices/SelfRotateDeviceCredentialRequest.cs
+ */
+export interface SelfRotateDeviceCredentialRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+}
+
+/**
+ * Позвать в друзья по номеру — тому, который человек и так знает.
+ *
+ * Контракт: Friends/FriendDtos.cs
+ */
+export interface SendFriendRequestRequest {
+  phoneNumber: string;
+}
+
+/**
+ * Проверка доставки почты: письмо уходит боевым путём, а причина отказа возвращается сразу.
+ * Раньше единственным способом проверить почту было послать кому-то настоящее приглашение и
+ * гадать по счётчику «провалено» без текста ошибки.
+ *
+ * Контракт: Platform/Health/PlatformHealthContracts.cs
+ */
+export interface SendTestEmailRequest {
+  email: string;
+}
+
+/** Контракт: Platform/Health/PlatformHealthContracts.cs */
+export interface SendTestEmailResultDto {
+  delivered: boolean;
+  error: string | null;
+}
+
+/**
+ * Read-only preview of a session checkout: the bill breakdown the operator needs
+ * to enter split payments (time charge + attached POS = grand total), the billable
+ * seconds for the "Наиграно" display, and — when the session has a player — the
+ * wallet balance so a wallet part can be auto-suggested. No state is changed.
+ *
+ * Контракт: Sessions/SessionCheckoutQuoteResponse.cs
+ */
+export interface SessionCheckoutQuoteResponse {
+  sessionId: Guid;
+  timeCharge: MoneyDto;
+  posTotal: MoneyDto;
+  grandTotal: MoneyDto;
+  billableSeconds: number;
+  playerAccountId: Guid | null;
+  walletBalance: MoneyDto | null;
+}
+
+/**
+ * Settle a session in one action: pay the unified bill (time charge + attached
+ * POS sales) with one or more PaymentPartDto parts, then lock the PC.
+ *
+ * Контракт: Sessions/SessionCheckoutRequest.cs
+ */
+export interface SessionCheckoutRequest {
+  organizationId: Guid;
+  payments: PaymentPartDto[];
+  idempotencyKey: string;
+  expectedVersion?: number | null;
+}
+
+/**
+ * Result of a unified session checkout: the bill breakdown, the recorded payment
+ * parts, the single receipt covering time + POS, the ending session, and the lock
+ * command dispatched to the device.
+ *
+ * Контракт: Sessions/SessionCheckoutResponse.cs
+ */
+export interface SessionCheckoutResponse {
+  idempotencyKey: string;
+  sessionId: Guid;
+  timeCharge: MoneyDto;
+  posTotal: MoneyDto;
+  grandTotal: MoneyDto;
+  payments: PaymentPartDto[];
+  receipt: ReceiptDto;
+  session: SessionDto;
+  deviceCommands: DeviceCommandDto[];
+}
+
+/** Контракт: Sessions/SessionCommandResponse.cs */
+export interface SessionCommandResponse {
+  idempotencyKey: string;
+  session: SessionDto;
+  deviceCommands: DeviceCommandDto[];
+  /** Anti-fraud §5.4: the assessed value of a comp (free) session; null for non-comp starts. */
+  compValueMinorUnits?: number | null;
+}
+
+/** Контракт: Sessions/SessionDto.cs */
+export interface SessionDto {
+  sessionId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  deviceId: Guid;
+  state: string;
+  tariffRuleVersionId: string;
+  startedAtUtc: IsoDateTime | null;
+  endsAtUtc: IsoDateTime | null;
+  endedAtUtc: IsoDateTime | null;
+  remainingSeconds: number | null;
+  currentLease: SessionLeaseDto | null;
+  /** Optimistic-concurrency version the client echoes back as ExpectedVersion on the next mutation. */
+  version?: number;
+}
+
+/** Контракт: Sessions/SessionLeaseDto.cs */
+export interface SessionLeaseDto {
+  sessionId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  deviceId: Guid;
+  state: string;
+  sequence: number;
+  issuedAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+  signatureAlgorithm: string;
+  signature: string;
+}
+
+/**
+ * A session-lifecycle change broadcast over the DeviceHub branch group so operator clients can
+ * patch the floor map and apply a dashboard delta without polling. Pushes are hints; the client
+ * reconciles against an authoritative reload and ignores an event whose Version is
+ * not newer than the one it already applied for that session.
+ *
+ * Контракт: Sessions/SessionLifecycleChangedDto.cs
+ */
+export interface SessionLifecycleChangedDto {
+  organizationId: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  sessionId: Guid;
+  kind: string;
+  state: string;
+  version: number;
+  startedAtUtc: IsoDateTime | null;
+  endsAtUtc: IsoDateTime | null;
+  observedAtUtc: IsoDateTime;
+  accruedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
+}
+
+/** Контракт: Sessions/SessionReconciliationResponse.cs */
+export interface SessionReconciliationResponse {
+  action: string;
+  reason: string;
+  sessionId: Guid | null;
+  lease: SessionLeaseDto | null;
+}
+
+/**
+ * A started game session projected onto the booking timeline: when it began, its scheduled end
+ * (fixed/prepaid) and its actual end (null while still running). The operator UI derives the bar —
+ * open tab (no scheduled, no actual end) renders open-ended; otherwise bounded.
+ *
+ * Контракт: Sessions/SessionTimelineDto.cs
+ */
+export interface SessionTimelineItemDto {
+  sessionId: Guid;
+  seatId: Guid;
+  seatName: string;
+  zoneId: Guid;
+  zoneName: string;
+  state: string;
+  playerAccountId: Guid | null;
+  playerDisplayName: string | null;
+  tariffName: string | null;
+  startedAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime | null;
+  endedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Sessions/SessionTimelineDto.cs */
+export interface SessionTimelineResult {
+  sessions: SessionTimelineItemDto[];
+}
+
+/**
+ * Постановка ручного исключения для клуба. Причина обязательна.
+ *
+ * Контракт: Platform/Features/FeatureContracts.cs
+ */
+export interface SetFeatureOverrideRequest {
+  isEnabled: boolean;
+  reason: string;
+}
+
+/**
+ * Новый сетевой PIN. Старый здесь не спрашивается намеренно: человек уже вошёл в приложение, а
+ * потребовать старое значило бы запереть выход ровно тому, кто его забыл. Именно это и делает
+ * приложение единственным местом, где PIN задают, — ни одной SMS на это не тратится.
+ *
+ * Контракт: Identity/PinContracts.cs
+ */
+export interface SetMyPinRequest {
+  pin: string;
+}
+
+/**
+ * Причина обязательна: запрет без неё некому объяснить и не на каком основании снять.
+ *
+ * Контракт: Platform/People/NetworkPeopleContracts.cs
+ */
+export interface SetNetworkBanRequest {
+  reason: string;
+}
+
+/** Контракт: Players/SetPlayerActiveStateRequest.cs */
+export interface SetPlayerActiveStateRequest {
+  organizationId: Guid;
+  isActive: boolean;
+}
+
+/** Контракт: Pos/SettlePosSaleRequest.cs */
+export interface SettlePosSaleRequest {
+  organizationId: Guid;
+  payments: PaymentPartDto[];
+  note: string;
+  idempotencyKey: string;
+}
+
+/** Контракт: Shell/ShellBrandingDto.cs */
+export interface ShellBrandingDto {
+  clubName: string;
+  logoUrl: string | null;
+  accentColor: string | null;
+}
+
+/** Контракт: Shifts/ShiftDto.cs */
+export interface ShiftDto {
+  shiftId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  openedByStaffUserId: Guid;
+  closedByStaffUserId: Guid | null;
+  state: string;
+  startingCash: MoneyDto;
+  countedCash: MoneyDto | null;
+  expectedCash: MoneyDto | null;
+  difference: MoneyDto | null;
+  openingNote: string;
+  closingNote: string;
+  openedAtUtc: IsoDateTime;
+  closedAtUtc: IsoDateTime | null;
+  managerSignOffStaffUserId?: Guid | null;
+  signOffReason?: string | null;
+}
+
+/** Контракт: Reports/ShiftReportResultDto.cs */
+export interface ShiftReportResultDto {
+  rows: ShiftReportRowDto[];
+  limit: number;
+}
+
+/** Контракт: Reports/ShiftReportRowDto.cs */
+export interface ShiftReportRowDto {
+  shiftId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  openedByStaffUserId: Guid;
+  closedByStaffUserId: Guid | null;
+  state: string;
+  startingCash: MoneyDto;
+  cashMovementsTotal: MoneyDto;
+  posCashPaymentsTotal: MoneyDto;
+  posRefundsTotal: MoneyDto;
+  billingCashImpactTotal: MoneyDto;
+  expectedCash: MoneyDto;
+  countedCash: MoneyDto | null;
+  difference: MoneyDto | null;
+  openedAtUtc: IsoDateTime;
+  closedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Shifts/ShiftRevenueDto.cs */
+export interface ShiftRevenueDto {
+  shiftId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  openedByStaffUserId: Guid;
+  closedByStaffUserId: Guid | null;
+  state: string;
+  earned: EarnedBreakdownDto;
+  inflow: InflowBreakdownDto;
+  cash: CashReconciliationDto;
+  openedAtUtc: IsoDateTime;
+  closedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Shifts/ShiftRevenueDto.cs */
+export interface ShiftRevenueListDto {
+  shifts: ShiftRevenueDto[];
+  limit: number;
+}
+
+/** Контракт: Shifts/ShiftSummaryDto.cs */
+export interface ShiftSummaryDto {
+  shiftId: Guid;
+  startingCash: MoneyDto;
+  cashMovementsTotal: MoneyDto;
+  posCashPaymentsTotal: MoneyDto;
+  posRefundsTotal: MoneyDto;
+  expectedCash: MoneyDto;
+  countedCash: MoneyDto;
+  difference: MoneyDto;
+}
+
+/** Контракт: Shop/ShopCatalogItemDto.cs */
+export interface ShopCatalogItemDto {
+  productId: Guid;
+  name: string;
+  sku: string;
+  price: MoneyDto;
+  stockOnHand: number;
+}
+
+/** Контракт: Shop/ShopOrderDto.cs */
+export interface ShopOrderDto {
+  id: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  playerAccountId: Guid;
+  playerDisplayName: string;
+  status: string;
+  total: MoneyDto;
+  lines: ShopOrderLineDto[];
+  placedAtUtc: IsoDateTime;
+  acceptedAtUtc: IsoDateTime | null;
+  deliveredAtUtc: IsoDateTime | null;
+  cancelledAtUtc: IsoDateTime | null;
+  version: number;
+  posSaleId?: Guid | null;
+}
+
+/** Контракт: Shop/ShopOrderLineDto.cs */
+export interface ShopOrderLineDto {
+  productId: Guid;
+  name: string;
+  unitPrice: MoneyDto;
+  quantity: number;
+  lineTotal: MoneyDto;
+}
+
+/** Контракт: Shop/ShopOrderLineInput.cs */
+export interface ShopOrderLineInput {
+  productId: Guid;
+  quantity: number;
+}
+
+/**
+ * Requests an SMS password-reset code to a staff account's verified phone.
+ *
+ * Контракт: Identity/StaffForgotPasswordByPhoneRequest.cs
+ */
+export interface StaffForgotPasswordByPhoneRequest {
+  phoneNumber: string;
+}
+
+/**
+ * Self-service password-reset request. Resolved by username or contact email.
+ *
+ * Контракт: Identity/StaffForgotPasswordRequest.cs
+ */
+export interface StaffForgotPasswordRequest {
+  userNameOrEmail: string;
+}
+
+/**
+ * The created staff invite; Code is returned once so an admin can also share it out of band.
+ *
+ * Контракт: Identity/StaffInviteDto.cs
+ */
+export interface StaffInviteDto {
+  staffInviteId: Guid;
+  code: string;
+  expiresAtUtc: IsoDateTime;
+}
+
+/** Контракт: Identity/StaffPhoneVerificationContracts.cs */
+export interface StaffPhoneConfirmedResponse {
+  phone: string;
+}
+
+/** Контракт: Identity/StaffPhoneVerificationContracts.cs */
+export interface StaffPhoneConfirmRequest {
+  code: string;
+}
+
+/** Контракт: Identity/StaffPhoneVerificationContracts.cs */
+export interface StaffPhoneStartVerificationRequest {
+  phone: string;
+}
+
+/**
+ * Current staff member's phone state (self-read). Both null until a phone is set/verified.
+ * Phone is in E.164 display form (e.g. "+992937380070").
+ *
+ * Контракт: Identity/StaffPhoneStatusResponse.cs
+ */
+export interface StaffPhoneStatusResponse {
+  phone: string | null;
+  phoneVerifiedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Identity/StaffPhoneVerificationContracts.cs */
+export interface StaffPhoneVerificationStartedResponse {
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+/** Контракт: Identity/StaffRefreshTokenRequest.cs */
+export interface StaffRefreshTokenRequest {
+  organizationId: Guid;
+  refreshToken: string;
+}
+
+/**
+ * Completes an SMS password reset using the code delivered to the verified phone.
+ *
+ * Контракт: Identity/StaffResetPasswordByPhoneRequest.cs
+ */
+export interface StaffResetPasswordByPhoneRequest {
+  phoneNumber: string;
+  code: string;
+  newPassword: string;
+}
+
+/**
+ * Completes a self-service password reset using the 6-digit code emailed to the account.
+ *
+ * Контракт: Identity/StaffResetPasswordRequest.cs
+ */
+export interface StaffResetPasswordRequest {
+  userNameOrEmail: string;
+  code: string;
+  newPassword: string;
+}
+
+/** Контракт: Identity/StaffSignInByLoginRequest.cs */
+export interface StaffSignInByLoginRequest {
+  login: string;
+  password: string;
+}
+
+/** Контракт: Identity/StaffSignInByOrganizationKeyRequest.cs */
+export interface StaffSignInByOrganizationKeyRequest {
+  organizationKey: string;
+  userName: string;
+  password: string;
+}
+
+/** Контракт: Identity/StaffSignInByPhoneRequest.cs */
+export interface StaffSignInByPhoneRequest {
+  phoneNumber: string;
+  password: string;
+}
+
+/** Контракт: Identity/StaffSignInChooseClubResponse.cs */
+export interface StaffSignInChooseClubResponse {
+  clubs: StaffSignInClubChoice[];
+}
+
+/** Контракт: Identity/StaffSignInClubChoice.cs */
+export interface StaffSignInClubChoice {
+  organizationId: Guid;
+  name: string;
+}
+
+/** Контракт: Identity/StaffSignInRequest.cs */
+export interface StaffSignInRequest {
+  organizationId: Guid;
+  userName: string;
+  password: string;
+}
+
+/** Контракт: Identity/StaffSignInResponse.cs */
+export interface StaffSignInResponse {
+  staffUserId: Guid;
+  organizationId: Guid;
+  displayName: string;
+  accessToken: string;
+  accessTokenExpiresAtUtc: IsoDateTime;
+  refreshToken: string;
+  refreshTokenExpiresAtUtc: IsoDateTime;
+  branchIds: Guid[];
+  permissions: string[];
+  roleNames: string[];
+}
+
+/** Контракт: Identity/StaffUserDto.cs */
+export interface StaffUserDto {
+  staffUserId: Guid;
+  organizationId: Guid;
+  userName: string;
+  displayName: string;
+  isActive: boolean;
+  roleNames: string[];
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
+export interface StaleDeviceDiagnosticsDto {
+  deviceId: Guid;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  isOnline: boolean;
+  isLocked: boolean;
+  lastHeartbeatAtUtc: IsoDateTime | null;
+  lastHeartbeatAgeSeconds: number | null;
+}
+
+/** Контракт: Sessions/StartGuestSessionRequest.cs */
+export interface StartGuestSessionRequest {
+  organizationId: Guid;
+  seatId: Guid;
+  tariffRuleVersionId: string;
+  idempotencyKey: string;
+  durationMode?: string;
+  durationMinutes?: number | null;
+  playerAccountId?: Guid | null;
+  billingMode?: string;
+  tariffVersionId?: Guid | null;
+  playerPackageId?: Guid | null;
+  /** Anti-fraud §5.4: an explicit comp (free session). Requires a reason; routes to a session.comp audit. */
+  isComp?: boolean;
+  compReason?: string | null;
+}
+
+/** Контракт: Reservations/StartReservationSessionRequest.cs */
+export interface StartReservationSessionRequest {
+  organizationId: Guid;
+  expectedVersion: number;
+  tariffRuleVersionId: string;
+  idempotencyKey: string;
+  durationMode?: string;
+  durationMinutes?: number | null;
+  billingMode?: string;
+  tariffVersionId?: Guid | null;
+  playerPackageId?: Guid | null;
+  isComp?: boolean;
+  compReason?: string | null;
+}
+
+/** Контракт: Reservations/StartReservationSessionResponse.cs */
+export interface StartReservationSessionResponse {
+  reservation: ReservationDto;
+  session: SessionCommandResponse;
+}
+
+/** Контракт: Inventory/StockMovementDto.cs */
+export interface StockMovementDto {
+  stockMovementId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  productId: Guid;
+  movementType: string;
+  quantityDelta: number;
+  unitCost: MoneyDto;
+  reason: string;
+  createdByStaffUserId: Guid;
+  createdAtUtc: IsoDateTime;
+  createdByDisplayName?: string | null;
+}
+
+/** Контракт: Platform/Billing/SubscriptionListItemDto.cs */
+export interface SubscriptionListItemDto {
+  organizationSubscriptionId: Guid;
+  organizationId: Guid;
+  organizationName: string;
+  organizationSlug: string;
+  planCode: string;
+  status: string;
+  billingInterval: string;
+  amountMinorUnits: number;
+  currencyCode: string;
+  currentPeriodEndUtc: IsoDateTime;
+  nextInvoiceUtc: IsoDateTime | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+/** Контракт: Platform/Billing/SubscriptionPlanDto.cs */
+export interface SubscriptionPlanDto {
+  planCode: string;
+  name: string;
+  priceMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  maxBranches: number | null;
+  maxDevicesPerBranch: number | null;
+  maxConcurrentSessions: number | null;
+  maxStaffUsersPerBranch: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/** Контракт: Tariffs/TariffCalculationResult.cs */
+export interface TariffCalculationResult {
+  tariffId: Guid;
+  tariffVersionId: Guid;
+  tariffRuleVersionId: string;
+  durationMinutes: number;
+  billableMinutes: number;
+  amount: MoneyDto;
+}
+
+/**
+ * Расписание: `AppliesOnDaysMask` — биты дней недели с понедельника (1) по воскресенье (64),
+ * `0` означает «каждый день». Часы — минуты от полуночи по местному времени филиала; оба
+ * `null` означают «круглые сутки», а начало больше конца — окно через полночь.
+ *
+ * Контракт: Tariffs/TariffDto.cs
+ */
+export interface TariffDto {
+  tariffId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  isActive: boolean;
+  createdAtUtc: IsoDateTime;
+  appliesOnDaysMask?: number;
+  appliesFromMinuteOfDay?: number | null;
+  appliesToMinuteOfDay?: number | null;
+}
+
+/**
+ * Тариф, который можно выбрать. `AppliesNow` считает сервер по часовому поясу филиала:
+ * клиент, повторивший этот расчёт у себя, ошибётся на телефоне с чужим часовым поясом и
+ * предложит утреннюю цену вечером.
+ *
+ * Контракт: Operator/TariffOptionDto.cs
+ */
+export interface TariffOptionDto {
+  tariffId: Guid;
+  tariffVersionId: Guid;
+  name: string;
+  tariffRuleVersionId: string;
+  versionNumber: number;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: IsoDateTime;
+  appliesOnDaysMask?: number;
+  appliesFromMinuteOfDay?: number | null;
+  appliesToMinuteOfDay?: number | null;
+  appliesNow?: boolean;
+}
+
+/**
+ * Когда действует тариф: дни недели и окно местного времени филиала.
+ * `AppliesOnDaysMask` — биты с понедельника (1) по воскресенье (64); `0` означает
+ * «каждый день». Часы — минуты от полуночи; оба `null` означают «круглые сутки», а начало
+ * больше конца — окно через полночь.
+ * Расписание вынесено отдельным объектом намеренно. В запросе на изменение тарифа плоские поля
+ * со значениями по умолчанию означали бы, что вызывающий, не знающий про расписание, стирает его
+ * молча: PATCH, у которого пропущенное поле уничтожает данные, — ловушка. Здесь `null` у
+ * всего объекта означает «не трогать», и не знать про расписание безопасно.
+ *
+ * Контракт: Tariffs/TariffScheduleDto.cs
+ */
+export interface TariffScheduleDto {
+  appliesOnDaysMask?: number;
+  appliesFromMinuteOfDay?: number | null;
+  appliesToMinuteOfDay?: number | null;
+}
+
+/** Контракт: Tariffs/TariffVersionDto.cs */
+export interface TariffVersionDto {
+  tariffVersionId: Guid;
+  tariffId: Guid;
+  versionNumber: number;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: IsoDateTime;
+  retiredAtUtc: IsoDateTime | null;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Billing/TopUpWalletRequest.cs */
+export interface TopUpWalletRequest {
+  organizationId: Guid;
+  amount: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/**
+ * Событие клуба глазами стойки: всё, включая черновики и счётчик записавшихся.
+ *
+ * Контракт: Tournaments/TournamentDtos.cs
+ */
+export interface TournamentDto {
+  tournamentId: Guid;
+  branchId: Guid;
+  title: string;
+  description: string;
+  discipline: string;
+  startsAtUtc: IsoDateTime;
+  entryFee: MoneyDto;
+  capacity: number;
+  state: string;
+  registeredCount: number;
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+  cancelledAtUtc: IsoDateTime | null;
+  cancelReason: string;
+}
+
+/**
+ * Кто записался — список для стойки: по нему встречают на входе.
+ *
+ * Контракт: Tournaments/TournamentDtos.cs
+ */
+export interface TournamentParticipantDto {
+  tournamentRegistrationId: Guid;
+  playerAccountId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+  entryFeePaid: MoneyDto;
+  registeredAtUtc: IsoDateTime;
+}
+
+/** Контракт: Platform/Organizations/TransferOrganizationOwnerRequest.cs */
+export interface TransferOrganizationOwnerRequest {
+  newOwnerEmail: string;
+  reason: string;
+}
+
+/** Контракт: Sessions/TransferSessionRequest.cs */
+export interface TransferSessionRequest {
+  targetSeatId: Guid;
+  idempotencyKey: string;
+  expectedVersion?: number | null;
+}
+
+/** Контракт: Branches/UpdateBranchBookingSettingsRequest.cs */
+export interface UpdateBranchBookingSettingsRequest {
+  organizationId: Guid;
+  acceptanceMode: string;
+  respondWithinMinutes: number;
+  requirePrepaymentFromNewGuests: boolean;
+  maxActiveReservationsForNewGuests: number;
+  regularAfterVisits: number;
+  holdSeatAfterStartMinutes: number;
+  keepPrepaymentOnNoShow: boolean;
+}
+
+/** Контракт: Branches/UpdateBranchProfileRequest.cs */
+export interface UpdateBranchProfileRequest {
+  organizationId: Guid;
+  name: string;
+  city: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  telegram: string | null;
+  website: string | null;
+  instagram: string | null;
+  logoUrl: string | null;
+  logoMediaId: Guid | null;
+  timeZone: string;
+  locale: string;
+  workingHours: BranchWorkingHoursDayDto[];
+  /**
+   * Витрина клуба в приложении игрока: фото зала и точка на карте. В конце списка и с
+   * умолчаниями — чтобы старый клиент, который их не шлёт, продолжал сохранять профиль.
+   */
+  coverImageUrl?: string | null;
+  coverMediaId?: Guid | null;
+  photos?: BranchPhotoDto[] | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+/** Контракт: Branches/UpdateBranchSettingsRequest.cs */
+export interface UpdateBranchSettingsRequest {
+  organizationId: Guid;
+  requireManualDeviceApproval: boolean;
+  preferredLocale: string;
+}
+
+/**
+ * POST-запрос: CardNumber опционален — null/пусто сохраняет прежнюю карту, непустой заменяет.
+ *
+ * Контракт: Payments/DcPayLinkConfigDtos.cs
+ */
+export interface UpdateDcPayLinkConfigRequest {
+  cardNumber: string | null;
+  commentTemplate: string;
+  isActive: boolean;
+}
+
+/** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
+export interface UpdateDiagnosticsSummaryDto {
+  activeRollouts: number;
+  installingDevices: number;
+  failedDevices: number;
+  rollbackDevices: number;
+  recentFailures: FailedUpdateDiagnosticsDto[];
+}
+
+/**
+ * POST request. HashKey is optional: null/empty keeps the stored secret, a non-empty value
+ * replaces it. All four fields present (with a stored-or-supplied hash key) → Status "configured".
+ *
+ * Контракт: Payments/EskhataMerchantConfigDtos.cs
+ */
+export interface UpdateEskhataMerchantConfigRequest {
+  baseUrl: string;
+  companyId: string;
+  merchantId: number;
+  hashKey: string | null;
+}
+
+/** Контракт: Loyalty/UpdateLoyaltySettingsRequest.cs */
+export interface UpdateLoyaltySettingsRequest {
+  topUpEnabled: boolean;
+  topUpPercentBasisPoints: number;
+  shopEnabled: boolean;
+  shopPercentBasisPoints: number;
+  sessionEnabled: boolean;
+  sessionPercentBasisPoints: number;
+  cashbackCapMinorUnits: number;
+  minimumSourceMinorUnits: number;
+}
+
+/**
+ * Имя и язык человека — ровно те два поля, которые спрашиваются при регистрации. PIN сюда не
+ * входит: его задают позже и в ту секунду, когда он впервые нужен.
+ *
+ * Контракт: Identity/RegistrationContracts.cs
+ */
+export interface UpdateMyProfileRequest {
+  displayName: string;
+  preferredLocale: string | null;
+}
+
+/** Контракт: News/UpdateNewsItemRequest.cs */
+export interface UpdateNewsItemRequest {
+  branchId: Guid | null;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  isPublished: boolean;
+  publishAtUtc: IsoDateTime | null;
+  expiresAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Updates/UpdateOrganizationAdminUpdatePreferenceRequest.cs */
+export interface UpdateOrganizationAdminUpdatePreferenceRequest {
+  organizationId: Guid;
+  maintenanceWindowStart: IsoTime;
+  maintenanceWindowEnd: IsoTime;
+}
+
+/**
+ * Оформление клуба: логотип и цвет. Поля у организации были с самого начала и читались публичной
+ * витриной и приложением игрока, но записать их было нечем — единственное присвоение жило в сидере
+ * для разработки.
+ *
+ * Контракт: Branding/UpdateOrganizationBrandingRequest.cs
+ */
+export interface UpdateOrganizationBrandingRequest {
+  logoUrl: string | null;
+  accentColor: string | null;
+}
+
+/** Контракт: Platform/Organizations/UpdateOrganizationLimitsRequest.cs */
+export interface UpdateOrganizationLimitsRequest {
+  limits: OrganizationLimitsDto;
+}
+
+/** Контракт: Platform/Organizations/UpdateOrganizationProfileRequest.cs */
+export interface UpdateOrganizationProfileRequest {
+  name: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  legalDetails: string | null;
+}
+
+/** Контракт: Platform/Organizations/UpdateOrganizationStatusRequest.cs */
+export interface UpdateOrganizationStatusRequest {
+  status: string;
+  reason: string;
+}
+
+/** Контракт: Platform/SupportNotes/UpdateOrganizationSupportNoteRequest.cs */
+export interface UpdateOrganizationSupportNoteRequest {
+  body: string;
+}
+
+/** Контракт: Platform/Organizations/UpdateOrganizationUpdateChannelRequest.cs */
+export interface UpdateOrganizationUpdateChannelRequest {
+  channel: string;
+  pinnedClientVersion: string | null;
+}
+
+/** Контракт: Packages/UpdatePackageDefinitionRequest.cs */
+export interface UpdatePackageDefinitionRequest {
+  organizationId: Guid;
+  name: string;
+  price: MoneyDto;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+  isActive: boolean;
+}
+
+/** Контракт: Updates/UpdatePackageDto.cs */
+export interface UpdatePackageDto {
+  updatePackageId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  artifactUri: string;
+  sha256: string;
+  signature: string;
+  signatureAlgorithm: string;
+  sizeBytes: number;
+  state: string;
+  releaseNotes: string;
+  createdAtUtc: IsoDateTime;
+}
+
+/** Контракт: Updates/UpdatePackageStateChangeRequest.cs */
+export interface UpdatePackageStateChangeRequest {
+  organizationId: Guid;
+  state: string;
+  reason: string;
+}
+
+/** Контракт: Platform/Billing/UpdatePlanRequest.cs */
+export interface UpdatePlanRequest {
+  name: string;
+  priceMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  maxBranches: number | null;
+  maxDevicesPerBranch: number | null;
+  maxConcurrentSessions: number | null;
+  maxStaffUsersPerBranch: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
+export interface UpdatePlatformAdminRequest {
+  role: string | null;
+  isActive: boolean | null;
+}
+
+/** Контракт: Platform/Auth/PlatformRoleContracts.cs */
+export interface UpdatePlatformRoleRequest {
+  displayName: string;
+  description: string;
+  permissions: string[];
+}
+
+/** Контракт: Players/UpdatePlayerAccountRequest.cs */
+export interface UpdatePlayerAccountRequest {
+  organizationId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+}
+
+/**
+ * Player-editable profile fields. Both optional; null means "leave unchanged".
+ *
+ * Контракт: Players/UpdatePlayerProfileRequest.cs
+ */
+export interface UpdatePlayerProfileRequest {
+  preferredLocale: string | null;
+  marketingOptIn: boolean | null;
+}
+
+/**
+ * Показывать ли друзьям, что я сейчас в зале.
+ *
+ * Контракт: Friends/FriendDtos.cs
+ */
+export interface UpdatePresenceVisibilityRequest {
+  showsPresence: boolean;
+}
+
+/**
+ * Правка категории: имя и видимость на стойке. Оба поля необязательны — присланное меняется,
+ * пропущенное остаётся как было, поэтому переименование не гасит категорию заодно.
+ * Ключа идемпотентности здесь нет намеренно: повтор приводит к тому же состоянию, а денег
+ * операция не двигает — в отличие от создания, где повтор завёл бы вторую категорию.
+ *
+ * Контракт: Pos/UpdateProductCategoryRequest.cs
+ */
+export interface UpdateProductCategoryRequest {
+  organizationId: Guid;
+  name?: string | null;
+  isActive?: boolean | null;
+}
+
+/** Контракт: Pos/UpdateProductRequest.cs */
+export interface UpdateProductRequest {
+  organizationId: Guid;
+  categoryId: Guid;
+  name: string;
+  sku: string;
+  price: MoneyDto;
+  trackStock: boolean;
+  allowNegativeStock: boolean;
+  isActive: boolean;
+  reorderThreshold?: number;
+  availableInShell?: boolean;
+}
+
+/** Контракт: Loyalty/ReferralContracts.cs */
+export interface UpdateReferralSettingsRequest {
+  enabled: boolean;
+  referrerBonusMinorUnits: number;
+  inviteeBonusMinorUnits: number;
+  minimumTopUpMinorUnits: number;
+  claimWindowDays: number;
+  maxRewardedPerReferrer: number;
+}
+
+/**
+ * Правка рассылки: частота и пауза. Оба поля необязательны — присланное меняется,
+ * пропущенное остаётся как было.
+ * Пауза, а не удаление: уйти в отпуск на две недели и не получать письма — не то же самое,
+ * что отказаться от рассылки совсем и заводить её заново.
+ *
+ * Контракт: Reports/ReportScheduleContracts.cs
+ */
+export interface UpdateReportScheduleRequest {
+  organizationId: Guid;
+  frequency?: string | null;
+  isActive?: boolean | null;
+}
+
+/** Контракт: Reservations/ReservationRequests.cs */
+export interface UpdateReservationRequest {
+  organizationId: Guid;
+  playerAccountId: Guid | null;
+  seatId: Guid | null;
+  customerName: string | null;
+  phoneNumber: string | null;
+  startsAtUtc: IsoDateTime | null;
+  durationMinutes: number | null;
+  source: string | null;
+  note: string | null;
+  expectedVersion: number;
+}
+
+/** Контракт: Updates/UpdateRolloutDto.cs */
+export interface UpdateRolloutDto {
+  updateRolloutId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  state: string;
+  targetKind: string;
+  targetDeviceIds: Guid[];
+  batchPercent: number;
+  createdAtUtc: IsoDateTime;
+  startsAtUtc: IsoDateTime;
+  completedAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Updates/UpdateRolloutStateChangeRequest.cs */
+export interface UpdateRolloutStateChangeRequest {
+  organizationId: Guid;
+  state: string;
+  reason: string;
+}
+
+/** Контракт: Updates/UpdateRolloutStatusDto.cs */
+export interface UpdateRolloutStatusDto {
+  updateRolloutId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  state: string;
+  targetKind: string;
+  targetDeviceIds: Guid[];
+  batchPercent: number;
+  createdAtUtc: IsoDateTime;
+  startsAtUtc: IsoDateTime;
+  completedAtUtc: IsoDateTime | null;
+  deviceStatuses: DeviceUpdateStatusSnapshotDto[];
+}
+
+/** Контракт: Layout/UpdateSeatRequest.cs */
+export interface UpdateSeatRequest {
+  organizationId: Guid;
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
+}
+
+/** Контракт: Identity/UpdateStaffUserProfileRequest.cs */
+export interface UpdateStaffUserProfileRequest {
+  organizationId: Guid;
+  userName: string;
+  displayName: string;
+}
+
+/** Контракт: Identity/UpdateStaffUserRolesRequest.cs */
+export interface UpdateStaffUserRolesRequest {
+  organizationId: Guid;
+  roleNames: string[];
+}
+
+/** Контракт: Identity/UpdateStaffUserStateRequest.cs */
+export interface UpdateStaffUserStateRequest {
+  organizationId: Guid;
+  isActive: boolean;
+}
+
+/** Контракт: Platform/Billing/UpdateSubscriptionRequest.cs */
+export interface UpdateSubscriptionRequest {
+  planCode: string | null;
+  billingInterval: string | null;
+  status: string | null;
+  cancelAtPeriodEnd: boolean | null;
+  amountMinorUnits: number | null;
+  currentPeriodEndUtc: IsoDateTime | null;
+  paymentGraceUntilUtc: IsoDateTime | null;
+  clearPaymentGrace?: boolean | null;
+  discountPercent?: number | null;
+  discountAmountMinorUnits?: number | null;
+  discountUntilUtc?: IsoDateTime | null;
+  discountReason?: string | null;
+  clearDiscount?: boolean | null;
+}
+
+/**
+ * `Schedule` не передан — расписание остаётся прежним. Снятие тарифа с продажи и
+ * переименование не должны требовать от вызывающего знания о часах.
+ *
+ * Контракт: Tariffs/UpdateTariffRequest.cs
+ */
+export interface UpdateTariffRequest {
+  organizationId: Guid;
+  name: string;
+  isActive: boolean;
+  schedule?: TariffScheduleDto | null;
+}
+
+/** Контракт: Tariffs/UpdateTariffVersionRequest.cs */
+export interface UpdateTariffVersionRequest {
+  organizationId: Guid;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: IsoDateTime;
+  isActive: boolean;
+}
+
+/**
+ * Правка события. Незаполненное поле означает «оставить как было» — стойка правит одну строку,
+ * а не переписывает событие целиком.
+ *
+ * Контракт: Tournaments/TournamentDtos.cs
+ */
+export interface UpdateTournamentRequest {
+  title?: string | null;
+  description?: string | null;
+  discipline?: string | null;
+  startsAtUtc?: IsoDateTime | null;
+  entryFeeMinorUnits?: number | null;
+  capacity?: number | null;
+}
+
+/** Контракт: Layout/UpdateZoneRequest.cs */
+export interface UpdateZoneRequest {
+  organizationId: Guid;
+  name: string;
+  sortOrder: number;
+  hardwareSummary?: string | null;
+}
+
+/** Контракт: Media/UploadedMediaDto.cs */
+export interface UploadedMediaDto {
+  mediaId: Guid;
+  url: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+/** Контракт: Platform/Billing/VoidInvoiceRequest.cs */
+export interface VoidInvoiceRequest {
+  reason: string;
+}
+
+/** Контракт: Pos/VoidPosSaleRequest.cs */
+export interface VoidPosSaleRequest {
+  organizationId: Guid;
+  reason: string;
+  idempotencyKey: string;
+}
+
+/**
+ * Деньги игрока в одном клубе: сколько можно потратить, сколько придержано под брони, сколько он
+ * должен.
+ * WalletBalance — доступный остаток, и он таким и остаётся: заморозка под бронь
+ * из него уже вычтена, потому что холд и есть отрицательная запись журнала.
+ * HeldBalance ничего не переносит и не пересчитывает — оно объясняет, куда
+ * делась часть остатка.
+ *
+ * Контракт: Billing/WalletSummaryDto.cs
+ */
+export interface WalletSummaryDto {
+  playerAccountId: Guid;
+  walletBalance: MoneyDto;
+  heldBalance: MoneyDto;
+  debtBalance: MoneyDto;
+  recentEntries: LedgerEntryDto[];
+}
+
+/**
+ * Зал и его места. HardwareSummary — необязательный хвост: новое поле не должно
+ * ломать позиционные вызовы, которых у этого контракта хватает и в Windows-проектах.
+ *
+ * Контракт: Layout/ZoneDto.cs
+ */
+export interface ZoneDto {
+  zoneId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  name: string;
+  sortOrder: number;
+  createdAtUtc: IsoDateTime;
+  seats: SeatDto[];
+  hardwareSummary?: string | null;
+}

@@ -23,6 +23,7 @@ WORKDIR /src
 # manifest + lockfile plus every workspace member's package.json (the lockfile resolves the whole
 # graph). Copy just the manifests first to keep the install layer cached across source changes.
 COPY package.json bun.lock ./
+COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/formatting/package.json ./packages/formatting/
 COPY packages/host-bridge/package.json ./packages/host-bridge/
 COPY packages/i18n/package.json ./packages/i18n/
