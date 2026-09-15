@@ -621,10 +621,14 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             // Уже отменённая отвечает собой: повторное нажатие и вторая вкладка — не ошибка.
-            if (intent.State == "pending")
+            //
+            // А вот завершение, успевшее между чтением выше и этой записью, — ошибка: игрок увидел
+            // бы отменённую заявку при пополненном кошельке. Условие живёт внутри самой записи.
+            if (intent.State == "pending"
+                && !await PaymentIntentClaim.TryMoveFromPendingAsync(
+                    dbContext, intent, PaymentIntentClaim.Cancelled, null, cancellationToken))
             {
-                intent.State = "cancelled";
-                await dbContext.SaveChangesAsync(cancellationToken);
+                return Results.Conflict(new { Error = "Only a pending top-up request can be cancelled." });
             }
 
             // Ответ несёт саму заявку, как отмена заказа и брони: экрану нужно новое состояние, а
@@ -707,15 +711,22 @@ internal static class PlayerSelfServiceEndpoints
                     "eskhata_online_topup",
                     intent.PaymentIntentId.ToString("N"));
 
+                // Захват до зачисления: иначе отмена, успевшая в зазор, оставила бы заявку отменённой при
+                // пополненном кошельке.
+                if (!await PaymentIntentClaim.TryMoveFromPendingAsync(
+                        dbContext, intent, PaymentIntentClaim.Fulfilled, timeProvider.GetUtcNow(), cancellationToken))
+                {
+                    return Results.Ok(new { payment = "pending" });
+                }
+
                 var billingResult = await billingCommandService.CreditOnlineTopUpAsync(
                     intent.PlayerAccountId, intent.BranchId, topUpRequest, cancellationToken);
                 if (billingResult.Succeeded)
                 {
-                    intent.State = "fulfilled";
-                    intent.FulfilledAtUtc = timeProvider.GetUtcNow();
-                    await dbContext.SaveChangesAsync(cancellationToken);
                     return Results.Ok(new { payment = "paid" });
                 }
+
+                await PaymentIntentClaim.TryReleaseAsync(dbContext, intent, cancellationToken);
             }
 
             if (status is "CANCELED" or "REFUNDED")
