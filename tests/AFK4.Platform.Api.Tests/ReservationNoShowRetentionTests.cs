@@ -5,6 +5,7 @@ using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
@@ -141,6 +142,47 @@ public sealed class ReservationNoShowRetentionTests
 
         Assert.Equal(1, await RunAsync(options, Start.AddMinutes(41)));
         Assert.Equal(5_000, await WalletAsync(options));
+    }
+
+    /// <summary>
+    /// Место занято чужой затянувшейся сессией — неявки нет ни при каких настройках.
+    ///
+    /// Игрок приехал вовремя и физически не мог сесть за свой ПК: за ним сидит предыдущий. Задержка
+    /// клуба — не прогул игрока.
+    /// </summary>
+    [Fact]
+    public async Task OccupiedSeat_HoldsTheDecisionInsteadOfFiningThePlayer()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, keepPrepaymentOnNoShow: true, openShift: true);
+        await BookAsync(options);
+        await SeedOccupyingSessionAsync(options, endedAtUtc: null);
+
+        Assert.Equal(0, await RunAsync(options, Start.AddMinutes(90)));
+
+        await using var db = new PlatformDbContext(options);
+        Assert.Equal(ReservationStateNames.Confirmed, (await db.Reservations.SingleAsync()).State);
+        Assert.False(await db.LedgerEntries.AnyAsync(
+            entry => entry.EntryType == LedgerEntryTypeNames.ReservationNoShowFee));
+    }
+
+    /// <summary>
+    /// Когда место освободилось, ожидание считается от этого момента, а не от начала брони.
+    ///
+    /// Иначе освобождение места через час после начала брони сразу же и означало бы неявку:
+    /// грационное окно филиала давно бы истекло, пока игрок ждал.
+    /// </summary>
+    [Fact]
+    public async Task FreedSeat_StartsTheWaitFromTheMomentItWasFreed()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, keepPrepaymentOnNoShow: true, openShift: true);
+        await BookAsync(options);
+        await SeedOccupyingSessionAsync(options, endedAtUtc: Start.AddMinutes(60));
+
+        // Место освободилось на 60-й минуте, филиал ждёт двадцать — значит до 80-й решать нечего.
+        Assert.Equal(0, await RunAsync(options, Start.AddMinutes(79)));
+        Assert.Equal(1, await RunAsync(options, Start.AddMinutes(81)));
     }
 
     /// <summary>
@@ -283,6 +325,29 @@ public sealed class ReservationNoShowRetentionTests
         var clock = new FixedTimeProvider(now);
         var runner = new ReservationNoShowRunner(db, clock, new EfShiftService(db, clock));
         return await runner.RunOnceAsync(CancellationToken.None);
+    }
+
+    /// <summary>Чужая сессия на том же месте: предыдущий игрок засиделся.</summary>
+    private static async Task SeedOccupyingSessionAsync(
+        DbContextOptions<PlatformDbContext> options,
+        DateTimeOffset? endedAtUtc)
+    {
+        await using var db = new PlatformDbContext(options);
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = Guid.NewGuid(),
+            OrganizationId = OrgId,
+            BranchId = BranchId,
+            SeatId = SeatId,
+            State = endedAtUtc is null ? SessionStateNames.Active : SessionStateNames.Ended,
+            RequestedAtUtc = Start.AddHours(-1),
+            StartedAtUtc = Start.AddHours(-1),
+            EndedAtUtc = endedAtUtc,
+            TariffRuleVersionId = TariffVersionId.ToString("D"),
+            BillingMode = "guest_no_ledger",
+            Origin = "operator"
+        });
+        await db.SaveChangesAsync();
     }
 
     private static async Task<long> WalletAsync(DbContextOptions<PlatformDbContext> options)
