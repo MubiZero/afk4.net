@@ -95,41 +95,41 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
         {step === 'done' ? (
           <section className="auth-confirm">
             <p>{t('auth.forgot.phone.done')}</p>
-            <button type="button" className="auth-primary" onClick={onBackToSignIn}>{t('auth.forgot.phone.toSignIn')}</button>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" onClick={onBackToSignIn}>{t('auth.forgot.phone.toSignIn')}</button>
           </section>
         ) : step === 'verify' ? (
           <form className="auth-form" onSubmit={submitReset}>
             <p className="auth-hint">{channel === 'email' ? t('auth.forgot.email.sent') : t('auth.forgot.phone.sent')}</p>
-            <label className="auth-field">
-              <span className="auth-field-label">{channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')}</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')}</span>
               <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" autoComplete="one-time-code" disabled={isBusy} />
             </label>
-            <label className="auth-field">
-              <span className="auth-field-label">{t('auth.forgot.phone.newPassword')}</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('auth.forgot.phone.newPassword')}</span>
               <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.currentTarget.value)} autoComplete="new-password" disabled={isBusy} />
             </label>
-            <button type="submit" className="auth-primary" disabled={isBusy}>
+            <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isBusy}>
               {isBusy ? t('auth.forgot.phone.resetting') : t('auth.forgot.phone.reset')}
             </button>
           </form>
         ) : channel === 'email' ? (
           <form className="auth-form" onSubmit={submitRequest}>
-            <label className="auth-field">
-              <span className="auth-field-label">{t('auth.forgot.email.field')}</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('auth.forgot.email.field')}</span>
               <input value={emailLogin} onChange={(e) => setEmailLogin(e.currentTarget.value)} autoComplete="username" disabled={isBusy} autoFocus />
             </label>
-            <button type="submit" className="auth-primary" disabled={isBusy}>
+            <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isBusy}>
               {isBusy ? t('auth.forgot.email.submitting') : t('auth.forgot.email.submit')}
             </button>
           </form>
         ) : (
           <form className="auth-form" onSubmit={submitRequest}>
-            <label className="auth-field">
-              <span className="auth-field-label">{t('auth.forgot.phone.field')}</span>
-              <div className="auth-phone-field">
-                <span className="auth-phone-prefix" aria-hidden>+992</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('auth.forgot.phone.field')}</span>
+              <div className="ui-phone-field">
+                <span className="ui-phone-prefix" aria-hidden>+992</span>
                 <input
-                  className="auth-phone-input"
+                  className="ui-phone-input"
                   type="tel"
                   inputMode="tel"
                   value={phone}
@@ -141,7 +141,7 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
                 />
               </div>
             </label>
-            <button type="submit" className="auth-primary" disabled={isBusy}>
+            <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isBusy}>
               {isBusy ? t('auth.forgot.phone.submitting') : t('auth.forgot.phone.submit')}
             </button>
           </form>

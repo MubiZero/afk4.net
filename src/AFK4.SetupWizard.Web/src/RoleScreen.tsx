@@ -86,13 +86,13 @@ export function RoleScreen({
       </div>
 
       <div className="wizard-actions">
-        <button type="button" className="wizard-secondary" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={onBack}>
           <ArrowLeft aria-hidden />
           <span>{t('setup.wizard.common.back')}</span>
         </button>
         <button
           type="button"
-          className="wizard-primary"
+          className="ui-btn ui-btn--primary"
           onClick={() => onContinue(role)}
         >
           <span>{t('setup.wizard.common.continue')}</span>

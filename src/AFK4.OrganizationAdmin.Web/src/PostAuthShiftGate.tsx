@@ -69,7 +69,7 @@ export function PostAuthShiftGate({
               <AlertTriangle size={17} aria-hidden="true" />
               <span>{controller.error}</span>
             </div>
-            <button type="button" className="auth-primary" onClick={controller.retry}>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" onClick={controller.retry}>
               <RefreshCw size={16} aria-hidden="true" />
               <span>{t('op.shiftGate.retry')}</span>
             </button>
@@ -84,8 +84,8 @@ export function PostAuthShiftGate({
               submit();
             }}
           >
-            <label className="auth-field">
-              <span className="auth-field-label">{t('op.cash.open.startingCashLabel')}</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('op.cash.open.startingCashLabel')}</span>
               <input
                 inputMode="decimal"
                 value={startingCash}
@@ -93,8 +93,8 @@ export function PostAuthShiftGate({
                 onChange={(event) => setStartingCash(event.currentTarget.value)}
               />
             </label>
-            <label className="auth-field">
-              <span className="auth-field-label">{t('op.cash.open.noteLabel')}</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('op.cash.open.noteLabel')}</span>
               <input
                 value={openingNote}
                 disabled={opening}
@@ -107,7 +107,7 @@ export function PostAuthShiftGate({
                 <span>{localError ?? controller.error}</span>
               </div>
             )}
-            <button type="submit" className="auth-primary" disabled={opening}>
+            <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={opening}>
               {opening
                 ? <LoaderCircle className="ui-spinner" size={16} aria-hidden="true" />
                 : <Unlock size={16} aria-hidden="true" />}

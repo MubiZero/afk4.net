@@ -135,7 +135,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
           <AlertTriangle size={16} aria-hidden="true" />
           <span>{step.message}</span>
         </div>
-        <button type="button" className="auth-password-toggle" onClick={onCancel}>
+        <button type="button" className="ui-password-toggle" onClick={onCancel}>
           {t('auth.twoFactor.action.back')}
         </button>
       </section>
@@ -158,7 +158,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
           {step.codes.map(recoveryCode => <li key={recoveryCode}>{recoveryCode}</li>)}
         </ul>
 
-        <button type="button" className="auth-password-toggle" onClick={() => void copyCodes(step.codes)}>
+        <button type="button" className="ui-password-toggle" onClick={() => void copyCodes(step.codes)}>
           {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
           {copied ? t('auth.twoFactor.recovery.copied') : t('auth.twoFactor.recovery.copy')}
         </button>
@@ -170,7 +170,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
           </div>
         ) : null}
 
-        <label className="auth-field">
+        <label className="ui-field">
           <span>
             <input
               type="checkbox"
@@ -183,7 +183,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
 
         <button
           type="button"
-          className="auth-primary"
+          className="ui-btn ui-btn--primary ui-btn--block"
           disabled={!acknowledged}
           onClick={() => onComplete(step.session)}
         >
@@ -205,8 +205,8 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
         <img src={step.qrDataUrl} alt={t('auth.twoFactor.setup.title')} width={200} height={200} />
       ) : null}
 
-      <div className="auth-field">
-        <span className="auth-field-label">{t('auth.twoFactor.setup.secretLabel')}</span>
+      <div className="ui-field">
+        <span className="ui-field-label">{t('auth.twoFactor.setup.secretLabel')}</span>
         <code className="pc-mono">{step.secret}</code>
         <p>{t('auth.twoFactor.setup.secretHint')}</p>
       </div>
@@ -219,8 +219,8 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
           </div>
         ) : null}
 
-        <div className="auth-field">
-          <label className="auth-field-label" htmlFor="two-factor-setup-code">{t('auth.twoFactor.setup.codeLabel')}</label>
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="two-factor-setup-code">{t('auth.twoFactor.setup.codeLabel')}</label>
           <input
             id="two-factor-setup-code"
             name="code"
@@ -234,13 +234,13 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
           />
         </div>
 
-        <button type="submit" className="auth-primary" disabled={isConfirming || code.trim().length === 0}>
+        <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isConfirming || code.trim().length === 0}>
           {isConfirming ? <Loader2 className="ui-spinner" aria-hidden="true" /> : null}
           {t('auth.twoFactor.setup.confirm')}
           {isConfirming ? null : <ArrowRight aria-hidden="true" />}
         </button>
 
-        <button type="button" className="auth-password-toggle" onClick={onCancel} disabled={isConfirming}>
+        <button type="button" className="ui-password-toggle" onClick={onCancel} disabled={isConfirming}>
           {t('auth.twoFactor.action.back')}
         </button>
       </form>

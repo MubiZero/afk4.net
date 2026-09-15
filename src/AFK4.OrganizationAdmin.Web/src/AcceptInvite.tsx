@@ -52,18 +52,18 @@ export function AcceptInvite({ onBackToSignIn }: { onBackToSignIn: () => void })
         {done ? (
           <section className="auth-confirm">
             <p>{t('auth.invite.done')}</p>
-            <button type="button" className="auth-primary" onClick={onBackToSignIn}>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" onClick={onBackToSignIn}>
               {t('auth.forgot.phone.toSignIn')}
             </button>
           </section>
         ) : (
           <form className="auth-form" onSubmit={submit}>
-            <label className="auth-field">
-              <span className="auth-field-label">{t('auth.forgot.phone.field')}</span>
-              <div className="auth-phone-field">
-                <span className="auth-phone-prefix" aria-hidden>+992</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('auth.forgot.phone.field')}</span>
+              <div className="ui-phone-field">
+                <span className="ui-phone-prefix" aria-hidden>+992</span>
                 <input
-                  className="auth-phone-input"
+                  className="ui-phone-input"
                   type="tel"
                   inputMode="tel"
                   value={phone}
@@ -75,8 +75,8 @@ export function AcceptInvite({ onBackToSignIn }: { onBackToSignIn: () => void })
                 />
               </div>
             </label>
-            <label className="auth-field">
-              <span className="auth-field-label">{t('auth.invite.field.code')}</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('auth.invite.field.code')}</span>
               <input
                 value={code}
                 onChange={(e) => setCode(e.currentTarget.value)}
@@ -85,8 +85,8 @@ export function AcceptInvite({ onBackToSignIn }: { onBackToSignIn: () => void })
                 disabled={isBusy}
               />
             </label>
-            <label className="auth-field">
-              <span className="auth-field-label">{t('auth.invite.field.password')}</span>
+            <label className="ui-field">
+              <span className="ui-field-label">{t('auth.invite.field.password')}</span>
               <input
                 type="password"
                 value={password}
@@ -95,7 +95,7 @@ export function AcceptInvite({ onBackToSignIn }: { onBackToSignIn: () => void })
                 disabled={isBusy}
               />
             </label>
-            <button type="submit" className="auth-primary" disabled={isBusy}>
+            <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isBusy}>
               {isBusy ? t('auth.invite.submitting') : t('auth.invite.submit')}
             </button>
           </form>

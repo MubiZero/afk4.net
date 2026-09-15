@@ -14,8 +14,10 @@ export function BlockedOrganizationScreen({
   const isDeletionPending = resolution.organizationStatus === OperatorOrganizationStatus.DeletionPending;
   const headline = isDeletionPending ? t('op.shell.club.deletionPending') : t('op.shell.club.suspended');
   const reason = resolution.organizationStatusReason?.trim();
+  // Вход — свободный экран: одна задача во весь монитор, спешить некуда, и рука должна
+  // попадать без прицеливания. Плотная консоль начинается уже за ним.
   return (
-    <div className="operator-shell auth-shell">
+    <div className="operator-shell auth-shell" data-density="comfortable">
       <WindowResizeHandles />
       <header
         className="top-command auth-top-command"

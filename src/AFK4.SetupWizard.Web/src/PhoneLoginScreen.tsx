@@ -190,20 +190,20 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
       </div>
 
       <form className="wizard-form" onSubmit={submit} noValidate>
-        <label className="wizard-field">
-          <span className="wizard-field-label">
+        <label className="ui-field">
+          <span className="ui-field-label">
             {mode === 'phone'
               ? t('setup.wizard.phoneLogin.field.phone')
               : t('setup.wizard.phoneLogin.field.credentials')}
           </span>
-          <div className={mode === 'phone' ? 'wizard-phone-field' : undefined}>
+          <div className={mode === 'phone' ? 'ui-phone-field' : undefined}>
             {mode === 'phone' && (
-              <span className="wizard-phone-prefix" aria-hidden>+992</span>
+              <span className="ui-phone-prefix" aria-hidden>+992</span>
             )}
             <input
               // key forces a fresh input on mode switch — clears autofill/IME state cleanly.
               key={mode}
-              className={mode === 'phone' ? 'wizard-phone-input' : undefined}
+              className={mode === 'phone' ? 'ui-phone-input' : undefined}
               type={mode === 'phone' ? 'tel' : 'text'}
               inputMode={mode === 'phone' ? 'tel' : undefined}
               autoComplete="username"
@@ -221,18 +221,18 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
             />
           </div>
           {identityHint !== null && (
-            <span id="identity-hint" className="wizard-field-hint">{identityHint}</span>
+            <span id="identity-hint" className="ui-field-hint">{identityHint}</span>
           )}
         </label>
 
-        <div className="wizard-field">
-          <div className="wizard-field-label wizard-label-with-action">
+        <div className="ui-field">
+          <div className="ui-field-label ui-label-row">
             <label htmlFor="wizard-password-input">{t('setup.wizard.phoneLogin.field.password')}</label>
             <button type="button" className="wizard-link-inline" onClick={onForgotPassword}>
               {t('setup.wizard.phoneLogin.action.forgotPassword')}
             </button>
           </div>
-          <div className="wizard-password">
+          <div className="ui-password">
             <input
               id="wizard-password-input"
               type={showPassword ? 'text' : 'password'}
@@ -242,7 +242,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
             />
             <button
               type="button"
-              className="wizard-password-toggle"
+              className="ui-password-toggle"
               aria-pressed={showPassword}
               aria-label={showPassword
                 ? t('setup.wizard.phoneLogin.action.hidePassword')
@@ -267,7 +267,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
           </div>
         )}
 
-        <button type="submit" className="wizard-primary" disabled={!canSubmit}>
+        <button type="submit" className="ui-btn ui-btn--primary" disabled={!canSubmit}>
           {request.kind === 'loading' ? (
             <>
               <Loader2 className="ui-spinner" aria-hidden />
