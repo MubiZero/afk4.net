@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../auth/player_session.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -50,7 +51,7 @@ class AppShell extends StatefulWidget {
 
   /// Человек и его клубы. null — список не спросился; тогда разделы работают как раньше и
   /// сами разберутся с ответом сервера.
-  final Me? me;
+  final MeDto? me;
 
   /// Уведомления на телефон. null — платформа их не поддерживает (веб, тесты).
   final PushService? push;

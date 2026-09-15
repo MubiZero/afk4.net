@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
@@ -17,7 +17,7 @@ class ReviewInvite extends StatelessWidget {
     required this.onDismiss,
   });
 
-  final PendingReview visit;
+  final PendingClubReviewDto visit;
   final VoidCallback onRate;
   final VoidCallback onDismiss;
 

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:afk4_customer_app/api/dto.dart';
+import 'package:afk4_customer_app/api/contracts.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/wallet/wallet_card.dart';
@@ -41,9 +41,9 @@ Widget harness(
       home: Scaffold(
         body: WalletCard(
           api: api,
-          walletBalance: Money(currencyCode: currencyCode, minorUnits: wallet),
-          heldBalance: Money(currencyCode: currencyCode, minorUnits: held),
-          debtBalance: Money(currencyCode: currencyCode, minorUnits: debt),
+          walletBalance: MoneyDto(currencyCode: currencyCode, minorUnits: wallet),
+          heldBalance: MoneyDto(currencyCode: currencyCode, minorUnits: held),
+          debtBalance: MoneyDto(currencyCode: currencyCode, minorUnits: debt),
           phoneVerified: phoneVerified,
           features: features,
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
@@ -27,7 +27,7 @@ enum _Load { loading, missing, failed, ready }
 
 class _ReceiptScreenState extends State<ReceiptScreen> {
   _Load _state = _Load.loading;
-  VisitReceipt? _receipt;
+  PlayerVisitReceiptDto? _receipt;
 
   @override
   void initState() {
@@ -81,7 +81,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 class _ReceiptBody extends StatelessWidget {
   const _ReceiptBody({required this.receipt, required this.now});
 
-  final VisitReceipt receipt;
+  final PlayerVisitReceiptDto receipt;
   final DateTime now;
 
   @override
@@ -118,7 +118,7 @@ class _ReceiptBody extends StatelessWidget {
                 ),
                 const Divider(height: 24),
                 _Row(label: l.customerReceiptTime, value: money(receipt.timeChargeMinorUnits)),
-                for (final line in receipt.lines)
+                for (final line in receipt.posLines)
                   _Row(
                     label: '${line.productName} × ${line.quantity}',
                     value: money(line.lineTotalMinorUnits),

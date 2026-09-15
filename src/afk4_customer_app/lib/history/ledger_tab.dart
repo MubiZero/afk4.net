@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
@@ -23,7 +23,7 @@ class LedgerTab extends StatefulWidget {
 }
 
 class _LedgerTabState extends State<LedgerTab> {
-  late final CursorListController<PlayerLedgerEntry> _list =
+  late final CursorListController<PlayerLedgerEntryDto> _list =
       CursorListController((cursor) => widget.api.getWalletLedger(cursor: cursor));
 
   @override
@@ -35,7 +35,7 @@ class _LedgerTabState extends State<LedgerTab> {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    return CursorListView<PlayerLedgerEntry>(
+    return CursorListView<PlayerLedgerEntryDto>(
       controller: _list,
       loadingLabel: l.a11yLoadingLedger,
       errorText: l.customerWalletLedgerError,
@@ -73,14 +73,14 @@ String ledgerTypeLabel(String entryType, L l) => switch (entryType) {
 class _LedgerRow extends StatelessWidget {
   const _LedgerRow({required this.entry});
 
-  final PlayerLedgerEntry entry;
+  final PlayerLedgerEntryDto entry;
 
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
-    final income = entry.amountMinorUnits > 0;
+    final income = entry.amount.minorUnits > 0;
 
     return Card(
       child: Padding(
@@ -106,7 +106,7 @@ class _LedgerRow extends StatelessWidget {
             // Знак перед суммой — главное в строке: человек листает выписку, чтобы понять, где
             // прибыло, а где убыло, и цвет тут помогает, но решает именно знак.
             Text(
-              '${income ? '+' : '−'}${formatMoney(entry.amountMinorUnits.abs(), entry.currencyCode, locale: locale)}',
+              '${income ? '+' : '−'}${formatMoney(entry.amount.minorUnits.abs(), entry.amount.currencyCode, locale: locale)}',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: income ? theme.colorScheme.primary : null,
               ),

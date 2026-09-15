@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -13,7 +13,7 @@ class ReviewSheet extends StatefulWidget {
   const ReviewSheet({super.key, required this.api, required this.visit});
 
   final PlayerApiClient api;
-  final PendingReview visit;
+  final PendingClubReviewDto visit;
 
   @override
   State<ReviewSheet> createState() => _ReviewSheetState();

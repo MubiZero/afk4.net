@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
@@ -92,7 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static const Duration _refreshEvery = Duration(seconds: 30);
 
   Timer? _poll;
-  PlayerDashboard? _data;
+  PlayerDashboardDto? _data;
   DateTime? _fetchedAt;
   bool _failed = false;
 
@@ -130,7 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _branchName;
 
   /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем.
-  PendingReview? _pendingReview;
+  PendingClubReviewDto? _pendingReview;
 
   /// Клуб платит за приглашения. Плитка появляется только тогда: звать делиться кодом,
   /// за который никто не заплатит, — обман.
@@ -250,7 +250,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Оценка визита. Отказ («не сейчас») убирает карточку до следующего запуска: сервер
   /// продолжит предлагать этот визит, пока о нём не написали, и это правильно — передумать
   /// игрок может, а вот навязчивость он запомнит.
-  Future<void> _rateVisit(PendingReview visit) async {
+  Future<void> _rateVisit(PendingClubReviewDto visit) async {
     final l = L.of(context);
     final sent = await showModalBottomSheet<bool>(
       context: context,
@@ -380,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Продление сессии. Успех подтверждается тремя способами сразу: короткая вибрация в
   /// момент действия, сообщение с выбранным временем и перечитанный экран — игрок не должен
   /// гадать, списались деньги или нет.
-  Future<void> _extend(ActiveSession session) async {
+  Future<void> _extend(ActiveSessionDto session) async {
     final l = L.of(context);
     final minutes = await showModalBottomSheet<int>(
       context: context,
@@ -402,7 +402,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Подтверждение обязательно: место освобождается сразу, и случайное нажатие выгоняет
   /// человека из-за ПК. Зато после — сразу сумма возврата, а не «смотрите в истории»: «я встал
   /// раньше» и «мне вернули столько-то» это одно событие.
-  Future<void> _endSession(ActiveSession session) async {
+  Future<void> _endSession(ActiveSessionDto session) async {
     final l = L.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -444,7 +444,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _refresh();
   }
 
-  List<QuickAction> _actions(L l, PlayerDashboard data) => [
+  List<QuickAction> _actions(L l, PlayerDashboardDto data) => [
         if (widget.onOpenReservations != null)
           QuickAction(
             icon: Icons.event_outlined,
@@ -630,12 +630,12 @@ class _BalanceStrip extends StatelessWidget {
     required this.onOpen,
   });
 
-  final Money balance;
+  final MoneyDto balance;
 
   /// Придержанное под брони. Из остатка уже вычтено — строка объясняет, почему остаток
   /// меньше, чем игрок помнит.
-  final Money held;
-  final Money debt;
+  final MoneyDto held;
+  final MoneyDto debt;
   final VoidCallback? onOpen;
 
   @override

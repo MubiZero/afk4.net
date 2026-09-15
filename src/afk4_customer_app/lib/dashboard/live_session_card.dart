@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
@@ -19,7 +20,7 @@ class LiveSessionCard extends StatefulWidget {
     this.clock = DateTime.now,
   });
 
-  final ActiveSession session;
+  final ActiveSessionDto session;
 
   /// Продлить время. null — продлевать нечего: у открытой сессии нет оплаченного остатка,
   /// она и так идёт, пока игрок не встанет.
@@ -62,7 +63,7 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
     final theme = Theme.of(context);
     final session = widget.session;
     final now = widget.clock();
-    final fixed = session.durationMode == SessionDurationMode.fixed;
+    final fixed = session.mode == SessionDurationMode.fixed;
 
     final remaining = fixed
         ? projectRemainingSeconds(session.remainingSeconds ?? 0, widget.fetchedAt, now: now)

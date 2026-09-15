@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:afk4_customer_app/api/dto.dart';
+import 'package:afk4_customer_app/api/contracts.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/organization/club_card.dart';
 import 'package:afk4_customer_app/organization/club_details_sheet.dart';
@@ -58,7 +58,7 @@ const _arena = Organization(
 Widget harness(
   OrganizationDirectory directory, {
   ValueChanged<Organization>? onSelected,
-  List<MyClub> myClubs = const [],
+  List<MyClubDto> myClubs = const [],
   String? selectedOrganizationId,
 }) =>
     MaterialApp(
@@ -74,8 +74,8 @@ Widget harness(
     );
 
 /// Счёт игрока в клубе, как его отдаёт `/api/me`.
-MyClub _myClub({String? organizationId, String name = 'CyberX', int wallet = 12000, int held = 0}) =>
-    MyClub.fromJson({
+MyClubDto _myClub({String? organizationId, String name = 'CyberX', int wallet = 12000, int held = 0}) =>
+    MyClubDto.fromJson({
       'organizationId': organizationId ?? _cyberx.organizationId,
       'organizationName': name,
       'playerAccountId': 'p1',

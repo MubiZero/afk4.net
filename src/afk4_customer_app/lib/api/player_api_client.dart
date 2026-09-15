@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../auth/player_session.dart';
-import 'dto.dart';
+import 'contracts.dart';
 import 'idempotency.dart';
 
 /// Ошибка запроса к API. Несёт код состояния: 410 на коде — «код устарел», 403 на
@@ -65,9 +65,9 @@ class PlayerApiClient {
   /// ли нам его номер. Клуб здесь не называется — человек заводит себя сам.
   ///
   /// 400 — номер не похож на номер, 429 — слишком часто.
-  Future<PhoneVerificationStarted> startSignIn(String phoneNumber) async => _parse(
+  Future<PlayerCodeSignInStartedResponse> startSignIn(String phoneNumber) async => _parse(
         await _post('/api/public/register/start', {'phoneNumber': phoneNumber}),
-        PhoneVerificationStarted.fromJson,
+        PlayerCodeSignInStartedResponse.fromJson,
       );
 
   /// Код из SMS в обмен на сессию. Он же подтверждает номер: прочитать код с этого телефона
@@ -89,17 +89,17 @@ class PlayerApiClient {
 
   /// Кто я и где у меня счета. Единственный маршрут, которому клуб не нужен: он клубы и
   /// перечисляет.
-  Future<Me> getMe() async => _parse(await getJson('/api/me'), Me.fromJson);
+  Future<MeDto> getMe() async => _parse(await getJson('/api/me'), MeDto.fromJson);
 
   /// Имя и язык человека — те два поля, которые спрашиваются при регистрации. Они
   /// принадлежат человеку, а не клубу, поэтому живут отдельно от клубного профиля.
-  Future<MePerson> updateMe({required String displayName, String? preferredLocale}) async =>
+  Future<MePersonDto> updateMe({required String displayName, String? preferredLocale}) async =>
       _parse(
         await sendJson('PATCH', '/api/me', {
           'displayName': displayName,
           'preferredLocale': ?preferredLocale,
         }),
-        MePerson.fromJson,
+        MePersonDto.fromJson,
       );
 
   /// Задаёт сетевой PIN — тот, которым игрок садится за ПК. Старый не спрашивается: этот
@@ -118,9 +118,9 @@ class PlayerApiClient {
 
   /// Правила брони филиала — посчитанные под этого игрока: принимает ли клуб заявки, сколько
   /// ждать ответа, нужна ли предоплата именно ему.
-  Future<PlayerBookingRules> getBookingRules(String branchId) async => _parse(
+  Future<PlayerBookingRulesDto> getBookingRules(String branchId) async => _parse(
         await getJson('/api/me/branches/${Uri.encodeComponent(branchId)}/booking-rules'),
-        PlayerBookingRules.fromJson,
+        PlayerBookingRulesDto.fromJson,
       );
 
   Future<Map<String, dynamic>> getJson(String path) async {
@@ -132,8 +132,8 @@ class PlayerApiClient {
   }
 
   /// Главный экран: кошелёк, долг и текущая сессия.
-  Future<PlayerDashboard> getDashboard() async =>
-      _parse(await getJson('/api/me/dashboard'), PlayerDashboard.fromJson);
+  Future<PlayerDashboardDto> getDashboard() async =>
+      _parse(await getJson('/api/me/dashboard'), PlayerDashboardDto.fromJson);
 
   /// Разбор ответа. Недостающее или чужого типа поле — такая же неудача запроса, как сетевой
   /// сбой: экран покажет ошибку загрузки вместо падения.
@@ -159,27 +159,27 @@ class PlayerApiClient {
     return features.cast<String>();
   }
 
-  Future<CursorPage<PlayerVisit>> getVisits({String? cursor}) async =>
+  Future<CursorPage<PlayerVisitDto>> getVisits({String? cursor}) async =>
       _parse(await getJson(_withCursor('/api/me/visits', cursor)),
-          (body) => CursorPage.fromJson(body, PlayerVisit.fromJson));
+          (body) => CursorPage.fromJson(body, PlayerVisitDto.fromJson));
 
-  Future<VisitReceipt> getVisitReceipt(String sessionId) async => _parse(
+  Future<PlayerVisitReceiptDto> getVisitReceipt(String sessionId) async => _parse(
         await getJson('/api/me/visits/${Uri.encodeComponent(sessionId)}/receipt'),
-        VisitReceipt.fromJson,
+        PlayerVisitReceiptDto.fromJson,
       );
 
   /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем: сервер отвечает на это
   /// пустым 204, и превращать его в ошибку значило бы показывать сбой там, где всё в порядке.
-  Future<PendingReview?> getPendingReview() async {
+  Future<PendingClubReviewDto?> getPendingReview() async {
     var response = await _send('GET', '/api/me/reviews/pending');
     if (response.statusCode == 401 && await _refreshOnce()) {
       response = await _send('GET', '/api/me/reviews/pending');
     }
     if (response.statusCode == 204) return null;
-    return _parse(_decode(response), PendingReview.fromJson);
+    return _parse(_decode(response), PendingClubReviewDto.fromJson);
   }
 
-  Future<ClubReviews> submitReview({
+  Future<ClubReviewsPageDto> submitReview({
     required String sessionId,
     required int rating,
     String? comment,
@@ -190,41 +190,41 @@ class PlayerApiClient {
           'rating': rating,
           if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
         }),
-        ClubReviews.fromJson,
+        ClubReviewsPageDto.fromJson,
       );
 
   /// Стаж игрока: уровень и достижения.
-  Future<PlayerAchievements> getAchievements() async =>
-      _parse(await getJson('/api/me/achievements'), PlayerAchievements.fromJson);
+  Future<PlayerAchievementsDto> getAchievements() async =>
+      _parse(await getJson('/api/me/achievements'), PlayerAchievementsDto.fromJson);
 
-  Future<CursorPage<PlayerPurchase>> getPurchases({String? cursor}) async =>
+  Future<CursorPage<PlayerPurchaseDto>> getPurchases({String? cursor}) async =>
       _parse(await getJson(_withCursor('/api/me/purchases', cursor)),
-          (body) => CursorPage.fromJson(body, PlayerPurchase.fromJson));
+          (body) => CursorPage.fromJson(body, PlayerPurchaseDto.fromJson));
 
-  Future<CursorPage<PlayerLedgerEntry>> getWalletLedger({String? cursor}) async =>
+  Future<CursorPage<PlayerLedgerEntryDto>> getWalletLedger({String? cursor}) async =>
       _parse(await getJson(_withCursor('/api/me/wallet/ledger', cursor)),
-          (body) => CursorPage.fromJson(body, PlayerLedgerEntry.fromJson));
+          (body) => CursorPage.fromJson(body, PlayerLedgerEntryDto.fromJson));
 
   static String _withCursor(String path, String? cursor) =>
       cursor == null ? path : '$path?cursor=${Uri.encodeQueryComponent(cursor)}';
 
-  Future<PlayerProfile> getProfile() async =>
-      _parse(await getJson('/api/me/profile'), PlayerProfile.fromJson);
+  Future<PlayerProfileDto> getProfile() async =>
+      _parse(await getJson('/api/me/profile'), PlayerProfileDto.fromJson);
 
   /// Меняет только переданные поля: не указанное остаётся как было. Слать весь профиль
   /// целиком значит затирать чужие изменения тем, что экран успел прочитать.
-  Future<PlayerProfile> updateProfile({String? preferredLocale, bool? marketingOptIn}) async {
+  Future<PlayerProfileDto> updateProfile({String? preferredLocale, bool? marketingOptIn}) async {
     final body = <String, dynamic>{};
     if (preferredLocale != null) body['preferredLocale'] = preferredLocale;
     if (marketingOptIn != null) body['marketingOptIn'] = marketingOptIn;
-    return _parse(await sendJson('PATCH', '/api/me/profile', body), PlayerProfile.fromJson);
+    return _parse(await sendJson('PATCH', '/api/me/profile', body), PlayerProfileDto.fromJson);
   }
 
   /// Просит прислать код на номер. Ошибки различимы по коду состояния: 400 — номер не похож
   /// на номер, 429 — рано или слишком часто, 502 — SMS не ушла.
-  Future<PhoneVerificationStarted> startPhoneVerification(String phone) async => _parse(
+  Future<PlayerCodeSignInStartedResponse> startPhoneVerification(String phone) async => _parse(
         await sendJson('POST', '/api/me/phone/start-verification', {'phone': phone}),
-        PhoneVerificationStarted.fromJson,
+        PlayerCodeSignInStartedResponse.fromJson,
       );
 
   /// Подтверждает номер кодом. 400 — код неверен, 410 — устарел или его нет, 409 — номер уже
@@ -236,9 +236,9 @@ class PlayerApiClient {
     return phone;
   }
 
-  Future<List<PlayerReservation>> getReservations() async {
+  Future<List<PlayerReservationDto>> getReservations() async {
     final list = await getJsonList('/api/me/reservations');
-    return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();
+    return list.map((item) => _parse(item, PlayerReservationDto.fromJson)).toList();
   }
 
   /// 409 несёт причину: `insufficient_funds` — не хватает денег на бронь,
@@ -248,7 +248,7 @@ class PlayerApiClient {
   /// [branchId] — зал, в который придёт игрок. Нужен только первому действию в клубе: им
   /// открывается счёт, и у сети с несколькими залами сервер не гадает, в каком именно. У
   /// игрока со счётом зал уже записан, и присланный его не переписывает.
-  Future<PlayerReservation> createReservation({
+  Future<PlayerReservationDto> createReservation({
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
     String? tariffVersionId,
@@ -262,57 +262,57 @@ class PlayerApiClient {
       'tariffVersionId': ?tariffVersionId,
       'branchId': ?branchId,
     });
-    return _parse(body, PlayerReservation.fromJson);
+    return _parse(body, PlayerReservationDto.fromJson);
   }
 
   /// Тарифы филиала. Филиал игрок узнаёт из своего профиля — сервер до этого держал его при себе.
-  Future<List<TariffOption>> getTariffs(String branchId) async {
+  Future<List<TariffOptionDto>> getTariffs(String branchId) async {
     final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/tariffs');
-    return list.map((item) => _parse(item, TariffOption.fromJson)).toList();
+    return list.map((item) => _parse(item, TariffOptionDto.fromJson)).toList();
   }
 
   /// Пакеты часов в прайсе филиала. Пустой список — клуб не продаёт пакеты, и это не ошибка.
-  Future<List<PackageOption>> getPackages(String branchId) async {
+  Future<List<PackageOptionDto>> getPackages(String branchId) async {
     final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/packages');
-    return list.map((item) => _parse(item, PackageOption.fromJson)).toList();
+    return list.map((item) => _parse(item, PackageOptionDto.fromJson)).toList();
   }
 
   /// Друзья, заявки и мой переключатель видимости — одним ответом на весь экран.
-  Future<FriendsView> getFriends() async =>
-      _parse(await getJson('/api/me/friends'), FriendsView.fromJson);
+  Future<FriendsDto> getFriends() async =>
+      _parse(await getJson('/api/me/friends'), FriendsDto.fromJson);
 
   /// Позвать в друзья по номеру.
   ///
   /// Ответ одинаков для любого чужого номера — по нему нельзя узнать, есть ли этот номер в
   /// сети. 409 бывает только на свой собственный номер (`friend_self`).
-  Future<FriendsView> sendFriendRequest(String phoneNumber) async => _parse(
+  Future<FriendsDto> sendFriendRequest(String phoneNumber) async => _parse(
       await sendJson('POST', '/api/me/friends/requests', {'phoneNumber': phoneNumber}),
-      FriendsView.fromJson);
+      FriendsDto.fromJson);
 
-  Future<FriendsView> acceptFriendRequest(String friendRequestId) async => _parse(
+  Future<FriendsDto> acceptFriendRequest(String friendRequestId) async => _parse(
       await sendJson(
           'POST', '/api/me/friends/requests/${Uri.encodeComponent(friendRequestId)}/accept'),
-      FriendsView.fromJson);
+      FriendsDto.fromJson);
 
-  Future<FriendsView> declineFriendRequest(String friendRequestId) async => _parse(
+  Future<FriendsDto> declineFriendRequest(String friendRequestId) async => _parse(
       await sendJson(
           'POST', '/api/me/friends/requests/${Uri.encodeComponent(friendRequestId)}/decline'),
-      FriendsView.fromJson);
+      FriendsDto.fromJson);
 
-  Future<FriendsView> removeFriend(String platformPersonId) async => _parse(
+  Future<FriendsDto> removeFriend(String platformPersonId) async => _parse(
       await sendJson('DELETE', '/api/me/friends/${Uri.encodeComponent(platformPersonId)}'),
-      FriendsView.fromJson);
+      FriendsDto.fromJson);
 
   /// Показывать ли друзьям, что я сейчас в зале. Один переключатель на всех.
-  Future<FriendsView> setPresenceVisible(bool showsPresence) async => _parse(
+  Future<FriendsDto> setPresenceVisible(bool showsPresence) async => _parse(
       await sendJson('PATCH', '/api/me/friends/presence', {'showsPresence': showsPresence}),
-      FriendsView.fromJson);
+      FriendsDto.fromJson);
 
   /// События зала: турниры и вечера, на которые ещё можно записаться, плюс отменённые из
   /// тех, на которые игрок шёл, — весть об отмене обязана до него дойти.
-  Future<List<ClubEvent>> getEvents(String branchId) async {
+  Future<List<PlayerTournamentDto>> getEvents(String branchId) async {
     final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/tournaments');
-    return list.map((item) => _parse(item, ClubEvent.fromJson)).toList();
+    return list.map((item) => _parse(item, PlayerTournamentDto.fromJson)).toList();
   }
 
   /// Записаться на событие. Взнос, если он есть, списывается с кошелька этого клуба.
@@ -320,22 +320,22 @@ class PlayerApiClient {
   /// 409 несёт причину: `tournament_full` — мест нет, `insufficient_funds` — не хватает денег,
   /// `tournament_already_started` — событие уже идёт, `tournament_already_registered` — запись
   /// уже есть, `tournament_cancelled` — клуб событие отменил.
-  Future<ClubEvent> registerForEvent(String tournamentId) async {
+  Future<PlayerTournamentDto> registerForEvent(String tournamentId) async {
     final body = await sendJson(
       'POST', '/api/me/tournaments/${Uri.encodeComponent(tournamentId)}/registration');
-    return _parse(body, ClubEvent.fromJson);
+    return _parse(body, PlayerTournamentDto.fromJson);
   }
 
   /// Сняться с события. До начала — взнос возвращается целиком.
-  Future<ClubEvent> cancelEventRegistration(String tournamentId) async {
+  Future<PlayerTournamentDto> cancelEventRegistration(String tournamentId) async {
     final body = await sendJson(
       'DELETE', '/api/me/tournaments/${Uri.encodeComponent(tournamentId)}/registration');
-    return _parse(body, ClubEvent.fromJson);
+    return _parse(body, PlayerTournamentDto.fromJson);
   }
 
   /// «Приведи друга»: свой код, условия клуба и что уже вышло.
-  Future<PlayerReferral> getReferral() async =>
-      _parse(await getJson('/api/me/referral'), PlayerReferral.fromJson);
+  Future<PlayerReferralDto> getReferral() async =>
+      _parse(await getJson('/api/me/referral'), PlayerReferralDto.fromJson);
 
   /// Назвать код друга. Один раз в жизни аккаунта.
   ///
@@ -348,16 +348,16 @@ class PlayerApiClient {
   }
 
   /// Свои пакеты с остатком времени — вместе с потраченными и просроченными.
-  Future<List<PlayerPackage>> getMyPackages() async {
+  Future<List<PlayerPackageDto>> getMyPackages() async {
     final list = await getJsonList('/api/me/packages');
-    return list.map((item) => _parse(item, PlayerPackage.fromJson)).toList();
+    return list.map((item) => _parse(item, PlayerPackageDto.fromJson)).toList();
   }
 
   /// Покупает пакет за деньги кошелька. Открытая смена не нужна: пакет — предоплаченное
   /// время, и покупают его как раз до прихода в клуб.
   ///
   /// 409 несёт причину в теле: `insufficient_funds` — не хватает денег на кошельке.
-  Future<PlayerPackage> purchasePackage({
+  Future<PlayerPackageDto> purchasePackage({
     required String branchId,
     required String packageDefinitionId,
     required String idempotencyKey,
@@ -368,13 +368,13 @@ class PlayerApiClient {
           '/packages/${Uri.encodeComponent(packageDefinitionId)}/purchase',
       {'idempotencyKey': idempotencyKey},
     );
-    return _parse(body, PlayerPackage.fromJson);
+    return _parse(body, PlayerPackageDto.fromJson);
   }
 
   /// Места филиала: за какое можно сесть сейчас и какое занято.
-  Future<List<PlayerSeat>> getSeats(String branchId) async {
+  Future<List<PlayerSeatDto>> getSeats(String branchId) async {
     final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/seats');
-    return list.map((item) => _parse(item, PlayerSeat.fromJson)).toList();
+    return list.map((item) => _parse(item, PlayerSeatDto.fromJson)).toList();
   }
 
   /// Начинает сессию за компьютером, код которого игрок прочитал с монитора. Платное действие,
@@ -407,7 +407,7 @@ class PlayerApiClient {
   /// 404 — тариф сняли с публикации, пока игрок выбирал.
   /// Цена до подтверждения. `seatCount` умножает её на сервере: показанная и замороженная
   /// суммы обязаны приходить из одного места, иначе однажды разойдутся.
-  Future<ReservationQuote> quoteReservation({
+  Future<ReservationQuoteDto> quoteReservation({
     required String tariffVersionId,
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
@@ -420,7 +420,7 @@ class PlayerApiClient {
           'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
           'seatCount': seatCount,
         }),
-        ReservationQuote.fromJson,
+        ReservationQuoteDto.fromJson,
       );
 
   /// Бронь на компанию: несколько мест на одно время одним действием. Мест здесь количество —
@@ -431,7 +431,7 @@ class PlayerApiClient {
   /// `no_seats_available` — столько свободных машин на это время в зале нет.
   ///
   /// [branchId] — как и у одиночной брони, зал первого действия в клубе.
-  Future<PlayerReservationGroup> createReservationGroup({
+  Future<PlayerReservationGroupDto> createReservationGroup({
     required int seatCount,
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
@@ -445,19 +445,19 @@ class PlayerApiClient {
       'tariffVersionId': ?tariffVersionId,
       'branchId': ?branchId,
     });
-    return _parse(body, PlayerReservationGroup.fromJson);
+    return _parse(body, PlayerReservationGroupDto.fromJson);
   }
 
   /// Отменяет всю компанию разом: передумали идти все.
-  Future<List<PlayerReservation>> cancelReservationGroup(String reservationGroupId) async {
+  Future<List<PlayerReservationDto>> cancelReservationGroup(String reservationGroupId) async {
     final list = await getJsonListVia(
         'DELETE', '/api/me/reservations/group/${Uri.encodeComponent(reservationGroupId)}');
-    return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();
+    return list.map((item) => _parse(item, PlayerReservationDto.fromJson)).toList();
   }
 
   /// Перенести собственную бронь. Длительность остаётся прежней: «перенести» — это то же самое
   /// на другое время, а изменить длину — другое решение с другой ценой.
-  Future<PlayerReservation> moveReservation(
+  Future<PlayerReservationDto> moveReservation(
     String reservationId, {
     required DateTime startsAtUtc,
     String? seatId,
@@ -472,13 +472,13 @@ class PlayerApiClient {
         'expectedVersion': ?expectedVersion,
       },
     );
-    return _parse(body, PlayerReservation.fromJson);
+    return _parse(body, PlayerReservationDto.fromJson);
   }
 
-  Future<PlayerReservation> cancelReservation(String reservationId) async {
+  Future<PlayerReservationDto> cancelReservation(String reservationId) async {
     final body = await sendJson(
         'DELETE', '/api/me/reservations/${Uri.encodeComponent(reservationId)}');
-    return _parse(body, PlayerReservation.fromJson);
+    return _parse(body, PlayerReservationDto.fromJson);
   }
 
   /// Продлевает идущую сессию. Деньги списываются сразу, поэтому запрос несёт ключ
@@ -504,38 +504,38 @@ class PlayerApiClient {
   /// правилам тарифа, а не по секундам) и сколько вернулось.
   ///
   /// 404 — сессия уже не идёт или чужая.
-  Future<EndedSession> endSession({
+  Future<PlayerSelfEndSessionResponse> endSession({
     required String sessionId,
     required String idempotencyKey,
   }) async {
     final body = await sendJson('POST', '/api/me/sessions/${Uri.encodeComponent(sessionId)}/end', {
       'idempotencyKey': idempotencyKey,
     });
-    return EndedSession.fromJson(body);
+    return PlayerSelfEndSessionResponse.fromJson(body);
   }
 
   /// Кешбэк игрока: накопленное и правила начисления. 403 — клуб не подключил лояльность.
-  Future<PlayerLoyalty> getLoyalty() async =>
-      _parse(await getJson('/api/me/loyalty'), PlayerLoyalty.fromJson);
+  Future<PlayerLoyaltyDto> getLoyalty() async =>
+      _parse(await getJson('/api/me/loyalty'), PlayerLoyaltyDto.fromJson);
 
   /// Новости и акции клуба. Сервер уже отфильтровал снятые с публикации и просроченные.
-  Future<List<NewsItem>> getNews() async {
+  Future<List<PlayerNewsItemDto>> getNews() async {
     final list = await getJsonList('/api/me/news');
-    return list.map((item) => _parse(item, NewsItem.fromJson)).toList();
+    return list.map((item) => _parse(item, PlayerNewsItemDto.fromJson)).toList();
   }
 
   /// Меню бара для места, за которым игрок сидит. Вне сессии сервер отдаёт пустой список:
   /// заказывать некуда, и это не ошибка.
-  Future<List<ShopProduct>> getShopCatalog() async {
+  Future<List<ShopCatalogItemDto>> getShopCatalog() async {
     final list = await getJsonList('/api/me/shop/catalog');
-    return list.map((item) => _parse(item, ShopProduct.fromJson)).toList();
+    return list.map((item) => _parse(item, ShopCatalogItemDto.fromJson)).toList();
   }
 
   /// Оформляет заказ к месту. Как и продление, платное действие с ключом идемпотентности.
   ///
   /// 409 несёт причину в теле: `insufficient_funds` — не хватает денег, `out_of_stock` —
   /// товар кончился, `placement_context_invalid` — сессии уже нет.
-  Future<ShopOrder> placeShopOrder({
+  Future<ShopOrderDto> placeShopOrder({
     required Map<String, int> quantitiesByProductId,
     required String idempotencyKey,
   }) async {
@@ -546,22 +546,22 @@ class PlayerApiClient {
       ],
       'idempotencyKey': idempotencyKey,
     });
-    return _parse(body, ShopOrder.fromJson);
+    return _parse(body, ShopOrderDto.fromJson);
   }
 
-  Future<List<ShopOrder>> getShopOrders() async {
+  Future<List<ShopOrderDto>> getShopOrders() async {
     final list = await getJsonList('/api/me/shop/orders');
-    return list.map((item) => _parse(item, ShopOrder.fromJson)).toList();
+    return list.map((item) => _parse(item, ShopOrderDto.fromJson)).toList();
   }
 
-  Future<ShopOrder> cancelShopOrder(String orderId) async => _parse(
+  Future<ShopOrderDto> cancelShopOrder(String orderId) async => _parse(
         await sendJson('POST', '/api/me/shop/orders/${Uri.encodeComponent(orderId)}/cancel'),
-        ShopOrder.fromJson,
+        ShopOrderDto.fromJson,
       );
 
   /// Уведомления игрока: те же события, что уходят пушем, включая недоехавшие.
-  Future<PlayerNotifications> getNotifications() async =>
-      _parse(await getJson('/api/me/notifications'), PlayerNotifications.fromJson);
+  Future<PlayerNotificationsDto> getNotifications() async =>
+      _parse(await getJson('/api/me/notifications'), PlayerNotificationsDto.fromJson);
 
   /// Открыл список — прочитал всё, что в нём было.
   Future<void> markNotificationsRead() async {
@@ -582,7 +582,7 @@ class PlayerApiClient {
 
   /// Погасить долг деньгами с собственного кошелька. Сумма явная, а не «весь долг»: человек
   /// вправе закрыть часть, и «весь» на момент нажатия и на момент записи — разные числа.
-  Future<WalletBalances> payDebtFromWallet({
+  Future<WalletSummaryDto> payDebtFromWallet({
     required int amountMinorUnits,
     required String currencyCode,
   }) async {
@@ -590,23 +590,23 @@ class PlayerApiClient {
       'amount': {'currencyCode': currencyCode, 'minorUnits': amountMinorUnits},
       'idempotencyKey': newIdempotencyKey(),
     });
-    return _parse(body, WalletBalances.fromJson);
+    return _parse(body, WalletSummaryDto.fromJson);
   }
 
   /// Отказаться от собственной незавершённой заявки. В ответ приходит она же — уже отменённой.
-  Future<TopUpIntent> cancelTopUpIntent(String intentId) async => _parse(
+  Future<PlayerTopUpIntentDto> cancelTopUpIntent(String intentId) async => _parse(
         await sendJson('DELETE', '/api/me/wallet/top-up-intents/${Uri.encodeComponent(intentId)}'),
-        TopUpIntent.fromJson,
+        PlayerTopUpIntentDto.fromJson,
       );
 
-  Future<List<TopUpIntent>> getTopUpIntents() async {
+  Future<List<PlayerTopUpIntentDto>> getTopUpIntents() async {
     final list = await getJsonList('/api/me/wallet/top-up-intents');
-    return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();
+    return list.map((item) => _parse(item, PlayerTopUpIntentDto.fromJson)).toList();
   }
 
   /// [branchId] — зал, в котором открыть счёт, если его ещё нет. Пополнение — второе действие
   /// (после брони), которым человек впервые становится игроком клуба.
-  Future<TopUpIntent> createTopUpIntent({
+  Future<PlayerTopUpIntentDto> createTopUpIntent({
     required int amountMinorUnits,
     required String currencyCode,
     String? branchId,
@@ -618,13 +618,13 @@ class PlayerApiClient {
       'branchId': ?branchId,
       'method': method,
     });
-    return _parse(body, TopUpIntent.fromJson);
+    return _parse(body, PlayerTopUpIntentDto.fromJson);
   }
 
   /// Чем клуб принимает деньги. Спрашивается до того, как игрок выбрал способ: кнопка,
   /// которая откажет, хуже отсутствующей кнопки.
-  Future<TopUpMethods> topUpMethods() async {
-    return _parse(await sendJson('GET', '/api/me/wallet/top-up-methods'), TopUpMethods.fromJson);
+  Future<PlayerTopUpMethodsDto> topUpMethods() async {
+    return _parse(await sendJson('GET', '/api/me/wallet/top-up-methods'), PlayerTopUpMethodsDto.fromJson);
   }
 
   /// Что банк думает о заявке: `paid`, `failed` или `pending`. Ответ «оплачено» приходит

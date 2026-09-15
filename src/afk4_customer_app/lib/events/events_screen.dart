@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
@@ -32,7 +33,7 @@ class EventsScreen extends StatefulWidget {
 }
 
 class _EventsScreenState extends State<EventsScreen> {
-  List<ClubEvent>? _events;
+  List<PlayerTournamentDto>? _events;
   bool _failed = false;
   String? _busyId;
   String? _error;
@@ -60,7 +61,7 @@ class _EventsScreenState extends State<EventsScreen> {
     }
   }
 
-  Future<void> _register(ClubEvent event) async {
+  Future<void> _register(PlayerTournamentDto event) async {
     final l = L.of(context);
     final locale = Localizations.localeOf(context).languageCode;
     final confirmed = await showDialog<bool>(
@@ -70,7 +71,7 @@ class _EventsScreenState extends State<EventsScreen> {
         content: Text(event.isFree
             ? l.customerEventsConfirmFree
             : l.customerEventsConfirmPaid(
-                formatMoney(event.entryFeeMinorUnits, event.currencyCode, locale: locale))),
+                formatMoney(event.entryFee.minorUnits, event.entryFee.currencyCode, locale: locale))),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -89,7 +90,7 @@ class _EventsScreenState extends State<EventsScreen> {
         toast: l.customerEventsRegisteredToast(event.title));
   }
 
-  Future<void> _cancel(ClubEvent event) async {
+  Future<void> _cancel(PlayerTournamentDto event) async {
     final l = L.of(context);
     final locale = Localizations.localeOf(context).languageCode;
     final confirmed = await showDialog<bool>(
@@ -99,7 +100,7 @@ class _EventsScreenState extends State<EventsScreen> {
         content: Text(event.isFree
             ? l.customerEventsCancelConfirmFree
             : l.customerEventsCancelConfirmPaid(
-                formatMoney(event.entryFeeMinorUnits, event.currencyCode, locale: locale))),
+                formatMoney(event.entryFee.minorUnits, event.entryFee.currencyCode, locale: locale))),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -120,7 +121,7 @@ class _EventsScreenState extends State<EventsScreen> {
 
   /// Общий ход записи и снятия: обе кнопки трогают деньги, обе обязаны вернуться в рабочее
   /// состояние при любом сбое — висящая кнопка читается как зависшее списание.
-  Future<void> _run(ClubEvent event, Future<ClubEvent> Function() action, {required String toast}) async {
+  Future<void> _run(PlayerTournamentDto event, Future<PlayerTournamentDto> Function() action, {required String toast}) async {
     final l = L.of(context);
     setState(() {
       _busyId = event.tournamentId;
@@ -236,7 +237,7 @@ class EventCard extends StatelessWidget {
     this.clock = DateTime.now,
   });
 
-  final ClubEvent event;
+  final PlayerTournamentDto event;
   final String locale;
   final VoidCallback onRegister;
   final VoidCallback onCancel;
@@ -286,7 +287,7 @@ class EventCard extends StatelessWidget {
                 text: event.isFree
                     ? l.customerEventsFree
                     : l.customerEventsFee(
-                        formatMoney(event.entryFeeMinorUnits, event.currencyCode, locale: locale)),
+                        formatMoney(event.entryFee.minorUnits, event.entryFee.currencyCode, locale: locale)),
                 accent: !event.isFree,
               ),
               // «Осталось N мест» — только когда потолок есть: у события без ограничения такая

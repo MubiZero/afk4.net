@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 
@@ -9,7 +10,7 @@ import '../money/money.dart';
 ///
 /// Здесь не решается, действует ли тариф на выбранное время: у клуба свой часовой пояс, у
 /// телефона свой, и в поездке они разные. Ответ даёт сервер при бронировании, а это подпись.
-String? tariffScheduleLabel(TariffOption tariff, L l) {
+String? tariffScheduleLabel(TariffOptionDto tariff, L l) {
   final from = tariff.appliesFromMinuteOfDay;
   final to = tariff.appliesToMinuteOfDay;
   final hours = from != null && to != null && from != to ? '${_hhmm(from)}–${_hhmm(to)}' : null;
@@ -17,7 +18,9 @@ String? tariffScheduleLabel(TariffOption tariff, L l) {
   const everyDay = 0;
   const allDays = 0x7F;
   final mask = tariff.appliesOnDaysMask;
-  final days = mask == everyDay || mask == allDays
+  // null — сервер вообще не ограничивал тариф днями; 0 и все семь бит — то же самое другими
+  // словами. Во всех трёх случаях перечислять дни нечего.
+  final days = mask == null || mask == everyDay || mask == allDays
       ? null
       : [
           for (var index = 0; index < 7; index++)
@@ -57,11 +60,11 @@ class TariffPicker extends StatelessWidget {
     required this.onSelected,
   });
 
-  final List<TariffOption> tariffs;
+  final List<TariffOptionDto> tariffs;
   final String? selectedId;
 
   /// Посчитанная сервером стоимость. null — время ещё не выбрано или расчёт не удался.
-  final ReservationQuote? quote;
+  final ReservationQuoteDto? quote;
   final bool quoting;
 
   /// Что пошло не так с расчётом: тариф сняли с публикации или сервер не ответил.

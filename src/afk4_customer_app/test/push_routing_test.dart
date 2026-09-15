@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:afk4_customer_app/api/dto.dart';
+import 'package:afk4_customer_app/api/contracts.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/auth/player_session.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
@@ -77,7 +77,7 @@ FakeHttpClient _serve() => FakeHttpClient((request) => switch (request.url.path)
       _ => ('{"items":[],"nextCursor":null}', 200),
     });
 
-Me _me() => Me.fromJson({
+MeDto _me() => MeDto.fromJson({
       'person': {
         'platformPersonId': 'pp1',
         'phoneNumber': '+992900000000',

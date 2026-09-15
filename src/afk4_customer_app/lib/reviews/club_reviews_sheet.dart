@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/organization.dart';
@@ -19,7 +19,7 @@ class ClubReviewsSheet extends StatefulWidget {
 }
 
 class _ClubReviewsSheetState extends State<ClubReviewsSheet> {
-  ClubReviews? _reviews;
+  ClubReviewsPageDto? _reviews;
   bool _failed = false;
 
   @override
@@ -101,7 +101,7 @@ class _ClubReviewsSheetState extends State<ClubReviewsSheet> {
 class _ReviewTile extends StatelessWidget {
   const _ReviewTile({required this.review});
 
-  final ClubReview review;
+  final ClubReviewDto review;
 
   @override
   Widget build(BuildContext context) {

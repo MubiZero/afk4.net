@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
@@ -19,7 +19,7 @@ class PurchasesTab extends StatefulWidget {
 }
 
 class _PurchasesTabState extends State<PurchasesTab> {
-  late final CursorListController<PlayerPurchase> _list =
+  late final CursorListController<PlayerPurchaseDto> _list =
       CursorListController((cursor) => widget.api.getPurchases(cursor: cursor));
 
   @override
@@ -31,7 +31,7 @@ class _PurchasesTabState extends State<PurchasesTab> {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    return CursorListView<PlayerPurchase>(
+    return CursorListView<PlayerPurchaseDto>(
       controller: _list,
       loadingLabel: l.a11yLoadingPurchases,
       errorText: l.customerHistoryPurchasesError,
@@ -44,7 +44,7 @@ class _PurchasesTabState extends State<PurchasesTab> {
 class _PurchaseCard extends StatelessWidget {
   const _PurchaseCard({required this.purchase});
 
-  final PlayerPurchase purchase;
+  final PlayerPurchaseDto purchase;
 
   @override
   Widget build(BuildContext context) {

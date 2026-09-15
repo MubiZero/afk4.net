@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../history/ledger_tab.dart';
 import '../history/purchases_tab.dart';
@@ -57,7 +57,7 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  PlayerDashboard? _data;
+  PlayerDashboardDto? _data;
   bool _failed = false;
 
   @override

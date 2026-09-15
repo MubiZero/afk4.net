@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:afk4_customer_app/api/dto.dart';
+import 'package:afk4_customer_app/api/contracts.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/auth/player_session.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
@@ -70,7 +70,7 @@ FakeHttpClient _serve({String features = '{"features":["online_topup","online_bo
     });
 
 /// «Кто я и где у меня счета». `clubs` пуст — человек в этом клубе ещё ничего не делал.
-Me _me({bool hasAccountHere = true, bool banned = false, String? banReason}) => Me.fromJson({
+MeDto _me({bool hasAccountHere = true, bool banned = false, String? banReason}) => MeDto.fromJson({
       'person': {
         'platformPersonId': 'pp1',
         'phoneNumber': '+992900000000',
@@ -97,7 +97,7 @@ Me _me({bool hasAccountHere = true, bool banned = false, String? banReason}) => 
       ],
     });
 
-Widget harness(FakeHttpClient http, {VoidCallback? onSignOut, Me? me}) => MaterialApp(
+Widget harness(FakeHttpClient http, {VoidCallback? onSignOut, MeDto? me}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,

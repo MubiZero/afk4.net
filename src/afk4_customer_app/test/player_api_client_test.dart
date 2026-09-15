@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:afk4_customer_app/api/dto_rules.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/auth/player_session.dart';
 
@@ -160,7 +161,7 @@ void main() {
     final me = await client.getMe();
 
     expect(me.person.pinSet, isFalse);
-    expect(me.clubs.single.heldBalance.minorUnits, 5000);
+    expect(me.clubs.single.heldMinorUnits, 5000);
     expect(me.clubAt('o1'), isNotNull);
     expect(me.clubAt('o2'), isNull);
   });
