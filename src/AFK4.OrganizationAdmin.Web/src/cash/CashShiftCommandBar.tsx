@@ -12,7 +12,8 @@ import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext, Feedback } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { OpenShiftRequest, RecordCashMovementRequest, CloseShiftRequest, ShiftDto } from '../api/clients/shifts';
-import type { ShiftRevenueDto } from '../operatorApiClients';
+import type { BranchSettingsDto, ShiftRevenueDto, StaffUserDto } from '../operatorApiClients';
+import { signOffCandidates } from './shiftSignOff';
 import { ShiftReportModal } from './ShiftReportModal';
 import { buildShiftReportData, buildShiftReportText, printShiftReport, type ShiftReportData } from './shiftReport';
 import { OpenShiftModal } from './OpenShiftModal';
@@ -24,6 +25,12 @@ export interface CashShiftActionsClient {
   openShift(branchId: string, request: OpenShiftRequest): Promise<unknown>;
   recordCashMovement(shiftId: string, request: RecordCashMovementRequest): Promise<unknown>;
   closeShift(shiftId: string, request: CloseShiftRequest): Promise<ShiftDto>;
+}
+
+/** Откуда экран узнаёт допуск филиала и кто вправе подписать расхождение. */
+export interface CloseShiftContextClient {
+  getBranchSettings(branchId: string): Promise<BranchSettingsDto>;
+  getStaffUsers(branchId: string): Promise<StaffUserDto[]>;
 }
 
 type ActiveModal = 'open' | 'cash_in' | 'cash_out' | 'close' | null;
@@ -40,7 +47,8 @@ export function CashShiftCommandBar({
   currencyCode,
   revenue = null,
   onShiftChanged,
-  actions: injectedActions
+  actions: injectedActions,
+  closeContext: injectedCloseContext
 }: {
   backend: OperatorBackendContext | null;
   session: OperatorAuthSession | null;
@@ -54,6 +62,7 @@ export function CashShiftCommandBar({
   revenue?: ShiftRevenueDto | null;
   onShiftChanged: () => void;
   actions?: CashShiftActionsClient;
+  closeContext?: CloseShiftContextClient;
 }) {
   const { t } = useI18n();
   // Реальный клиент строим лениво (только при вызове run), потому что PlatformApiClient
@@ -75,6 +84,38 @@ export function CashShiftCommandBar({
   const [movementReason, setMovementReason] = useState(t('op.cash.movement.defaultReason'));
   const [countedCash, setCountedCash] = useState('');
   const [closingNote, setClosingNote] = useState(t('op.cash.close.defaultNote'));
+  const [signOffStaffUserId, setSignOffStaffUserId] = useState('');
+  const [signOffReason, setSignOffReason] = useState('');
+  // Допуск и состав смены нужны только в момент закрытия — грузим при открытии модалки, а не
+  // при каждом показе панели.
+  const [toleranceMinorUnits, setToleranceMinorUnits] = useState<number | null>(null);
+  const [staff, setStaff] = useState<StaffUserDto[]>([]);
+
+  const getCloseContext = (): CloseShiftContextClient | null => {
+    if (injectedCloseContext) return injectedCloseContext;
+    if (!backend) return null;
+    try {
+      // `?? null`, а не просто поле: в наборах соседних экранов клиент подменяется заглушкой без
+      // `settings`, и `undefined` проскакивал бы мимо проверки ниже.
+      return createAuthenticatedOperatorClients(backend.config, backend.session).settings ?? null;
+    } catch {
+      // Та же причина, что у getActions выше: PlatformApiClient бросает на невалидном конфиге.
+      // Без допуска подпись просто не спрашивается заранее — решает сервер.
+      return null;
+    }
+  };
+
+  const openCloseModal = () => {
+    setActiveModal('close');
+    const context = getCloseContext();
+    const branchId = backend?.branchId;
+    if (context === null || !branchId) return;
+    // Молча: без допуска подпись просто не спрашивается заранее, и решает сервер — как и раньше.
+    void context.getBranchSettings(branchId)
+      .then((settings) => setToleranceMinorUnits(settings.shiftDiscrepancyToleranceMinorUnits ?? null))
+      .catch(() => setToleranceMinorUnits(null));
+    void context.getStaffUsers(branchId).then(setStaff).catch(() => setStaff([]));
+  };
 
   const canOpen = !isOpen && hasPermission(session, permissionNames.openShift);
   const canCash = isOpen && hasPermission(session, permissionNames.manageShiftCash);
@@ -145,7 +186,10 @@ export function CashShiftCommandBar({
         organizationId: backend!.session.organizationId,
         countedCash: { currencyCode, minorUnits: minor },
         closingNote: closingNote.trim(),
-        idempotencyKey: createIdempotencyKey('shift-close')
+        idempotencyKey: createIdempotencyKey('shift-close'),
+        // Пусто — обычное закрытие в пределах допуска; сервер тогда подписи и не спросит.
+        managerSignOffStaffUserId: signOffStaffUserId || null,
+        signOffReason: signOffReason.trim() || null
       });
       // Z-сводка: снимок выручки (revenue) + counted/difference/closedAt из ответа close.
       if (revenue) setReport({ variant: 'z', data: buildShiftReportData(revenue, closed) });
@@ -175,7 +219,7 @@ export function CashShiftCommandBar({
         </>
       )}
       {canClose && (
-        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm ui-btn--danger cash-command-btn danger" onClick={() => setActiveModal('close')}>
+        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm ui-btn--danger cash-command-btn danger" onClick={openCloseModal}>
           <Lock size={14} aria-hidden="true" />{t('op.cash.action.close')}
         </button>
       )}
@@ -209,6 +253,12 @@ export function CashShiftCommandBar({
       )}
       {activeModal === 'close' && (
         <CloseShiftModal
+          toleranceMinorUnits={toleranceMinorUnits}
+          signOffCandidates={signOffCandidates(staff, openedByStaffUserId, session?.staffUserId ?? null)}
+          signOffStaffUserId={signOffStaffUserId}
+          signOffReason={signOffReason}
+          onChangeSignOffStaffUserId={setSignOffStaffUserId}
+          onChangeSignOffReason={setSignOffReason}
           expectedCash={expectedCash}
           counted={countedCash}
           note={closingNote}

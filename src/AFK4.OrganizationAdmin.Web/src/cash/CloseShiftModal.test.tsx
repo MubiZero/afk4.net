@@ -14,8 +14,14 @@ function renderModal(overrides: Partial<Parameters<typeof CloseShiftModal>[0]> =
         counted="120.00"
         note="Закрытие смены"
         currencyCode="TJS"
+        toleranceMinorUnits={2000}
+        signOffCandidates={[{ staffUserId: 'staff-2', displayName: 'Мадина К.' }]}
+        signOffStaffUserId=""
+        signOffReason=""
         onChangeCounted={() => {}}
         onChangeNote={() => {}}
+        onChangeSignOffStaffUserId={() => {}}
+        onChangeSignOffReason={() => {}}
         onClose={() => {}}
         onSubmit={onSubmit}
         busy={false}
@@ -55,5 +61,36 @@ describe('CloseShiftModal', () => {
     renderModal({ counted: '0' });
     // -11500 minor TJS → '-115 с.' (ASCII дефис, без дробной части)
     expect(screen.getByText('-115 с.')).toBeInTheDocument();
+  });
+
+  /**
+   * Расхождение больше допуска филиала не закрывает смену без подписи второго менеджера.
+   * Раньше отправить подпись было нечем вовсе: сервер отказывал, и смена не закрывалась никак —
+   * ни в этот вечер, ни на следующий день.
+   */
+  it('сверх допуска требует подпись и держит кнопку закрытой, пока её не выбрали', () => {
+    // Ожидается 115.00, насчитали 120.00 — расхождение 500 при допуске 2000: подпись не нужна.
+    renderModal();
+    expect(screen.queryByLabelText('Кто подписывает')).toBeNull();
+    cleanup();
+
+    // Насчитали 150.00 — расхождение 3500, больше допуска.
+    renderModal({ counted: '150.00' });
+    const picker = screen.getByLabelText('Кто подписывает');
+    expect(picker).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Закрыть смену/ })).toBeDisabled();
+    expect(screen.getByRole('option', { name: 'Мадина К.' })).toBeInTheDocument();
+  });
+
+  it('с выбранным подписантом кнопка снова доступна', () => {
+    renderModal({ counted: '150.00', signOffStaffUserId: 'staff-2' });
+    expect(screen.getByRole('button', { name: /Закрыть смену/ })).not.toBeDisabled();
+  });
+
+  // Допуск ещё не загружен — подпись не навязываем: решает сервер, как и до этой правки.
+  it('без известного допуска подпись не требует', () => {
+    renderModal({ counted: '150.00', toleranceMinorUnits: null });
+    expect(screen.queryByLabelText('Кто подписывает')).toBeNull();
+    expect(screen.getByRole('button', { name: /Закрыть смену/ })).not.toBeDisabled();
   });
 });

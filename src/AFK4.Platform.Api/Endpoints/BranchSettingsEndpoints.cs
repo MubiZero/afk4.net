@@ -127,7 +127,10 @@ internal static class BranchSettingsEndpoints
                 branch.OrganizationId,
                 branch.BranchId,
                 branch.RequireManualDeviceApproval,
-                branch.PreferredLocale);
+                branch.PreferredLocale,
+                MoneyControlPolicy.ResolveDiscrepancyTolerance(
+                    branch.ShiftDiscrepancyToleranceMinorUnits,
+                    MoneyControlPolicy.DefaultDiscrepancyToleranceMinorUnits));
 
             return Results.Ok(response);
         })
@@ -204,7 +207,10 @@ internal static class BranchSettingsEndpoints
                 branch.OrganizationId,
                 branch.BranchId,
                 branch.RequireManualDeviceApproval,
-                branch.PreferredLocale);
+                branch.PreferredLocale,
+                MoneyControlPolicy.ResolveDiscrepancyTolerance(
+                    branch.ShiftDiscrepancyToleranceMinorUnits,
+                    MoneyControlPolicy.DefaultDiscrepancyToleranceMinorUnits));
 
             await WriteAuditAsync(
                 auditRecordWriter,

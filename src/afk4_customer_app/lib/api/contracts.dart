@@ -788,6 +788,7 @@ class BranchSettingsDto {
     required this.branchId,
     required this.requireManualDeviceApproval,
     required this.preferredLocale,
+    this.shiftDiscrepancyToleranceMinorUnits,
   });
 
   final String organizationId;
@@ -795,11 +796,18 @@ class BranchSettingsDto {
   final bool requireManualDeviceApproval;
   final String preferredLocale;
 
+  /// Допустимое расхождение кассы при закрытии смены, в минорных единицах. Больше него смену
+  /// закрывает только подпись второго менеджера (анти-фрод §5.7), и стойка должна знать порог
+  /// заранее: спросить подпись до отправки честнее, чем отказать после.
+  /// Отдаётся уже разрешённым — с подставленным умолчанием, если у филиала своего нет.
+  final int? shiftDiscrepancyToleranceMinorUnits;
+
   factory BranchSettingsDto.fromJson(Map<String, dynamic> json) => BranchSettingsDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
         requireManualDeviceApproval: json['requireManualDeviceApproval'] as bool,
         preferredLocale: json['preferredLocale'] as String,
+        shiftDiscrepancyToleranceMinorUnits: json['shiftDiscrepancyToleranceMinorUnits'] == null ? null : (json['shiftDiscrepancyToleranceMinorUnits'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -807,6 +815,7 @@ class BranchSettingsDto {
         'branchId': branchId,
         'requireManualDeviceApproval': requireManualDeviceApproval,
         'preferredLocale': preferredLocale,
+        'shiftDiscrepancyToleranceMinorUnits': shiftDiscrepancyToleranceMinorUnits,
       };
 }
 
