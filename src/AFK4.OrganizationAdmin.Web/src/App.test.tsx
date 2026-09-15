@@ -2190,6 +2190,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosCategory(body));
   }
 
+  // Справочник категорий филиала: имя категории живёт только здесь, у товара есть `categoryId`.
+  if (pathname.endsWith('/pos/categories')) {
+    return jsonResponse([createPosCategory()]);
+  }
+
   if (pathname.includes('/pos/products/') && pathname.endsWith('/barcodes') && (!init?.method || init.method === 'GET')) {
     return jsonResponse([]);
   }
@@ -3026,6 +3031,7 @@ function createPosCategory(overrides: Record<string, unknown> = {}) {
     branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
     name: 'Drinks',
     isActive: true,
+    sortOrder: 0,
     createdAtUtc: '2026-05-21T08:00:00Z',
     ...overrides
   };

@@ -64,7 +64,6 @@ const productId = '11111111-1111-1111-1111-111111111111';
 const cola: PosProductDto = {
   productId,
   categoryId: 'cat1',
-  categoryName: 'Напитки',
   name: 'Cola 0.5',
   sku: 'COLA-05',
   price: { currencyCode: 'TJS', minorUnits: 1000 },
@@ -103,10 +102,12 @@ describe('GoodsDestination', () => {
     expect(screen.getByText('Cola 0.5')).toBeTruthy();
   });
 
-  it('renders the product category from the catalog projection', () => {
+  // Имени категории у товара нет — без справочника экран честно показывает заглушку с началом
+  // идентификатора, а не выдуманное имя.
+  it('renders the product category placeholder when the directory is unavailable', () => {
     wrap(<GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} />);
     expect(screen.getByText('Категория')).toBeTruthy();
-    expect(screen.getByText('Напитки')).toBeTruthy();
+    expect(screen.getByText('Категория cat1')).toBeTruthy();
   });
 
   it('renders the whole catalog beyond 8 items — the old settings-section cap is gone', () => {
@@ -259,7 +260,7 @@ describe('GoodsDestination', () => {
   });
 
   it('allows changing a product category in the edit drawer', async () => {
-    const snacks = { ...cola, productId: '22222222-2222-2222-2222-222222222222', categoryId: 'cat2', categoryName: 'Снеки', name: 'Chips' } as never;
+    const snacks = { ...cola, productId: '22222222-2222-2222-2222-222222222222', categoryId: 'cat2', name: 'Chips' } as never;
     wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola, snacks]} />);
     fireEvent.click(screen.getByText('Cola 0.5'));
     fireEvent.change(screen.getByRole('combobox', { name: 'Категория' }), { target: { value: 'cat2' } });

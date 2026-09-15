@@ -285,21 +285,29 @@ function shopOrders() {
   ];
 }
 
+// Справочник категорий филиала. Имя категории живёт только здесь: у товара сервер отдаёт один
+// `categoryId`, и превью без этого маршрута показывало бы заглушку вместо «Напитки · Еда».
+function posCategories() {
+  const c = (categoryId: string, name: string, sortOrder: number) =>
+    ({ categoryId, organizationId: ORG, branchId: BRANCH, name, isActive: true, sortOrder, createdAtUtc: '2026-05-21T08:00:00Z' });
+  return [c('cat-drinks', 'Напитки', 0), c('cat-snacks', 'Снеки', 1), c('cat-services', 'Услуги', 2)];
+}
+
 // Каталог POS: напитки / снеки / услуги, с парой позиций на нуле и низком остатке —
 // чтобы превью показывало чипы категорий, метрику «Склад N низко» и реальные продажи.
 function posCatalog() {
-  const p = (productId: string, categoryName: string, name: string, sku: string, priceMinor: number, stockOnHand: number, trackStock = true) =>
-    ({ productId, organizationId: ORG, branchId: BRANCH, categoryId: categoryName, categoryName, name, sku, price: money(priceMinor), trackStock, allowNegativeStock: false, isActive: true, stockOnHand, createdAtUtc: '2026-05-21T08:00:00Z' });
+  const p = (productId: string, categoryId: string, name: string, sku: string, priceMinor: number, stockOnHand: number, trackStock = true) =>
+    ({ productId, organizationId: ORG, branchId: BRANCH, categoryId, name, sku, price: money(priceMinor), trackStock, allowNegativeStock: false, isActive: true, stockOnHand, createdAtUtc: '2026-05-21T08:00:00Z' });
   return [
-    p('prod-cola', 'Напитки', 'Cola 0.5', 'COLA-05', 1200, 12),
-    p('prod-water', 'Напитки', 'Вода 0.5', 'WATER-05', 600, 30),
-    p('prod-energy', 'Напитки', 'Энергетик Red Bull', 'ENERGY-RB', 1800, 8),
-    p('prod-juice', 'Напитки', 'Сок апельсиновый', 'JUICE-OR', 1500, 0),
-    p('prod-hotdog', 'Снеки', 'Хот-дог', 'HOTDOG', 2800, 6),
-    p('prod-chips', 'Снеки', 'Чипсы Lays', 'CHIPS-LAYS', 1400, 2),
-    p('prod-snickers', 'Снеки', 'Шоколад Snickers', 'SNICKERS', 1100, 15),
-    p('prod-guesthour', 'Услуги', 'Гостевой час', 'GUEST-HOUR', 2500, 0, false),
-    p('prod-headset', 'Услуги', 'Аренда наушников', 'HEADSET', 500, 0, false)
+    p('prod-cola', 'cat-drinks', 'Cola 0.5', 'COLA-05', 1200, 12),
+    p('prod-water', 'cat-drinks', 'Вода 0.5', 'WATER-05', 600, 30),
+    p('prod-energy', 'cat-drinks', 'Энергетик Red Bull', 'ENERGY-RB', 1800, 8),
+    p('prod-juice', 'cat-drinks', 'Сок апельсиновый', 'JUICE-OR', 1500, 0),
+    p('prod-hotdog', 'cat-snacks', 'Хот-дог', 'HOTDOG', 2800, 6),
+    p('prod-chips', 'cat-snacks', 'Чипсы Lays', 'CHIPS-LAYS', 1400, 2),
+    p('prod-snickers', 'cat-snacks', 'Шоколад Snickers', 'SNICKERS', 1100, 15),
+    p('prod-guesthour', 'cat-services', 'Гостевой час', 'GUEST-HOUR', 2500, 0, false),
+    p('prod-headset', 'cat-services', 'Аренда наушников', 'HEADSET', 500, 0, false)
   ];
 }
 
@@ -553,6 +561,7 @@ function route(pathname: string, method: string): unknown | undefined {
   }
   if (pathname.endsWith('/shop/orders') && method === 'GET') return shopOrders();
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
+  if (pathname.endsWith('/pos/categories')) return posCategories();
   if (pathname.endsWith('/booking-settings') && method === 'GET') return previewBookingSettings;
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };

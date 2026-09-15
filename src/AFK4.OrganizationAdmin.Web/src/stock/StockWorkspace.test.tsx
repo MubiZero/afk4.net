@@ -9,7 +9,7 @@ const getCatalog = mock(async () => ([
 const createStockMovement = mock(async () => ({ stockMovementId: 'm1' }));
 const getStockMovements = mock(async () => ([]));
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
-mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ pos: { getCatalog }, inventory: { createStockMovement, getStockMovements } }) }));
+mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ pos: { getCatalog }, settings: { listProductCategories: mock(async () => []) }, inventory: { createStockMovement, getStockMovements } }) }));
 
 const { StockWorkspace } = await import('./StockWorkspace');
 

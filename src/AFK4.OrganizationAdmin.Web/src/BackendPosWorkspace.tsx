@@ -6,12 +6,12 @@ import type {
   PaymentPartDto,
   PackageOptionDto,
   PlayerSearchResultDto,
-  PosProductCategoryDto,
   PosProductDto,
   SettlePosSaleRequest,
   ShiftDto
 } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
+import { readCategoryDirectory, type PosCategoryDirectory } from './posCategoryDirectory';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
@@ -109,28 +109,6 @@ function makeFixtureProducts(t: ReturnType<typeof useI18n>['t']): PosCatalogItem
     { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
     { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' }
   ];
-}
-
-/**
- * Справочник категорий филиала: имя, место в ряду и видимость.
- *
- * Без него чипсы категорий собирались из поля `categoryName`, которого сервер не отдаёт вовсе:
- * чтение падало на `categoryId`, и кассир видел ряд GUID'ов вместо «Напитки · Еда · Услуги».
- */
-type PosCategoryDirectory = ReadonlyMap<string, { name: string; sortOrder: number; isActive: boolean }>;
-
-function readCategoryDirectory(categories: readonly PosProductCategoryDto[]): PosCategoryDirectory {
-  const directory = new Map<string, { name: string; sortOrder: number; isActive: boolean }>();
-  for (const category of categories) {
-    const categoryId = readString(category, 'categoryId');
-    if (!categoryId) continue;
-    directory.set(categoryId, {
-      name: readString(category, 'name'),
-      sortOrder: readNumber(category, 'sortOrder', 0),
-      isActive: readBoolean(category, 'isActive')
-    });
-  }
-  return directory;
 }
 
 function projectPosProduct(
