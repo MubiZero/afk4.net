@@ -457,8 +457,25 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Where(row => row.CashImpact.MinorUnits < 0)
             .Sum(row => row.CashImpact.MinorUnits);
 
+        // Имена нужны только для возвращаемой страницы — итоги считаются по всем строкам, а
+        // читает оператор ровно эти.
+        var pageRows = allRows.Take(limit).ToList();
+        var actorIds = pageRows
+            .Select(row => row.CreatedByStaffUserId)
+            .Distinct()
+            .ToList();
+        var actorNames = await dbContext.StaffUsers
+            .AsNoTracking()
+            .Where(user => user.OrganizationId == organizationId && actorIds.Contains(user.StaffUserId))
+            .ToDictionaryAsync(user => user.StaffUserId, user => user.DisplayName, cancellationToken);
+
         return new CashOperationReportResultDto(
-            allRows.Take(limit).ToList(),
+            pageRows
+                .Select(row => row with
+                {
+                    CreatedByDisplayName = GetActorDisplayName(row.CreatedByStaffUserId, actorNames)
+                })
+                .ToList(),
             limit,
             Money(resultCurrencyCode, cashInTotal),
             Money(resultCurrencyCode, cashOutTotal),

@@ -395,6 +395,38 @@ public sealed class EfReportServiceTests
         Assert.DoesNotContain(result.Rows, row => row.OperationType == PaymentMethodNames.CardManual);
     }
 
+    // Журнал кассы отвечает на вопрос «кто взял деньги», и до этого в строке был только
+    // идентификатор сотрудника. Экран смены подставлял в колонку «Оператор» имя того, кто сейчас
+    // смотрит, — каждое чужое движение выглядело его собственным.
+    [Fact]
+    public async Task GetCashOperationReportAsync_NamesWhoMadeEachOperation()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.NewGuid();
+        var otherCashier = Guid.Parse("22222222-2222-4222-8222-222222222222");
+        var departedCashier = Guid.Parse("33333333-3333-4333-8333-333333333333");
+        SeedStaffUser(db, ActorStaffUserId, "Мадина");
+        SeedStaffUser(db, otherCashier, "Зарина");
+        SeedCashMovement(db, shiftId, CashMovementTypeNames.CashIn, 5_000, ReportDay.AddHours(9));
+        SeedCashMovement(db, shiftId, CashMovementTypeNames.CashOut, 1_000, ReportDay.AddHours(10), otherCashier);
+        SeedCashMovement(db, shiftId, CashMovementTypeNames.CashOut, 700, ReportDay.AddHours(11), departedCashier);
+        await db.SaveChangesAsync();
+
+        var result = await new EfReportService(db).GetCashOperationReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 20),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rows.Count);
+        Assert.Equal("Зарина", result.Rows.Single(row => row.CreatedByStaffUserId == otherCashier).CreatedByDisplayName);
+        Assert.Equal("Мадина", result.Rows.Single(row => row.CreatedByStaffUserId == ActorStaffUserId).CreatedByDisplayName);
+        // Сотрудника удалили из справочника — строка всё равно называет кого-то, а не пустоту.
+        Assert.Equal(
+            departedCashier.ToString("N")[..8],
+            result.Rows.Single(row => row.CreatedByStaffUserId == departedCashier).CreatedByDisplayName);
+    }
+
     [Fact]
     public async Task GetCashOperationReportAsync_LimitAppliesOnlyToRows_NotTotals()
     {
@@ -623,12 +655,28 @@ public sealed class EfReportServiceTests
         });
     }
 
+    private static void SeedStaffUser(PlatformDbContext db, Guid staffUserId, string displayName)
+    {
+        db.StaffUsers.Add(new StaffUserEntity
+        {
+            StaffUserId = staffUserId,
+            OrganizationId = TestIds.OrganizationId,
+            UserName = displayName.ToLowerInvariant(),
+            NormalizedUserName = displayName.ToUpperInvariant(),
+            DisplayName = displayName,
+            PasswordHash = "hash",
+            IsActive = true,
+            CreatedAtUtc = ReportDay
+        });
+    }
+
     private static void SeedCashMovement(
         PlatformDbContext db,
         Guid shiftId,
         string movementType,
         long amountMinorUnits,
-        DateTimeOffset? createdAtUtc = null)
+        DateTimeOffset? createdAtUtc = null,
+        Guid? createdByStaffUserId = null)
     {
         db.CashMovements.Add(new CashMovementEntity
         {
@@ -636,7 +684,7 @@ public sealed class EfReportServiceTests
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
             ShiftId = shiftId,
-            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedByStaffUserId = createdByStaffUserId ?? ActorStaffUserId,
             MovementType = movementType,
             CurrencyCode = "TJS",
             AmountMinorUnits = amountMinorUnits,

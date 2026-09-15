@@ -6,6 +6,7 @@ import { CashShiftHeader } from './CashShiftHeader';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import type { CashShiftActionsClient } from './CashShiftCommandBar';
 import { ToastProvider } from '../operatorToast';
+import { shiftDto } from './cashFixtures';
 
 afterEach(cleanup);
 
@@ -55,7 +56,7 @@ describe('CashShiftHeader', () => {
     const actions: CashShiftActionsClient = {
       openShift: async () => ({}),
       recordCashMovement: async () => ({}),
-      closeShift: async () => ({})
+      closeShift: async () => shiftDto({ state: 'closed' })
     };
     render(
       <I18nProvider initialLocale="ru">

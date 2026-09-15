@@ -140,6 +140,8 @@ export interface CashOperationReportRowDto {
   cashImpact: MoneyDto;
   reason: string;
   createdAtUtc: string;
+  /** Кто провёл операцию — имя, а не идентификатор. */
+  createdByDisplayName: string;
 }
 
 export interface CashOperationReportResultDto {

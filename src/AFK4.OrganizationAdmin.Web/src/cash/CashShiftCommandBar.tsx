@@ -11,7 +11,7 @@ import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext, Feedback } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
-import type { OpenShiftRequest, RecordCashMovementRequest, CloseShiftRequest } from '../api/clients/shifts';
+import type { OpenShiftRequest, RecordCashMovementRequest, CloseShiftRequest, ShiftDto } from '../api/clients/shifts';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import { ShiftReportModal } from './ShiftReportModal';
 import { buildShiftReportData, buildShiftReportText, printShiftReport, type ShiftReportData } from './shiftReport';
@@ -23,7 +23,7 @@ import { CloseShiftModal } from './CloseShiftModal';
 export interface CashShiftActionsClient {
   openShift(branchId: string, request: OpenShiftRequest): Promise<unknown>;
   recordCashMovement(shiftId: string, request: RecordCashMovementRequest): Promise<unknown>;
-  closeShift(shiftId: string, request: CloseShiftRequest): Promise<unknown>;
+  closeShift(shiftId: string, request: CloseShiftRequest): Promise<ShiftDto>;
 }
 
 type ActiveModal = 'open' | 'cash_in' | 'cash_out' | 'close' | null;
@@ -148,7 +148,7 @@ export function CashShiftCommandBar({
         idempotencyKey: createIdempotencyKey('shift-close')
       });
       // Z-сводка: снимок выручки (revenue) + counted/difference/closedAt из ответа close.
-      if (revenue) setReport({ variant: 'z', data: buildShiftReportData(revenue, closed as Record<string, unknown>) });
+      if (revenue) setReport({ variant: 'z', data: buildShiftReportData(revenue, closed) });
     });
 
   const printReport = () => {

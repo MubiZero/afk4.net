@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { messages } from '@afk4/i18n';
 import { buildShiftReportData, buildShiftReportText } from './shiftReport';
 import type { ShiftRevenueDto } from '../operatorApiClients';
+import { shiftDto } from './cashFixtures';
 
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 // мини-t без провайдера: бьём прямо в ru-словарь
@@ -28,9 +29,9 @@ describe('buildShiftReportData', () => {
   });
 
   it('Z: накладывает counted/difference/closedAt из результата закрытия', () => {
-    const data = buildShiftReportData(openRevenue(), {
-      countedCash: m(185000), difference: m(-5000), closedAtUtc: '2026-06-24T18:00:00Z'
-    });
+    const data = buildShiftReportData(openRevenue(), shiftDto({
+      state: 'closed', countedCash: m(185000), difference: m(-5000), closedAtUtc: '2026-06-24T18:00:00Z'
+    }));
     expect(data.cash.counted).toEqual(m(185000));
     expect(data.cash.difference).toEqual(m(-5000));
     expect(data.cash.starting).toEqual(m(100000)); // из снимка
@@ -53,7 +54,7 @@ describe('buildShiftReportText', () => {
   });
 
   it('Z-текст помечен как Z и показывает расхождение', () => {
-    const data = buildShiftReportData(openRevenue(), { countedCash: m(185000), difference: m(-5000), closedAtUtc: '2026-06-24T18:00:00Z' });
+    const data = buildShiftReportData(openRevenue(), shiftDto({ state: 'closed', countedCash: m(185000), difference: m(-5000), closedAtUtc: '2026-06-24T18:00:00Z' }));
     const text = buildShiftReportText(data, 'z', 'TJS', t);
     expect(text).toContain('Z-отчёт');
     expect(text).toContain('-50 с.');

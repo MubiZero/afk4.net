@@ -5,6 +5,7 @@ import { CashShiftCommandBar, type CashShiftActionsClient } from './CashShiftCom
 import type { OperatorAuthSession } from '../authClient';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import { ToastProvider } from '../operatorToast';
+import { shiftDto } from './cashFixtures';
 
 afterEach(cleanup);
 
@@ -18,7 +19,7 @@ function fakeActions(): CashShiftActionsClient & { calls: Record<string, unknown
     calls,
     openShift: mock(async (branchId: string, request: unknown) => { calls.open.push({ branchId, request }); return {}; }),
     recordCashMovement: mock(async (shiftId: string, request: unknown) => { calls.movement.push({ shiftId, request }); return {}; }),
-    closeShift: mock(async (shiftId: string, request: unknown) => { calls.close.push({ shiftId, request }); return {}; })
+    closeShift: mock(async (shiftId: string, request: unknown) => { calls.close.push({ shiftId, request }); return shiftDto({ state: 'closed' }); })
   };
 }
 
@@ -126,7 +127,9 @@ describe('CashShiftCommandBar', () => {
     const actions: CashShiftActionsClient = {
       openShift: mock(async () => ({})),
       recordCashMovement: mock(async () => ({})),
-      closeShift: mock(async () => ({ countedCash: m(185000), difference: m(-5000), closedAtUtc: '2026-06-24T18:00:00Z' }))
+      closeShift: mock(async () => shiftDto({
+        state: 'closed', countedCash: m(185000), difference: m(-5000), closedAtUtc: '2026-06-24T18:00:00Z'
+      }))
     };
     renderBar({ isOpen: true, revenue, actions });
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть смену' }));

@@ -5,16 +5,17 @@ import {
   cashOperationTypeLabel,
   createAuthenticatedOperatorClients,
   downloadTextFile,
-  formatTime,
-  readArray,
-  readMoney,
-  readString
+  formatTime
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { Money } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
-import type { ShiftRevenueDto } from '../operatorApiClients';
+import type {
+  CashOperationReportResultDto,
+  CashOperationReportRowDto,
+  ShiftRevenueDto
+} from '../operatorApiClients';
 import { CashRegisterRows } from './CashTerminalFrame';
 import { CashShiftCommandBar } from './CashShiftCommandBar';
 
@@ -24,7 +25,7 @@ interface ShiftCockpitClient {
 }
 
 interface ShiftCockpitReports {
-  getCashOperationReport(branchId: string, query?: { limit?: number }): Promise<Record<string, unknown>>;
+  getCashOperationReport(branchId: string, query?: { limit?: number }): Promise<CashOperationReportResultDto>;
 }
 
 function formatElapsed(openedAtUtc: string): string {
@@ -77,7 +78,7 @@ export function CashShiftWorkspace({
 
   const [current, setCurrent] = useState<ShiftRevenueDto | null>(null);
   const [history, setHistory] = useState<ShiftRevenueDto[]>([]);
-  const [cashRows, setCashRows] = useState<Record<string, unknown>[]>([]);
+  const [cashRows, setCashRows] = useState<CashOperationReportRowDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -97,7 +98,7 @@ export function CashShiftWorkspace({
         if (!active) return;
         setCurrent(cur);
         setHistory(hist.shifts.filter((shift) => shift.state === 'closed'));
-        setCashRows(readArray<Record<string, unknown>>(cash, 'rows'));
+        setCashRows(cash.rows);
       })
       .catch((error) => { if (active) setLoadError(projectOperatorError(error, t).detail); })
       .finally(() => { if (active) setLoading(false); });
@@ -128,7 +129,7 @@ export function CashShiftWorkspace({
   const selectedShift = history.find((shift) => shift.shiftId === selectedShiftId)
     ?? (current === null ? history[0] : null);
   const operatorName = backend?.session.displayName?.trim() || t('op.cash.shift.operatorFallback');
-  const movementTotal = cashRows.reduce((total, row) => total + (readMoney(row, 'cashImpact')?.minorUnits ?? 0), 0);
+  const movementTotal = cashRows.reduce((total, row) => total + row.cashImpact.minorUnits, 0);
   const earnedTotal = current?.earned.total.minorUnits ?? 0;
   const percent = (value: number) => earnedTotal > 0 ? Math.round(value / earnedTotal * 100) : 0;
 
@@ -188,9 +189,8 @@ export function CashShiftWorkspace({
                 <div className="cash-shift-movement-head" aria-hidden="true"><span>{t('op.cash.shift.timeColumn')}</span><span>{t('op.cash.shift.operationColumn')}</span><span>{t('op.cash.shift.reasonColumn')}</span><span>{t('op.cash.shift.operatorColumn')}</span><span>{t('op.cash.shift.amountColumn')}</span></div>
                 {cashRows.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.movementsEmpty')}</p> : <ul className="cash-shift-movements">
                   {cashRows.slice(0, 8).map((row) => {
-                    const impact = readMoney(row, 'cashImpact');
-                    const negative = impact !== null && impact.minorUnits < 0;
-                    return <li key={readString(row, 'operationId')} className={negative ? 'out' : 'in'}><span>{formatTime(readString(row, 'createdAtUtc'))}</span><strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t)}</strong><em>{readString(row, 'reason', '—')}</em><span>{readString(row, 'createdByDisplayName', operatorName)}</span><b><Money minorUnits={impact?.minorUnits ?? 0} currencyCode={currencyCode} signed /></b></li>;
+                    const negative = row.cashImpact.minorUnits < 0;
+                    return <li key={row.operationId} className={negative ? 'out' : 'in'}><span>{formatTime(row.createdAtUtc)}</span><strong>{cashOperationTypeLabel(row.operationType || 'cash', t)}</strong><em>{row.reason || '—'}</em><span>{row.createdByDisplayName || '—'}</span><b><Money minorUnits={row.cashImpact.minorUnits} currencyCode={currencyCode} signed /></b></li>;
                   })}
                 </ul>}
                 <footer><span>{t('op.cash.shift.movementTotal')}</span><strong><Money minorUnits={movementTotal} currencyCode={currencyCode} signed /></strong></footer>

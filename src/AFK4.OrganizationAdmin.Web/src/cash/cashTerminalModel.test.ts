@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'bun:test';
 import type { OperatorAuthSession } from '../authClient';
-import {
-  filterCashOperationRows,
-  resolveRegisterSelection,
-  visibleCashJournalSegments
-} from './cashTerminalModel';
+import type { CashOperationReportRowDto } from '../operatorApiClients';
+import { cashOperationRow } from './cashFixtures';
+import { filterCashOperationRows, visibleCashJournalSegments } from './cashTerminalModel';
 
 function session(permissions: string[]): OperatorAuthSession {
   return { permissions } as OperatorAuthSession;
+}
+
+// Строка отчёта целиком, а не её огрызок: у функции теперь настоящий тип строки, и урезанный
+// объект перестал бы собираться — как и должен, потому что сервер отдаёт все поля.
+function row(operationId: string, operationType: string, reason: string): CashOperationReportRowDto {
+  return cashOperationRow({ operationId, operationType, reason });
 }
 
 describe('visibleCashJournalSegments', () => {
@@ -24,26 +28,10 @@ describe('visibleCashJournalSegments', () => {
   });
 });
 
-describe('resolveRegisterSelection', () => {
-  const rows = [{ operationId: 'a' }, { operationId: 'b' }];
-
-  it('keeps an existing selection', () => {
-    expect(resolveRegisterSelection(rows, 'b', 'operationId')).toBe('b');
-  });
-
-  it('falls back to the first visible row', () => {
-    expect(resolveRegisterSelection(rows, 'missing', 'operationId')).toBe('a');
-  });
-
-  it('clears selection for an empty register', () => {
-    expect(resolveRegisterSelection([], 'a', 'operationId')).toBe('');
-  });
-});
-
 describe('filterCashOperationRows', () => {
   const rows = [
-    { operationId: 'a', operationType: 'cash_in', reason: 'Разменный фонд' },
-    { operationId: 'b', operationType: 'cash_out', reason: 'Инкассация' }
+    row('a', 'cash_in', 'Разменный фонд'),
+    row('b', 'cash_out', 'Инкассация')
   ];
 
   it('filters by normalized reason and exact operation type', () => {

@@ -4,6 +4,8 @@ import { I18nProvider } from '@afk4/i18n';
 import { CashShiftWorkspace } from './CashShiftWorkspace';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import { ToastProvider } from '../operatorToast';
+import type { CashOperationReportRowDto } from '../operatorApiClients';
+import { cashOperationReport, cashOperationRow } from './cashFixtures';
 
 afterEach(cleanup);
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
@@ -33,7 +35,7 @@ function closedShift(): ShiftRevenueDto {
   };
 }
 
-function renderWs(current: ShiftRevenueDto | null, cashRows: Record<string, unknown>[] = [], history: ShiftRevenueDto[] = []) {
+function renderWs(current: ShiftRevenueDto | null, cashRows: CashOperationReportRowDto[] = [], history: ShiftRevenueDto[] = []) {
   render(
     <I18nProvider initialLocale="ru">
       <ToastProvider>
@@ -42,7 +44,7 @@ function renderWs(current: ShiftRevenueDto | null, cashRows: Record<string, unkn
           branchId="b1"
           currencyCode="TJS"
           revenueClient={{ current: async () => current, history: async () => ({ shifts: history, limit: 20 }) }}
-          reports={{ getCashOperationReport: async () => ({ rows: cashRows }) }}
+          reports={{ getCashOperationReport: async () => cashOperationReport(cashRows) }}
         />
       </ToastProvider>
     </I18nProvider>
@@ -101,18 +103,22 @@ describe('CashShiftWorkspace', () => {
     expect(differenceRow.textContent).not.toMatch(/0[,.]00/);
   });
 
-  it('последние движения наличных в списке', async () => {
+  // Колонка «Оператор» отвечает на вопрос «кто взял деньги». Пока имени в строке не было, экран
+  // подставлял туда имя того, кто сейчас смотрит, — и каждое движение выглядело его собственным.
+  it('в движении наличных стоит тот, кто его провёл, а не тот, кто смотрит', async () => {
     renderWs(openShift(), [
-      { operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', operationType: 'cash_in', cashImpact: m(5000), reason: 'Размен' }
+      cashOperationRow({ operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', cashImpact: m(5000), reason: 'Размен', createdByDisplayName: 'Мадина' })
     ]);
     await waitFor(() => expect(screen.getByText('Движение наличных')).toBeInTheDocument());
     expect(screen.getByText('Оператор')).toBeInTheDocument();
-    expect(screen.getAllByText('Зарина Н.').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Мадина')).toBeInTheDocument();
+    // «Зарина Н.» — открывшая смену, и она названа ровно один раз: в шапке смены.
+    expect(screen.getAllByText('Зарина Н.')).toHaveLength(1);
   });
 
   it('показывает понятную сверку и полную причину движения', async () => {
     renderWs(openShift(), [
-      { operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', operationType: 'cash_in', cashImpact: m(5000), reason: 'Разменный фонд' }
+      cashOperationRow({ operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', cashImpact: m(5000), reason: 'Разменный фонд' })
     ]);
     expect(await screen.findByLabelText('Сверка кассы')).toBeInTheDocument();
     expect(screen.getByText('Введите сумму после пересчёта')).toBeInTheDocument();
@@ -149,7 +155,7 @@ describe('CashShiftWorkspace', () => {
             branchId="b"
             currencyCode="TJS"
             revenueClient={empty}
-            reports={{ getCashOperationReport: async () => ({ rows: [] }) }}
+            reports={{ getCashOperationReport: async () => cashOperationReport() }}
           />
         </ToastProvider>
       </I18nProvider>

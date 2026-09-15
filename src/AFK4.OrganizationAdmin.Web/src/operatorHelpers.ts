@@ -3,7 +3,7 @@ import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
+import { createOperatorApiClients, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type SessionActionResponse, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { refreshOperatorSession, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
 import { isAccessTokenExpired } from './auth/staffSessionStore';
@@ -1274,15 +1274,14 @@ export function describeDeviceCommandStatus(status: DeviceCommandStatusDto, t: T
   return messageLabel ? `${typeLabel}: ${stateLabel} · ${messageLabel}` : `${typeLabel}: ${stateLabel}`;
 }
 
-export function describeSessionCommandFallback(response: unknown, t: TFunc) {
-  const commands = readArray<Record<string, unknown>>(response, 'deviceCommands');
-  if (commands.length === 0) {
+export function describeSessionCommandFallback(response: SessionActionResponse, t: TFunc) {
+  const command = response.deviceCommands[0];
+  if (command === undefined) {
     return t('op.helper.command.platformConfirmed');
   }
 
-  const command = commands[0];
   const sentLabel = t('op.helper.command.sentToPc');
-  return `${commandTypeLabel(readString(command, 'type', 'command'), t)}: ${sentLabel}`;
+  return `${commandTypeLabel(command.type || 'command', t)}: ${sentLabel}`;
 }
 
 export function commandTypeLabel(type: string, t: TFunc): string {
@@ -1348,24 +1347,24 @@ export async function describeSeatActionResult(
   clients: ReturnType<typeof createAuthenticatedOperatorClients>,
   session: OperatorAuthSession,
   seat: SeatSummary,
-  response: unknown,
+  response: SessionActionResponse,
   t: TFunc
 ) {
   const fallback = describeSessionCommandFallback(response, t);
-  const command = readArray<Record<string, unknown>>(response, 'deviceCommands')[0];
-  if (!command || !hasPermission(session, permissionNames.viewDeviceCommandStatus)) {
+  const command = response.deviceCommands[0];
+  if (command === undefined || !hasPermission(session, permissionNames.viewDeviceCommandStatus)) {
     return fallback;
   }
 
-  const commandId = readString(command, 'commandId');
-  const responseSession = readRecord(response, 'session');
-  const deviceId = readString(command, 'deviceId') || seat.deviceId || readString(responseSession, 'deviceId');
-  if (!commandId || !deviceId) {
+  // Машину называет сама сессия: у команды поля `deviceId` нет вовсе (см. DeviceCommandDto),
+  // и прежнее чтение этого имени всегда давало пустую строку.
+  const deviceId = seat.deviceId || response.session.deviceId;
+  if (!command.commandId || !deviceId) {
     return fallback;
   }
 
   try {
-    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId), t);
+    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, command.commandId), t);
   } catch (error) {
     const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error, t).detail });
     return `${fallback} · ${statusUnavail}`;
@@ -1388,7 +1387,7 @@ export async function describeDispatchedDeviceCommand(
   }
 
   try {
-    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId), t);
+    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, command.commandId), t);
   } catch (error) {
     const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error, t).detail });
     return `${fallback} · ${statusUnavail}`;
