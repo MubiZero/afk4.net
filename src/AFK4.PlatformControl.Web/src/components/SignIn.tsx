@@ -127,7 +127,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
             {error !== null ? (
-              <div className="auth-error" role="alert">
+              <div className="ui-alert" role="alert">
                 <AlertTriangle size={16} aria-hidden="true" />
                 <span>{error}</span>
               </div>
@@ -172,7 +172,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
             </div>
 
             <button type="submit" className="auth-primary" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="auth-spinner" aria-hidden="true" /> : null}
+              {isSubmitting ? <Loader2 className="ui-spinner" aria-hidden="true" /> : null}
               {isSubmitting ? t('auth.action.signingIn') : t('auth.action.signIn')}
               {isSubmitting ? null : <ArrowRight aria-hidden="true" />}
             </button>

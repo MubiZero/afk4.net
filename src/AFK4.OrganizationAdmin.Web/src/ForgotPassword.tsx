@@ -148,7 +148,7 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
         )}
 
         {error && (
-          <div className="auth-error" role="alert">
+          <div className="ui-alert" role="alert">
             <AlertTriangle size={16} aria-hidden />
             <span>{error}</span>
           </div>

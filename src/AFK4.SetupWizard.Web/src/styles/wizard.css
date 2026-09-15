@@ -1,0 +1,1365 @@
+/* Настольная оболочка: окно фиксированного размера без прокрутки страницы и без выделения
+   текста мышью. Всё остальное — сброс, шрифт, курсоры — приходит из @afk4/ui/base.css. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 760px;
+  min-height: 560px;
+  background: var(--surface-canvas);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: text;
+}
+
+.wizard-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes wizard-soft-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Направленная смена экрана: новый экран въезжает со стороны движения (вперёд — справа,
+   назад — слева) с лёгким fade. Премиум-ощущение даёт движение, а не эффекты. */
+@keyframes wizard-screen-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(30px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes wizard-screen-back {
+  from {
+    opacity: 0;
+    transform: translate3d(-30px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes wizard-skeleton-pulse {
+  0%,
+  100% {
+    background-color: var(--surface-sunken);
+  }
+
+  50% {
+    background-color: var(--border-soft);
+  }
+}
+
+.wizard-skeleton-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  animation: wizard-soft-enter 160ms var(--ease-out);
+}
+
+.wizard-skeleton-card {
+  height: 56px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  animation: wizard-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.wizard-skeleton-card:nth-child(2) { animation-delay: 0.1s; }
+.wizard-skeleton-card:nth-child(3) { animation-delay: 0.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  }
+
+.wizard-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.wizard-titlebar {
+  display: grid;
+  /* Симметричные боковые колонки + auto в центре → степпер центрируется
+     относительно окна независимо от ширины бренда/контролов. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* stretch + фикс. высота без вертикального паддинга → контролы окна могут занять всю высоту
+     титлбара и встать вплотную к верхне-правому углу (нативный вид, правило Фиттса). Контент
+     бренда/степпера/тогглов центрируется по вертикали своими контейнерами. */
+  align-items: stretch;
+  gap: 28px;
+  height: 52px;
+  padding: 0 0 0 18px;
+  background: var(--surface-canvas);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.wizard-titlebar-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.wizard-titlebar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wizard-titlebar-divider {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: var(--border-soft);
+  margin: 0 2px;
+}
+
+/* Контролы окна — нативный вид: квадратные, без скруглений и зазоров, во всю высоту титлбара,
+   вплотную к верхне-правому углу. */
+.wizard-window-controls {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: 0;
+}
+
+.wizard-window-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: default;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.wizard-window-control:hover {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+
+/* Press-фидбэк — чуть светлее hover (контролы окна не «прыгают» масштабом, как кнопки в контенте). */
+.wizard-window-control:active {
+  background: var(--surface-hover);
+}
+
+.wizard-window-control:focus-visible {
+  outline: 0;
+  background: var(--surface-sunken);
+  /* inset-кольцо: у заподлицо-кнопки без радиуса внешнее кольцо обрезалось бы об соседей. */
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Закрытие: красный hover/press. «Взведённое» состояние (is-armed) — когда во время установки
+   первый клик просит подтверждения: кнопка краснеет заранее, второй клик прерывает. */
+.wizard-window-control.is-close:hover,
+.wizard-window-control.is-close.is-armed {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.wizard-window-control.is-close:active {
+  background: var(--danger);
+  filter: brightness(0.88);
+  color: #ffffff;
+}
+
+/* Кнопки тулбара (язык, тема): компактные pill'ы, показывают ТЕКУЩЕЕ состояние
+   (код языка / иконку текущей темы), а действие по клику описывает tooltip. */
+.wizard-toolbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    transform 200ms var(--ease-spring);
+}
+
+.wizard-toolbtn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.wizard-toolbtn:active {
+  transform: scale(0.94);
+}
+
+.wizard-toolbtn:focus-visible {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.wizard-toolbtn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.wizard-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wizard-brand-logo {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+}
+
+.wizard-brand-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wizard-brand-text strong {
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.wizard-brand-accent {
+  color: var(--accent);
+}
+
+.wizard-brand-product {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard-stepper-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wizard-stepper-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.wizard-stepper-item.done .wizard-stepper-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.wizard-stepper-item.active .wizard-stepper-dot {
+  border-color: var(--accent);
+  background: var(--surface-elevated);
+  color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* Подпись шага — тултип при наведении/фокусе, не в потоке. Так степпер остаётся компактным
+   (только кружки) и не наезжает на контролы титлбара на узких окнах; текст по-прежнему в DOM,
+   поэтому скринридер читает список шагов целиком. */
+.wizard-stepper-label {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 40;
+  padding: 4px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-2px);
+  transition: opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    visibility var(--duration-fast) var(--ease-out);
+}
+
+.wizard-stepper-item:hover .wizard-stepper-label,
+.wizard-stepper-item:focus-within .wizard-stepper-label {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.wizard-stepper-separator {
+  width: 24px;
+  height: 2px;
+  background: var(--border-default);
+  border-radius: var(--radius-pill);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.wizard-stepper-item.done + .wizard-stepper-separator {
+  background: var(--accent);
+}
+
+.wizard-body {
+  display: grid;
+  justify-items: center;
+  align-content: safe center;
+  gap: 16px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 24px;
+}
+
+.wizard-screen {
+  display: grid;
+  gap: 32px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 100%;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 40px 44px 28px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  animation: wizard-screen-forward 320ms var(--ease-out);
+  overflow-y: auto;
+}
+
+.wizard-body[data-nav-dir="back"] .wizard-screen {
+  animation: wizard-screen-back 320ms var(--ease-out);
+}
+
+.wizard-screen::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wizard-screen::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.wizard-screen:hover::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
+/* На короткой карточке (экран кода) скролл не нужен — а из-за overflow-y:auto
+   открытый help-popover «вылезал» за неё и заставлял карточку показать скролл,
+   обрезая саму подсказку. overflow:visible даёт попапу свободно плавать поверх:
+   под карточкой во .wizard-body полно места, скролл-бар не появляется. */
+.wizard-screen.is-static {
+  overflow: visible;
+}
+
+.wizard-screen.is-narrow {
+  max-width: 540px;
+}
+
+.wizard-screen.is-medium {
+  max-width: 720px;
+}
+
+/* Каркасный экран для длинных списков: шапка и блок кнопок закреплены (flex: 0 0 auto),
+   прокручивается ТОЛЬКО середина (.wizard-scroll). Так контент не подтекает под липкие
+   элементы — они вообще вне области прокрутки. */
+.wizard-screen.is-framed {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow: hidden;
+}
+
+.wizard-screen.is-framed > .wizard-screen-head,
+.wizard-screen.is-framed > .wizard-actions {
+  flex: 0 0 auto;
+}
+
+.wizard-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Полоса прокрутки в правом жёлобе, контент по правому краю остаётся выровнен с шапкой. */
+  margin-right: -8px;
+  padding-right: 8px;
+}
+
+.wizard-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wizard-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.wizard-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
+/* Экран устройства: кнопки лежат внутри формы, поэтому каркас идёт на уровень формы —
+   шапка, поле имени и кнопки выстроены колонкой, форма тянется на всю высоту экрана. */
+.wizard-screen.is-framed > .wizard-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wizard-screen.is-framed > .wizard-form > .wizard-field,
+.wizard-screen.is-framed > .wizard-form > .ui-alert,
+.wizard-screen.is-framed > .wizard-form > .wizard-actions {
+  flex: 0 0 auto;
+}
+
+.wizard-screen-head {
+  display: grid;
+  gap: 10px;
+}
+
+.wizard-eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wizard-screen-head h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.wizard-screen-head p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+/* Экран входа: заголовок над подзаголовком, по центру карточки. */
+.wizard-screen-head.is-centered {
+  justify-items: center;
+  max-width: none;
+  text-align: center;
+}
+
+/* Заголовок экрана с номером шага слева. Номер — тем же визуальным языком, что и кружок
+   степпера вверху (акцентная окантовка, цифра), чтобы связать экран с прогрессом. */
+.wizard-screen-title-row {
+  display: flex;
+  align-items: center;
+  /* Зазор между разделителем-линией и заголовком; симметричный отступ слева задаёт сам номер. */
+  gap: 14px;
+}
+
+.wizard-screen-head.is-centered .wizard-screen-title-row {
+  justify-content: center;
+}
+
+/* Номер шага отделён от заголовка тонкой вертикальной линией (канон «номер │ заголовок»):
+   padding-right + border-right дают симметричный воздух вокруг разделителя. */
+.wizard-screen-step {
+  flex: 0 0 auto;
+  padding-right: 14px;
+  border-right: 1px solid var(--border-default);
+  color: var(--accent);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+/* Контекстная строка над заголовком (владелец · филиал) — спокойная, без акцентного капса. */
+.wizard-screen-context {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.wizard-form {
+  display: grid;
+  gap: 16px;
+}
+
+/* Поля — тесная пара (gap 16); кнопку чуть отделяем, чтобы не прилипала к полям. */
+.wizard-form > .wizard-primary {
+  margin-top: 8px;
+}
+
+/* Запасной вход — тихая ссылка по центру под «Войти», без разделителя и без веса кнопки. */
+.wizard-mode-switch {
+  justify-self: center;
+  margin-top: 4px;
+}
+
+.wizard-link-inline:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.wizard-field {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.wizard-field-label {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  /* Капс-микролейбл просит более широкий трекинг, иначе буквы «слипаются» (был 0.02em). */
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.wizard-help-trigger:hover,
+
+.wizard-field input,
+.wizard-field select {
+  width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  outline: 0;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.wizard-field input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.wizard-field input:hover,
+.wizard-field select:hover {
+  border-color: var(--border-strong);
+}
+
+.wizard-field input:focus-visible,
+.wizard-field select:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface-elevated);
+  box-shadow: var(--focus-ring);
+}
+
+.wizard-field input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.wizard-field input[aria-invalid="true"]:focus-visible {
+  box-shadow: var(--focus-ring-danger);
+}
+
+.wizard-field-hint {
+  min-height: 16px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.wizard-field input[aria-invalid="true"] + .wizard-field-hint {
+  color: var(--danger-text);
+}
+
+.wizard-label-with-action {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wizard-link-inline {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.wizard-link-inline:hover {
+  text-decoration: underline;
+}
+
+.wizard-link-inline:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Поле телефона: фиксированный префикс +992 как часть поля (не редактируется), пользователь
+   вводит только локальные 9 цифр после него. Префикс приглушён — видно, где «зашитая» часть. */
+.wizard-phone-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.wizard-phone-prefix {
+  position: absolute;
+  left: 12px;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.wizard-field .wizard-phone-input {
+  /* Освобождаем место слева под «+992 », чтобы вводимые цифры не наезжали на префикс. */
+  width: 100%;
+  padding-left: 58px;
+}
+
+.wizard-password {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.wizard-password input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+/* Hide the built-in Edge/WebView2 password reveal icon — we render our own toggle. */
+.wizard-password input::-ms-reveal,
+.wizard-password input::-ms-clear {
+  display: none;
+}
+
+.wizard-password-toggle {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.wizard-password-toggle:hover {
+  color: var(--text-primary);
+}
+
+.wizard-password-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.wizard-alt-actions {
+  display: flex;
+  justify-content: center;
+  /* Подтягиваем к кнопке: гасим часть 32px grid-gap экрана, чтобы вторичное
+     действие не висело в пустоте после того, как убрали разделитель. */
+  margin-top: -16px;
+}
+
+.wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wizard-actions.is-end {
+  justify-content: flex-end;
+}
+
+.wizard-primary,
+.wizard-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  padding: 0 18px;
+  font-size: var(--text-base);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    transform 200ms var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.wizard-primary {
+  border: 0;
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.wizard-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-press);
+}
+
+.wizard-primary:active:not(:disabled) {
+  background: var(--accent-pressed);
+  transform: scale(0.98);
+  box-shadow: none;
+}
+
+.wizard-primary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}
+
+/* Disabled = «временно неактивна», не «сломана». Заливка border-default с текстом surface
+   давала ~1.5:1 — надпись пропадала. Тихая sunken-заливка + 38%-текст читаются как inactive. */
+.wizard-primary:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+.wizard-secondary {
+  border: 1px solid var(--border-default);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+.wizard-secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+}
+
+.wizard-secondary:active:not(:disabled) {
+  background: var(--surface-sunken);
+  transform: scale(0.98);
+}
+
+.wizard-secondary:focus-visible {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.wizard-secondary:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+.wizard-primary svg,
+.wizard-secondary svg {
+  width: 18px;
+  height: 18px;
+}
+
+.wizard-spinner {
+  animation: wizard-spin 800ms linear infinite;
+}
+
+.wizard-branch-list {
+  display: grid;
+  gap: 12px;
+}
+
+.wizard-branch-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    transform 200ms var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.wizard-branch-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+.wizard-branch-card:focus-visible {
+  outline: 0;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--focus-ring), var(--shadow-card);
+}
+
+.wizard-branch-card:active {
+  transform: scale(0.995);
+  background: var(--surface-sunken);
+}
+
+.wizard-branch-card-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wizard-branch-card-body strong {
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.wizard-branch-card-body span {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.wizard-branch-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.wizard-branch-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text-tertiary);
+}
+
+.wizard-branch-stat strong {
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.wizard-branch-slug {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.wizard-branch-chevron {
+  color: var(--text-tertiary);
+  transition: transform var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.wizard-branch-card:hover .wizard-branch-chevron,
+.wizard-branch-card:focus-visible .wizard-branch-chevron {
+  transform: translateX(2px);
+  color: var(--accent);
+}
+
+.wizard-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  padding: 4px;
+  gap: 4px;
+}
+
+.wizard-segment.wizard-segment-stack {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.wizard-segment-stack .wizard-segment-button {
+  min-height: 76px;
+  padding: 14px 16px;
+}
+
+.wizard-segment-stack .wizard-segment-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.wizard-segment-stack .wizard-segment-body span {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.wizard-segment-button {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 44px 12px 16px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.wizard-segment-button:hover {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+.wizard-segment-button:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.wizard-segment-button[aria-pressed="true"] {
+  background: var(--surface-elevated);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+/* Чек-бейдж: пустой круг по умолчанию, акцент с галкой когда выбрано.
+   Постоянный slot справа в каждой плитке — чтобы взгляд сразу видел «есть выбор». */
+.wizard-segment-check {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
+  color: transparent;
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.wizard-segment-button[aria-pressed="true"] .wizard-segment-check {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.wizard-segment-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.wizard-segment-button[aria-pressed="true"] .wizard-segment-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.wizard-segment-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wizard-segment-body strong {
+  color: inherit;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.wizard-segment-body span {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.wizard-segment-button[aria-pressed="true"] .wizard-segment-body span {
+  color: var(--text-secondary);
+}
+
+.wizard-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.wizard-empty strong {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+/* Текстовая кнопка-«ссылка» для второстепенных действий в шапке секции. */
+.wizard-link-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: default;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.wizard-link-action:hover {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.wizard-link-action:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.wizard-finished {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 56ch;
+  margin: 0 auto;
+}
+
+.wizard-finished-hero {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.wizard-finished-hero h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  max-width: 40ch;
+}
+
+.wizard-finished-hero p {
+  margin: 0;
+  max-width: 50ch;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: 1.55;
+}
+
+.wizard-finished-hero .wizard-eyebrow {
+  margin-top: 4px;
+}
+
+.wizard-finished-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-pressed);
+  box-shadow: 0 0 0 8px rgba(11, 158, 116, 0.08);
+}
+
+.wizard-finished-close {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 20px;
+  font-size: var(--text-sm);
+}
+
+.wizard-finished-summary {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.wizard-finished-summary > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: var(--text-sm);
+}
+
+.wizard-finished-summary > div:last-child {
+  border-bottom: 0;
+}
+
+.wizard-finished-summary dt {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wizard-finished-summary dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 700;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+}
+
+.wizard-pending-note {
+  border: 1px solid var(--warning-soft-border);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.wizard-shell-status {
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.wizard-shell-status.is-ok {
+  border: 1px solid var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.wizard-shell-status.is-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid var(--danger-soft-border);
+  border-left: 3px solid var(--danger);
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+/* Оформление клуба: пресеты логотипа и палитра цвета. */
+.wizard-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.wizard-preset {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.wizard-preset img {
+  width: 100%;
+  height: 100%;
+}
+
+.wizard-preset.is-selected {
+  border-color: currentColor;
+}
+
+.wizard-preset > svg {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+}
+
+.wizard-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wizard-color {
+  width: 34px;
+  height: 34px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.wizard-color.is-selected {
+  border-color: currentColor;
+  transform: scale(1.08);
+}
+
+/* Сотрудники: приглашённые на этой установке и их коды. */
+.wizard-staff-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard-staff-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.wizard-staff-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+}
+
+.wizard-staff-expiry {
+  grid-column: 1 / -1;
+  font-size: 0.85em;
+  opacity: 0.7;
+}

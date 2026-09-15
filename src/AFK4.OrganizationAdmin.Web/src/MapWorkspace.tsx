@@ -180,7 +180,7 @@ export function MapWorkspace({
         </div>
       </section>
       {floorMap.loadStatus === 'failed' && (
-        <p className="workspace-error" role="alert">{floorMap.error ?? t('op.map.loadError')}</p>
+        <p className="ui-alert ui-alert--spaced" role="alert">{floorMap.error ?? t('op.map.loadError')}</p>
       )}
       {/* Только настоящий обрыв связи: данные заморожены, «только просмотр». Устаревший снимок
           при живой связи не показываем — это тех-шум для админа. */}

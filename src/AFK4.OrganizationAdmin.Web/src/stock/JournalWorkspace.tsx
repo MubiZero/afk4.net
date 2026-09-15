@@ -82,7 +82,7 @@ export function JournalWorkspace({
   const showSkeleton = useDeferredFlag(loading);
 
   if (!canView) {
-    return <section className="stock-journal"><p className="workspace-error">{t('op.stock.journal.noPermission')}</p></section>;
+    return <section className="stock-journal"><p className="ui-alert ui-alert--spaced">{t('op.stock.journal.noPermission')}</p></section>;
   }
   if (loading && movements.length === 0) {
     return showSkeleton
@@ -90,7 +90,7 @@ export function JournalWorkspace({
       : <div className="stock-layout" />;
   }
   if (loadError) {
-    return <div className="stock-layout"><section className="stock-journal"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
+    return <div className="stock-layout"><section className="stock-journal"><p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p></section></div>;
   }
 
   const allRows = mapMovementsToRows(movements, catalog);

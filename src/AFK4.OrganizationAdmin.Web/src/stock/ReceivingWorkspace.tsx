@@ -105,7 +105,7 @@ export function ReceivingWorkspace({
   const showSkeleton = useDeferredFlag(loading);
 
   if (!canManage) {
-    return <section className="stock-receiving"><p className="workspace-error">{t('op.stock.receiving.noPermission')}</p></section>;
+    return <section className="stock-receiving"><p className="ui-alert ui-alert--spaced">{t('op.stock.receiving.noPermission')}</p></section>;
   }
   if (loading && catalog.length === 0) {
     return showSkeleton
@@ -113,7 +113,7 @@ export function ReceivingWorkspace({
       : <div className="stock-layout" />;
   }
   if (loadError) {
-    return <div className="stock-layout"><section className="stock-receiving"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
+    return <div className="stock-layout"><section className="stock-receiving"><p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p></section></div>;
   }
 
   const query = search.trim().toLowerCase();

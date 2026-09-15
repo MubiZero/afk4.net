@@ -19,7 +19,7 @@ export function Field({ label, htmlFor, hint, children }: {
   );
 }
 
-// Ошибка формы — полоса с красной кромкой (.workspace-error), общая для обеих админок.
+// Ошибка формы — полоса с красной кромкой (.ui-alert ui-alert--spaced), общая для обеих админок.
 export function ErrorBanner({ message, dismissLabel, onDismiss }: {
   message: string | null;
   dismissLabel: string;
@@ -27,7 +27,7 @@ export function ErrorBanner({ message, dismissLabel, onDismiss }: {
 }) {
   if (message === null || message.length === 0) return null;
   return (
-    <div className="workspace-error" role="alert">
+    <div className="ui-alert ui-alert--spaced" role="alert">
       <AlertTriangle size={15} aria-hidden="true" />
       <span>{message}</span>
       {onDismiss !== undefined ? (

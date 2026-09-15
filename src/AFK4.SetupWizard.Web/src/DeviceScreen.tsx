@@ -182,7 +182,7 @@ export function DeviceScreen({
         </label>
 
         {request.kind === 'error' && (
-          <div role="alert" className="wizard-alert">
+          <div role="alert" className="ui-alert">
             {request.message}
           </div>
         )}
@@ -195,7 +195,7 @@ export function DeviceScreen({
           <button type="submit" className="wizard-primary" disabled={!canEnroll || busy}>
             {busy ? (
               <>
-                <Loader2 className="wizard-spinner" aria-hidden />
+                <Loader2 className="ui-spinner" aria-hidden />
                 <span>{t('setup.wizard.device.action.enrolling')}</span>
               </>
             ) : (

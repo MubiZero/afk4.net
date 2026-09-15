@@ -63,7 +63,7 @@ function ActionFeedback({ feedback }: { feedback: Feedback }) {
   if (feedback.state === 'pending') {
     return (
       <div className="action-feedback pending" role="status" aria-live="polite">
-        <Loader2 size={15} className="spin" aria-hidden="true" />
+        <Loader2 size={15} className="ui-spinner" aria-hidden="true" />
         <span>{feedback.label}</span>
       </div>
     );
@@ -386,7 +386,7 @@ export function MapSidePanel({
       return fallback;
     }
     if (feedback.state === 'pending') {
-      return <Loader2 size={14} className="spin" aria-hidden="true" />;
+      return <Loader2 size={14} className="ui-spinner" aria-hidden="true" />;
     }
     if (feedback.state === 'confirmed') {
       return <Check size={14} aria-hidden="true" />;
@@ -410,7 +410,7 @@ export function MapSidePanel({
       return fallback;
     }
     if (pcFeedback.state === 'pending') {
-      return <Loader2 size={14} className="spin" aria-hidden="true" />;
+      return <Loader2 size={14} className="ui-spinner" aria-hidden="true" />;
     }
     if (pcFeedback.state === 'confirmed') {
       return <Check size={14} aria-hidden="true" />;

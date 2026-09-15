@@ -243,7 +243,7 @@ export function CashReceiptsLedger({
   };
 
   if (loading) return <p className="workspace-loading">{t('op.cash.journal.loading')}</p>;
-  if (loadError) return <p className="workspace-error" role="alert">{loadError}</p>;
+  if (loadError) return <p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p>;
 
   return (
     <section className="cash-receipts-terminal">

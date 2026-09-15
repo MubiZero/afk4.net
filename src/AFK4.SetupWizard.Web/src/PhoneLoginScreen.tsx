@@ -145,7 +145,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
         </div>
 
         {request.kind === 'error' && (
-          <div role="alert" className="wizard-alert">{request.message}</div>
+          <div role="alert" className="ui-alert">{request.message}</div>
         )}
 
         <div className="wizard-segment wizard-segment-stack" role="group">
@@ -262,7 +262,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
         )}
 
         {request.kind === 'error' && (
-          <div role="alert" className="wizard-alert">
+          <div role="alert" className="ui-alert">
             {request.message}
           </div>
         )}
@@ -270,7 +270,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
         <button type="submit" className="wizard-primary" disabled={!canSubmit}>
           {request.kind === 'loading' ? (
             <>
-              <Loader2 className="wizard-spinner" aria-hidden />
+              <Loader2 className="ui-spinner" aria-hidden />
               <span>{t('setup.wizard.phoneLogin.action.signingIn')}</span>
             </>
           ) : (

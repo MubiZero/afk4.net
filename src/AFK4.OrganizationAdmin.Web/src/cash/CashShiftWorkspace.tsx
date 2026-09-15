@@ -124,7 +124,7 @@ export function CashShiftWorkspace({
   };
 
   if (loading) return <main className="workspace-screen cash-shift-screen"><p className="workspace-loading">{t('op.shifts.loading')}</p></main>;
-  if (loadError) return <main className="workspace-screen cash-shift-screen"><p className="workspace-error" role="alert">{loadError}</p></main>;
+  if (loadError) return <main className="workspace-screen cash-shift-screen"><p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p></main>;
 
   const selectedShift = history.find((shift) => shift.shiftId === selectedShiftId)
     ?? (current === null ? history[0] : null);

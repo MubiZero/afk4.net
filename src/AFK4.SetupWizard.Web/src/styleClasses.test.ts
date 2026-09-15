@@ -14,12 +14,21 @@ import { join } from 'node:path';
 const wizardSrc = import.meta.dir;
 const repoRoot = join(wizardSrc, '..', '..', '..');
 
+/**
+ * Весь каскад мастера, а не один файл: `styles.css` — барелл, и половина имён теперь приходит
+ * из общего кита. Слои читаются по самому баррелу, чтобы новый `@import` не пришлось дублировать
+ * здесь руками — иначе проверка начнёт врать на первом же добавленном слое.
+ */
 function readCss(): string {
-  const files = [
-    join(wizardSrc, 'styles.css'),
-    join(repoRoot, 'packages', 'tokens', 'tokens.css')
-  ];
-  return files.map((file) => readFileSync(file, 'utf8')).join('\n');
+  const barrel = join(wizardSrc, 'styles.css');
+  const sources = [readFileSync(barrel, 'utf8'), readFileSync(join(repoRoot, 'packages', 'tokens', 'tokens.css'), 'utf8')];
+  for (const [, specifier] of sources[0].matchAll(/@import '([^']+)'/g)) {
+    const path = specifier.startsWith('@afk4/')
+      ? join(repoRoot, 'packages', specifier.slice('@afk4/'.length))
+      : join(wizardSrc, specifier);
+    sources.push(readFileSync(path, 'utf8'));
+  }
+  return sources.join('\n');
 }
 
 function tsxFiles(): string[] {

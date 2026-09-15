@@ -78,7 +78,7 @@ export function CashOperationsLedger({
   };
 
   if (loading) return <p className="workspace-loading">{t('op.cash.journal.loading')}</p>;
-  if (loadError) return <section className="cash-ledger-failure"><p className="workspace-error" role="alert">{loadError}</p><button type="button" onClick={() => setReloadNonce((value) => value + 1)}>{t('op.cash.journal.retry')}</button></section>;
+  if (loadError) return <section className="cash-ledger-failure"><p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p><button type="button" onClick={() => setReloadNonce((value) => value + 1)}>{t('op.cash.journal.retry')}</button></section>;
 
   return (
     <section className="cash-operations-terminal">

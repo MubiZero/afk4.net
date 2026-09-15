@@ -52,7 +52,7 @@ export function TwoFactorChallenge({ onSubmit, onCancel, expiresAtUtc, onExpired
 
       <form className="auth-form" onSubmit={event => void handleSubmit(event)} noValidate>
         {error !== null ? (
-          <div className="auth-error" role="alert">
+          <div className="ui-alert" role="alert">
             <AlertTriangle size={16} aria-hidden="true" />
             <span>{error}</span>
           </div>
@@ -75,7 +75,7 @@ export function TwoFactorChallenge({ onSubmit, onCancel, expiresAtUtc, onExpired
         </div>
 
         <button type="submit" className="auth-primary" disabled={isSubmitting || code.trim().length === 0}>
-          {isSubmitting ? <Loader2 className="auth-spinner" aria-hidden="true" /> : null}
+          {isSubmitting ? <Loader2 className="ui-spinner" aria-hidden="true" /> : null}
           {isSubmitting ? t('auth.twoFactor.action.confirming') : t('auth.twoFactor.action.confirm')}
           {isSubmitting ? null : <ArrowRight aria-hidden="true" />}
         </button>
