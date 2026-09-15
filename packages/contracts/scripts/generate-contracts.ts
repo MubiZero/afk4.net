@@ -14,11 +14,15 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseContracts, type ContractField, type ContractRecord } from './parse.ts';
+import { emitDart } from './emit-dart.ts';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(scriptDir, '..', '..', '..');
 const contractsRoot = join(repoRoot, 'src', 'AFK4.Shared.Contracts');
 const outDir = join(scriptDir, '..', 'src');
+// Dart не читает TypeScript, а третья рукописная копия контрактов развела бы их так же, как
+// разводило две. Мобильное приложение получает свои классы из того же разбора.
+const dartOut = join(repoRoot, 'src', 'afk4_customer_app', 'lib', 'api', 'contracts.dart');
 
 /**
  * Записи, которые лежат в общих контрактах, но по сети не ходят: это внутренний интерфейс
@@ -149,4 +153,5 @@ if (missing.length > 0) {
 const known = new Set(records.map((record) => record.name));
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'contracts.ts'), emitTypeScript(records, known), 'utf8');
+writeFileSync(dartOut, emitDart(records, known), 'utf8');
 console.log(`сгенерировано ${records.length} типов из ${all.length} записей (${excluded.size} служебных пропущено)`);
