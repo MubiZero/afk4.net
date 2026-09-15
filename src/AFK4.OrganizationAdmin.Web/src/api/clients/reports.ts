@@ -49,12 +49,21 @@ export interface CreateReportScheduleRequest extends Record<string, unknown> {
   frequency: string;
 }
 
+// Правка рассылки: пропущенное поле остаётся как было — пауза не сбрасывает частоту.
+export interface UpdateReportScheduleRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  frequency?: string;
+  isActive?: boolean;
+}
+
 export function createReportsClient(api: PlatformApiClient) {
   return {
     listReportSchedules: (branchId: Guid) =>
       api.get<ReportScheduleDto[]>(`branches/${branchId}/report-schedules`),
     createReportSchedule: (branchId: Guid, request: CreateReportScheduleRequest) =>
       api.post<ReportScheduleDto, CreateReportScheduleRequest>(`branches/${branchId}/report-schedules`, request),
+    updateReportSchedule: (branchId: Guid, scheduleId: Guid, request: UpdateReportScheduleRequest) =>
+      api.patch<ReportScheduleDto, UpdateReportScheduleRequest>(`branches/${branchId}/report-schedules/${scheduleId}`, request),
     deleteReportSchedule: (branchId: Guid, scheduleId: Guid) =>
       api.delete<{ message: string }>(`branches/${branchId}/report-schedules/${scheduleId}`),
     getWorkspaceSummary: (branchId: Guid, query: OrganizationAdminReportQuery) => api.get<OrganizationAdminSummaryReportDto>(`branches/${branchId}/reports/workspace/summary`, query),

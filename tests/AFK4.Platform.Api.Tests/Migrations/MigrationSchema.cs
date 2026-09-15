@@ -58,6 +58,16 @@ public static async Task<MigrationSchema> CreateAsync(string namePrefix)
     private PlatformDbContext CreateDbContext() =>
         new(new DbContextOptionsBuilder<PlatformDbContext>().UseNpgsql(connectionString).Options);
 
+    /// <summary>Выполняет SQL без возврата — для засева строк между двумя миграциями.</summary>
+    public async Task ExecuteAsync(string sql)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync();
+    }
+
     public async ValueTask DisposeAsync()
     {
         var builder = new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = null };

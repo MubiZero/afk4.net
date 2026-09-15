@@ -50,6 +50,68 @@ public sealed class EfReportScheduleService(PlatformDbContext dbContext, TimePro
         return ToDto(schedule);
     }
 
+    public async Task<(ReportScheduleDto? Schedule, string? Error)> UpdateAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid reportScheduleId,
+        string? frequency,
+        bool? isActive,
+        CancellationToken cancellationToken)
+    {
+        var schedule = await dbContext.ReportSchedules
+            .FirstOrDefaultAsync(
+                candidate => candidate.ReportScheduleId == reportScheduleId
+                    && candidate.OrganizationId == organizationId
+                    && candidate.BranchId == branchId,
+                cancellationToken);
+        if (schedule is null)
+        {
+            return (null, null);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var frequencyChanged = frequency is not null && frequency != schedule.Frequency;
+        var resumed = isActive == true && !schedule.IsActive;
+
+        if (frequencyChanged)
+        {
+            // Та же тройка уже заведена — две одинаковых рассылки значат два одинаковых письма каждый
+            // период. Проверка против обычного случая; от гонки держит уникальный индекс в схеме.
+            var taken = await dbContext.ReportSchedules
+                .AsNoTracking()
+                .AnyAsync(
+                    candidate => candidate.OrganizationId == organizationId
+                        && candidate.BranchId == branchId
+                        && candidate.ReportScheduleId != reportScheduleId
+                        && candidate.ReportType == schedule.ReportType
+                        && candidate.Frequency == frequency,
+                    cancellationToken);
+            if (taken)
+            {
+                return (null, "schedule_exists");
+            }
+
+            schedule.Frequency = frequency!;
+        }
+
+        if (isActive is bool nextIsActive)
+        {
+            schedule.IsActive = nextIsActive;
+        }
+
+        // После возобновления или смены частоты старый NextRunUtc лежит в прошлом и читается на
+        // экране как сломанный. Ставим на сейчас — точно так же, как при заведении: ближайший тик
+        // отдаст последнее закрытое окно, дальше расписание идёт по новой частоте.
+        if (frequencyChanged || resumed)
+        {
+            schedule.NextRunUtc = now;
+        }
+
+        schedule.UpdatedAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return (ToDto(schedule), null);
+    }
+
     public async Task<IReadOnlyList<ReportScheduleDto>> ListAsync(
         Guid organizationId,
         Guid branchId,
