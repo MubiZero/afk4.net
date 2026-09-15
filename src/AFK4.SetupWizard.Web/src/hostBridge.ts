@@ -1,131 +1,47 @@
-export interface HostBridgeError {
-  code: string;
-  message: string;
-  remainingAttempts?: number | null;
-}
+import { postHostRequest as postRequest, postHostWindowMessage } from '@afk4/host-bridge';
 
-export interface HostBridgeResponse<TPayload> {
-  type: 'host:response';
-  requestId: string;
-  ok: boolean;
-  payload?: TPayload;
-  error?: HostBridgeError;
-}
+/**
+ * Мост мастера к его нативному хосту.
+ *
+ * Протокол — общий (`@afk4/host-bridge`). Здесь остаётся только то, что принадлежит ИМЕННО
+ * этому хосту: набор оконных команд и таймаут. Раньше весь файл был форкнут от админского и
+ * разошёлся с ним по обоим этим пунктам плюс по поведению таймаута.
+ */
+export {
+  hostBridgeTimeoutCode,
+  hostBridgeUnavailableMessage,
+  HostBridgeRequestError,
+  HostBridgeUnavailableError,
+  isHostBridgeAvailable,
+  isHostBridgeUnavailableError,
+  type HostBridgeError,
+  type HostBridgeMessageEvent,
+  type HostBridgeResponse
+} from '@afk4/host-bridge';
 
+/** Команды, которые понимает WebViewSetupWindow.TryHandleWindowMessage. */
 export type HostWindowCommand = 'drag' | 'minimize' | 'toggleMaximize' | 'close';
 
 export function postHostWindowCommand(command: HostWindowCommand): void {
-  window.chrome?.webview?.postMessage({ type: `window:${command}` });
+  postHostWindowMessage({ type: `window:${command}` });
 }
 
 // Синхронизирует иконку окна/таскбара с темой мастера — нативный хост меняет Window.Icon
 // (см. WebViewSetupWindow.TryHandleWindowMessage "window:theme").
 export function postHostWindowTheme(theme: 'light' | 'dark'): void {
-  window.chrome?.webview?.postMessage({ type: 'window:theme', theme });
+  postHostWindowMessage({ type: 'window:theme', theme });
 }
 
-export const hostBridgeUnavailableMessage = 'Native host bridge is unavailable.';
-
-export class HostBridgeUnavailableError extends Error {
-  constructor() {
-    super(hostBridgeUnavailableMessage);
-    this.name = 'HostBridgeUnavailableError';
-  }
-}
-
-// A host bridge op failed with a structured business error (e.g. invalid_code with a
-// remaining-attempts count from the SMS reset endpoint). Carries the backend code and
-// attempts so the inline reset screen can show the specific reason, not a generic message.
-export class HostBridgeRequestError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly remainingAttempts: number | null,
-  ) {
-    super(message);
-    this.name = 'HostBridgeRequestError';
-  }
-}
-
-/** Код отказа «мост не ответил вовремя». Отличается от кодов, которые присылает сам мост. */
-export const hostBridgeTimeoutCode = 'host_timeout';
-
-export function isHostBridgeUnavailableError(error: unknown): boolean {
-  return error instanceof HostBridgeUnavailableError
-    || (error instanceof Error && error.message === hostBridgeUnavailableMessage);
-}
+/**
+ * Тридцать секунд, а не пятнадцать как у админки: шаги мастера ходят к платформе через хост —
+ * вход, SMS, подтверждение устройства, — и на медленной линии первого клуба пятнадцати не хватает.
+ */
+const HOST_REQUEST_TIMEOUT_MS = 30_000;
 
 export function postHostRequest<TPayload>(
   type: string,
   payload?: unknown,
-  timeoutMs = 30_000
+  timeoutMs = HOST_REQUEST_TIMEOUT_MS
 ): Promise<TPayload> {
-  const webview = window.chrome?.webview;
-  const postMessage = webview?.postMessage;
-  const addEventListener = webview?.addEventListener;
-  const removeEventListener = webview?.removeEventListener;
-  if (!webview || !postMessage || !addEventListener || !removeEventListener) {
-    return Promise.reject(new HostBridgeUnavailableError());
-  }
-
-  const sendMessage = postMessage.bind(webview);
-  const addMessageListener = addEventListener.bind(webview);
-  const removeMessageListener = removeEventListener.bind(webview);
-  const requestId = createRequestId();
-  return new Promise<TPayload>((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      // Своим кодом, а не безымянным Error: иначе экран не отличит «мост молчит» от «сервер
-      // отказал» и покажет английскую строку вместо объяснения.
-      reject(new HostBridgeRequestError(
-        'Native host bridge request timed out.', hostBridgeTimeoutCode, null));
-    }, timeoutMs);
-
-    const onMessage = (event: HostBridgeMessageEvent) => {
-      const response = event.data as Partial<HostBridgeResponse<TPayload>> | undefined;
-      if (response?.type !== 'host:response' || response.requestId !== requestId) {
-        return;
-      }
-
-      cleanup();
-      if (response.ok) {
-        resolve(response.payload as TPayload);
-        return;
-      }
-
-      reject(new HostBridgeRequestError(
-        response.error?.message ?? 'Native host bridge request failed.',
-        response.error?.code ?? 'host_error',
-        response.error?.remainingAttempts ?? null,
-      ));
-    };
-
-    function cleanup() {
-      window.clearTimeout(timeout);
-      removeMessageListener('message', onMessage);
-    }
-
-    addMessageListener('message', onMessage);
-    sendMessage({ type, requestId, payload });
-  });
-}
-
-function createRequestId(): string {
-  return window.crypto?.randomUUID?.() ?? `request-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-export interface HostBridgeMessageEvent {
-  data: unknown;
-}
-
-declare global {
-  interface Window {
-    chrome?: {
-      webview?: {
-        postMessage(message: unknown): void;
-        addEventListener?(type: 'message', listener: (event: HostBridgeMessageEvent) => void): void;
-        removeEventListener?(type: 'message', listener: (event: HostBridgeMessageEvent) => void): void;
-      };
-    };
-  }
+  return postRequest<TPayload>(type, payload, timeoutMs);
 }

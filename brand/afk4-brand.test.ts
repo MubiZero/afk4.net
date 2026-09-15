@@ -94,3 +94,30 @@ test("every web app ships the new emerald favicon, not the lime placeholder", ()
     expect(svg).toContain("#2dd4a7");      // new accent present
   }
 });
+
+// Знак, нарисованный в разметке приложения, обязан брать те же цвета, что и канон в brand/.
+// Мастер установки держал свою копию хексов — и притом от СВЕТЛОЙ раскладки, поэтому в тёмной
+// теме оставался единственным элементом, не следившим за темой.
+test("brand-mark tokens carry the canonical colours for both themes", () => {
+  const tokens = readFileSync(join(BRAND, "..", "packages", "tokens", "tokens.css"), "utf8");
+
+  const dark = tokens.slice(tokens.indexOf('[data-theme="dark"]'), tokens.indexOf('[data-theme="light"]'));
+  const light = tokens.slice(tokens.indexOf('[data-theme="light"]'));
+
+  expect(dark).toContain("--brand-mark-active: #2DD4A7");
+  expect(dark).toContain("--brand-mark-quiet: #173028");
+  expect(light).toContain("--brand-mark-active: #0B9E74");
+  expect(light).toContain("--brand-mark-quiet: #D9E6E1");
+});
+
+test("the wizard mark paints from tokens, not from its own hexes", () => {
+  const mark = readFileSync(
+    join(BRAND, "..", "src", "AFK4.SetupWizard.Web", "src", "BrandMark.tsx"),
+    "utf8",
+  );
+  const code = mark.replace(/\/\*[\s\S]*?\*\//g, ""); // объяснение в шапке хексы упоминает — это не разметка
+
+  expect(code).toContain("var(--brand-mark-active)");
+  expect(code).toContain("var(--brand-mark-quiet)");
+  expect(code).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+});
