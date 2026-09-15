@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Shared.Contracts.Billing;
 using Microsoft.EntityFrameworkCore;
@@ -93,16 +94,22 @@ internal static class EskhataPaymentEndpoints
                 CreditReason,
                 intent.PaymentIntentId.ToString("N"));
 
+            // Захват до зачисления: игрок мог отменить заявку в тот же момент, когда пришёл ответ банка.
+            if (!await PaymentIntentClaim.TryMoveFromPendingAsync(
+                    db, intent, PaymentIntentClaim.Fulfilled, timeProvider.GetUtcNow(), ct))
+            {
+                // Банку отвечаем успехом: вебхук доставлен и повторять его не нужно — решение по
+                // заявке уже принято здесь.
+                return Results.Ok();
+            }
+
             var billingResult = await billingCommandService.CreditOnlineTopUpAsync(
                 intent.PlayerAccountId, intent.BranchId, topUpRequest, ct);
             if (!billingResult.Succeeded)
             {
+                await PaymentIntentClaim.TryReleaseAsync(db, intent, ct);
                 return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
-
-            intent.State = "fulfilled";
-            intent.FulfilledAtUtc = timeProvider.GetUtcNow();
-            await db.SaveChangesAsync(ct);
 
             return Results.Ok();
         }).RequireRateLimiting("player-public");
