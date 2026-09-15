@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
@@ -41,7 +41,7 @@ class TopUpSheet extends StatefulWidget {
   final String currencyCode;
 
   /// Уже оставленные заявки — чтобы игрок не отправлял вторую, забыв про первую.
-  final List<TopUpIntent> intents;
+  final List<PlayerTopUpIntentDto> intents;
 
   /// Зал, в котором открыть счёт. Нужен первому пополнению в сети из нескольких залов: до
   /// него счёта в клубе нет, и деньги некуда зачислять.
@@ -65,10 +65,10 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
   bool _pending = false;
 
   /// Чем клуб принимает деньги. Null — ещё не спросили; до ответа онлайн не предлагаем.
-  TopUpMethods? _methods;
+  PlayerTopUpMethodsDto? _methods;
 
   /// Заявка, за которой сейчас следим, и время, до которого ждём банк.
-  TopUpIntent? _awaiting;
+  PlayerTopUpIntentDto? _awaiting;
   DateTime? _deadline;
   Timer? _poll;
 
@@ -117,7 +117,7 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
     } on PlayerApiException {
       // Не узнали — предлагаем стойку: она работает всегда, и это честнее, чем показать
       // онлайн-оплату, о которой мы ничего не знаем.
-      if (mounted) setState(() => _methods = const TopUpMethods(counter: true, online: false));
+      if (mounted) setState(() => _methods = const PlayerTopUpMethodsDto(counter: true, online: false));
     }
   }
 
@@ -167,7 +167,7 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
   /// Уводит в приложение банка и остаётся ждать ответа. Ссылка в приложение не открылась —
   /// открываем страницу оплаты в браузере: приложения банка на телефоне может не быть, и
   /// упереться в тишину человек не должен.
-  Future<void> _payInBank(TopUpIntent intent) async {
+  Future<void> _payInBank(PlayerTopUpIntentDto intent) async {
     final open = widget.openLink ?? (uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
     var opened = false;
     if (intent.deepLink != null) {
@@ -237,7 +237,7 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _stateLabel(L l, TopUpIntent intent) {
+  String _stateLabel(L l, PlayerTopUpIntentDto intent) {
     if (intent.state == 'fulfilled') return l.customerWalletStateFulfilled;
     if (intent.isExpired) return l.customerWalletStateExpired;
     return l.customerWalletStatePending;
@@ -346,7 +346,7 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
 class _IntentRow extends StatelessWidget {
   const _IntentRow({required this.intent, required this.stateLabel});
 
-  final TopUpIntent intent;
+  final PlayerTopUpIntentDto intent;
   final String stateLabel;
 
   @override

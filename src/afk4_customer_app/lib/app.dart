@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'api/dto.dart';
+import 'api/contracts.dart';
 import 'api/player_api_client.dart';
 import 'auth/player_session.dart';
 import 'auth/player_session_store.dart';
@@ -167,7 +167,7 @@ class _RootState extends State<_Root> {
 
   /// Человек и его клубы. null — ещё не спросили или не спросилось; тогда приложение работает
   /// как раньше, просто не знает, есть ли у игрока счёт в открытом клубе.
-  Me? _me;
+  MeDto? _me;
 
   /// Игрок открыл витрину, чтобы перейти в другой клуб. Выбранный до этого никуда не делся.
   bool _pickingClub = false;

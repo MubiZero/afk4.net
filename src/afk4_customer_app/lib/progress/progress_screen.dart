@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../shell/app_scaffold.dart';
@@ -20,7 +21,7 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
-  PlayerAchievements? _data;
+  PlayerAchievementsDto? _data;
   bool _failed = false;
 
   @override
@@ -90,7 +91,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 class LevelCard extends StatelessWidget {
   const LevelCard({super.key, required this.data});
 
-  final PlayerAchievements data;
+  final PlayerAchievementsDto data;
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +152,7 @@ class LevelCard extends StatelessWidget {
 class _AchievementTile extends StatelessWidget {
   const _AchievementTile({required this.achievement});
 
-  final PlayerAchievement achievement;
+  final PlayerAchievementDto achievement;
 
   @override
   Widget build(BuildContext context) {

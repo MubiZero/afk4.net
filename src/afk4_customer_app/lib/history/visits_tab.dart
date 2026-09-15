@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
@@ -21,7 +21,7 @@ class VisitsTab extends StatefulWidget {
 }
 
 class _VisitsTabState extends State<VisitsTab> {
-  late final CursorListController<PlayerVisit> _list =
+  late final CursorListController<PlayerVisitDto> _list =
       CursorListController((cursor) => widget.api.getVisits(cursor: cursor));
 
   @override
@@ -33,7 +33,7 @@ class _VisitsTabState extends State<VisitsTab> {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    return CursorListView<PlayerVisit>(
+    return CursorListView<PlayerVisitDto>(
       controller: _list,
       loadingLabel: l.a11yLoadingVisits,
       errorText: l.customerHistoryLoadError,
@@ -56,7 +56,7 @@ class _VisitsTabState extends State<VisitsTab> {
 class _VisitCard extends StatelessWidget {
   const _VisitCard({required this.visit, required this.now, required this.onOpenReceipt});
 
-  final PlayerVisit visit;
+  final PlayerVisitDto visit;
   final DateTime now;
   final VoidCallback onOpenReceipt;
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -26,7 +26,7 @@ class NewsSection extends StatefulWidget {
 }
 
 class _NewsSectionState extends State<NewsSection> {
-  List<NewsItem> _items = const [];
+  List<PlayerNewsItemDto> _items = const [];
 
   @override
   void initState() {
@@ -69,7 +69,7 @@ class _NewsSectionState extends State<NewsSection> {
 class _NewsCard extends StatelessWidget {
   const _NewsCard({required this.item});
 
-  final NewsItem item;
+  final PlayerNewsItemDto item;
 
   @override
   Widget build(BuildContext context) {

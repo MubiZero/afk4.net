@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/brand_mark.dart';
@@ -32,7 +32,7 @@ class ClubPickerScreen extends StatefulWidget {
 
   /// Клубы, в которых у игрока уже есть счёт. Они идут первыми и со своими деньгами: аккаунт
   /// один на всю сеть, а кошелёк у каждого клуба свой, и это первое, что надо видеть.
-  final List<MyClub> myClubs;
+  final List<MyClubDto> myClubs;
 
   /// Клуб, открытый прямо сейчас. Нужен, чтобы не звать переходить туда, где игрок уже есть.
   final String? selectedOrganizationId;
@@ -274,7 +274,7 @@ class _SectionTitle extends StatelessWidget {
 class _MyClubRow extends StatelessWidget {
   const _MyClubRow({required this.club, required this.here, required this.onOpen});
 
-  final MyClub club;
+  final MyClubDto club;
   final bool here;
   final VoidCallback onOpen;
 
@@ -292,12 +292,12 @@ class _MyClubRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(formatMoney(club.walletBalance.minorUnits, club.walletBalance.currencyCode,
+            Text(formatMoney(club.walletBalanceMinorUnits, club.currencyCode,
                 locale: locale)),
-            if (club.heldBalance.minorUnits > 0)
+            if (club.heldMinorUnits > 0)
               Text(
                 '${l.customerWalletHeld}: '
-                '${formatMoney(club.heldBalance.minorUnits, club.heldBalance.currencyCode, locale: locale)}',
+                '${formatMoney(club.heldMinorUnits, club.currencyCode, locale: locale)}',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),

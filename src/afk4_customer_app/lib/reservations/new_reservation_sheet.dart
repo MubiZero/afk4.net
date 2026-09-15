@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/branch_choice.dart';
@@ -55,13 +56,13 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
   /// голосом, а не через форму.
   static const int _maxSeats = 8;
 
-  List<TariffOption> _tariffs = const [];
+  List<TariffOptionDto> _tariffs = const [];
 
   /// Правила приёма заявок у филиала — то, чем лист объясняет «так решил клуб». null —
   /// не спросились; тогда лист молчит, а не выдумывает за клуб.
-  PlayerBookingRules? _rules;
+  PlayerBookingRulesDto? _rules;
   String? _tariffId;
-  ReservationQuote? _quote;
+  ReservationQuoteDto? _quote;
   bool _quoting = false;
   String? _priceProblem;
 

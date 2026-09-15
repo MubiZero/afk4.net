@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
@@ -29,7 +29,7 @@ enum _Load { loading, ready, failed }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   _Load _state = _Load.loading;
-  List<PlayerNotification> _items = const [];
+  List<PlayerNotificationDto> _items = const [];
 
   @override
   void initState() {

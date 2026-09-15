@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
@@ -48,8 +49,8 @@ class PackagesScreen extends StatefulWidget {
 }
 
 class _PackagesScreenState extends State<PackagesScreen> {
-  List<PackageOption>? _offers;
-  List<PlayerPackage>? _mine;
+  List<PackageOptionDto>? _offers;
+  List<PlayerPackageDto>? _mine;
   bool _failed = false;
   String? _buyingId;
   String? _error;
@@ -79,7 +80,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
     }
   }
 
-  Future<void> _buy(PackageOption offer) async {
+  Future<void> _buy(PackageOptionDto offer) async {
     final l = L.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -220,7 +221,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
 class _ConfirmDialog extends StatelessWidget {
   const _ConfirmDialog({required this.offer});
 
-  final PackageOption offer;
+  final PackageOptionDto offer;
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +259,7 @@ class _OfferCard extends StatelessWidget {
     required this.onBuy,
   });
 
-  final PackageOption offer;
+  final PackageOptionDto offer;
   final String locale;
   final bool busy;
   final bool anyBusy;
@@ -326,7 +327,7 @@ class _MinePackageCard extends StatelessWidget {
     required this.clock,
   });
 
-  final PlayerPackage package;
+  final PlayerPackageDto package;
   final String locale;
   final DateTime Function() clock;
 

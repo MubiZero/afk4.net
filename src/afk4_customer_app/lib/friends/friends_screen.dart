@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -22,7 +22,7 @@ class FriendsScreen extends StatefulWidget {
 }
 
 class _FriendsScreenState extends State<FriendsScreen> {
-  FriendsView? _view;
+  FriendsDto? _view;
   bool _failed = false;
   bool _busy = false;
   String? _error;
@@ -55,7 +55,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   /// Общий ход всех действий: список приезжает в ответе, поэтому второй запрос за ним не нужен.
-  Future<void> _run(Future<FriendsView> Function() action, {String? toast}) async {
+  Future<void> _run(Future<FriendsDto> Function() action, {String? toast}) async {
     final l = L.of(context);
     setState(() {
       _busy = true;
@@ -95,7 +95,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     if (mounted && _error == null) _phone.clear();
   }
 
-  Future<void> _remove(Friend friend) async {
+  Future<void> _remove(FriendDto friend) async {
     final l = L.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -239,7 +239,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 class FriendRow extends StatelessWidget {
   const FriendRow({super.key, required this.friend, this.onRemove});
 
-  final Friend friend;
+  final FriendDto friend;
   final VoidCallback? onRemove;
 
   @override

@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
+import '../api/dto_rules.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
@@ -31,8 +32,8 @@ class StartSessionScreen extends StatefulWidget {
 }
 
 class _StartSessionScreenState extends State<StartSessionScreen> {
-  List<PlayerSeat>? _seats;
-  List<TariffOption> _tariffs = const [];
+  List<PlayerSeatDto>? _seats;
+  List<TariffOptionDto> _tariffs = const [];
   bool _loadFailed = false;
 
   /// Код с монитора. Раньше здесь лежал выбранный из списка ПК — и занять машину можно было
@@ -41,7 +42,7 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   String? _tariffId;
   int _minutes = playDurationsMinutes.first;
 
-  ReservationQuote? _quote;
+  ReservationQuoteDto? _quote;
   int _quoteRequest = 0;
 
   bool _starting = false;
@@ -232,10 +233,10 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
                     label: Text([
                       tariff.name,
                       ?tariffScheduleLabel(tariff, l),
-                      if (!tariff.appliesNow) l.customerTariffUnavailableNow,
+                      if (!tariff.isAvailableNow) l.customerTariffUnavailableNow,
                     ].join(' · ')),
                     selected: tariff.tariffVersionId == _tariffId,
-                    onSelected: tariff.appliesNow
+                    onSelected: tariff.isAvailableNow
                         ? (_) {
                             setState(() => _tariffId = tariff.tariffVersionId);
                             _refreshQuote();

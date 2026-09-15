@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../api/dto.dart';
+import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
@@ -26,12 +26,12 @@ class WalletCard extends StatefulWidget {
   });
 
   final PlayerApiClient api;
-  final Money walletBalance;
+  final MoneyDto walletBalance;
 
   /// Придержанное под брони. Из остатка оно уже вычтено — карточка объясняет, куда делась
   /// часть денег, а не показывает вторую копилку.
-  final Money heldBalance;
-  final Money debtBalance;
+  final MoneyDto heldBalance;
+  final MoneyDto debtBalance;
   final bool phoneVerified;
 
   /// null — список возможностей не загрузился. Тогда пополнение считается включённым:
@@ -52,7 +52,7 @@ class WalletCard extends StatefulWidget {
 }
 
 class _WalletCardState extends State<WalletCard> {
-  List<TopUpIntent> _intents = const [];
+  List<PlayerTopUpIntentDto> _intents = const [];
 
   @override
   void initState() {
@@ -67,7 +67,7 @@ class _WalletCardState extends State<WalletCard> {
   /// Ждущей считается только незавершённая. Раньше здесь стояло «любая, кроме исполненной», и
   /// отменённая на стойке заявка ещё сутки висела у игрока как ожидающая — до тех пор, пока её
   /// не признавали просроченной по времени создания.
-  TopUpIntent? get _awaiting =>
+  PlayerTopUpIntentDto? get _awaiting =>
       _intents.where((intent) => intent.state == 'pending' && !intent.isExpired).firstOrNull;
 
   bool _cancellingIntent = false;
@@ -108,7 +108,7 @@ class _WalletCardState extends State<WalletCard> {
     }
   }
 
-  Future<void> _cancelIntent(TopUpIntent intent) async {
+  Future<void> _cancelIntent(PlayerTopUpIntentDto intent) async {
     final l = L.of(context);
     setState(() => _cancellingIntent = true);
     try {
