@@ -374,10 +374,17 @@ export function BackendBookingWorkspace({
     if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
     if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
     const seat = floorMap.seats.find((s) => s.id === targetSeatId);
+    // null в поле — «не трогай это», сервер так и читает пропуск. Переезд меняет только место и заметку.
     return await clients.reservations.update(selectedReservationId, {
       organizationId: nextBackend.session.organizationId,
       expectedVersion: selectedItem.version,
       seatId: targetSeatId,
+      playerAccountId: null,
+      customerName: null,
+      phoneNumber: null,
+      startsAtUtc: null,
+      durationMinutes: null,
+      source: null,
       note: t('op.booking.note.moved', { seat: seat?.name ?? targetSeatId })
     });
   });

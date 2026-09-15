@@ -80,6 +80,8 @@ describe('matchesLifecycleScope', () => {
     kind: 'started',
     state: 'active',
     version: 1,
+    startedAtUtc: '2026-05-21T10:00:00Z',
+    endsAtUtc: '2026-05-21T12:00:00Z',
     observedAtUtc: '2026-05-21T10:00:00Z'
   });
 

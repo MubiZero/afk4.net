@@ -21,6 +21,11 @@ function rollout(component: string, statuses: Partial<DeviceUpdateStatusSnapshot
     version: '1.0.0',
     channel: 'stable',
     state: 'active',
+    targetKind: 'branch',
+    targetDeviceIds: [],
+    batchPercent: 100,
+    createdAtUtc: '2026-08-01T00:00:00Z',
+    completedAtUtc: null,
     startsAtUtc: '2026-08-01T00:00:00Z',
     deviceStatuses: statuses.map((status, index) => ({
       deviceId: `device-${index}`,

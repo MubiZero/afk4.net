@@ -305,8 +305,8 @@ public sealed class EfPosServiceTests
                 TestIds.OrganizationId,
                 shift.ShiftId,
                 [
-                    new PosSaleLineDto(tracked.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
-                    new PosSaleLineDto(serviceProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                    new CreatePosSaleLineDto(tracked.ProductId, 1),
+                    new CreatePosSaleLineDto(serviceProduct.ProductId, 1)
                 ],
                 "sale-cost-001"),
             CancellationToken.None);
@@ -618,8 +618,8 @@ public sealed class EfPosServiceTests
                 TestIds.OrganizationId,
                 shift.ShiftId,
                 [
-                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
-                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                    new CreatePosSaleLineDto(product.ProductId, 1),
+                    new CreatePosSaleLineDto(product.ProductId, 1)
                 ],
                 "sale-duplicate-cost-001"),
             CancellationToken.None);
@@ -689,9 +689,9 @@ public sealed class EfPosServiceTests
                 TestIds.OrganizationId,
                 shift.ShiftId,
                 [
-                    new PosSaleLineDto(validProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
-                    new PosSaleLineDto(mixedProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
-                    new PosSaleLineDto(mixedProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                    new CreatePosSaleLineDto(validProduct.ProductId, 1),
+                    new CreatePosSaleLineDto(mixedProduct.ProductId, 1),
+                    new CreatePosSaleLineDto(mixedProduct.ProductId, 1)
                 ],
                 "sale-mixed-cost-001"),
             CancellationToken.None);
@@ -992,7 +992,7 @@ public sealed class EfPosServiceTests
         return new CreatePosSaleRequest(
             TestIds.OrganizationId,
             shiftId,
-            [new PosSaleLineDto(productId, "", quantity, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))],
+            [new CreatePosSaleLineDto(productId, quantity)],
             idempotencyKey,
             playerAccountId);
     }

@@ -1,63 +1,19 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import type { ShopOrderDto } from './operatorApiClients';
+import type {
+  DeviceCommandResultDto,
+  DeviceStatusChangedDto,
+  ReservationChangedDto,
+  SessionLifecycleChangedDto,
+} from '@afk4/contracts';
+export type {
+  DeviceCommandResultDto,
+  DeviceStatusChangedDto,
+  ReservationChangedDto,
+  SessionLifecycleChangedDto,
+} from '@afk4/contracts';
 
 export type OperatorRealtimeConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
-
-export interface DeviceStatusChangedDto {
-  organizationId: string;
-  branchId: string;
-  deviceId: string;
-  machineName: string;
-  isOnline: boolean;
-  isLocked: boolean;
-  observedAtUtc: string;
-  displayName?: string;
-  role?: string;
-  enrollmentState?: string;
-  seatId?: string | null;
-}
-
-export interface DeviceCommandResultDto {
-  organizationId: string;
-  branchId: string;
-  deviceId: string;
-  commandId: string;
-  status: string;
-  message: string;
-  observedAtUtc: string;
-}
-
-export interface SessionLifecycleChangedDto {
-  organizationId: string;
-  branchId: string;
-  seatId: string;
-  sessionId: string;
-  kind: string;
-  state: string;
-  version: number;
-  startedAtUtc?: string | null;
-  endsAtUtc?: string | null;
-  observedAtUtc: string;
-  accruedCostMinorUnits?: number | null;
-  currencyCode?: string | null;
-}
-
-/**
- * Что случилось с бронью. Полоса заявок до сих пор узнавала об этом следующим опросом: чужое
- * решение доезжало через несколько секунд, а решения таймеров — истёкший срок ответа — не
- * доезжали вовсе, заявка просто исчезала.
- */
-export interface ReservationChangedDto {
-  organizationId: string;
-  branchId: string;
-  reservationId: string;
-  seatId?: string | null;
-  kind: string;
-  state: string;
-  version: number;
-  startsAtUtc: string;
-  observedAtUtc: string;
-}
 
 export interface OperatorRealtimeClient {
   start(): Promise<void>;

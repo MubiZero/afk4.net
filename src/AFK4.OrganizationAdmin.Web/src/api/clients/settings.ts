@@ -1,185 +1,89 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { Guid, MoneyDto } from '../types';
+import type { Guid } from '../types';
 import type { PosProductDto, PosProductCategoryDto } from './pos';
-
-/**
- * Типы этого файла перечисляют поля поимённо, а совпадение с сервером проверяется
- * в `contractParity.test.ts`, а не держится на памяти.
- */
-export interface StaffUserDto {
-  staffUserId: Guid;
-  organizationId: Guid;
-  userName: string;
-  displayName: string;
-  isActive: boolean;
-  roleNames: string[];
-  createdAtUtc: string;
-}
-
-export interface BranchPhotoDto {
-  url: string;
-  mediaId: Guid | null;
-}
-
-export interface BranchProfileDto {
-  organizationId: Guid;
-  branchId: Guid;
-  name: string;
-  city: string;
-  description: string | null;
-  address: string | null;
-  phone: string | null;
-  telegram: string | null;
-  website: string | null;
-  instagram: string | null;
-  logoUrl: string | null;
-  logoMediaId: Guid | null;
-  coverImageUrl: string | null;
-  coverMediaId: Guid | null;
-  photos: BranchPhotoDto[];
-  latitude: number | null;
-  longitude: number | null;
-  timeZone: string;
-  locale: string;
-  workingHours: BranchWorkingHoursDay[];
-  createdAtUtc: string;
-}
-
-export interface ZoneDto {
-  zoneId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  name: string;
-  sortOrder: number;
-  createdAtUtc: string;
-  seats: SeatDto[];
-  hardwareSummary?: string | null;
-}
-
-export interface SeatDto {
-  seatId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  zoneId: Guid;
-  name: string;
-  sortOrder: number;
-  createdAtUtc: string;
-}
-
-/**
- * Расписание тарифа: `appliesOnDaysMask` — биты дней недели с понедельника (1) по воскресенье (64),
- * `0` значит «каждый день». Часы — минуты от полуночи по местному времени филиала.
- */
-export interface TariffDto {
-  tariffId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  name: string;
-  isActive: boolean;
-  createdAtUtc: string;
-  appliesOnDaysMask?: number;
-  appliesFromMinuteOfDay?: number | null;
-  appliesToMinuteOfDay?: number | null;
-}
-
-export interface TariffVersionDto {
-  tariffVersionId: Guid;
-  tariffId: Guid;
-  versionNumber: number;
-  currencyCode: string;
-  pricePerMinuteMinorUnits: number;
-  minimumBillableMinutes: number;
-  roundingIncrementMinutes: number;
-  effectiveFromUtc: string;
-  retiredAtUtc: string | null;
-  createdAtUtc: string;
-}
-
-// `appliesNow` считает сервер по часовому поясу филиала — повторять этот расчёт у себя нельзя.
-export interface TariffOptionDto {
-  tariffId: Guid;
-  tariffVersionId: Guid;
-  name: string;
-  tariffRuleVersionId: string;
-  versionNumber: number;
-  currencyCode: string;
-  pricePerMinuteMinorUnits: number;
-  minimumBillableMinutes: number;
-  roundingIncrementMinutes: number;
-  effectiveFromUtc: string;
-  appliesOnDaysMask?: number;
-  appliesFromMinuteOfDay?: number | null;
-  appliesToMinuteOfDay?: number | null;
-  appliesNow?: boolean;
-}
-export interface PackageOptionDto extends Record<string, unknown> {
-  packageDefinitionId: Guid;
-  name: string;
-  currencyCode: string;
-  priceMinorUnits: number;
-  includedSeconds: number;
-  bonusSeconds: number;
-  expiresAfterDays: number;
-}
-export interface PackageDefinitionDto {
-  packageDefinitionId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  name: string;
-  price: MoneyDto;
-  includedSeconds: number;
-  bonusSeconds: number;
-  expiresAfterDays: number;
-  isActive: boolean;
-  createdAtUtc: string;
-}
-
-export interface DeviceSeatAssignmentDto {
-  deviceSeatAssignmentId: Guid;
-  organizationId: Guid;
-  branchId: Guid;
-  seatId: Guid;
-  deviceId: Guid;
-  attachedAtUtc: string;
-  detachedAtUtc: string | null;
-}
-
-export interface CreateStaffInviteRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  userName: string;
-  displayName: string;
-  /** Куда уйдёт код приглашения. Обязателен: почты у администратора зала может не быть. */
-  phoneNumber: string;
-  email: string | null;
-  roleNames: string[];
-}
-
-export interface StaffInviteDto {
-  staffInviteId: Guid;
-  code: string;
-  expiresAtUtc: string;
-}
-
-export interface UpdateStaffUserProfileRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  userName: string;
-  displayName: string;
-}
-
-export interface UpdateStaffUserRolesRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  roleNames: string[];
-}
-
-export interface UpdateStaffUserStateRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  isActive: boolean;
-}
-
-export interface ResetStaffUserPasswordRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  newPassword: string;
-}
+import type {
+  AddProductBarcodeRequest,
+  AssignDeviceSeatRequest,
+  BranchBookingSettingsDto,
+  BranchProfileDto,
+  BranchSettingsDto,
+  CreatePackageDefinitionRequest,
+  CreateProductCategoryRequest,
+  CreateProductRequest,
+  CreateSeatRequest,
+  CreateStaffInviteRequest,
+  CreateTariffRequest,
+  CreateTariffVersionRequest,
+  CreateZoneRequest,
+  DeviceSeatAssignmentDto,
+  PackageDefinitionDto,
+  PackageOptionDto,
+  ProductBarcodeDto,
+  ReorderProductCategoriesRequest,
+  ResetStaffUserPasswordRequest,
+  SeatDto,
+  StaffInviteDto,
+  StaffUserDto,
+  TariffDto,
+  TariffOptionDto,
+  TariffVersionDto,
+  UpdateBranchBookingSettingsRequest,
+  UpdateBranchProfileRequest,
+  UpdateBranchSettingsRequest,
+  UpdatePackageDefinitionRequest,
+  UpdateProductCategoryRequest,
+  UpdateProductRequest,
+  UpdateSeatRequest,
+  UpdateStaffUserProfileRequest,
+  UpdateStaffUserRolesRequest,
+  UpdateStaffUserStateRequest,
+  UpdateTariffRequest,
+  UpdateTariffVersionRequest,
+  UpdateZoneRequest,
+  ZoneDto,
+} from '@afk4/contracts';
+export type {
+  AddProductBarcodeRequest,
+  AssignDeviceSeatRequest,
+  BranchBookingSettingsDto,
+  BranchPhotoDto,
+  BranchProfileDto,
+  BranchSettingsDto,
+  CreatePackageDefinitionRequest,
+  CreateProductCategoryRequest,
+  CreateProductRequest,
+  CreateSeatRequest,
+  CreateStaffInviteRequest,
+  CreateTariffRequest,
+  CreateTariffVersionRequest,
+  CreateZoneRequest,
+  DeviceSeatAssignmentDto,
+  PackageDefinitionDto,
+  PackageOptionDto,
+  ProductBarcodeDto,
+  ReorderProductCategoriesRequest,
+  ResetStaffUserPasswordRequest,
+  SeatDto,
+  StaffInviteDto,
+  StaffUserDto,
+  TariffDto,
+  TariffOptionDto,
+  TariffVersionDto,
+  UpdateBranchBookingSettingsRequest,
+  UpdateBranchProfileRequest,
+  UpdateBranchSettingsRequest,
+  UpdatePackageDefinitionRequest,
+  UpdateProductCategoryRequest,
+  UpdateProductRequest,
+  UpdateSeatRequest,
+  UpdateStaffUserProfileRequest,
+  UpdateStaffUserRolesRequest,
+  UpdateStaffUserStateRequest,
+  UpdateTariffRequest,
+  UpdateTariffVersionRequest,
+  UpdateZoneRequest,
+  ZoneDto,
+} from '@afk4/contracts';
 
 export interface BranchWorkingHoursDay {
   dayOfWeek: number; // 1=Пн … 7=Вс
@@ -188,184 +92,10 @@ export interface BranchWorkingHoursDay {
   closeTime: string | null;
 }
 
-export interface UpdateBranchProfileRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  name: string;
-  city: string;
-  description: string | null;
-  address: string | null;
-  phone: string | null;
-  telegram: string | null;
-  website: string | null;
-  instagram: string | null;
-  logoUrl: string | null;
-  logoMediaId: string | null;
-  timeZone: string;
-  locale: string;
-  workingHours: BranchWorkingHoursDay[];
-  // Витрина клуба в приложении игрока: фото зала и точка на карте.
-  coverImageUrl: string | null;
-  coverMediaId: string | null;
-  photos: BranchPhotoDto[];
-  latitude: number | null;
-  longitude: number | null;
-}
-
-export interface CreateZoneRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  name: string;
-  sortOrder: number;
-  // Чем зал оснащён — эту строку игрок видит в подробностях клуба; null = не указано.
-  hardwareSummary?: string | null;
-}
-
-export interface UpdateZoneRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  name: string;
-  sortOrder: number;
-  hardwareSummary?: string | null;
-}
-
-export interface CreateSeatRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  zoneId: Guid;
-  name: string;
-  sortOrder: number;
-}
-
-export interface UpdateSeatRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  zoneId: Guid;
-  name: string;
-  sortOrder: number;
-}
-
-export interface CreateTariffRequest extends Record<string, unknown> {
-  organizationId: Guid;
-}
-
-export interface CreateTariffVersionRequest extends Record<string, unknown> {
-  organizationId: Guid;
-}
-
 export interface TariffSchedulePayload extends Record<string, unknown> {
   appliesOnDaysMask: number;
   appliesFromMinuteOfDay: number | null;
   appliesToMinuteOfDay: number | null;
-}
-
-export interface UpdateTariffRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  name: string;
-  isActive: boolean;
-  /** Не передано — расписание остаётся прежним. */
-  schedule?: TariffSchedulePayload;
-}
-
-export interface UpdateTariffVersionRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  currencyCode: string;
-  pricePerMinuteMinorUnits: number;
-  minimumBillableMinutes: number;
-  roundingIncrementMinutes: number;
-  effectiveFromUtc: string;
-  isActive: boolean;
-}
-
-export interface CreatePackageDefinitionRequest extends Record<string, unknown> {
-  organizationId: Guid;
-}
-
-export interface UpdatePackageDefinitionRequest extends Record<string, unknown> {
-  organizationId: Guid;
-}
-
-export interface UpdateProductCategoryRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  /** Пропущенное остаётся как было — переименование не гасит категорию заодно. */
-  name?: string;
-  isActive?: boolean;
-}
-
-export interface ReorderProductCategoriesRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  /** Весь список целиком, сверху вниз. */
-  categoryIds: Guid[];
-}
-
-export interface CreateProductCategoryRequest extends Record<string, unknown> {
-  organizationId: Guid;
-}
-
-export interface CreateProductRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  availableInShell?: boolean;
-}
-
-export interface UpdateProductRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  availableInShell?: boolean;
-}
-
-export interface ProductBarcodeDto {
-  barcodeId: Guid;
-  productId: Guid;
-  code: string;
-  isPrimary: boolean;
-}
-
-export interface AddProductBarcodeRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  code: string;
-  isPrimary?: boolean;
-}
-
-export interface AssignDeviceSeatRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  seatId: Guid;
-}
-
-
-// Настройки самого филиала (BranchSettingsDto). Полей ровно столько, сколько на сервере, и они
-// названы честно: PUT заменяет запись целиком, поэтому отправлять её надо загруженной, а не
-// собранной из одного изменённого флага — иначе язык филиала стирается заодно с переключателем.
-export interface BranchSettingsDto {
-  organizationId: Guid;
-  branchId: Guid;
-  requireManualDeviceApproval: boolean;
-  preferredLocale: string;
-}
-
-export interface UpdateBranchSettingsRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  requireManualDeviceApproval: boolean;
-  preferredLocale: string;
-}
-
-// Настройки приёма гостей филиала (BranchBookingSettingsDto). `updatedAtUtc === null` означает
-// «филиал ничего не настраивал» — значения не нулевые, а по умолчанию, и это разные вещи.
-export interface BranchBookingSettingsDto {
-  organizationId: Guid;
-  branchId: Guid;
-  acceptanceMode: string; // 'off' | 'manual' | 'auto'
-  respondWithinMinutes: number;
-  requirePrepaymentFromNewGuests: boolean;
-  maxActiveReservationsForNewGuests: number;
-  regularAfterVisits: number;
-  holdSeatAfterStartMinutes: number;
-  keepPrepaymentOnNoShow: boolean;
-  updatedAtUtc: string | null;
-}
-
-export interface UpdateBranchBookingSettingsRequest extends Record<string, unknown> {
-  organizationId: Guid;
-  acceptanceMode: string;
-  respondWithinMinutes: number;
-  requirePrepaymentFromNewGuests: boolean;
-  maxActiveReservationsForNewGuests: number;
-  regularAfterVisits: number;
-  holdSeatAfterStartMinutes: number;
-  keepPrepaymentOnNoShow: boolean;
 }
 
 export function createSettingsClient(api: PlatformApiClient) {

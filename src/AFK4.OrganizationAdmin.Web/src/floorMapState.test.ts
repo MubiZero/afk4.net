@@ -26,6 +26,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [
         createSeat({ seatName: 'PC-02', sortOrder: 20, state: 'Locked' }),
         createSeat({
@@ -61,6 +63,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [
         createSeat({
           state: 'Active',
@@ -84,6 +88,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [createSeat({ state: 'Maintenance', isDeviceOnline: false })]
     }, t);
 
@@ -99,6 +105,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [
         createSeat({
           state: 'Active',
@@ -123,6 +131,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [
         createSeat({
           state: 'Active',
@@ -143,6 +153,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [createSeat({ state: 'Locked', isDeviceLocked: true })]
     }, t);
 
@@ -169,6 +181,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [
         createSeat({
           state: 'Active',
@@ -201,6 +215,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [createSeat({ state: 'Locked', isDeviceLocked: true })]
     }, t);
 
@@ -223,6 +239,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [
         createSeat({
           state: 'Active',
@@ -245,6 +263,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [
         createSeat({
           state: 'Active',
@@ -267,7 +287,7 @@ describe('floor-map state', () => {
       branchName: 'Demo Branch',
       zones: [
         { zoneId: '44444444-4444-4444-4444-444444444444', name: 'Зал A', sortOrder: 10, geoX: 0, geoY: 0, geoWidth: 4, geoHeight: 3, color: '#22d3ee', zoneType: 'hall' },
-        { zoneId: '55555555-5555-5555-5555-555555555555', name: 'Без геометрии', sortOrder: 20 }
+        { zoneId: '55555555-5555-5555-5555-555555555555', name: 'Без геометрии', sortOrder: 20, geoX: null, geoY: null, geoWidth: null, geoHeight: null, color: null, zoneType: null }
       ],
       walls: [
         { wallId: '66666666-6666-6666-6666-666666666666', x1: 0, y1: 0, x2: 4, y2: 0 }
@@ -280,7 +300,7 @@ describe('floor-map state', () => {
     expect(state.zones).toHaveLength(2);
     // A zone without geometry passes through unchanged (the «План» canvas drops it later).
     expect(state.zones[1]).toMatchObject({ zoneId: '55555555-5555-5555-5555-555555555555', name: 'Без геометрии' });
-    expect(state.zones[1].geoX).toBeUndefined();
+    expect(state.zones[1].geoX).toBeNull();
     expect(state.walls).toHaveLength(1);
     expect(state.walls[0]).toMatchObject({ x1: 0, y1: 0, x2: 4, y2: 0 });
     expect(state.seats[0]).toMatchObject({ posX: 1, posY: 2, rotation: 90, seatType: 'console' });
@@ -296,6 +316,8 @@ describe('floor-map state', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
+      zones: [],
+      walls: [],
       seats: [createSeat({ seatName: 'PC-01', sortOrder: 10, state: 'Locked' })]
     }, t, 'W/"abc"', 0);
 

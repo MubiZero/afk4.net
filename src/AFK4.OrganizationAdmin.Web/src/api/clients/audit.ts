@@ -1,31 +1,8 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
-
-/**
- * Запись журнала действий (AuditRecordDto). Поля сверяются в `contractParity.test.ts`, включая
- * два последних — они объявлены в C# не параметрами записи, а свойствами `{ get; init; }`.
- */
-export interface AuditRecordDto {
-  auditRecordId: Guid;
-  organizationId: Guid;
-  branchId: Guid | null;
-  actorStaffUserId: Guid | null;
-  action: string;
-  targetType: string;
-  targetId: string | null;
-  outcome: string;
-  sourceApp: string;
-  detailsJson: string;
-  createdAtUtc: string;
-  actorPlatformAdminUserId: Guid | null;
-  amountMinorUnits: number | null;
-}
-
-export interface AuditSearchResultDto {
-  records: AuditRecordDto[];
-  limit: number;
-}
+import type { AuditSearchResultDto } from '@afk4/contracts';
+export type { AuditRecordDto, AuditSearchResultDto } from '@afk4/contracts';
 
 export interface AuditSearchRequest {
   branchId: Guid;

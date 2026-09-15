@@ -25,10 +25,15 @@ function floorMap(branchName: string, seatName: string): FloorMapDto {
         deviceName: seatName,
         isDeviceOnline: true,
         isDeviceLocked: false,
+        lastHeartbeatAtUtc: '2026-05-21T09:55:00Z',
+        agentVersion: '1.4.0',
+        shellVersion: '1.4.0',
         activeSessionId: '44444444-4444-4444-8444-444444444444',
         remainingSeconds: 1800
       }
-    ]
+    ],
+    zones: [],
+    walls: []
   };
 }
 

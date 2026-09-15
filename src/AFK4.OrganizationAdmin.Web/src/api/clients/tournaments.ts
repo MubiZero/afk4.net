@@ -1,52 +1,16 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { MoneyDto } from '../types';
-
-export interface TournamentDto {
-  tournamentId: string;
-  branchId: string;
-  title: string;
-  description: string;
-  discipline: string;
-  startsAtUtc: string;
-  entryFee: MoneyDto;
-  capacity: number;
-  state: string;
-  registeredCount: number;
-  createdAtUtc: string;
-  updatedAtUtc: string;
-  cancelledAtUtc: string | null;
-  cancelReason: string;
-}
-
-export interface TournamentParticipantDto {
-  tournamentRegistrationId: string;
-  playerAccountId: string;
-  displayName: string;
-  phoneNumber: string | null;
-  entryFeePaid: MoneyDto;
-  registeredAtUtc: string;
-}
-
-export interface CreateTournamentRequest {
-  branchId: string;
-  title: string;
-  description: string;
-  discipline: string;
-  startsAtUtc: string;
-  entryFeeMinorUnits: number;
-  capacity: number;
-}
-
-/// Незаполненное поле означает «оставить как было»: стойка правит одну строку, а не переписывает
-/// событие целиком.
-export interface UpdateTournamentRequest {
-  title?: string;
-  description?: string;
-  discipline?: string;
-  startsAtUtc?: string;
-  entryFeeMinorUnits?: number;
-  capacity?: number;
-}
+import type {
+  CreateTournamentRequest,
+  TournamentDto,
+  TournamentParticipantDto,
+  UpdateTournamentRequest,
+} from '@afk4/contracts';
+export type {
+  CreateTournamentRequest,
+  TournamentDto,
+  TournamentParticipantDto,
+  UpdateTournamentRequest,
+} from '@afk4/contracts';
 
 export function createTournamentClient(api: PlatformApiClient) {
   return {

@@ -22,11 +22,12 @@ import {
   readString,
   requireBackend
 } from '../../operatorHelpers';
+import type { PosProductDto } from '../../operatorApiClients';
 import { managementScreenState, type DestinationProps } from './types';
 import { deriveCategoryOptions, type CategoryOption } from './goods/categoryModel';
 import { CategoriesPanel } from './goods/CategoriesPanel';
 
-type Product = Record<string, unknown>;
+type Product = PosProductDto;
 
 interface DelistAction {
   productId: string;

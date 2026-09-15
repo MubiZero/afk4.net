@@ -15,6 +15,11 @@ const rollout: UpdateRolloutStatusDto = {
   version: '2.4.0',
   channel: 'stable',
   state: 'active',
+  targetKind: 'branch',
+  targetDeviceIds: [],
+  batchPercent: 100,
+  createdAtUtc: '2026-08-01T00:00:00Z',
+  completedAtUtc: null,
   startsAtUtc: '2026-08-01T00:00:00Z',
   deviceStatuses: [
     {

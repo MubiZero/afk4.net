@@ -1,19 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-
-export interface DcPayLinkConfigDto {
-  cardSet: boolean;
-  // Only the last 4 digits are ever returned — the full card number is never sent back to the client.
-  cardLast4: string;
-  commentTemplate: string;
-  isActive: boolean;
-}
-
-export interface UpdateDcPayLinkConfigRequest {
-  // null/empty keeps the stored card number; a non-empty value replaces it.
-  cardNumber: string | null;
-  commentTemplate: string;
-  isActive: boolean;
-}
+import type { DcPayLinkConfigDto, UpdateDcPayLinkConfigRequest } from '@afk4/contracts';
+export type { DcPayLinkConfigDto, UpdateDcPayLinkConfigRequest } from '@afk4/contracts';
 
 export function createDcConfigClient(api: PlatformApiClient) {
   return {

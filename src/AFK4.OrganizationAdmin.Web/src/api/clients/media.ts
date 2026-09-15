@@ -1,11 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-
-export interface UploadedMediaDto {
-  mediaId: string;
-  url: string;
-  contentType: string;
-  sizeBytes: number;
-}
+import type { UploadedMediaDto } from '@afk4/contracts';
+export type { UploadedMediaDto } from '@afk4/contracts';
 
 export function createMediaClient(api: PlatformApiClient) {
   return {

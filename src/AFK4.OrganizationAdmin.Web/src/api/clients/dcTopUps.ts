@@ -1,24 +1,7 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
-
-// DC-пополнение в Кассе: кассир заводит намерение (создаёт pay-link + QR), игрок переводит
-// на карту DushanbeCity по ссылке/QR, кассир подтверждает получение. Подтверждение и отмена —
-// два разных действия: confirm зовёт уже существующий wallet fulfil-эндпоинт (кредитует кошелёк
-// и требует открытую смену), cancel — POS-специфичный эндпоинт, снимающий намерение с pending.
-export interface DcTopUpDto {
-  intentId: Guid;
-  payUrl: string;
-  comment: string;
-  amountMinorUnits: number;
-  currencyCode: string;
-  cardLast4: string;
-}
-
-export interface CreateDcTopUpRequest {
-  playerAccountId: Guid;
-  amountMinorUnits: number;
-  currencyCode: string;
-}
+import type { CreateDcTopUpRequest, DcTopUpDto } from '@afk4/contracts';
+export type { CreateDcTopUpRequest, DcTopUpDto } from '@afk4/contracts';
 
 export function createDcTopUpClient(api: PlatformApiClient) {
   return {

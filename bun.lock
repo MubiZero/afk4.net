@@ -77,6 +77,7 @@
       "name": "afk4-organization-admin-web",
       "version": "0.1.0",
       "dependencies": {
+        "@afk4/contracts": "workspace:*",
         "@afk4/formatting": "workspace:*",
         "@afk4/host-bridge": "workspace:*",
         "@afk4/i18n": "workspace:*",
@@ -106,6 +107,7 @@
       "name": "afk4-platform-control-web",
       "version": "0.1.0",
       "dependencies": {
+        "@afk4/contracts": "workspace:*",
         "@afk4/i18n": "workspace:*",
         "@afk4/money": "workspace:*",
         "@afk4/tokens": "workspace:*",
@@ -135,6 +137,7 @@
       "name": "afk4-player-shell-web",
       "version": "0.1.0",
       "dependencies": {
+        "@afk4/contracts": "workspace:*",
         "@afk4/formatting": "workspace:*",
         "@afk4/i18n": "workspace:*",
         "@afk4/money": "workspace:*",

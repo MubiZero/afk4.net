@@ -56,7 +56,7 @@ public sealed class PosContractSerializationTests
         var sale = new CreatePosSaleRequest(
             organizationId,
             shiftId,
-            [new PosSaleLineDto(productId, "Cola 0.5", 2, new MoneyDto("TJS", 1200), new MoneyDto("TJS", 2400))],
+            [new CreatePosSaleLineDto(productId, 2)],
             "sale-001");
 
         var copy = JsonSerializer.Deserialize<CreatePosSaleRequest>(
@@ -66,7 +66,9 @@ public sealed class PosContractSerializationTests
         Assert.NotNull(copy);
         Assert.Equal(sale.OrganizationId, copy.OrganizationId);
         Assert.Single(copy.Lines);
-        Assert.Equal(2400, copy.Lines[0].LineTotal.MinorUnits);
+        // В запросе строка несёт только товар и количество: цену назначает каталог, не стойка.
+        Assert.Equal(productId, copy.Lines[0].ProductId);
+        Assert.Equal(2, copy.Lines[0].Quantity);
     }
 
     [Fact]

@@ -1,21 +1,12 @@
-export interface ResolveOperatorConnectionRequest {
-  organizationSlug?: string | null;
-  branchSlug?: string | null;
-  setupCode?: string | null;
-}
 
-export interface ResolveOperatorConnectionResponse {
-  organizationId: string;
-  organizationSlug: string;
-  organizationName: string;
-  organizationStatus: string;
-  organizationStatusReason: string | null;
-  branchId: string;
-  branchSlug: string;
-  branchName: string;
-  branchCity: string;
-  source: 'slug' | 'setup_code';
-}
+import type {
+  ResolveOperatorConnectionRequest,
+  ResolveOperatorConnectionResponse,
+} from '@afk4/contracts';
+export type {
+  ResolveOperatorConnectionRequest,
+  ResolveOperatorConnectionResponse,
+} from '@afk4/contracts';
 
 export const OperatorOrganizationStatus = {
   Active: 'active',

@@ -55,7 +55,17 @@ function client(initial: TournamentDto[] = [], participants: TournamentParticipa
     },
     update: async (id: string, request: UpdateTournamentRequest) => {
       updated.push(request);
-      return event({ tournamentId: id, ...request });
+      // В запросе null и пропуск значат «не менять», поэтому подделка сервера применяет только присланное.
+      const patch: Partial<TournamentDto> = { tournamentId: id };
+      if (request.title != null) patch.title = request.title;
+      if (request.description != null) patch.description = request.description;
+      if (request.discipline != null) patch.discipline = request.discipline;
+      if (request.startsAtUtc != null) patch.startsAtUtc = request.startsAtUtc;
+      if (request.capacity != null) patch.capacity = request.capacity;
+      if (request.entryFeeMinorUnits != null) {
+        patch.entryFee = { currencyCode: 'TJS', minorUnits: request.entryFeeMinorUnits };
+      }
+      return event(patch);
     },
     publish: async (id: string) => {
       published.push(id);

@@ -1,16 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-
-export interface LoyaltySettingsDto {
-  topUpEnabled: boolean;
-  topUpPercentBasisPoints: number;
-  shopEnabled: boolean;
-  shopPercentBasisPoints: number;
-  sessionEnabled: boolean;
-  sessionPercentBasisPoints: number;
-  // Limits applied to every accrual; 0 disables the limit. Minor units.
-  cashbackCapMinorUnits: number;
-  minimumSourceMinorUnits: number;
-}
+import type { LoyaltySettingsDto } from '@afk4/contracts';
+export type { LoyaltySettingsDto } from '@afk4/contracts';
 
 export function createLoyaltySettingsClient(api: PlatformApiClient) {
   return {
