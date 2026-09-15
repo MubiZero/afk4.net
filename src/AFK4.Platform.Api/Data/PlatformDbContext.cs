@@ -1382,6 +1382,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(schedule => schedule.Frequency).HasMaxLength(16).IsRequired();
             entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextRunUtc });
             entity.HasIndex(schedule => new { schedule.OrganizationId, schedule.BranchId });
+            // Две одинаковых рассылки — два одинаковых письма владельцу каждый период. Проверка
+            // «такая уже есть» в службе держит обычный случай, но два одновременных запроса проходили оба:
+            // оба читали «нет» до того, как первый успел записать.
+            entity.HasIndex(schedule => new
+            {
+                schedule.OrganizationId,
+                schedule.BranchId,
+                schedule.ReportType,
+                schedule.Frequency
+            }).IsUnique();
         });
 
         modelBuilder.Entity<StaffMoneyCapEntity>(entity =>

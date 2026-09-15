@@ -187,6 +187,92 @@ internal static class ReportScheduleEndpoints
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
+        // Пауза и правка частоты. До этого рассылку можно было только завести или убрать: `IsActive` в
+        // ответе был, а переключить его было нечем, и уйти в отпуск значило удалить и завести заново.
+        app.MapPatch("branches/{branchId:guid}/report-schedules/{scheduleId:guid}", async (
+            Guid branchId,
+            Guid scheduleId,
+            UpdateReportScheduleRequest request,
+            StaffAuthorizationService authorizationService,
+            IReportScheduleService reportScheduleService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ViewReports,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.UpdateReportSchedule,
+                    "ReportSchedule",
+                    scheduleId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { request.Frequency, request.IsActive, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var validation = ValidateUpdateReportScheduleRequest(request);
+            if (validation is not null)
+            {
+                return Results.BadRequest(new { Error = validation });
+            }
+
+            var (schedule, error) = await reportScheduleService.UpdateAsync(
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                scheduleId,
+                request.Frequency,
+                request.IsActive,
+                cancellationToken);
+
+            if (error is not null)
+            {
+                return Results.Conflict(new
+                {
+                    Error = error,
+                    Message = "This branch already has a schedule for the same report and frequency."
+                });
+            }
+
+            if (schedule is null)
+            {
+                return Results.NotFound();
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.UpdateReportSchedule,
+                "ReportSchedule",
+                scheduleId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.Frequency, request.IsActive },
+                cancellationToken);
+
+            return Results.Ok(schedule);
+        });
+
         app.MapDelete("branches/{branchId:guid}/report-schedules/{scheduleId:guid}", async (
             Guid branchId,
             Guid scheduleId,
