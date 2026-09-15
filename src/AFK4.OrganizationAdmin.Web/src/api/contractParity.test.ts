@@ -213,6 +213,12 @@ const PAIRS: Pair[] = [
     contract: 'Billing/MoneyActionContracts.cs',
     client: 'clients/moneyActions.ts',
     type: 'MoneyActionRequestDto'
+  },
+  {
+    record: 'ReportScheduleDto',
+    contract: 'Reports/ReportScheduleContracts.cs',
+    client: 'clients/reports.ts',
+    type: 'ReportScheduleDto'
   }
 ];
 

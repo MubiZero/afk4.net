@@ -87,7 +87,9 @@ describe('ReportsWorkspace', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Завести рассылку' }));
 
-    await screen.findByText(/Смены · Каждый день/);
+    // Частота теперь живёт в выборе в самой строке, а не в её тексте: её можно менять.
+    expect(await screen.findByRole('combobox', { name: 'Частота рассылки «Смены»' })).toHaveValue('daily');
+    await screen.findByText(/следующее письмо/);
     expect(posts).toHaveLength(1);
     expect(posts[0].body).toEqual({ organizationId: 'org-1', reportType: 'shifts', frequency: 'daily' });
   });

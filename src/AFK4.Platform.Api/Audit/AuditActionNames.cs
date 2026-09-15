@@ -110,6 +110,9 @@ public static class AuditActionNames
 
     public const string CreateReportSchedule = "reports.schedules.create";
 
+    /// <summary>Правка рассылки: частота, пауза или оба сразу.</summary>
+    public const string UpdateReportSchedule = "reports.schedules.update";
+
     public const string DeleteReportSchedule = "reports.schedules.delete";
 
     public const string ViewDashboardSummary = "dashboard.summary.view";

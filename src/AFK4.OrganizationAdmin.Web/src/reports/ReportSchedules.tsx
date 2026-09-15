@@ -11,10 +11,10 @@ import { createReportClients } from './reportClient';
  * Регулярные отчёты на почту владельца клуба.
  *
  * Сервер умел это целиком — расписание, фоновая сборка CSV, отправка письма, — и не имел ни
- * одного клиента: завести рассылку можно было только запросом к API руками. Поэтому здесь нет
- * ничего, кроме трёх действий, которые сервер уже поддерживает: посмотреть, завести, убрать.
- * Приостановки нет намеренно — её нет и на сервере, и кнопка «выключить», которая на деле удаляет,
- * врала бы.
+ * одного клиента: завести рассылку можно было только запросом к API руками.
+ *
+ * Пауза есть, и она настоящая: кнопка меняет `IsActive`, а не удаляет запись под видом выключения.
+ * Уйти в отпуск на две недели и не получать письма — не то же, что отказаться от рассылки совсем.
  */
 const REPORT_TYPES: { value: string; labelKey: MessageKey }[] = [
   { value: 'shifts', labelKey: 'op.reports.schedule.type.shifts' },
@@ -69,6 +69,10 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
 
   const existing = scheduledPairs(schedules);
   const alreadyScheduled = existing.has(`${reportType}:${frequency}`);
+  // Пауза не освобождает сочетание: без этой подсказки кнопка «Завести» молча гасла бы, и
+  // владелец не понял бы, что нужная ему рассылка уже есть и просто приостановлена.
+  const pausedMatch = schedules.some((schedule) =>
+    schedule.reportType === reportType && schedule.frequency === frequency && !schedule.isActive);
 
   async function create() {
     if (!backend || alreadyScheduled) return;
@@ -79,6 +83,23 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
         organizationId: backend.session.organizationId,
         reportType,
         frequency
+      });
+      await load();
+    } catch (reason) {
+      setActionError(projectOperatorError(reason, t).detail);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function update(schedule: ReportScheduleDto, patch: { frequency?: string; isActive?: boolean }) {
+    if (!backend) return;
+    setBusy(true);
+    setActionError('');
+    try {
+      await createReportClients(backend).updateReportSchedule(backend.branchId, schedule.reportScheduleId, {
+        organizationId: backend.session.organizationId,
+        ...patch
       });
       await load();
     } catch (reason) {
@@ -124,7 +145,11 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
             {FREQUENCIES.map((item) => <option key={item.value} value={item.value}>{t(item.labelKey)}</option>)}
           </select>
         </label>
-        {alreadyScheduled && <p className="mgmt-drawer-hint">{t('op.reports.schedule.duplicate')}</p>}
+        {alreadyScheduled && (
+          <p className="mgmt-drawer-hint">
+            {pausedMatch ? t('op.reports.schedule.duplicatePaused') : t('op.reports.schedule.duplicate')}
+          </p>
+        )}
         {actionError && <p role="alert">{actionError}</p>}
         <button type="button" className="ui-btn ui-btn--primary" disabled={busy || alreadyScheduled} onClick={() => void create()}>
           {t('op.reports.schedule.create')}
@@ -138,13 +163,33 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
           {schedules.map((schedule) => (
             <li key={schedule.reportScheduleId} className="mgmt-zone-row">
               <span>
-                {t(reportTypeLabelKey(schedule.reportType))} · {t(frequencyLabelKey(schedule.frequency))}
+                {t(reportTypeLabelKey(schedule.reportType))}
                 {' · '}
-                {t('op.reports.schedule.nextRun', { time: formatDate(schedule.nextRunUtc) })}
+                {schedule.isActive
+                  ? t('op.reports.schedule.nextRun', { time: formatDate(schedule.nextRunUtc) })
+                  : t('op.reports.schedule.pausedMark')}
               </span>
-              <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => void remove(schedule)}>
-                {t('op.reports.schedule.remove')}
-              </button>
+              <span className="mgmt-status-pair">
+                <select
+                  aria-label={t('op.reports.schedule.frequencyOf', { report: t(reportTypeLabelKey(schedule.reportType)) })}
+                  value={schedule.frequency}
+                  disabled={busy}
+                  onChange={(event) => void update(schedule, { frequency: event.currentTarget.value })}
+                >
+                  {FREQUENCIES.map((item) => <option key={item.value} value={item.value}>{t(item.labelKey)}</option>)}
+                </select>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--sm"
+                  disabled={busy}
+                  onClick={() => void update(schedule, { isActive: !schedule.isActive })}
+                >
+                  {schedule.isActive ? t('op.reports.schedule.pause') : t('op.reports.schedule.resume')}
+                </button>
+                <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => void remove(schedule)}>
+                  {t('op.reports.schedule.remove')}
+                </button>
+              </span>
             </li>
           ))}
         </ul>

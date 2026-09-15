@@ -28,6 +28,18 @@ public interface IReportScheduleService
         string frequency,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Меняет частоту или снимает/ставит паузу. Возвращает <c>null</c>, если рассылки нет,
+    /// и текст ошибки в <paramref name="error"/>, если правка столкнулась с уже заведённой такой же.
+    /// </summary>
+    Task<(ReportScheduleDto? Schedule, string? Error)> UpdateAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid reportScheduleId,
+        string? frequency,
+        bool? isActive,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ReportScheduleDto>> ListAsync(
         Guid organizationId,
         Guid branchId,

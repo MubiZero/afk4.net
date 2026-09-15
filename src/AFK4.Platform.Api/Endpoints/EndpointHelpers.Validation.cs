@@ -92,6 +92,27 @@ internal static partial class EndpointHelpers
         return null;
     }
 
+    public static string? ValidateUpdateReportScheduleRequest(UpdateReportScheduleRequest request)
+    {
+        if (request.OrganizationId == Guid.Empty)
+        {
+            return "OrganizationId is required.";
+        }
+
+        // Пустая правка — не «готово»: ответить успехом значит подтвердить изменение, которого не было.
+        if (request.Frequency is null && request.IsActive is null)
+        {
+            return "Schedule update must carry a frequency or a pause change.";
+        }
+
+        if (request.Frequency is not null && !ReportScheduleFrequencyNames.All.Contains(request.Frequency))
+        {
+            return $"Frequency must be one of: {string.Join(", ", ReportScheduleFrequencyNames.All)}.";
+        }
+
+        return null;
+    }
+
     public static string? ValidateCreateStaffInviteRequest(CreateStaffInviteRequest request)
     {
         if (request.OrganizationId == Guid.Empty)
