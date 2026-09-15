@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Reservations;
@@ -39,6 +40,14 @@ public sealed class ReservationNoShowRunner(
     IOpenShiftResolver openShiftResolver,
     IReservationChangeNotifier? notifier = null)
 {
+    /// <summary>Состояния сессии, при которых место занято человеком за машиной.</summary>
+    private static readonly string[] OccupyingSessionStates =
+    [
+        SessionStateNames.Active,
+        SessionStateNames.Paused,
+        SessionStateNames.Ending
+    ];
+
     /// <summary>Один проход. Возвращает число разобранных броней.</summary>
     public async Task<int> RunOnceAsync(CancellationToken cancellationToken)
     {
@@ -76,7 +85,9 @@ public sealed class ReservationNoShowRunner(
                 settingsByBranch[reservation.BranchId] = settings;
             }
 
-            if (now < reservation.StartsAtUtc.AddMinutes(settings.HoldSeatAfterStartMinutes))
+            // Сколько ждать — считается от момента, когда место реально освободилось, а не от начала брони.
+            var waitFrom = await WaitFromAsync(reservation, now, cancellationToken);
+            if (waitFrom is null || now < waitFrom.Value.AddMinutes(settings.HoldSeatAfterStartMinutes))
             {
                 continue;
             }
@@ -150,5 +161,57 @@ public sealed class ReservationNoShowRunner(
         }
 
         return handled;
+    }
+
+    /// <summary>
+    /// С какого момента отсчитывать ожидание опаздывающего. <c>null</c> — место занято прямо сейчас,
+    /// решать нечего.
+    ///
+    /// Раньше счёт шёл всегда от начала брони. Если забронированный ПК вся эта четверть часа
+    /// занят чужой затянувшейся сессией, игрок физически не мог за него сесть — и всё равно получал
+    /// неявку с удержанной предоплатой и отметкой в сетевой репутации. Задержка клуба — не прогул игрока,
+    /// так же как молчание клуба по заявке ниже не считается неявкой ни при каких настройках.
+    /// </summary>
+    private async Task<DateTimeOffset?> WaitFromAsync(
+        ReservationEntity reservation,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        if (reservation.SeatId is null)
+        {
+            return reservation.StartsAtUtc;
+        }
+
+        var seatId = reservation.SeatId.Value;
+        // Сессии самой брони среди них быть не может: у брони с запущенной сессией SeatedAtUtc
+        // уже проставлен, а такие сюда не попадают.
+        var occupiedNow = await dbContext.Sessions
+            .AsNoTracking()
+            .AnyAsync(
+                session =>
+                    session.OrganizationId == reservation.OrganizationId &&
+                    session.BranchId == reservation.BranchId &&
+                    session.SeatId == seatId &&
+                    OccupyingSessionStates.Contains(session.State),
+                cancellationToken);
+        if (occupiedNow)
+        {
+            return null;
+        }
+
+        // Сессия уже закончилась и потому больше не в «занимающих» состояниях — искать надо по времени
+        // окончания, а не по состоянию. Важен самый поздний из тех, что закончились после начала брони:
+        // именно тогда место стало свободным.
+        var freedAtUtc = await dbContext.Sessions
+            .AsNoTracking()
+            .Where(session =>
+                session.OrganizationId == reservation.OrganizationId &&
+                session.BranchId == reservation.BranchId &&
+                session.SeatId == seatId &&
+                session.EndedAtUtc != null &&
+                session.EndedAtUtc > reservation.StartsAtUtc)
+            .MaxAsync(session => (DateTimeOffset?)session.EndedAtUtc, cancellationToken);
+
+        return freedAtUtc ?? reservation.StartsAtUtc;
     }
 }

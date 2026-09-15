@@ -15,8 +15,16 @@ import {
 it('bookingDetailActions: pending confirms, confirmed starts, terminal states expose neither', () => {
   expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false, canSeat: true, canReject: true, canMarkNoShow: false });
   expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true, canSeat: true, canReject: false, canMarkNoShow: false });
-  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false, canSeat: false, canReject: false, canMarkNoShow: false });
   expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false, canSeat: false, canReject: false, canMarkNoShow: false });
+});
+
+// Посаженная бронь без запущенной сессии — это отмеченный приход: человек у стойки, машина ещё
+// не запущена. Раньше такая бронь не предлагала ничего, и отметка прихода закрывала дверь к запуску.
+it('bookingDetailActions: посаженная бронь ещё ждёт запуска сессии', () => {
+  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: true, canSeat: false, canReject: false, canMarkNoShow: false });
+  // А вот у брони с уже запущенной сессией запускать нечего — сервер откажет.
+  expect(bookingDetailActions('seated', false, true).canStart).toBe(false);
+  expect(bookingDetailActions('confirmed', false, true).canStart).toBe(false);
 });
 
 // Повторяет правило сервера (ReservationNoShow.WhyNot) и не смягчает его. Если бы неявку

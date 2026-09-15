@@ -120,13 +120,19 @@ describe('BookingDrawer reservation lifecycle actions', () => {
     expect(onStart).toHaveBeenCalledTimes(1);
   });
 
-  it('seated and cancelled offer neither lifecycle action', () => {
-    for (const state of ['seated', 'cancelled']) {
-      const result = detail(state);
-      expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
-      expect(result.queryByRole('button', { name: 'Начать сессию' })).toBeNull();
-      cleanup();
-    }
+  it('cancelled offers neither lifecycle action', () => {
+    const result = detail('cancelled');
+    expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
+    expect(result.queryByRole('button', { name: 'Начать сессию' })).toBeNull();
+  });
+
+  // Посаженная бронь без запущенной сессии — это отмеченный приход: человек у стойки, машина
+  // ещё не запущена. Забрать у него «Начать сессию» значило бы рвать связь брони с сессией.
+  it('посаженная бронь всё ещё предлагает запустить сессию', () => {
+    const result = detail('seated');
+    expect(result.getByRole('button', { name: 'Начать сессию' })).toBeTruthy();
+    expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
+    expect(result.queryByRole('button', { name: 'Пришёл' })).toBeNull();
   });
 });
 

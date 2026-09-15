@@ -149,6 +149,45 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Equal(0, workflow.StageCalls);
     }
 
+    /// <summary>
+    /// Отметка прихода не закрывает дверь к запуску сессии.
+    ///
+    /// Заслон ловил и состояние <c>seated</c>, поэтому оператор, отметивший «Пришёл», больше не мог
+    /// начать человеку сессию с той же брони — бронь и сессия теряли связь. «Пришёл» и «сел за
+    /// машину» — разные события: между ними человек платит, выбирает пакет или ждёт место.
+    /// </summary>
+    [Fact]
+    public async Task StartAsync_AfterArrivalWasMarked_StartsTheSessionAndKeepsTheArrivalTime()
+    {
+        var arrivedAtUtc = Now.AddMinutes(-7);
+        await using var db = CreateDbContext();
+        await SeedLayoutAndReservationAsync(
+            db, reservationState: ReservationStateNames.Seated, seatedAtUtc: arrivedAtUtc);
+        var workflow = new EfSessionStartWorkflow(
+            db,
+            new TrackingCommandDispatchService(db),
+            new FakeLeaseSigner(),
+            new FixedTimeProvider(Now),
+            new TrackingBillingService(db),
+            new RecordingSessionLifecycleNotifier(),
+            new EfPlanLimitGuard(db));
+        var coordinator = CreateCoordinator(db, workflow);
+
+        var result = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            Request(expectedVersion: 1),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var reservation = await db.Reservations.SingleAsync();
+        Assert.Equal(ReservationStateNames.Seated, reservation.State);
+        Assert.Equal(result.Response!.Session.Session.SessionId, reservation.StartedSessionId);
+        // Первая отметка сильнее: человек пришёл тогда, когда пришёл.
+        Assert.Equal(arrivedAtUtc, reservation.SeatedAtUtc);
+    }
+
     [Fact]
     public async Task StartAsync_AlreadyLinkedWithDifferentKey_ReturnsAlreadyStarted()
     {
@@ -901,7 +940,8 @@ public sealed class EfReservationSessionCoordinatorTests
         bool hasPlayer = true,
         DateTimeOffset? endsAtUtc = null,
         int version = 1,
-        Guid? startedSessionId = null)
+        Guid? startedSessionId = null,
+        DateTimeOffset? seatedAtUtc = null)
     {
         db.Reservations.Add(new ReservationEntity
         {
@@ -922,12 +962,16 @@ public sealed class EfReservationSessionCoordinatorTests
             UpdatedAtUtc = Now.AddMinutes(-10),
             CancelReason = string.Empty,
             Version = version,
-            StartedSessionId = startedSessionId
+            StartedSessionId = startedSessionId,
+            SeatedAtUtc = seatedAtUtc
         });
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedLayoutAndReservationAsync(PlatformDbContext db)
+    private static async Task SeedLayoutAndReservationAsync(
+        PlatformDbContext db,
+        string reservationState = ReservationStateNames.Confirmed,
+        DateTimeOffset? seatedAtUtc = null)
     {
         var zoneId = Guid.Parse("85555555-5555-4555-8555-555555555555");
         db.Organizations.Add(new OrganizationEntity
@@ -992,7 +1036,7 @@ public sealed class EfReservationSessionCoordinatorTests
             CreatedAtUtc = Now
         });
         await db.SaveChangesAsync();
-        await SeedReservationAsync(db);
+        await SeedReservationAsync(db, state: reservationState, seatedAtUtc: seatedAtUtc);
     }
 
     private static async Task SeedPostgresReservationAsync(SessionStartPostgresFixture database)
