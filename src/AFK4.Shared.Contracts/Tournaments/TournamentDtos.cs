@@ -20,8 +20,9 @@ public sealed record TournamentDto(
     string CancelReason);
 
 /// <summary>
-/// Событие глазами игрока: только то, по чему решают, идти ли. Черновиков здесь не бывает,
-/// а вместо списка участников — сколько мест осталось и записан ли он сам.
+/// Событие клуба — турнир, ночь игры, чемпионат зала — глазами игрока: только то, по чему решают,
+/// идти ли. Черновиков здесь не бывает, а вместо списка участников — сколько мест осталось и
+/// записан ли он сам.
 /// </summary>
 public sealed record PlayerTournamentDto(
     Guid TournamentId,
@@ -29,13 +30,18 @@ public sealed record PlayerTournamentDto(
     string BranchName,
     string Title,
     string Description,
+    // Игра словами клуба («Dota 2», «FIFA»). Пусто — клуб не уточнил.
     string Discipline,
     DateTimeOffset StartsAtUtc,
+    // Взнос за участие. 0 — бесплатно, и это обычный случай для вечера, которым клуб просто
+    // заполняет будний день.
     MoneyDto EntryFee,
+    // Сколько человек берут. 0 — без ограничения.
     int Capacity,
     int RegisteredCount,
     bool IsRegistered,
     string State,
+    // Почему клуб отменил. Пусто, пока событие в силе.
     string CancelReason);
 
 /// <summary>Кто записался — список для стойки: по нему встречают на входе.</summary>

@@ -133,6 +133,8 @@ class ActiveSessionDto {
   final String seatName;
   final DateTime startedAtUtc;
 
+  /// Режим сессии. "fixed" — оплачена наперёд, показывается остаток; "open" — счётчик времени и
+  /// накопленная стоимость.
   /// "open" | "fixed"
   final String durationMode;
 
@@ -938,6 +940,8 @@ class CancelTournamentRequest {
       };
 }
 
+/// Начисление кешбэка: сколько, когда и за что.
+///
 /// Контракт: Loyalty/CashbackEntryDto.cs
 class CashbackEntryDto {
   const CashbackEntryDto({
@@ -949,6 +953,9 @@ class CashbackEntryDto {
 
   final int amountMinorUnits;
   final String currencyCode;
+
+  /// Служебная причина вида `cashback:topup` или `cashback:shop:{id}`. Разбирается на экране в
+  /// человеческую подпись: показывать игроку внутреннее имя события незачем.
   final String reason;
   final DateTime createdAtUtc;
 
@@ -1361,6 +1368,8 @@ class ClubReviewsPageDto {
     required this.items,
   });
 
+
+  /// Пусто — оценок пока нет. Это не ноль звёзд.
   final double? rating;
   final int reviewCount;
   final List<ClubReviewDto> items;
@@ -2859,6 +2868,8 @@ class CreateZoneRequest {
 }
 
 /// A page of results plus the cursor to fetch the next page (null when exhausted).
+/// Курсор — это «продолжить отсюда», а не номер страницы: список растёт с одного конца, и смещение
+/// съезжало бы на каждой новой записи.
 ///
 /// Контракт: Common/CursorPage.cs
 class CursorPage<T> {
@@ -5760,6 +5771,9 @@ class MePersonDto {
   final bool phoneVerified;
   final bool pinSet;
   final bool networkBanned;
+
+  /// За что закрыт вход. Запрет, о котором человек не может узнать причину, читается как поломка
+  /// приложения — и он идёт спорить к стойке, которая его не ставила.
   final String? networkBanReason;
 
   factory MePersonDto.fromJson(Map<String, dynamic> json) => MePersonDto(
@@ -6045,6 +6059,8 @@ class MovePlayerReservationRequest {
 
 /// Один клуб глазами игрока: сколько можно потратить, сколько придержано под брони, сколько
 /// он должен и сколько раз приходил.
+/// Клуба нет в списке — значит человек в нём ещё ничего не делал, и счёта там пока нет. Это
+/// нормальное состояние, а не сбой: показывать его ошибкой значит пугать на ровном месте.
 ///
 /// Контракт: Players/MeDto.cs
 class MyClubDto {
@@ -8127,6 +8143,8 @@ class PackageDefinitionDto {
       };
 }
 
+/// Пакет часов в прайсе клуба: предоплата, за которую час выходит дешевле поминутного тарифа.
+///
 /// Контракт: Operator/PackageOptionDto.cs
 class PackageOptionDto {
   const PackageOptionDto({
@@ -8143,6 +8161,9 @@ class PackageOptionDto {
   final String name;
   final String currencyCode;
   final int priceMinorUnits;
+
+  /// Оплаченное и бонусное время — две величины одного: игрок покупает часы, а не два
+  /// отдельных счётчика, и складывать их полагается тому, кто показывает.
   final int includedSeconds;
   final int bonusSeconds;
   final int expiresAfterDays;
@@ -8221,6 +8242,7 @@ class PaymentPartDto {
 }
 
 /// A finished visit that has not been reviewed yet — what the app offers to rate.
+/// Оценить предлагается один раз и только пока вечер свежий в памяти.
 ///
 /// Контракт: Reviews/ClubReviewDtos.cs
 class PendingClubReviewDto {
@@ -9350,6 +9372,9 @@ class PlayerBookingRulesDto {
   });
 
   final String branchId;
+
+  /// `auto` — клуб подтверждает сам, `manual` — заявку смотрит администратор, `off` — брони из
+  /// приложения не принимаются.
   final String acceptanceMode;
   final int respondWithinMinutes;
   final bool prepaymentRequired;
@@ -9403,6 +9428,8 @@ class PlayerCodeSignInRequest {
       };
 }
 
+/// Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий.
+///
 /// Контракт: Players/PlayerPhoneVerificationContracts.cs
 class PlayerCodeSignInStartedResponse {
   const PlayerCodeSignInStartedResponse({
@@ -9551,6 +9578,9 @@ class PlayerLedgerEntryDto {
       };
 }
 
+/// Кешбэк игрока: сколько накоплено и по каким правилам начисляется.
+/// Кешбэк — не баллы: он приходит на кошелёк обычными деньгами, и тратится так же.
+///
 /// Контракт: Loyalty/PlayerLoyaltyDto.cs
 class PlayerLoyaltyDto {
   const PlayerLoyaltyDto({
@@ -9596,6 +9626,8 @@ class PlayerLoyaltyDto {
       };
 }
 
+/// Новость или акция клуба.
+///
 /// Контракт: News/PlayerNewsItemDto.cs
 class PlayerNewsItemDto {
   const PlayerNewsItemDto({
@@ -9648,6 +9680,9 @@ class PlayerNotificationDto {
   });
 
   final String notificationId;
+
+  /// Служебное имя события (`player.order_ready` и подобные). Приложение по нему ставит значок —
+  /// показывать его человеку незачем.
   final String templateKey;
   final String subject;
   final String body;
@@ -9697,6 +9732,8 @@ class PlayerNotificationsDto {
       };
 }
 
+/// Купленный пакет с остатком времени.
+///
 /// Контракт: Packages/PlayerPackageDto.cs
 class PlayerPackageDto {
   const PlayerPackageDto({
@@ -9849,6 +9886,7 @@ class PlayerPhoneVerificationStartedResponse {
       };
 }
 
+/// Профиль игрока: как его зовут, чем он подписан и что он разрешил присылать.
 /// HomeBranchId is what lets the app ask for the club's price list at all: the catalog endpoints are
 /// per-branch, and until now the player had no way to learn which branch the account belongs to —
 /// the server resolved it silently on every write. The name comes along so the app can say where it
@@ -9871,6 +9909,8 @@ class PlayerProfileDto {
   final String displayName;
   final String? phoneNumber;
   final bool phoneVerified;
+
+  /// Пусто — игрок не выбирал язык, и письма идут на языке клуба.
   final String? preferredLocale;
   final bool marketingOptIn;
   final String? homeBranchId;
@@ -9899,6 +9939,8 @@ class PlayerProfileDto {
       };
 }
 
+/// Покупка в баре: когда, что и на сколько.
+///
 /// Контракт: Players/PlayerPurchaseDto.cs
 class PlayerPurchaseDto {
   const PlayerPurchaseDto({
@@ -9932,6 +9974,8 @@ class PlayerPurchaseDto {
       };
 }
 
+/// Строка покупки: что, сколько и на какую сумму.
+///
 /// Контракт: Players/PlayerPurchaseLineDto.cs
 class PlayerPurchaseLineDto {
   const PlayerPurchaseLineDto({
@@ -9981,6 +10025,8 @@ class PlayerReferralDto {
     required this.canClaimCode,
   });
 
+
+  /// Клуб платит за приглашения. false — экран честно говорит, что программы нет.
   final bool enabled;
   final String? code;
   final int referrerBonusMinorUnits;
@@ -10130,12 +10176,20 @@ class PlayerReservationDto {
 
   final String reservationId;
   final String? seatId;
+
+  /// Пусто — клуб ещё не назначил конкретное место.
   final String? seatName;
   final DateTime startsAtUtc;
   final DateTime endsAtUtc;
+
+  /// Отменить можно то, что ещё не состоялось: `pending` и `confirmed`. Отменённую или уже
+  /// отыгранную бронь трогать нечего — кнопка там только сбивает с толку.
   final String state;
   final String? note;
   final String? tariffVersionId;
+
+  /// Название выбранного тарифа и стоимость, посчитанная сервером при брони. Пусто — бронь
+  /// завели на стойке, там же её и посчитают.
   final String? tariffName;
   final int? estimatedCostMinorUnits;
   final String? currencyCode;
@@ -10204,6 +10258,9 @@ class PlayerReservationGroupDto {
 
   final String reservationGroupId;
   final List<PlayerReservationDto> reservations;
+
+  /// Сумма по всей компании — она же замороженная. Пусто — бронь без тарифа, её посчитают
+  /// на стойке.
   final int? totalEstimatedCostMinorUnits;
   final String? currencyCode;
 
@@ -10366,6 +10423,8 @@ class PlayerSelfEndSessionResponse {
   });
 
   final int billedMinutes;
+
+  /// Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью.
   final MoneyDto refunded;
 
   factory PlayerSelfEndSessionResponse.fromJson(Map<String, dynamic> json) => PlayerSelfEndSessionResponse(
@@ -10657,6 +10716,8 @@ class PlayerSignInResponse {
       };
 }
 
+/// Заявка на пополнение кошелька: игрок просит зачислить сумму, клуб подтверждает.
+///
 /// Контракт: Players/PlayerTopUpIntentDto.cs
 class PlayerTopUpIntentDto {
   const PlayerTopUpIntentDto({
@@ -10681,14 +10742,20 @@ class PlayerTopUpIntentDto {
   final String currencyCode;
   final String state;
   final String purpose;
+
+  /// `counter` — деньги вносят на стойке, `eskhata` — платят из приложения банка.
   final String method;
   final DateTime createdAtUtc;
   final DateTime? fulfilledAtUtc;
   final bool isExpired;
+
+  /// Страница оплаты в браузере — запасной путь для телефона без приложения банка.
   final String? payUrl;
   final String? comment;
   final DateTime? gatewayExpiresAtUtc;
   final String? qr;
+
+  /// Ссылка, открывающая приложение банка. Пусто, если платят на стойке или банк её не дал.
   final String? deepLink;
 
   factory PlayerTopUpIntentDto.fromJson(Map<String, dynamic> json) => PlayerTopUpIntentDto(
@@ -10788,8 +10855,9 @@ class PlayerTopUpMethodsDto {
       };
 }
 
-/// Событие глазами игрока: только то, по чему решают, идти ли. Черновиков здесь не бывает,
-/// а вместо списка участников — сколько мест осталось и записан ли он сам.
+/// Событие клуба — турнир, ночь игры, чемпионат зала — глазами игрока: только то, по чему решают,
+/// идти ли. Черновиков здесь не бывает, а вместо списка участников — сколько мест осталось и
+/// записан ли он сам.
 ///
 /// Контракт: Tournaments/TournamentDtos.cs
 class PlayerTournamentDto {
@@ -10814,13 +10882,22 @@ class PlayerTournamentDto {
   final String branchName;
   final String title;
   final String description;
+
+  /// Игра словами клуба («Dota 2», «FIFA»). Пусто — клуб не уточнил.
   final String discipline;
   final DateTime startsAtUtc;
+
+  /// Взнос за участие. 0 — бесплатно, и это обычный случай для вечера, которым клуб просто
+  /// заполняет будний день.
   final MoneyDto entryFee;
+
+  /// Сколько человек берут. 0 — без ограничения.
   final int capacity;
   final int registeredCount;
   final bool isRegistered;
   final String state;
+
+  /// Почему клуб отменил. Пусто, пока событие в силе.
   final String cancelReason;
 
   factory PlayerTournamentDto.fromJson(Map<String, dynamic> json) => PlayerTournamentDto(
@@ -10856,6 +10933,8 @@ class PlayerTournamentDto {
       };
 }
 
+/// Прошедший визит: где сидел, сколько пробыл и на сколько наиграл.
+///
 /// Контракт: Players/PlayerVisitDto.cs
 class PlayerVisitDto {
   const PlayerVisitDto({
@@ -10875,6 +10954,8 @@ class PlayerVisitDto {
   final String seatId;
   final String seatName;
   final DateTime startedAtUtc;
+
+  /// Пусто — визит ещё не закрыт.
   final DateTime? endedAtUtc;
   final int timeChargeMinorUnits;
   final int posTotalMinorUnits;
@@ -10909,6 +10990,8 @@ class PlayerVisitDto {
       };
 }
 
+/// Чек визита: время, покупки и итог.
+///
 /// Контракт: Players/PlayerVisitReceiptDto.cs
 class PlayerVisitReceiptDto {
   const PlayerVisitReceiptDto({
@@ -13901,6 +13984,8 @@ class ShiftSummaryDto {
       };
 }
 
+/// Позиция меню бара: что можно заказать к месту прямо во время сессии.
+///
 /// Контракт: Shop/ShopCatalogItemDto.cs
 class ShopCatalogItemDto {
   const ShopCatalogItemDto({
@@ -13915,6 +14000,9 @@ class ShopCatalogItemDto {
   final String name;
   final String sku;
   final MoneyDto price;
+
+  /// Остаток на складе филиала. Сервер уже убрал отсюда то, что кончилось и не продаётся в минус,
+  /// поэтому число нужно только чтобы предупредить о последних штуках.
   final int stockOnHand;
 
   factory ShopCatalogItemDto.fromJson(Map<String, dynamic> json) => ShopCatalogItemDto(
@@ -13934,6 +14022,8 @@ class ShopCatalogItemDto {
       };
 }
 
+/// Заказ к месту и его судьба: оформлен, готовится, принесли, отменён.
+///
 /// Контракт: Shop/ShopOrderDto.cs
 class ShopOrderDto {
   const ShopOrderDto({
@@ -13958,9 +14048,15 @@ class ShopOrderDto {
   final String seatId;
   final String playerAccountId;
   final String playerDisplayName;
+
+  /// `placed` и `accepted` — заказ ещё в работе, за ним есть смысл следить и его ещё можно
+  /// отменить. После «принесли» отменять нечего.
   final String status;
   final MoneyDto total;
   final List<ShopOrderLineDto> lines;
+
+  /// Когда заказ оформили. Нужно списку прошлых заказов: без времени «принесли» и «отменён»
+  /// сливаются в кучу одинаковых строк.
   final DateTime placedAtUtc;
   final DateTime? acceptedAtUtc;
   final DateTime? deliveredAtUtc;
@@ -14003,6 +14099,8 @@ class ShopOrderDto {
       };
 }
 
+/// Строка заказа: что и сколько.
+///
 /// Контракт: Shop/ShopOrderLineDto.cs
 class ShopOrderLineDto {
   const ShopOrderLineDto({
@@ -14968,9 +15066,15 @@ class TariffDto {
       };
 }
 
-/// Тариф, который можно выбрать. `AppliesNow` считает сервер по часовому поясу филиала:
-/// клиент, повторивший этот расчёт у себя, ошибётся на телефоне с чужим часовым поясом и
-/// предложит утреннюю цену вечером.
+/// Тариф, который можно выбрать: по чём и с какими правилами считается время. `AppliesNow`
+/// считает сервер по часовому поясу филиала: клиент, повторивший этот расчёт у себя, ошибётся на
+/// телефоне с чужим часовым поясом и предложит утреннюю цену вечером.
+/// Цену по этим полям клиент НЕ считает — за этим есть расчёт на сервере: минимальное
+/// оплачиваемое время и шаг округления живут в биллинге, и вторая арифметика здесь разошлась бы
+/// с настоящим списанием.
+/// AppliesFromMinuteOfDay и AppliesToMinuteOfDay — окно
+/// местного времени клуба, минуты от полуночи. Оба пусты — круглосуточно, начало больше конца —
+/// переход через полночь.
 ///
 /// Контракт: Operator/TariffOptionDto.cs
 class TariffOptionDto {
@@ -15001,9 +15105,14 @@ class TariffOptionDto {
   final int minimumBillableMinutes;
   final int roundingIncrementMinutes;
   final DateTime effectiveFromUtc;
+
+  /// Биты дней недели с понедельника (1) по воскресенье (64); 0 — каждый день.
   final int? appliesOnDaysMask;
   final int? appliesFromMinuteOfDay;
   final int? appliesToMinuteOfDay;
+
+  /// Действует ли тариф прямо сейчас — по часам клуба, а не телефона. Важно там, где играть
+  /// начинают сию секунду; для брони на завтра ответ никакого значения не имеет.
   final bool? appliesNow;
 
   factory TariffOptionDto.fromJson(Map<String, dynamic> json) => TariffOptionDto(
@@ -16883,6 +16992,9 @@ class VoidPosSaleRequest {
 /// из него уже вычтена, потому что холд и есть отрицательная запись журнала.
 /// HeldBalance ничего не переносит и не пересчитывает — оно объясняет, куда
 /// делась часть остатка.
+/// Это ответ на денежную операцию, и он отдельно от `PlayerDashboardDto` намеренно: идущей
+/// сессии здесь нет, и делать вид, что она просто «пустая», значит однажды показать «сессии нет»
+/// там, где она есть.
 ///
 /// Контракт: Billing/WalletSummaryDto.cs
 class WalletSummaryDto {

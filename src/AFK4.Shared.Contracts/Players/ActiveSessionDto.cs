@@ -7,6 +7,8 @@ public sealed record ActiveSessionDto(
     Guid SeatId,
     string SeatName,
     DateTimeOffset StartedAtUtc,
+    // Режим сессии. "fixed" — оплачена наперёд, показывается остаток; "open" — счётчик времени и
+    // накопленная стоимость.
     string DurationMode,            // "open" | "fixed"
     int? RemainingSeconds,          // fixed only
     long? AccruedCostMinorUnits,    // open only

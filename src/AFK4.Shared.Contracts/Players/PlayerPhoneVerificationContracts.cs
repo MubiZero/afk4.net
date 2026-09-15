@@ -14,6 +14,9 @@ public sealed record PlayerPhoneStatusResponse(string? Phone, DateTimeOffset? Ph
 /// <summary>Просьба прислать код для входа. Ответ одинаков независимо от того, есть ли такой игрок.</summary>
 public sealed record PlayerCodeSignInStartRequest(Guid OrganizationId, string PhoneNumber);
 
+/// <summary>
+/// Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий.
+/// </summary>
 public sealed record PlayerCodeSignInStartedResponse(int ExpiresInSeconds, int ResendAfterSeconds);
 
 public sealed record PlayerCodeSignInRequest(Guid OrganizationId, string PhoneNumber, string Code);

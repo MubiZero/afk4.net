@@ -16,4 +16,5 @@ public sealed record PlayerSelfEndSessionRequest(string IdempotencyKey);
 /// </param>
 public sealed record PlayerSelfEndSessionResponse(
     int BilledMinutes,
+    // Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью.
     MoneyDto Refunded);

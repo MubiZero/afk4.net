@@ -59,7 +59,11 @@ export interface ActiveSessionDto {
   seatId: Guid;
   seatName: string;
   startedAtUtc: IsoDateTime;
-  /** "open" | "fixed" */
+  /**
+   * Режим сессии. "fixed" — оплачена наперёд, показывается остаток; "open" — счётчик времени и
+   * накопленная стоимость.
+   * "open" | "fixed"
+   */
   durationMode: string;
   /** fixed only */
   remainingSeconds: number | null;
@@ -318,10 +322,18 @@ export interface CancelTournamentRequest {
   reason: string;
 }
 
-/** Контракт: Loyalty/CashbackEntryDto.cs */
+/**
+ * Начисление кешбэка: сколько, когда и за что.
+ *
+ * Контракт: Loyalty/CashbackEntryDto.cs
+ */
 export interface CashbackEntryDto {
   amountMinorUnits: number;
   currencyCode: string;
+  /**
+   * Служебная причина вида `cashback:topup` или `cashback:shop:{id}`. Разбирается на экране в
+   * человеческую подпись: показывать игроку внутреннее имя события незачем.
+   */
   reason: string;
   createdAtUtc: IsoDateTime;
 }
@@ -457,6 +469,7 @@ export interface ClubReviewDto {
  * Контракт: Reviews/ClubReviewDtos.cs
  */
 export interface ClubReviewsPageDto {
+  /** Пусто — оценок пока нет. Это не ноль звёзд. */
   rating: number | null;
   reviewCount: number;
   items: ClubReviewDto[];
@@ -920,6 +933,8 @@ export interface CreateZoneRequest {
 
 /**
  * A page of results plus the cursor to fetch the next page (null when exhausted).
+ * Курсор — это «продолжить отсюда», а не номер страницы: список растёт с одного конца, и смещение
+ * съезжало бы на каждой новой записи.
  *
  * Контракт: Common/CursorPage.cs
  */
@@ -1794,6 +1809,10 @@ export interface MePersonDto {
   phoneVerified: boolean;
   pinSet: boolean;
   networkBanned: boolean;
+  /**
+   * За что закрыт вход. Запрет, о котором человек не может узнать причину, читается как поломка
+   * приложения — и он идёт спорить к стойке, которая его не ставила.
+   */
   networkBanReason: string | null;
 }
 
@@ -1896,6 +1915,8 @@ export interface MovePlayerReservationRequest {
 /**
  * Один клуб глазами игрока: сколько можно потратить, сколько придержано под брони, сколько
  * он должен и сколько раз приходил.
+ * Клуба нет в списке — значит человек в нём ещё ничего не делал, и счёта там пока нет. Это
+ * нормальное состояние, а не сбой: показывать его ошибкой значит пугать на ровном месте.
  *
  * Контракт: Players/MeDto.cs
  */
@@ -2510,12 +2531,20 @@ export interface PackageDefinitionDto {
   createdAtUtc: IsoDateTime;
 }
 
-/** Контракт: Operator/PackageOptionDto.cs */
+/**
+ * Пакет часов в прайсе клуба: предоплата, за которую час выходит дешевле поминутного тарифа.
+ *
+ * Контракт: Operator/PackageOptionDto.cs
+ */
 export interface PackageOptionDto {
   packageDefinitionId: Guid;
   name: string;
   currencyCode: string;
   priceMinorUnits: number;
+  /**
+   * Оплаченное и бонусное время — две величины одного: игрок покупает часы, а не два
+   * отдельных счётчика, и складывать их полагается тому, кто показывает.
+   */
   includedSeconds: number;
   bonusSeconds: number;
   expiresAfterDays: number;
@@ -2541,6 +2570,7 @@ export interface PaymentPartDto {
 
 /**
  * A finished visit that has not been reviewed yet — what the app offers to rate.
+ * Оценить предлагается один раз и только пока вечер свежий в памяти.
  *
  * Контракт: Reviews/ClubReviewDtos.cs
  */
@@ -2908,6 +2938,10 @@ export interface PlayerAchievementsDto {
  */
 export interface PlayerBookingRulesDto {
   branchId: Guid;
+  /**
+   * `auto` — клуб подтверждает сам, `manual` — заявку смотрит администратор, `off` — брони из
+   * приложения не принимаются.
+   */
   acceptanceMode: string;
   respondWithinMinutes: number;
   prepaymentRequired: boolean;
@@ -2923,7 +2957,11 @@ export interface PlayerCodeSignInRequest {
   code: string;
 }
 
-/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
+/**
+ * Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий.
+ *
+ * Контракт: Players/PlayerPhoneVerificationContracts.cs
+ */
 export interface PlayerCodeSignInStartedResponse {
   expiresInSeconds: number;
   resendAfterSeconds: number;
@@ -2989,7 +3027,12 @@ export interface PlayerLedgerEntryDto {
   createdAtUtc: IsoDateTime;
 }
 
-/** Контракт: Loyalty/PlayerLoyaltyDto.cs */
+/**
+ * Кешбэк игрока: сколько накоплено и по каким правилам начисляется.
+ * Кешбэк — не баллы: он приходит на кошелёк обычными деньгами, и тратится так же.
+ *
+ * Контракт: Loyalty/PlayerLoyaltyDto.cs
+ */
 export interface PlayerLoyaltyDto {
   topUpEnabled: boolean;
   topUpPercentBasisPoints: number;
@@ -3001,7 +3044,11 @@ export interface PlayerLoyaltyDto {
   recent: CashbackEntryDto[];
 }
 
-/** Контракт: News/PlayerNewsItemDto.cs */
+/**
+ * Новость или акция клуба.
+ *
+ * Контракт: News/PlayerNewsItemDto.cs
+ */
 export interface PlayerNewsItemDto {
   id: Guid;
   title: string;
@@ -3021,6 +3068,10 @@ export interface PlayerNewsItemDto {
  */
 export interface PlayerNotificationDto {
   notificationId: Guid;
+  /**
+   * Служебное имя события (`player.order_ready` и подобные). Приложение по нему ставит значок —
+   * показывать его человеку незачем.
+   */
   templateKey: string;
   subject: string;
   body: string;
@@ -3035,7 +3086,11 @@ export interface PlayerNotificationsDto {
   unreadCount: number;
 }
 
-/** Контракт: Packages/PlayerPackageDto.cs */
+/**
+ * Купленный пакет с остатком времени.
+ *
+ * Контракт: Packages/PlayerPackageDto.cs
+ */
 export interface PlayerPackageDto {
   playerPackageId: Guid;
   packageDefinitionId: Guid;
@@ -3082,6 +3137,7 @@ export interface PlayerPhoneVerificationStartedResponse {
 }
 
 /**
+ * Профиль игрока: как его зовут, чем он подписан и что он разрешил присылать.
  * HomeBranchId is what lets the app ask for the club's price list at all: the catalog endpoints are
  * per-branch, and until now the player had no way to learn which branch the account belongs to —
  * the server resolved it silently on every write. The name comes along so the app can say where it
@@ -3094,13 +3150,18 @@ export interface PlayerProfileDto {
   displayName: string;
   phoneNumber: string | null;
   phoneVerified: boolean;
+  /** Пусто — игрок не выбирал язык, и письма идут на языке клуба. */
   preferredLocale: string | null;
   marketingOptIn: boolean;
   homeBranchId?: Guid | null;
   homeBranchName?: string | null;
 }
 
-/** Контракт: Players/PlayerPurchaseDto.cs */
+/**
+ * Покупка в баре: когда, что и на сколько.
+ *
+ * Контракт: Players/PlayerPurchaseDto.cs
+ */
 export interface PlayerPurchaseDto {
   posSaleId: Guid;
   createdAtUtc: IsoDateTime;
@@ -3109,7 +3170,11 @@ export interface PlayerPurchaseDto {
   lines: PlayerPurchaseLineDto[];
 }
 
-/** Контракт: Players/PlayerPurchaseLineDto.cs */
+/**
+ * Строка покупки: что, сколько и на какую сумму.
+ *
+ * Контракт: Players/PlayerPurchaseLineDto.cs
+ */
 export interface PlayerPurchaseLineDto {
   productName: string;
   quantity: number;
@@ -3125,6 +3190,7 @@ export interface PlayerPurchaseLineDto {
  * Контракт: Loyalty/ReferralContracts.cs
  */
 export interface PlayerReferralDto {
+  /** Клуб платит за приглашения. false — экран честно говорит, что программы нет. */
   enabled: boolean;
   code: string | null;
   referrerBonusMinorUnits: number;
@@ -3187,12 +3253,21 @@ export interface PlayerReputationLookupRequest {
 export interface PlayerReservationDto {
   reservationId: Guid;
   seatId: Guid | null;
+  /** Пусто — клуб ещё не назначил конкретное место. */
   seatName: string | null;
   startsAtUtc: IsoDateTime;
   endsAtUtc: IsoDateTime;
+  /**
+   * Отменить можно то, что ещё не состоялось: `pending` и `confirmed`. Отменённую или уже
+   * отыгранную бронь трогать нечего — кнопка там только сбивает с толку.
+   */
   state: string;
   note: string | null;
   tariffVersionId?: Guid | null;
+  /**
+   * Название выбранного тарифа и стоимость, посчитанная сервером при брони. Пусто — бронь
+   * завели на стойке, там же её и посчитают.
+   */
   tariffName?: string | null;
   estimatedCostMinorUnits?: number | null;
   currencyCode?: string | null;
@@ -3223,6 +3298,10 @@ export interface PlayerReservationDto {
 export interface PlayerReservationGroupDto {
   reservationGroupId: Guid;
   reservations: PlayerReservationDto[];
+  /**
+   * Сумма по всей компании — она же замороженная. Пусто — бронь без тарифа, её посчитают
+   * на стойке.
+   */
   totalEstimatedCostMinorUnits: number | null;
   currencyCode: string | null;
 }
@@ -3290,6 +3369,7 @@ export interface PlayerSelfEndSessionRequest {
  */
 export interface PlayerSelfEndSessionResponse {
   billedMinutes: number;
+  /** Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью. */
   refunded: MoneyDto;
 }
 
@@ -3387,21 +3467,28 @@ export interface PlayerSignInResponse {
   refreshTokenExpiresAtUtc: IsoDateTime;
 }
 
-/** Контракт: Players/PlayerTopUpIntentDto.cs */
+/**
+ * Заявка на пополнение кошелька: игрок просит зачислить сумму, клуб подтверждает.
+ *
+ * Контракт: Players/PlayerTopUpIntentDto.cs
+ */
 export interface PlayerTopUpIntentDto {
   paymentIntentId: Guid;
   amountMinorUnits: number;
   currencyCode: string;
   state: string;
   purpose: string;
+  /** `counter` — деньги вносят на стойке, `eskhata` — платят из приложения банка. */
   method: string;
   createdAtUtc: IsoDateTime;
   fulfilledAtUtc: IsoDateTime | null;
   isExpired: boolean;
+  /** Страница оплаты в браузере — запасной путь для телефона без приложения банка. */
   payUrl?: string | null;
   comment?: string | null;
   gatewayExpiresAtUtc?: IsoDateTime | null;
   qr?: string | null;
+  /** Ссылка, открывающая приложение банка. Пусто, если платят на стойке или банк её не дал. */
   deepLink?: string | null;
 }
 
@@ -3436,8 +3523,9 @@ export interface PlayerTopUpMethodsDto {
 }
 
 /**
- * Событие глазами игрока: только то, по чему решают, идти ли. Черновиков здесь не бывает,
- * а вместо списка участников — сколько мест осталось и записан ли он сам.
+ * Событие клуба — турнир, ночь игры, чемпионат зала — глазами игрока: только то, по чему решают,
+ * идти ли. Черновиков здесь не бывает, а вместо списка участников — сколько мест осталось и
+ * записан ли он сам.
  *
  * Контракт: Tournaments/TournamentDtos.cs
  */
@@ -3447,22 +3535,34 @@ export interface PlayerTournamentDto {
   branchName: string;
   title: string;
   description: string;
+  /** Игра словами клуба («Dota 2», «FIFA»). Пусто — клуб не уточнил. */
   discipline: string;
   startsAtUtc: IsoDateTime;
+  /**
+   * Взнос за участие. 0 — бесплатно, и это обычный случай для вечера, которым клуб просто
+   * заполняет будний день.
+   */
   entryFee: MoneyDto;
+  /** Сколько человек берут. 0 — без ограничения. */
   capacity: number;
   registeredCount: number;
   isRegistered: boolean;
   state: string;
+  /** Почему клуб отменил. Пусто, пока событие в силе. */
   cancelReason: string;
 }
 
-/** Контракт: Players/PlayerVisitDto.cs */
+/**
+ * Прошедший визит: где сидел, сколько пробыл и на сколько наиграл.
+ *
+ * Контракт: Players/PlayerVisitDto.cs
+ */
 export interface PlayerVisitDto {
   sessionId: Guid;
   seatId: Guid;
   seatName: string;
   startedAtUtc: IsoDateTime;
+  /** Пусто — визит ещё не закрыт. */
   endedAtUtc: IsoDateTime | null;
   timeChargeMinorUnits: number;
   posTotalMinorUnits: number;
@@ -3471,7 +3571,11 @@ export interface PlayerVisitDto {
   hasReceipt: boolean;
 }
 
-/** Контракт: Players/PlayerVisitReceiptDto.cs */
+/**
+ * Чек визита: время, покупки и итог.
+ *
+ * Контракт: Players/PlayerVisitReceiptDto.cs
+ */
 export interface PlayerVisitReceiptDto {
   receiptNumber: string;
   createdAtUtc: IsoDateTime;
@@ -4455,25 +4559,45 @@ export interface ShiftSummaryDto {
   difference: MoneyDto;
 }
 
-/** Контракт: Shop/ShopCatalogItemDto.cs */
+/**
+ * Позиция меню бара: что можно заказать к месту прямо во время сессии.
+ *
+ * Контракт: Shop/ShopCatalogItemDto.cs
+ */
 export interface ShopCatalogItemDto {
   productId: Guid;
   name: string;
   sku: string;
   price: MoneyDto;
+  /**
+   * Остаток на складе филиала. Сервер уже убрал отсюда то, что кончилось и не продаётся в минус,
+   * поэтому число нужно только чтобы предупредить о последних штуках.
+   */
   stockOnHand: number;
 }
 
-/** Контракт: Shop/ShopOrderDto.cs */
+/**
+ * Заказ к месту и его судьба: оформлен, готовится, принесли, отменён.
+ *
+ * Контракт: Shop/ShopOrderDto.cs
+ */
 export interface ShopOrderDto {
   id: Guid;
   branchId: Guid;
   seatId: Guid;
   playerAccountId: Guid;
   playerDisplayName: string;
+  /**
+   * `placed` и `accepted` — заказ ещё в работе, за ним есть смысл следить и его ещё можно
+   * отменить. После «принесли» отменять нечего.
+   */
   status: string;
   total: MoneyDto;
   lines: ShopOrderLineDto[];
+  /**
+   * Когда заказ оформили. Нужно списку прошлых заказов: без времени «принесли» и «отменён»
+   * сливаются в кучу одинаковых строк.
+   */
   placedAtUtc: IsoDateTime;
   acceptedAtUtc: IsoDateTime | null;
   deliveredAtUtc: IsoDateTime | null;
@@ -4482,7 +4606,11 @@ export interface ShopOrderDto {
   posSaleId?: Guid | null;
 }
 
-/** Контракт: Shop/ShopOrderLineDto.cs */
+/**
+ * Строка заказа: что и сколько.
+ *
+ * Контракт: Shop/ShopOrderLineDto.cs
+ */
 export interface ShopOrderLineDto {
   productId: Guid;
   name: string;
@@ -4774,9 +4902,15 @@ export interface TariffDto {
 }
 
 /**
- * Тариф, который можно выбрать. `AppliesNow` считает сервер по часовому поясу филиала:
- * клиент, повторивший этот расчёт у себя, ошибётся на телефоне с чужим часовым поясом и
- * предложит утреннюю цену вечером.
+ * Тариф, который можно выбрать: по чём и с какими правилами считается время. `AppliesNow`
+ * считает сервер по часовому поясу филиала: клиент, повторивший этот расчёт у себя, ошибётся на
+ * телефоне с чужим часовым поясом и предложит утреннюю цену вечером.
+ * Цену по этим полям клиент НЕ считает — за этим есть расчёт на сервере: минимальное
+ * оплачиваемое время и шаг округления живут в биллинге, и вторая арифметика здесь разошлась бы
+ * с настоящим списанием.
+ * AppliesFromMinuteOfDay и AppliesToMinuteOfDay — окно
+ * местного времени клуба, минуты от полуночи. Оба пусты — круглосуточно, начало больше конца —
+ * переход через полночь.
  *
  * Контракт: Operator/TariffOptionDto.cs
  */
@@ -4791,9 +4925,14 @@ export interface TariffOptionDto {
   minimumBillableMinutes: number;
   roundingIncrementMinutes: number;
   effectiveFromUtc: IsoDateTime;
+  /** Биты дней недели с понедельника (1) по воскресенье (64); 0 — каждый день. */
   appliesOnDaysMask?: number;
   appliesFromMinuteOfDay?: number | null;
   appliesToMinuteOfDay?: number | null;
+  /**
+   * Действует ли тариф прямо сейчас — по часам клуба, а не телефона. Важно там, где играть
+   * начинают сию секунду; для брони на завтра ответ никакого значения не имеет.
+   */
   appliesNow?: boolean;
 }
 
@@ -5365,6 +5504,9 @@ export interface VoidPosSaleRequest {
  * из него уже вычтена, потому что холд и есть отрицательная запись журнала.
  * HeldBalance ничего не переносит и не пересчитывает — оно объясняет, куда
  * делась часть остатка.
+ * Это ответ на денежную операцию, и он отдельно от `PlayerDashboardDto` намеренно: идущей
+ * сессии здесь нет, и делать вид, что она просто «пустая», значит однажды показать «сессии нет»
+ * там, где она есть.
  *
  * Контракт: Billing/WalletSummaryDto.cs
  */
