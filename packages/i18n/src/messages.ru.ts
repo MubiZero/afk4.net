@@ -2854,6 +2854,8 @@ export const ru = {
   "platform.error.subscriptionPeriodEnd": "Конец оплаченного периода должен быть позже его начала.",
   "platform.error.subscriptionPlanNotFound": "Такого тарифа нет в каталоге. Обновите страницу — возможно, его сняли с продажи.",
   "platform.error.subscriptionTrialPeriodEnd": "Для пробного периода нужна дата его окончания.",
+  "platform.health.alertSms.missing": "Критические оповещения уходят только письмом. Резервный канал молчит: у шлюза нет одобренного шаблона platform.alert или не задано, кому слать.",
+  "platform.health.alertSms.title": "SMS-оповещения не настроены",
   "platform.health.failureStreak": "{count, plural, one {# неудача подряд} few {# неудачи подряд} other {# неудач подряд}}",
   "platform.health.failures.attempts": "{count, plural, one {# попытка} few {# попытки} other {# попыток}}",
   "platform.health.failures.empty": "Свежих провалов нет",

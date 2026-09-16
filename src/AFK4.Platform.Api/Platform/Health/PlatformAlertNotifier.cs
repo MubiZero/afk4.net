@@ -28,7 +28,12 @@ public sealed class PlatformAlertNotifier(
     // Виды, после которых теряются деньги или доверие клиентов. Список узкий намеренно:
     // SMS, приходящая на каждый warning, через неделю перестаёт читаться.
     /// <summary>Ключ шаблона payom для оповещений платформы. Шаблона пока нет — см. ниже.</summary>
-    private const string PlatformAlertTemplateKey = "platform.alert";
+    /// <summary>
+    /// Ключ одобренного шаблона SMS для оповещений платформы. Публичный, потому что тот же ключ
+    /// читает обзор здоровья: ненастроенный резервный канал должен быть виден до аварии, а не в
+    /// деталях провалившегося прогона после неё.
+    /// </summary>
+    public const string AlertTemplateKey = "platform.alert";
 
     /// <summary>Кириллица уходит как UCS-2: 71-й символ стоит как второе сообщение.</summary>
     private static string Shorten(string value, int limit) =>
@@ -108,11 +113,11 @@ public sealed class PlatformAlertNotifier(
             // Шлюз принимает только одобренный шаблон. Под оповещения платформы его нет, и
             // выдумывать чужой нельзя: пришлось бы отправить текст инцидента в плейсхолдер
             // шаблона про запись к мастеру. Пока шаблон не заведён — канал молчит, и это видно.
-            var alertTemplateId = smsOptions.Value.TemplateIds.GetValueOrDefault(PlatformAlertTemplateKey);
+            var alertTemplateId = smsOptions.Value.TemplateIds.GetValueOrDefault(AlertTemplateKey);
 
             if (smsWorthy && string.IsNullOrWhiteSpace(alertTemplateId))
             {
-                errors.Add($"sms: no payom template configured (Sms__TemplateIds__{PlatformAlertTemplateKey}).");
+                errors.Add($"sms: no payom template configured (Sms__TemplateIds__{AlertTemplateKey}).");
             }
             else if (smsWorthy)
             {

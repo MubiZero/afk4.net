@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Audit;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -29,6 +30,59 @@ public sealed class SupportAccessSessionEndpointTests
         var session = await first.Content.ReadFromJsonAsync<PlatformSupportSessionDto>();
         Assert.NotNull(session);
         Assert.Contains(PlatformSupportWritableAreas.BranchSettings, session!.WritableAreas);
+    }
+
+    // Выдача доступа и вход по нему — разные события. В журнале было видно только первое: клуб не
+    // мог узнать, воспользовались доступом к его данным или нет.
+    [Fact]
+    public async Task RedeemTicket_LeavesATrailOfTheSupportAgentActuallyEntering()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var ticket = await SupportAccessTestHelper.IssueTicketAsync(factory);
+
+        await client.PostAsJsonAsync("/api/public/support-access/sessions", new RedeemSupportAccessTicketRequest(ticket));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var record = await db.AuditRecords.SingleAsync(row => row.Action == "platform.support_access.redeem");
+        Assert.Equal(AuditOutcome.Succeeded, record.Outcome);
+        Assert.NotEqual(Guid.Empty, record.OrganizationId);
+    }
+
+    // Попытка войти по чужому или просроченному билету — ровно то, что ищут при разборе.
+    [Fact]
+    public async Task RedeemTicket_WithAnUnknownTicket_LeavesADeniedTrail()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/public/support-access/sessions", new RedeemSupportAccessTicketRequest("not-a-ticket"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var record = await db.AuditRecords.SingleAsync(row => row.Action == "platform.support_access.redeem");
+        Assert.Equal(AuditOutcome.Denied, record.Outcome);
+    }
+
+    // Закрытие доступа через панель журнал видел, а самостоятельный выход — нет, и оставалось
+    // «вошёл» без «вышел».
+    [Fact]
+    public async Task SignOut_LeavesATrail()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var (sessionToken, _, _, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
+        client.DefaultRequestHeaders.Add(PlatformSupportAccessGrantService.GrantHeaderName, sessionToken);
+
+        await client.DeleteAsync("/api/support-access/session");
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.True(await db.AuditRecords.AnyAsync(row => row.Action == "platform.support_access.session_end"));
     }
 
     [Fact]

@@ -217,6 +217,22 @@ internal static class PlatformBillingEndpoints
             }
 
             var result = await subscriptionService.GetAsync(organizationId, cancellationToken);
+
+            // Просмотр денег конкретного клуба — такой же след, как правка: клуб вправе узнать, кто
+            // смотрел его подписку. Раньше писался только отказ, и успешное чтение не оставляло
+            // ничего. Сводные витрины платформы (все счета, метрики) так не аудируются: там нет
+            // данных одного клуба, и запись на каждый взгляд превратила бы журнал в шум.
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: organizationId,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                action: AuditActionNames.ViewBilling,
+                targetType: "OrganizationSubscription",
+                targetId: organizationId.ToString("D"),
+                outcome: result.Succeeded ? AuditOutcome.Succeeded : AuditOutcome.Denied,
+                details: new { result.Succeeded },
+                cancellationToken);
+
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
         });
 
@@ -298,6 +314,19 @@ internal static class PlatformBillingEndpoints
             }
 
             var result = await invoiceService.ListForOrganizationAsync(organizationId, status, cancellationToken);
+
+            // Счета конкретного клуба — его деньги: просмотр оставляет след наравне с правкой.
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: organizationId,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                action: AuditActionNames.ViewBilling,
+                targetType: "Invoice",
+                targetId: organizationId.ToString("D"),
+                outcome: result.Succeeded ? AuditOutcome.Succeeded : AuditOutcome.Denied,
+                details: new { Status = status, Count = result.Value?.Count ?? 0 },
+                cancellationToken);
+
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
         });
 

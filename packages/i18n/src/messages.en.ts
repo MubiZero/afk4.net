@@ -2854,6 +2854,8 @@ export const en = {
   "platform.error.subscriptionPeriodEnd": "The paid period must end after it starts.",
   "platform.error.subscriptionPlanNotFound": "That plan is not in the catalogue. Refresh the page — it may have been retired.",
   "platform.error.subscriptionTrialPeriodEnd": "A trial period needs the date it ends.",
+  "platform.health.alertSms.missing": "Critical alerts go out by email only. The backup channel is silent: the gateway has no approved platform.alert template, or there is nobody to text.",
+  "platform.health.alertSms.title": "Alert SMS is not configured",
   "platform.health.failureStreak": "{count, plural, one {# failure in a row} other {# failures in a row}}",
   "platform.health.failures.attempts": "{count, plural, one {# attempt} other {# attempts}}",
   "platform.health.failures.empty": "No recent failures",

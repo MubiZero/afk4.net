@@ -8492,6 +8492,7 @@ class PlatformHealthOverviewDto {
     required this.openIncidents,
     required this.recentFailures,
     this.mediaStorageConfigured,
+    this.alertSmsConfigured,
   });
 
   final DateTime generatedAtUtc;
@@ -8504,6 +8505,11 @@ class PlatformHealthOverviewDto {
   /// панели. Видно здесь, а не при первой попытке загрузки — иначе об этом узнаёт клуб, а не мы.
   final bool? mediaStorageConfigured;
 
+  /// Резервный канал критических оповещений: SMS уходят только по одобренному шаблону шлюза, и
+  /// без него канал молчит. Пока это было видно лишь в деталях провалившегося прогона, «почта
+  /// умерла — придёт SMS» оставалось обещанием, которое некому было проверить.
+  final bool? alertSmsConfigured;
+
   factory PlatformHealthOverviewDto.fromJson(Map<String, dynamic> json) => PlatformHealthOverviewDto(
         generatedAtUtc: DateTime.parse(json['generatedAtUtc'] as String),
         jobs: (json['jobs'] as List<dynamic>).map((item) => JobHealthDto.fromJson(item as Map<String, dynamic>)).toList(),
@@ -8511,6 +8517,7 @@ class PlatformHealthOverviewDto {
         openIncidents: (json['openIncidents'] as List<dynamic>).map((item) => IncidentDto.fromJson(item as Map<String, dynamic>)).toList(),
         recentFailures: (json['recentFailures'] as List<dynamic>).map((item) => QueueFailureDto.fromJson(item as Map<String, dynamic>)).toList(),
         mediaStorageConfigured: json['mediaStorageConfigured'] == null ? null : json['mediaStorageConfigured'] as bool,
+        alertSmsConfigured: json['alertSmsConfigured'] == null ? null : json['alertSmsConfigured'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -8520,6 +8527,7 @@ class PlatformHealthOverviewDto {
         'openIncidents': openIncidents.map((item) => item.toJson()).toList(),
         'recentFailures': recentFailures.map((item) => item.toJson()).toList(),
         'mediaStorageConfigured': mediaStorageConfigured,
+        'alertSmsConfigured': alertSmsConfigured,
       };
 }
 

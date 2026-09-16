@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Audit;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
@@ -17,7 +19,23 @@ public sealed class EfDunningRunnerTests
             .Options);
 
     private static EfDunningRunner NewRunner(PlatformDbContext db, IInvoiceNotifier notifier) =>
-        new(db, Options.Create(new BillingOptions()), notifier);
+        NewRunner(db, notifier, new RecordingAuditWriter());
+
+    private static EfDunningRunner NewRunner(PlatformDbContext db, IInvoiceNotifier notifier, IAuditRecordWriter audit) =>
+        new(db, Options.Create(new BillingOptions()), notifier, audit);
+
+    /// Запоминает записи журнала: переход подписки в «просрочено» делает автоматика, и без записи
+    /// вопрос «когда клуб стал должником» остаётся без ответа.
+    private sealed class RecordingAuditWriter : IAuditRecordWriter
+    {
+        public List<AuditRecordWriteRequest> Records { get; } = [];
+
+        public Task WriteAsync(AuditRecordWriteRequest request, CancellationToken cancellationToken)
+        {
+            Records.Add(request);
+            return Task.CompletedTask;
+        }
+    }
 
     private static async Task<InvoiceEntity> SeedAsync(
         PlatformDbContext db,
@@ -316,6 +334,37 @@ public sealed class EfDunningRunnerTests
         var organization = await db.Organizations.SingleAsync();
         Assert.Equal(SubscriptionStatusNames.PastDue, organization.SubscriptionStatus);
         Assert.Equal(OrganizationStatusNames.Active, organization.Status);
+    }
+
+    // Ручную правку подписки журнал видел, а этот переход — нет: клуб становился должником сам и
+    // молча, и восстановить момент было негде.
+    [Fact]
+    public async Task RunAsync_WhenItMovesASubscriptionToPastDue_LeavesAnAuditTrail()
+    {
+        await using var db = NewContext();
+        await SeedAsync(db);
+        var audit = new RecordingAuditWriter();
+        var runner = NewRunner(db, new RecordingInvoiceNotifier(), audit);
+
+        await runner.RunAsync(Due.AddDays(1), CancellationToken.None);
+
+        var record = Assert.Single(audit.Records, entry => entry.Action == AuditActionNames.SyncSubscriptionStatus);
+        Assert.Equal(AuditOutcome.Succeeded, record.Outcome);
+        Assert.Contains(SubscriptionStatusNames.PastDue, record.DetailsJson);
+    }
+
+    // Прогон, который ничего не менял, не должен засорять журнал: запись означает переход.
+    [Fact]
+    public async Task RunAsync_WithoutAStatusChange_WritesNoStatusAudit()
+    {
+        await using var db = NewContext();
+        await SeedAsync(db, graceUntil: Due.AddDays(30));
+        var audit = new RecordingAuditWriter();
+        var runner = NewRunner(db, new RecordingInvoiceNotifier(), audit);
+
+        await runner.RunAsync(Due.AddDays(1), CancellationToken.None);
+
+        Assert.DoesNotContain(audit.Records, entry => entry.Action == AuditActionNames.SyncSubscriptionStatus);
     }
 
     [Fact]

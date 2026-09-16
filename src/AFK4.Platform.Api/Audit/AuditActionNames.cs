@@ -290,6 +290,11 @@ public static class AuditActionNames
 
     public const string UpdateSubscription = "billing.subscription.update";
 
+    /// Подписку в «просрочено» и обратно переводит не только человек, но и ночной прогон по долгам.
+    /// Ручная правка писалась в журнал, автоматическая — нет, и найти, когда клуб стал должником,
+    /// было негде: состояние менялось само и молча.
+    public const string SyncSubscriptionStatus = "billing.subscription.status_sync";
+
     public const string GenerateInvoice = "billing.invoice.generate";
 
     public const string CreateInvoice = "billing.invoice.create";
@@ -335,6 +340,15 @@ public static class AuditActionNames
     public const string GrantPlatformSupportAccess = "platform.support_access.grant";
 
     public const string RevokePlatformSupportAccess = "platform.support_access.revoke";
+
+    /// Момент, когда сотрудник поддержки действительно вошёл в клуб: выдача доступа и вход — разные
+    /// события, и в журнале до сих пор было видно только первое. «Доступ выдавали» и «доступом
+    /// пользовались» — разные ответы на вопрос клуба, кто смотрел его данные.
+    public const string RedeemPlatformSupportAccess = "platform.support_access.redeem";
+
+    /// Самостоятельный выход из сессии поддержки. Без него в журнале оставалось «вошёл» без «вышел»
+    /// у всех, кто закрывал доступ сам, а не через панель.
+    public const string EndPlatformSupportSession = "platform.support_access.session_end";
 
     public const string ViewPlatformAdmins = "platform.admins.view";
 

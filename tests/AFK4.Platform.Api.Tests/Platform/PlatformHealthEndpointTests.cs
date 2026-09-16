@@ -51,6 +51,23 @@ public sealed class PlatformHealthEndpointTests
         Assert.Contains(overview.OpenIncidents, incident => incident.Kind == PlatformIncidentKindNames.NotificationQueueStuck);
     }
 
+    // «Почта умерла — придёт SMS» — обещание, которое до сих пор нечем было проверить: шлюз шлёт
+    // только по одобренному шаблону, а без него канал молчит, и видно это было лишь в деталях
+    // провалившегося прогона — то есть уже после аварии.
+    [Fact]
+    public async Task GET_overview_WithoutAnApprovedSmsTemplate_SaysTheBackupChannelIsSilent()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var response = await client.GetAsync("/api/platform/health/overview");
+        var overview = await response.Content.ReadFromJsonAsync<PlatformHealthOverviewDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(overview!.AlertSmsConfigured);
+    }
+
     [Fact]
     public async Task GET_overview_WithoutAuthentication_ReturnsUnauthorized()
     {
