@@ -233,7 +233,6 @@ builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
 builder.Services.AddScoped<IDunningRunner, EfDunningRunner>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
-builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();
 builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();

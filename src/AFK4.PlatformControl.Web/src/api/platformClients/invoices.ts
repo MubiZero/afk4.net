@@ -1,5 +1,5 @@
 import type { PlatformTransport } from '../platformTransport';
-import type { Invoice, InvoiceListItem, PlatformBillingMetrics } from '../types';
+import type { Invoice, InvoiceListItem } from '../types';
 
 export class InvoicesApi {
   public constructor(private readonly transport: PlatformTransport) {}
@@ -12,10 +12,6 @@ export class InvoicesApi {
   public listInvoices(status?: string): Promise<InvoiceListItem[]> {
     const query = status !== undefined && status.length > 0 ? `?status=${encodeURIComponent(status)}` : '';
     return this.transport.send<InvoiceListItem[]>('GET', `/api/platform/invoices${query}`);
-  }
-
-  public getBillingMetrics(): Promise<PlatformBillingMetrics> {
-    return this.transport.send<PlatformBillingMetrics>('GET', '/api/platform/metrics');
   }
 
   /**
