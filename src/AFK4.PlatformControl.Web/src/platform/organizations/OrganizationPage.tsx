@@ -40,6 +40,8 @@ export interface OrganizationPageAccess {
   canViewSupport: boolean;
   canViewBilling: boolean;
   canManageBilling: boolean;
+  /// Отметить счёт оплаченным и аннулировать его сервер спрашивает по отдельному праву на счета.
+  canManageInvoices: boolean;
   canManageProfile: boolean;
   canManageUpdateChannel: boolean;
   canTransferOwner: boolean;
@@ -113,7 +115,12 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
                 </TabBoundary>
               </>
             ) : null}
-            {tab === 'invoices' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationInvoicesSection client={client.invoices} organizationId={organizationId} canManage={access.canManageBilling} /></TabBoundary> : null}
+            {tab === 'invoices' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationInvoicesSection
+              client={client.invoices}
+              organizationId={organizationId}
+              canManage={access.canManageBilling}
+              canManageInvoices={access.canManageInvoices}
+            /></TabBoundary> : null}
             {tab === 'limits' ? (
               <>
                 <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
