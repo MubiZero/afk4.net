@@ -35,7 +35,7 @@ const actualHelpers = await import('./operatorHelpers');
 mock.module('./operatorHelpers', () => ({
   ...actualHelpers,
   createAuthenticatedOperatorClients: () => ({
-    pos: { getCatalog, createSale: mock(async () => ({})), paySaleManual: mock(async () => ({})) },
+    pos: { getCatalog, createSale: mock(async () => ({})), settleSale: mock(async () => ({})) },
     shifts: { getCurrentShift },
     settings: { listProductCategories },
     players: { searchPlayers: mock(async () => []) }
