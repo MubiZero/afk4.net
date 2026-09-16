@@ -143,37 +143,6 @@ public sealed class DeviceAdminEndpointTests
     }
 
     [Fact]
-    public async Task MoveDeviceSeat_DetachesConflictingAssignmentAndWritesAudit()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
-        await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/move-seat",
-            new MoveDeviceSeatRequest(TestIds.OrganizationId, SeatBId));
-        var device = await response.Content.ReadFromJsonAsync<DeviceInventoryItemDto>();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(device);
-        Assert.Equal(SeatBId, device.SeatId);
-
-        await using var scope = factory.Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var activeAssignments = await dbContext.DeviceSeatAssignments
-            .Where(assignment => assignment.DetachedAtUtc == null)
-            .ToListAsync();
-        var active = Assert.Single(activeAssignments);
-        Assert.Equal(PendingDeviceId, active.DeviceId);
-        Assert.Equal(SeatBId, active.SeatId);
-        Assert.Equal(2, await dbContext.DeviceSeatAssignments.CountAsync(assignment => assignment.DetachedAtUtc != null));
-
-        var audit = await dbContext.AuditRecords.SingleAsync(record => record.Action == AuditActionNames.MoveDeviceSeat);
-        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
-    }
-
-    [Fact]
     public async Task RemoveDevice_WithoutActiveSession_RemovesDeviceAndRevokesCredential()
     {
         await using var factory = new PlatformApiFactory();

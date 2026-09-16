@@ -298,18 +298,6 @@ export interface BranchWorkingHoursDayDto {
   closeTime: string | null;
 }
 
-/**
- * Зал сети настолько, насколько его нужно узнать при выборе: как зовут и где стоит.
- *
- * Контракт: Branding/OrganizationBrandingDto.cs
- */
-export interface BrandingHallDto {
-  branchId: Guid;
-  name: string;
-  city: string;
-  address: string | null;
-}
-
 /** Контракт: Tariffs/CalculateTariffRequest.cs */
 export interface CalculateTariffRequest {
   organizationId: Guid;
@@ -1821,12 +1809,6 @@ export interface MoneyDto {
   minorUnits: number;
 }
 
-/** Контракт: Devices/MoveDeviceSeatRequest.cs */
-export interface MoveDeviceSeatRequest {
-  organizationId: Guid;
-  seatId: Guid;
-}
-
 /**
  * Перенос собственной брони игроком: новое время и, если нужно, другое место.
  * Длительности здесь нет намеренно. «Перенести» — это то же самое на другое время; изменить
@@ -2191,15 +2173,7 @@ export interface OrganizationBranchDto {
 }
 
 /**
- * Клуб, каким его видит своя веб-сборка: как он называется, как выглядит и из каких залов
- * состоит.
- * <param name="Halls">
- * Залы сети — чтобы веб мог спросить «в какой вы придёте» до первого действия. Сеть из
- * нескольких залов иначе оказывается тупиком: счёт человеку открывает бронь или пополнение, а
- * зал для него сервер не гадает — и первый же запрос возвращает `branch_required`.
- * Мобильное приложение берёт залы из каталога клубов; у веба каталога нет — он и так знает
- * свой клуб, — поэтому залы едут сюда, вместе с остальным «что это за клуб».
- * </param>
+ * Клуб, каким его видит мастер установки: как называется и как выглядит.
  *
  * Контракт: Branding/OrganizationBrandingDto.cs
  */
@@ -2208,7 +2182,6 @@ export interface OrganizationBrandingDto {
   name: string;
   logoUrl: string | null;
   accentColor: string | null;
-  halls?: BrandingHallDto[] | null;
 }
 
 /** Контракт: Platform/Organizations/OrganizationDetailDto.cs */
@@ -2879,31 +2852,15 @@ export interface PlayerBookingRulesDto {
   holdSeatAfterStartMinutes: number;
 }
 
-/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
-export interface PlayerCodeSignInRequest {
-  organizationId: Guid;
-  phoneNumber: string;
-  code: string;
-}
-
 /**
- * Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий.
+ * Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий. Общий для
+ * входа-регистрации и для подтверждения номера в профиле.
  *
  * Контракт: Players/PlayerPhoneVerificationContracts.cs
  */
 export interface PlayerCodeSignInStartedResponse {
   expiresInSeconds: number;
   resendAfterSeconds: number;
-}
-
-/**
- * Просьба прислать код для входа. Ответ одинаков независимо от того, есть ли такой игрок.
- *
- * Контракт: Players/PlayerPhoneVerificationContracts.cs
- */
-export interface PlayerCodeSignInStartRequest {
-  organizationId: Guid;
-  phoneNumber: string;
 }
 
 /**
@@ -3051,12 +3008,6 @@ export interface PlayerPhoneConfirmRequest {
  */
 export interface PlayerPhoneStartVerificationRequest {
   phone: string;
-}
-
-/** Контракт: Players/PlayerPhoneVerificationContracts.cs */
-export interface PlayerPhoneStatusResponse {
-  phone: string | null;
-  phoneVerifiedAtUtc: IsoDateTime | null;
 }
 
 /** Контракт: Players/PlayerPhoneVerificationContracts.cs */

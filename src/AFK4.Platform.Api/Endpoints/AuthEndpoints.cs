@@ -232,52 +232,6 @@ internal static class AuthEndpoints
                 : Results.Unauthorized();
         }).RequireRateLimiting("player-public");
 
-        // Вход по SMS-коду: телефон и так опознаёт игрока, а код доказывает владение им не хуже
-        // пароля — и его нечего забывать. Ответ на просьбу прислать код одинаков для известного и
-        // неизвестного номера: разница превратила бы эндпоинт в справочник «кто где играет».
-        app.MapPost("/api/public/player/sign-in/code", async (
-            PlayerCodeSignInStartRequest request,
-            IPlayerPhoneSignInService signInService,
-            CancellationToken cancellationToken) =>
-        {
-            var result = await signInService.StartAsync(
-                request.OrganizationId, request.PhoneNumber, cancellationToken);
-
-            return result.Status switch
-            {
-                PhoneVerificationStartStatus.Sent => Results.Ok(
-                    new PlayerCodeSignInStartedResponse(result.ExpiresInSeconds, result.ResendAfterSeconds)),
-                PhoneVerificationStartStatus.InvalidPhone => Results.BadRequest(new { error = "invalid_phone" }),
-                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
-            };
-        }).RequireRateLimiting("player-public");
-
-        app.MapPost("/api/public/player/sign-in/code/confirm", async (
-            PlayerCodeSignInRequest request,
-            IPlayerPhoneSignInService signInService,
-            CancellationToken cancellationToken) =>
-        {
-            var result = await signInService.ConfirmAsync(
-                request.OrganizationId, request.PhoneNumber, request.Code, cancellationToken);
-
-            return result.Status switch
-            {
-                PlayerCodeSignInStatus.SignedIn => Results.Ok(result.Tokens),
-                PlayerCodeSignInStatus.InvalidCode => Results.Json(
-                    new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
-                    statusCode: StatusCodes.Status400BadRequest),
-                PlayerCodeSignInStatus.Expired => Results.Json(
-                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
-                PlayerCodeSignInStatus.NoActiveCode => Results.Json(
-                    new { error = "no_active_code" }, statusCode: StatusCodes.Status410Gone),
-                PlayerCodeSignInStatus.TooManyAttempts => Results.Json(
-                    new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
-                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
-            };
-        }).RequireRateLimiting("player-public");
-
-        // Один маршрут обновления на два вида токенов: клиент присылает то, что у него есть, и
-        // про смену модели не знает. Токены, выданные до перехода, доживают свои 30 дней здесь же.
         app.MapPost("/api/public/player/refresh", async (
             PlayerRefreshRequest request,
             IPlatformPersonTokenService personTokenService,
@@ -495,36 +449,6 @@ internal static class AuthEndpoints
             }).ToList();
 
             return Results.Ok(entries);
-        }).RequireRateLimiting("player-public");
-
-        app.MapGet("/api/public/organization/{organizationKey}/branding", async (
-            string organizationKey,
-            PlatformDbContext dbContext,
-            CancellationToken cancellationToken) =>
-        {
-            var normalizedKey = SlugValidator.Normalize(organizationKey);
-            var org = await dbContext.Organizations
-                .AsNoTracking()
-                .Where(o => o.Slug == normalizedKey && o.Status == "active")
-                .Select(o => new { o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor })
-                .FirstOrDefaultAsync(cancellationToken);
-            if (org is null)
-            {
-                return Results.NotFound();
-            }
-
-            // Залы клуба той же выдачей: своей веб-сборке они нужны, чтобы спросить «в какой зал
-            // вы придёте» до первой брони или пополнения. Отдельным запросом это был бы второй
-            // круг к серверу ради строки под названием клуба.
-            var halls = await dbContext.Branches
-                .AsNoTracking()
-                .Where(b => b.OrganizationId == org.OrganizationId)
-                .OrderBy(b => b.City).ThenBy(b => b.Name)
-                .Select(b => new BrandingHallDto(b.BranchId, b.Name, b.City, b.Address))
-                .ToListAsync(cancellationToken);
-
-            return Results.Ok(new OrganizationBrandingDto(
-                org.OrganizationId, org.Name, org.LogoUrl, org.AccentColor, halls));
         }).RequireRateLimiting("player-public");
 
         organizations.MapPost("auth/staff/sign-in-by-phone", async (

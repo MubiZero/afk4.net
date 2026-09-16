@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,10 +12,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace AFK4.Platform.Api.Tests.Identity;
 
 /// <summary>
-/// Приложение игрока и веб-версия не правятся в этой волне, поэтому переход на личность обязан
-/// быть для них незаметным. Тест ходит ровно теми же запросами, что и настоящий клиент: вход по
-/// коду с организацией в теле, дальше только заголовок Authorization, никакого выбора клуба, и
-/// продление по тому же полю refreshToken.
+/// Тест ходит ровно теми же запросами, что и настоящее приложение игрока: общая дверь
+/// «регистрация-или-вход» по номеру и коду, дальше только заголовок Authorization, никакого
+/// выбора клуба, и продление по тому же полю refreshToken. Так проверяется, что переход на
+/// личность остался для клиента незаметным.
 /// </summary>
 public sealed class PlayerClientCompatibilityTests
 {
@@ -86,37 +87,20 @@ public sealed class PlayerClientCompatibilityTests
             (await client.GetFromJsonAsync<PlayerProfileDto>("/api/me/profile"))!.PlayerAccountId);
     }
 
-    [Fact]
-    public async Task AccountNotYetGluedToAPerson_StillSignsInAndWorks()
-    {
-        var sms = new RecordingSmsTransport();
-        await using var factory = FactoryWith(sms);
-        // Дубль внутри клуба после переноса: личности у счёта нет, и вход обязан остаться.
-        var account = await PlatformPersonTestData.AddClubAsync(factory, platformPersonId: null);
-        await SetAccountPhoneAsync(factory, account.PlayerAccountId, "+992900000302");
-
-        using var client = factory.CreateClient();
-        var tokens = await SignInLikeTheAppDoesAsync(client, sms, account.OrganizationId, "+992900000302");
-
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
-        var profile = await client.GetFromJsonAsync<PlayerProfileDto>("/api/me/profile");
-        Assert.Equal(account.PlayerAccountId, profile!.PlayerAccountId);
-    }
-
-    private static async Task<PlayerSignInResponse> SignInLikeTheAppDoesAsync(
+    private static async Task<PlatformPersonSessionResponse> SignInLikeTheAppDoesAsync(
         HttpClient client, RecordingSmsTransport sms, Guid organizationId, string phone)
     {
         var start = await client.PostAsJsonAsync(
-            "/api/public/player/sign-in/code", new PlayerCodeSignInStartRequest(organizationId, phone));
+            "/api/public/register/start", new RegistrationStartRequest(phone));
         Assert.Equal(HttpStatusCode.OK, start.StatusCode);
 
         var code = sms.Sent[^1].Variables["code-1"];
         var confirm = await client.PostAsJsonAsync(
-            "/api/public/player/sign-in/code/confirm",
-            new PlayerCodeSignInRequest(organizationId, phone, code));
+            "/api/public/register/confirm",
+            new RegistrationConfirmRequest(phone, code));
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
-        return (await confirm.Content.ReadFromJsonAsync<PlayerSignInResponse>())!;
+        return (await confirm.Content.ReadFromJsonAsync<PlatformPersonSessionResponse>())!;
     }
 
     private static async Task SetAccountPhoneAsync(PlatformApiFactory factory, Guid playerAccountId, string phone)
