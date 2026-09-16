@@ -59,6 +59,15 @@ function Install-WebView2Runtime {
         $bootstrapperDirectory = Split-Path -Parent $WebView2BootstrapperPath
         New-Item -ItemType Directory -Force -Path $bootstrapperDirectory | Out-Null
         Invoke-WebRequest -Uri $WebView2BootstrapperUri -OutFile $WebView2BootstrapperPath -UseBasicParsing
+
+        # The file was just pulled over the network and is about to run elevated on a club
+        # machine. The evergreen link has no fixed hash to pin, so the Microsoft signature is
+        # what stands between a redirected download and an installer we run as SYSTEM.
+        $signature = Get-AuthenticodeSignature -LiteralPath $WebView2BootstrapperPath
+        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+            Remove-Item -LiteralPath $WebView2BootstrapperPath -Force -ErrorAction SilentlyContinue
+            throw "Downloaded WebView2 bootstrapper is not validly signed by Microsoft (status: $($signature.Status)). Refusing to run it."
+        }
     }
 
     $process = Start-Process `

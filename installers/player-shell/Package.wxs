@@ -8,24 +8,38 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Player Shell is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- The shell host renders its UI in the Microsoft Edge WebView2 Evergreen Runtime, so the
-         runtime is a hard prerequisite. EdgeUpdate records the per-machine runtime version (pv)
-         under the 64-bit client key, which lives in WOW6432Node on 64-bit Windows (read via the
-         32-bit registry view). Block a fresh install with a clear message when it is absent;
-         "Installed" keeps uninstall/repair working. Managed gaming-PC fleets pre-provision the
-         runtime; a future Burn bundle could chain the Evergreen bootstrapper to auto-install it. -->
-    <Property Id="WEBVIEW2RUNTIME">
+    <!-- EdgeUpdate records the runtime version (pv) in three places: the 64-bit client key read
+         through the 32-bit view (WOW6432Node) for the usual per-machine install, the plain 64-bit
+         key, and HKCU for a per-user install. "0.0.0.0" means the key outlived the runtime. All
+         three are checked here, in the Burn bundle and in the update helper — one answer to
+         "is WebView2 here?" everywhere. "Installed" keeps uninstall/repair working. -->
+    <Property Id="WEBVIEW2_RUNTIME_HKLM_PV">
       <RegistrySearch
-          Id="WebView2RuntimePv"
+          Id="WebView2RuntimeHklmPv"
+          Root="HKLM"
+          Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw" />
+    </Property>
+    <Property Id="WEBVIEW2_RUNTIME_HKLM64_PV">
+      <RegistrySearch
+          Id="WebView2RuntimeHklm64Pv"
           Root="HKLM"
           Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
           Name="pv"
-          Type="raw"
-          Bitness="always32" />
+          Type="raw" />
+    </Property>
+    <Property Id="WEBVIEW2_RUNTIME_HKCU_PV">
+      <RegistrySearch
+          Id="WebView2RuntimeHkcuPv"
+          Root="HKCU"
+          Key="Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw" />
     </Property>
     <Launch
-        Condition="Installed OR WEBVIEW2RUNTIME"
-        Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen WebView2 Runtime and run this installer again." />
+        Condition="Installed OR (WEBVIEW2_RUNTIME_HKLM_PV AND WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKLM64_PV AND WEBVIEW2_RUNTIME_HKLM64_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKCU_PV AND WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;)"
+        Message="Microsoft Edge WebView2 Runtime is required and was not found. Install AFK4 with afk4-client-&lt;version&gt;-&lt;channel&gt;.exe — it installs the runtime for you. To install this MSI on its own, get the runtime from https://go.microsoft.com/fwlink/p/?LinkId=2124703 first." />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">

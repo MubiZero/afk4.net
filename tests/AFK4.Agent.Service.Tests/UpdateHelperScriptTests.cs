@@ -34,6 +34,11 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("$Component -eq 'organization-admin'", script, StringComparison.Ordinal);
         Assert.Contains(@"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", script, StringComparison.Ordinal);
         Assert.Contains("MicrosoftEdgeWebView2Setup.exe", script, StringComparison.Ordinal);
+        // Скачанный файл запускается с правами системы: подпись Microsoft — единственное, что
+        // стоит между подменённой загрузкой и установщиком, которому мы отдаём машину.
+        Assert.Contains("Get-AuthenticodeSignature", script, StringComparison.Ordinal);
+        Assert.Contains("O=Microsoft Corporation", script, StringComparison.Ordinal);
+        Assert.Contains("Refusing to run it.", script, StringComparison.Ordinal);
         Assert.Contains("/silent", script, StringComparison.Ordinal);
         Assert.Contains("/install", script, StringComparison.Ordinal);
     }
@@ -223,7 +228,33 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("<Launch", package, StringComparison.Ordinal);
         Assert.Contains("WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
         Assert.Contains("WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
-        Assert.Contains("Microsoft Edge WebView2 Runtime is required.", package, StringComparison.Ordinal);
+        Assert.Contains("WEBVIEW2_RUNTIME_HKLM64_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
+        // Отказ называет обычный путь (установщик клуба ставит рантайм сам) и даёт ссылку тому,
+        // кто всё-таки ставит MSI в одиночку. Прежний текст говорил «поставьте рантайм» и молчал
+        // о том, где его взять и что бандл делает это без него.
+        Assert.Contains("afk4-client-&lt;version&gt;-&lt;channel&gt;.exe", package, StringComparison.Ordinal);
+        Assert.Contains("https://go.microsoft.com/fwlink/p/?LinkId=2124703", package, StringComparison.Ordinal);
+    }
+
+    // Обе клиентские MSI спрашивают WebView2 одинаково: раньше оболочка игрока проверяла один
+    // ключ из трёх и не смотрела на «0.0.0.0», то есть на машине с per-user рантаймом отказывала
+    // там, где админка ставилась.
+    [Fact]
+    public void PlayerShellWixPackage_ChecksWebView2TheSameWayAsOrganizationAdmin()
+    {
+        var shell = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "installers", "player-shell", "Package.wxs"));
+
+        foreach (var marker in new[]
+                 {
+                     "WEBVIEW2_RUNTIME_HKLM_PV",
+                     "WEBVIEW2_RUNTIME_HKLM64_PV",
+                     "WEBVIEW2_RUNTIME_HKCU_PV",
+                     "WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;",
+                     "afk4-client-&lt;version&gt;-&lt;channel&gt;.exe"
+                 })
+        {
+            Assert.Contains(marker, shell, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

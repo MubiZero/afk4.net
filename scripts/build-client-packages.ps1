@@ -69,6 +69,41 @@ function Get-VerifiedRuntimeInstaller {
     return $target
 }
 
+# Official Microsoft Edge WebView2 Evergreen bootstrapper (~2 MB): it downloads and installs the
+# runtime itself. The link is evergreen — a different file every time — so there is nothing to pin
+# a SHA to; trust rests on the Microsoft Authenticode signature instead, verified below. The
+# offline runtime installer is ~150 MB behind rotating links: carrying it costs more than it buys.
+$webView2BootstrapperUrl = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703'
+
+function Get-VerifiedWebView2Bootstrapper {
+    param(
+        [Parameter(Mandatory = $true)] [string] $CacheDir,
+        [Parameter(Mandatory = $true)] [string] $Url
+    )
+
+    New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
+    $target = Join-Path $CacheDir 'MicrosoftEdgeWebview2Setup.exe'
+
+    if (Test-Path -LiteralPath $target) {
+        Remove-Item -LiteralPath $target -Force
+    }
+
+    Write-Host 'Downloading the Microsoft Edge WebView2 Evergreen bootstrapper for the bundle payload...'
+    Invoke-WebRequest -Uri $Url -OutFile $target
+
+    $signature = Get-AuthenticodeSignature -LiteralPath $target
+    if ($signature.Status -ne 'Valid') {
+        Remove-Item -LiteralPath $target -Force
+        throw "WebView2 bootstrapper signature is not valid: $($signature.Status). Refusing to ship an unverified payload."
+    }
+    if ($signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+        Remove-Item -LiteralPath $target -Force
+        throw "WebView2 bootstrapper is signed by '$($signature.SignerCertificate.Subject)', not Microsoft. Refusing to ship it."
+    }
+
+    return $target
+}
+
 function ConvertTo-MsiVersion {
     param(
         [Parameter(Mandatory = $true)]
@@ -349,9 +384,10 @@ $playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Chann
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
 # The Burn bundle needs the BootstrapperApplications (WixStandardBootstrapperApplication;
-# the v7 rename of the old Bal extension) and Netfx (DotNetCoreSearch) extensions.
+# the v7 rename of the old Bal extension), Netfx (DotNetCoreSearch) and Util (RegistrySearch for
+# the WebView2 runtime) extensions.
 # `wix extension add` is idempotent.
-foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixToolset.Netfx.wixext')) {
+foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixToolset.Netfx.wixext', 'WixToolset.Util.wixext')) {
     & $DotnetPath wix extension add -acceptEula wix7 -g $wixExtension
     if ($LASTEXITCODE -ne 0) {
         throw "Adding WiX extension '$wixExtension' failed with exit code $LASTEXITCODE."
@@ -440,6 +476,8 @@ if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.OrganizationAdmin.msi*' }
 $runtimeCacheDir = Join-Path $artifactRoot 'runtime-cache'
 $runtimeInstallerPath = Get-VerifiedRuntimeInstaller `
     -CacheDir $runtimeCacheDir -Version $runtimeVersion -Url $runtimeUrl -ExpectedSha512 $runtimeSha512
+$webView2BootstrapperPath = Get-VerifiedWebView2Bootstrapper `
+    -CacheDir $runtimeCacheDir -Url $webView2BootstrapperUrl
 
 $clientBundlePath = Join-Path $artifactRoot "afk4-client-$Version-$Channel.exe"
 if (Test-Path -LiteralPath $clientBundlePath) {
@@ -478,10 +516,12 @@ foreach ($brandAsset in @($brandIconPath, $brandLogoPath)) {
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bundle/Bundle.wxs') `
     -ext WixToolset.BootstrapperApplications.wixext `
     -ext WixToolset.Netfx.wixext `
+    -ext WixToolset.Util.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
     -d "RuntimeVersion=$runtimeVersion" `
     -d "RuntimeInstallerPath=$runtimeInstallerPath" `
+    -d "WebView2BootstrapperPath=$webView2BootstrapperPath" `
     -d "AgentMsiPath=$agentMsiPath" `
     -d "BAFunctionsPath=$baFunctionsPath" `
     -d "BrandIconPath=$brandIconPath" `

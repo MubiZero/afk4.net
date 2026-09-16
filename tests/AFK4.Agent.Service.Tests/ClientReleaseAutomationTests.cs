@@ -827,6 +827,50 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.True(agentToIntermediatesIndex > bundleIndex, "Agent MSI must be moved to intermediates only after the bundle that embeds it is built.");
     }
 
+    // Каждое окно, которое видит человек на клубной машине, — это WebView2: мастер установки,
+    // админка, оболочка игрока. Раньше MSI просто отказывались ставиться и отправляли кассира
+    // искать рантайм самому. Теперь его ставит установщик клуба, первым в цепочке.
+    [Fact]
+    public void BundleWxs_InstallsWebView2RuntimeBeforeTheAgentMsi()
+    {
+        var bundle = NormalizeLineEndings(File.ReadAllText(ScriptPath("installers/bundle/Bundle.wxs")));
+
+        // Три места, где EdgeUpdate отмечает рантайм: 64-битный ключ в 32-битном виде, он же
+        // напрямую, и per-user. «0.0.0.0» = ключ пережил рантайм.
+        Assert.Contains("WebView2RuntimeHklmPv", bundle, StringComparison.Ordinal);
+        Assert.Contains("WebView2RuntimeHklm64Pv", bundle, StringComparison.Ordinal);
+        Assert.Contains("WebView2RuntimeHkcuPv", bundle, StringComparison.Ordinal);
+        Assert.Contains("&lt;&gt; &quot;0.0.0.0&quot;", bundle, StringComparison.Ordinal);
+
+        // Тихая установка тем же бутстраппером и теми же ключами, что у помощника обновлений.
+        Assert.Contains("MicrosoftEdgeWebview2Setup.exe", bundle, StringComparison.Ordinal);
+        Assert.Contains("InstallArguments=\"/silent /install\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("SourceFile=\"$(var.WebView2BootstrapperPath)\"", bundle, StringComparison.Ordinal);
+
+        // Рантайм общий для всей машины: снос AFK4 не должен уносить WebView2 у других программ.
+        var webViewIndex = bundle.IndexOf("MicrosoftEdgeWebview2Setup.exe", StringComparison.Ordinal);
+        var agentMsiIndex = bundle.IndexOf("$(var.AgentMsiPath)", StringComparison.Ordinal);
+        Assert.True(webViewIndex > 0 && agentMsiIndex > webViewIndex,
+            "WebView2 must be chained before the agent MSI: that MSI launches the setup wizard, and the wizard is a WebView2 window.");
+    }
+
+    [Fact]
+    public void BuildClientPackagesScript_CarriesWebView2BootstrapperVerifiedByItsMicrosoftSignature()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
+
+        // Ссылка вечнозелёная — за ней каждый раз новый файл, и SHA закрепить не за что.
+        // Поэтому доверие строится на подписи, и она проверяется до того, как файл уедет в бандл.
+        Assert.Contains("https://go.microsoft.com/fwlink/p/?LinkId=2124703", script, StringComparison.Ordinal);
+        Assert.Contains("Get-AuthenticodeSignature", script, StringComparison.Ordinal);
+        Assert.Contains("O=Microsoft Corporation", script, StringComparison.Ordinal);
+        Assert.Contains("Refusing to ship an unverified payload", script, StringComparison.Ordinal);
+
+        // Util-расширение нужно бандлу для RegistrySearch по ключам WebView2.
+        Assert.Contains("WixToolset.Util.wixext", script, StringComparison.Ordinal);
+        Assert.Contains("WebView2BootstrapperPath=", script, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void BuildClientPackagesScript_BrandsBundleAndBuildsBAFunctionsForZeroClickInstall()
     {
