@@ -25,7 +25,7 @@ function seat(id: string, name: string): SeatSummary {
 
 const floorMap: OperatorFloorMapState = {
   branchId: 'branch-1', branchName: 'Тестовый клуб', seats: [seat('a', 'PC-01'), seat('b', 'PC-02')],
-  zones: [], walls: [], etag: null, source: 'backend', loadStatus: 'ready', error: null,
+  zones: [], source: 'backend', loadStatus: 'ready', error: null,
   isOffline: false, cachedAtMs: null
 };
 

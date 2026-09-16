@@ -30,14 +30,13 @@ function floorMap(branchName: string): FloorMapDto {
         remainingSeconds: 1800
       }
     ],
-    zones: [],
-    walls: []
+    zones: []
   };
 }
 
 describe('offline mirror state', () => {
   it('maps a live DTO as online and fresh', () => {
-    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), t, null, 10_000);
+    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), t, 10_000);
 
     expect(state.isOffline).toBe(false);
     expect(state.cachedAtMs).toBe(10_000);
@@ -67,7 +66,7 @@ describe('offline mirror state', () => {
   });
 
   it('stays silent while connected — no stale-snapshot noise for the admin', () => {
-    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), t, null, 0);
+    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), t, 0);
 
     expect(state.isOffline).toBe(false);
     expect(offlineBannerText(state, t)).toBeNull();

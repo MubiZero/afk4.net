@@ -12,19 +12,6 @@ public sealed class ZoneEntity
 
     public int SortOrder { get; set; }
 
-    // Floor-plan rectangle in grid cells (null until arranged).
-    public int? GeoX { get; set; }
-
-    public int? GeoY { get; set; }
-
-    public int? GeoWidth { get; set; }
-
-    public int? GeoHeight { get; set; }
-
-    public string? Color { get; set; }
-
-    public string? ZoneType { get; set; }
-
     /// <summary>
     /// Чем зал оснащён, словами владельца: «RTX 4060 · 27\" 165 Гц · кресла DXRacer».
     /// Показывается игроку в подробностях клуба — по железу клубы и сравнивают.

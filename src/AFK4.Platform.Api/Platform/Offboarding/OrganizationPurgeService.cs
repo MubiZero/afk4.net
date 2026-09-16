@@ -230,7 +230,6 @@ public sealed class OrganizationPurgeService(PlatformDbContext dbContext, TimePr
     private async Task<int> DeleteTopologyAsync(Guid organizationId, CancellationToken cancellationToken)
     {
         await DeleteAsync(dbContext.Seats.Where(row => row.OrganizationId == organizationId), cancellationToken);
-        await DeleteAsync(dbContext.Walls.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.Zones.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.BranchDailySnapshots.Where(row => row.OrganizationId == organizationId), cancellationToken);
         return await DeleteAsync(dbContext.Branches.Where(row => row.OrganizationId == organizationId), cancellationToken);

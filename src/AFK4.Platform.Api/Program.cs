@@ -174,7 +174,6 @@ builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectio
 builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
 builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
 builder.Services.AddScoped<IFloorMapReadService, EfFloorMapReadService>();
-builder.Services.AddScoped<IFloorMapEditService, EfFloorMapEditService>();
 builder.Services.AddScoped<ISessionTimelineReadService, EfSessionTimelineReadService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
 builder.Services.AddScoped<IPlayerTokenService, OpaquePlayerTokenService>();

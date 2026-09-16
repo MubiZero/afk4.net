@@ -83,13 +83,6 @@ def request(method, path, *, body=None, auth=None, extra_headers=None):
         return status, {"_text": raw}, out_headers
 
 
-def header(headers, name):
-    for key, value in headers.items():
-        if key.lower() == name.lower():
-            return value
-    return None
-
-
 step("1. Platform admin sign-in")
 status, body, _ = request(
     "POST", "/api/platform/auth/sign-in",
@@ -325,41 +318,43 @@ else:
 
 
 step("18. Slice 1.4 device admin path")
-status, body, headers = request("GET", f"/api/organizations/{org_id}/branches/{branch_id}/floor-map", auth=staff_token)
-etag = header(headers, "ETag")
-if status == 200 and etag:
-    ok(f"floor-map loaded for Slice 1.4 setup, etag={etag}")
-else:
-    fail(f"floor-map load: {status} {body} etag={etag}")
-
-floor_map = {
-    "organizationId": org_id,
-    "zones": [
-        {"zoneId": None, "clientId": "z-main", "name": "Main Hall", "sortOrder": 1},
-    ],
-    "seats": [
-        {"seatId": None, "clientId": "s-smoke-1", "zoneClientId": "z-main", "name": "Smoke PC 01", "sortOrder": 1},
-        {"seatId": None, "clientId": "s-smoke-2", "zoneClientId": "z-main", "name": "Smoke PC 02", "sortOrder": 2},
-    ],
-}
-status, body, headers = request(
-    "PUT", f"/api/organizations/{org_id}/branches/{branch_id}/floor-map",
-    body=floor_map,
+# Зал и два места заводятся по одному, как их заводит администратор в настройках: пакетной
+# правки раскладки больше нет — вид «План» сняли, а с ним и маршрут, который её принимал.
+status, body, _ = request(
+    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/layout/zones",
+    body={"organizationId": org_id, "name": "Main Hall", "sortOrder": 1},
     auth=staff_token,
-    extra_headers={"If-Match": etag or ""},
 )
-if status == 200:
-    seat_ids = {s["clientId"]: s["seatId"] for s in body.get("seats", [])}
-    seat_1 = seat_ids.get("s-smoke-1")
-    seat_2 = seat_ids.get("s-smoke-2")
-    if seat_1 and seat_2:
-        ok(f"floor-map seeded seats {seat_1[:8]}... and {seat_2[:8]}...")
-    else:
-        fail(f"floor-map response missing seeded seats: {body}")
+zone_id = body.get("zoneId") if status in (200, 201) else None
+if zone_id:
+    ok(f"smoke zone created {zone_id[:8]}...")
 else:
-    fail(f"floor-map seed: {status} {body}")
-    seat_1 = None
-    seat_2 = None
+    fail(f"zone create: {status} {body}")
+
+seat_1 = None
+seat_2 = None
+if zone_id:
+    created_seats = []
+    for index, name in enumerate(("Smoke PC 01", "Smoke PC 02"), start=1):
+        status, body, _ = request(
+            "POST", f"/api/organizations/{org_id}/branches/{branch_id}/layout/seats",
+            body={"organizationId": org_id, "zoneId": zone_id, "name": name, "sortOrder": index},
+            auth=staff_token,
+        )
+        if status in (200, 201) and body.get("seatId"):
+            created_seats.append(body["seatId"])
+        else:
+            fail(f"seat create {name}: {status} {body}")
+    if len(created_seats) == 2:
+        seat_1, seat_2 = created_seats
+        ok(f"smoke seats created {seat_1[:8]}... and {seat_2[:8]}...")
+
+status, body, _ = request(
+    "GET", f"/api/organizations/{org_id}/branches/{branch_id}/floor-map", auth=staff_token)
+if status == 200 and len(body.get("seats", [])) >= 2:
+    ok("floor map shows the seeded seats")
+else:
+    fail(f"floor-map load: {status} {body}")
 
 status, body, _ = request(
     "PUT", f"/api/organizations/{org_id}/branches/{branch_id}/settings",

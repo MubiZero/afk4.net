@@ -9,7 +9,7 @@
  * отсутствия генератора: он выглядит как проверка и ничего не проверяет.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 
 export interface ContractField {
   /** Имя в том виде, в каком его отдаёт сериализатор: с маленькой буквы. */
@@ -182,7 +182,10 @@ export function parseContracts(contractsRoot: string): ContractRecord[] {
   for (const file of sourceFiles(contractsRoot)) {
     const source = readFileSync(file, 'utf8');
     const namespace = /namespace\s+([A-Za-z0-9_.]+)\s*;/.exec(source)?.[1] ?? '';
-    const relative = file.slice(contractsRoot.length + 1);
+    // Слэш всегда прямой: под Windows path.join даёт обратный, и перегенерация переписывала бы
+    // комментарий в каждом типе — ворота «перегенерация ничего не меняет» падали бы от того, на
+    // какой машине её запустили.
+    const relative = file.slice(contractsRoot.length + 1).split(sep).join('/');
 
     for (const match of source.matchAll(/\brecord\s+([A-Za-z0-9_]+)\s*(<[^>]*>)?\s*([({])/g)) {
       const name = match[1];

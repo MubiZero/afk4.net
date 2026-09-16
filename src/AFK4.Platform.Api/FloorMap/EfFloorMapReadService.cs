@@ -51,10 +51,6 @@ public sealed class EfFloorMapReadService(
             .AsNoTracking()
             .Where(seat => seat.BranchId == branchId)
             .ToListAsync(cancellationToken);
-        var walls = await dbContext.Walls
-            .AsNoTracking()
-            .Where(wall => wall.BranchId == branchId)
-            .ToListAsync(cancellationToken);
         var activeAssignments = await dbContext.DeviceSeatAssignments
             .AsNoTracking()
             .Where(assignment => assignment.BranchId == branchId && assignment.DetachedAtUtc == null)
@@ -129,31 +125,17 @@ public sealed class EfFloorMapReadService(
             .Select(zone => new FloorMapZoneDto(
                 ZoneId: zone.ZoneId,
                 Name: zone.Name,
-                SortOrder: zone.SortOrder)
-            {
-                GeoX = zone.GeoX,
-                GeoY = zone.GeoY,
-                GeoWidth = zone.GeoWidth,
-                GeoHeight = zone.GeoHeight,
-                Color = zone.Color,
-                ZoneType = zone.ZoneType
-            })
+                SortOrder: zone.SortOrder))
             .ToList();
-        var wallStatuses = walls
-            .OrderBy(wall => wall.WallId)
-            .Select(wall => new FloorMapWallDto(wall.WallId, wall.X1, wall.Y1, wall.X2, wall.Y2))
-            .ToList();
-
         var dto = new FloorMapDto(
             BranchId: branch.BranchId,
             BranchName: branch.Name,
             Seats: seatStatuses)
         {
-            Zones = zoneStatuses,
-            Walls = wallStatuses
+            Zones = zoneStatuses
         };
 
-        return new FloorMapReadResult(dto, FloorMapEtag.Compute(zones, seats, walls));
+        return new FloorMapReadResult(dto, FloorMapEtag.Compute(zones, seats));
     }
 
     private SeatStatusDto CreateSeatStatus(
@@ -200,11 +182,7 @@ public sealed class EfFloorMapReadService(
             SessionVersion: activeSession?.Version,
             PlayerDisplayName: GetPlayerDisplayName(activeSession, playerAccountsById),
             TariffName: GetTariffName(activeSession, tariffVersionsById, tariffsById),
-            SessionStartedAtUtc: activeSession?.StartedAtUtc,
-            PosX: seat.PosX,
-            PosY: seat.PosY,
-            Rotation: seat.Rotation,
-            SeatType: seat.SeatType);
+            SessionStartedAtUtc: activeSession?.StartedAtUtc);
     }
 
     private static string? GetPlayerDisplayName(
