@@ -301,7 +301,6 @@ builder.Services.AddSingleton<IPhoneOtpHasher, Sha256PhoneOtpHasher>();
 builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
 builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
 builder.Services.AddScoped<IPlayerPhoneVerificationService, EfPlayerPhoneVerificationService>();
-builder.Services.AddScoped<IPlayerPhoneSignInService, EfPlayerPhoneSignInService>();
 builder.Services.AddScoped<PhoneKeyedOtpStore>();
 builder.Services.AddScoped<IPlatformRegistrationService, EfPlatformRegistrationService>();
 builder.Services.AddScoped<IStaffPhonePasswordResetService, EfStaffPhonePasswordResetService>();

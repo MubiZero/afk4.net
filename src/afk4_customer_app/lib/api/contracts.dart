@@ -851,37 +851,6 @@ class BranchWorkingHoursDayDto {
       };
 }
 
-/// Зал сети настолько, насколько его нужно узнать при выборе: как зовут и где стоит.
-///
-/// Контракт: Branding/OrganizationBrandingDto.cs
-class BrandingHallDto {
-  const BrandingHallDto({
-    required this.branchId,
-    required this.name,
-    required this.city,
-    this.address,
-  });
-
-  final String branchId;
-  final String name;
-  final String city;
-  final String? address;
-
-  factory BrandingHallDto.fromJson(Map<String, dynamic> json) => BrandingHallDto(
-        branchId: json['branchId'] as String,
-        name: json['name'] as String,
-        city: json['city'] as String,
-        address: json['address'] == null ? null : json['address'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'branchId': branchId,
-        'name': name,
-        'city': city,
-        'address': address,
-      };
-}
-
 /// Контракт: Tariffs/CalculateTariffRequest.cs
 class CalculateTariffRequest {
   const CalculateTariffRequest({
@@ -6015,27 +5984,6 @@ class MoneyDto {
       };
 }
 
-/// Контракт: Devices/MoveDeviceSeatRequest.cs
-class MoveDeviceSeatRequest {
-  const MoveDeviceSeatRequest({
-    required this.organizationId,
-    required this.seatId,
-  });
-
-  final String organizationId;
-  final String seatId;
-
-  factory MoveDeviceSeatRequest.fromJson(Map<String, dynamic> json) => MoveDeviceSeatRequest(
-        organizationId: json['organizationId'] as String,
-        seatId: json['seatId'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'seatId': seatId,
-      };
-}
-
 /// Перенос собственной брони игроком: новое время и, если нужно, другое место.
 /// Длительности здесь нет намеренно. «Перенести» — это то же самое на другое время; изменить
 /// длину — другое решение с другой ценой, и прятать его в ту же кнопку значит однажды удивить
@@ -7241,15 +7189,7 @@ class OrganizationBranchDto {
       };
 }
 
-/// Клуб, каким его видит своя веб-сборка: как он называется, как выглядит и из каких залов
-/// состоит.
-/// <param name="Halls">
-/// Залы сети — чтобы веб мог спросить «в какой вы придёте» до первого действия. Сеть из
-/// нескольких залов иначе оказывается тупиком: счёт человеку открывает бронь или пополнение, а
-/// зал для него сервер не гадает — и первый же запрос возвращает `branch_required`.
-/// Мобильное приложение берёт залы из каталога клубов; у веба каталога нет — он и так знает
-/// свой клуб, — поэтому залы едут сюда, вместе с остальным «что это за клуб».
-/// </param>
+/// Клуб, каким его видит мастер установки: как называется и как выглядит.
 ///
 /// Контракт: Branding/OrganizationBrandingDto.cs
 class OrganizationBrandingDto {
@@ -7258,21 +7198,18 @@ class OrganizationBrandingDto {
     required this.name,
     this.logoUrl,
     this.accentColor,
-    this.halls,
   });
 
   final String organizationId;
   final String name;
   final String? logoUrl;
   final String? accentColor;
-  final List<BrandingHallDto>? halls;
 
   factory OrganizationBrandingDto.fromJson(Map<String, dynamic> json) => OrganizationBrandingDto(
         organizationId: json['organizationId'] as String,
         name: json['name'] as String,
         logoUrl: json['logoUrl'] == null ? null : json['logoUrl'] as String,
         accentColor: json['accentColor'] == null ? null : json['accentColor'] as String,
-        halls: json['halls'] == null ? null : (json['halls'] as List<dynamic>).map((item) => BrandingHallDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -7280,7 +7217,6 @@ class OrganizationBrandingDto {
         'name': name,
         'logoUrl': logoUrl,
         'accentColor': accentColor,
-        'halls': halls?.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -9412,32 +9348,8 @@ class PlayerBookingRulesDto {
       };
 }
 
-/// Контракт: Players/PlayerPhoneVerificationContracts.cs
-class PlayerCodeSignInRequest {
-  const PlayerCodeSignInRequest({
-    required this.organizationId,
-    required this.phoneNumber,
-    required this.code,
-  });
-
-  final String organizationId;
-  final String phoneNumber;
-  final String code;
-
-  factory PlayerCodeSignInRequest.fromJson(Map<String, dynamic> json) => PlayerCodeSignInRequest(
-        organizationId: json['organizationId'] as String,
-        phoneNumber: json['phoneNumber'] as String,
-        code: json['code'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'phoneNumber': phoneNumber,
-        'code': code,
-      };
-}
-
-/// Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий.
+/// Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий. Общий для
+/// входа-регистрации и для подтверждения номера в профиле.
 ///
 /// Контракт: Players/PlayerPhoneVerificationContracts.cs
 class PlayerCodeSignInStartedResponse {
@@ -9457,29 +9369,6 @@ class PlayerCodeSignInStartedResponse {
   Map<String, dynamic> toJson() => {
         'expiresInSeconds': expiresInSeconds,
         'resendAfterSeconds': resendAfterSeconds,
-      };
-}
-
-/// Просьба прислать код для входа. Ответ одинаков независимо от того, есть ли такой игрок.
-///
-/// Контракт: Players/PlayerPhoneVerificationContracts.cs
-class PlayerCodeSignInStartRequest {
-  const PlayerCodeSignInStartRequest({
-    required this.organizationId,
-    required this.phoneNumber,
-  });
-
-  final String organizationId;
-  final String phoneNumber;
-
-  factory PlayerCodeSignInStartRequest.fromJson(Map<String, dynamic> json) => PlayerCodeSignInStartRequest(
-        organizationId: json['organizationId'] as String,
-        phoneNumber: json['phoneNumber'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'phoneNumber': phoneNumber,
       };
 }
 
@@ -9850,27 +9739,6 @@ class PlayerPhoneStartVerificationRequest {
 
   Map<String, dynamic> toJson() => {
         'phone': phone,
-      };
-}
-
-/// Контракт: Players/PlayerPhoneVerificationContracts.cs
-class PlayerPhoneStatusResponse {
-  const PlayerPhoneStatusResponse({
-    this.phone,
-    this.phoneVerifiedAtUtc,
-  });
-
-  final String? phone;
-  final DateTime? phoneVerifiedAtUtc;
-
-  factory PlayerPhoneStatusResponse.fromJson(Map<String, dynamic> json) => PlayerPhoneStatusResponse(
-        phone: json['phone'] == null ? null : json['phone'] as String,
-        phoneVerifiedAtUtc: json['phoneVerifiedAtUtc'] == null ? null : DateTime.parse(json['phoneVerifiedAtUtc'] as String),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'phone': phone,
-        'phoneVerifiedAtUtc': phoneVerifiedAtUtc?.toIso8601String(),
       };
 }
 

@@ -205,21 +205,6 @@ internal static class PlayerSelfServiceEndpoints
             };
         }).RequireRateLimiting("player-me");
 
-        app.MapGet("/api/me/phone", async (
-            IPlayerContextAccessor playerContextAccessor,
-            IPlayerPhoneVerificationService verificationService,
-            CancellationToken cancellationToken) =>
-        {
-            var player = playerContextAccessor.Current;
-            if (player is null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var status = await verificationService.GetStatusAsync(player.PlayerAccountId, cancellationToken);
-            return Results.Ok(new PlayerPhoneStatusResponse(status.Phone, status.PhoneVerifiedAtUtc));
-        }).RequireRateLimiting("player-me");
-
         app.MapGet("/api/me/dashboard", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,

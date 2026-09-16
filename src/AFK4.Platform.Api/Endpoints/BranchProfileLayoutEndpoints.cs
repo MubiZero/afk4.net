@@ -209,7 +209,7 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(new OrganizationBrandingDto(
-                organization.OrganizationId, organization.Name, organization.LogoUrl, organization.AccentColor, []));
+                organization.OrganizationId, organization.Name, organization.LogoUrl, organization.AccentColor));
         })
             // Оформление клуба ставится мастером установки, а не только панелью.
             .AllowNonOrganizationAdminClients();

@@ -425,7 +425,6 @@ describe('operator API clients', () => {
     await clients.devices.listPendingDevices(branchId);
     await clients.devices.approveDevice(deviceId, { organizationId });
     await clients.devices.rejectDevice(deviceId, { organizationId, reason: 'Не наш ПК' });
-    await clients.devices.createEnrollmentCode(branchId, organizationId, 900);
     await clients.devices.dispatchDeviceCommand(deviceId, { type: 'lock', payload: { reason: 'operator' } });
     await clients.devices.listDeviceCommands(deviceId, { limit: 25 });
     await clients.devices.listBranchDeviceCommands(branchId, { limit: 50 });
@@ -478,7 +477,6 @@ describe('operator API clients', () => {
       `GET /api/organizations/organization-id/branches/${branchId}/devices/pending`,
       `POST /api/organizations/organization-id/devices/${deviceId}/approve`,
       `POST /api/organizations/organization-id/devices/${deviceId}/reject`,
-      `POST /api/organizations/organization-id/branches/${branchId}/device-enrollment-codes`,
       `POST /api/organizations/organization-id/devices/${deviceId}/commands`,
       `GET /api/organizations/organization-id/devices/${deviceId}/commands?limit=25`,
       `GET /api/organizations/organization-id/branches/${branchId}/device-commands?limit=50`,
@@ -540,7 +538,6 @@ describe('operator API clients', () => {
     expect(bodyOf(calls, `PUT /api/organizations/organization-id/branches/${branchId}/settings`)).toEqual({ organizationId, requireManualDeviceApproval: true, preferredLocale: 'ru' });
     expect(bodyOf(calls, `POST /api/organizations/organization-id/devices/${deviceId}/approve`)).toEqual({ organizationId });
     expect(bodyOf(calls, `POST /api/organizations/organization-id/devices/${deviceId}/reject`)).toEqual({ organizationId, reason: 'Не наш ПК' });
-    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/device-enrollment-codes`)).toEqual({ organizationId, expiresInSeconds: 900 });
     expect(bodyOf(calls, `POST /api/organizations/organization-id/devices/${deviceId}/commands`)).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 

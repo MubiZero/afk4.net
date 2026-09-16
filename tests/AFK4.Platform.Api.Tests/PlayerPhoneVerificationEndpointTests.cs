@@ -152,9 +152,8 @@ public sealed class PlayerPhoneVerificationEndpointTests
         var player = await SeedPlayerAsync(factory, "1234");
         await AuthenticateAsync(client, player, "1234");
 
-        var beforeStatus = await client.GetAsync("/api/me/phone");
-        var before = await beforeStatus.Content.ReadFromJsonAsync<PlayerPhoneStatusResponse>();
-        Assert.Null(before!.PhoneVerifiedAtUtc);
+        var before = await client.GetFromJsonAsync<PlayerProfileDto>("/api/me/profile");
+        Assert.False(before!.PhoneVerified);
 
         await client.PostAsJsonAsync(
             "/api/me/phone/start-verification",
@@ -164,14 +163,10 @@ public sealed class PlayerPhoneVerificationEndpointTests
             new PlayerPhoneConfirmRequest(CodeFrom(Assert.Single(recording.Sent))));
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
-        var afterStatus = await client.GetAsync("/api/me/phone");
-        var after = await afterStatus.Content.ReadFromJsonAsync<PlayerPhoneStatusResponse>();
-        Assert.NotNull(after!.PhoneVerifiedAtUtc);
-
         // Токен выдан до подтверждения, но право читается из базы на каждый запрос — заново
         // входить не нужно.
-        var profile = await client.GetFromJsonAsync<PlayerProfileDto>("/api/me/profile");
-        Assert.True(profile!.PhoneVerified);
+        var after = await client.GetFromJsonAsync<PlayerProfileDto>("/api/me/profile");
+        Assert.True(after!.PhoneVerified);
     }
 
     [Fact]
@@ -285,9 +280,11 @@ public sealed class PlayerPhoneVerificationEndpointTests
         var start = await client.PostAsJsonAsync(
             "/api/me/phone/start-verification",
             new PlayerPhoneStartVerificationRequest("+992937380070"));
-        var status = await client.GetAsync("/api/me/phone");
+        var confirm = await client.PostAsJsonAsync(
+            "/api/me/phone/confirm",
+            new PlayerPhoneConfirmRequest("123456"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, start.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, status.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, confirm.StatusCode);
     }
 }

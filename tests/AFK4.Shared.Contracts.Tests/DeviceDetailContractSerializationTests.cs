@@ -104,21 +104,15 @@ public sealed class DeviceDetailContractSerializationTests
     public void DeviceAdminRequests_RoundTripThroughJson()
     {
         var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
-        var seatId = Guid.Parse("11111111-1111-4111-8111-111111111111");
 
         var stateChange = JsonSerializer.Deserialize<DeviceStateChangeRequest>(
             JsonSerializer.Serialize(new DeviceStateChangeRequest(organizationId, "Checked at desk.")));
         var rename = JsonSerializer.Deserialize<RenameDeviceRequest>(
             JsonSerializer.Serialize(new RenameDeviceRequest(organizationId, "VIP-01")));
-        var move = JsonSerializer.Deserialize<MoveDeviceSeatRequest>(
-            JsonSerializer.Serialize(new MoveDeviceSeatRequest(organizationId, seatId)));
-
         Assert.NotNull(stateChange);
         Assert.Equal(organizationId, stateChange.OrganizationId);
         Assert.Equal("Checked at desk.", stateChange.Reason);
         Assert.NotNull(rename);
         Assert.Equal("VIP-01", rename.DisplayName);
-        Assert.NotNull(move);
-        Assert.Equal(seatId, move.SeatId);
     }
 }

@@ -412,7 +412,7 @@ else:
     fail(f"pending queue: {status} {body}")
 
 status, body, _ = request(
-    "POST", f"/api/devices/{smoke_device_id}/approve",
+    "POST", f"/api/organizations/{org_id}/devices/{smoke_device_id}/approve",
     body={"organizationId": org_id, "reason": "Staging smoke approval"},
     auth=staff_token,
 )
@@ -422,7 +422,7 @@ else:
     fail(f"device approve: {status} {body}")
 
 status, body, _ = request(
-    "POST", f"/api/devices/{smoke_device_id}/rename",
+    "POST", f"/api/organizations/{org_id}/devices/{smoke_device_id}/rename",
     body={"organizationId": org_id, "displayName": "Smoke PC 01 renamed"},
     auth=staff_token,
 )
@@ -432,17 +432,18 @@ else:
     fail(f"device rename: {status} {body}")
 
 status, body, _ = request(
-    "POST", f"/api/devices/{smoke_device_id}/move-seat",
+    "POST",
+    f"/api/organizations/{org_id}/branches/{branch_id}/devices/{smoke_device_id}/seat-assignment",
     body={"organizationId": org_id, "seatId": seat_2 or ""},
     auth=staff_token,
 )
 if status == 200 and body.get("seatId") == seat_2:
     ok("device moved to second smoke seat")
 else:
-    fail(f"device move-seat: {status} {body}")
+    fail(f"device seat-assignment: {status} {body}")
 
 status, body, _ = request(
-    "POST", f"/api/devices/{smoke_device_id}/remove",
+    "POST", f"/api/organizations/{org_id}/devices/{smoke_device_id}/remove",
     body={"organizationId": org_id, "reason": "Staging smoke cleanup"},
     auth=staff_token,
 )

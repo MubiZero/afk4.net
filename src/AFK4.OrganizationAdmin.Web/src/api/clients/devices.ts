@@ -5,7 +5,6 @@ import type {
   DeviceCommandDto,
   DeviceCommandStatusDto,
   DeviceDetailDto,
-  DeviceEnrollmentCodeDto,
   DeviceInventoryItemDto,
   DeviceStateChangeRequest,
   DispatchDeviceCommandRequest,
@@ -17,7 +16,6 @@ export type {
   DeviceCommandDto,
   DeviceCommandStatusDto,
   DeviceDetailDto,
-  DeviceEnrollmentCodeDto,
   DeviceInventoryItemDto,
   DeviceStateChangeRequest,
   DispatchDeviceCommandRequest,
@@ -35,12 +33,6 @@ export function createDeviceClient(api: PlatformApiClient) {
   return {
     listDevices(branchId: Guid): Promise<DeviceInventoryItemDto[]> {
       return api.get<DeviceInventoryItemDto[]>(`branches/${branchId}/devices`);
-    },
-    createEnrollmentCode(branchId: Guid, organizationId: Guid, expiresInSeconds: number): Promise<DeviceEnrollmentCodeDto> {
-      return api.post<DeviceEnrollmentCodeDto>(`branches/${branchId}/device-enrollment-codes`, {
-        organizationId,
-        expiresInSeconds
-      });
     },
     dispatchDeviceCommand(deviceId: Guid, request: DispatchDeviceCommandRequest): Promise<DeviceCommandDto> {
       return api.post<DeviceCommandDto, DispatchDeviceCommandRequest>(`devices/${deviceId}/commands`, request);
