@@ -324,6 +324,12 @@ export interface OrganizationSubscription {
   createdAtUtc: string;
   updatedAtUtc: string;
   paymentGraceUntilUtc: string | null;
+  // Скидка клуба. Сервер её отдавал всегда, а панель не описывала эти поля и потому не
+  // показывала: клуб с персональной скидкой выглядел как клуб по прайсу.
+  discountPercent: number | null;
+  discountAmountMinorUnits: number | null;
+  discountUntilUtc: string | null;
+  discountReason: string | null;
 }
 
 export interface Invoice {

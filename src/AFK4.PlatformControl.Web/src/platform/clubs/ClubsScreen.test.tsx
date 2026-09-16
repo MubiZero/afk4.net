@@ -109,3 +109,23 @@ it('expands clubs from the chevron without leaving the screen', async () => {
   expect(chevron).toHaveAttribute('aria-expanded', 'true');
   expect(onOpenOrganization).not.toHaveBeenCalled();
 });
+
+// Завести клуб — главное, зачем в эту панель заходят в первый раз. Экран заведения работал, но
+// кнопка к нему потерялась при переделке списка в пульс: попасть туда можно было только набрав
+// адрес руками.
+it('даёт завести клуб', () => {
+  const onCreateOrganization = mock();
+  setup({ onCreateOrganization });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Новый клуб' }));
+
+  expect(onCreateOrganization).toHaveBeenCalledTimes(1);
+});
+
+// Кнопка, которая гарантированно ответит отказом, хуже её отсутствия: право на заведение
+// проверяет сервер, и без него кнопки нет.
+it('без права заводить клубы кнопки не показывает', () => {
+  setup();
+
+  expect(screen.queryByRole('button', { name: 'Новый клуб' })).toBeNull();
+});

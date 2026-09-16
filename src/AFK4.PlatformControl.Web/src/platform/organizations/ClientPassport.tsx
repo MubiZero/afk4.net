@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { DebtApi } from '@/api/platformClients/debt';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
+import type { PlansApi } from '@/api/platformClients/plans';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
@@ -25,6 +26,7 @@ type SubscriptionsClient = Pick<SubscriptionsApi, 'getSubscription' | 'updateSub
 type InvoicesClient = Pick<InvoicesApi, 'generateInvoice'>;
 type OwnerInvitesClient = Pick<OrganizationOwnerInvitesApi, 'listOrganizationOwnerInvites'>;
 type DebtClient = Pick<DebtApi, 'listDebt'>;
+type PlansClient = Pick<PlansApi, 'listPlans'>;
 
 export interface ClientPassportClients {
   organizations: OrganizationsClient;
@@ -32,6 +34,7 @@ export interface ClientPassportClients {
   invoices: InvoicesClient;
   organizationOwnerInvites: OwnerInvitesClient;
   debt: DebtClient;
+  plans: PlansClient;
 }
 
 interface Props {
@@ -234,6 +237,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
       {openDialog === 'subscription' && subscription !== null ? (
         <SubscriptionDialog
           client={client.subscriptions}
+          plansClient={client.plans}
           organizationId={organization.organizationId}
           subscription={subscription}
           onClose={() => setOpenDialog(null)}
