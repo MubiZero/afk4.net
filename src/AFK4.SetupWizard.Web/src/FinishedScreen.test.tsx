@@ -1,25 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+import { FinishedScreen } from './FinishedScreen';
+import { HostBridgeRequestError, HostBridgeUnavailableError } from './hostBridge';
 import type { WizardEnrollResult, WizardRole, WizardShellOutcome } from './wizardApi';
-
-// bun's mock.module is not hoisted above static imports — register before importing the screen.
-const provisionShell = mock(async (): Promise<WizardShellOutcome> => ({
-  status: 'installed',
-  exitCode: 0,
-  message: null,
-}));
-const closeWizard = mock(() => {});
-
-const actualApi = await import('./wizardApi');
-mock.module('./wizardApi', () => ({ ...actualApi, provisionShell, closeWizard }));
-
-const { FinishedScreen } = await import('./FinishedScreen');
-const { HostBridgeRequestError, HostBridgeUnavailableError } = await import('./hostBridge');
-
-afterAll(() => {
-  mock.module('./wizardApi', () => actualApi);
-});
 
 function enrolled(role: WizardRole, shell: WizardShellOutcome): WizardEnrollResult {
   return {
@@ -38,23 +22,34 @@ function enrolled(role: WizardRole, shell: WizardShellOutcome): WizardEnrollResu
 
 const failedShell: WizardShellOutcome = { status: 'failed', exitCode: 1603, message: null };
 
-function renderFinished(role: WizardRole = 'gaming_pc', shell: WizardShellOutcome = failedShell) {
+const installed: WizardShellOutcome = { status: 'installed', exitCode: 0, message: null };
+
+function renderFinished(
+  role: WizardRole = 'gaming_pc',
+  shell: WizardShellOutcome = failedShell,
+  provisionShell = mock(async (_role: WizardRole) => installed),
+) {
+  const onClose = mock(() => {});
   render(
     <I18nProvider initialLocale="ru">
-      <FinishedScreen result={enrolled(role, shell)} branchName="Главный зал" selectedSeat={null} stepNumber={5} />
+      <FinishedScreen
+        result={enrolled(role, shell)}
+        branchName="Главный зал"
+        selectedSeat={null}
+        stepNumber={5}
+        provisionShell={provisionShell}
+        onClose={onClose}
+      />
     </I18nProvider>,
   );
+  return { provisionShell, onClose };
 }
 
 describe('FinishedScreen', () => {
-  afterEach(() => {
-    cleanup();
-    provisionShell.mockClear();
-    closeWizard.mockClear();
-  });
+  afterEach(cleanup);
 
   it('показывает итог установки: филиал, роль и имя ПК', () => {
-    renderFinished('gaming_pc', { status: 'installed', exitCode: 0, message: null });
+    renderFinished('gaming_pc', installed);
 
     expect(screen.getByText('Главный зал')).toBeInTheDocument();
     expect(screen.getByText('AFK4-PC-12')).toBeInTheDocument();
@@ -62,7 +57,7 @@ describe('FinishedScreen', () => {
 
   // Зелёная плашка «всё хорошо» только шумит: строка появляется, когда есть что чинить.
   it('удачную установку отдельной строкой не празднует', () => {
-    renderFinished('gaming_pc', { status: 'installed', exitCode: 0, message: null });
+    renderFinished('gaming_pc', installed);
 
     expect(screen.queryByRole('button', { name: 'Повторить установку' })).toBeNull();
   });
@@ -82,7 +77,7 @@ describe('FinishedScreen', () => {
   });
 
   it('удачный повтор убирает строку с ошибкой', async () => {
-    renderFinished('gaming_pc');
+    const { provisionShell } = renderFinished('gaming_pc');
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить установку' }));
 
@@ -93,10 +88,9 @@ describe('FinishedScreen', () => {
   // Ради этого тест и написан: без catch кнопка молча возвращалась в исходное состояние, и
   // человек у ПК видел ровно то же, что до нажатия, — будто она не работает.
   it('сорвавшийся повтор называет причину, а не молчит', async () => {
-    provisionShell.mockImplementationOnce(async () => {
+    renderFinished('gaming_pc', failedShell, mock(async (_role: WizardRole) => {
       throw new HostBridgeRequestError('msiexec 1603', 'wizard_shell_provision_failed', null);
-    });
-    renderFinished('gaming_pc');
+    }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить установку' }));
 
@@ -106,10 +100,9 @@ describe('FinishedScreen', () => {
 
   // Место без связи с хостом — не «повтор не удался», а «мастер не достучался до агента».
   it('обрыв моста называет своими словами', async () => {
-    provisionShell.mockImplementationOnce(async () => {
+    renderFinished('gaming_pc', failedShell, mock(async (_role: WizardRole) => {
       throw new HostBridgeUnavailableError();
-    });
-    renderFinished('gaming_pc');
+    }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить установку' }));
 
@@ -117,10 +110,10 @@ describe('FinishedScreen', () => {
   });
 
   it('кнопка закрытия закрывает мастер', () => {
-    renderFinished('gaming_pc', { status: 'installed', exitCode: 0, message: null });
+    const { onClose } = renderFinished('gaming_pc', installed);
 
     fireEvent.click(screen.getByRole('button', { name: 'Завершить' }));
 
-    expect(closeWizard).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

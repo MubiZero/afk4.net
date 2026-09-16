@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { closeWizard, provisionShell, type WizardEnrollResult, type WizardRole, type WizardSeat, type WizardShellOutcome } from './wizardApi';
+import {
+  closeWizard as closeWizardWindow,
+  provisionShell as provisionShellOnHost,
+  type WizardEnrollResult,
+  type WizardRole,
+  type WizardSeat,
+  type WizardShellOutcome,
+} from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
 
 interface FinishedScreenProps {
@@ -12,6 +19,12 @@ interface FinishedScreenProps {
   /// Номер этого шага. Считает его App по видимым шагам прогона: здесь была зашита пятёрка, и
   /// прогон, где часть шагов пропущена, заканчивался «шагом 5» из трёх.
   stepNumber: number;
+
+  /// Обращения к хосту — параметрами, как у остальных экранов мастера (см. `installClient` на
+  /// экране устройства). Подменять модуль в тестах здесь нельзя: bun делит подмены между
+  /// файлами одного прогона, и частичная подмена соседнего теста ломает этот экран.
+  provisionShell?: (role: WizardRole) => Promise<WizardShellOutcome>;
+  onClose?: () => void;
 }
 
 // Known update channels → shared i18n labels (reused from the Operator helper catalog).
@@ -21,7 +34,14 @@ const CHANNEL_LABEL_KEYS: Record<string, MessageKey> = {
   internal: 'op.helper.update.channel.internal',
 };
 
-export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }: FinishedScreenProps) {
+export function FinishedScreen({
+  result,
+  branchName,
+  selectedSeat,
+  stepNumber,
+  provisionShell = provisionShellOnHost,
+  onClose = closeWizardWindow,
+}: FinishedScreenProps) {
   const { t } = useI18n();
   const isPending = result.enrollmentState.toLowerCase() === 'pending';
   const roleLabel = result.role === 'gaming_pc'
@@ -83,7 +103,7 @@ export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }:
         </dl>
 
         {result.shell.status !== 'skipped' && (
-          <ShellStatusRow initial={result.shell} role={result.role} />
+          <ShellStatusRow initial={result.shell} role={result.role} provisionShell={provisionShell} />
         )}
 
         {isPending && (
@@ -93,7 +113,7 @@ export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }:
         )}
 
         <div className="wizard-actions is-end">
-          <button type="button" className="ui-btn ui-btn--primary wizard-finished-close" onClick={closeWizard}>
+          <button type="button" className="ui-btn ui-btn--primary wizard-finished-close" onClick={onClose}>
             <span>{t('setup.wizard.finished.close')}</span>
           </button>
         </div>
@@ -102,7 +122,11 @@ export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }:
   );
 }
 
-function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: WizardRole }) {
+function ShellStatusRow({ initial, role, provisionShell }: {
+  initial: WizardShellOutcome;
+  role: WizardRole;
+  provisionShell: (role: WizardRole) => Promise<WizardShellOutcome>;
+}) {
   const { t } = useI18n();
   const [outcome, setOutcome] = useState(initial);
   const [busy, setBusy] = useState(false);
