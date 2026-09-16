@@ -44,7 +44,9 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
         ? { kind: 'challenge', challengeToken: outcome.challengeToken, expiresAtUtc: outcome.expiresAtUtc }
         : { kind: 'setup', challengeToken: outcome.challengeToken, expiresAtUtc: outcome.expiresAtUtc });
     } catch (cause) {
-      setError(describeApiError(cause, t, { 401: 'auth.error.invalid' }));
+      // 429 — запертая учётная запись или слишком частые попытки: говорить «неверный пароль»
+      // здесь значит отправить человека менять раскладку и продлевать запрет.
+      setError(describeApiError(cause, t, { 401: 'auth.error.invalid', 429: 'auth.error.lockedOut' }));
     } finally {
       setSubmitting(false);
     }

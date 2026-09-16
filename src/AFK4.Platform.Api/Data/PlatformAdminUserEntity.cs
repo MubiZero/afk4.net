@@ -30,5 +30,16 @@ public sealed class PlatformAdminUserEntity
 
     public DateTimeOffset? TwoFactorLockedUntilUtc { get; set; }
 
+    /// <summary>
+    /// Неудачные попытки пароля подряд и запрет до этого времени.
+    ///
+    /// Второй фактор запирался после пяти попыток, а пароль — нет: подобрать его можно было
+    /// сколько угодно, и это была единственная дверь во всей системе без такой защиты. За ней —
+    /// заведение клубов, деньги и права.
+    /// </summary>
+    public int FailedPasswordAttempts { get; set; }
+
+    public DateTimeOffset? PasswordLockedUntilUtc { get; set; }
+
     public DateTimeOffset? LastSignInAtUtc { get; set; }
 }

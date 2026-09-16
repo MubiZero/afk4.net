@@ -63,6 +63,7 @@ export const en = {
   "auth.chooseClub.title": "Choose a club",
   "auth.error.generic": "Sign-in failed.",
   "auth.error.invalid": "Wrong login or password.",
+  "auth.error.lockedOut": "Too many sign-in attempts. Wait fifteen minutes and try again.",
   "auth.error.required": "Login and password are required.",
   "auth.error.staleClient": "The panel version is outdated. Reload the page and try again.",
   "auth.field.login": "Login or email",
