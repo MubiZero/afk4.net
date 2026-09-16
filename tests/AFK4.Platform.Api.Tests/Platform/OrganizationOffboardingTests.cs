@@ -189,14 +189,34 @@ public sealed class OrganizationOffboardingTests
 
         var bytes = await response.Content.ReadAsByteArrayAsync();
         using var archive = new System.IO.Compression.ZipArchive(new MemoryStream(bytes));
-        Assert.Equal(
-            ["players.csv", "products.csv", "reservations.csv", "sales.csv", "sessions.csv"],
-            archive.Entries.Select(entry => entry.Name).OrderBy(name => name, StringComparer.Ordinal));
+        // Состав архива сверяется с тем, что стирается, отдельным гейтом
+        // (OrganizationExportParityTests). Здесь — что архив действительно несёт деньги и людей, а
+        // не только продажи: без этих файлов клуб уносил историю без ответа, кому он должен.
+        var entries = archive.Entries.Select(entry => entry.Name).ToArray();
+        Assert.Contains("players.csv", entries);
+        Assert.Contains("staff.csv", entries);
+        Assert.Contains("ledger.csv", entries);
+        Assert.Contains("shifts.csv", entries);
+        Assert.Contains("receipts.csv", entries);
+        Assert.Contains("payments.csv", entries);
+        Assert.Contains("tariffs.csv", entries);
 
         var players = ReadEntry(archive, "players.csv");
         Assert.Contains("Игрок; с точкой с запятой", players);
         // Поле с разделителем обязано быть в кавычках, иначе оно разъезжается на две колонки.
         Assert.Contains("\"Игрок; с точкой с запятой\"", players);
+
+        // Файл с заголовком и без строк — то же самое, что его отсутствие: клуб открывает выгрузку
+        // и видит пустоту там, где были его деньги и его люди.
+        var ledger = ReadEntry(archive, "ledger.csv");
+        Assert.Contains("topup", ledger);
+        Assert.Contains("50.00", ledger);
+
+        var staff = ReadEntry(archive, "staff.csv");
+        Assert.Contains("Оператор", staff);
+        Assert.Contains(OrganizationRoleNames.Operator, staff);
+        // Хеш пароля в файле, который уезжает клубу почтой, — это утечка, а не забота.
+        Assert.DoesNotContain("PasswordHash", staff, StringComparison.OrdinalIgnoreCase);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
