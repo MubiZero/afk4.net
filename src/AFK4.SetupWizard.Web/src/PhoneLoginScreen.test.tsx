@@ -27,10 +27,12 @@ const discoverAuthenticated = mock(async () => ({
   ],
 }));
 
-// bun shares mock.module registrations across files in one run, so every wizardApi mock must
-// export the full surface the SUTs import — otherwise a sibling test's partial mock wins and an
-// unrelated export resolves as "not found".
+// bun делит подмены модулей между файлами одного прогона: перечислять экспорты руками значит
+// однажды забыть новый — и соседний экран останется без импорта, а сборка упадёт на «Export
+// named ... not found». Поэтому подменяем поверх настоящего модуля, а не вместо него.
+const actualWizardApi = await import('./wizardApi');
 mock.module('./wizardApi', () => ({
+  ...actualWizardApi,
   signInByPhone,
   signInByLogin,
   signInToClub,

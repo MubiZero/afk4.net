@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import {
-  closeWizard as closeWizardWindow,
-  provisionShell as provisionShellOnHost,
-  type WizardEnrollResult,
-  type WizardRole,
-  type WizardSeat,
-  type WizardShellOutcome,
-} from './wizardApi';
+import type { WizardEnrollResult, WizardRole, WizardSeat, WizardShellOutcome } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
 
 interface FinishedScreenProps {
@@ -21,10 +14,11 @@ interface FinishedScreenProps {
   stepNumber: number;
 
   /// Обращения к хосту — параметрами, как у остальных экранов мастера (см. `installClient` на
-  /// экране устройства). Подменять модуль в тестах здесь нельзя: bun делит подмены между
-  /// файлами одного прогона, и частичная подмена соседнего теста ломает этот экран.
-  provisionShell?: (role: WizardRole) => Promise<WizardShellOutcome>;
-  onClose?: () => void;
+  /// экране устройства). Экран не берёт их из модуля намеренно: bun делит подмены модулей между
+  /// файлами одного прогона, и частичная подмена в соседнем тесте оставляла этот экран без
+  /// импорта — сборка падала на «Export named 'closeWizard' not found».
+  provisionShell: (role: WizardRole) => Promise<WizardShellOutcome>;
+  onClose: () => void;
 }
 
 // Known update channels → shared i18n labels (reused from the Operator helper catalog).
@@ -39,8 +33,8 @@ export function FinishedScreen({
   branchName,
   selectedSeat,
   stepNumber,
-  provisionShell = provisionShellOnHost,
-  onClose = closeWizardWindow,
+  provisionShell,
+  onClose,
 }: FinishedScreenProps) {
   const { t } = useI18n();
   const isPending = result.enrollmentState.toLowerCase() === 'pending';

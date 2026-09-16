@@ -8,9 +8,11 @@ const resetPasswordByEmail = mock(async () => {});
 const forgotPasswordByPhone = mock(async () => {});
 const resetPasswordByPhone = mock(async () => {});
 
-// bun shares mock.module registrations across files in one run, so export the full wizardApi
-// surface the SUTs import (see PhoneLoginScreen.test for the same guard).
+// bun делит подмены модулей между файлами одного прогона — подменяем поверх настоящего модуля
+// (та же причина, что в PhoneLoginScreen.test).
+const actualWizardApi = await import('./wizardApi');
 mock.module('./wizardApi', () => ({
+  ...actualWizardApi,
   signInByPhone: mock(async () => ({ displayName: 'Сотрудник' })),
   signInByLogin: mock(async () => ({ displayName: 'Сотрудник', requiresClubChoice: false, clubs: [] })),
   signInToClub: mock(async () => ({ displayName: 'Сотрудник' })),

@@ -19,10 +19,12 @@ import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
 import {
   authenticatedInstallClient,
   brandingPresets,
+  closeWizard,
   createSeats,
   createTariff,
   getBootstrapConfig,
   inviteStaff,
+  provisionShell,
   saveBranding,
   uploadLogo,
   type WizardBranch,
@@ -559,6 +561,8 @@ export function App() {
             branchName={state.branch.branchName}
             selectedSeat={state.selectedSeat}
             stepNumber={stepNumber}
+            provisionShell={provisionShell}
+            onClose={closeWizard}
           />
         )}
       </main>

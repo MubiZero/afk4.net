@@ -568,6 +568,82 @@ public sealed class SetupWizardWebHostBridgeTests
         new FloorMapDto(BranchId, name, []),
         []);
 
+    // --- забытый пароль ---------------------------------------------------------------------
+
+    // Человек ставит клуб на новой машине и не помнит пароль. Из четырёх команд восстановления
+    // проверялась одна: остальные три могли молча ничего не отправлять, и мастер показывал бы
+    // «код отправлен» там, где на телефон и почту не ушло ничего.
+    [Fact]
+    public async Task ForgotByEmail_SendsTheLoginToThePlatform()
+    {
+        var bridge = CreateBridge(out var deps);
+
+        var response = await Send(bridge, "wizard:forgotByEmail", """{"userNameOrEmail":"  owner@club.tj "}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(["owner@club.tj"], deps.Api.ForgotByEmail);
+    }
+
+    [Fact]
+    public async Task ResetByEmail_SendsCodeAndNewPassword()
+    {
+        var bridge = CreateBridge(out var deps);
+
+        var response = await Send(
+            bridge,
+            "wizard:resetByEmail",
+            """{"userNameOrEmail":"owner@club.tj","code":" 123456 ","newPassword":"Passw0rd!"}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal([("owner@club.tj", "123456", "Passw0rd!")], deps.Api.ResetByEmail);
+    }
+
+    [Fact]
+    public async Task ForgotByPhone_SendsTheNumberToThePlatform()
+    {
+        var bridge = CreateBridge(out var deps);
+
+        var response = await Send(bridge, "wizard:forgotByPhone", """{"phoneNumber":" +992 90 000 00 00 "}""");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(["+992 90 000 00 00"], deps.Api.ForgotByPhone);
+    }
+
+    // Пустое поле до сервера доходить не должно: отказ платформы на пустой строке читается как
+    // «не тот логин», хотя человек просто ничего не ввёл.
+    [Theory]
+    [InlineData("wizard:forgotByEmail", """{"userNameOrEmail":"   "}""")]
+    [InlineData("wizard:resetByEmail", """{"userNameOrEmail":"owner@club.tj","code":"","newPassword":"Passw0rd!"}""")]
+    [InlineData("wizard:forgotByPhone", """{"phoneNumber":""}""")]
+    public async Task PasswordRecovery_WithAnEmptyField_IsRefusedBeforeTheNetwork(string type, string payload)
+    {
+        var bridge = CreateBridge(out var deps);
+
+        var response = await Send(bridge, type, payload);
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Empty(deps.Api.ForgotByEmail);
+        Assert.Empty(deps.Api.ResetByEmail);
+        Assert.Empty(deps.Api.ForgotByPhone);
+    }
+
+    // Хост без диалога выбора файла (превью, будущий безоконный режим) — это отказ с кодом, а не
+    // падение моста.
+    [Fact]
+    public async Task UploadLogo_WithoutAFilePicker_AnswersWithAnError()
+    {
+        var bridge = CreateBridge(out var deps, logoFilePicker: null);
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+
+        var response = await Send(bridge, "wizard:uploadLogo", $$"""{"branchId":"{{Guid.NewGuid():D}}"}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        // Код отказа проверяется там, где он и живёт (ErrorCodeFor); здесь важно, что мост ответил
+        // ошибкой и ничего не отправил на сервер.
+        Assert.NotNull(response.GetProperty("error").GetProperty("code").GetString());
+        Assert.Empty(deps.Api.UploadedLogoPaths);
+    }
+
     private static async Task<JsonElement> Send(SetupWizardWebHostBridge bridge, string type, string payloadJson)
     {
         var message = $$"""{"type":"{{type}}","requestId":"r-1","payload":{{payloadJson}}}""";
@@ -634,15 +710,37 @@ public sealed class SetupWizardWebHostBridgeTests
         public Task<StaffSignInResponse> SignInToClubAsync(Guid organizationId, string login, string password, CancellationToken cancellationToken) =>
             Task.FromResult(SignInResponse());
 
-        public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken) => Task.CompletedTask;
+        public List<string> ForgotByEmail { get; } = [];
 
-        public Task ResetPasswordByEmailAsync(string userNameOrEmail, string code, string newPassword, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public List<(string Identity, string Code, string NewPassword)> ResetByEmail { get; } = [];
 
-        public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken) => Task.CompletedTask;
+        public List<string> ForgotByPhone { get; } = [];
 
-        public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken) =>
-            ResetByPhoneThrows is null ? Task.CompletedTask : throw ResetByPhoneThrows;
+        public List<(string Phone, string Code, string NewPassword)> ResetByPhone { get; } = [];
+
+        public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
+        {
+            ForgotByEmail.Add(userNameOrEmail);
+            return Task.CompletedTask;
+        }
+
+        public Task ResetPasswordByEmailAsync(string userNameOrEmail, string code, string newPassword, CancellationToken cancellationToken)
+        {
+            ResetByEmail.Add((userNameOrEmail, code, newPassword));
+            return Task.CompletedTask;
+        }
+
+        public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
+        {
+            ForgotByPhone.Add(phoneNumber);
+            return Task.CompletedTask;
+        }
+
+        public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken)
+        {
+            ResetByPhone.Add((phoneNumber, code, newPassword));
+            return ResetByPhoneThrows is null ? Task.CompletedTask : throw ResetByPhoneThrows;
+        }
 
         // Организация, с которой мост пошёл в установочные запросы: тесты проверяют, что она
         // берётся из ответа входа, а не теряется по дороге.
