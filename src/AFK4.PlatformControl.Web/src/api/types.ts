@@ -450,16 +450,6 @@ export interface BranchDynamics {
   days: BranchDynamicsDay[];
 }
 
-export interface PlatformBillingMetrics {
-  mrrMinorUnits: number;
-  currencyCode: string;
-  activeSubscriptions: number;
-  outstandingMinorUnits: number;
-  outstandingCount: number;
-  overdueMinorUnits: number;
-  overdueCount: number;
-}
-
 export interface PlatformRole {
   roleName: string;
   displayName: string;

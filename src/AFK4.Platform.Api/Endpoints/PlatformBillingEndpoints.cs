@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -442,34 +442,6 @@ internal static class PlatformBillingEndpoints
 
             var result = await invoiceService.ListAllAsync(status, cancellationToken);
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
-        });
-
-        app.MapGet("/api/platform/metrics", async (
-            PlatformAdminAuthorizationService authorizationService,
-            IBillingMetricsService metricsService,
-            IAuditRecordWriter auditRecordWriter,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
-            if (!authorization.IsAuthenticated)
-                return Results.Unauthorized();
-            if (!authorization.IsAllowed)
-            {
-                await WritePlatformAuditAsync(
-                    auditRecordWriter,
-                    organizationId: Guid.Empty,
-                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ViewBilling,
-                    targetType: "BillingMetrics",
-                    targetId: null,
-                    outcome: AuditOutcome.Denied,
-                    details: new { authorization.DenialReason },
-                    cancellationToken);
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var metrics = await metricsService.GetAsync(cancellationToken);
-            return Results.Ok(metrics);
         });
 
         app.MapPost("/api/platform/organizations/{organizationId:guid}/invoices/generate", async (

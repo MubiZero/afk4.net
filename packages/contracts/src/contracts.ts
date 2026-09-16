@@ -2658,17 +2658,6 @@ export interface PlatformAnnouncementDto {
   readCount: number;
 }
 
-/** Контракт: Platform/Billing/PlatformBillingMetricsDto.cs */
-export interface PlatformBillingMetricsDto {
-  mrrMinorUnits: number;
-  currencyCode: string;
-  activeSubscriptions: number;
-  outstandingMinorUnits: number;
-  outstandingCount: number;
-  overdueMinorUnits: number;
-  overdueCount: number;
-}
-
 /** Контракт: Platform/Health/PlatformHealthContracts.cs */
 export interface PlatformHealthOverviewDto {
   generatedAtUtc: IsoDateTime;

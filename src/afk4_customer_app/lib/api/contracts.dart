@@ -8442,47 +8442,6 @@ class PlatformAnnouncementDto {
       };
 }
 
-/// Контракт: Platform/Billing/PlatformBillingMetricsDto.cs
-class PlatformBillingMetricsDto {
-  const PlatformBillingMetricsDto({
-    required this.mrrMinorUnits,
-    required this.currencyCode,
-    required this.activeSubscriptions,
-    required this.outstandingMinorUnits,
-    required this.outstandingCount,
-    required this.overdueMinorUnits,
-    required this.overdueCount,
-  });
-
-  final int mrrMinorUnits;
-  final String currencyCode;
-  final int activeSubscriptions;
-  final int outstandingMinorUnits;
-  final int outstandingCount;
-  final int overdueMinorUnits;
-  final int overdueCount;
-
-  factory PlatformBillingMetricsDto.fromJson(Map<String, dynamic> json) => PlatformBillingMetricsDto(
-        mrrMinorUnits: (json['mrrMinorUnits'] as num).toInt(),
-        currencyCode: json['currencyCode'] as String,
-        activeSubscriptions: (json['activeSubscriptions'] as num).toInt(),
-        outstandingMinorUnits: (json['outstandingMinorUnits'] as num).toInt(),
-        outstandingCount: (json['outstandingCount'] as num).toInt(),
-        overdueMinorUnits: (json['overdueMinorUnits'] as num).toInt(),
-        overdueCount: (json['overdueCount'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'mrrMinorUnits': mrrMinorUnits,
-        'currencyCode': currencyCode,
-        'activeSubscriptions': activeSubscriptions,
-        'outstandingMinorUnits': outstandingMinorUnits,
-        'outstandingCount': outstandingCount,
-        'overdueMinorUnits': overdueMinorUnits,
-        'overdueCount': overdueCount,
-      };
-}
-
 /// Контракт: Platform/Health/PlatformHealthContracts.cs
 class PlatformHealthOverviewDto {
   const PlatformHealthOverviewDto({

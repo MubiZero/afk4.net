@@ -10,7 +10,7 @@ function fakeClient() {
     organizations: { updateStatus: mock().mockResolvedValue({}) },
     supportNotes: { createSupportNote: mock().mockResolvedValue({}) },
     subscriptions: { listSubscriptions: mock().mockResolvedValue([]), updateSubscription: mock().mockResolvedValue({}) },
-    invoices: { listInvoices: mock().mockResolvedValue([]), getBillingMetrics: mock().mockResolvedValue({}), markInvoicePaid: mock().mockResolvedValue({}) },
+    invoices: { listInvoices: mock().mockResolvedValue([]), markInvoicePaid: mock().mockResolvedValue({}) },
     plans: { listPlans: mock().mockResolvedValue([]) }
   } as never;
 }
