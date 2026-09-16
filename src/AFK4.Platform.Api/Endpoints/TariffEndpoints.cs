@@ -361,45 +361,6 @@ internal static class TariffEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("branches/{branchId:guid}/tariffs/calculate", async (
-            Guid branchId,
-            CalculateTariffRequest request,
-            StaffAuthorizationService authorizationService,
-            ITariffService tariffService,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId,
-                OrganizationPermissionNames.ViewBilling,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            if (request.DurationMinutes <= 0)
-            {
-                return Results.BadRequest(new { Error = "DurationMinutes must be positive." });
-            }
-
-            var calculation = await tariffService.CalculateAsync(branchId, request, cancellationToken);
-
-            return calculation is null
-                ? Results.NotFound()
-                : Results.Ok(calculation);
-        });
-
         app.MapGet("branches/{branchId:guid}/tariffs/options", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,

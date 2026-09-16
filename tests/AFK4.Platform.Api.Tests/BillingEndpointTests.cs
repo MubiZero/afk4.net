@@ -585,56 +585,6 @@ public sealed class BillingEndpointTests
     }
 
     [Fact]
-    public async Task CalculateTariff_WithAuthorizedStaff_ReturnsCalculation()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
-        var tariff = await SeedTariffAsync(factory);
-        var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/calculate",
-            new CalculateTariffRequest(TestIds.OrganizationId, version.TariffVersionId, 76));
-        var body = await response.Content.ReadFromJsonAsync<TariffCalculationResult>();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(body);
-        Assert.Equal(90, body.BillableMinutes);
-        Assert.Equal(4500, body.Amount.MinorUnits);
-    }
-
-    [Fact]
-    public async Task CalculateTariff_WithNonPositiveDuration_ReturnsBadRequest()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
-        var tariff = await SeedTariffAsync(factory);
-        var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/calculate",
-            new CalculateTariffRequest(TestIds.OrganizationId, version.TariffVersionId, 0));
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CalculateTariff_WithUnknownVersion_ReturnsNotFound()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/calculate",
-            new CalculateTariffRequest(TestIds.OrganizationId, Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), 30));
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
     public async Task CreatePackage_WithBranchManager_CreatesPackageDefinition()
     {
         await using var factory = new PlatformApiFactory();

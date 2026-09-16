@@ -4,11 +4,6 @@ namespace AFK4.Platform.Api.Updates;
 
 public interface IUpdateService
 {
-    Task<UpdateServiceResult<UpdateRolloutDto>> GetRolloutAsync(
-        Guid organizationId,
-        Guid branchId,
-        Guid rolloutId,
-        CancellationToken cancellationToken);
 
     Task<UpdateServiceResult<IReadOnlyList<UpdateRolloutStatusDto>>> ListRolloutStatusesAsync(
         Guid organizationId,

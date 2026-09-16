@@ -94,7 +94,6 @@ public sealed class OrganizationAdminReportServiceTests
                     DateTimeOffset.Parse("2026-07-29T01:00:00Z").AddHours(index), DateTimeOffset.Parse("2026-07-29T02:00:00Z").AddHours(index))).ToList(), 200));
         public Task<CashOperationReportResultDto> GetCashOperationReportAsync(Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<OwnerDailySummaryResultDto> GetOwnerDailySummaryAsync(Guid organizationId, Guid branchId, DateOnly date, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<ShiftRevenueListDto> GetShiftRevenueAsync(Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken) => throw new NotSupportedException();
         private static MoneyDto Money(long value) => new("TJS", value);

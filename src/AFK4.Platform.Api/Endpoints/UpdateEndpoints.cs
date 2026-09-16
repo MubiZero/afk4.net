@@ -88,28 +88,6 @@ internal static class UpdateEndpoints
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewUpdateStatus);
 
-        organizations.MapGet("branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}", async (
-            Guid branchId,
-            Guid rolloutId,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            IUpdateService updateService,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, OrganizationPermissionNames.ViewUpdateStatus, cancellationToken);
-            if (!authorization.IsAuthenticated) return Results.Unauthorized();
-            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            var result = await updateService.GetRolloutAsync(
-                authorization.StaffContext!.OrganizationId, branchId, rolloutId, cancellationToken);
-            if (!result.Succeeded) return ToUpdateHttpResult(result);
-            await WriteAuditAsync(auditRecordWriter, authorization.StaffContext.OrganizationId, branchId,
-                authorization.StaffContext.StaffUserId, AuditActionNames.ViewUpdateRollout, "UpdateRollout",
-                rolloutId.ToString("D"), AuditOutcome.Succeeded, new { result.Response!.State }, cancellationToken);
-            return Results.Ok(result.Response);
-        })
-            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewUpdateStatus);
-
         app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
             Guid deviceId,
             DeviceUpdateCheckRequest request,
