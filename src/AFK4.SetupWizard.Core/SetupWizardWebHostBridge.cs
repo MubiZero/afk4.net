@@ -73,7 +73,7 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:createTariff" => await CreateTariffAsync(request.Payload, cancellationToken),
                 "wizard:saveBranding" => await SaveBrandingAsync(request.Payload, cancellationToken),
                 "wizard:uploadLogo" => await UploadLogoAsync(request.Payload, cancellationToken),
-                "wizard:provisionShell" => FinalizeForRole(ReadProvisionRole(request.Payload)),
+                "wizard:provisionShell" => await FinalizeForRoleAsync(ReadProvisionRole(request.Payload), cancellationToken),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
 
@@ -127,6 +127,24 @@ public sealed class SetupWizardWebHostBridge(
         }
 
         return DeviceRoleNames.GamingPc;
+    }
+
+    /// <summary>
+    /// Ставит приложение роли и поднимает агента.
+    ///
+    /// Всё это — синхронные обращения к системе: msiexec, sc.exe, explorer.exe. На чистой машине
+    /// установка идёт минутами, и раньше она шла в потоке окна: мастер переставал реагировать на
+    /// перетаскивание, сворачивание и закрытие — со стороны неотличимо от зависшей программы.
+    /// Теперь работа уходит в фоновый поток, а окно остаётся живым.
+    ///
+    /// Токен отмены сюда намеренно не пробрасывается: оборвать msiexec на середине — это не
+    /// «отменить», а оставить наполовину установленное приложение. Ждём до конца и пишем исход
+    /// в журнал, даже если мост со стороны интерфейса уже отложил ожидание.
+    /// </summary>
+    private Task<WizardShellOutcome> FinalizeForRoleAsync(string role, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => FinalizeForRole(role), CancellationToken.None);
     }
 
     private WizardShellOutcome FinalizeForRole(string role)
@@ -488,7 +506,10 @@ public sealed class SetupWizardWebHostBridge(
                 publicKey),
             cancellationToken);
 
-        bootstrapWriter.Write(new SetupWizardBootstrapConfig(
+        // Запись конфигурации — тоже работа с системой: файлы под %ProgramData%, ужесточение
+        // прав через icacls, машинные переменные среды с рассылкой WM_SETTINGCHANGE. В потоке
+        // окна она подмораживала мастер ровно перед самой долгой частью — установкой.
+        var bootstrap = new SetupWizardBootstrapConfig(
             response.OrganizationId,
             response.BranchId,
             response.DeviceId,
@@ -498,8 +519,9 @@ public sealed class SetupWizardWebHostBridge(
             response.ApiBaseUrl,
             response.UpdateChannel,
             response.LeaseSigningPublicKeyPem,
-            response.UpdatePackageSigningPublicKeyPem));
-        var shell = FinalizeForRole(role);
+            response.UpdatePackageSigningPublicKeyPem);
+        await Task.Run(() => bootstrapWriter.Write(bootstrap), CancellationToken.None);
+        var shell = await FinalizeForRoleAsync(role, cancellationToken);
 
         return new WizardEnrollResult(
             response.OrganizationId,
