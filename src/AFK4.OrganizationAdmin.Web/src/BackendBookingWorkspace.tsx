@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
+import { createOperatorApiClients, type ReservationDto, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
 import type { StartReservationSessionRequest } from './api/clients/reservations';
 import { PlatformApiError } from './platformApi';
 import type { OperatorFloorMapState } from './floorMapState';
@@ -221,7 +221,7 @@ export function BackendBookingWorkspace({
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
 
   const items = mapReservationsToItems(
-    readArray<Record<string, unknown>>(reservationResult, 'reservations'),
+    readArray<ReservationDto>(reservationResult, 'reservations'),
     t('op.booking.guest')
   );
 

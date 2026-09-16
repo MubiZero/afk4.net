@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import type { SeatSummary } from '../operatorData';
+import { aReservation } from '../test/reservationFixture';
 import {
   mapReservationsToItems,
   mapSessionDtosToItems,
@@ -68,9 +69,9 @@ it('bookingStateLabelKey: каждое известное состояние →
 
 it('mapReservationsToItems: парсит поля и считает endMs из длительности', () => {
   const items = mapReservationsToItems([
-    { reservationId: 'r1', version: 9, state: 'pending', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
+    aReservation({ reservationId: 'r1', version: 9, state: 'pending', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
       durationMinutes: 60, customerName: 'Марат', phoneNumber: '+992', playerAccountId: 'player-1',
-      seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', startedSessionId: 'session-1' }
+      seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', startedSessionId: 'session-1' })
   ], 'Гость');
   expect(items).toHaveLength(1);
   expect(items[0].customerName).toBe('Марат');
@@ -86,17 +87,17 @@ it('mapReservationsToItems: парсит поля и считает endMs из �
 // администратору работу, которой нет.
 it('mapReservationsToItems: неявка выглядит закрытой заявкой, а не ожидающей', () => {
   const items = mapReservationsToItems([
-    { reservationId: 'r1', version: 2, state: 'no_show', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
+    aReservation({ reservationId: 'r1', version: 2, state: 'no_show', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
       durationMinutes: 60, customerName: 'Марат', phoneNumber: '+992', playerAccountId: 'player-1',
-      seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', startedSessionId: null }
+      seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', startedSessionId: null })
   ], 'Гость');
   expect(items[0].tone).toBe('cancelled');
 });
 
 it('mapReservationsToItems: читает reservationGroupId (пусто если нет)', () => {
   const items = mapReservationsToItems([
-    { reservationId: 'g1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 60, reservationGroupId: 'grp-7' },
-    { reservationId: 's1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 60 }
+    aReservation({ reservationId: 'g1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 60, reservationGroupId: 'grp-7' }),
+    aReservation({ reservationId: 's1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 60 })
   ], 'Гость');
   expect(items[0].reservationGroupId).toBe('grp-7');
   expect(items[1].reservationGroupId).toBe('');
@@ -104,7 +105,7 @@ it('mapReservationsToItems: читает reservationGroupId (пусто если
 
 it('mapReservationsToItems: пустое имя → гость', () => {
   const items = mapReservationsToItems([
-    { reservationId: 'r1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 30 }
+    aReservation({ reservationId: 'r1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 30 })
   ], 'Гость');
   expect(items[0].customerName).toBe('Гость');
 });
@@ -117,7 +118,7 @@ it('computeAxis: всегда полные сутки 00:00–24:00, незав�
 
   // С бронями ось не меняется — те же сутки.
   const items = mapReservationsToItems([
-    { reservationId: 'r1', startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 30 }
+    aReservation({ reservationId: 'r1', startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 30 })
   ], 'Гость');
   const withItems = computeAxis(items, day, day + 10 * HOUR);
   expect(withItems.startMs).toBe(day);
@@ -139,8 +140,8 @@ it('computeAxis: часовые засечки на все сутки, шаго�
 it('buildSeatRows: блок ложится на свою строку, %-позиция в [0,100]', () => {
   const seats = [seat('a1', 'Зал A', 'PC-01'), seat('a2', 'Зал A', 'PC-02')];
   const items = mapReservationsToItems([
-    { reservationId: 'r1', state: 'confirmed', source: 'operator',
-      startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 60, seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A' }
+    aReservation({ reservationId: 'r1', state: 'confirmed', source: 'operator',
+      startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 60, seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A' })
   ], 'Гость');
   const axis = computeAxis(items, day, day + 10 * HOUR);
   const { groups, unplaced } = buildSeatRows(seats, items, axis);
@@ -154,8 +155,8 @@ it('buildSeatRows: блок ложится на свою строку, %-поз�
 it('buildSeatRows: бронь с неизвестным местом → unplaced', () => {
   const seats = [seat('a1', 'Зал A', 'PC-01')];
   const items = mapReservationsToItems([
-    { reservationId: 'r1', state: 'pending', source: 'operator',
-      startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 60, seatId: 'ZZZ' }
+    aReservation({ reservationId: 'r1', state: 'pending', source: 'operator',
+      startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 60, seatId: 'ZZZ' })
   ], 'Гость');
   const axis = computeAxis(items, day, day + 10 * HOUR);
   const { unplaced } = buildSeatRows(seats, items, axis);
@@ -165,8 +166,8 @@ it('buildSeatRows: бронь с неизвестным местом → unplace
 it('buildSeatRows: отменённые на грид не попадают', () => {
   const seats = [seat('a1', 'Зал A', 'PC-01')];
   const items = mapReservationsToItems([
-    { reservationId: 'r1', state: 'cancelled', source: 'operator',
-      startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 60, seatId: 'a1' }
+    aReservation({ reservationId: 'r1', state: 'cancelled', source: 'operator',
+      startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 60, seatId: 'a1' })
   ], 'Гость');
   const axis = computeAxis(items, day, day + 10 * HOUR);
   const { groups } = buildSeatRows(seats, items, axis);
@@ -230,9 +231,9 @@ it('buildSeatRows: сессия ложится на строку своего м
 
 it('unseatedOnlineRequests: только online+pending без места', () => {
   const items = mapReservationsToItems([
-    { reservationId: 'r1', state: 'pending', source: 'online', startsAtUtc: new Date(day).toISOString(), durationMinutes: 30 },
-    { reservationId: 'r2', state: 'pending', source: 'online', startsAtUtc: new Date(day).toISOString(), durationMinutes: 30, seatId: 'a1' },
-    { reservationId: 'r3', state: 'confirmed', source: 'online', startsAtUtc: new Date(day).toISOString(), durationMinutes: 30 }
+    aReservation({ reservationId: 'r1', state: 'pending', source: 'online', startsAtUtc: new Date(day).toISOString(), durationMinutes: 30 }),
+    aReservation({ reservationId: 'r2', state: 'pending', source: 'online', startsAtUtc: new Date(day).toISOString(), durationMinutes: 30, seatId: 'a1' }),
+    aReservation({ reservationId: 'r3', state: 'confirmed', source: 'online', startsAtUtc: new Date(day).toISOString(), durationMinutes: 30 })
   ], 'Гость');
   const lane = unseatedOnlineRequests(items);
   expect(lane.map((i) => i.reservationId)).toEqual(['r1']);
@@ -268,8 +269,8 @@ describe('respondCountdown', () => {
 describe('mapReservationsToItems · срок ответа', () => {
   it('поднимает respondByUtc из ответа сервера и переживает его отсутствие', () => {
     const [withDeadline, without] = mapReservationsToItems([
-      { reservationId: 'r1', state: 'pending', startsAtUtc: '2026-08-20T18:00:00Z', respondByUtc: '2026-08-20T17:15:00Z' },
-      { reservationId: 'r2', state: 'confirmed', startsAtUtc: '2026-08-20T18:00:00Z' }
+      aReservation({ reservationId: 'r1', state: 'pending', startsAtUtc: '2026-08-20T18:00:00Z', respondByUtc: '2026-08-20T17:15:00Z' }),
+      aReservation({ reservationId: 'r2', state: 'confirmed', startsAtUtc: '2026-08-20T18:00:00Z' })
     ], 'Гость');
 
     expect(withDeadline.respondByMs).toBe(Date.parse('2026-08-20T17:15:00Z'));

@@ -2,8 +2,8 @@
 // (projectPlayerClient/playerPackageLabel/PlayerClientItem) остаются в operatorHelpers,
 // т.к. их используют POS/Брони/Карта — здесь только ре-экспорт, чтобы у фичи был
 // единый импорт. Players-эксклюзивные чистые функции живут здесь.
-import { formatMinorUnits, formatTime, readString, type PlayerClientItem, type TFunc } from '../operatorHelpers';
-import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto } from '../operatorApiClients';
+import { formatMinorUnits, formatTime, type PlayerClientItem, type TFunc } from '../operatorHelpers';
+import type { LedgerEntryDto, PlayerPackageDto, ReservationDto, SessionTimelineItemDto } from '../operatorApiClients';
 import type { MessageKey } from '@afk4/i18n';
 
 export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '../operatorHelpers';
@@ -179,7 +179,7 @@ export interface ClientLiveContext {
 
 export function buildClientContext(
   sessions: SessionTimelineItemDto[],
-  reservations: Array<Record<string, unknown>>,
+  reservations: ReservationDto[],
   playerAccountId: string
 ): ClientLiveContext {
   const activeSession = sessions.find((session) =>
@@ -191,8 +191,8 @@ export function buildClientContext(
   // Брони уже отфильтрованы сервером по playerAccountId, но перепроверяем на клиенте: если бэкенд
   // когда-нибудь проигнорирует параметр, в профиль не должна просочиться чужая бронь.
   const nextBooking = reservations.find((reservation) =>
-    readString(reservation, 'playerAccountId') === playerAccountId &&
-    UPCOMING_RESERVATION_STATES.includes(readString(reservation, 'state'))
+    reservation.playerAccountId === playerAccountId &&
+    UPCOMING_RESERVATION_STATES.includes(reservation.state)
   ) ?? null;
 
   return {
@@ -201,8 +201,8 @@ export function buildClientContext(
       untilLabel: activeSession.endsAtUtc ? formatTime(activeSession.endsAtUtc) : null
     },
     nextBooking: nextBooking === null ? null : {
-      timeLabel: formatTime(readString(nextBooking, 'startsAtUtc')),
-      seatName: readString(nextBooking, 'seatName') || null
+      timeLabel: formatTime(nextBooking.startsAtUtc),
+      seatName: nextBooking.seatName || null
     }
   };
 }
@@ -212,7 +212,7 @@ export function buildClientContext(
 // Фикстурные клиенты (без playerAccountId) не имеют серверного контекста — пропускаем их.
 export function buildClientContextMap(
   sessions: SessionTimelineItemDto[],
-  reservations: Array<Record<string, unknown>>,
+  reservations: ReservationDto[],
   clients: PlayerClientItem[]
 ): Map<string, ClientLiveContext> {
   const contextByPlayerId = new Map<string, ClientLiveContext>();

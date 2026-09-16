@@ -3,6 +3,7 @@ import { createTranslator } from '@afk4/i18n';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, buildClientOverview, buildClientContext, buildClientContextMap, matchesSegment, isNewClient, relativeVisitLabel, activePackageLabel, type ClientSegmentId } from './playersModel';
 import type { TFunc, PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto } from '../operatorApiClients';
+import { aReservation } from '../test/reservationFixture';
 
 // Стаб переводчика: возвращает ключ, игнорируя параметры — тесты проверяют только
 // структурные поля проекции, не локализованный текст.
@@ -273,8 +274,8 @@ describe('buildClientContext (играет сейчас + ближайшая б�
     const ctx = buildClientContext(
       [],
       [
-        { reservationId: 'r0', playerAccountId: 'p1', state: 'cancelled', startsAtUtc: '2026-06-23T17:00:00Z', seatName: 'PC-01' },
-        { reservationId: 'r1', playerAccountId: 'p1', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' }
+        aReservation({ reservationId: 'r0', playerAccountId: 'p1', state: 'cancelled', startsAtUtc: '2026-06-23T17:00:00Z', seatName: 'PC-01' }),
+        aReservation({ reservationId: 'r1', playerAccountId: 'p1', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' })
       ],
       'p1'
     );
@@ -285,7 +286,7 @@ describe('buildClientContext (играет сейчас + ближайшая б�
   it('игнорирует бронь чужого клиента (страховка от незафильтрованного бэкенда)', () => {
     const ctx = buildClientContext(
       [],
-      [{ reservationId: 'r9', playerAccountId: 'other', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-09' }],
+      [aReservation({ reservationId: 'r9', playerAccountId: 'other', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-09' })],
       'p1'
     );
     expect(ctx.nextBooking).toBeNull();
@@ -356,7 +357,7 @@ describe('buildClientContextMap (один проход sessions/reservations н�
     ];
     const sessions = [session({ playerAccountId: 'p1', seatName: 'PC-03' })];
     const reservations = [
-      { reservationId: 'r1', playerAccountId: 'p2', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' }
+      aReservation({ reservationId: 'r1', playerAccountId: 'p2', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' })
     ];
 
     const map = buildClientContextMap(sessions, reservations, clients);

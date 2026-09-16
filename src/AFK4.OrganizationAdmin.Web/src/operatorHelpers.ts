@@ -3,7 +3,7 @@ import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type SessionActionResponse, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
+import { createOperatorApiClients, type AuditRecordDto, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type SessionActionResponse, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { refreshOperatorSession, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
 import { isAccessTokenExpired } from './auth/staffSessionStore';
@@ -1524,13 +1524,13 @@ export function auditActionLabel(action: string, t: TFunc): string {
   }
 }
 
-export function auditActorLabel(record: Record<string, unknown>, backend: OperatorBackendContext | null, t: TFunc): string {
-  const actorStaffUserId = readString(record, 'actorStaffUserId');
+export function auditActorLabel(record: AuditRecordDto, backend: OperatorBackendContext | null, t: TFunc): string {
+  const actorStaffUserId = record.actorStaffUserId ?? '';
   if (!actorStaffUserId) {
     return t('op.helper.audit.system');
   }
 
-  if (backend?.session.staffUserId.toLowerCase() === actorStaffUserId.toLowerCase()) {
+  if (backend !== null && backend.session.staffUserId.toLowerCase() === actorStaffUserId.toLowerCase()) {
     return operatorDisplayNameLabel(backend.session.displayName, t);
   }
 

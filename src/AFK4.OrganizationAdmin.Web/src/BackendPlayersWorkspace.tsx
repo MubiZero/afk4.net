@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError, requiresManagerApproval } from './apiErrors';
-import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto, ReservationDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
@@ -305,7 +305,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
       }
 
       const sessions = readArray<SessionTimelineItemDto>(sessionsResult, 'sessions');
-      const reservations = readArray<Record<string, unknown>>(reservationsResult, 'reservations');
+      const reservations = readArray<ReservationDto>(reservationsResult, 'reservations');
       setLiveContextByClient(buildClientContextMap(sessions, reservations, backendClients));
     };
 
