@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-03
+Last updated: 2026-09-16
 
 ## Purpose
 
@@ -360,6 +360,59 @@ Latest Verification).
   the shell stayed put and blamed the connection; it now clears storage and shows
   the sign-in screen, which is the honest answer.
 
+## Honesty Wave (2026-09-16)
+
+An API/UI audit ran across the whole tree and the owner froze every live run
+(clean `manager_workstation`, physical gaming PC, staging money pass) until the
+code of every part is finished. Everything below is code work done under that
+rule, one PR each, all on `main` or open with green checks:
+
+- **Sign-out revokes tokens** (#264). It cleared local storage only: a staff
+  refresh token lived 30 days after "Выйти" on a shared club PC; the player app
+  did the same. Both now revoke the presented pair server-side; a second
+  workstation of the same person is untouched.
+- **Named-pipe `Flush`** (#266). On a pipe `Flush` is `FlushFileBuffers` — it
+  waits until the peer drains. The requester side burned its whole timeout
+  inside a four-byte write (the agent reported "Organization Admin is not
+  running" against a running app); the responder side needs it, because closing
+  a pipe discards what the peer has not read. Split accordingly.
+- **The «План» server tail is gone** (#265). The plan editor was removed on
+  2026-06-17 by the owner's decision; the backend half (PUT, walls, seat
+  coordinates, zone geometry, bulk contracts) lived on unreachable. Removed with
+  a migration; the grid stays the only map view.
+- **Twelve unreachable routes triaged** (#267, #269). Four were dead (legacy OTP
+  sign-in, `GET /api/me/phone`, public branding by slug, duplicate `move-seat`);
+  three were duplicates of live paths (tariff calculate, owner daily summary,
+  rollout detail). Device enrollment codes were *wrongly* called dead by the
+  audit — the staging smoke and the local-Postgres runbook provision machines
+  with them; the server half stays.
+- **Two real holes closed**: a player's top-up request was invisible at the
+  counter — now a «Пополнения» queue in Касса, with online-paid requests
+  deliberately not confirmable by hand (#270); and an invoice outside the
+  subscription had no form at all (#271).
+- **Loose reads typed** (#268): reservations, audit records and zone seats were
+  still read as `Record<string, unknown>` — exactly where money and bookings
+  are.
+- **The seat menu stopped lying** (#272): six items (reboot, shutdown,
+  wake-on-LAN, active window, fine, notify) looked live and only raised a toast.
+- **Installer installs WebView2** (#273): every window a human sees on a club
+  machine is WebView2, and a clean machine was met by an English "install it
+  yourself" dialog.
+- **Agent honesty** (#274): unknown commands answered "Accepted" (so the seat
+  menu's six items were "executed" in the log); the server's credit-limit `warn`
+  was thrown away, so a player learned about the debt from a dark screen; the
+  launcher list was hardcoded empty against a working config; the installed-app
+  inventory ran once per service start; reconciliation reported a constant zero
+  pending events.
+- **Workstation lock does something** (#275): it was two log lines and a
+  `Task.CompletedTask` reported to the server as locked. It now disables Task
+  Manager through machine policy and reports what it actually enforced.
+
+Two defects in the above were caught by CI, not by local runs: a stale
+`PUT /floor-map` call and four wrong device paths in `scripts/staging-smoke.py`
+(the smoke had been failing those steps unnoticed), and the first, too-broad
+version of the pipe `Flush` change, which hung the agent suite for 37 minutes.
+
 ## Latest Verification
 
 - Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
@@ -570,17 +623,20 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   need a native WebView2 visual pass at 100%/125% scaling in dark and light
   themes together with the broader clean `manager_workstation` smoke below.
 
-- **The gaming PC does not actually lock.** `WorkstationLockController` is the
-  only registered implementation and both of its methods just write a log line.
-  Everything above it is real — the enforcement coordinator, grace mode, lease
-  validation — but the workstation is never locked. What holds a player today is
-  the shell window (`Topmost`, borderless) plus killing denied processes, and
-  Alt+Tab or the Windows key go around both. Three smaller holes sit next to it:
-  the launcher app list is hardcoded empty (`Worker.cs:362`) so the shell shows
-  no games; an unknown device command is answered "accepted" and does nothing;
-  the installed-app inventory and session reconciliation run once per service
-  start, not on a schedule. **By the owner's decision (2026-09-03) the gaming PC
-  is the last part to be worked on, after everything else is production-ready.**
+- **The gaming PC still has no OS-level kiosk.** Lock now disables Task Manager
+  through machine policy and reports what it enforced (#275), the launcher list
+  and the credit-limit warning reach the player, unknown commands are refused
+  and the app inventory runs on a schedule (#274). What is still missing is the
+  half that cannot live in a service: swallowing Win/Alt+Tab and holding the
+  shell in front need a hook on the interactive desktop, and the agent sits in
+  session 0. So a player can still Alt+Tab out of a "locked" PC — the difference
+  is that the server no longer claims otherwise. That half belongs to the Player
+  Shell rewrite. Two more shell-side actions are dead on both ends and need a
+  backend route as well: «позвать оператора» (`shell:requestOperator` answers
+  `{requested:true}` and tells nobody) and «пауза» (the host bridge answers
+  `{paused:true}`; the server models a `Paused` session state that nothing ever
+  reaches). Clock drift is still detected and only logged — a deliberate
+  deferral until real fleets show whether they drift.
 
 - **Release registration needs a human.** Registering an update package is a
   platform-admin action behind two-factor, so CI cannot do it: `Package Smoke`
@@ -637,29 +693,34 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Recommended Next Work
 
-The order changed on 2026-09-03 by the owner's decision: **the gaming PC is done
-last**, after every other part is production-ready. Everything below is that
-"everything else".
+The order is the owner's, set on 2026-09-16: **every live run is frozen** — the
+clean `manager_workstation` pass, the physical gaming-PC smoke and the staging
+money pass all wait until the code of every part is finished and satisfies the
+owner. The Player Shell is last of all, and its current implementation is to be
+thrown away rather than polished.
 
-1. **Live pass over the revenue wave.** Hour packages, group booking, refer a
-   friend, the booking capacity check and off-peak pricing are all merged, and
-   **none of the five has been on a phone or against staging.** They are money
-   paths, and the last live pass found two defects that 2000+ tests had not.
-   Referral is off by default and is switched on in «Платежи и лояльность»;
-   off-peak needs a tariff with hours set in «Тарифы и пакеты».
-2. **Real per-environment SMTP.** Everything in code exists; the domain does not
-   exist on the mail server yet. `afk4.net` gets added to the Stalwart instance
-   already running in Coolify, its records go into the empty Cloudflare zone, and
-   the `Notifications__*` variables get set — `docs/operations/email-delivery.md`.
+1. **The Player Shell, rewritten.** It is the least finished part of the
+   product: nine screens, ~1100 lines, its own inline styles instead of the kit
+   and tokens, and hardcoded Russian in every screen although `@afk4/i18n` is a
+   declared dependency and the agent already sends the branch's `Locale` (which
+   nothing reads). A Tajik club sees a Russian kiosk. The rewrite carries the
+   work that has to live in an interactive process: kiosk input blocking,
+   «позвать оператора» (needs a backend route — there is none), «пауза» (needs a
+   session endpoint — there is none), empty states in shop/extend.
+2. **Operator entity search** — the palette finds people but still not seats,
+   reservations, orders or receipts.
 3. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
-   credentials, backup encryption/retention/ownership, an incident and rollback
+   credentials, backup encryption/retention/ownership, incident and rollback
    checklist.
-4. **Decide whether iOS ships at launch.** If yes: an Apple developer account,
-   an APNs key, an `ios` build target, and a device pass equal to the Android one.
-5. **Clean `manager_workstation` pass** at 100%/125% scaling — the last piece of
-   evidence that does not need the gaming PC.
-6. **Then the gaming PC**, in one piece: a real workstation lock and kiosk mode,
-   the launcher list, honest answers to unknown commands, scheduled inventory,
-   and «позвать оператора» reaching the counter. Only after that does the
-   physical Windows smoke have anything to prove.
+4. **Decide whether iOS ships at launch** — no Apple account, no APNs key, no
+   `ios` folder.
+5. **Then, and only then, the frozen evidence**: the live revenue-wave pass, per
+   environment SMTP (`docs/operations/email-delivery.md`), the clean
+   `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
+   smoke.
+
+Known smaller debts worth picking up between the big pieces: the `mock.module`
+leak that fails one Organization Admin web test on Windows in a full run (green
+on Linux, so CI never sees it), and the report-plan tail listed in
+`docs/superpowers/plans/README.md`.
