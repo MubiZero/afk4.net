@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
+import { UPDATE_COMPONENTS, componentLabelKey } from './updatesModel';
 
 export type UpdatesClient = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout' | 'changeRolloutState'>;
 type OrganizationsClient = Pick<OrganizationsApi, 'listOrganizations'>;
@@ -129,7 +130,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
           <TableBody>
             {packages.map(row => (
               <TableRow key={row.updatePackageId}>
-                <TableCell>{componentLabel(row.component)}</TableCell>
+                <TableCell>{t(componentLabelKey(row.component))}</TableCell>
                 <TableCell className="pc-num">{row.version}</TableCell>
                 <TableCell>{row.channel}</TableCell>
                 <TableCell>
@@ -170,7 +171,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
       <Dialog
         open={publishTarget !== null}
         title={t('platform.updates.publish.title')}
-        description={publishTarget !== null ? t('platform.updates.publish.description', { component: componentLabel(publishTarget.component), version: publishTarget.version }) : undefined}
+        description={publishTarget !== null ? t('platform.updates.publish.description', { component: t(componentLabelKey(publishTarget.component)), version: publishTarget.version }) : undefined}
         onClose={() => setPublishTarget(null)}
         footer={
           <>
@@ -316,11 +317,10 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
       <form className="mgmt-form" onSubmit={submit}>
         <div className="mgmt-form-grid">
           <NativeField label={t('platform.updates.field.component')} name="component">
-            <select name="component" className="ui-select" defaultValue="organization_admin">
-              <option value="organization_admin">Organization Admin</option>
-              <option value="operator_app">Admin App</option>
-              <option value="agent_service">Agent Service</option>
-              <option value="player_shell">Player Shell</option>
+            <select name="component" className="ui-select" defaultValue={UPDATE_COMPONENTS[0]!.name}>
+              {UPDATE_COMPONENTS.map(component => (
+                <option key={component.name} value={component.name}>{t(component.labelKey)}</option>
+              ))}
             </select>
           </NativeField>
           <NativeField label={t('platform.updates.field.channel')} name="channel">
@@ -406,15 +406,6 @@ function NativeField({ label, name, children }: { label: string; name: string; c
 
 function value(data: FormData, key: string): string {
   return String(data.get(key) ?? '').trim();
-}
-
-function componentLabel(value: string): string {
-  return ({
-    organization_admin: 'Organization Admin',
-    operator_app: 'Admin App',
-    agent_service: 'Agent Service',
-    player_shell: 'Player Shell'
-  } as Record<string, string>)[value] ?? value;
 }
 
 

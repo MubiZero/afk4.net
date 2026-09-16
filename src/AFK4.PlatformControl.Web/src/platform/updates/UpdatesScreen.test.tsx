@@ -8,7 +8,7 @@ afterEach(cleanup);
 
 function rolloutRow(state: string) {
   return {
-    updateRolloutId: 'r1', updatePackageId: 'p1', component: 'organization_admin', version: '1.4.0',
+    updateRolloutId: 'r1', updatePackageId: 'p1', component: 'organization-admin', version: '1.4.0',
     channel: 'stable', state, targetKind: 'organization', organizationIds: ['org-1'], branchIds: [],
     deviceIds: [], batchPercent: 100, reason: 'Публикация', createdByPlatformAdminUserId: 'a1',
     createdAtUtc: '2026-07-29T11:00:00Z', startsAtUtc: '2026-07-29T11:00:00Z', completedAtUtc: null
@@ -16,7 +16,7 @@ function rolloutRow(state: string) {
 }
 
 const packageRow = {
-  updatePackageId: 'p1', component: 'organization_admin', version: '1.4.0', channel: 'stable',
+  updatePackageId: 'p1', component: 'organization-admin', version: '1.4.0', channel: 'stable',
   artifactUri: 'https://updates.afk4.net/admin.msi', sha256: 'a'.repeat(64), signature: 'sig',
   signatureAlgorithm: 'ecdsa-p256-sha256-ieee-p1363', sizeBytes: 1024, state: 'registered',
   releaseNotes: 'Safe release.', createdByPlatformAdminUserId: 'a1', createdAtUtc: '2026-07-29T10:00:00Z',
@@ -127,5 +127,24 @@ describe('UpdatesScreen', () => {
     await screen.findByText('Organization Admin');
     expect(screen.queryByRole('button', { name: 'Запустить rollout' })).toBeNull();
     expect(screen.queryByLabelText('Размер партии, %')).toBeNull();
+  });
+
+  // Форма отправляла имена приложений, которых сервер не знает («organization_admin»), и
+  // регистрация пакета падала целиком — каждый раз, на любом приложении.
+  it('регистрирует пакет под тем именем приложения, которое принимает сервер', async () => {
+    const { updates } = setup();
+    await screen.findByText('Organization Admin');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Зарегистрировать пакет' })[0]!);
+
+    fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '1.5.0' } });
+    fireEvent.change(screen.getByLabelText('Размер файла, байт'), { target: { value: '2048' } });
+    fireEvent.change(screen.getByLabelText('URL installer'), { target: { value: 'https://updates.afk4.net/admin.msi' } });
+    fireEvent.change(screen.getByLabelText('SHA-256'), { target: { value: 'b'.repeat(64) } });
+    fireEvent.change(screen.getByLabelText('Подпись'), { target: { value: 'sig' } });
+    fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Ничего страшного.' } });
+    fireEvent.submit(screen.getByLabelText('Версия').closest('form')!);
+
+    await waitFor(() => expect(updates.registerPackage).toHaveBeenCalled());
+    expect(updates.registerPackage.mock.calls[0][0].component).toBe('organization-admin');
   });
 });

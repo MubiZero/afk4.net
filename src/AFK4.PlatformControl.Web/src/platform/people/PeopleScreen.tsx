@@ -77,7 +77,7 @@ export function PeopleScreen({ client }: { client: Client }) {
             <Input
               value={phone}
               inputMode="tel"
-              placeholder="+992 90 000-00-00"
+              placeholder={t('account.phone.placeholder')}
               onChange={event => setPhone(event.target.value)}
               onKeyDown={event => { if (event.key === 'Enter') void find(); }}
             />
