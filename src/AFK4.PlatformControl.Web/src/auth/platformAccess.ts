@@ -2,6 +2,7 @@ import type { PlatformAdminSession } from './tokenStore';
 
 export type PlatformCapability =
   | 'organizations.read'
+  | 'organizations.create'
   | 'organizations.manage'
   | 'organizations.status.manage'
   | 'organizations.profile.manage'
@@ -26,6 +27,10 @@ export type PlatformCapability =
 
 const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'organizations.read': ['platform.organizations.view'],
+  // Отдельно от `organizations.manage`: заведение клуба бэкенд спрашивает ровно по
+  // `platform.organizations.create`. Сотрудник, которому можно только менять статус или лимиты,
+  // не должен видеть кнопку «Новый клуб» — единственным ответом на неё был бы отказ.
+  'organizations.create': ['platform.organizations.create'],
   'organizations.manage': [
     'platform.organizations.create',
     'platform.organizations.status.update',

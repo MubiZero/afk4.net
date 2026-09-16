@@ -32,6 +32,7 @@ function organization(overrides: Partial<OrganizationDetail> = {}): Organization
 function client(): ClientPassportClients {
   return {
     organizations: { updateProfile: mock(), updateStatus: mock(), updateUpdateChannel: mock(), transferOwner: mock() },
+    plans: { listPlans: mock().mockResolvedValue([]) },
     subscriptions: {
       getSubscription: mock().mockResolvedValue({
         organizationSubscriptionId: 's1', organizationId: 'o1', planCode: 'growth', status: 'active',

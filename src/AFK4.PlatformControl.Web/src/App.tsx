@@ -109,7 +109,13 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       onNavigate={path => navigate(resolvePlatformRoute(new URL(path, window.location.origin).pathname, new URL(path, window.location.origin).search))}
       onSignOut={onSignOut}
     >
-      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <ClubsScreen client={client} view={route.view} onViewChange={view => navigate({ kind: 'overview', view })} onOpenOrganization={id => openOrganization(id)} />
+      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <ClubsScreen
+            client={client}
+            view={route.view}
+            onViewChange={view => navigate({ kind: 'overview', view })}
+            onOpenOrganization={id => openOrganization(id)}
+            onCreateOrganization={can(session, 'organizations.create') ? () => navigate({ kind: 'organizationNew' }) : undefined}
+          />
         : route.kind === 'billing' ? <BillingScreen
             client={client}
             tab={route.tab}
@@ -138,7 +144,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
 function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>): PlatformCapability | null {
   switch (route.kind) {
     case 'organization': return 'organizations.read';
-    case 'organizationNew': return 'organizations.manage';
+    case 'organizationNew': return 'organizations.create';
     case 'billing': return 'billing.read';
     case 'updates': return 'updates.read';
     case 'audit': return 'audit.read';

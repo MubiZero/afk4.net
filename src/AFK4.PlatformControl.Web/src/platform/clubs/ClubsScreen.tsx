@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
 import { Page } from '@/components/layout/Page';
+import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
 import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
@@ -28,14 +30,30 @@ interface ClubsScreenProps {
   view: PulseView;
   onViewChange: (view: PulseView) => void;
   onOpenOrganization: (organizationId: string) => void;
+  /// Завести клуб. Не задан — у этого сотрудника нет права заводить, и кнопки нет вовсе.
+  ///
+  /// Экран заведения существовал и работал, но попасть на него можно было только набрав адрес
+  /// руками: кнопка потерялась, когда список организаций заменили на этот пульс. Главное
+  /// действие панели не должно зависеть от знания адреса.
+  onCreateOrganization?: () => void;
 }
 
-export function ClubsScreen({ client, view, onViewChange, onOpenOrganization }: ClubsScreenProps) {
+export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, onCreateOrganization }: ClubsScreenProps) {
   const { t } = useI18n();
   const state = usePulse(client.pulse);
 
   return (
-    <Page width="full" title={t('platform.clubs.title')} description={t('platform.clubs.subtitle')}>
+    <Page
+      width="full"
+      title={t('platform.clubs.title')}
+      description={t('platform.clubs.subtitle')}
+      actions={onCreateOrganization !== undefined ? (
+        <Button onClick={onCreateOrganization}>
+          <Plus size={16} aria-hidden="true" />
+          {t('platform.clubs.create')}
+        </Button>
+      ) : undefined}
+    >
       <Tabs
         label={t('platform.clubs.view.label')}
         value={view}
