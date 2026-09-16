@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace AFK4.SetupWizard.Web;
+namespace AFK4.SetupWizard.Core;
 
 public sealed class SetupWizardWebAssetResolver
 {

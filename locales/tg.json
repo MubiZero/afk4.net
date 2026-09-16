@@ -3406,6 +3406,8 @@
   "setup.wizard.common.back": "Бозгашт",
   "setup.wizard.common.continue": "Идома",
   "setup.wizard.common.step": "Қадам",
+  "setup.wizard.crash.message": "Устои насб пешпо хӯрд ва ин экранро нишон дода натавонист. Аз нав кӯшиш кунед — агар кумак накунад, тирезаро пӯшед ва усторо аз менюи «Оғоз» дубора кушоед.",
+  "setup.wizard.crash.retry": "Аз нав кӯшиш кардан",
   "setup.wizard.device.action.enroll": "Ба қайд гирифтан",
   "setup.wizard.device.action.enrolling": "Ба қайд мегирем…",
   "setup.wizard.device.error.createSeat": "Ҷойро сохтан нашуд. Пайвастро бо сервер санҷед ва бори дигар кӯшиш кунед.",

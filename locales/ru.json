@@ -3406,6 +3406,8 @@
   "setup.wizard.common.back": "Назад",
   "setup.wizard.common.continue": "Продолжить",
   "setup.wizard.common.step": "Шаг",
+  "setup.wizard.crash.message": "Мастер установки споткнулся и не смог показать этот экран. Попробуйте ещё раз — если не поможет, закройте окно и запустите мастер заново из меню «Пуск».",
+  "setup.wizard.crash.retry": "Попробовать ещё раз",
   "setup.wizard.device.action.enroll": "Зарегистрировать",
   "setup.wizard.device.action.enrolling": "Регистрируем…",
   "setup.wizard.device.error.createSeat": "Не удалось создать место. Проверьте связь с сервером и попробуйте ещё раз.",

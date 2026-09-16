@@ -1,4 +1,4 @@
-namespace AFK4.SetupWizard.Web;
+namespace AFK4.SetupWizard.Core;
 
 public sealed record SetupWizardWebShellLaunchTarget(
     Uri Source,
