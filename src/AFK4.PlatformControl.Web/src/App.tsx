@@ -8,6 +8,7 @@ import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { SignIn } from './components/SignIn';
 import { AppShell } from './components/shell/AppShell';
 import { ForbiddenState, LoadingCards } from './components/ui/states';
+import { TabBoundary as ScreenBoundary } from '@/components/shared/TabBoundary';
 import { Page } from './components/layout/Page';
 import { useI18n } from './i18n/I18nProvider';
 import { buildPlatformNav } from './platform/nav';
@@ -109,6 +110,15 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       onNavigate={path => navigate(resolvePlatformRoute(new URL(path, window.location.origin).pathname, new URL(path, window.location.origin).search))}
       onSignOut={onSignOut}
     >
+      {/* Граница вокруг всего содержимого раздела: без неё падение отрисовки в любом из восьми
+          разделов рейла роняло панель целиком — белый экран вместо «этот раздел не открылся».
+          resetKey — сам раздел: переход в другой монтирует границу заново, и застрявшая ошибка
+          не переезжает за человеком. */}
+      <ScreenBoundary
+        resetKey={activePath(route)}
+        message={t('platform.screenBoundary.error')}
+        retryLabel={t('platform.screenBoundary.retry')}
+      >
       <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <ClubsScreen
             client={client}
             view={route.view}
@@ -137,6 +147,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'people' ? <PeopleScreen client={client.people} />
         : route.kind === 'health' ? <HealthScreen client={client.health} canSendTestEmail={can(session, 'health.test_email.send')} />
         : <UnavailableScreen />}</Suspense>
+      </ScreenBoundary>
     </AppShell>
   );
 }

@@ -40,6 +40,10 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
   const [inviteOpen, setInviteOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<PlatformAdminInvitation | null>(null);
   const [resetTarget, setResetTarget] = useState<PlatformAdminListItem | null>(null);
+  // Отключить коллеге доступ к платформе или поменять ему роль — одного клика мало: соседние
+  // действия того же веса (отзыв приглашения, сброс второго фактора, приостановка клуба) давно
+  // спрашивают подтверждение, а эти два срабатывали мимо воли.
+  const [confirmTarget, setConfirmTarget] = useState<{ kind: 'role' | 'active'; admin: PlatformAdminListItem } | null>(null);
   const [resetting, setResetting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -162,7 +166,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
                           variant="outline"
                           disabled={busy || roleReason !== null}
                           title={roleReason !== null ? t(roleReason) : undefined}
-                          onClick={() => void toggleRole(item)}
+                          onClick={() => setConfirmTarget({ kind: 'role', admin: item })}
                         >
                           {item.role === ROLE_PLATFORM_ADMIN ? t('platform.settings.action.makeSupport') : t('platform.settings.action.makeAdmin')}
                         </Button>
@@ -171,7 +175,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
                           variant={item.isActive ? 'destructive' : 'outline'}
                           disabled={busy || (item.isActive && !canDisable(item, session.platformAdminId, admins))}
                           title={item.isActive && disableReason !== null ? t(disableReason) : undefined}
-                          onClick={() => void toggleActive(item)}
+                          onClick={() => setConfirmTarget({ kind: 'active', admin: item })}
                         >
                           {item.isActive ? t('platform.settings.action.disable') : t('platform.settings.action.enable')}
                         </Button>
@@ -215,6 +219,34 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
       </CardContent>
 
       <AdminInviteDialog open={inviteOpen} client={client} onOpenChange={setInviteOpen} onCreated={refresh} />
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title={confirmTarget?.kind === 'active'
+          ? (confirmTarget.admin.isActive
+            ? t('platform.settings.disableConfirm.title')
+            : t('platform.settings.enableConfirm.title'))
+          : t('platform.settings.roleConfirm.title')}
+        description={confirmTarget?.kind === 'active'
+          ? (confirmTarget.admin.isActive
+            ? t('platform.settings.disableConfirm.body', { name: confirmTarget.admin.displayName })
+            : t('platform.settings.enableConfirm.body', { name: confirmTarget.admin.displayName }))
+          : t('platform.settings.roleConfirm.body', {
+            name: confirmTarget?.admin.displayName ?? '',
+            role: t(roleLabelKey(confirmTarget?.admin.role === ROLE_PLATFORM_ADMIN ? 'platform_support' : ROLE_PLATFORM_ADMIN))
+          })}
+        confirmLabel={t('common.confirm')}
+        cancelLabel={t('common.cancel')}
+        destructive={confirmTarget?.kind === 'active' && confirmTarget.admin.isActive}
+        pending={busyId !== null}
+        onConfirm={() => {
+          const target = confirmTarget;
+          setConfirmTarget(null);
+          if (target === null) return;
+          void (target.kind === 'active' ? toggleActive(target.admin) : toggleRole(target.admin));
+        }}
+        onOpenChange={open => { if (!open) setConfirmTarget(null); }}
+      />
 
       <ConfirmDialog
         open={resetTarget !== null}
