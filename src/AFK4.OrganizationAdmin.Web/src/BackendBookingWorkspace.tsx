@@ -83,12 +83,16 @@ export function BackendBookingWorkspace({
   floorMap,
   backend,
   currencyCode,
-  onOpenSeat
+  onOpenSeat,
+  openReservation
 }: {
   floorMap: OperatorFloorMapState;
   backend: OperatorBackendContext | null;
   currencyCode: string;
   onOpenSeat: (seatId: string) => void;
+  // Бронь, выбранная в командной палитре. Вместе с ней едет время начала: экран брони показывает
+  // один день, и без даты нужная бронь просто не попала бы в загруженный список.
+  openReservation?: { reservationId: string; startsAtUtc: string | null } | null;
 }) {
   const { t, locale } = useI18n();
 
@@ -571,6 +575,20 @@ export function BackendBookingWorkspace({
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!openReservation) return;
+    if (openReservation.startsAtUtc) {
+      const startsAt = new Date(openReservation.startsAtUtc);
+      if (!Number.isNaN(startsAt.getTime())) {
+        setSelectedDate(startsAt);
+      }
+    }
+
+    setFeedback(emptyFeedback);
+    setSelectedReservationId(openReservation.reservationId);
+    setDrawerMode('detail');
+  }, [openReservation?.reservationId, openReservation?.startsAtUtc]);
 
   const openDetailDrawer = (reservationId: string) => {
     setFeedback(emptyFeedback);

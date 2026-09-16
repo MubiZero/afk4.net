@@ -781,6 +781,58 @@ class BranchProfileDto {
       };
 }
 
+/// Одна находка палитры: чем это открыть (Kind и Id) и как
+/// узнать глазами (остальное).
+/// <param name="Subtitle">
+/// То, чем различают похожие строки: зал у места, телефон у клиента и у брони. Пусто там, где
+/// различать нечем.
+/// </param>
+/// <param name="OccursAtUtc">
+/// К какому моменту относится находка: начало брони, дата чека. Сырое время, а не готовая
+/// подпись, — язык и часовой пояс знает клиент, а не сервер.
+/// </param>
+///
+/// Контракт: Operator/BranchSearchResultDto.cs
+class BranchSearchResultDto {
+  const BranchSearchResultDto({
+    required this.kind,
+    required this.id,
+    required this.title,
+    this.subtitle,
+    this.occursAtUtc,
+    this.amountMinorUnits,
+    this.currencyCode,
+  });
+
+  final String kind;
+  final String id;
+  final String title;
+  final String? subtitle;
+  final DateTime? occursAtUtc;
+  final int? amountMinorUnits;
+  final String? currencyCode;
+
+  factory BranchSearchResultDto.fromJson(Map<String, dynamic> json) => BranchSearchResultDto(
+        kind: json['kind'] as String,
+        id: json['id'] as String,
+        title: json['title'] as String,
+        subtitle: json['subtitle'] == null ? null : json['subtitle'] as String,
+        occursAtUtc: json['occursAtUtc'] == null ? null : DateTime.parse(json['occursAtUtc'] as String),
+        amountMinorUnits: json['amountMinorUnits'] == null ? null : (json['amountMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] == null ? null : json['currencyCode'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'id': id,
+        'title': title,
+        'subtitle': subtitle,
+        'occursAtUtc': occursAtUtc?.toIso8601String(),
+        'amountMinorUnits': amountMinorUnits,
+        'currencyCode': currencyCode,
+      };
+}
+
 /// Контракт: Branches/BranchSettingsDto.cs
 class BranchSettingsDto {
   const BranchSettingsDto({

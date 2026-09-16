@@ -121,6 +121,53 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     expect(within(freshDrawer).getByRole('button', { name: 'Создать бронь' })).toBeDisabled();
   });
 
+  // Бронь из командной палитры. Экран броней показывает один день, поэтому вместе с бронью
+  // приезжает её время — иначе завтрашняя бронь просто не попала бы в загруженный список, и
+  // палитра «открыла» бы пустоту.
+  it('открывает бронь из палитры, переключив день на её дату', async () => {
+    const requestedDays: string[] = [];
+    const startsAtUtc = new Date();
+    startsAtUtc.setDate(startsAtUtc.getDate() + 1);
+    startsAtUtc.setHours(18, 0, 0, 0);
+    const day = startsAtUtc.toISOString().slice(0, 10);
+    const reservation = {
+      reservationId: 'reservation-tomorrow', reservationGroupId: null, organizationId: 'org-1', branchId: 'branch-1',
+      seatId: 'a', seatName: 'PC-01', zoneName: 'Зал A', customerName: 'Далер Назаров',
+      phoneNumber: '+992900000002', startsAtUtc: startsAtUtc.toISOString(), durationMinutes: 60,
+      state: 'confirmed', source: 'operator', note: '', version: 1
+    };
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') {
+        const from = url.searchParams.get('fromUtc') ?? '';
+        requestedDays.push(from.slice(0, 10));
+        return json({ reservations: from.startsWith(day) ? [reservation] : [], limit: 40 });
+      }
+      if (url.pathname.endsWith('/sessions/timeline')) {
+        return json({ sessions: [], limit: 40 });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+
+    render(
+      <I18nProvider>
+        <ToastProvider>
+          <BackendBookingWorkspace
+            floorMap={floorMap}
+            backend={startBackend()}
+            currencyCode="TJS"
+            onOpenSeat={() => {}}
+            openReservation={{ reservationId: 'reservation-tomorrow', startsAtUtc: startsAtUtc.toISOString() }}
+          />
+        </ToastProvider>
+      </I18nProvider>
+    );
+
+    const details = await screen.findByRole('dialog', { name: 'Бронь' });
+    await waitFor(() => expect(within(details).getByText('Далер Назаров')).toBeInTheDocument());
+    expect(requestedDays).toContain(day);
+  });
+
   it('sends the selected version and refreshes authoritative reservations without closing details on conflict', async () => {
     let reservationReads = 0;
     const confirmBodies: Record<string, unknown>[] = [];

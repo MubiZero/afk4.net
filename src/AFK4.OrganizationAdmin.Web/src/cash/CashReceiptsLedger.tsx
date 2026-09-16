@@ -30,6 +30,9 @@ import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerm
 type ReceiptDetailState = {
   status: 'idle' | 'loading' | 'ready' | 'failed';
   saleId: string;
+  // Чек, открытый не из ленты, а из палитры: повтор после сбоя должен знать, что перезапрашивать,
+  // — по номеру чека продажи под рукой ещё нет.
+  receiptId: string;
   error: string | null;
 };
 
@@ -39,12 +42,16 @@ export function CashReceiptsLedger({
   backend,
   branchId,
   currencyCode,
-  session
+  session,
+  openReceipt
 }: {
   backend: OperatorBackendContext | null;
   branchId: string;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  // Чек, выбранный в командной палитре. Лента показывает последние 50 продаж смены, а с чеком
+  // приходят и через неделю — такой чек открывается по идентификатору, мимо ленты.
+  openReceipt?: { receiptId: string } | null;
 }) {
   const { t } = useI18n();
   const clients = useMemo(
@@ -59,7 +66,7 @@ export function CashReceiptsLedger({
   const [selectedSaleId, setSelectedSaleId] = useState('');
   const [saleDetail, setSaleDetail] = useState<PosSaleDto | null>(null);
   const [receiptDetail, setReceiptDetail] = useState<ReceiptDto | null>(null);
-  const [detailState, setDetailState] = useState<ReceiptDetailState>({ status: 'idle', saleId: '', error: null });
+  const [detailState, setDetailState] = useState<ReceiptDetailState>({ status: 'idle', saleId: '', receiptId: '', error: null });
   const detailRequest = useRef(0);
   const [criticalAction, setCriticalAction] = useState<'refund' | 'void' | null>(null);
   // Открытая смена филиала: без неё отменить свою продажу нельзя — закрытая смена уже сведена.
@@ -95,16 +102,19 @@ export function CashReceiptsLedger({
 
   const rows = report?.rows ?? [];
   const selected = rows.find((row) => row.posSaleId === selectedSaleId) ?? null;
-  const selectedId = selected?.posSaleId ?? '';
+  // Продажа, открытая по чеку из палитры, в ленте смены может и не лежать — тогда её состояние
+  // и сумму знает только сама загруженная продажа. Читаем сначала её: она же и авторитетнее.
+  const selectedId = saleDetail?.posSaleId ?? selected?.posSaleId ?? '';
+  const saleState = (saleDetail?.state ?? selected?.state ?? '').toLowerCase();
+  const selectedTotal = saleDetail?.total ?? selected?.total ?? null;
   const canView = backend !== null && hasPermission(session, permissionNames.viewReceipt);
   const canRefund = backend !== null
     && selectedId.length > 0
-    && (selected?.state ?? '').toLowerCase() === 'paid'
+    && saleState === 'paid'
     && hasPermission(session, permissionNames.refundPosSale);
   // Отмена вынимает деньги из смены. Широкое право отменяет что угодно; кассир — только свой
   // только что пробитый чек, и ровно это правило зеркалит selfVoid.ts (решает всё равно сервер).
-  const saleIsVoidable = selectedId.length > 0
-    && ['sale', 'paid'].includes((selected?.state ?? '').toLowerCase());
+  const saleIsVoidable = selectedId.length > 0 && ['sale', 'paid'].includes(saleState);
   const canVoidAny = backend !== null && saleIsVoidable && hasPermission(session, permissionNames.voidPosSale);
   const canSelfVoid = backend !== null
     && saleIsVoidable
@@ -133,7 +143,7 @@ export function CashReceiptsLedger({
     setSelectedSaleId(saleId);
     setSaleDetail(null);
     setReceiptDetail(null);
-    setDetailState({ status: 'loading', saleId, error: null });
+    setDetailState({ status: 'loading', saleId, receiptId: '', error: null });
     setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -148,15 +158,51 @@ export function CashReceiptsLedger({
       if (request !== detailRequest.current) return;
       setSaleDetail(sale);
       setReceiptDetail(receipt);
-      setDetailState({ status: 'ready', saleId, error: null });
+      setDetailState({ status: 'ready', saleId, receiptId: receiptId, error: null });
       setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'confirmed' });
     } catch (error) {
       if (request !== detailRequest.current) return;
       const detail = projectOperatorError(error, t).detail;
-      setDetailState({ status: 'failed', saleId, error: detail });
+      setDetailState({ status: 'failed', saleId, receiptId: '', error: detail });
       setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail });
     }
   };
+
+  // Чек из палитры: продажи под рукой нет, зато есть чек — от него и пляшем. Сессионный чек
+  // (закрытие сессии, а не продажа) продажи не имеет вовсе, и это нормальный случай, а не сбой.
+  const loadReceiptDetail = async (receiptId: string) => {
+    const request = ++detailRequest.current;
+    setSaleDetail(null);
+    setReceiptDetail(null);
+    setDetailState({ status: 'loading', saleId: '', receiptId, error: null });
+    setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!hasPermission(nextBackend.session, permissionNames.viewReceipt)) {
+        throw new Error(t('op.pos.error.noPermissionViewReceipts'));
+      }
+      const built = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const receipt = await built.pos.getReceipt(receiptId);
+      const sale = receipt.posSaleId ? await built.pos.getSale(receipt.posSaleId) : null;
+      if (request !== detailRequest.current) return;
+      setSelectedSaleId(receipt.posSaleId ?? '');
+      setSaleDetail(sale);
+      setReceiptDetail(receipt);
+      setDetailState({ status: 'ready', saleId: receipt.posSaleId ?? '', receiptId, error: null });
+      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'confirmed' });
+    } catch (error) {
+      if (request !== detailRequest.current) return;
+      const detail = projectOperatorError(error, t).detail;
+      setDetailState({ status: 'failed', saleId: '', receiptId, error: detail });
+      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail });
+    }
+  };
+
+  useEffect(() => {
+    if (!openReceipt || clients === null) return;
+    void loadReceiptDetail(openReceipt.receiptId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openReceipt?.receiptId, clients]);
 
   // Отмена. Отдельно от возврата: возврат оставляет продажу в истории и заводит обратную
   // запись, отмена убирает саму продажу — исход другой, и подтверждение у него своё.
@@ -203,7 +249,7 @@ export function CashReceiptsLedger({
       });
       setFeedback({ label: t('op.pos.feedback.refund'), state: 'confirmed' });
       setSaleDetail(null);
-      setDetailState({ status: 'idle', saleId: '', error: null });
+      setDetailState({ status: 'idle', saleId: '', receiptId: '', error: null });
       setNonce((value) => value + 1);
     } catch (error) {
       setFeedback({ label: t('op.pos.feedback.refund'), state: 'failed', detail: projectOperatorError(error, t).detail });
@@ -254,9 +300,9 @@ export function CashReceiptsLedger({
       ]} />
       <CashTerminalSplit
           inspectorLabel={t('op.cash.inspector.aria')}
-        inspectorOpen={selected !== undefined}
+        inspectorOpen={selectedSaleId.length > 0 || detailState.status !== 'idle'}
         closeLabel={t('common.close')}
-        onCloseInspector={() => { detailRequest.current += 1; setSelectedSaleId(''); setDetailState({ status: 'idle', saleId: '', error: null }); }}
+        onCloseInspector={() => { detailRequest.current += 1; setSelectedSaleId(''); setDetailState({ status: 'idle', saleId: '', receiptId: '', error: null }); }}
         register={rows.length === 0 ? <p className="cash-shift-empty-note cash-ledger-empty">{t('op.pos.receipts.emptyPlatform')}</p> : <CashRegisterRows rows={rows.slice(0, 30)} selectedId={selectedSaleId} getId={(row) => row.posSaleId} ariaLabel={t('op.cash.receipts.registerAria')} onSelect={(id) => { if (canView) void loadSaleDetail(id); }} renderRow={(row) => <div className="cash-receipt-row">
           <span>{formatTime(row.createdAtUtc)}</span>
           <strong>{posSaleStateLabel(row.state || 'sale', t)}</strong>
@@ -264,19 +310,23 @@ export function CashReceiptsLedger({
           <b><Money minorUnits={row.total.minorUnits} currencyCode={currencyCode} /></b>
         </div>} />}
         inspector={detailState.status === 'loading' ? <p className="cash-receipt-detail-state">{t('op.cash.receipts.detailLoading')}</p>
-          : detailState.status === 'failed' ? <div className="cash-receipt-detail-state"><strong>{t('op.cash.receipts.detailFailed')}</strong><small>{detailState.error}</small><button type="button" onClick={() => void loadSaleDetail(detailState.saleId)}>{t('op.cash.journal.retry')}</button></div>
-          : detailState.status === 'ready' && saleDetail !== null ? <div className="cash-receipt-inspector">
-            <div className="cash-receipt-inspector-head"><span>{t('op.pos.receipts.detailsTitle')}</span><strong>{posSaleStateLabel(saleDetail.state || 'sale', t)}</strong><b><Money minorUnits={saleDetail.total.minorUnits} currencyCode={currencyCode} /></b></div>
+          : detailState.status === 'failed' ? <div className="cash-receipt-detail-state"><strong>{t('op.cash.receipts.detailFailed')}</strong><small>{detailState.error}</small><button type="button" onClick={() => void (detailState.saleId ? loadSaleDetail(detailState.saleId) : loadReceiptDetail(detailState.receiptId))}>{t('op.cash.journal.retry')}</button></div>
+          : detailState.status === 'ready' && (saleDetail !== null || receiptDetail !== null) ? <div className="cash-receipt-inspector">
+            {/* Чек закрытия сессии продажи не имеет вовсе — тогда шапку и итог берём из самого
+                чека, иначе найденный по номеру чек открывался бы в пустоту. */}
+            <div className="cash-receipt-inspector-head"><span>{t('op.pos.receipts.detailsTitle')}</span><strong>{posSaleStateLabel(saleDetail?.state || receiptDetail?.receiptType || 'sale', t)}</strong><b><Money minorUnits={(saleDetail?.total ?? receiptDetail?.total)?.minorUnits ?? 0} currencyCode={currencyCode} /></b></div>
+            {saleDetail !== null && <>
             <section><h3>{t('op.cash.receipts.lines')}</h3>{(saleDetail.lines ?? []).map((line) => <div className="cash-receipt-line" key={`${line.productId}-${line.quantity}`}><span>{line.productName || t('op.pos.receipts.productFallback')}<small>{line.quantity} × <Money minorUnits={line.unitPrice.minorUnits} currencyCode={currencyCode} /></small></span><strong><Money minorUnits={line.lineTotal.minorUnits} currencyCode={currencyCode} /></strong></div>)}</section>
             {/* Секция читала поле `payments`, которого в PosSaleDto не было, и потому всегда оставалась
                 пустой. Поле добавлено в контракт: строки оплат в базе лежали всё это время. */}
             <section><h3>{t('op.cash.receipts.payments')}</h3>{(saleDetail.payments ?? []).map((payment, index) => <div className="cash-receipt-payment" key={`${payment.paymentMethod}-${index}`}><span>{paymentMethodLabel(payment.paymentMethod)}</span><strong><Money minorUnits={payment.amount.minorUnits} currencyCode={currencyCode} /></strong></div>)}</section>
+            </>}
             {receiptDetail !== null ? <div className="pos-receipt-detail"><span>{t('op.pos.receipts.platformReceipt')}</span><strong>№ {receiptDetail.receiptNumber || t('op.pos.receipts.receiptFallback')}</strong><p>{posReceiptTypeLabel(receiptDetail.receiptType || 'sale', t)}</p></div> : null}
             <div className="pos-receipt-actions">
               {canRefund ? <button type="button" disabled={feedback.state === 'pending'} onClick={() => { setFeedback(emptyFeedback); setCriticalAction('refund'); }}><Undo2 size={13} aria-hidden="true" />{t('op.pos.quick.refundLabel')}</button> : null}
               {canVoid ? <button type="button" disabled={feedback.state === 'pending'} onClick={() => { setFeedback(emptyFeedback); setCriticalAction('void'); }}><Ban size={13} aria-hidden="true" />{t('op.pos.quick.voidLabel')}</button> : null}
-              <button type="button" disabled={feedback.state === 'pending'} onClick={printReceipt}><ReceiptText size={13} aria-hidden="true" />{t('op.pos.receipts.printBtn')}</button>
-              <button type="button" disabled={feedback.state === 'pending'} onClick={exportReceipt}><ArrowRightLeft size={13} aria-hidden="true" />{t('op.pos.receipts.exportBtn')}</button>
+              {saleDetail !== null && <button type="button" disabled={feedback.state === 'pending'} onClick={printReceipt}><ReceiptText size={13} aria-hidden="true" />{t('op.pos.receipts.printBtn')}</button>}
+              {saleDetail !== null && <button type="button" disabled={feedback.state === 'pending'} onClick={exportReceipt}><ArrowRightLeft size={13} aria-hidden="true" />{t('op.pos.receipts.exportBtn')}</button>}
             </div>
           </div> : <p className="cash-inspector-empty">{t('op.cash.receipts.selectHint')}</p>}
       />
@@ -284,7 +334,7 @@ export function CashReceiptsLedger({
       {criticalAction === 'void' && (
         <CriticalActionConfirmation
           title={t('op.pos.quick.voidConfirmTitle')}
-          detail={t('op.pos.quick.voidConfirmDetail', { amount: formatMoney(selected?.total ?? null, currencyCode) })}
+          detail={t('op.pos.quick.voidConfirmDetail', { amount: formatMoney(selectedTotal, currencyCode) })}
           impact={t('op.pos.quick.voidConfirmImpact')}
           confirmLabel={t('op.pos.quick.voidConfirmBtn')}
           disabled={feedback.state === 'pending'}
@@ -301,7 +351,7 @@ export function CashReceiptsLedger({
       {criticalAction === 'refund' && (
         <CriticalActionConfirmation
           title={t('op.pos.quick.refundConfirmTitle')}
-          detail={t('op.pos.quick.refundConfirmDetail', { amount: formatMoney(selected?.total ?? null, currencyCode) })}
+          detail={t('op.pos.quick.refundConfirmDetail', { amount: formatMoney(selectedTotal, currencyCode) })}
           impact={t('op.pos.quick.refundConfirmImpact')}
           confirmLabel={t('op.pos.quick.refundConfirmBtn')}
           disabled={feedback.state === 'pending'}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
@@ -16,11 +16,15 @@ import { useFeedbackToasts } from '../useFeedbackToasts';
 export function CashWorkspace({
   backend,
   currencyCode,
-  session
+  session,
+  openReceipt
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  // Чек из командной палитры: касса открывается сразу на журнале, а не на той вкладке, где её
+  // оставили в прошлый раз.
+  openReceipt?: { receiptId: string } | null;
 }) {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<CashTab>(() => visibleCashTabs(session)[0] ?? 'sales');
@@ -29,6 +33,13 @@ export function CashWorkspace({
   useFeedbackToasts(feedback);
 
   const visible = new Set(visibleCashTabs(session));
+
+  useEffect(() => {
+    if (openReceipt && visible.has('journal')) {
+      setActiveTab('journal');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openReceipt?.receiptId]);
   const allTabs: { id: CashTab; label: string }[] = [
     { id: 'sales', label: t('op.cash.sales.tab') },
     { id: 'shift', label: t('op.cash.tab.shift') },
@@ -60,7 +71,14 @@ export function CashWorkspace({
             onFeedback={setFeedback}
           />
         )}
-        {activeTab === 'journal' && <CashJournalWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
+        {activeTab === 'journal' && (
+          <CashJournalWorkspace
+            backend={backend}
+            currencyCode={currencyCode}
+            session={session}
+            openReceipt={openReceipt}
+          />
+        )}
       </div>
     </main>
   );

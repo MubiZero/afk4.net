@@ -175,6 +175,10 @@ function AppInner() {
   // Человек, выбранный в палитре: раздел клиентов открывается сразу на его карточке, а не на
   // первом попавшемся. Строка поиска едет вместе с ним — иначе его не оказалось бы в списке.
   const [openClient, setOpenClient] = useState<{ playerAccountId: string; search: string } | null>(null);
+  // Бронь и чек из палитры: экран брони показывает один день, поэтому вместе с бронью едет её
+  // время; чек открывается по идентификатору — лента смены его может и не содержать.
+  const [openReservation, setOpenReservation] = useState<{ reservationId: string; startsAtUtc: string | null } | null>(null);
+  const [openReceipt, setOpenReceipt] = useState<{ receiptId: string } | null>(null);
   // Токен «открыть запуск сессии» — растёт по клику на «+» свободной плитки; боковая панель
   // реагирует на изменение и открывает старт-диалог для выбранного места.
   const [startSeatToken, setStartSeatToken] = useState(0);
@@ -463,6 +467,20 @@ function AppInner() {
               setWorkspace('players');
               setPaletteOpen(false);
             }}
+            onOpenSeat={(seatId) => {
+              handleOpenSeat(seatId);
+              setPaletteOpen(false);
+            }}
+            onOpenReservation={(target) => {
+              setOpenReservation(target);
+              setWorkspace('booking');
+              setPaletteOpen(false);
+            }}
+            onOpenReceipt={(target) => {
+              setOpenReceipt(target);
+              setWorkspace('cash');
+              setPaletteOpen(false);
+            }}
             onClose={() => setPaletteOpen(false)}
           />
         )}
@@ -519,6 +537,8 @@ function AppInner() {
             onNavigate={setWorkspace}
             onOpenSeat={handleOpenSeat}
             openClient={openClient}
+            openReservation={openReservation}
+            openReceipt={openReceipt}
           />
         </div>
 

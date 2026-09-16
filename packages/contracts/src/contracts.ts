@@ -270,6 +270,30 @@ export interface BranchProfileDto {
   createdAtUtc: IsoDateTime;
 }
 
+/**
+ * Одна находка палитры: чем это открыть (Kind и Id) и как
+ * узнать глазами (остальное).
+ * <param name="Subtitle">
+ * То, чем различают похожие строки: зал у места, телефон у клиента и у брони. Пусто там, где
+ * различать нечем.
+ * </param>
+ * <param name="OccursAtUtc">
+ * К какому моменту относится находка: начало брони, дата чека. Сырое время, а не готовая
+ * подпись, — язык и часовой пояс знает клиент, а не сервер.
+ * </param>
+ *
+ * Контракт: Operator/BranchSearchResultDto.cs
+ */
+export interface BranchSearchResultDto {
+  kind: string;
+  id: Guid;
+  title: string;
+  subtitle: string | null;
+  occursAtUtc?: IsoDateTime | null;
+  amountMinorUnits?: number | null;
+  currencyCode?: string | null;
+}
+
 /** Контракт: Branches/BranchSettingsDto.cs */
 export interface BranchSettingsDto {
   organizationId: Guid;

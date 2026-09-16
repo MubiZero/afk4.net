@@ -34,7 +34,9 @@ export function WorkspaceRouter({
   onSeatAction,
   onNavigate,
   onOpenSeat,
-  openClient
+  openClient,
+  openReservation,
+  openReceipt
 }: {
   workspace: WorkspaceId;
   session: OperatorAuthSession | null;
@@ -53,8 +55,10 @@ export function WorkspaceRouter({
   onSeatAction: ComponentProps<typeof MapWorkspace>['onSeatAction'];
   onNavigate: (workspace: WorkspaceId) => void;
   onOpenSeat: (seatId: string) => void;
-  // Кого открыть в разделе клиентов: выбор из командной палитры. null — обычный заход.
+  // Что открыть в разделе: выбор из командной палитры. null — обычный заход.
   openClient?: { playerAccountId: string; search: string } | null;
+  openReservation?: { reservationId: string; startsAtUtc: string | null } | null;
+  openReceipt?: { receiptId: string } | null;
 }) {
   const { t } = useI18n();
   return (
@@ -89,9 +93,17 @@ export function WorkspaceRouter({
           backend={backend}
           currencyCode={currencyCode}
           onOpenSeat={onOpenSeat}
+          openReservation={openReservation}
         />
       )}
-      {workspace === 'cash' && <CashWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
+      {workspace === 'cash' && (
+        <CashWorkspace
+          currencyCode={currencyCode}
+          backend={backend}
+          session={session}
+          openReceipt={openReceipt}
+        />
+      )}
       {workspace === 'stock' && <StockWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'players' && (
         <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} openClient={openClient} />
