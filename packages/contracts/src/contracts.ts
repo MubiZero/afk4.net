@@ -2475,6 +2475,18 @@ export interface PackageOptionDto {
   expiresAfterDays: number;
 }
 
+/**
+ * Пауза сессии: счётчик времени встаёт, ПК запирается, место остаётся за игроком. Стоять на
+ * паузе бесконечно нельзя — филиал задаёт предел, после которого сессия закрывается сама.
+ *
+ * Контракт: Sessions/PauseSessionRequest.cs
+ */
+export interface PauseSessionRequest {
+  reason: string;
+  idempotencyKey: string;
+  expectedVersion?: number | null;
+}
+
 /** Контракт: Billing/PayDebtRequest.cs */
 export interface PayDebtRequest {
   organizationId: Guid;
@@ -4009,6 +4021,17 @@ export interface ResolveOperatorConnectionResponse {
   branchName: string;
   branchCity: string;
   source: string;
+}
+
+/**
+ * Снятие паузы: ПК отпирается, а конец фиксированной сессии сдвигается на простой.
+ *
+ * Контракт: Sessions/PauseSessionRequest.cs
+ */
+export interface ResumeSessionRequest {
+  reason: string;
+  idempotencyKey: string;
+  expectedVersion?: number | null;
 }
 
 /** Контракт: Devices/RevokeDeviceCredentialResponse.cs */

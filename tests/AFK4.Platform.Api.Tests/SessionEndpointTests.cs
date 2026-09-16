@@ -64,6 +64,63 @@ public sealed class SessionEndpointTests
         Assert.Equal(SessionOriginNames.Operator, session.Origin);
     }
 
+    // Пауза и снятие ходят парой: ПК запирается и отпирается, а журнал знает обе.
+    [Fact]
+    public async Task PauseAndResumeSession_LockThenUnlockThePcAndWriteBothToTheJournal()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        await SeedLayoutAsync(factory, includeTargetSeat: false);
+        var sessionId = (await StartSessionAsync(client)).Session.SessionId;
+
+        var paused = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{sessionId:D}/pause",
+            new PauseSessionRequest("Отошёл покурить", "pause-1"));
+        var pausedBody = await paused.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, paused.StatusCode);
+        Assert.Equal(SessionStateNames.Paused, pausedBody!.Session.State);
+        Assert.Equal("lock", Assert.Single(pausedBody.DeviceCommands).Type);
+
+        var resumed = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{sessionId:D}/resume",
+            new ResumeSessionRequest("Вернулся", "resume-1"));
+        var resumedBody = await resumed.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
+        Assert.Equal(SessionStateNames.Active, resumedBody!.Session.State);
+        Assert.Equal("unlock", Assert.Single(resumedBody.DeviceCommands).Type);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(dbContext.AuditRecords.Where(record => record.Action == AuditActionNames.PauseSession));
+        Assert.Single(dbContext.AuditRecords.Where(record => record.Action == AuditActionNames.ResumeSession));
+    }
+
+    // Пауза правит время сессии, то есть деньги: у техника такого права нет, и отказ остаётся
+    // в журнале.
+    [Fact]
+    public async Task PauseSession_WithTechnicianRole_ReturnsForbiddenAndWritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory, includeTargetSeat: false);
+        var sessionId = await SeedActiveSessionAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{sessionId:D}/pause",
+            new PauseSessionRequest("Нет прав", "pause-forbidden"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync(record => record.Action == AuditActionNames.PauseSession);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+    }
+
     // Anti-fraud §5.4: an explicit comp routes to a first-class session.comp audit carrying its
     // reason and its assessed value, so the owner summary / Review screen surface it in money terms.
     [Fact]
@@ -289,6 +346,32 @@ public sealed class SessionEndpointTests
         Assert.NotNull(body);
 
         return body;
+    }
+
+    private static async Task<Guid> SeedActiveSessionAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var sessionId = Guid.NewGuid();
+        var startedAtUtc = DateTimeOffset.Parse("2026-09-16T10:00:00Z");
+        dbContext.Sessions.Add(new SessionEntity
+        {
+            SessionId = sessionId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatId,
+            DeviceId = TestIds.DeviceId,
+            CreatedByStaffUserId = Guid.NewGuid(),
+            PlayerKind = "guest",
+            TariffRuleVersionId = "manual-v1",
+            State = SessionStateNames.Active,
+            RequestedAtUtc = startedAtUtc,
+            StartedAtUtc = startedAtUtc,
+            EndsAtUtc = startedAtUtc.AddHours(1),
+            UpdatedAtUtc = startedAtUtc
+        });
+        await dbContext.SaveChangesAsync();
+        return sessionId;
     }
 
     private static async Task SeedLayoutAsync(PlatformApiFactory factory, bool includeTargetSeat)

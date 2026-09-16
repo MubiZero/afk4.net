@@ -48,6 +48,16 @@ public sealed class SessionEntity
     public long? CompValueMinorUnits { get; set; }
 
     // Auto-protection bookkeeping so a warning/lock is issued at most once.
+    /// <summary>
+    /// Когда началась текущая пауза. Null — сессия не на паузе. Вместе с
+    /// <see cref="TotalPausedSeconds"/> это и есть всё, что нужно знать деньгам: счётчик времени
+    /// считает «прошло минус пауза», а не «сейчас минус старт».
+    /// </summary>
+    public DateTimeOffset? PausedAtUtc { get; set; }
+
+    /// <summary>Сколько всего секунд сессия простояла на паузах, которые уже сняты.</summary>
+    public int TotalPausedSeconds { get; set; }
+
     public DateTimeOffset? AutoWarnedAtUtc { get; set; }
 
     public DateTimeOffset? AutoLockedAtUtc { get; set; }

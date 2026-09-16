@@ -62,6 +62,20 @@ public interface ISessionCommandService
         TransferSessionRequest request,
         CancellationToken cancellationToken);
 
+    /// <summary>Ставит сессию на паузу: счётчик встаёт, ПК запирается, место остаётся за игроком.</summary>
+    Task<SessionCommandServiceResult> PauseSessionAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        PauseSessionRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>Снимает паузу: ПК отпирается, а конец фиксированной сессии уезжает на простой.</summary>
+    Task<SessionCommandServiceResult> ResumeSessionAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        ResumeSessionRequest request,
+        CancellationToken cancellationToken);
+
     Task<SessionCommandServiceResult> EndSessionAsync(
         Guid sessionId,
         Guid actorStaffUserId,

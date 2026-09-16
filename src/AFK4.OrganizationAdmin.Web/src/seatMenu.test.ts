@@ -24,11 +24,13 @@ const allCaps: SeatMenuCaps = {
   canStart: true,
   canExtend: true,
   canLockUnlock: true,
-  canResolveAssistance: true
+  canResolveAssistance: true,
+  canPause: true
 };
 const noCaps: SeatMenuCaps = {
   actionsEnabled: false,
   canResolveAssistance: false,
+  canPause: false,
   canStart: false,
   canExtend: false,
   canLockUnlock: false
@@ -88,10 +90,28 @@ describe('buildSeatMenu', () => {
     expect(ids(sections).some((id) => id.startsWith('soon-'))).toBe(false);
   });
 
-  it('каждый пункт ведёт к живому действию: старт, продление или команда ПК', () => {
+  it('каждый пункт ведёт к живому действию, а не к тосту', () => {
+    const live = new Set(['start-guest', 'extend', 'pause', 'resume', 'pc']);
     const sections = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);
-    const kinds = new Set(flat(sections).map((item) => item.run.kind));
-    expect([...kinds].every((kind) => kind === 'start-guest' || kind === 'extend' || kind === 'pc')).toBe(true);
+    expect(flat(sections).every((item) => live.has(item.run.kind))).toBe(true);
+  });
+
+  // Пауза и снятие — одна кнопка в двух состояниях: ставить паузу на паузе нечего.
+  it('на паузе меню предлагает продолжить, а не паузу', () => {
+    const active = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);
+    expect(ids(active)).toContain('session-pause');
+    expect(ids(active)).not.toContain('session-resume');
+
+    const paused = buildSeatMenu(
+      seat({ tone: 'active', activeSessionId: 'sess-1', sessionState: 'Paused' }), allCaps);
+    expect(ids(paused)).toContain('session-resume');
+    expect(ids(paused)).not.toContain('session-pause');
+  });
+
+  it('без права паузы пункта нет', () => {
+    const sections = buildSeatMenu(
+      seat({ tone: 'active', activeSessionId: 'sess-1' }), { ...allCaps, canPause: false });
+    expect(ids(sections)).not.toContain('session-pause');
   });
 
   it('returns an empty menu when the operator can do nothing here', () => {

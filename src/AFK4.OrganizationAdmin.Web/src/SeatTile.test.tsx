@@ -139,3 +139,17 @@ describe('SeatTile: вызов оператора', () => {
   });
 });
 
+// Тон плитки огрубляет состояние: пауза и игра одинаково «занято». Оператору разница важна —
+// на паузе счётчик стоит.
+describe('SeatTile: пауза', () => {
+  it('называет паузу словом, а не оставляет её выглядеть игрой', () => {
+    const { getByText } = renderTile(seat({ tone: 'active', activeSessionId: 's1', sessionState: 'Paused' }));
+    expect(getByText('на паузе')).toBeInTheDocument();
+  });
+
+  it('играющее место паузой не подписано', () => {
+    const { queryByText } = renderTile(seat({ tone: 'active', activeSessionId: 's1', sessionState: 'Active' }));
+    expect(queryByText('на паузе')).toBeNull();
+  });
+});
+

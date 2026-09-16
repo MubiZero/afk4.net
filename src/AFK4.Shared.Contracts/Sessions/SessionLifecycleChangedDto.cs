@@ -30,5 +30,9 @@ public static class SessionLifecycleKinds
 
     public const string Ended = "ended";
 
+    public const string Paused = "paused";
+
+    public const string Resumed = "resumed";
+
     public const string Checkout = "checkout";
 }

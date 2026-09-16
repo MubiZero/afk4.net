@@ -408,6 +408,199 @@ public sealed class EfSessionCommandService(
         return result;
     }
 
+    public async Task<SessionCommandServiceResult> PauseSessionAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        PauseSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var session = await dbContext.Sessions.SingleOrDefaultAsync(
+            candidate => candidate.SessionId == sessionId,
+            cancellationToken);
+
+        if (session is null)
+        {
+            return SessionCommandServiceResult.Missing("Session was not found.");
+        }
+
+        var idempotency = await GetExistingIdempotencyAsync(
+            session.OrganizationId,
+            session.BranchId,
+            "pause",
+            request.IdempotencyKey,
+            request,
+            cancellationToken);
+
+        if (idempotency is not null)
+        {
+            return idempotency;
+        }
+
+        if (session.State != SessionStateNames.Active)
+        {
+            return SessionCommandServiceResult.Invalid("Only an active session can be paused.");
+        }
+
+        if (CheckExpectedVersion(session, request.ExpectedVersion) is { } pauseStale)
+        {
+            return pauseStale;
+        }
+
+        Guid? deviceIdToNotify = null;
+        DeviceCommandDto? commandToNotify = null;
+        var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
+        {
+            var now = timeProvider.GetUtcNow();
+            session.State = SessionStateNames.Paused;
+            session.PausedAtUtc = now;
+            session.UpdatedAtUtc = now;
+            session.Version += 1;
+            AddEvent(session, "session-paused", actorStaffUserId, session.DeviceId, now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            // ПК запирается: пауза, на которой можно продолжать играть, — подарок за счёт клуба.
+            var command = await deviceCommandDispatchService.EnqueueAsync(
+                session.DeviceId,
+                new CreateDeviceCommandRequest(
+                    Type: DeviceCommandTypeNames.Lock,
+                    Payload: new Dictionary<string, string>
+                    {
+                        ["sessionId"] = session.SessionId.ToString("D"),
+                        ["reason"] = "session-pause"
+                    }),
+                cancellationToken);
+            deviceIdToNotify = session.DeviceId;
+            commandToNotify = command;
+
+            var response = CreateResponse(request.IdempotencyKey, session, null, [command], now);
+            AddIdempotencyRecord(
+                session.OrganizationId,
+                session.BranchId,
+                "pause",
+                request.IdempotencyKey,
+                request,
+                response,
+                now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return SessionCommandServiceResult.Ok(response);
+        }, IsolationLevel.Serializable, cancellationToken);
+
+        if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
+        {
+            await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
+        }
+
+        if (result.Succeeded && result.Response is not null)
+        {
+            await NotifyLifecycleAsync(result.Response.Session, SessionLifecycleKinds.Paused, cancellationToken);
+        }
+
+        return result;
+    }
+
+    public async Task<SessionCommandServiceResult> ResumeSessionAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        ResumeSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var session = await dbContext.Sessions.SingleOrDefaultAsync(
+            candidate => candidate.SessionId == sessionId,
+            cancellationToken);
+
+        if (session is null)
+        {
+            return SessionCommandServiceResult.Missing("Session was not found.");
+        }
+
+        var idempotency = await GetExistingIdempotencyAsync(
+            session.OrganizationId,
+            session.BranchId,
+            "resume",
+            request.IdempotencyKey,
+            request,
+            cancellationToken);
+
+        if (idempotency is not null)
+        {
+            return idempotency;
+        }
+
+        if (session.State != SessionStateNames.Paused)
+        {
+            return SessionCommandServiceResult.Invalid("Only a paused session can be resumed.");
+        }
+
+        if (CheckExpectedVersion(session, request.ExpectedVersion) is { } resumeStale)
+        {
+            return resumeStale;
+        }
+
+        Guid? deviceIdToNotify = null;
+        DeviceCommandDto? commandToNotify = null;
+        var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
+        {
+            var now = timeProvider.GetUtcNow();
+            var pausedFor = session.PausedAtUtc is { } pausedAt && now > pausedAt
+                ? now - pausedAt
+                : TimeSpan.Zero;
+
+            session.TotalPausedSeconds += (int)Math.Round(pausedFor.TotalSeconds);
+            session.PausedAtUtc = null;
+            session.State = SessionStateNames.Active;
+
+            // Оплаченное время возвращается: у фиксированной сессии конец уезжает ровно на простой.
+            // У открытого счёта возвращать нечего — там платят за прошедшее, а пауза из него уже
+            // вычтена.
+            if (session.EndsAtUtc is { } endsAtUtc)
+            {
+                session.EndsAtUtc = endsAtUtc + pausedFor;
+            }
+
+            session.UpdatedAtUtc = now;
+            session.Version += 1;
+
+            var lease = await IssueNextLeaseAsync(session, now, cancellationToken);
+            AddEvent(session, "session-resumed", actorStaffUserId, session.DeviceId, now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            var command = await deviceCommandDispatchService.EnqueueAsync(
+                session.DeviceId,
+                new CreateDeviceCommandRequest(
+                    Type: DeviceCommandTypeNames.Unlock,
+                    Payload: LeasePayload(session.SessionId, lease, "session-resume")),
+                cancellationToken);
+            deviceIdToNotify = session.DeviceId;
+            commandToNotify = command;
+
+            var response = CreateResponse(request.IdempotencyKey, session, lease, [command], now);
+            AddIdempotencyRecord(
+                session.OrganizationId,
+                session.BranchId,
+                "resume",
+                request.IdempotencyKey,
+                request,
+                response,
+                now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return SessionCommandServiceResult.Ok(response);
+        }, IsolationLevel.Serializable, cancellationToken);
+
+        if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
+        {
+            await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
+        }
+
+        if (result.Succeeded && result.Response is not null)
+        {
+            await NotifyLifecycleAsync(result.Response.Session, SessionLifecycleKinds.Resumed, cancellationToken);
+        }
+
+        return result;
+    }
+
     public async Task<SessionCommandServiceResult> EndSessionAsync(
         Guid sessionId,
         Guid actorStaffUserId,

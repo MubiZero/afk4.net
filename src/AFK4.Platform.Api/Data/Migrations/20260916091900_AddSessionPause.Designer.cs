@@ -3,6 +3,7 @@ using System;
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AFK4.Platform.Api.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
-    partial class PlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916091900_AddSessionPause")]
+    partial class AddSessionPause
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -625,9 +628,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset?>("AssistanceRequestedAtUtc")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("BranchId")
                         .HasColumnType("uuid");

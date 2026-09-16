@@ -30,6 +30,10 @@ public static class AuditActionNames
 
     public const string ExtendSession = "sessions.extend";
 
+    public const string PauseSession = "sessions.pause";
+
+    public const string ResumeSession = "sessions.resume";
+
     public const string TransferSession = "sessions.transfer";
 
     public const string EndSession = "sessions.end";

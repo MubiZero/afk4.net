@@ -7901,6 +7901,34 @@ class PackageOptionDto {
       };
 }
 
+/// Пауза сессии: счётчик времени встаёт, ПК запирается, место остаётся за игроком. Стоять на
+/// паузе бесконечно нельзя — филиал задаёт предел, после которого сессия закрывается сама.
+///
+/// Контракт: Sessions/PauseSessionRequest.cs
+class PauseSessionRequest {
+  const PauseSessionRequest({
+    required this.reason,
+    required this.idempotencyKey,
+    this.expectedVersion,
+  });
+
+  final String reason;
+  final String idempotencyKey;
+  final int? expectedVersion;
+
+  factory PauseSessionRequest.fromJson(Map<String, dynamic> json) => PauseSessionRequest(
+        reason: json['reason'] as String,
+        idempotencyKey: json['idempotencyKey'] as String,
+        expectedVersion: json['expectedVersion'] == null ? null : (json['expectedVersion'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reason': reason,
+        'idempotencyKey': idempotencyKey,
+        'expectedVersion': expectedVersion,
+      };
+}
+
 /// Контракт: Billing/PayDebtRequest.cs
 class PayDebtRequest {
   const PayDebtRequest({
@@ -12199,6 +12227,33 @@ class ResolveOperatorConnectionResponse {
         'branchName': branchName,
         'branchCity': branchCity,
         'source': source,
+      };
+}
+
+/// Снятие паузы: ПК отпирается, а конец фиксированной сессии сдвигается на простой.
+///
+/// Контракт: Sessions/PauseSessionRequest.cs
+class ResumeSessionRequest {
+  const ResumeSessionRequest({
+    required this.reason,
+    required this.idempotencyKey,
+    this.expectedVersion,
+  });
+
+  final String reason;
+  final String idempotencyKey;
+  final int? expectedVersion;
+
+  factory ResumeSessionRequest.fromJson(Map<String, dynamic> json) => ResumeSessionRequest(
+        reason: json['reason'] as String,
+        idempotencyKey: json['idempotencyKey'] as String,
+        expectedVersion: json['expectedVersion'] == null ? null : (json['expectedVersion'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reason': reason,
+        'idempotencyKey': idempotencyKey,
+        'expectedVersion': expectedVersion,
       };
 }
 

@@ -60,7 +60,8 @@ export function MapWorkspace({
     canStart: hasPermission(session, permissionNames.startSession),
     canExtend: hasPermission(session, permissionNames.extendSession),
     canLockUnlock: hasPermission(session, permissionNames.dispatchDeviceCommand),
-    canResolveAssistance: hasPermission(session, permissionNames.resolveAssistanceRequest)
+    canResolveAssistance: hasPermission(session, permissionNames.resolveAssistanceRequest),
+    canPause: hasPermission(session, permissionNames.pauseSession)
   }), [actionsEnabled, session]);
   const visibleSeats = useMemo(
     () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
@@ -151,6 +152,8 @@ export function MapWorkspace({
       void runSeatAction(label, { type: 'extend', seat, minutes: run.minutes, billing: guestBillingSelection });
     } else if (run.kind === 'resolve-assistance') {
       void runResolveAssistance(label, seat);
+    } else if (run.kind === 'pause' || run.kind === 'resume') {
+      void runSeatAction(label, { type: run.kind, seat });
     } else {
       void runPcControlAction(run.action, label, seat);
     }
