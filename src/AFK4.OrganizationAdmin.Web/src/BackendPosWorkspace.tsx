@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
-import { projectOperatorError } from './apiErrors';
+import { knownErrorMessage, projectOperatorError } from './apiErrors';
 import type {
   PaymentPartDto,
   PackageOptionDto,
@@ -94,7 +94,10 @@ function projectSettlementError(error: unknown, t: ReturnType<typeof useI18n>['t
     case 'product_unavailable':
       return t('op.pos.error.outOfStock');
     default:
-      return t('op.pos.error.settlementFailed');
+      // Код, незнакомый здесь, бывает знаком общему словарю: оплату по частям в разных валютах
+      // он объясняет прямо («все части оплаты должны быть в одной валюте»), а касса на неё
+      // отвечала общим «проверьте данные и повторите».
+      return knownErrorMessage(error, t) ?? t('op.pos.error.settlementFailed');
   }
 }
 
