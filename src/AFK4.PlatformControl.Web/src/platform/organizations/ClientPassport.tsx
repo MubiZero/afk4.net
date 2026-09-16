@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { DebtApi } from '@/api/platformClients/debt';
@@ -117,8 +118,8 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
       onUpdated(next);
       setStatusConfirmOpen(false);
       toast({ title: t('platform.organization.passport.statusUpdated'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setStatusPending(false);
     }
@@ -129,8 +130,8 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
     try {
       await client.invoices.generateInvoice(organization.organizationId);
       toast({ title: t('platform.organization.passport.invoiceGenerated'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setInvoicePending(false);
     }

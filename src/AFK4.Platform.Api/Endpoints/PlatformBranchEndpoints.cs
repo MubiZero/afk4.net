@@ -61,11 +61,11 @@ public static class PlatformBranchEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
                     PlatformOrganizationOperationStatus.PlanLimitReached =>
                         Results.Conflict(new { Error = result.Error, result.PlanLimit!.Code, PlanLimit = result.PlanLimit }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 

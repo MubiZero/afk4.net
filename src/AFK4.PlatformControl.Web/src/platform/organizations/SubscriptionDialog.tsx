@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor, majorToMinor } from '@/lib/money';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
@@ -54,8 +55,8 @@ export function SubscriptionDialog({ client, organizationId, subscription, onClo
       });
       onUpdated(next);
       toast({ title: t('platform.organization.subscriptionDialog.updated'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

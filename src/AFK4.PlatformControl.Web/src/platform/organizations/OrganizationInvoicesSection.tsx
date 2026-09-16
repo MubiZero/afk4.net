@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
@@ -41,8 +42,8 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
       await client.generateInvoice(organizationId);
       toast({ title: t('platform.billing.generate.done'), variant: 'success' });
       setTick(n => n + 1);
-    } catch {
-      toast({ title: t('platform.billing.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

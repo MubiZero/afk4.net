@@ -8,7 +8,8 @@ import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OffboardingApi } from '@/api/platformClients/offboarding';
 import type { OrganizationOffboarding } from '@/api/types';
-import { describeOffboardingError, purgeBlockReasonKey } from './offboardingModel';
+import { purgeBlockReasonKey } from './offboardingModel';
+import { describeApiError } from '@/api/describeApiError';
 
 type Client = Pick<OffboardingApi, 'getOffboarding' | 'purge' | 'downloadExport'>;
 
@@ -51,7 +52,7 @@ export function OffboardingTab({
       URL.revokeObjectURL(url);
       toast({ title: t('platform.offboarding.exported'), variant: 'success' });
     } catch (cause) {
-      toast({ title: describeOffboardingError(cause, t), variant: 'error' });
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }
@@ -67,7 +68,7 @@ export function OffboardingTab({
       setTick(value => value + 1);
       onPurged?.();
     } catch (cause) {
-      toast({ title: describeOffboardingError(cause, t), variant: 'error' });
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

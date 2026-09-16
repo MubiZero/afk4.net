@@ -35,6 +35,35 @@ describe('describeApiError', () => {
     expect(describeApiError(new PlatformApiError(403, 'x'), t)).toBe(messages.ru['state.error.forbidden']);
   });
 
+  // Причину, которую человек исправляет сам, сервер называет машинным именем рядом с английской
+  // фразой. Без разбора кода панель показывала одно «не удалось» и на «счёт уже оплачен», и на
+  // «нет прав», и на обрыв сети — три разных починки под одной надписью.
+  it('называет причину по коду сервера, а не по одному статусу', () => {
+    const paid = new PlatformApiError(409, 'Invoice is already paid.', 'invoice_already_paid');
+    const numbering = new PlatformApiError(409, 'numbering conflict', 'invoice_numbering_conflict');
+
+    expect(describeApiError(paid, t)).toBe(messages.ru['platform.error.invoiceAlreadyPaid']);
+    expect(describeApiError(numbering, t)).toBe(messages.ru['platform.error.invoiceNumberingConflict']);
+    expect(describeApiError(paid, t)).not.toBe(describeApiError(numbering, t));
+  });
+
+  it('незнакомый код называет общими словами, а не выдумывает объяснение', () => {
+    const text = describeApiError(new PlatformApiError(409, 'x', 'some_future_code'), t);
+
+    expect(text).toBe(messages.ru['state.error.server']);
+  });
+
+  // Формулировка экрана важнее общего словаря: тот же 404 на приглашении и на счёте значит разное.
+  it('уточнение экрана перебивает код', () => {
+    const text = describeApiError(
+      new PlatformApiError(404, 'x', 'subscription_plan_not_found'),
+      t,
+      { 404: 'auth.error.invalid' }
+    );
+
+    expect(text).toBe(messages.ru['auth.error.invalid']);
+  });
+
   // The API and the panel bundle deploy as two independent Coolify apps with no shared release
   // step (see the platform-admin-directory-2fa review), so a version-mismatched response is a real
   // window, not a hypothetical. It must read as "reload the page", not a generic server error, and

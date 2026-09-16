@@ -78,7 +78,8 @@ public sealed class EfOrganizationSubscriptionService(
             && request.CurrentPeriodEndUtc is null)
         {
             return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
-                "CurrentPeriodEndUtc must be provided when moving a subscription to trial.");
+                "CurrentPeriodEndUtc must be provided when moving a subscription to trial.",
+                PlatformErrorCodeNames.SubscriptionTrialNeedsPeriodEnd);
         }
 
         var subscription = await EnsureSubscriptionAsync(org, cancellationToken);
@@ -89,13 +90,15 @@ public sealed class EfOrganizationSubscriptionService(
         if (newPeriodEnd <= subscription.CurrentPeriodStartUtc)
         {
             return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
-                "CurrentPeriodEndUtc must be later than CurrentPeriodStartUtc.");
+                "CurrentPeriodEndUtc must be later than CurrentPeriodStartUtc.",
+                PlatformErrorCodeNames.SubscriptionPeriodEndNotAfterStart);
         }
 
         if (request.PaymentGraceUntilUtc is not null && request.PaymentGraceUntilUtc <= now)
         {
             return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
-                "PaymentGraceUntilUtc must be in the future.");
+                "PaymentGraceUntilUtc must be in the future.",
+                PlatformErrorCodeNames.SubscriptionGraceNotInFuture);
         }
 
         if (request.ClearPaymentGrace == true && request.PaymentGraceUntilUtc is not null)
@@ -148,7 +151,8 @@ public sealed class EfOrganizationSubscriptionService(
             if (newPlan is null)
             {
                 return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
-                    $"Plan '{request.PlanCode.Trim()}' was not found.");
+                    $"Plan '{request.PlanCode.Trim()}' was not found.",
+                    PlatformErrorCodeNames.SubscriptionPlanNotFound);
             }
 
             var newInterval = request.BillingInterval?.Trim() ?? newPlan.BillingInterval;

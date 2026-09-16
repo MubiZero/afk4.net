@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Platform.Billing;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Audit;
@@ -144,7 +145,8 @@ public sealed class EfPlatformOrganizationService(
         if (orgSlugTaken)
         {
             return PlatformOrganizationOperationResult<CreateOrganizationResponse>.Conflict(
-                $"Organization slug '{orgSlug}' is already in use.");
+                $"Organization slug '{orgSlug}' is already in use.",
+                PlatformErrorCodeNames.OrganizationSlugTaken);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -481,7 +483,8 @@ public sealed class EfPlatformOrganizationService(
         if (userNameTaken)
         {
             return PlatformOrganizationOperationResult<OrganizationOwnerAccountActivationResult>.Conflict(
-                "UserName is already in use in this organization.");
+                "UserName is already in use in this organization.",
+                PlatformErrorCodeNames.OwnerUserNameTaken);
         }
 
         var staffUser = new StaffUserEntity
@@ -1063,7 +1066,8 @@ public sealed class EfPlatformOrganizationService(
         if (slugTaken)
         {
             return PlatformOrganizationOperationResult<OrganizationBranchDto>.Conflict(
-                $"Branch slug '{slug}' is already in use in this organization.");
+                $"Branch slug '{slug}' is already in use in this organization.",
+                PlatformErrorCodeNames.BranchSlugTaken);
         }
 
         var planLimit = await planLimitGuard.CheckBranchAsync(organizationId, cancellationToken);

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { majorToMinor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
@@ -58,8 +59,8 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
       });
       onCreated(invoice);
       toast({ title: t('platform.organization.invoiceDialog.created'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { SupportNotesApi } from '@/api/platformClients/supportNotes';
 import type { OrganizationSupportNote } from '@/api/types';
@@ -39,8 +40,8 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
       setDraft('');
       toast({ title: t('platform.organization.notes.created'), variant: 'success' });
       setTick(n => n + 1);
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -59,8 +60,8 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
       setEditingId(null); setEditingBody('');
       toast({ title: t('platform.organization.notes.updated'), variant: 'success' });
       setTick(n => n + 1);
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setSavingEdit(false);
     }

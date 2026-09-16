@@ -4,6 +4,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 
@@ -35,8 +36,8 @@ export function OwnerTransferDialog({ client, organizationId, onClose, onTransfe
       await client.transferOwner(organizationId, { newOwnerEmail: newOwnerEmail.trim(), reason: reason.trim() });
       onTransferred();
       toast({ title: t('platform.organization.ownerTransferDialog.updated'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

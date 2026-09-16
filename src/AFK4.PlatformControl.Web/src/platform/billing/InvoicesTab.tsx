@@ -7,6 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
@@ -40,8 +41,8 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
       }
       setAction(null);
       if (state.status === 'ready') state.retry();
-    } catch {
-      toast({ title: t('platform.billing.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }
@@ -119,6 +120,9 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
         confirmLabel={action?.kind === 'void' ? t('platform.billing.void.confirm') : t('platform.billing.markPaid.confirm')}
         cancelLabel={t('platform.billing.action.cancel')}
         reasonLabel={action?.kind === 'void' ? t('platform.billing.void.reason') : t('platform.billing.markPaid.reference')}
+        // Аннулирование требует причины — она уходит в журнал. Референс платежа подписан
+        // «необязательно», и кнопка не должна требовать его вопреки собственной подписи.
+        reasonRequired={action?.kind === 'void'}
         destructive={action?.kind === 'void'}
         pending={pending}
         onConfirm={reason => void confirm(reason)}

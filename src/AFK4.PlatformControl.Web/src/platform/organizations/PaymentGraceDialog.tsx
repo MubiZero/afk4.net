@@ -4,6 +4,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import type { OrganizationSubscription } from '@/api/types';
@@ -44,8 +45,8 @@ export function PaymentGraceDialog({ client, organizationId, currentGraceUntilUt
       });
       onUpdated(next);
       toast({ title: t('platform.organization.paymentGraceDialog.updated'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }
@@ -61,8 +62,8 @@ export function PaymentGraceDialog({ client, organizationId, currentGraceUntilUt
       });
       onUpdated(next);
       toast({ title: t('platform.organization.paymentGraceDialog.cleared'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

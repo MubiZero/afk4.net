@@ -10,6 +10,10 @@ export interface ConfirmDialogProps {
   confirmLabel: string;
   cancelLabel: string;
   reasonLabel?: string;
+  /// Нужна ли причина, чтобы подтвердить. По умолчанию да — её спрашивают там, где она попадёт в
+  /// журнал и объяснит соседу, почему клуб приостановлен. Но «Референс платежа (необязательно)»
+  /// с неактивной кнопкой — обещание, которого интерфейс не выполняет.
+  reasonRequired?: boolean;
   destructive?: boolean;
   pending: boolean;
   onConfirm: (reason: string) => void;
@@ -34,7 +38,8 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
           </Button>
           <Button
             variant={props.destructive === true ? 'destructive' : 'default'}
-            disabled={props.pending || (props.reasonLabel !== undefined && reason.trim().length === 0)}
+            disabled={props.pending
+              || (props.reasonLabel !== undefined && props.reasonRequired !== false && reason.trim().length === 0)}
             onClick={() => props.onConfirm(reason)}
           >
             {props.confirmLabel}
