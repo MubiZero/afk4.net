@@ -129,8 +129,33 @@ jobs:
           $successStatuses = @("finished", "success", "succeeded")
           $failureStatuses = @("failed", "error", "cancelled", "canceled")
 
+          # Пуши идут пачкой (мерж десятка PR подряд), и Coolify подменяет очередь: наш
+          # deployment исчезает, а на его месте оказывается более свежий. Тогда опрос получает
+          # 404 — это не поломка деплоя, а «нас обогнали»: следующий запуск доведёт дело сам.
+          # Прочие сетевые ошибки — повод повторить, а не валить весь прогон с первого раза.
+          $transientFailures = 0
           for ($attempt = 1; $attempt -le 80; $attempt++) {
-            $deployment = Invoke-RestMethod -Method Get -Uri $deploymentUri -Headers $headers -TimeoutSec 60
+            try {
+              $deployment = Invoke-RestMethod -Method Get -Uri $deploymentUri -Headers $headers -TimeoutSec 60
+              $transientFailures = 0
+            }
+            catch {
+              $statusCode = $_.Exception.Response.StatusCode.value__
+              if ($statusCode -eq 404) {
+                Write-Host "::warning::Coolify deployment $deploymentUuid is gone — superseded by a newer push. The newer run owns the deploy."
+                exit 0
+              }
+
+              $transientFailures++
+              if ($transientFailures -ge 3) {
+                throw "Coolify deployment status could not be read three times in a row: $($_.Exception.Message)"
+              }
+
+              Write-Host "Coolify deployment status read failed (attempt ${attempt}, transient ${transientFailures}): $($_.Exception.Message)"
+              Start-Sleep -Seconds 15
+              continue
+            }
+
             $status = ([string]$deployment.status).ToLowerInvariant()
             Write-Host "Coolify deployment $deploymentUuid status attempt ${attempt}: $status"
 
