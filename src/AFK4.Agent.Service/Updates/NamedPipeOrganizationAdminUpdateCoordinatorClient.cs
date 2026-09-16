@@ -57,7 +57,6 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClient(IOptions<A
         BinaryPrimitives.WriteInt32BigEndian(prefix, payload.Length);
         await stream.WriteAsync(prefix, cancellationToken);
         await stream.WriteAsync(payload, cancellationToken);
-        await stream.FlushAsync(cancellationToken);
     }
 
     internal static async Task<LocalUpdateCoordinationResponse> ReadAsync(Stream stream, CancellationToken cancellationToken)

@@ -115,7 +115,7 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClientTests
         var request = JsonSerializer.Deserialize<LocalUpdateCoordinationRequest>(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         var responsePayload = JsonSerializer.SerializeToUtf8Bytes(response, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         BinaryPrimitives.WriteInt32BigEndian(prefix, responsePayload.Length);
-        await pipe.WriteAsync(prefix); await pipe.WriteAsync(responsePayload); await pipe.FlushAsync();
+        await pipe.WriteAsync(prefix); await pipe.WriteAsync(responsePayload);
         return request;
     }
 

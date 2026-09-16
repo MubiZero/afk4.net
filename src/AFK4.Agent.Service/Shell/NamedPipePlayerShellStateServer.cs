@@ -55,7 +55,6 @@ public sealed class NamedPipePlayerShellStateServer(
                 }
 
                 await JsonSerializer.SerializeAsync(pipe, state, JsonOptions, cancellationToken);
-                await pipe.FlushAsync(cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

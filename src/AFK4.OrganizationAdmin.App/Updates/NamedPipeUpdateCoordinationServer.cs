@@ -36,7 +36,14 @@ public sealed class NamedPipeUpdateCoordinationServer(
         }
 
         var listening = CreatePipe();
-        serverTask = Task.Run(() => RunAsync(listening, lifetime.Token));
+        // Отдельный поток, а не задача из пула: приём — это долгоживущий цикл, и на занятой машине
+        // пул отдаёт поток не сразу. Звонящий (агент) к этому моменту уже подключился к созданному
+        // выше экземпляру канала и ждёт ответа в пределах своего таймаута.
+        serverTask = Task.Factory.StartNew(
+            () => RunAsync(listening, lifetime.Token),
+            lifetime.Token,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default).Unwrap();
     }
 
     private async Task RunAsync(NamedPipeServerStream listening, CancellationToken cancellationToken)
@@ -141,7 +148,7 @@ public sealed class NamedPipeUpdateCoordinationServer(
     {
         var payload = JsonSerializer.SerializeToUtf8Bytes(response, JsonOptions);
         var prefix = new byte[4]; BinaryPrimitives.WriteInt32BigEndian(prefix, payload.Length);
-        await stream.WriteAsync(prefix, cancellationToken); await stream.WriteAsync(payload, cancellationToken); await stream.FlushAsync(cancellationToken);
+        await stream.WriteAsync(prefix, cancellationToken); await stream.WriteAsync(payload, cancellationToken);
     }
 
     public void Dispose()

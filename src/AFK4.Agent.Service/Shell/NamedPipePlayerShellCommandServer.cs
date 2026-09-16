@@ -40,7 +40,6 @@ public sealed class NamedPipePlayerShellCommandServer(
                     : await commandHandler.HandleAsync(command, stoppingToken);
 
                 await JsonSerializer.SerializeAsync(pipe, result, JsonOptions, stoppingToken);
-                await pipe.FlushAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
