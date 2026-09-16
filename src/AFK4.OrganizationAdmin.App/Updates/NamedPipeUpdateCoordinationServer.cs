@@ -149,6 +149,9 @@ public sealed class NamedPipeUpdateCoordinationServer(
         var payload = JsonSerializer.SerializeToUtf8Bytes(response, JsonOptions);
         var prefix = new byte[4]; BinaryPrimitives.WriteInt32BigEndian(prefix, payload.Length);
         await stream.WriteAsync(prefix, cancellationToken); await stream.WriteAsync(payload, cancellationToken);
+        // Ответ дописывается до закрытия канала: закрытый канал уносит с собой невычитанное,
+        // и агент остался бы ждать ответа, который уже выброшен.
+        await stream.FlushAsync(cancellationToken);
     }
 
     public void Dispose()

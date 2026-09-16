@@ -55,6 +55,8 @@ public sealed class NamedPipePlayerShellStateServer(
                 }
 
                 await JsonSerializer.SerializeAsync(pipe, state, JsonOptions, cancellationToken);
+                // См. командный канал рядом: ответ дописывается собеседнику до закрытия.
+                await pipe.FlushAsync(cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
