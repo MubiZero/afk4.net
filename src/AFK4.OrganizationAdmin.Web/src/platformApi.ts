@@ -86,17 +86,8 @@ export class PlatformApiClient {
     return await response.json() as TResponse;
   }
 
-  async getWithEtag<TResponse>(path: string, query?: QueryParams): Promise<{ value: TResponse; etag: string | null }> {
-    const response = await this.fetchAuthorized('GET', path, undefined, query);
-    await ensureSuccess(response);
-    const etag = response.headers.get('ETag');
-    const value = await response.json() as TResponse;
-    return { value, etag };
-  }
-
-  async put<TResponse, TRequest = unknown>(path: string, body: TRequest, options?: { ifMatch?: string }): Promise<TResponse> {
-    const extraHeaders = options?.ifMatch ? { 'If-Match': options.ifMatch } : undefined;
-    const response = await this.fetchAuthorized('PUT', path, body, undefined, extraHeaders);
+  async put<TResponse, TRequest = unknown>(path: string, body: TRequest): Promise<TResponse> {
+    const response = await this.fetchAuthorized('PUT', path, body);
     await ensureSuccess(response);
     if (response.status === 204) return null as TResponse;
     return await response.json() as TResponse;
@@ -150,19 +141,13 @@ export class PlatformApiClient {
     method: string,
     path: string,
     body?: unknown,
-    query?: QueryParams,
-    extraHeaders?: Record<string, string>
+    query?: QueryParams
   ): Promise<Response> {
     const headers = new Headers(organizationAdminHeaders());
     const supportSession = readSupportSession();
     const accessToken = supportSession ? null : await this.getAccessToken();
     const [headerName, headerValue] = resolveAuthHeader(supportSession, accessToken);
     headers.set(headerName, headerValue);
-    if (extraHeaders) {
-      for (const [name, value] of Object.entries(extraHeaders)) {
-        headers.set(name, value);
-      }
-    }
     let requestBody: BodyInit | undefined;
     if (body !== undefined && body !== null) {
       headers.set('Content-Type', 'application/json');

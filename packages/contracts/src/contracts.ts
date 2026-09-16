@@ -1368,84 +1368,12 @@ export interface FailedUpdateDiagnosticsDto {
   updatedAtUtc: IsoDateTime;
 }
 
-/** Контракт: FloorMap/FloorMapBulkUpdateResponse.cs */
-export interface FloorMapBulkSeatAssignment {
-  clientId: string;
-  seatId: Guid;
-}
-
-/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
-export interface FloorMapBulkSeatRequest {
-  seatId: Guid | null;
-  clientId: string;
-  zoneClientId: string;
-  name: string;
-  sortOrder: number;
-  posX?: number | null;
-  posY?: number | null;
-  rotation?: number;
-  seatType?: string;
-}
-
-/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
-export interface FloorMapBulkUpdateRequest {
-  organizationId: Guid;
-  zones: FloorMapBulkZoneRequest[];
-  seats: FloorMapBulkSeatRequest[];
-  walls?: FloorMapBulkWallRequest[] | null;
-}
-
-/** Контракт: FloorMap/FloorMapBulkUpdateResponse.cs */
-export interface FloorMapBulkUpdateResponse {
-  eTag: string;
-  zones: FloorMapBulkZoneAssignment[];
-  seats: FloorMapBulkSeatAssignment[];
-}
-
-/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
-export interface FloorMapBulkWallRequest {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
-
-/** Контракт: FloorMap/FloorMapBulkUpdateResponse.cs */
-export interface FloorMapBulkZoneAssignment {
-  clientId: string;
-  zoneId: Guid;
-}
-
-/** Контракт: FloorMap/FloorMapBulkUpdateRequest.cs */
-export interface FloorMapBulkZoneRequest {
-  zoneId: Guid | null;
-  clientId: string;
-  name: string;
-  sortOrder: number;
-  geoX?: number | null;
-  geoY?: number | null;
-  geoWidth?: number | null;
-  geoHeight?: number | null;
-  color?: string | null;
-  zoneType?: string | null;
-}
-
 /** Контракт: FloorMap/FloorMapDto.cs */
 export interface FloorMapDto {
   branchId: Guid;
   branchName: string;
   seats: SeatStatusDto[];
   zones: FloorMapZoneDto[];
-  walls: FloorMapWallDto[];
-}
-
-/** Контракт: FloorMap/FloorMapDto.cs */
-export interface FloorMapWallDto {
-  wallId: Guid;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
 }
 
 /** Контракт: FloorMap/FloorMapDto.cs */
@@ -1453,12 +1381,6 @@ export interface FloorMapZoneDto {
   zoneId: Guid;
   name: string;
   sortOrder: number;
-  geoX: number | null;
-  geoY: number | null;
-  geoWidth: number | null;
-  geoHeight: number | null;
-  color: string | null;
-  zoneType: string | null;
 }
 
 /**
@@ -4237,14 +4159,6 @@ export interface SeatStatusDto {
   tariffName?: string | null;
   /** When the active session started (UTC) — lets the operator show real elapsed time. */
   sessionStartedAtUtc?: IsoDateTime | null;
-  /**
-   * Floor-plan layout: grid cell + orientation + host type. Null/default until the branch is
-   * arranged in the «План» editor (B2); the abstract grid view ignores these.
-   */
-  posX?: number | null;
-  posY?: number | null;
-  rotation?: number;
-  seatType?: string;
 }
 
 /**

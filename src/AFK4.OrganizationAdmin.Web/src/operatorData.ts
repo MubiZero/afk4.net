@@ -60,13 +60,8 @@ export interface SeatSummary {
   playerDisplayName?: string | null;
   tariffName?: string | null;
   sessionStartedAtUtc?: string | null;
-  // Floor-plan geometry (B2 DTO). Null/default until the seat is placed in the «План» editor.
-  posX?: number | null;
-  posY?: number | null;
-  rotation?: number;
-  seatType?: string;
-  // The seat's zone: required by the «План» editor's full-replace PUT (B2-3) to bind each seat
-  // to its zone in the saved layout payload.
+  // Зона места: карта группирует места по залам, и группировать надо по идентификатору, а не
+  // по имени — два зала могут называться одинаково.
   zoneId?: string | null;
 }
 

@@ -4318,233 +4318,6 @@ class FailedUpdateDiagnosticsDto {
       };
 }
 
-/// Контракт: FloorMap/FloorMapBulkUpdateResponse.cs
-class FloorMapBulkSeatAssignment {
-  const FloorMapBulkSeatAssignment({
-    required this.clientId,
-    required this.seatId,
-  });
-
-  final String clientId;
-  final String seatId;
-
-  factory FloorMapBulkSeatAssignment.fromJson(Map<String, dynamic> json) => FloorMapBulkSeatAssignment(
-        clientId: json['clientId'] as String,
-        seatId: json['seatId'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'clientId': clientId,
-        'seatId': seatId,
-      };
-}
-
-/// Контракт: FloorMap/FloorMapBulkUpdateRequest.cs
-class FloorMapBulkSeatRequest {
-  const FloorMapBulkSeatRequest({
-    this.seatId,
-    required this.clientId,
-    required this.zoneClientId,
-    required this.name,
-    required this.sortOrder,
-    this.posX,
-    this.posY,
-    this.rotation,
-    this.seatType,
-  });
-
-  final String? seatId;
-  final String clientId;
-  final String zoneClientId;
-  final String name;
-  final int sortOrder;
-  final int? posX;
-  final int? posY;
-  final int? rotation;
-  final String? seatType;
-
-  factory FloorMapBulkSeatRequest.fromJson(Map<String, dynamic> json) => FloorMapBulkSeatRequest(
-        seatId: json['seatId'] == null ? null : json['seatId'] as String,
-        clientId: json['clientId'] as String,
-        zoneClientId: json['zoneClientId'] as String,
-        name: json['name'] as String,
-        sortOrder: (json['sortOrder'] as num).toInt(),
-        posX: json['posX'] == null ? null : (json['posX'] as num).toInt(),
-        posY: json['posY'] == null ? null : (json['posY'] as num).toInt(),
-        rotation: json['rotation'] == null ? null : (json['rotation'] as num).toInt(),
-        seatType: json['seatType'] == null ? null : json['seatType'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'seatId': seatId,
-        'clientId': clientId,
-        'zoneClientId': zoneClientId,
-        'name': name,
-        'sortOrder': sortOrder,
-        'posX': posX,
-        'posY': posY,
-        'rotation': rotation,
-        'seatType': seatType,
-      };
-}
-
-/// Контракт: FloorMap/FloorMapBulkUpdateRequest.cs
-class FloorMapBulkUpdateRequest {
-  const FloorMapBulkUpdateRequest({
-    required this.organizationId,
-    required this.zones,
-    required this.seats,
-    this.walls,
-  });
-
-  final String organizationId;
-  final List<FloorMapBulkZoneRequest> zones;
-  final List<FloorMapBulkSeatRequest> seats;
-  final List<FloorMapBulkWallRequest>? walls;
-
-  factory FloorMapBulkUpdateRequest.fromJson(Map<String, dynamic> json) => FloorMapBulkUpdateRequest(
-        organizationId: json['organizationId'] as String,
-        zones: (json['zones'] as List<dynamic>).map((item) => FloorMapBulkZoneRequest.fromJson(item as Map<String, dynamic>)).toList(),
-        seats: (json['seats'] as List<dynamic>).map((item) => FloorMapBulkSeatRequest.fromJson(item as Map<String, dynamic>)).toList(),
-        walls: json['walls'] == null ? null : (json['walls'] as List<dynamic>).map((item) => FloorMapBulkWallRequest.fromJson(item as Map<String, dynamic>)).toList(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'zones': zones.map((item) => item.toJson()).toList(),
-        'seats': seats.map((item) => item.toJson()).toList(),
-        'walls': walls?.map((item) => item.toJson()).toList(),
-      };
-}
-
-/// Контракт: FloorMap/FloorMapBulkUpdateResponse.cs
-class FloorMapBulkUpdateResponse {
-  const FloorMapBulkUpdateResponse({
-    required this.eTag,
-    required this.zones,
-    required this.seats,
-  });
-
-  final String eTag;
-  final List<FloorMapBulkZoneAssignment> zones;
-  final List<FloorMapBulkSeatAssignment> seats;
-
-  factory FloorMapBulkUpdateResponse.fromJson(Map<String, dynamic> json) => FloorMapBulkUpdateResponse(
-        eTag: json['eTag'] as String,
-        zones: (json['zones'] as List<dynamic>).map((item) => FloorMapBulkZoneAssignment.fromJson(item as Map<String, dynamic>)).toList(),
-        seats: (json['seats'] as List<dynamic>).map((item) => FloorMapBulkSeatAssignment.fromJson(item as Map<String, dynamic>)).toList(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'eTag': eTag,
-        'zones': zones.map((item) => item.toJson()).toList(),
-        'seats': seats.map((item) => item.toJson()).toList(),
-      };
-}
-
-/// Контракт: FloorMap/FloorMapBulkUpdateRequest.cs
-class FloorMapBulkWallRequest {
-  const FloorMapBulkWallRequest({
-    required this.x1,
-    required this.y1,
-    required this.x2,
-    required this.y2,
-  });
-
-  final int x1;
-  final int y1;
-  final int x2;
-  final int y2;
-
-  factory FloorMapBulkWallRequest.fromJson(Map<String, dynamic> json) => FloorMapBulkWallRequest(
-        x1: (json['x1'] as num).toInt(),
-        y1: (json['y1'] as num).toInt(),
-        x2: (json['x2'] as num).toInt(),
-        y2: (json['y2'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'x1': x1,
-        'y1': y1,
-        'x2': x2,
-        'y2': y2,
-      };
-}
-
-/// Контракт: FloorMap/FloorMapBulkUpdateResponse.cs
-class FloorMapBulkZoneAssignment {
-  const FloorMapBulkZoneAssignment({
-    required this.clientId,
-    required this.zoneId,
-  });
-
-  final String clientId;
-  final String zoneId;
-
-  factory FloorMapBulkZoneAssignment.fromJson(Map<String, dynamic> json) => FloorMapBulkZoneAssignment(
-        clientId: json['clientId'] as String,
-        zoneId: json['zoneId'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'clientId': clientId,
-        'zoneId': zoneId,
-      };
-}
-
-/// Контракт: FloorMap/FloorMapBulkUpdateRequest.cs
-class FloorMapBulkZoneRequest {
-  const FloorMapBulkZoneRequest({
-    this.zoneId,
-    required this.clientId,
-    required this.name,
-    required this.sortOrder,
-    this.geoX,
-    this.geoY,
-    this.geoWidth,
-    this.geoHeight,
-    this.color,
-    this.zoneType,
-  });
-
-  final String? zoneId;
-  final String clientId;
-  final String name;
-  final int sortOrder;
-  final int? geoX;
-  final int? geoY;
-  final int? geoWidth;
-  final int? geoHeight;
-  final String? color;
-  final String? zoneType;
-
-  factory FloorMapBulkZoneRequest.fromJson(Map<String, dynamic> json) => FloorMapBulkZoneRequest(
-        zoneId: json['zoneId'] == null ? null : json['zoneId'] as String,
-        clientId: json['clientId'] as String,
-        name: json['name'] as String,
-        sortOrder: (json['sortOrder'] as num).toInt(),
-        geoX: json['geoX'] == null ? null : (json['geoX'] as num).toInt(),
-        geoY: json['geoY'] == null ? null : (json['geoY'] as num).toInt(),
-        geoWidth: json['geoWidth'] == null ? null : (json['geoWidth'] as num).toInt(),
-        geoHeight: json['geoHeight'] == null ? null : (json['geoHeight'] as num).toInt(),
-        color: json['color'] == null ? null : json['color'] as String,
-        zoneType: json['zoneType'] == null ? null : json['zoneType'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'zoneId': zoneId,
-        'clientId': clientId,
-        'name': name,
-        'sortOrder': sortOrder,
-        'geoX': geoX,
-        'geoY': geoY,
-        'geoWidth': geoWidth,
-        'geoHeight': geoHeight,
-        'color': color,
-        'zoneType': zoneType,
-      };
-}
-
 /// Контракт: FloorMap/FloorMapDto.cs
 class FloorMapDto {
   const FloorMapDto({
@@ -4552,21 +4325,18 @@ class FloorMapDto {
     required this.branchName,
     required this.seats,
     required this.zones,
-    required this.walls,
   });
 
   final String branchId;
   final String branchName;
   final List<SeatStatusDto> seats;
   final List<FloorMapZoneDto> zones;
-  final List<FloorMapWallDto> walls;
 
   factory FloorMapDto.fromJson(Map<String, dynamic> json) => FloorMapDto(
         branchId: json['branchId'] as String,
         branchName: json['branchName'] as String,
         seats: (json['seats'] as List<dynamic>).map((item) => SeatStatusDto.fromJson(item as Map<String, dynamic>)).toList(),
         zones: (json['zones'] as List<dynamic>).map((item) => FloorMapZoneDto.fromJson(item as Map<String, dynamic>)).toList(),
-        walls: (json['walls'] as List<dynamic>).map((item) => FloorMapWallDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4574,40 +4344,6 @@ class FloorMapDto {
         'branchName': branchName,
         'seats': seats.map((item) => item.toJson()).toList(),
         'zones': zones.map((item) => item.toJson()).toList(),
-        'walls': walls.map((item) => item.toJson()).toList(),
-      };
-}
-
-/// Контракт: FloorMap/FloorMapDto.cs
-class FloorMapWallDto {
-  const FloorMapWallDto({
-    required this.wallId,
-    required this.x1,
-    required this.y1,
-    required this.x2,
-    required this.y2,
-  });
-
-  final String wallId;
-  final int x1;
-  final int y1;
-  final int x2;
-  final int y2;
-
-  factory FloorMapWallDto.fromJson(Map<String, dynamic> json) => FloorMapWallDto(
-        wallId: json['wallId'] as String,
-        x1: (json['x1'] as num).toInt(),
-        y1: (json['y1'] as num).toInt(),
-        x2: (json['x2'] as num).toInt(),
-        y2: (json['y2'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'wallId': wallId,
-        'x1': x1,
-        'y1': y1,
-        'x2': x2,
-        'y2': y2,
       };
 }
 
@@ -4617,46 +4353,22 @@ class FloorMapZoneDto {
     required this.zoneId,
     required this.name,
     required this.sortOrder,
-    this.geoX,
-    this.geoY,
-    this.geoWidth,
-    this.geoHeight,
-    this.color,
-    this.zoneType,
   });
 
   final String zoneId;
   final String name;
   final int sortOrder;
-  final int? geoX;
-  final int? geoY;
-  final int? geoWidth;
-  final int? geoHeight;
-  final String? color;
-  final String? zoneType;
 
   factory FloorMapZoneDto.fromJson(Map<String, dynamic> json) => FloorMapZoneDto(
         zoneId: json['zoneId'] as String,
         name: json['name'] as String,
         sortOrder: (json['sortOrder'] as num).toInt(),
-        geoX: json['geoX'] == null ? null : (json['geoX'] as num).toInt(),
-        geoY: json['geoY'] == null ? null : (json['geoY'] as num).toInt(),
-        geoWidth: json['geoWidth'] == null ? null : (json['geoWidth'] as num).toInt(),
-        geoHeight: json['geoHeight'] == null ? null : (json['geoHeight'] as num).toInt(),
-        color: json['color'] == null ? null : json['color'] as String,
-        zoneType: json['zoneType'] == null ? null : json['zoneType'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'zoneId': zoneId,
         'name': name,
         'sortOrder': sortOrder,
-        'geoX': geoX,
-        'geoY': geoY,
-        'geoWidth': geoWidth,
-        'geoHeight': geoHeight,
-        'color': color,
-        'zoneType': zoneType,
       };
 }
 
@@ -12898,10 +12610,6 @@ class SeatStatusDto {
     this.playerDisplayName,
     this.tariffName,
     this.sessionStartedAtUtc,
-    this.posX,
-    this.posY,
-    this.rotation,
-    this.seatType,
   });
 
   final String seatId;
@@ -12940,13 +12648,6 @@ class SeatStatusDto {
   /// When the active session started (UTC) — lets the operator show real elapsed time.
   final DateTime? sessionStartedAtUtc;
 
-  /// Floor-plan layout: grid cell + orientation + host type. Null/default until the branch is
-  /// arranged in the «План» editor (B2); the abstract grid view ignores these.
-  final int? posX;
-  final int? posY;
-  final int? rotation;
-  final String? seatType;
-
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -12969,10 +12670,6 @@ class SeatStatusDto {
         playerDisplayName: json['playerDisplayName'] == null ? null : json['playerDisplayName'] as String,
         tariffName: json['tariffName'] == null ? null : json['tariffName'] as String,
         sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
-        posX: json['posX'] == null ? null : (json['posX'] as num).toInt(),
-        posY: json['posY'] == null ? null : (json['posY'] as num).toInt(),
-        rotation: json['rotation'] == null ? null : (json['rotation'] as num).toInt(),
-        seatType: json['seatType'] == null ? null : json['seatType'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -12997,10 +12694,6 @@ class SeatStatusDto {
         'playerDisplayName': playerDisplayName,
         'tariffName': tariffName,
         'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
-        'posX': posX,
-        'posY': posY,
-        'rotation': rotation,
-        'seatType': seatType,
       };
 }
 

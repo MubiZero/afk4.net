@@ -3,7 +3,7 @@ import { formatNumber as formatLocaleNumber } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { type MessageKey } from '@afk4/i18n';
 import type { FloorMapCacheEntry } from './floorMapCache';
-import type { FloorMapDto, FloorMapZoneDto, FloorMapWallDto, SeatStatusDto } from './operatorApiClients';
+import type { FloorMapDto, FloorMapZoneDto, SeatStatusDto } from './operatorApiClients';
 import type { SeatSummary, SeatTone } from './operatorData';
 import type { DeviceStatusChangedDto } from './operatorRealtime';
 
@@ -16,12 +16,8 @@ export interface OperatorFloorMapState {
   branchId?: string;
   branchName: string;
   seats: SeatSummary[];
-  // Static layout geometry for the «План» view (B2). Realtime seat updates never touch these.
+  // Зоны как структура зала: по ним карта группирует места. Живые обновления мест их не трогают.
   zones: FloorMapZoneDto[];
-  walls: FloorMapWallDto[];
-  // Concurrency token from the floor-map GET; required as If-Match when saving layout (B2-3).
-  // Null on fixtures and on the offline-cache mirror — the editor's save is disabled without it.
-  etag: string | null;
   source: FloorMapSource;
   loadStatus: FloorMapLoadStatus;
   error: string | null;
@@ -39,8 +35,6 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
     branchName: fixtureBranchName,
     seats: [],
     zones: [],
-    walls: [],
-    etag: null,
     source: 'fixture',
     loadStatus: 'idle',
     error: null,
@@ -49,16 +43,12 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
   };
 }
 
-// etag defaults to null: tests that don't exercise concurrency may omit it; the real loader
-// (loadBackendFloorMapState) always passes the ETag captured from the GET response.
-export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, etag: string | null = null, loadedAtMs = Date.now()): OperatorFloorMapState {
+export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, loadedAtMs = Date.now()): OperatorFloorMapState {
   return {
     branchId: floorMap.branchId,
     branchName: floorMap.branchName,
     seats: mapFloorMapSeats(floorMap.seats, t, loadedAtMs),
     zones: floorMap.zones ?? [],
-    walls: floorMap.walls ?? [],
-    etag,
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -79,8 +69,6 @@ export function hydrateFloorMapStateFromCache(
     branchName: entry.floorMap.branchName,
     seats: mapFloorMapSeats(entry.floorMap.seats, t, entry.cachedAtMs),
     zones: entry.floorMap.zones ?? [],
-    walls: entry.floorMap.walls ?? [],
-    etag: null,
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -207,11 +195,6 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     playerDisplayName,
     tariffName,
     sessionStartedAtUtc,
-    // Floor-plan geometry: null pos = not placed yet; 0° = no rotation; 'pc' = default host type.
-    posX: dto.posX ?? null,
-    posY: dto.posY ?? null,
-    rotation: dto.rotation ?? 0,
-    seatType: dto.seatType ?? 'pc',
     zoneId: dto.zoneId
   };
 }

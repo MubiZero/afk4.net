@@ -33,7 +33,6 @@ function floorMap(branchName: string, seatName: string): FloorMapDto {
       }
     ],
     zones: [],
-    walls: []
   };
 }
 

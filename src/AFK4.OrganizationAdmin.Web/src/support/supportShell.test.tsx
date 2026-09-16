@@ -42,7 +42,7 @@ async function supportShellFetch(input: RequestInfo | URL): Promise<Response> {
   const pathname = new URL(String(input)).pathname;
 
   if (pathname.endsWith('/floor-map')) {
-    return jsonResponse({ branchId: 'b1', branchName: branchNamesById.b1, seats: [], zones: [], walls: [] });
+    return jsonResponse({ branchId: 'b1', branchName: branchNamesById.b1, seats: [], zones: [] });
   }
   const profileMatch = pathname.match(/\/branches\/([^/]+)\/profile$/);
   if (profileMatch) {
