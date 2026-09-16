@@ -55,7 +55,7 @@ public sealed class EfTariffService(
 
         if (existingNames.Contains(trimmedName, StringComparer.OrdinalIgnoreCase))
         {
-            return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
+            return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.", TariffErrorCodeNames.NameTaken);
         }
 
         var schedule = request.Schedule ?? new TariffScheduleDto();
@@ -278,7 +278,7 @@ public sealed class EfTariffService(
 
         if (existingNames.Contains(trimmedName, StringComparer.OrdinalIgnoreCase))
         {
-            return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
+            return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.", TariffErrorCodeNames.NameTaken);
         }
 
         if (request.Schedule is { } schedule)

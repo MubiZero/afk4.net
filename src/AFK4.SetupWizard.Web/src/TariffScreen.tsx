@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { majorToMinor } from '@afk4/money';
+import { wizardErrorMessage } from './wizardErrors';
 
 export interface TariffClient {
   createTariff(name: string, pricePerHourMinorUnits: number): Promise<{ name: string }>;
@@ -23,7 +24,7 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
   const [pricePerHour, setPricePerHour] = useState('10');
   const [created, setCreated] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const parsedPrice = Number.parseFloat(pricePerHour.replace(',', '.'));
   const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving;
@@ -31,7 +32,7 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
   async function create(): Promise<void> {
     if (!canCreate) return;
     setSaving(true);
-    setFailed(false);
+    setFailure(null);
     try {
       // Цена вводится в сомони, а хранится в дирамах: копейки считаются целыми, иначе округление
       // однажды съест или подарит минуту игры. Перевод — общий на весь проект: свой
@@ -39,8 +40,8 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
       // и мастер расходился с остальными экранами на дирам.
       const result = await client.createTariff(name.trim(), majorToMinor(parsedPrice));
       setCreated(result.name);
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(wizardErrorMessage(error, t, 'setup.wizard.tariff.failed'));
     } finally {
       setSaving(false);
     }
@@ -83,7 +84,7 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         {t('setup.wizard.tariff.create')}
       </button>
 
-      {failed ? <p className="ui-alert">{t('setup.wizard.tariff.failed')}</p> : null}
+      {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
       {created === null ? null : <p className="ui-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
 
       <div className="wizard-actions">

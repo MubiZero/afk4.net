@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { closeWizard, provisionShell, type WizardEnrollResult, type WizardRole, type WizardSeat, type WizardShellOutcome } from './wizardApi';
+import type { WizardEnrollResult, WizardRole, WizardSeat, WizardShellOutcome } from './wizardApi';
+import { wizardErrorMessage } from './wizardErrors';
 
 interface FinishedScreenProps {
   result: WizardEnrollResult;
@@ -11,6 +12,13 @@ interface FinishedScreenProps {
   /// Номер этого шага. Считает его App по видимым шагам прогона: здесь была зашита пятёрка, и
   /// прогон, где часть шагов пропущена, заканчивался «шагом 5» из трёх.
   stepNumber: number;
+
+  /// Обращения к хосту — параметрами, как у остальных экранов мастера (см. `installClient` на
+  /// экране устройства). Экран не берёт их из модуля намеренно: bun делит подмены модулей между
+  /// файлами одного прогона, и частичная подмена в соседнем тесте оставляла этот экран без
+  /// импорта — сборка падала на «Export named 'closeWizard' not found».
+  provisionShell: (role: WizardRole) => Promise<WizardShellOutcome>;
+  onClose: () => void;
 }
 
 // Known update channels → shared i18n labels (reused from the Operator helper catalog).
@@ -20,7 +28,14 @@ const CHANNEL_LABEL_KEYS: Record<string, MessageKey> = {
   internal: 'op.helper.update.channel.internal',
 };
 
-export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }: FinishedScreenProps) {
+export function FinishedScreen({
+  result,
+  branchName,
+  selectedSeat,
+  stepNumber,
+  provisionShell,
+  onClose,
+}: FinishedScreenProps) {
   const { t } = useI18n();
   const isPending = result.enrollmentState.toLowerCase() === 'pending';
   const roleLabel = result.role === 'gaming_pc'
@@ -82,7 +97,7 @@ export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }:
         </dl>
 
         {result.shell.status !== 'skipped' && (
-          <ShellStatusRow initial={result.shell} role={result.role} />
+          <ShellStatusRow initial={result.shell} role={result.role} provisionShell={provisionShell} />
         )}
 
         {isPending && (
@@ -92,7 +107,7 @@ export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }:
         )}
 
         <div className="wizard-actions is-end">
-          <button type="button" className="ui-btn ui-btn--primary wizard-finished-close" onClick={closeWizard}>
+          <button type="button" className="ui-btn ui-btn--primary wizard-finished-close" onClick={onClose}>
             <span>{t('setup.wizard.finished.close')}</span>
           </button>
         </div>
@@ -101,10 +116,23 @@ export function FinishedScreen({ result, branchName, selectedSeat, stepNumber }:
   );
 }
 
-function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: WizardRole }) {
+function ShellStatusRow({ initial, role, provisionShell }: {
+  initial: WizardShellOutcome;
+  role: WizardRole;
+  provisionShell: (role: WizardRole) => Promise<WizardShellOutcome>;
+}) {
   const { t } = useI18n();
   const [outcome, setOutcome] = useState(initial);
   const [busy, setBusy] = useState(false);
+  // Сорвавшийся повтор. Без него кнопка молча возвращалась в исходное состояние, и человек у ПК
+  // видел ровно то же, что до нажатия, — будто она не работает.
+  const [retryFailure, setRetryFailure] = useState<string | null>(null);
+
+  // На игровом ПК ставится оболочка игрока, на рабочем месте управляющего — панель. Одна строка
+  // на обе роли обещала управляющему «оболочку игрока», которой у него не будет.
+  const appName = role === 'gaming_pc'
+    ? t('op.helper.update.component.playerShell')
+    : t('op.helper.update.component.organizationAdmin');
 
   // Успех (или уже было установлено) не показываем — зелёная плашка только шумит.
   // Показываем строку лишь когда установка оболочки сорвалась: это actionable (есть «Повторить»).
@@ -118,22 +146,28 @@ function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: 
           говорит: «(msiexec 1603)» рядом с русской фразой читается как часть поломки. Он
           остаётся в подсказке и в журнале, а на экране — только то, что делать дальше. */}
       <span title={outcome.exitCode !== null ? `msiexec ${outcome.exitCode}` : undefined}>
-        {t('setup.wizard.finished.shell.failed')}
+        {t('setup.wizard.finished.shell.failed', { app: appName })}
       </span>
+      {retryFailure === null ? null : <span className="wizard-shell-status-detail">{retryFailure}</span>}
       <button
         type="button"
         className="ui-btn"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
+          setRetryFailure(null);
           try {
             setOutcome(await provisionShell(role));
+          } catch (error) {
+            setRetryFailure(wizardErrorMessage(error, t, 'setup.wizard.finished.shell.retryFailed'));
           } finally {
             setBusy(false);
           }
         }}
       >
-        {busy ? t('setup.wizard.finished.shell.installing') : t('setup.wizard.finished.shell.retry')}
+        {busy
+          ? t('setup.wizard.finished.shell.installing', { app: appName })
+          : t('setup.wizard.finished.shell.retry')}
       </button>
     </div>
   );

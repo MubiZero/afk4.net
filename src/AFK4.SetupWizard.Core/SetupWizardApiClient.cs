@@ -56,7 +56,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
             JsonOptions,
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<StaffSignInResponse>(response, cancellationToken);
     }
 
@@ -77,7 +77,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
             return new SetupWizardLoginResult(null, choose.Clubs);
         }
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         var signedIn = await ReadRequiredAsync<StaffSignInResponse>(response, cancellationToken);
         return new SetupWizardLoginResult(signedIn, []);
     }
@@ -94,7 +94,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
             JsonOptions,
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<StaffSignInResponse>(response, cancellationToken);
     }
 
@@ -139,7 +139,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<InstallDiscoverResponse>(response, cancellationToken);
     }
 
@@ -160,7 +160,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<InstallCreateSeatResponse>(response, cancellationToken);
     }
 
@@ -179,7 +179,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<StaffInviteDto> InviteStaffAsync(
@@ -204,7 +204,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<StaffInviteDto>(response, cancellationToken);
     }
 
@@ -232,7 +232,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<UploadedMediaDto>(response, cancellationToken);
     }
 
@@ -284,7 +284,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<TResponse>(response, cancellationToken);
     }
 
@@ -301,7 +301,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<InstallEnrollResponse>(response, cancellationToken);
     }
 
@@ -317,33 +317,82 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         }
 
         var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        var code = "reset_failed";
-        int? remainingAttempts = null;
+        var failure = ReadFailure(errorBody);
+
+        throw new SetupWizardApiException(
+            failure.Code ?? "reset_failed",
+            $"Platform API returned {(int)response.StatusCode} for {path}.",
+            failure.RemainingAttempts);
+    }
+
+    /// <summary>
+    /// Отказ с машинным кодом доезжает до мастера кодом: только по нему экран назовёт причину на
+    /// языке того, кто её читает, — английскую фразу сервера показать нельзя. Ответ без кода
+    /// остаётся обычной HTTP-ошибкой: придумывать код за сервер мы не станем.
+    /// </summary>
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        var failure = ReadFailure(body);
+        if (failure.Code is not null)
+        {
+            var path = response.RequestMessage?.RequestUri?.PathAndQuery ?? "the platform API";
+            throw new SetupWizardApiException(
+                failure.Code,
+                $"Platform API returned {(int)response.StatusCode} for {path}.",
+                failure.RemainingAttempts);
+        }
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    private readonly record struct ApiFailure(string? Code, int? RemainingAttempts);
+
+    /// <summary>
+    /// Разбор тела отказа. Код лежит либо в <c>code</c>, либо — в кассе, складе и сбросе пароля —
+    /// прямо в <c>error</c>; свободный текст («Tariff name is required.») кодом не считаем, иначе
+    /// английская фраза уехала бы в интерфейс под видом машинного имени.
+    /// </summary>
+    private static ApiFailure ReadFailure(string body)
+    {
         try
         {
-            using var document = JsonDocument.Parse(errorBody);
-            if (document.RootElement.TryGetProperty("error", out var errorElement)
-                && errorElement.ValueKind == JsonValueKind.String)
+            using var document = JsonDocument.Parse(body);
+            string? code = null;
+            foreach (var property in new[] { "code", "error" })
             {
-                code = errorElement.GetString() ?? code;
+                if (document.RootElement.TryGetProperty(property, out var element)
+                    && element.ValueKind == JsonValueKind.String
+                    && LooksLikeCode(element.GetString()))
+                {
+                    code = element.GetString();
+                    break;
+                }
             }
 
+            int? remainingAttempts = null;
             if (document.RootElement.TryGetProperty("remainingAttempts", out var remainingElement)
                 && remainingElement.ValueKind == JsonValueKind.Number)
             {
                 remainingAttempts = remainingElement.GetInt32();
             }
+
+            return new ApiFailure(code, remainingAttempts);
         }
         catch (JsonException)
         {
-            // Non-JSON error body: keep the generic code.
+            return new ApiFailure(null, null);
         }
-
-        throw new SetupWizardApiException(
-            code,
-            $"Platform API returned {(int)response.StatusCode} for {path}.",
-            remainingAttempts);
     }
+
+    private static bool LooksLikeCode(string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && value.All(character => char.IsAsciiLetterLower(character) || character == '_' || char.IsAsciiDigit(character));
 
     private static async Task<T> ReadRequiredAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
     {

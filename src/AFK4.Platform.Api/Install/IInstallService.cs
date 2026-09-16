@@ -24,13 +24,19 @@ public interface IInstallService
         CancellationToken cancellationToken);
 }
 
+/// <param name="Code">
+/// Машинное имя отказа для причин, которые мастер установки обязан назвать человеку своими
+/// словами («на это место уже привязан другой ПК»). Английская фраза из <paramref name="Error"/>
+/// для этого не годится: мастер работает и по-русски, и по-таджикски.
+/// </param>
 public sealed record InstallOperationResult<T>(
     InstallOperationStatus Status,
     T? Value,
     string? Error,
     Guid? OrganizationId = null,
     Guid? BranchId = null,
-    Guid? StaffUserId = null)
+    Guid? StaffUserId = null,
+    string? Code = null)
 {
     public bool Succeeded => Status == InstallOperationStatus.Succeeded;
 
@@ -51,8 +57,8 @@ public sealed record InstallOperationResult<T>(
     public static InstallOperationResult<T> NotFound(string error) =>
         new(InstallOperationStatus.NotFound, default, error);
 
-    public static InstallOperationResult<T> Conflict(string error, Guid organizationId, Guid branchId) =>
-        new(InstallOperationStatus.Conflict, default, error, organizationId, branchId);
+    public static InstallOperationResult<T> Conflict(string error, Guid organizationId, Guid branchId, string? code = null) =>
+        new(InstallOperationStatus.Conflict, default, error, organizationId, branchId, StaffUserId: null, Code: code);
 }
 
 public enum InstallOperationStatus
