@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import type { AuditSearchResultDto, MoneyActionRequestDto } from './operatorApiClients';
+import type { AuditRecordDto, AuditSearchResultDto, MoneyActionRequestDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import {
   auditActionLabel,
@@ -12,7 +12,6 @@ import {
   formatTime,
   operatorDisplayNameLabel,
   readArray,
-  readNumber,
   readString,
   requireBackend,
   workspaceLoadStatusLabel
@@ -72,8 +71,8 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
   const resolveStaffName = (staffUserId: string) =>
     staffNames[staffUserId.toLowerCase()] ?? `${staffUserId.slice(0, 8)}…`;
 
-  const reviewAuditActorLabel = (record: Record<string, unknown>) => {
-    const actorStaffUserId = readString(record, 'actorStaffUserId');
+  const reviewAuditActorLabel = (record: AuditRecordDto) => {
+    const actorStaffUserId = record.actorStaffUserId ?? '';
     const resolved = actorStaffUserId ? staffNames[actorStaffUserId.toLowerCase()] : '';
     return resolved || auditActorLabel(record, backend, t);
   };
@@ -171,8 +170,8 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
     }
   };
 
-  const auditRecords = readArray<Record<string, unknown>>(auditResult, 'records');
-  const decisionRecords = auditRecords.filter((record) => /approv|reject|money.action/i.test(readString(record, 'action')));
+  const auditRecords = readArray<AuditRecordDto>(auditResult, 'records');
+  const decisionRecords = auditRecords.filter((record) => /approv|reject|money.action/i.test(record.action));
   const staffOptions = Object.entries(staffNames);
   const selectedRequest = requests.find((request) => request.moneyActionRequestId === selectedRequestId) ?? null;
   const expiringCount = requests.filter((request) => reviewExpiryBadge(request.expiresAtUtc, Date.now(), t)?.tone === 'soon').length;
@@ -224,7 +223,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
         />
       )}
 
-      {activeSegment === 'history' && <section className="review-panel review-history-panel">{decisionRecords.length === 0 ? <p className="review-empty">{t('op.review.emptyHistory')}</p> : <div className="review-audit-list">{decisionRecords.map((record) => <article key={readString(record, 'auditRecordId')} className="review-audit-row"><span>{formatTime(readString(record, 'createdAtUtc'))}</span><strong>{reviewAuditActorLabel(record)}</strong><em>{auditActionLabel(readString(record, 'action'), t)}</em><b>{readNumber(record, 'amountMinorUnits', 0) ? formatMinorUnits(readNumber(record, 'amountMinorUnits', 0), currencyCode) : '—'}</b></article>)}</div>}</section>}
+      {activeSegment === 'history' && <section className="review-panel review-history-panel">{decisionRecords.length === 0 ? <p className="review-empty">{t('op.review.emptyHistory')}</p> : <div className="review-audit-list">{decisionRecords.map((record) => <article key={record.auditRecordId} className="review-audit-row"><span>{formatTime(record.createdAtUtc)}</span><strong>{reviewAuditActorLabel(record)}</strong><em>{auditActionLabel(record.action, t)}</em><b>{record.amountMinorUnits ? formatMinorUnits(record.amountMinorUnits, currencyCode) : '—'}</b></article>)}</div>}</section>}
 
       {activeSegment === 'audit' && (
         <section className="review-panel review-audit-panel">
@@ -247,11 +246,11 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
               <p className="review-empty">{t('op.review.emptyAudit')}</p>
             ) : (
               auditRecords.map((record) => (
-                <article key={readString(record, 'auditRecordId')} className="review-audit-row">
-                  <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
+                <article key={record.auditRecordId} className="review-audit-row">
+                  <span>{formatTime(record.createdAtUtc)}</span>
                   <strong>{reviewAuditActorLabel(record)}</strong>
-                  <em>{auditActionLabel(readString(record, 'action'), t)}</em>
-                  <b>{readNumber(record, 'amountMinorUnits', 0) > 0 ? formatMinorUnits(readNumber(record, 'amountMinorUnits', 0), currencyCode) : '—'}</b>
+                  <em>{auditActionLabel(record.action, t)}</em>
+                  <b>{(record.amountMinorUnits ?? 0) > 0 ? formatMinorUnits(record.amountMinorUnits ?? 0, currencyCode) : '—'}</b>
                 </article>
               ))
             )}

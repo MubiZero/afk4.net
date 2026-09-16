@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
-import { isGuid, readArray, readString } from '../../operatorHelpers';
+import { isGuid } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
 import { ZonesTab } from './halls/ZonesTab';
 import { DevicesTab } from './halls/DevicesTab';
@@ -45,9 +45,9 @@ export function HallsDevicesDestination({
   const canManageBranchSettings = hasPermission(session, permissionNames.manageBranchSettings);
 
   const layoutSeatOptions = useMemo(() => zoneRows.flatMap((zone) =>
-    readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
-      seatId: readString(seat, 'seatId'),
-      label: `${readString(zone, 'name', t('op.settings.layout.zoneFallback'))} · ${readString(seat, 'name', t('op.settings.layout.seatFallback'))}`
+    zone.seats.map((seat) => ({
+      seatId: seat.seatId,
+      label: `${zone.name || t('op.settings.layout.zoneFallback')} · ${seat.name || t('op.settings.layout.seatFallback')}`
     }))
   ).filter((seat) => isGuid(seat.seatId)), [zoneRows, t]);
 

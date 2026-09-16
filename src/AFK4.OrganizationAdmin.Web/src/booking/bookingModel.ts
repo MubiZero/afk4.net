@@ -1,5 +1,5 @@
+import type { ReservationDto } from '@afk4/contracts';
 import type { SeatSummary } from '../operatorData';
-import { readString, readNumber } from '../operatorHelpers';
 
 export type BookingTone = 'confirmed' | 'online' | 'pending' | 'seated' | 'cancelled';
 
@@ -74,9 +74,8 @@ export interface ZoneRowGroup {
 
 const HOUR_MS = 3_600_000;
 
-function readTimestamp(source: Record<string, unknown>, key: string): number | null {
-  const raw = readString(source, key);
-  if (raw.length === 0) return null;
+function readTimestamp(raw: string | null | undefined): number | null {
+  if (!raw) return null;
   const ms = new Date(raw).getTime();
   return Number.isNaN(ms) ? null : ms;
 }
@@ -172,36 +171,34 @@ export function bookingDetailActions(
 }
 
 export function mapReservationsToItems(
-  reservations: Record<string, unknown>[],
+  reservations: ReservationDto[],
   guestName: string
 ): BookingItem[] {
   return reservations.map((reservation) => {
-    const state = readString(reservation, 'state', 'pending');
-    const source = readString(reservation, 'source', 'operator');
-    const startsAtUtc = readString(reservation, 'startsAtUtc');
-    const durationMinutes = readNumber(reservation, 'durationMinutes', 60);
-    const startMs = new Date(startsAtUtc).getTime();
+    const startMs = new Date(reservation.startsAtUtc).getTime();
     const safeStart = Number.isNaN(startMs) ? 0 : startMs;
+    const durationMinutes = reservation.durationMinutes;
+    const phoneNumber = reservation.phoneNumber ?? '';
     return {
-      reservationId: readString(reservation, 'reservationId'),
-      reservationGroupId: readString(reservation, 'reservationGroupId'),
-      version: readNumber(reservation, 'version', 1),
-      state,
-      source,
+      reservationId: reservation.reservationId,
+      reservationGroupId: reservation.reservationGroupId ?? '',
+      version: reservation.version ?? 1,
+      state: reservation.state,
+      source: reservation.source,
       startMs: safeStart,
       endMs: safeStart + durationMinutes * 60_000,
       durationMinutes,
-      customerName: readString(reservation, 'customerName', guestName),
-      phoneNumber: readString(reservation, 'phoneNumber'),
-      note: readString(reservation, 'note', readString(reservation, 'phoneNumber')),
-      playerAccountId: readString(reservation, 'playerAccountId'),
-      platformPersonId: readString(reservation, 'platformPersonId'),
-      seatId: readString(reservation, 'seatId'),
-      seatName: readString(reservation, 'seatName'),
-      zoneName: readString(reservation, 'zoneName'),
-      tone: bookingTone(state, source),
-      startedSessionId: readString(reservation, 'startedSessionId'),
-      respondByMs: readTimestamp(reservation, 'respondByUtc')
+      customerName: reservation.customerName || guestName,
+      phoneNumber,
+      note: reservation.note || phoneNumber,
+      playerAccountId: reservation.playerAccountId ?? '',
+      platformPersonId: reservation.platformPersonId ?? '',
+      seatId: reservation.seatId ?? '',
+      seatName: reservation.seatName ?? '',
+      zoneName: reservation.zoneName ?? '',
+      tone: bookingTone(reservation.state, reservation.source),
+      startedSessionId: reservation.startedSessionId ?? '',
+      respondByMs: readTimestamp(reservation.respondByUtc)
     };
   });
 }
