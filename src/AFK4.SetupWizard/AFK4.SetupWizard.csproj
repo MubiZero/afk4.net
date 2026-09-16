@@ -8,8 +8,14 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
   </ItemGroup>
 
+  <!-- Фронтенд мастера линкуется прямо из dist соседнего проекта — так же, как в оболочке
+       игрока. Раньше в репозитории лежала собранная копия под WebAssets/, и она молча
+       устаревала: запуск не через релизный скрипт показывал мастер трёхмесячной давности,
+       без половины экранов, и ничем себя не выдавал. Чистая копия без dist теперь просто ни
+       с чем не совпадает, и мастер честно говорит, что фронтенд не собран. -->
   <ItemGroup>
-    <Content Include="WebAssets\**\*">
+    <Content Include="$(MSBuildProjectDirectory)\..\AFK4.SetupWizard.Web\dist\**\*">
+      <Link>WebAssets\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

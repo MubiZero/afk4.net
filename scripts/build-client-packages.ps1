@@ -174,6 +174,30 @@ function Assert-OperatorMsiContainsFrontendAssets {
     }
 }
 
+function Assert-SetupWizardPublishContainsFrontendAssets {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $PublishDir
+    )
+
+    # Однажды эти файлы уже терялись по дороге в пакет (копия -File вместо -Recurse), и мастер на
+    # чистой машине открывался пустой страницей. Проверяем то, что видит человек: экран мастера.
+    $webAssets = Join-Path $PublishDir 'WebAssets'
+    $requiredAssets = @(
+        @{ Label = 'index.html'; Pattern = 'index.html' },
+        @{ Label = 'JavaScript bundle'; Pattern = '*.js' },
+        @{ Label = 'stylesheet'; Pattern = '*.css' }
+    )
+
+    foreach ($asset in $requiredAssets) {
+        $found = Get-ChildItem -LiteralPath $webAssets -Recurse -File -Filter $asset.Pattern -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if (-not $found) {
+            throw "Setup Wizard publish output does not contain the frontend $($asset.Label). Build src/AFK4.SetupWizard.Web before packaging."
+        }
+    }
+}
+
 if (-not (Test-Path -LiteralPath $DotnetPath)) {
     throw "dotnet executable was not found at '$DotnetPath'."
 }
@@ -281,12 +305,11 @@ if (-not (Test-Path -LiteralPath $playerShellWebDistIndex)) {
     throw "Player Shell frontend build did not produce '$playerShellWebDistIndex'."
 }
 
-# SetupWizard.Web dist is NOT linked by the csproj; AFK4.SetupWizard ships WebAssets\** instead.
-# Build it and copy the dist into WebAssets, otherwise the committed placeholder index.html
-# ships and the wizard shows a "Setup Wizard frontend assets were not found" error page.
+# Мастер линкует этот dist прямо из своего csproj (как оболочка игрока), поэтому копировать
+# ничего не нужно — но собрать обязательно: без dist в пакет не попадёт ни одного экрана, и
+# мастер покажет «Setup Wizard frontend assets were not found».
 $setupWizardWebRoot = Join-Path $repoRoot 'src/AFK4.SetupWizard.Web'
 $setupWizardWebDist = Join-Path $setupWizardWebRoot 'dist'
-$setupWizardWebAssets = Join-Path $repoRoot 'src/AFK4.SetupWizard/WebAssets'
 Push-Location $setupWizardWebRoot
 try {
     & $BunPath run build
@@ -302,14 +325,6 @@ finally {
 if (-not (Test-Path -LiteralPath (Join-Path $setupWizardWebDist 'index.html'))) {
     throw "Setup Wizard frontend build did not produce an index.html under '$setupWizardWebDist'."
 }
-
-if (Test-Path -LiteralPath $setupWizardWebAssets) {
-    Get-ChildItem -LiteralPath $setupWizardWebAssets -Force |
-        Remove-Item -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path $setupWizardWebAssets | Out-Null
-Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
-    Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
 
 $projects = @(
     @{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false },
@@ -431,6 +446,7 @@ Copy-Item -LiteralPath $organizationAdminMsiPath -Destination (Join-Path $setupW
 # -Recurse (not -File) so the WebAssets\** subfolder ships in the support dir;
 # the agent MSI harvests SetupWizardFiles from here, and the wizard resolves its
 # UI from WebAssets next to the exe. Files-only copy dropped it -> placeholder page.
+Assert-SetupWizardPublishContainsFrontendAssets -PublishDir $setupWizardPublishDir
 Get-ChildItem -LiteralPath $setupWizardPublishDir -Force |
     Where-Object { $_.Name -ne 'AFK4.SetupWizard.exe' } |
     Copy-Item -Destination $setupWizardSupportDir -Recurse -Force

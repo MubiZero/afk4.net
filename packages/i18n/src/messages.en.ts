@@ -3407,6 +3407,8 @@ export const en = {
   "setup.wizard.common.back": "Back",
   "setup.wizard.common.continue": "Continue",
   "setup.wizard.common.step": "Step",
+  "setup.wizard.crash.message": "The setup wizard stumbled and could not draw this screen. Try again — if that does not help, close the window and start the wizard again from the Start menu.",
+  "setup.wizard.crash.retry": "Try again",
   "setup.wizard.device.action.enroll": "Enroll",
   "setup.wizard.device.action.enrolling": "Enrolling…",
   "setup.wizard.device.error.createSeat": "The seat could not be created. Check the connection to the server and try again.",

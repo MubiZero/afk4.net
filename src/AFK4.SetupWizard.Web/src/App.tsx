@@ -14,6 +14,7 @@ import { StaffScreen } from './StaffScreen';
 import { TariffScreen } from './TariffScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
+import { WizardErrorBoundary } from './WizardErrorBoundary';
 import { nextSetupStep, previousVisibleStep, visibleSteps } from './setupSteps';
 import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
 import {
@@ -462,7 +463,14 @@ export function App() {
         {stepAnnouncement}
       </div>
 
+      {/* Граница монтируется заново на каждом шаге: исправленный шаг не должен оставаться
+          «сломанным» из-за падения предыдущего. */}
       <main className="wizard-body" data-nav-dir={navDirection}>
+        <WizardErrorBoundary
+          key={state.step}
+          message={t('setup.wizard.crash.message')}
+          retryLabel={t('setup.wizard.crash.retry')}
+        >
         {state.step === 'phoneLogin' && (
           <PhoneLoginScreen
             onDiscovered={handlePhoneDiscovered}
@@ -565,6 +573,7 @@ export function App() {
             onClose={closeWizard}
           />
         )}
+        </WizardErrorBoundary>
       </main>
     </div>
   );
