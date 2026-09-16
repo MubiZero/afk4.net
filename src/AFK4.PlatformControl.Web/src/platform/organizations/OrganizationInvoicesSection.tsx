@@ -10,14 +10,26 @@ import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { Invoice } from '@/api/types';
 import { INVOICE_STATUS_VARIANT, INVOICE_STATUS_LABEL } from '@/platform/billing/billingModel';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ManualInvoiceDialog } from './ManualInvoiceDialog';
 
-type Client = Pick<InvoicesApi, 'listOrganizationInvoices' | 'generateInvoice' | 'createInvoice'>;
+type Client = Pick<
+  InvoicesApi,
+  'listOrganizationInvoices' | 'generateInvoice' | 'createInvoice' | 'markInvoicePaid' | 'voidInvoice'
+>;
 
-export function OrganizationInvoicesSection({ client, organizationId, canManage = true }: {
+/// Что делают со счётом прямо здесь. Раньше карточка клиента показывала список без единой
+/// кнопки: отметить оплаченным или аннулировать просроченный счёт можно было только уйдя в
+/// «Деньги» и найдя там этот же клуб заново.
+type InvoiceAction = { kind: 'markPaid' | 'void'; invoice: Invoice };
+
+export function OrganizationInvoicesSection({ client, organizationId, canManage = true, canManageInvoices = false }: {
   client: Client;
   organizationId: string;
   canManage?: boolean;
+  /// Отметить оплаченным и аннулировать сервер спрашивает по отдельному праву на счета, а не по
+  /// общему «управлению деньгами».
+  canManageInvoices?: boolean;
 }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
@@ -26,6 +38,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [action, setAction] = useState<InvoiceAction | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +61,30 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
       setPending(false);
     }
   }
+
+  async function confirm(reason: string) {
+    if (action === null) return;
+    setPending(true);
+    try {
+      if (action.kind === 'markPaid') {
+        await client.markInvoicePaid(action.invoice.invoiceId, reason.length > 0 ? reason : null);
+        toast({ title: t('platform.billing.markPaid.done'), variant: 'success' });
+      } else {
+        await client.voidInvoice(action.invoice.invoiceId, reason);
+        toast({ title: t('platform.billing.void.done'), variant: 'success' });
+      }
+      setAction(null);
+      setTick(n => n + 1);
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Оплатить или аннулировать можно то, что ещё живо: у оплаченного и аннулированного счёта эти
+  // кнопки только собирали бы отказ сервера.
+  const actionable = (status: string) => status === 'issued' || status === 'overdue';
 
   return (
     <Card>
@@ -74,11 +111,35 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
               <span className="pc-cell-actions">
                 <span className="pc-num">{formatCurrency(minorToMajor(inv.amountMinorUnits), inv.currencyCode)}</span>
                 <Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[inv.status] ? t(INVOICE_STATUS_LABEL[inv.status]) : inv.status}</Badge>
+                {canManageInvoices && actionable(inv.status) ? (
+                  <>
+                    <Button variant="outline" size="sm" disabled={pending} onClick={() => setAction({ kind: 'markPaid', invoice: inv })}>
+                      {t('platform.billing.action.markPaid')}
+                    </Button>
+                    <Button variant="destructive" size="sm" disabled={pending} onClick={() => setAction({ kind: 'void', invoice: inv })}>
+                      {t('platform.billing.action.void')}
+                    </Button>
+                  </>
+                ) : null}
               </span>
             </div>
           ))
         )}
       </CardContent>
+      <ConfirmDialog
+        open={action !== null}
+        title={action?.kind === 'void' ? t('platform.billing.void.title') : t('platform.billing.markPaid.title')}
+        confirmLabel={action?.kind === 'void' ? t('platform.billing.void.confirm') : t('platform.billing.markPaid.confirm')}
+        cancelLabel={t('platform.billing.action.cancel')}
+        reasonLabel={action?.kind === 'void' ? t('platform.billing.void.reason') : t('platform.billing.markPaid.reference')}
+        // Причина аннулирования уходит в журнал и потому обязательна; референс платежа подписан
+        // «необязательно» и требовать его нельзя.
+        reasonRequired={action?.kind === 'void'}
+        destructive={action?.kind === 'void'}
+        pending={pending}
+        onConfirm={reason => void confirm(reason)}
+        onOpenChange={open => { if (!open) setAction(null); }}
+      />
       {manualOpen ? (
         <ManualInvoiceDialog
           client={client}
