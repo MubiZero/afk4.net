@@ -1,4 +1,4 @@
-using AFK4.Platform.Api.Data;
+﻿using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Payments;
@@ -55,6 +55,7 @@ public sealed class EfShiftServiceTests
         Assert.True(first.Succeeded);
         Assert.False(second.Succeeded);
         Assert.False(second.Conflict);
+        Assert.Equal(ShiftErrorCodeNames.AlreadyOpen, second.Code);
         Assert.Single(await db.Shifts.ToListAsync());
     }
 
@@ -291,6 +292,7 @@ public sealed class EfShiftServiceTests
         Assert.True(first.Succeeded);
         Assert.False(second.Succeeded);
         Assert.False(second.Conflict);
+        Assert.Equal(ShiftErrorCodeNames.AlreadyClosed, second.Code);
         Assert.Single(await db.Shifts.Where(candidate => candidate.State == ShiftStateNames.Closed).ToListAsync());
     }
 
@@ -307,6 +309,90 @@ public sealed class EfShiftServiceTests
         Assert.False(missing.Succeeded);
         Assert.True(existing.Succeeded);
         Assert.Equal(shift.ShiftId, existing.Response);
+    }
+
+    // Отказы кассы носят машинное имя: без него до кассира доезжала английская фраза сервера
+    // вместе с сырым телом ответа — «Platform API returned 400 …: {"Error":"…"}» посреди
+    // русского экрана. Имя отказа — единственное, по чему интерфейс называет причину сам.
+    [Fact]
+    public async Task CloseShiftAsync_NamesTheReasonWhenADiscrepancyNeedsASignature()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var shift = await OpenShiftAsync(service);
+
+        var result = await service.CloseShiftAsync(
+            shift.ShiftId,
+            ActorStaffUserId,
+            new CloseShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 1000), "short", "shift-close-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ShiftErrorCodeNames.SignOffRequired, result.Code);
+    }
+
+    [Fact]
+    public async Task CloseShiftAsync_NamesTheReasonWhenTheSignatureComesFromTheSamePerson()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var shift = await OpenShiftAsync(service);
+
+        var result = await service.CloseShiftAsync(
+            shift.ShiftId,
+            ActorStaffUserId,
+            new CloseShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 1000), "short", "shift-close-001")
+            {
+                ManagerSignOffStaffUserId = ActorStaffUserId
+            },
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ShiftErrorCodeNames.SignOffMustDiffer, result.Code);
+    }
+
+    [Fact]
+    public async Task CloseShiftAsync_NamesTheReasonWhenTheCountedCurrencyIsAnother()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var shift = await OpenShiftAsync(service);
+
+        var result = await service.CloseShiftAsync(
+            shift.ShiftId,
+            ActorStaffUserId,
+            new CloseShiftRequest(TestIds.OrganizationId, new MoneyDto("USD", 50000), "balanced", "shift-close-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ShiftErrorCodeNames.CurrencyMismatch, result.Code);
+    }
+
+    [Fact]
+    public async Task RecordCashMovementAsync_NamesTheReasonWhenTheShiftIsClosed()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var shift = await OpenShiftAsync(service);
+        await service.CloseShiftAsync(
+            shift.ShiftId,
+            ActorStaffUserId,
+            new CloseShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 50000), "balanced", "shift-close-001"),
+            CancellationToken.None);
+
+        var result = await service.RecordCashMovementAsync(
+            shift.ShiftId,
+            ActorStaffUserId,
+            new RecordCashMovementRequest(
+                TestIds.OrganizationId,
+                CashMovementTypeNames.CashIn,
+                new MoneyDto("TJS", 1000),
+                "размен",
+                "cash-move-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ShiftErrorCodeNames.CashMovementNeedsOpenShift, result.Code);
     }
 
     private static PlatformDbContext CreateDbContext()

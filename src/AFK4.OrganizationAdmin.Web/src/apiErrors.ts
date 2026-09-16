@@ -29,7 +29,17 @@ const codeMessageKeys = {
   idempotency_conflict: 'op.error.code.idempotencyConflict',
   session_start_invalid: 'op.error.code.sessionStartInvalid',
   session_start_conflict: 'op.error.code.sessionStartConflict',
-  plan_limit_reached: 'op.error.code.planLimitReached'
+  plan_limit_reached: 'op.error.code.planLimitReached',
+  // Касса и смены: до сих пор эти отказы не имели машинного имени, и кассир видел на экране
+  // английскую фразу сервера вместе с сырым телом ответа.
+  shift_already_open: 'op.error.code.shiftAlreadyOpen',
+  shift_already_closed: 'op.error.code.shiftAlreadyClosed',
+  shift_currency_mismatch: 'op.error.code.shiftCurrencyMismatch',
+  shift_sign_off_required: 'op.error.code.shiftSignOffRequired',
+  shift_sign_off_must_differ: 'op.error.code.shiftSignOffMustDiffer',
+  shift_sign_off_not_authorized: 'op.error.code.shiftSignOffNotAuthorized',
+  cash_movement_needs_open_shift: 'op.error.code.cashMovementNeedsOpenShift',
+  tariff_name_taken: 'op.error.code.tariffNameTaken'
 } as const satisfies Record<string, MessageKey>;
 
 /**
@@ -76,15 +86,48 @@ function readPlanLimit(body: string): PlanLimitBody | null {
   }
 }
 
+/**
+ * Что сказать, когда сервер отказал, но своего имени отказу не дал.
+ *
+ * Не «что-то пошло не так»: статус всё же отличает «нет прав» от «уже изменили» и от «сервер
+ * упал», а это три разных следующих шага для того, кто стоит за кассой.
+ */
+function statusMessageKey(status: number): MessageKey {
+  if (status === 401 || status === 403) return 'op.error.status.forbidden';
+  if (status === 404) return 'op.error.status.notFound';
+  if (status === 409 || status === 412 || status === 422) return 'op.error.status.conflict';
+  if (status >= 500 || status === 0) return 'op.error.status.server';
+  return 'op.error.status.invalid';
+}
+
+/**
+ * Фраза для отказа, который сервер назвал знакомым кодом, — или null, если не назвал.
+ *
+ * Отдельно от projectOperatorError: у кассы есть свои формулировки для части кодов, и ей нужно
+ * спросить общий словарь только про остальные, не подменяя своим «не удалось» то, что словарь
+ * умеет объяснить точно.
+ */
+export function knownErrorMessage(error: unknown, t: TFn): string | null {
+  if (!(error instanceof PlatformApiError)) return null;
+  const code = readKnownErrorCode(error.body);
+  if (code === null) return null;
+  const planLimit = code === 'plan_limit_reached' ? readPlanLimit(error.body) : null;
+  return t(codeMessageKeys[code], planLimit ?? undefined);
+}
+
 export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProjection {
   const title = t('op.error.actionFailed.title');
 
   if (error instanceof PlatformApiError) {
-    const code = readKnownErrorCode(error.body);
-    if (code !== null) {
-      const planLimit = code === 'plan_limit_reached' ? readPlanLimit(error.body) : null;
-      return { title, detail: t(codeMessageKeys[code], planLimit ?? undefined) };
+    const known = knownErrorMessage(error, t);
+    if (known !== null) {
+      return { title, detail: known };
     }
+
+    // Текст самой PlatformApiError — диагностика для журнала: «Platform API returned 400 Bad
+    // Request: {"Error":"An open shift already exists for this branch."}». До сих пор он ехал
+    // прямо на экран кассы: английская фраза и сырой JSON вместо причины.
+    return { title, detail: t(statusMessageKey(error.status)) };
   }
 
   if (error instanceof Error && error.message.trim().length > 0) {

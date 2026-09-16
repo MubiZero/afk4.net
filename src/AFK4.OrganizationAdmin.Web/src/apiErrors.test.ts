@@ -37,7 +37,16 @@ describe('projectOperatorError', () => {
     ['idempotency_conflict', 'Этот запрос уже использован с другими параметрами. Обновите данные.'],
     ['open_shift_required', 'Чтобы принять оплату, сначала откройте смену.'],
     ['insufficient_funds', 'На балансе клиента недостаточно средств.'],
-    ['session_start_conflict', 'Сессию нельзя запустить из-за конфликта. Обновите данные.']
+    ['session_start_conflict', 'Сессию нельзя запустить из-за конфликта. Обновите данные.'],
+    // Касса и смены: раньше эти отказы приезжали без имени, и на экране оставался дамп запроса.
+    ['shift_already_open', 'В этом филиале смена уже открыта. Обновите экран — возможно, её открыл кто-то другой.'],
+    ['shift_already_closed', 'Смена уже закрыта. Обновите экран, чтобы увидеть её итог.'],
+    ['shift_currency_mismatch', 'Валюта операции не совпадает с валютой смены.'],
+    ['shift_sign_off_required', 'Расхождение по кассе больше допустимого — закрыть смену можно только с подписью старшего.'],
+    ['shift_sign_off_must_differ', 'Подписать расхождение должен не тот, кто открывал или закрывает смену.'],
+    ['shift_sign_off_not_authorized', 'У выбранного сотрудника нет права подписывать расхождение по кассе.'],
+    ['cash_movement_needs_open_shift', 'Вносить и изымать наличные можно только при открытой смене.'],
+    ['tariff_name_taken', 'Тариф с таким названием в филиале уже есть.']
   ])('переводит отказ %s, когда сервер назвал его полем code', (code, expectedDetail) => {
     // Так отвечает старт брони: код в `code`, человеческое пояснение рядом в `error`.
     const error = new PlatformApiError(
@@ -90,8 +99,31 @@ describe('projectOperatorError', () => {
 
     expect(projectOperatorError(error, t)).toEqual({
       title: 'Действие не выполнено',
-      detail: 'request failed'
+      detail: 'Сервер не принял эти данные. Проверьте, что ввели, и повторите.'
     });
+  });
+
+  // До этого кассир видел на экране строку транспорта целиком: «Platform API returned 400 Bad
+  // Request: {"Error":"An open shift already exists for this branch.","Code":null}» — английская
+  // фраза и сырой JSON посреди русского экрана.
+  it.each([
+    [400, 'Сервер не принял эти данные. Проверьте, что ввели, и повторите.'],
+    [403, 'Недостаточно прав для этого действия.'],
+    [404, 'Того, к чему относится действие, уже нет. Обновите экран.'],
+    [409, 'Данные успели измениться. Обновите экран и повторите.'],
+    [500, 'Сервер вернул ошибку. Повторите позже.']
+  ])('на отказ %s без кода отвечает человеческой фразой, а не дампом запроса', (status, expectedDetail) => {
+    const error = new PlatformApiError(
+      `Platform API returned ${status}: {"Error":"An open shift already exists for this branch."}`,
+      status,
+      'Bad Request',
+      JSON.stringify({ error: 'An open shift already exists for this branch.', code: null })
+    );
+
+    const projection = projectOperatorError(error, t);
+
+    expect(projection.detail).toBe(expectedDetail);
+    expect(projection.detail).not.toContain('Platform API');
   });
 
   it('provides localized copy for an early reservation start warning', () => {

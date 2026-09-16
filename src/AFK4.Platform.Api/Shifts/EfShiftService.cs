@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Billing;
@@ -68,7 +68,8 @@ public sealed class EfShiftService(
 
             if (hasOpenShift)
             {
-                return BillingCommandServiceResult<ShiftDto>.Invalid("An open shift already exists for this branch.");
+                return BillingCommandServiceResult<ShiftDto>.Invalid(
+                    "An open shift already exists for this branch.", ShiftErrorCodeNames.AlreadyOpen);
             }
 
             var now = timeProvider.GetUtcNow();
@@ -215,12 +216,14 @@ public sealed class EfShiftService(
 
             if (shift.State != ShiftStateNames.Open)
             {
-                return BillingCommandServiceResult<CashMovementDto>.Invalid("Cash movements require an open shift.");
+                return BillingCommandServiceResult<CashMovementDto>.Invalid(
+                    "Cash movements require an open shift.", ShiftErrorCodeNames.CashMovementNeedsOpenShift);
             }
 
             if (!string.Equals(shift.CurrencyCode, request.Amount.CurrencyCode.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                return BillingCommandServiceResult<CashMovementDto>.Invalid("Cash movement currency must match the shift currency.");
+                return BillingCommandServiceResult<CashMovementDto>.Invalid(
+                    "Cash movement currency must match the shift currency.", ShiftErrorCodeNames.CurrencyMismatch);
             }
 
             var now = timeProvider.GetUtcNow();
@@ -310,12 +313,14 @@ public sealed class EfShiftService(
 
             if (shift.State != ShiftStateNames.Open)
             {
-                return BillingCommandServiceResult<ShiftDto>.Invalid("Shift is already closed.");
+                return BillingCommandServiceResult<ShiftDto>.Invalid(
+                    "Shift is already closed.", ShiftErrorCodeNames.AlreadyClosed);
             }
 
             if (!string.Equals(shift.CurrencyCode, request.CountedCash.CurrencyCode.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                return BillingCommandServiceResult<ShiftDto>.Invalid("Counted cash currency must match the shift currency.");
+                return BillingCommandServiceResult<ShiftDto>.Invalid(
+                    "Counted cash currency must match the shift currency.", ShiftErrorCodeNames.CurrencyMismatch);
             }
 
             var cashMovementDelta = await dbContext.CashMovements
@@ -362,19 +367,22 @@ public sealed class EfShiftService(
                 if (request.ManagerSignOffStaffUserId is not { } signOffUserId)
                 {
                     return BillingCommandServiceResult<ShiftDto>.Invalid(
-                        $"Cash discrepancy of {Math.Abs(difference)} exceeds the {toleranceMinorUnits} tolerance; a manager sign-off is required to close.");
+                        $"Cash discrepancy of {Math.Abs(difference)} exceeds the {toleranceMinorUnits} tolerance; a manager sign-off is required to close.",
+                        ShiftErrorCodeNames.SignOffRequired);
                 }
 
                 if (signOffUserId == actorStaffUserId || signOffUserId == shift.OpenedByStaffUserId)
                 {
                     return BillingCommandServiceResult<ShiftDto>.Invalid(
-                        "Shift sign-off must be a manager other than the operator who opened or closed the shift.");
+                        "Shift sign-off must be a manager other than the operator who opened or closed the shift.",
+                        ShiftErrorCodeNames.SignOffMustDiffer);
                 }
 
                 if (!await SignOffUserCanSignOffAsync(shift.OrganizationId, signOffUserId, cancellationToken))
                 {
                     return BillingCommandServiceResult<ShiftDto>.Invalid(
-                        "The sign-off user is not authorised to sign off a shift discrepancy.");
+                        "The sign-off user is not authorised to sign off a shift discrepancy.",
+                        ShiftErrorCodeNames.SignOffNotAuthorized);
                 }
 
                 shift.ManagerSignOffStaffUserId = signOffUserId;

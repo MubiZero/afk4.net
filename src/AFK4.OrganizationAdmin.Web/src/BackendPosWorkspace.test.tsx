@@ -33,6 +33,9 @@ const linkedPlayer = {
 const requestedUrls: string[] = [];
 const requestedBodies: unknown[] = [];
 let settlementFailuresRemaining = 0;
+// Каким отказом отвечает сервер на оплату. По умолчанию — конфликт версий; кассовые сценарии
+// подменяют его на свой код.
+let settlementFailureCode = 'version_conflict';
 let settlementNetworkFailuresRemaining = 0;
 let settlementResponseGate: Promise<Response> | null = null;
 let saleReadState = 'draft';
@@ -98,7 +101,7 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
     }
     if (settlementFailuresRemaining > 0) {
       settlementFailuresRemaining -= 1;
-      return new Response(JSON.stringify({ error: 'version_conflict' }), {
+      return new Response(JSON.stringify({ error: settlementFailureCode }), {
         status: 409,
         statusText: 'Conflict',
         headers: { 'Content-Type': 'application/json' }
@@ -127,6 +130,7 @@ afterEach(() => {
   requestedUrls.length = 0;
   requestedBodies.length = 0;
   settlementFailuresRemaining = 0;
+  settlementFailureCode = 'version_conflict';
   settlementNetworkFailuresRemaining = 0;
   settlementResponseGate = null;
   saleReadState = 'draft';
@@ -284,6 +288,22 @@ describe('BackendPosWorkspace', () => {
       { paymentMethod: 'card_manual', amount: { currencyCode: 'TJS', minorUnits: 10_000 } }
     ]);
     expect(requestedUrls.filter((url) => url.endsWith('/pos/sales'))).toHaveLength(1);
+  });
+
+  // Оплату разбили на сомони и доллары — сервер отвечает mixed_currency, и фраза для него в
+  // каталоге есть с самого появления оплаты по частям. Касса о ней не знала и на месте точной
+  // причины говорила «проверьте данные и повторите» — кассир перебирал всё подряд.
+  it('называет причину, когда части оплаты в разных валютах', async () => {
+    settlementFailuresRemaining = 1;
+    settlementFailureCode = 'mixed_currency';
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+    addColaToCart();
+
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+
+    expect(await screen.findByText('Все части оплаты должны быть в одной валюте.')).toBeInTheDocument();
   });
 
   it('replays an ambiguous multipart settlement once with the same idempotency key', async () => {

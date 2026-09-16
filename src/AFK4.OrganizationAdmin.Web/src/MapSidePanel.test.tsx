@@ -364,7 +364,9 @@ describe('MapSidePanel new session client picker', () => {
     }
   });
 
-  it('показывает backend-ошибку поиска и оставляет запрос для повтора', async () => {
+  // Поиск клиента отвалился — оператор должен понять, что делать дальше, а не прочитать
+  // «503 Unavailable» посреди русского экрана. Набранное при этом не стирается.
+  it('называет причину сбоя поиска и оставляет запрос для повтора', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
@@ -378,7 +380,7 @@ describe('MapSidePanel new session client picker', () => {
       const input = within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' });
       fireEvent.change(input, { target: { value: 'Ma' } });
 
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent('503 Unavailable');
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
       expect(input).toHaveValue('Ma');
     } finally {
       globalThis.fetch = originalFetch;
