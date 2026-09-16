@@ -4,6 +4,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { PlatformApiError } from '@/api/platformTransport';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
@@ -69,9 +70,11 @@ export function NewBranchDialog({ client, organizationId, onClose, onCreated }: 
       } else if (cause instanceof PlatformApiError && cause.status === 409) {
         setError(t('platform.organization.branches.slugTaken'));
       } else {
-        setError(t('platform.organization.action.error'));
+        // Остальные причины называет общий разбор: слово «конфликт» на занятый адрес и на
+        // отсутствие прав человеку одинаково бесполезно.
+        setError(describeApiError(cause, t));
       }
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { OrganizationDetail, OrganizationLimits } from '@/api/types';
@@ -46,8 +47,8 @@ export function OrganizationLimitsSection({ client, organization, onUpdated }: P
       const next = await client.updateLimits(organization.organizationId, limits);
       onUpdated(next);
       toast({ title: t('platform.organization.limitsForm.updated'), variant: 'success' });
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

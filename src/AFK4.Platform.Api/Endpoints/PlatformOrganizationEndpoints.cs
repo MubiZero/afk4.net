@@ -245,9 +245,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -474,8 +474,8 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -544,9 +544,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -622,8 +622,8 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -698,9 +698,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -742,9 +742,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -792,9 +792,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -876,9 +876,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -960,9 +960,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -1035,9 +1035,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -1112,9 +1112,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 
@@ -1187,9 +1187,9 @@ internal static class PlatformOrganizationEndpoints
 
                 return result.Status switch
                 {
-                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-                    _ => Results.BadRequest(new { Error = result.Error })
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+                    _ => Results.BadRequest(new { Error = result.Error, result.Code })
                 };
             }
 

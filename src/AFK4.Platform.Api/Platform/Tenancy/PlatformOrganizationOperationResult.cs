@@ -11,11 +11,17 @@ public enum PlatformOrganizationOperationStatus
     PlanLimitReached
 }
 
+/// <param name="Code">
+/// Машинное имя отказа (<see cref="Shared.Contracts.Platform.Billing.PlatformErrorCodeNames"/>)
+/// для причин, которые человек за панелью исправляет сам: занятый адрес клуба, занятый логин
+/// владельца. Английскую фразу из <paramref name="Error"/> панель показать не может.
+/// </param>
 public sealed record PlatformOrganizationOperationResult<T>(
     PlatformOrganizationOperationStatus Status,
     T? Value,
     string? Error,
-    PlanLimitExceededDto? PlanLimit = null)
+    PlanLimitExceededDto? PlanLimit = null,
+    string? Code = null)
     where T : class
 {
     public bool Succeeded => Status == PlatformOrganizationOperationStatus.Succeeded;
@@ -26,8 +32,8 @@ public sealed record PlatformOrganizationOperationResult<T>(
     public static PlatformOrganizationOperationResult<T> BadRequest(string error) =>
         new(PlatformOrganizationOperationStatus.BadRequest, null, error);
 
-    public static PlatformOrganizationOperationResult<T> Conflict(string error) =>
-        new(PlatformOrganizationOperationStatus.Conflict, null, error);
+    public static PlatformOrganizationOperationResult<T> Conflict(string error, string? code = null) =>
+        new(PlatformOrganizationOperationStatus.Conflict, null, error, PlanLimit: null, Code: code);
 
     public static PlatformOrganizationOperationResult<T> NotFound(string error) =>
         new(PlatformOrganizationOperationStatus.NotFound, null, error);

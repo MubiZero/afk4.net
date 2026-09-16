@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { PlansApi } from '@/api/platformClients/plans';
@@ -37,8 +38,8 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
       }
       setDialogOpen(false);
       if (state.status === 'ready') state.retry();
-    } catch {
-      toast({ title: t('platform.billing.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPending(false);
     }

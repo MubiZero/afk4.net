@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
 import type { OrganizationOwnerInvite, OrganizationOwnerInviteSummary, OrganizationBranch } from '@/api/types';
@@ -66,8 +67,8 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
       setOwnerUserName(''); setOwnerDisplayName(''); setOwnerEmail('');
       toast({ title: t('platform.organization.invites.created'), variant: 'success' });
       setTick(n => n + 1);
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -82,8 +83,8 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
       setRevokeId(null);
       toast({ title: t('platform.organization.invites.revoked'), variant: 'success' });
       setTick(n => n + 1);
-    } catch {
-      toast({ title: t('platform.organization.action.error'), variant: 'error' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setRevoking(false);
     }

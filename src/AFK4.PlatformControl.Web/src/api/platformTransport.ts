@@ -332,10 +332,15 @@ export class PlatformTransport {
       const text = await response.text();
       body = text;
       if (text.length > 0) {
-        const parsed = JSON.parse(text) as { error?: string; status?: string; remainingAttempts?: number };
+        const parsed = JSON.parse(text) as { error?: string; code?: string; status?: string; remainingAttempts?: number };
         if (typeof parsed.error === 'string' && parsed.error.length > 0) {
           message = parsed.error;
           code = parsed.error;
+        }
+        // Отдельное поле `code` точнее: там, где сервер шлёт и человеческую фразу, и машинное имя
+        // (счета, подписки, организации), в `error` лежит английский текст, а разбирать надо имя.
+        if (typeof parsed.code === 'string' && parsed.code.length > 0) {
+          code = parsed.code;
         }
         if (typeof parsed.status === 'string' && parsed.status.length > 0) {
           message = `${message} (${parsed.status})`;

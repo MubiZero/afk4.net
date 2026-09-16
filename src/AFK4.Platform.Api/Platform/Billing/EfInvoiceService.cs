@@ -78,7 +78,8 @@ public sealed class EfInvoiceService(
         if (invoice is null)
         {
             return BillingOperationResult<InvoiceDto>.Conflict(
-                "An invoice already exists for the current period.");
+                "An invoice already exists for the current period.",
+                PlatformErrorCodeNames.InvoicePeriodAlreadyBilled);
         }
 
         try
@@ -95,7 +96,8 @@ public sealed class EfInvoiceService(
             dbContext.Entry(invoice).State = EntityState.Detached;
             await dbContext.Entry(subscription).ReloadAsync(cancellationToken);
             return BillingOperationResult<InvoiceDto>.Conflict(
-                "Could not issue the invoice because of a numbering conflict with another concurrent request. Please retry.");
+                "Could not issue the invoice because of a numbering conflict with another concurrent request. Please retry.",
+                PlatformErrorCodeNames.InvoiceNumberingConflict);
         }
 
         await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
@@ -204,18 +206,23 @@ public sealed class EfInvoiceService(
 
         if (invoice.Status == InvoiceStatusNames.Paid)
         {
-            return BillingOperationResult<InvoiceDto>.Conflict("Invoice is already paid.");
+            return BillingOperationResult<InvoiceDto>.Conflict(
+                "Invoice is already paid.",
+                PlatformErrorCodeNames.InvoiceAlreadyPaid);
         }
 
         if (invoice.Status == InvoiceStatusNames.Void)
         {
-            return BillingOperationResult<InvoiceDto>.Conflict("A voided invoice cannot be marked paid.");
+            return BillingOperationResult<InvoiceDto>.Conflict(
+                "A voided invoice cannot be marked paid.",
+                PlatformErrorCodeNames.InvoiceAlreadyVoid);
         }
 
         if (invoice.Kind == InvoiceKindNames.Credit)
         {
             return BillingOperationResult<InvoiceDto>.Conflict(
-                "A credit note is never paid — it is issued and counted in the balance.");
+                "A credit note is never paid — it is issued and counted in the balance.",
+                PlatformErrorCodeNames.CreditNoteNotPayable);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -289,12 +296,16 @@ public sealed class EfInvoiceService(
 
         if (invoice.Status == InvoiceStatusNames.Paid)
         {
-            return BillingOperationResult<InvoiceDto>.Conflict("A paid invoice cannot be voided.");
+            return BillingOperationResult<InvoiceDto>.Conflict(
+                "A paid invoice cannot be voided.",
+                PlatformErrorCodeNames.PaidInvoiceCannotBeVoided);
         }
 
         if (invoice.Status == InvoiceStatusNames.Void)
         {
-            return BillingOperationResult<InvoiceDto>.Conflict("Invoice is already void.");
+            return BillingOperationResult<InvoiceDto>.Conflict(
+                "Invoice is already void.",
+                PlatformErrorCodeNames.InvoiceAlreadyVoid);
         }
 
         var now = timeProvider.GetUtcNow();

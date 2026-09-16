@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Platform.Billing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -171,8 +172,13 @@ public sealed class PlatformBranchEndpointTests
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
 
+        // Занятый адрес и упор в лимит тарифа — оба 409, и различать их раньше приходилось по
+        // наличию поля `code`. Теперь код есть у обоих и прямо называет причину: панель по нему
+        // говорит «адрес занят», а не «достигнут предел плана».
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.False(body.TryGetProperty("code", out _));
+        Assert.Equal(PlatformErrorCodeNames.BranchSlugTaken, body.GetProperty("code").GetString());
+        Assert.NotEqual(PlanLimitNames.ReachedCode, body.GetProperty("code").GetString());
+        Assert.False(body.TryGetProperty("planLimit", out _));
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
