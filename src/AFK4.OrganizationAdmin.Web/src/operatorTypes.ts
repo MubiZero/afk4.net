@@ -36,6 +36,8 @@ export type SeatActionRequest =
   | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode; durationMinutes?: number | null; isComp?: boolean; compReason?: string | null }
   | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
+  | { type: 'pause'; seat: SeatSummary }
+  | { type: 'resume'; seat: SeatSummary }
   | { type: 'end'; seat: SeatSummary }
   | { type: 'checkout'; seat: SeatSummary; payments: PaymentPartDto[] };
 export type PcControlActionId = 'status' | 'lock' | 'unlock' | 'reboot' | 'shutdown' | 'wake' | 'admin';

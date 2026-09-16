@@ -1,4 +1,4 @@
-import { BellRing, Hourglass, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
+import { BellRing, Hourglass, PauseCircle, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
 import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
@@ -45,6 +45,9 @@ export function SeatTile({
   const callingForSeconds = seat.assistanceRequestedAtUtc
     ? Math.max(0, Math.round((Date.now() - new Date(seat.assistanceRequestedAtUtc).getTime()) / 1000))
     : null;
+  // Тон места огрубляет состояние: пауза и игра одинаково «занято». Для оператора это разные
+  // вещи — на паузе счётчик стоит, — поэтому паузу плитка называет словом.
+  const paused = seat.sessionState === 'Paused';
   // Свободная плитка — это и есть «＋»-приглашение: клик сразу открывает запуск сессии (выбрав место).
   // Остальные плитки просто выбираются (раскрывают карточку справа).
   const activate = lead.kind === 'free' && onStartSession ? onStartSession : onSelect;
@@ -77,6 +80,12 @@ export function SeatTile({
           <span className="seat-calling" aria-label={t('op.map.seatCalling')}>
             <BellRing size={12} aria-hidden="true" />
             {formatDurationCompact(callingForSeconds, t)}
+          </span>
+        )}
+        {paused && (
+          <span className="seat-paused-mark">
+            <PauseCircle size={12} aria-hidden="true" />
+            {t('op.map.seatPaused')}
           </span>
         )}
         {sessionOffline && (

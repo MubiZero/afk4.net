@@ -708,14 +708,146 @@ public sealed class EfSessionCommandServiceTests
         return new PlatformDbContext(options);
     }
 
+    // ── Пауза ────────────────────────────────────────────────────────────────────────────
+
+    // Пауза запирает ПК: пауза, на которой можно продолжать играть, — подарок за счёт клуба.
+    [Fact]
+    public async Task PauseSessionAsync_StopsTheClockAndLocksThePc()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var dispatcher = new RecordingCommandDispatchService();
+        var clock = new MovableTimeProvider(Now);
+        var service = CreateService(db, dispatcher, clock: clock);
+        var sessionId = await StartFixedSessionAsync(service);
+        dispatcher.Calls.Clear();
+
+        clock.Now = Now.AddMinutes(10);
+        var result = await service.PauseSessionAsync(
+            sessionId, ActorStaffUserId, new PauseSessionRequest("player stepped out", "pause-1"), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Paused, session.State);
+        Assert.Equal(Now.AddMinutes(10), session.PausedAtUtc);
+
+        var call = Assert.Single(dispatcher.Calls);
+        Assert.Equal("lock", call.Request.Type);
+        Assert.Equal("session-pause", call.Request.Payload["reason"]);
+    }
+
+    // Ради этого всё и делается: оплаченное время возвращается — конец сессии уезжает ровно на
+    // столько, сколько она простояла.
+    [Fact]
+    public async Task ResumeSessionAsync_GivesBackThePausedMinutesAndUnlocksThePc()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var dispatcher = new RecordingCommandDispatchService();
+        var clock = new MovableTimeProvider(Now);
+        var service = CreateService(db, dispatcher, clock: clock);
+        var sessionId = await StartFixedSessionAsync(service);
+        var endsAtUtc = (await db.Sessions.SingleAsync()).EndsAtUtc;
+
+        clock.Now = Now.AddMinutes(10);
+        await service.PauseSessionAsync(sessionId, ActorStaffUserId, new PauseSessionRequest("out", "pause-1"), CancellationToken.None);
+        dispatcher.Calls.Clear();
+
+        clock.Now = Now.AddMinutes(25);
+        var result = await service.ResumeSessionAsync(
+            sessionId, ActorStaffUserId, new ResumeSessionRequest("back", "resume-1"), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Active, session.State);
+        Assert.Null(session.PausedAtUtc);
+        Assert.Equal(900, session.TotalPausedSeconds);
+        Assert.Equal(endsAtUtc!.Value.AddMinutes(15), session.EndsAtUtc);
+
+        var call = Assert.Single(dispatcher.Calls);
+        Assert.Equal("unlock", call.Request.Type);
+        Assert.Equal("session-resume", call.Request.Payload["reason"]);
+    }
+
+    [Fact]
+    public async Task PauseSessionAsync_ASessionThatIsAlreadyPaused_IsRefused()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var clock = new MovableTimeProvider(Now);
+        var service = CreateService(db, new RecordingCommandDispatchService(), clock: clock);
+        var sessionId = await StartFixedSessionAsync(service);
+        await service.PauseSessionAsync(sessionId, ActorStaffUserId, new PauseSessionRequest("out", "pause-1"), CancellationToken.None);
+
+        var second = await service.PauseSessionAsync(
+            sessionId, ActorStaffUserId, new PauseSessionRequest("out again", "pause-2"), CancellationToken.None);
+
+        Assert.False(second.Succeeded);
+    }
+
+    [Fact]
+    public async Task ResumeSessionAsync_ASessionThatIsNotPaused_IsRefused()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var sessionId = await StartFixedSessionAsync(service);
+
+        var result = await service.ResumeSessionAsync(
+            sessionId, ActorStaffUserId, new ResumeSessionRequest("back", "resume-1"), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+    }
+
+    // Повторный запрос с тем же ключом не ставит вторую паузу и не двигает время ещё раз.
+    [Fact]
+    public async Task PauseSessionAsync_ReplayedWithTheSameKey_ChangesNothingTwice()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var clock = new MovableTimeProvider(Now);
+        var service = CreateService(db, new RecordingCommandDispatchService(), clock: clock);
+        var sessionId = await StartFixedSessionAsync(service);
+
+        clock.Now = Now.AddMinutes(10);
+        var first = await service.PauseSessionAsync(sessionId, ActorStaffUserId, new PauseSessionRequest("out", "pause-1"), CancellationToken.None);
+        clock.Now = Now.AddMinutes(12);
+        var replay = await service.PauseSessionAsync(sessionId, ActorStaffUserId, new PauseSessionRequest("out", "pause-1"), CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(replay.Succeeded);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(Now.AddMinutes(10), session.PausedAtUtc);
+    }
+
+    private static async Task<Guid> StartFixedSessionAsync(EfSessionCommandService service)
+    {
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Fixed,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "manual-v1",
+                IdempotencyKey: $"start-{Guid.NewGuid():N}"),
+            SessionOriginNames.Operator,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        return result.Response!.Session.SessionId;
+    }
+
     private static EfSessionCommandService CreateService(
         PlatformDbContext db,
         RecordingCommandDispatchService dispatcher,
         FakeSessionBillingService? billing = null,
-        RecordingSessionLifecycleNotifier? lifecycleNotifier = null)
+        RecordingSessionLifecycleNotifier? lifecycleNotifier = null,
+        TimeProvider? clock = null)
     {
         var leaseSigner = new FakeSessionLeaseSigner();
-        var timeProvider = new FixedTimeProvider(Now);
+        var timeProvider = clock ?? new FixedTimeProvider(Now);
         var billingService = billing ?? new FakeSessionBillingService();
         var notifier = lifecycleNotifier ?? new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
@@ -912,5 +1044,13 @@ public sealed class EfSessionCommandServiceTests
         {
             return now;
         }
+    }
+
+    /// <summary>Часы, которые можно подвинуть: пауза измеряется временем, а не намерением.</summary>
+    private sealed class MovableTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 }

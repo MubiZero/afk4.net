@@ -88,6 +88,28 @@ public sealed class EfSessionCheckoutServiceTests
         Assert.Equal(OutboxMessageStatus.Pending, outboxRow.Status);
     }
 
+    // Ради этого пауза и делается: за время, что человек не играл, он не платит. Без вычитания
+    // паузы «пауза» была бы просто запертым ПК с работающим счётчиком.
+    [Fact]
+    public async Task CheckoutAsync_OpenTabPostpaid_DoesNotChargeThePausedMinutes()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var session = await db.Sessions.SingleAsync();
+        // Сорок минут за ПК, из них пятнадцать — на паузе.
+        session.TotalPausedSeconds = 900;
+        await db.SaveChangesAsync();
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.QuoteAsync(SessionId, TestIds.OrganizationId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        // Двадцать пять минут вместо сорока: округление вверх до 30 (шаг 15, минимум 30) по 50 —
+        // 1500 вместо 2250, которые насчитались бы за все сорок.
+        Assert.Equal(1500, result.Response!.TimeCharge.MinorUnits);
+    }
+
     [Fact]
     public async Task CheckoutAsync_FixedDurationPostpaid_DoesNotChargeThePaidTimeTwice()
     {

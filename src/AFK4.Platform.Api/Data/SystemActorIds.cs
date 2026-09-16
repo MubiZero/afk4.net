@@ -15,9 +15,18 @@ public static class SystemActorIds
     /// </summary>
     public static readonly Guid PlayerSelfService = Guid.Parse("00000000-0000-4000-8000-000000000005");
 
+    /// <summary>
+    /// Автоматика платформы: закрыла сессию, которая простояла на паузе дольше разрешённого.
+    /// Человека за этим действием нет, и подписывать им оператора, начавшего смену, — враньё в
+    /// журнале.
+    /// </summary>
+    public static readonly Guid AutoProtection = Guid.Parse("00000000-0000-4000-8000-000000000006");
+
     public const string PlayerShopDisplayName = "Player Shop";
 
     public const string PlayerSelfServiceDisplayName = "Player Self-Service";
+
+    public const string AutoProtectionDisplayName = "Auto-protection";
 
     public static bool TryGetDisplayName(Guid actorId, out string displayName)
     {
@@ -30,6 +39,12 @@ public static class SystemActorIds
         if (actorId == PlayerSelfService)
         {
             displayName = PlayerSelfServiceDisplayName;
+            return true;
+        }
+
+        if (actorId == AutoProtection)
+        {
+            displayName = AutoProtectionDisplayName;
             return true;
         }
 

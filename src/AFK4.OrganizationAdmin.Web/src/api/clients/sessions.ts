@@ -4,6 +4,8 @@ import { normalizeReportQuery } from '../queryHelpers';
 import type {
   EndSessionRequest,
   ExtendSessionRequest,
+  PauseSessionRequest,
+  ResumeSessionRequest,
   SessionCheckoutQuoteResponse,
   SessionCheckoutRequest,
   SessionCheckoutResponse,
@@ -15,6 +17,8 @@ import type {
 export type {
   EndSessionRequest,
   ExtendSessionRequest,
+  PauseSessionRequest,
+  ResumeSessionRequest,
   PaymentPartDto,
   SessionCheckoutQuoteResponse,
   SessionCheckoutRequest,
@@ -47,6 +51,13 @@ export function createSessionClient(api: PlatformApiClient) {
     },
     transferSession(sessionId: Guid, request: TransferSessionRequest): Promise<SessionCommandResponse> {
       return api.post<SessionCommandResponse, TransferSessionRequest>(`sessions/${sessionId}/transfer`, request);
+    },
+    // Пауза и снятие: счётчик времени встаёт и идёт дальше, ПК запирается и отпирается.
+    pauseSession(sessionId: Guid, request: PauseSessionRequest): Promise<SessionCommandResponse> {
+      return api.post<SessionCommandResponse, PauseSessionRequest>(`sessions/${sessionId}/pause`, request);
+    },
+    resumeSession(sessionId: Guid, request: ResumeSessionRequest): Promise<SessionCommandResponse> {
+      return api.post<SessionCommandResponse, ResumeSessionRequest>(`sessions/${sessionId}/resume`, request);
     },
     endSession(sessionId: Guid, request: EndSessionRequest): Promise<SessionCommandResponse> {
       return api.post<SessionCommandResponse, EndSessionRequest>(`sessions/${sessionId}/end`, request);

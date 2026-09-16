@@ -402,6 +402,142 @@ internal static class SessionEndpoints
             return Results.Ok(result.Response);
         });
 
+        // Пауза и снятие ходят парой и живут по одним правилам: право то же, что у продления
+        // (обе правят время сессии), версия сессии проверяется, отказ пишется в журнал.
+        app.MapPost("sessions/{sessionId:guid}/pause", async (
+            Guid sessionId,
+            PauseSessionRequest request,
+            PlatformDbContext dbContext,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            ISessionCommandService sessionCommandService,
+            CancellationToken cancellationToken) =>
+        {
+            var session = await dbContext.Sessions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+            if (session is null)
+            {
+                return Results.NotFound();
+            }
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                session.BranchId,
+                OrganizationPermissionNames.PauseSession,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteSessionAuditAsync(
+                    auditRecordWriter,
+                    authorization,
+                    session.BranchId,
+                    AuditActionNames.PauseSession,
+                    sessionId,
+                    AuditOutcome.Denied,
+                    new { request.Reason, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await sessionCommandService.PauseSessionAsync(
+                sessionId,
+                authorization.StaffContext!.StaffUserId,
+                request,
+                cancellationToken);
+
+            if (ToSessionCommandFailure(result) is { } pauseFailure)
+            {
+                return pauseFailure;
+            }
+
+            await WriteSessionAuditAsync(
+                auditRecordWriter,
+                authorization,
+                session.BranchId,
+                AuditActionNames.PauseSession,
+                sessionId,
+                AuditOutcome.Succeeded,
+                new { request.Reason },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
+        app.MapPost("sessions/{sessionId:guid}/resume", async (
+            Guid sessionId,
+            ResumeSessionRequest request,
+            PlatformDbContext dbContext,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            ISessionCommandService sessionCommandService,
+            CancellationToken cancellationToken) =>
+        {
+            var session = await dbContext.Sessions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+            if (session is null)
+            {
+                return Results.NotFound();
+            }
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                session.BranchId,
+                OrganizationPermissionNames.PauseSession,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteSessionAuditAsync(
+                    auditRecordWriter,
+                    authorization,
+                    session.BranchId,
+                    AuditActionNames.ResumeSession,
+                    sessionId,
+                    AuditOutcome.Denied,
+                    new { request.Reason, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await sessionCommandService.ResumeSessionAsync(
+                sessionId,
+                authorization.StaffContext!.StaffUserId,
+                request,
+                cancellationToken);
+
+            if (ToSessionCommandFailure(result) is { } resumeFailure)
+            {
+                return resumeFailure;
+            }
+
+            await WriteSessionAuditAsync(
+                auditRecordWriter,
+                authorization,
+                session.BranchId,
+                AuditActionNames.ResumeSession,
+                sessionId,
+                AuditOutcome.Succeeded,
+                new { request.Reason },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
         app.MapPost("sessions/{sessionId:guid}/end", async (
             Guid sessionId,
             EndSessionRequest request,
@@ -629,4 +765,41 @@ internal static class SessionEndpoints
         });
 
     }
+
+    /// <summary>Отказ команды сессии одним ответом: конфликт версий, «нет такой», «так нельзя».</summary>
+    private static IResult? ToSessionCommandFailure(SessionCommandServiceResult result)
+    {
+        if (result.Conflict)
+        {
+            return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion });
+        }
+
+        if (result.NotFound)
+        {
+            return Results.NotFound(new { Error = result.Error });
+        }
+
+        return result.Succeeded ? null : Results.BadRequest(new { Error = result.Error });
+    }
+
+    private static Task WriteSessionAuditAsync(
+        IAuditRecordWriter auditRecordWriter,
+        StaffAuthorizationResult authorization,
+        Guid branchId,
+        string action,
+        Guid sessionId,
+        string outcome,
+        object details,
+        CancellationToken cancellationToken) =>
+        auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            action,
+            "Session",
+            sessionId.ToString("D"),
+            outcome,
+            "PlatformApi",
+            JsonSerializer.Serialize(details)),
+            cancellationToken);
 }

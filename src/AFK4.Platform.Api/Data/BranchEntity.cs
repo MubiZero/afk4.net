@@ -92,6 +92,13 @@ public sealed class BranchEntity
     // D6: shift close with |discrepancy| above this needs manager sign-off.
     public long? ShiftDiscrepancyToleranceMinorUnits { get; set; }
 
+    /// <summary>
+    /// Сколько минут сессии позволено стоять на паузе, прежде чем она закроется сама и место
+    /// освободится. Null — умолчание платформы: бесконечная пауза держала бы место занятым, и
+    /// клуб терял бы на нём деньги молча.
+    /// </summary>
+    public int? MaxSessionPauseMinutes { get; set; }
+
     // D8: optional refund-reason whitelist. JSON array of allowed reason codes; off unless enabled.
     public string? RefundReasonWhitelistJson { get; set; }
 

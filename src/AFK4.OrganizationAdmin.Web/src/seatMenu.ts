@@ -14,6 +14,8 @@ import type { SeatSummary } from './operatorData';
 export type SeatMenuRun =
   | { kind: 'start-guest' }
   | { kind: 'extend'; minutes: number }
+  | { kind: 'pause' }
+  | { kind: 'resume' }
   | { kind: 'pc'; action: PcControlActionId }
   | { kind: 'resolve-assistance' };
 
@@ -24,6 +26,7 @@ export interface SeatMenuCaps {
   canExtend: boolean;
   canLockUnlock: boolean;
   canResolveAssistance: boolean;
+  canPause: boolean;
 }
 
 export interface SeatMenuItem {
@@ -90,6 +93,19 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
       labelKey: 'op.map.panel.extend30Action',
       feedbackKey: 'op.map.panel.extend30Action',
       run: { kind: 'extend', minutes: 30 },
+      disabled: !caps.actionsEnabled
+    });
+  }
+
+  // Пауза и снятие — одна кнопка в двух состояниях: ставить паузу на паузе нечего.
+  if (hasSession && caps.canPause) {
+    const paused = seat.sessionState === 'Paused';
+    session.push({
+      id: paused ? 'session-resume' : 'session-pause',
+      labelKey: paused ? 'op.map.menu.resume' : 'op.map.menu.pause',
+      feedbackKey: paused ? 'op.map.actionResume' : 'op.map.actionPause',
+      hintKey: paused ? 'op.map.menu.resumeHint' : 'op.map.menu.pauseHint',
+      run: paused ? { kind: 'resume' } : { kind: 'pause' },
       disabled: !caps.actionsEnabled
     });
   }

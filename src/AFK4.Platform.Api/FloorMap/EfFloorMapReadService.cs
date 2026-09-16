@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
+using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
@@ -240,7 +241,9 @@ public sealed class EfFloorMapReadService(
             version.MinimumBillableMinutes,
             version.RoundingIncrementMinutes,
             version.CurrencyCode);
-        var computation = TariffBilling.ComputeForElapsed(now - startedAtUtc, pricing);
+        // Пауза не капает деньгами: на карте сумма стоит, пока стоит сессия.
+        var computation = TariffBilling.ComputeForElapsed(
+            SessionPause.BillableElapsed(activeSession, startedAtUtc, now), pricing);
         return computation is null
             ? (null, null)
             : (computation.AmountMinorUnits, computation.CurrencyCode);
@@ -253,7 +256,10 @@ public sealed class EfFloorMapReadService(
             return null;
         }
 
-        return Math.Max(0, (int)(activeSession.EndsAtUtc.Value - now).TotalSeconds);
+        // На паузе остаток замирает: часы отсчитывают игру, а игры сейчас нет. Конец сессии
+        // сдвинется вперёд при снятии паузы — ровно на столько, сколько она простояла.
+        var against = activeSession.PausedAtUtc ?? now;
+        return Math.Max(0, (int)(activeSession.EndsAtUtc.Value - against).TotalSeconds);
     }
 
     private static string GetSeatState(DeviceEntity? device, SessionEntity? activeSession, bool? isDeviceOnline)

@@ -363,6 +363,15 @@
   color: var(--warning-text);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Место на паузе: счётчик стоит, и это должно быть видно, а не угадываться по подписи состояния. */
+.seat-paused-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
   font-weight: 600;
 }
 

@@ -19,6 +19,7 @@ public sealed class AutoProtectionRunner(
     PlatformDbContext dbContext,
     ISessionBillingService sessionBillingService,
     IDeviceCommandDispatchService deviceCommandDispatchService,
+    ISessionCommandService sessionCommandService,
     AutoProtectionOptions options,
     TimeProvider timeProvider)
 {
@@ -37,7 +38,9 @@ public sealed class AutoProtectionRunner(
             .ToListAsync(cancellationToken);
         if (sessions.Count == 0)
         {
-            return 0;
+            // Активных нет — но паузы всё равно надо разобрать: место держит именно приостановленная
+            // сессия, и ранний выход отсюда оставлял бы его занятым навсегда.
+            return await EndExpiredPausesAsync(now, cancellationToken);
         }
 
         var branchIds = sessions.Select(session => session.BranchId).Distinct().ToList();
@@ -77,7 +80,57 @@ public sealed class AutoProtectionRunner(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return changedCount;
+        return changedCount + await EndExpiredPausesAsync(now, cancellationToken);
+    }
+
+    /// <summary>
+    /// Закрывает сессии, простоявшие на паузе дольше, чем разрешил филиал.
+    ///
+    /// Без этого пауза держала бы место занятым сколько угодно: игрок ушёл, счётчик стоит, клуб
+    /// теряет на этом месте деньги молча. Закрывает автоматика, и в журнале так и написано — за
+    /// таким закрытием нет человека, и подписывать им оператора, открывшего смену, было бы враньём.
+    /// </summary>
+    private async Task<int> EndExpiredPausesAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var paused = await dbContext.Sessions
+            .Where(session => session.State == SessionStateNames.Paused && session.PausedAtUtc != null)
+            .ToListAsync(cancellationToken);
+        if (paused.Count == 0)
+        {
+            return 0;
+        }
+
+        var branchIds = paused.Select(session => session.BranchId).Distinct().ToList();
+        var maxPauseByBranch = await dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branchIds.Contains(branch.BranchId))
+            .ToDictionaryAsync(branch => branch.BranchId, branch => branch.MaxSessionPauseMinutes, cancellationToken);
+
+        var endedCount = 0;
+        foreach (var session in paused)
+        {
+            maxPauseByBranch.TryGetValue(session.BranchId, out var configuredMinutes);
+            var maxPause = SessionPause.ResolveMaxPause(configuredMinutes);
+            if (!SessionPause.IsPauseExpired(session, now, maxPause))
+            {
+                continue;
+            }
+
+            var result = await sessionCommandService.EndSessionAsync(
+                session.SessionId,
+                SystemActorIds.AutoProtection,
+                new EndSessionRequest(
+                    Reason: "auto-pause-expired",
+                    IdempotencyKey: $"auto-pause-expired-{session.SessionId:N}-{session.Version}"),
+                cancellationToken);
+
+            if (result.Succeeded)
+            {
+                endedCount++;
+            }
+        }
+
+        return endedCount;
     }
 
     private async Task<bool> EvaluateFixedAsync(

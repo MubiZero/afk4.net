@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Tariffs;
@@ -593,9 +594,12 @@ public sealed class SessionBillingService(
         var billedAmount = alreadyBilled.Sum(entry => (long)entry.AmountMinorUnits);
         var billedSeconds = alreadyBilled.Sum(entry => (long)entry.QuantitySeconds);
 
+        // Пауза не оплачивается: игрок не играл. Вычитается здесь, а не в вызывающем коде, чтобы
+        // у чекаута и живой суммы на карте был один ответ, сколько человек должен.
+        var elapsed = SessionPause.BillableElapsed(session, startedAtUtc, now);
         var unbilled = billedSeconds > 0
-            ? now - startedAtUtc - TimeSpan.FromSeconds(billedSeconds)
-            : now - startedAtUtc;
+            ? elapsed - TimeSpan.FromSeconds(billedSeconds)
+            : elapsed;
         var baseAmount = billedSeconds > 0 ? billedAmount : 0;
 
         long extraAmount = 0;

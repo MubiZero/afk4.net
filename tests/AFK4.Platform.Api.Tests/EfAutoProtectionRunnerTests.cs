@@ -135,15 +135,47 @@ public sealed class EfAutoProtectionRunnerTests
         return new PlatformDbContext(options);
     }
 
-    private static AutoProtectionRunner CreateRunner(PlatformDbContext db, RecordingDispatch dispatcher)
+    private static AutoProtectionRunner CreateRunner(
+        PlatformDbContext db,
+        RecordingDispatch dispatcher,
+        RecordingSessionCommands? sessionCommands = null,
+        DateTimeOffset? nowUtc = null)
     {
-        var timeProvider = new FixedTimeProvider(Now);
+        var timeProvider = new FixedTimeProvider(nowUtc ?? Now);
         return new AutoProtectionRunner(
             db,
             new SessionBillingService(db, new EfTariffService(db, timeProvider), new EfShiftService(db, timeProvider), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance), timeProvider),
             dispatcher,
+            sessionCommands ?? new RecordingSessionCommands(),
             new AutoProtectionOptions(),
             timeProvider);
+    }
+
+    /// <summary>Записывает, какие сессии автоматика попросила закрыть и от чьего имени.</summary>
+    private sealed class RecordingSessionCommands : ISessionCommandService
+    {
+        public List<(Guid SessionId, Guid ActorId, string Reason)> Ended { get; } = [];
+
+        public Task<SessionCommandServiceResult> StartGuestSessionAsync(Guid branchId, Guid actorStaffUserId, StartGuestSessionRequest request, string origin, CancellationToken cancellationToken, bool actorCanApproveComp = false) =>
+            throw new NotSupportedException();
+
+        public Task<SessionCommandServiceResult> ExtendSessionAsync(Guid sessionId, Guid actorStaffUserId, ExtendSessionRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<SessionCommandServiceResult> TransferSessionAsync(Guid sessionId, Guid actorStaffUserId, TransferSessionRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<SessionCommandServiceResult> PauseSessionAsync(Guid sessionId, Guid actorStaffUserId, PauseSessionRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<SessionCommandServiceResult> ResumeSessionAsync(Guid sessionId, Guid actorStaffUserId, ResumeSessionRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<SessionCommandServiceResult> EndSessionAsync(Guid sessionId, Guid actorStaffUserId, EndSessionRequest request, CancellationToken cancellationToken)
+        {
+            Ended.Add((sessionId, actorStaffUserId, request.Reason));
+            return Task.FromResult(SessionCommandServiceResult.Ok(null!));
+        }
     }
 
     private static async Task SeedCoreAsync(PlatformDbContext db, long? branchLimit = null, long? playerLimit = null)
@@ -196,6 +228,64 @@ public sealed class EfAutoProtectionRunnerTests
             EffectiveFromUtc = Now.AddDays(-1),
             CreatedAtUtc = Now
         });
+        await db.SaveChangesAsync();
+    }
+
+    // Пауза не может стоять вечно: место занято, счётчик стоит, и клуб теряет на нём деньги
+    // молча. По истечении разрешённого филиалом времени сессию закрывает автоматика.
+    [Fact]
+    public async Task RunOnceAsync_PauseLongerThanTheBranchAllows_EndsTheSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedPausedSessionAsync(db, pausedAtUtc: Now.AddMinutes(-21));
+        var commands = new RecordingSessionCommands();
+
+        await CreateRunner(db, new RecordingDispatch(), commands).RunOnceAsync(CancellationToken.None);
+
+        var ended = Assert.Single(commands.Ended);
+        Assert.Equal(SessionId, ended.SessionId);
+        Assert.Equal("auto-pause-expired", ended.Reason);
+        // За автоматическим закрытием нет человека, и подписывать им оператора было бы враньём.
+        Assert.Equal(SystemActorIds.AutoProtection, ended.ActorId);
+    }
+
+    [Fact]
+    public async Task RunOnceAsync_PauseWithinTheAllowance_LeavesTheSessionAlone()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedPausedSessionAsync(db, pausedAtUtc: Now.AddMinutes(-19));
+        var commands = new RecordingSessionCommands();
+
+        await CreateRunner(db, new RecordingDispatch(), commands).RunOnceAsync(CancellationToken.None);
+
+        Assert.Empty(commands.Ended);
+    }
+
+    // Филиал вправе назначить свой предел, и автоматика обязана считать по нему, а не по умолчанию.
+    [Fact]
+    public async Task RunOnceAsync_UsesTheBranchPauseAllowance()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        var branch = await db.Branches.SingleAsync();
+        branch.MaxSessionPauseMinutes = 5;
+        await db.SaveChangesAsync();
+        await SeedPausedSessionAsync(db, pausedAtUtc: Now.AddMinutes(-6));
+        var commands = new RecordingSessionCommands();
+
+        await CreateRunner(db, new RecordingDispatch(), commands).RunOnceAsync(CancellationToken.None);
+
+        Assert.Single(commands.Ended);
+    }
+
+    private static async Task SeedPausedSessionAsync(PlatformDbContext db, DateTimeOffset pausedAtUtc)
+    {
+        await SeedSessionAsync(db, endsAtUtc: Now.AddHours(2), startedAtUtc: Now.AddHours(-1));
+        var session = await db.Sessions.SingleAsync();
+        session.State = SessionStateNames.Paused;
+        session.PausedAtUtc = pausedAtUtc;
         await db.SaveChangesAsync();
     }
 

@@ -312,6 +312,23 @@ export function useFloorMap({
         idempotencyKey: createIdempotencyKey('session-transfer'),
         expectedVersion: request.seat.sessionVersion ?? null
       });
+    } else if (request.type === 'pause' || request.type === 'resume') {
+      if (!hasPermission(session, permissionNames.pauseSession)) {
+        throw new Error(t('op.shell.err.noPermPause'));
+      }
+
+      if (!request.seat.activeSessionId) {
+        throw new Error(t('op.map.panel.noActiveSession'));
+      }
+
+      const payload = {
+        reason: 'operator',
+        idempotencyKey: createIdempotencyKey(`session-${request.type}`),
+        expectedVersion: request.seat.sessionVersion ?? null
+      };
+      response = request.type === 'pause'
+        ? await clients.sessions.pauseSession(request.seat.activeSessionId, payload)
+        : await clients.sessions.resumeSession(request.seat.activeSessionId, payload);
     } else if (request.type === 'checkout') {
       if (!hasPermission(session, permissionNames.endSession)) {
         throw new Error(t('op.shell.err.noPermCheckout'));

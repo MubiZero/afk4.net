@@ -26,6 +26,9 @@ public static class OrganizationPermissionNames
 
     public const string ExtendSession = "organization.sessions.extend";
 
+    // Поставить сессию на паузу и снять её. Право того же круга, что продление: обе правят время.
+    public const string PauseSession = "organization.sessions.pause";
+
     public const string TransferSession = "organization.sessions.transfer";
 
     public const string EndSession = "organization.sessions.end";
