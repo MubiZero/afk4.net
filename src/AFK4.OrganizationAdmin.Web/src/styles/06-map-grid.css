@@ -350,27 +350,6 @@
   background: transparent;
 }
 
-.seat-menu-item.soon {
-  color: var(--text-secondary);
-}
-
-.seat-menu-item.soon svg {
-  color: var(--text-tertiary);
-}
-
-.seat-menu-soon-tag {
-  margin-left: auto;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--surface-sunken);
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
 .seat-menu-item-hint {
   margin-left: auto;
   color: var(--text-tertiary);

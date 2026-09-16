@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Ban, BellRing, LockKeyhole, Plus, Power, TimerReset, UnlockKeyhole, Wifi } from 'lucide-react';
+import { LockKeyhole, Plus, TimerReset, UnlockKeyhole } from 'lucide-react';
 import type { ComponentType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
@@ -13,12 +13,7 @@ const ITEM_ICON: Record<string, IconType> = {
   'extend-15': Plus,
   'extend-30': TimerReset,
   'pc-lock': LockKeyhole,
-  'pc-unlock': UnlockKeyhole,
-  'soon-reboot': TimerReset,
-  'soon-shutdown': Power,
-  'soon-wake': Wifi,
-  'soon-fine': Ban,
-  'soon-notify': BellRing
+  'pc-unlock': UnlockKeyhole
 };
 
 const MENU_MARGIN = 8;
@@ -146,7 +141,7 @@ export function SeatContextMenu({
                 ref={(node) => { if (!item.disabled) { itemRefs.current[myIndex] = node; } }}
                 type="button"
                 role="menuitem"
-                className={`seat-menu-item${item.soon ? ' soon' : ''}`}
+                className="seat-menu-item"
                 disabled={item.disabled}
                 tabIndex={-1}
                 onClick={() => onSelect(item)}
@@ -154,8 +149,7 @@ export function SeatContextMenu({
               >
                 {Icon && <Icon size={15} aria-hidden={true} />}
                 <span className="seat-menu-item-label">{t(item.labelKey)}</span>
-                {item.soon && <em className="seat-menu-soon-tag">{t('op.map.menu.soonTag')}</em>}
-                {item.hintKey && !item.soon && <em className="seat-menu-item-hint">{t(item.hintKey)}</em>}
+                {item.hintKey && <em className="seat-menu-item-hint">{t(item.hintKey)}</em>}
               </button>
             );
           })}
