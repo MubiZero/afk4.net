@@ -561,61 +561,6 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         return new OperatorActionReportResultDto(rows, limit, auditRecords.Count);
     }
 
-    public async Task<OwnerDailySummaryResultDto> GetOwnerDailySummaryAsync(
-        Guid organizationId,
-        Guid branchId,
-        DateOnly date,
-        CancellationToken cancellationToken)
-    {
-        var windowStart = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-        var windowEnd = windowStart.AddDays(1);
-
-        var moneyEntries = await dbContext.LedgerEntries
-            .AsNoTracking()
-            .Where(entry => entry.OrganizationId == organizationId
-                && entry.BranchId == branchId
-                && entry.CreatedAtUtc >= windowStart && entry.CreatedAtUtc < windowEnd
-                && (entry.EntryType == LedgerEntryTypeNames.Refund
-                    || entry.EntryType == LedgerEntryTypeNames.Reversal
-                    || entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
-            .ToListAsync(cancellationToken);
-
-        var compAudits = await dbContext.AuditRecords
-            .AsNoTracking()
-            .Where(record => record.OrganizationId == organizationId
-                && record.BranchId == branchId
-                && record.Action == AuditActionNames.SessionComp
-                && record.CreatedAtUtc >= windowStart && record.CreatedAtUtc < windowEnd)
-            .ToListAsync(cancellationToken);
-
-        var closedShifts = await dbContext.Shifts
-            .AsNoTracking()
-            .Where(shift => shift.OrganizationId == organizationId
-                && shift.BranchId == branchId
-                && shift.State == ShiftStateNames.Closed
-                && shift.ClosedAtUtc >= windowStart && shift.ClosedAtUtc < windowEnd)
-            .ToListAsync(cancellationToken);
-
-        var actorIds = moneyEntries.Select(entry => entry.CreatedByStaffUserId)
-            .Concat(compAudits.Where(record => record.ActorStaffUserId.HasValue)
-                .Select(record => record.ActorStaffUserId!.Value))
-            .Concat(closedShifts.Where(shift => shift.ClosedByStaffUserId.HasValue)
-                .Select(shift => shift.ClosedByStaffUserId!.Value))
-            .Distinct()
-            .ToList();
-        var actorNames = await dbContext.StaffUsers
-            .AsNoTracking()
-            .Where(user => user.OrganizationId == organizationId && actorIds.Contains(user.StaffUserId))
-            .ToDictionaryAsync(user => user.StaffUserId, user => user.DisplayName, cancellationToken);
-
-        var currencyCode = moneyEntries.FirstOrDefault()?.CurrencyCode
-            ?? closedShifts.FirstOrDefault()?.CurrencyCode
-            ?? DefaultCurrencyCode;
-
-        return OwnerDailySummaryAggregator.Build(
-            date, currencyCode, moneyEntries, compAudits, closedShifts, actorNames);
-    }
-
     public async Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(
         Guid organizationId, Guid branchId, CancellationToken cancellationToken)
     {

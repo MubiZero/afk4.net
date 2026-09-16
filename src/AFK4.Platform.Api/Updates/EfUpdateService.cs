@@ -10,29 +10,6 @@ public sealed class EfUpdateService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider) : IUpdateService
 {
-    public async Task<UpdateServiceResult<UpdateRolloutDto>> GetRolloutAsync(
-        Guid organizationId,
-        Guid branchId,
-        Guid rolloutId,
-        CancellationToken cancellationToken)
-    {
-        var rollout = await dbContext.UpdateRollouts
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.UpdateRolloutId == rolloutId, cancellationToken);
-        if (rollout is null)
-        {
-            return UpdateServiceResult<UpdateRolloutDto>.Missing("Update rollout was not found.");
-        }
-
-        var targets = await LoadTargetsAsync(new HashSet<Guid> { rolloutId }, cancellationToken);
-        if (!TargetsBranch(targets, rolloutId, organizationId, branchId))
-        {
-            return UpdateServiceResult<UpdateRolloutDto>.Missing("Update rollout was not found.");
-        }
-
-        return UpdateServiceResult<UpdateRolloutDto>.Ok(ToDto(rollout, organizationId, branchId, targets));
-    }
-
     public async Task<UpdateServiceResult<IReadOnlyList<UpdateRolloutStatusDto>>> ListRolloutStatusesAsync(
         Guid organizationId,
         Guid branchId,

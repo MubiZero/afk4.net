@@ -106,8 +106,6 @@ public static class AuditActionNames
 
     public const string ViewOrganizationAdminReports = "reports.organization_admin.view";
 
-    public const string ViewOwnerDailySummaryReport = "reports.owner_daily_summary.view";
-
     public const string CreateReportSchedule = "reports.schedules.create";
 
     /// <summary>Правка рассылки: частота, пауза или оба сразу.</summary>

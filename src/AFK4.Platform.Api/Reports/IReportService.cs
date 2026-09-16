@@ -35,13 +35,6 @@ public interface IReportService
         ReportSearchQuery query,
         CancellationToken cancellationToken);
 
-    // Anti-fraud §5.6: the owner's per-actor daily high-risk digest for a single branch-day.
-    Task<OwnerDailySummaryResultDto> GetOwnerDailySummaryAsync(
-        Guid organizationId,
-        Guid branchId,
-        DateOnly date,
-        CancellationToken cancellationToken);
-
     Task<ShiftRevenueListDto> GetShiftRevenueAsync(
         Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken);
 
