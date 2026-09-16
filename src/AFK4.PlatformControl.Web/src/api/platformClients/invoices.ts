@@ -18,6 +18,17 @@ export class InvoicesApi {
     return this.transport.send<PlatformBillingMetrics>('GET', '/api/platform/metrics');
   }
 
+  /**
+   * Счёт вне подписки: разовая услуга или кредит-нота. Сумма кредит-ноты отрицательная —
+   * этим она и уменьшает долг; сервер отказывает, если знак не совпал с видом счёта.
+   */
+  public createInvoice(
+    organizationId: string,
+    request: { kind: string; amountMinorUnits: number; description: string; dueAtUtc: string | null }
+  ): Promise<Invoice> {
+    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/organizations/${organizationId}/invoices`, request);
+  }
+
   public generateInvoice(organizationId: string): Promise<Invoice> {
     return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/organizations/${organizationId}/invoices/generate`, undefined);
   }
