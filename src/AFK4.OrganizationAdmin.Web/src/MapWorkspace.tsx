@@ -109,10 +109,6 @@ export function MapWorkspace({
     }
   };
 
-  const explainUnavailablePcControl = (label: string, detail: string) => {
-    setFeedback({ label, state: 'failed', detail });
-  };
-
   // Правый клик: выбираем место (раскрывает карточку справа) и открываем меню у курсора.
   // Клавиатурный вызов (Menu/Shift+F10) даёт coords 0 — тогда якоримся к самому элементу.
   const openSeatMenu = (seat: SeatSummary, event: ReactMouseEvent) => {
@@ -140,10 +136,8 @@ export function MapWorkspace({
       void runSeatAction(label, { type: 'start', seat, billing: guestBillingSelection, durationMode: 'fixed' });
     } else if (run.kind === 'extend') {
       void runSeatAction(label, { type: 'extend', seat, minutes: run.minutes, billing: guestBillingSelection });
-    } else if (run.kind === 'pc') {
-      void runPcControlAction(run.action, label, seat);
     } else {
-      explainUnavailablePcControl(label, t(run.detailKey));
+      void runPcControlAction(run.action, label, seat);
     }
   };
 

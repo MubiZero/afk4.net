@@ -43,9 +43,9 @@ describe('SeatContextMenu', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('tags coming-soon items so they never read as live', () => {
-    const { getAllByText } = renderMenu(() => {}, () => {});
-    // The "скоро" tag marks deferred actions (reboot/shutdown/wake/fine/notify).
-    expect(getAllByText('скоро').length).toBeGreaterThan(0);
+  // Пунктов «скоро» в меню больше нет: они отвечали тостом при отсутствующей команде.
+  it('в меню нет отложенных пунктов — каждый что-то делает', () => {
+    const { queryAllByText } = renderMenu(() => {}, () => {});
+    expect(queryAllByText('скоро')).toHaveLength(0);
   });
 });

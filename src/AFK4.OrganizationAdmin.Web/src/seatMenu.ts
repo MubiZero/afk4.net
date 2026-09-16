@@ -2,15 +2,19 @@ import type { MessageKey } from '@afk4/i18n';
 import type { PcControlActionId } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
 
-// Что делает пункт меню. Живые действия исполняются сразу (старт гостя, продление, управление ПК);
-// «скоро» — честный toast про отсутствующий бэкенд (#37), без вранья про готовность.
-// Завершение/оплата/пересадка/билленый старт сюда НЕ попадают: они требуют подтверждения и quote,
-// которые живут в карточке справа (правый клик уже выбирает место и раскрывает карточку).
+// Что делает пункт меню. Здесь только то, что исполняется сразу: старт гостя, продление,
+// управление ПК. Завершение/оплата/пересадка/билленый старт сюда НЕ попадают: они требуют
+// подтверждения и quote, которые живут в карточке справа (правый клик уже выбирает место и
+// раскрывает карточку).
+//
+// Пунктов «скоро» здесь тоже нет. Перезагрузка, выключение, wake-on-LAN, активное окно, штраф и
+// «уведомить игрока» полгода стояли в меню и отвечали тостом: команд для них нет ни в контракте
+// устройств, ни в агенте. Меню, где половина пунктов не работает, перестаёт быть картой
+// возможностей — оно просто врёт. Вернутся вместе с командами на игровом ПК.
 export type SeatMenuRun =
   | { kind: 'start-guest' }
   | { kind: 'extend'; minutes: number }
-  | { kind: 'pc'; action: PcControlActionId }
-  | { kind: 'soon'; detailKey: MessageKey };
+  | { kind: 'pc'; action: PcControlActionId };
 
 export interface SeatMenuCaps {
   // Бэкенд готов к живым действиям над сессией (не fixture/offline-загрузка).
@@ -28,7 +32,6 @@ export interface SeatMenuItem {
   hintKey?: MessageKey;
   run: SeatMenuRun;
   disabled: boolean;
-  soon: boolean;
 }
 
 export interface SeatMenuSection {
@@ -44,8 +47,7 @@ function seatHasSession(seat: SeatSummary): boolean {
 /**
  * Чистый билдер состава контекст-меню по состоянию места и правам оператора.
  * Присутствие пункта = есть право (нерелевантное роли не показываем);
- * `disabled` — только временные причины (бэкенд не готов). «Скоро»-пункты показываем всегда,
- * когда контекст уместен — это честная карта возможностей, а не заглушка-обманка.
+ * `disabled` — только временные причины (бэкенд не готов).
  */
 export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSection[] {
   const hasSession = seatHasSession(seat);
@@ -59,8 +61,7 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
       labelKey: 'op.map.seatInvite',
       feedbackKey: 'op.map.seatInvite',
       run: { kind: 'start-guest' },
-      disabled: !caps.actionsEnabled,
-      soon: false
+      disabled: !caps.actionsEnabled
     });
   } else if (hasSession && caps.canExtend) {
     session.push({
@@ -68,16 +69,14 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
       labelKey: 'op.map.panel.extend15Action',
       feedbackKey: 'op.map.panel.extend15Action',
       run: { kind: 'extend', minutes: 15 },
-      disabled: !caps.actionsEnabled,
-      soon: false
+      disabled: !caps.actionsEnabled
     });
     session.push({
       id: 'extend-30',
       labelKey: 'op.map.panel.extend30Action',
       feedbackKey: 'op.map.panel.extend30Action',
       run: { kind: 'extend', minutes: 30 },
-      disabled: !caps.actionsEnabled,
-      soon: false
+      disabled: !caps.actionsEnabled
     });
   }
 
@@ -89,8 +88,7 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
       labelKey: 'op.map.actionLockBtn',
       feedbackKey: 'op.map.actionLock',
       run: { kind: 'pc', action: 'lock' },
-      disabled: false,
-      soon: false
+      disabled: false
     });
     if (hasSession) {
       pc.push({
@@ -98,28 +96,14 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
         labelKey: 'op.map.actionUnlockBtn',
         feedbackKey: 'op.map.actionUnlock',
         run: { kind: 'pc', action: 'unlock' },
-        disabled: false,
-        soon: false
+        disabled: false
       });
     }
   }
 
-  const soon: SeatMenuItem[] = [];
-  if (hasDevice && caps.canLockUnlock) {
-    soon.push({ id: 'soon-reboot', labelKey: 'op.map.rebootBtn', feedbackKey: 'op.map.actionReboot', hintKey: 'op.map.rebootHint', run: { kind: 'soon', detailKey: 'op.map.rebootDetail' }, disabled: false, soon: true });
-    soon.push({ id: 'soon-shutdown', labelKey: 'op.map.shutdownBtn', feedbackKey: 'op.map.actionShutdown', hintKey: 'op.map.shutdownHint', run: { kind: 'soon', detailKey: 'op.map.shutdownDetail' }, disabled: false, soon: true });
-    soon.push({ id: 'soon-wake', labelKey: 'op.map.wakeBtn', feedbackKey: 'op.map.actionWake', hintKey: 'op.map.wakeHint', run: { kind: 'soon', detailKey: 'op.map.wakeDetail' }, disabled: false, soon: true });
-  }
-  if (hasSession) {
-    soon.push({ id: 'soon-active-window', labelKey: 'op.map.menu.activeWindow', feedbackKey: 'op.map.menu.activeWindow', hintKey: 'op.map.menu.activeWindowHint', run: { kind: 'soon', detailKey: 'op.map.menu.activeWindowDetail' }, disabled: false, soon: true });
-    soon.push({ id: 'soon-fine', labelKey: 'op.map.menu.fine', feedbackKey: 'op.map.menu.fine', hintKey: 'op.map.menu.fineHint', run: { kind: 'soon', detailKey: 'op.map.menu.fineDetail' }, disabled: false, soon: true });
-    soon.push({ id: 'soon-notify', labelKey: 'op.map.menu.notify', feedbackKey: 'op.map.menu.notify', hintKey: 'op.map.menu.notifyHint', run: { kind: 'soon', detailKey: 'op.map.menu.notifyDetail' }, disabled: false, soon: true });
-  }
-
   const sections: SeatMenuSection[] = [
     { id: 'session', titleKey: null, items: session },
-    { id: 'pc', titleKey: 'op.map.menu.sectionPc', items: pc },
-    { id: 'soon', titleKey: 'op.map.menu.sectionSoon', items: soon }
+    { id: 'pc', titleKey: 'op.map.menu.sectionPc', items: pc }
   ];
   return sections.filter((section) => section.items.length > 0);
 }

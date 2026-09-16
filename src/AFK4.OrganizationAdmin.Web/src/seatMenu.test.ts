@@ -77,13 +77,19 @@ describe('buildSeatMenu', () => {
     expect(ids(noDevice).some((id) => id.startsWith('pc-'))).toBe(false);
   });
 
-  it('marks not-yet-built actions as "soon" honestly instead of pretending they work', () => {
+  // Перезагрузка, выключение, wake-on-LAN, активное окно, штраф и «уведомить игрока» полгода
+  // стояли в меню и отвечали тостом: команд для них нет ни в контракте устройств, ни в агенте.
+  // Меню, где половина пунктов не работает, — не карта возможностей, а обман.
+  it('в меню нет пунктов, за которыми нет команды', () => {
     const sections = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);
-    const soon = flat(sections).filter((item) => item.soon);
-    expect(soon.map((item) => item.id)).toContain('soon-reboot');
-    expect(soon.map((item) => item.id)).toContain('soon-fine');
-    // Every "soon" item routes to an honest deferred toast, not a live handler.
-    expect(soon.every((item) => item.run.kind === 'soon')).toBe(true);
+    expect(flat(sections).every((item) => item.run.kind !== 'start-guest' || item.id === 'start-guest')).toBe(true);
+    expect(ids(sections).some((id) => id.startsWith('soon-'))).toBe(false);
+  });
+
+  it('каждый пункт ведёт к живому действию: старт, продление или команда ПК', () => {
+    const sections = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);
+    const kinds = new Set(flat(sections).map((item) => item.run.kind));
+    expect([...kinds].every((kind) => kind === 'start-guest' || kind === 'extend' || kind === 'pc')).toBe(true);
   });
 
   it('returns an empty menu when the operator can do nothing here', () => {
