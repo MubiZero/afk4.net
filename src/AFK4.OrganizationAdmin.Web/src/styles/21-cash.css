@@ -609,6 +609,12 @@
   .cash-inspector-close { display: inline-flex; }
 }
 
+/* ============ Заявки на пополнение ============ */
+/* К ленте добавляется колонка действия: деньги принимают здесь же, не уходя в карточку клиента. */
+.cash-topup-row { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.cash-topup-waiting { color: var(--text-tertiary); font-size: var(--text-xs); white-space: nowrap; }
+.cash-topups-hint { margin: 0; padding: 0 var(--space-4) var(--space-4); color: var(--text-tertiary); font-size: 13px; }
+
 @media (max-width: 700px) {
   .cash-terminal-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cash-terminal-metric:nth-child(odd) { border-left: 0; }

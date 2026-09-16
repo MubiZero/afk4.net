@@ -17,6 +17,8 @@ export interface CashHeaderState {
 const CASH_TAB_PERMISSIONS: Record<CashTab, readonly string[]> = {
   sales: [permissionNames.createPosSale, permissionNames.payPosSale, permissionNames.refundPosSale, permissionNames.voidPosSale],
   shift: [permissionNames.viewShift, permissionNames.openShift, permissionNames.closeShift, permissionNames.manageShiftCash, permissionNames.viewReports],
+  // Очередь заявок читает и закрывает тот же, кто вправе пополнять кошелёк.
+  topups: [permissionNames.topUpWallet],
   journal: [
     permissionNames.approveMoneyAction,
     permissionNames.viewReports,
@@ -27,7 +29,7 @@ const CASH_TAB_PERMISSIONS: Record<CashTab, readonly string[]> = {
   ]
 };
 
-const CASH_TAB_ORDER: CashTab[] = ['sales', 'shift', 'journal'];
+const CASH_TAB_ORDER: CashTab[] = ['sales', 'shift', 'topups', 'journal'];
 
 export function visibleCashTabs(session: OperatorAuthSession | null): CashTab[] {
   return CASH_TAB_ORDER.filter((id) => hasAnyPermission(session, CASH_TAB_PERMISSIONS[id]));
