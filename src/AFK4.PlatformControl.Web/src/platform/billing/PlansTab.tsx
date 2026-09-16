@@ -74,7 +74,13 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
                   <TableCell><span className="font-medium">{plan.name}</span> <code className="mgmt-drawer-hint">{plan.planCode}</code></TableCell>
                   <TableCell className="pc-num">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
                   <TableCell>{INTERVAL_LABEL[plan.billingInterval] ? t(INTERVAL_LABEL[plan.billingInterval]) : plan.billingInterval}</TableCell>
-                  <TableCell>{plan.isActive ? <Badge variant="success">●</Badge> : <Badge variant="outline">—</Badge>}</TableCell>
+                  {/* Точка и прочерк ничего не говорят ни человеку, ни зачитывающей экран программе:
+                      скрытый тариф видно только по тому, что кружок другого цвета. */}
+                  <TableCell>
+                    {plan.isActive
+                      ? <Badge variant="success">{t('platform.billing.plans.state.active')}</Badge>
+                      : <Badge variant="outline">{t('platform.billing.plans.state.hidden')}</Badge>}
+                  </TableCell>
                   <TableCell>{canManage ? <Button variant="outline" onClick={() => openEdit(plan)}>{t('platform.billing.plans.edit')}</Button> : null}</TableCell>
                 </TableRow>
               ))}

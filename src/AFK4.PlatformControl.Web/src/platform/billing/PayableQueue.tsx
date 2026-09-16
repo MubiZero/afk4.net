@@ -95,6 +95,9 @@ export function PayableQueue({ client, canManage }: { client: InvoicesApi; canMa
         confirmLabel={action?.kind === 'void' ? t('platform.billing.void.confirm') : t('platform.billing.markPaid.confirm')}
         cancelLabel={t('platform.billing.action.cancel')}
         reasonLabel={action?.kind === 'void' ? t('platform.billing.void.reason') : t('platform.billing.markPaid.reference')}
+        // Причина аннулирования уходит в журнал и потому обязательна; референс платежа подписан
+        // «необязательно» — требовать его значит обещать одно, а делать другое.
+        reasonRequired={action?.kind === 'void'}
         destructive={action?.kind === 'void'}
         pending={pending}
         onConfirm={reason => void confirm(reason)}
