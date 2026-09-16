@@ -57,6 +57,7 @@ builder.Services.AddSingleton<ICommandResultOutbox, FileCommandResultOutbox>();
 builder.Services.AddSingleton<IDeviceCredentialStore, FileDeviceCredentialStore>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
 builder.Services.AddSingleton<SessionLeaseValidator>();
+builder.Services.AddSingleton<IMachinePolicyStore, WindowsMachinePolicyStore>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();
 builder.Services.AddSingleton<ISessionEnforcementCoordinator, SessionEnforcementCoordinator>();
 builder.Services.AddSingleton<IOfflineGraceState, OfflineGraceState>();

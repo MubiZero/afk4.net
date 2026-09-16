@@ -123,15 +123,15 @@ public sealed class GraceModeMonitorTests
     {
         public int LockCount { get; private set; }
 
-        public Task LockAsync(CancellationToken cancellationToken)
+        public Task<WorkstationLockOutcome> LockAsync(CancellationToken cancellationToken)
         {
             LockCount++;
-            return Task.CompletedTask;
+            return Task.FromResult(new WorkstationLockOutcome(["task manager disabled"]));
         }
 
-        public Task UnlockAsync(CancellationToken cancellationToken)
+        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken)
         {
-            return Task.CompletedTask;
+            return Task.FromResult(WorkstationLockOutcome.Nothing);
         }
     }
 

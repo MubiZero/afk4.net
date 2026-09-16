@@ -208,16 +208,16 @@ public sealed class SessionCommandHandlerLeaseTests
 
         public int UnlockCount { get; private set; }
 
-        public Task LockAsync(CancellationToken cancellationToken)
+        public Task<WorkstationLockOutcome> LockAsync(CancellationToken cancellationToken)
         {
             LockCount++;
-            return Task.CompletedTask;
+            return Task.FromResult(new WorkstationLockOutcome(["task manager disabled"]));
         }
 
-        public Task UnlockAsync(CancellationToken cancellationToken)
+        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken)
         {
             UnlockCount++;
-            return Task.CompletedTask;
+            return Task.FromResult(new WorkstationLockOutcome(["task manager restored"]));
         }
     }
 }
