@@ -18,3 +18,21 @@ export function componentLabelKey(name: string): MessageKey {
   return UPDATE_COMPONENTS.find(component => component.name === name)?.labelKey
     ?? 'op.helper.update.component.fallback';
 }
+
+/**
+ * Каналы, по которым сборка доходит до клубов.
+ *
+ * Тот же перечень сервер проверяет и при регистрации пакета, и при закреплении канала за
+ * клиентом. Карточка клиента предлагала «canary» — сервер такого канала не знает и отвечал
+ * отказом; «internal», который он знает, не предлагалась нигде.
+ */
+export const UPDATE_CHANNELS: readonly { readonly name: string; readonly labelKey: MessageKey }[] = [
+  { name: 'stable', labelKey: 'op.helper.update.channel.stable' },
+  { name: 'beta', labelKey: 'op.helper.update.channel.beta' },
+  { name: 'internal', labelKey: 'op.helper.update.channel.internal' }
+];
+
+export function channelLabelKey(name: string): MessageKey {
+  return UPDATE_CHANNELS.find(channel => channel.name === name)?.labelKey
+    ?? 'op.helper.update.channel.fallback';
+}
