@@ -24,9 +24,13 @@ public sealed class Worker(
     IOfflineGraceState offlineGraceState,
     ICommandResultOutbox commandResultOutbox,
     IDeviceCredentialStore credentialStore,
+    IShellWarningStore shellWarningStore,
     TimeProvider timeProvider) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
+
+    /// <summary>Когда инвентарь установленного софта отправляли в прошлый раз.</summary>
+    private DateTimeOffset lastInstalledAppReportUtc = DateTimeOffset.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -66,6 +70,7 @@ public sealed class Worker(
         {
             await TryEnforceGraceModeAsync(stoppingToken);
             await TryMaintainPlayerShellAsync(stoppingToken);
+            await TryReportInstalledAppsOnScheduleAsync(stoppingToken);
             var outcome = await TrySendHeartbeatAsync(client, stoppingToken);
             var delay = HeartbeatCadence.NextDelay(
                 outcome.Succeeded,
@@ -353,13 +358,26 @@ public sealed class Worker(
 
         var isGraceMode = string.Equals(runtimeState.State, PlayerShellStateNames.Grace, StringComparison.Ordinal);
         var threshold = agentOptions.ShellWarningThresholdSeconds;
+        var sessionId = lease?.SessionId ?? runtimeState.ActiveSessionId;
+
+        // Предупреждение живёт ровно столько, сколько сессия, к которой оно пришло.
+        shellWarningStore.ForgetUnless(sessionId);
+
+        // Локальная оценка сильнее: связь пропала или время на исходе — это состояние самой машины,
+        // и оно важнее того, что сервер знал минуту назад. А вот когда локально «всё спокойно»
+        // (открытый счёт: остатка секунд нет вовсе), на экран идёт предупреждение сервера — иначе
+        // игрок узнаёт о долге по погасшему экрану.
+        var localWarning = PlayerShellWarning.Classify(runtimeState.State, remainingSeconds, threshold, isGraceMode);
+        var warningKind = string.Equals(localWarning, PlayerShellWarningKinds.None, StringComparison.Ordinal)
+            ? shellWarningStore.Current?.Kind ?? PlayerShellWarningKinds.None
+            : localWarning;
 
         return new PlayerShellStateDto(
             OrganizationId: agentOptions.OrganizationId,
             BranchId: agentOptions.BranchId,
             DeviceId: agentOptions.DeviceId,
             State: runtimeState.State,
-            SessionId: lease?.SessionId ?? runtimeState.ActiveSessionId,
+            SessionId: sessionId,
             LeaseExpiresAtUtc: lease?.ExpiresAtUtc ?? runtimeState.LeaseExpiresAtUtc,
             RemainingSeconds: remainingSeconds,
             IsOnline: true,
@@ -367,15 +385,34 @@ public sealed class Worker(
             WarningThresholdSeconds: threshold,
             Message: CreatePlayerShellMessage(runtimeState),
             SeatingCode: seatingCode,
-            LauncherApps: [],
+            LauncherApps: CreateLauncherApps(agentOptions),
             Locale: agentOptions.PreferredLocale,
-            WarningKind: PlayerShellWarning.Classify(runtimeState.State, remainingSeconds, threshold, isGraceMode),
+            WarningKind: warningKind,
             // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом
             // для первого запуска, пока сервер ещё не ответил ни разу.
             Branding: branding ?? (string.IsNullOrWhiteSpace(agentOptions.ClubName)
                 ? null
                 : new ShellBrandingDto(agentOptions.ClubName!, agentOptions.LogoUrl, agentOptions.AccentColor)));
     }
+
+    /// <summary>
+    /// Список игр, который видит игрок. Берётся из той же настройки, по которой агент решает,
+    /// что ему разрешено запускать: два разных списка разошлись бы в первый же день. Пункт,
+    /// исполняемого файла которого на машине нет, показывается недоступным, а не прячется —
+    /// «игра была вчера, а сегодня её нет» должно быть видно и игроку, и клубу.
+    /// </summary>
+    private static IReadOnlyList<LauncherAppDto> CreateLauncherApps(AgentOptions agentOptions) =>
+        agentOptions.LauncherApps
+            .Where(app => app.IsEnabled
+                && !string.IsNullOrWhiteSpace(app.AppId)
+                && !string.IsNullOrWhiteSpace(app.ExecutablePath))
+            .Select(app => new LauncherAppDto(
+                AppId: app.AppId,
+                DisplayName: string.IsNullOrWhiteSpace(app.DisplayName) ? app.AppId : app.DisplayName,
+                Category: string.IsNullOrWhiteSpace(app.Category) ? "Games" : app.Category,
+                IconUri: null,
+                IsAvailable: File.Exists(app.ExecutablePath)))
+            .ToList();
 
     private static string CreatePlayerShellMessage(AgentRuntimeState runtimeState)
     {
@@ -391,12 +428,28 @@ public sealed class Worker(
         };
     }
 
+    /// <summary>
+    /// Инвентарь по расписанию. Раньше он снимался ровно один раз, при старте службы: игру,
+    /// поставленную днём, клуб видел только после перезагрузки машины — то есть обычно никогда.
+    /// </summary>
+    private async Task TryReportInstalledAppsOnScheduleAsync(CancellationToken cancellationToken)
+    {
+        var interval = InstalledAppReportSchedule.Interval(options.Value.InstalledAppReportIntervalMinutes);
+        if (!InstalledAppReportSchedule.IsDue(lastInstalledAppReportUtc, timeProvider.GetUtcNow(), interval))
+        {
+            return;
+        }
+
+        await TryReportInstalledAppsAsync(cancellationToken);
+    }
+
     private async Task TryReportInstalledAppsAsync(CancellationToken cancellationToken)
     {
         try
         {
             var apps = await installedAppInventoryCollector.CollectAsync(cancellationToken);
             await installedAppReporter.ReportAsync(apps, timeProvider.GetUtcNow(), cancellationToken);
+            lastInstalledAppReportUtc = timeProvider.GetUtcNow();
             logger.LogInformation("Installed app inventory reported with {InstalledAppCount} apps.", apps.Count);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

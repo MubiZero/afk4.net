@@ -56,6 +56,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -99,6 +100,7 @@ public sealed class WorkerTests
             graceState,
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -143,6 +145,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -196,6 +199,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -250,6 +254,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -303,6 +308,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             commandResultOutbox,
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -360,6 +366,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             commandResultOutbox,
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -404,6 +411,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -838,6 +846,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             credentialStore,
+            new ShellWarningStore(),
             TimeProvider.System);
 
     // Ради этого всё и делается: просьба пришла сердцебиением — ключ сменился без человека.

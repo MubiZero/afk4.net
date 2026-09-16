@@ -85,6 +85,7 @@ public sealed class PlayerShellStateProjectionTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         // Act
@@ -98,6 +99,145 @@ public sealed class PlayerShellStateProjectionTests
         Assert.NotNull(dto.Branding);
         Assert.Equal("Club AFK4", dto.Branding!.ClubName);
         Assert.Equal("#c8ff00", dto.Branding.AccentColor);
+    }
+
+    // Открытый счёт: остатка секунд нет вовсе, и оболочка сама предупредить не может. Сервер
+    // шлёт warn за минуту до блокировки по долгу — раньше агент отвечал «принято» и выбрасывал
+    // команду, так что игрок узнавал о долге по погасшему экрану.
+    [Fact]
+    public async Task CreatePlayerShellState_ShowsTheServerWarningWhenTheShellHasNothingToWarnAbout()
+    {
+        var sessionId = Guid.Parse("992624cf-77d1-413b-8e51-6f88872183eb");
+        var runtimeStateStore = new ActiveRuntimeStateStore(sessionId, leaseExpiresAtUtc: null);
+        var warnings = new ShellWarningStore();
+        warnings.Warn(sessionId, PlayerShellWarningKinds.CreditLimit);
+
+        var dto = await PublishStateAsync(
+            new InMemorySessionLeaseStore(),
+            runtimeStateStore,
+            warnings,
+            options => options);
+
+        Assert.Equal(PlayerShellWarningKinds.CreditLimit, dto.WarningKind);
+    }
+
+    // Предупреждение прошлой сессии не должно висеть на следующем игроке.
+    [Fact]
+    public async Task CreatePlayerShellState_DropsAWarningLeftFromAnotherSession()
+    {
+        var sessionId = Guid.Parse("992624cf-77d1-413b-8e51-6f88872183eb");
+        var warnings = new ShellWarningStore();
+        warnings.Warn(Guid.Parse("11111111-1111-4111-8111-111111111111"), PlayerShellWarningKinds.CreditLimit);
+
+        var dto = await PublishStateAsync(
+            new InMemorySessionLeaseStore(),
+            new ActiveRuntimeStateStore(sessionId, leaseExpiresAtUtc: null),
+            warnings,
+            options => options);
+
+        Assert.Equal(PlayerShellWarningKinds.None, dto.WarningKind);
+    }
+
+    // Список игр берётся из той же настройки, по которой агент решает, что ему разрешено
+    // запускать. Раньше он был захардкожен пустым, и экран игрока не показывал ни одной игры
+    // при полностью рабочей настройке и авторизации запуска.
+    [Fact]
+    public async Task CreatePlayerShellState_ListsConfiguredLauncherApps()
+    {
+        var presentExecutable = Path.Combine(Path.GetTempPath(), $"afk4-launcher-{Guid.NewGuid():N}.exe");
+        await File.WriteAllTextAsync(presentExecutable, "not a real game");
+
+        try
+        {
+            var dto = await PublishStateAsync(
+                new InMemorySessionLeaseStore(),
+                new ActiveRuntimeStateStore(Guid.NewGuid(), leaseExpiresAtUtc: null),
+                new ShellWarningStore(),
+                options =>
+                {
+                    options.LauncherApps.Add(new AgentLauncherAppOptions
+                    {
+                        AppId = "cs2",
+                        DisplayName = "Counter-Strike 2",
+                        Category = "Шутеры",
+                        ExecutablePath = presentExecutable
+                    });
+                    options.LauncherApps.Add(new AgentLauncherAppOptions
+                    {
+                        AppId = "removed-game",
+                        DisplayName = "Снесённая игра",
+                        ExecutablePath = Path.Combine(Path.GetTempPath(), $"afk4-missing-{Guid.NewGuid():N}.exe")
+                    });
+                    options.LauncherApps.Add(new AgentLauncherAppOptions
+                    {
+                        AppId = "disabled-game",
+                        DisplayName = "Выключенная игра",
+                        ExecutablePath = presentExecutable,
+                        IsEnabled = false
+                    });
+                    return options;
+                });
+
+            Assert.Equal(2, dto.LauncherApps.Count);
+
+            var live = dto.LauncherApps.Single(app => app.AppId == "cs2");
+            Assert.Equal("Counter-Strike 2", live.DisplayName);
+            Assert.Equal("Шутеры", live.Category);
+            Assert.True(live.IsAvailable);
+
+            // Игра, которой на машине больше нет, показывается недоступной, а не прячется:
+            // «вчера была, сегодня нет» должно быть видно и игроку, и клубу.
+            Assert.False(dto.LauncherApps.Single(app => app.AppId == "removed-game").IsAvailable);
+            Assert.DoesNotContain(dto.LauncherApps, app => app.AppId == "disabled-game");
+        }
+        finally
+        {
+            File.Delete(presentExecutable);
+        }
+    }
+
+    private static async Task<PlayerShellStateDto> PublishStateAsync(
+        ISessionLeaseStore leaseStore,
+        IAgentRuntimeStateStore runtimeStateStore,
+        IShellWarningStore warnings,
+        Func<AgentOptions, AgentOptions> configure)
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var statePublished = new TaskCompletionSource<PlayerShellStateDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(configure(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001"
+        }));
+
+        using var heartbeatHandler = new AlwaysOkHeartbeatHandler();
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(heartbeatHandler)),
+            options,
+            new NoOpRealtimeClient(),
+            leaseStore,
+            runtimeStateStore,
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new CapturingPlayerShellStatePublisher(statePublished, stopping),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            warnings,
+            TimeProvider.System);
+
+        await worker.StartAsync(stopping.Token);
+        var dto = await statePublished.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+        return dto;
     }
 
     // Оформление меняют в панели, и на игровой ПК оно приезжает сердцебиением. Конфиг машины
@@ -155,6 +295,7 @@ public sealed class PlayerShellStateProjectionTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -216,13 +357,13 @@ public sealed class PlayerShellStateProjectionTests
         }
     }
 
-    private sealed class ActiveRuntimeStateStore(Guid sessionId, DateTimeOffset leaseExpiry) : IAgentRuntimeStateStore
+    private sealed class ActiveRuntimeStateStore(Guid sessionId, DateTimeOffset? leaseExpiresAtUtc) : IAgentRuntimeStateStore
     {
         public AgentRuntimeState Current { get; private set; } = new(
             State: PlayerShellStateNames.Active,
             IsLocked: false,
             ActiveSessionId: sessionId,
-            LeaseExpiresAtUtc: leaseExpiry,
+            LeaseExpiresAtUtc: leaseExpiresAtUtc,
             UpdatedAtUtc: DateTimeOffset.UtcNow);
 
         public void Save(AgentRuntimeState state) => Current = state;

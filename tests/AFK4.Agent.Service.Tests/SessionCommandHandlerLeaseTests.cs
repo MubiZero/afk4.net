@@ -3,8 +3,10 @@ using System.Text;
 using System.Text.Json;
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service.Tests;
@@ -134,7 +136,11 @@ public sealed class SessionCommandHandlerLeaseTests
             lockController,
             new FixedTimeProvider(Now));
 
-        return new DefaultDeviceCommandHandler(options, coordinator);
+        return new DefaultDeviceCommandHandler(
+            options,
+            coordinator,
+            new ShellWarningStore(),
+            NullLogger<DefaultDeviceCommandHandler>.Instance);
     }
 
     private static DeviceCommandDto CreateCommand(string type, SessionLeaseDto lease, bool useBackendJson = false)

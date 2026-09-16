@@ -80,6 +80,13 @@ public sealed class AgentOptions
 
     public List<string> DeniedProcessNames { get; init; } = [];
 
+    /// <summary>
+    /// Как часто пересобирать список установленного софта. Шесть часов — компромисс: реестр на
+    /// игровой машине читается небыстро, а клуб хочет видеть новую игру в тот же день, а не после
+    /// следующей перезагрузки.
+    /// </summary>
+    public int InstalledAppReportIntervalMinutes { get; init; } = 360;
+
     public string UpdateChannel { get; init; } = "stable";
 
     public string UpdateStagingDirectory { get; init; } = Path.Combine(
