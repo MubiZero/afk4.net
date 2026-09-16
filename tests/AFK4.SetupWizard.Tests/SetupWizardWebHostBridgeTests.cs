@@ -644,6 +644,63 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.Empty(deps.Api.UploadedLogoPaths);
     }
 
+    // Установка идёт минутами: msiexec на чистой машине не быстрый. Пока она шла в потоке окна,
+    // мастер не реагировал ни на перетаскивание, ни на сворачивание — со стороны это неотличимо
+    // от зависшей программы. Проверка простая: вызывающий поток получает управление обратно, не
+    // дожидаясь установки. Без ухода в фон этот тест просто повис бы на самом вызове.
+    [Fact]
+    public async Task ProvisionShell_DoesNotHoldTheCallingThreadWhileTheInstallerRuns()
+    {
+        using var installerRunning = new ManualResetEventSlim(false);
+        using var releaseInstaller = new ManualResetEventSlim(false);
+        var dependencies = new Dependencies();
+        dependencies.Shell.Blocker = () =>
+        {
+            installerRunning.Set();
+            releaseInstaller.Wait(TimeSpan.FromSeconds(10));
+        };
+        var bridge = dependencies.Build();
+
+        var pending = Send(bridge, "wizard:provisionShell", """{"role":"GamingPc"}""");
+
+        Assert.True(installerRunning.Wait(TimeSpan.FromSeconds(10)));
+        Assert.False(pending.IsCompleted);
+
+        releaseInstaller.Set();
+        var response = await pending;
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(1, dependencies.Shell.Calls);
+    }
+
+    // Тот же поток окна держала и запись машинной конфигурации — прямо перед самой долгой частью.
+    [Fact]
+    public async Task Enroll_DoesNotHoldTheCallingThreadWhileMachineConfigurationIsWritten()
+    {
+        using var writing = new ManualResetEventSlim(false);
+        using var releaseWrite = new ManualResetEventSlim(false);
+        var (bridge, dependencies) = await SignedIn();
+        dependencies.Bootstrap.Blocker = () =>
+        {
+            writing.Set();
+            releaseWrite.Wait(TimeSpan.FromSeconds(10));
+        };
+
+        var pending = Send(
+            bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc","displayName":"PC-07"}""");
+
+        Assert.True(writing.Wait(TimeSpan.FromSeconds(10)));
+        Assert.False(pending.IsCompleted);
+
+        releaseWrite.Set();
+        var response = await pending;
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.NotNull(dependencies.Bootstrap.Written);
+    }
+
     private static async Task<JsonElement> Send(SetupWizardWebHostBridge bridge, string type, string payloadJson)
     {
         var message = $$"""{"type":"{{type}}","requestId":"r-1","payload":{{payloadJson}}}""";
@@ -859,7 +916,15 @@ public sealed class SetupWizardWebHostBridgeTests
     {
         public SetupWizardBootstrapConfig? Written { get; private set; }
 
-        public void Write(SetupWizardBootstrapConfig config) => Written = config;
+        /// Изображает медленную запись: файлы под %ProgramData%, icacls и рассылку
+        /// WM_SETTINGCHANGE тест отпускает сам, проверив, что поток вызова свободен.
+        public Action? Blocker { get; set; }
+
+        public void Write(SetupWizardBootstrapConfig config)
+        {
+            Blocker?.Invoke();
+            Written = config;
+        }
     }
 
     private sealed class FakeCompletionAction : ISetupWizardCompletionAction
@@ -874,9 +939,14 @@ public sealed class SetupWizardWebHostBridgeTests
         public int Calls { get; private set; }
         public ShellProvisionResult Result { get; set; } = ShellProvisionResult.Installed(0);
 
+        /// Изображает долгий msiexec: тест отпускает установку сам, когда проверит, что поток
+        /// вызова свободен.
+        public Action? Blocker { get; set; }
+
         public ShellProvisionResult Provision()
         {
             Calls++;
+            Blocker?.Invoke();
             return Result;
         }
     }
