@@ -41,11 +41,12 @@ public sealed class GraceModeMonitor(
 
         leaseStore.Clear(lease.SessionId);
         runtimeStateStore.MarkLocked(now);
-        await workstationLockController.LockAsync(cancellationToken);
+        var outcome = await workstationLockController.LockAsync(cancellationToken);
 
         logger.LogInformation(
-            "Session lease {SessionId} expired at {ExpiresAtUtc}. Workstation lock requested.",
+            "Session lease {SessionId} expired at {ExpiresAtUtc}. Workstation locked: {Enforced}.",
             lease.SessionId,
-            lease.ExpiresAtUtc);
+            lease.ExpiresAtUtc,
+            outcome.Describe());
     }
 }

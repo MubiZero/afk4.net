@@ -45,7 +45,7 @@ public sealed class DefaultDeviceCommandHandlerTests
         Assert.Equal(options.Value.DeviceId, result.DeviceId);
         Assert.Equal(command.CommandId, result.CommandId);
         Assert.Equal("Accepted", result.Status);
-        Assert.Equal("Workstation lock requested.", result.Message);
+        Assert.Equal("Workstation locked (task manager disabled).", result.Message);
         Assert.InRange(result.ObservedAtUtc, before, after);
     }
 
@@ -69,7 +69,7 @@ public sealed class DefaultDeviceCommandHandlerTests
             Guid? sessionId,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(SessionEnforcementResult.Accepted("Workstation lock requested."));
+            return Task.FromResult(SessionEnforcementResult.Accepted("Workstation locked (task manager disabled)."));
         }
     }
 

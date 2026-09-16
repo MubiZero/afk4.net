@@ -21,9 +21,9 @@ public sealed class SessionEnforcementCoordinator(
 
         leaseStore.Save(lease);
         runtimeStateStore.MarkActive(lease, timeProvider.GetUtcNow());
-        await workstationLockController.UnlockAsync(cancellationToken);
+        var unlock = await workstationLockController.UnlockAsync(cancellationToken);
 
-        return SessionEnforcementResult.Accepted("Session lease accepted and workstation unlock requested.");
+        return SessionEnforcementResult.Accepted($"Session lease accepted; workstation unlocked ({unlock.Describe()}).");
     }
 
     public Task<SessionEnforcementResult> RefreshLeaseAsync(
@@ -49,8 +49,10 @@ public sealed class SessionEnforcementCoordinator(
     {
         leaseStore.Clear(sessionId);
         runtimeStateStore.MarkLocked(timeProvider.GetUtcNow());
-        await workstationLockController.LockAsync(cancellationToken);
+        var lockOutcome = await workstationLockController.LockAsync(cancellationToken);
 
-        return SessionEnforcementResult.Accepted("Workstation lock requested.");
+        // Оболочка закрывает экран в любом случае — это её работа и она от машинных политик не
+        // зависит. А вот что удалось запереть на самой машине, оператор должен прочитать как есть.
+        return SessionEnforcementResult.Accepted($"Workstation locked ({lockOutcome.Describe()}).");
     }
 }
