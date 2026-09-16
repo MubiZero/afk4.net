@@ -63,6 +63,7 @@ export const tg = {
   "auth.chooseClub.title": "Клубро интихоб кунед",
   "auth.error.generic": "Ворид шуда нашуд.",
   "auth.error.invalid": "Логин ё парол нодуруст аст.",
+  "auth.error.lockedOut": "Кӯшишҳои вуруд аз ҳад зиёданд. Понздаҳ дақиқа интизор шавед ва аз нав кӯшиш кунед.",
   "auth.error.required": "Логин ва паролро ворид кунед.",
   "auth.error.staleClient": "Версияи панел кӯҳна шудааст. Саҳифаро аз нав бор кунед ва бори дигар кӯшиш кунед.",
   "auth.field.login": "Логин ё email",

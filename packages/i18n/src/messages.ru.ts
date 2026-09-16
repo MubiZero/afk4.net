@@ -63,6 +63,7 @@ export const ru = {
   "auth.chooseClub.title": "Выберите клуб",
   "auth.error.generic": "Не удалось войти.",
   "auth.error.invalid": "Неверный логин или пароль.",
+  "auth.error.lockedOut": "Слишком много попыток входа. Подождите пятнадцать минут и попробуйте снова.",
   "auth.error.required": "Введите логин и пароль.",
   "auth.error.staleClient": "Версия панели устарела. Обновите страницу и попробуйте снова.",
   "auth.field.login": "Логин или email",

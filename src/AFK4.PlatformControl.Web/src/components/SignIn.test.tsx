@@ -6,6 +6,7 @@ import { ThemeProvider } from '../theme/ThemeProvider';
 import { SignIn } from './SignIn';
 import { CLOCK_SKEW_TOLERANCE_MS } from './useChallengeExpiry';
 import type { PlatformApiClient } from '../api/platformApi';
+import { PlatformApiError } from '../api/platformTransport';
 
 type FakeClient = Pick<PlatformApiClient, 'signIn'> & { twoFactor: { verify: (challengeToken: string, code: string) => Promise<unknown> } };
 
@@ -74,5 +75,49 @@ describe('SignIn — истечение окна подтверждения (Н�
       { timeout: 3_000 });
     expect(screen.getByText('Время на подтверждение истекло. Войдите заново.')).toBeInTheDocument();
     expect(screen.queryByText(/неверный код/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('SignIn — отказы', () => {
+  // Пять промахов запирают учётную запись на пятнадцать минут. Сказать здесь «неверный логин или
+  // пароль» значит отправить человека менять раскладку и пробовать снова — каждая попытка
+  // продлевает запрет.
+  it('запертую учётную запись называет ожиданием, а не неверным паролем', async () => {
+    const client = buildClient({
+      signIn: async () => { throw new PlatformApiError(429, 'Too many requests'); }
+    });
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <SignIn client={client} onSignedIn={() => {}} />
+        </ThemeProvider>
+      </I18nProvider>
+    );
+
+    await userEvent.type(screen.getByLabelText('Логин или email'), 'owner@platform.test');
+    await userEvent.type(screen.getByLabelText('Пароль'), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Слишком много попыток'));
+  });
+
+  it('неверный пароль называет неверным паролем', async () => {
+    const client = buildClient({
+      signIn: async () => { throw new PlatformApiError(401, 'Unauthorized'); }
+    });
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <SignIn client={client} onSignedIn={() => {}} />
+        </ThemeProvider>
+      </I18nProvider>
+    );
+
+    await userEvent.type(screen.getByLabelText('Логин или email'), 'owner@platform.test');
+    await userEvent.type(screen.getByLabelText('Пароль'), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert').textContent).not.toContain('Слишком много попыток');
   });
 });

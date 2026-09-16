@@ -83,7 +83,7 @@ internal static class PlatformOrganizationEndpoints
         {
             // Password check only: on success this issues a short-lived sign-in challenge, not a
             // working session — the caller still has to clear /auth/2fa/setup or /auth/2fa/verify.
-            var response = await credentialService.SignInAsync(request, cancellationToken);
+            var result = await credentialService.SignInAsync(request, cancellationToken);
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
                 OrganizationId: Guid.Empty,
@@ -92,15 +92,26 @@ internal static class PlatformOrganizationEndpoints
                 Action: AuditActionNames.PlatformAdminSignIn,
                 TargetType: "PlatformAdminUser",
                 TargetId: request.UserName,
-                Outcome: response is null ? AuditOutcome.Denied : AuditOutcome.Succeeded,
+                Outcome: result.Challenge is null ? AuditOutcome.Denied : AuditOutcome.Succeeded,
                 SourceApp: "PlatformApi",
-                DetailsJson: JsonSerializer.Serialize(new { request.UserName })),
+                DetailsJson: JsonSerializer.Serialize(new { request.UserName, result.IsLockedOut })),
                 cancellationToken);
 
-            return response is null
-                ? Results.Unauthorized()
-                : Results.Ok(response);
-        });
+            if (result.Challenge is not null)
+            {
+                return Results.Ok(result.Challenge);
+            }
+
+            // Тот же ответ, что у запертого второго фактора: панель по нему говорит про ожидание,
+            // а не про неверный пароль.
+            return result.IsLockedOut
+                ? Results.StatusCode(StatusCodes.Status429TooManyRequests)
+                : Results.Unauthorized();
+        })
+            // Перебор пароля к платформе не должен упираться только в скорость сети: пять попыток
+            // на учётную запись запирают её на пятнадцать минут, а это — потолок на адрес, чтобы
+            // перебор не шёл сразу по многим логинам.
+            .RequireRateLimiting("platform-sign-in");
 
         app.MapPost("/api/platform/auth/refresh", async (
             PlatformAdminRefreshTokenRequest request,
