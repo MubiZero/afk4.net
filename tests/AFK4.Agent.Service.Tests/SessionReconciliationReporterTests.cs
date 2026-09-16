@@ -21,6 +21,7 @@ public sealed class SessionReconciliationReporterTests
             new TestHttpClientFactory(new HttpClient(handler)),
             Options.Create(CreateOptions()),
             leaseStore,
+            new PendingOutbox(),
             new InMemoryDeviceCredentialStore());
 
         var response = await reporter.ReportAsync(
@@ -36,6 +37,8 @@ public sealed class SessionReconciliationReporterTests
         Assert.Equal(lease.SessionId, handler.Request.ActiveSessionId);
         Assert.Equal(lease.Signature, handler.Request.ActiveLease?.Signature);
         Assert.False(handler.Request.IsLocked);
+        // Здесь стояла константа 0: журнал сверки рапортовал «ничего не ждёт» даже при полной очереди.
+        Assert.Equal(2, handler.Request.PendingLocalEventCount);
     }
 
     private static AgentOptions CreateOptions()
@@ -101,5 +104,19 @@ public sealed class SessionReconciliationReporterTests
                     Lease: null))
             };
         }
+    }
+
+    /// <summary>Очередь с двумя ждущими результатами: столько сверка и обязана показать.</summary>
+    private sealed class PendingOutbox : ICommandResultOutbox
+    {
+        public IReadOnlyList<DeviceCommandResultDto> Pending { get; } =
+        [
+            new DeviceCommandResultDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Accepted", "queued", DateTimeOffset.UnixEpoch),
+            new DeviceCommandResultDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Accepted", "queued", DateTimeOffset.UnixEpoch)
+        ];
+
+        public void Enqueue(DeviceCommandResultDto result) { }
+
+        public void Acknowledge(Guid commandId) { }
     }
 }

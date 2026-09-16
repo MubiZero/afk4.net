@@ -17,6 +17,7 @@ public sealed class SessionReconciliationReporter(
     IHttpClientFactory httpClientFactory,
     IOptions<AgentOptions> options,
     ISessionLeaseStore leaseStore,
+    ICommandResultOutbox commandResultOutbox,
     IDeviceCredentialStore credentialStore) : ISessionReconciliationReporter
 {
     public async Task<SessionReconciliationResponse> ReportAsync(
@@ -33,7 +34,9 @@ public sealed class SessionReconciliationReporter(
             ActiveSessionId: currentLease?.SessionId,
             ActiveLease: currentLease,
             IsLocked: isLocked,
-            PendingLocalEventCount: 0,
+            // Сколько результатов команд ждут доставки прямо сейчас. Здесь стояла константа 0,
+            // и журнал сверки всегда рапортовал «ничего не ждёт» — даже когда очередь была полна.
+            PendingLocalEventCount: commandResultOutbox.Pending.Count,
             ObservedAtUtc: observedAtUtc);
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = agentOptions.PlatformBaseUrl;

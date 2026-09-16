@@ -69,6 +69,7 @@ builder.Services.AddSingleton<IPlayerShellProcessQuery, PlayerShellProcessQuery>
 builder.Services.AddSingleton<IPlayerShellProcessStarter, PlayerShellProcessStarter>();
 builder.Services.AddSingleton<IPlayerShellLaunchContext, PlayerShellLaunchContext>();
 builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
+builder.Services.AddSingleton<IShellWarningStore, ShellWarningStore>();
 builder.Services.AddSingleton<IPlayerShellStatePublisher, NamedPipePlayerShellStateServer>();
 builder.Services.AddSingleton<IPlayerShellCommandHandler, PlayerShellCommandHandler>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
