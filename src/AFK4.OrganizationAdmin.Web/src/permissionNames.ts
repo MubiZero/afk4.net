@@ -47,6 +47,7 @@ export const permissionNames = {
   assignDeviceSeat: 'organization.devices.seat_assignment.assign',
   viewDeviceDetail: 'organization.devices.detail.view',
   dispatchDeviceCommand: 'organization.devices.commands.dispatch',
+  resolveAssistanceRequest: 'organization.assistance.resolve',
   rotateDeviceCredential: 'organization.devices.credentials.rotate',
   revokeDeviceCredential: 'organization.devices.credentials.revoke',
   manageTariffs: 'organization.tariffs.manage',

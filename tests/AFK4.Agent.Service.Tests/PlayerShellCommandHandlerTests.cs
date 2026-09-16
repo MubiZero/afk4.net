@@ -53,7 +53,10 @@ public sealed class PlayerShellCommandHandlerTests
         Assert.Equal(["notepad", "taskmgr"], terminator.ProcessNames);
     }
 
-    private static PlayerShellCommandHandler CreateHandler(string executablePath, IProcessLauncher processLauncher)
+    private static PlayerShellCommandHandler CreateHandler(
+        string executablePath,
+        IProcessLauncher processLauncher,
+        IAssistanceRequestReporter? assistance = null)
     {
         var enforcer = new ProcessPolicyEnforcer(
             Options.Create(new AgentOptions
@@ -73,7 +76,12 @@ public sealed class PlayerShellCommandHandlerTests
             new RecordingProcessTerminator(),
             NullLogger<ProcessPolicyEnforcer>.Instance);
 
-        return new PlayerShellCommandHandler(enforcer, processLauncher);
+        return new PlayerShellCommandHandler(
+            enforcer,
+            processLauncher,
+            assistance ?? new RecordingAssistanceReporter(),
+            TimeProvider.System,
+            NullLogger<PlayerShellCommandHandler>.Instance);
     }
 
     private static PlayerShellCommandDto CreateLaunchCommand(string appId)
@@ -141,5 +149,54 @@ public sealed class PlayerShellCommandHandlerTests
                 File.Delete(Path);
             }
         }
+    }
+
+    // «Позвать оператора» обязано доехать до стойки: раньше мост оболочки отвечал
+    // {requested:true} и не звал никого.
+    [Fact]
+    public async Task HandleAsync_CallOperator_TellsThePlatform()
+    {
+        var assistance = new RecordingAssistanceReporter();
+        var handler = CreateHandler("unused", new RecordingProcessLauncher(), assistance);
+
+        var result = await handler.HandleAsync(CreateCommand("call-operator"), CancellationToken.None);
+
+        Assert.Equal("Accepted", result.Status);
+        Assert.Equal(1, assistance.Count);
+    }
+
+    // Не дошло до сервера — оболочке нельзя рисовать «оператор идёт».
+    [Fact]
+    public async Task HandleAsync_CallOperator_WhenThePlatformIsUnreachable_IsRejected()
+    {
+        var handler = CreateHandler("unused", new RecordingProcessLauncher(), new FailingAssistanceReporter());
+
+        var result = await handler.HandleAsync(CreateCommand("call-operator"), CancellationToken.None);
+
+        Assert.Equal("Rejected", result.Status);
+    }
+
+    private static PlayerShellCommandDto CreateCommand(string type) =>
+        new(
+            CommandId: Guid.Parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+            Type: type,
+            CreatedAtUtc: DateTimeOffset.Parse("2026-09-16T10:00:00Z"),
+            Payload: new Dictionary<string, string>());
+
+    private sealed class RecordingAssistanceReporter : IAssistanceRequestReporter
+    {
+        public int Count { get; private set; }
+
+        public Task ReportAsync(DateTimeOffset requestedAtUtc, CancellationToken cancellationToken)
+        {
+            Count++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FailingAssistanceReporter : IAssistanceRequestReporter
+    {
+        public Task ReportAsync(DateTimeOffset requestedAtUtc, CancellationToken cancellationToken) =>
+            throw new HttpRequestException("platform unreachable");
     }
 }

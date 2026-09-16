@@ -24,6 +24,8 @@ public static class AuditActionNames
 
     public const string RemoveDevice = "devices.remove";
 
+    public const string ResolveAssistanceRequest = "devices.assistance.resolve";
+
     public const string StartSession = "sessions.start";
 
     public const string ExtendSession = "sessions.extend";

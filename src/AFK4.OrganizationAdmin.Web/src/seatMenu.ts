@@ -14,7 +14,8 @@ import type { SeatSummary } from './operatorData';
 export type SeatMenuRun =
   | { kind: 'start-guest' }
   | { kind: 'extend'; minutes: number }
-  | { kind: 'pc'; action: PcControlActionId };
+  | { kind: 'pc'; action: PcControlActionId }
+  | { kind: 'resolve-assistance' };
 
 export interface SeatMenuCaps {
   // Бэкенд готов к живым действиям над сессией (не fixture/offline-загрузка).
@@ -22,6 +23,7 @@ export interface SeatMenuCaps {
   canStart: boolean;
   canExtend: boolean;
   canLockUnlock: boolean;
+  canResolveAssistance: boolean;
 }
 
 export interface SeatMenuItem {
@@ -54,7 +56,19 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
   const isFree = seat.tone === 'ready' && !seat.activeSessionId && !hasSession;
   const hasDevice = Boolean(seat.deviceId);
 
+  // Вызов оператора идёт первым пунктом: место зовёт человека, а не ждёт настройки.
   const session: SeatMenuItem[] = [];
+  if (seat.assistanceRequestedAtUtc && caps.canResolveAssistance) {
+    session.push({
+      id: 'resolve-assistance',
+      labelKey: 'op.map.menu.resolveAssistance',
+      feedbackKey: 'op.map.actionResolveAssistance',
+      hintKey: 'op.map.menu.resolveAssistanceHint',
+      run: { kind: 'resolve-assistance' },
+      disabled: !caps.actionsEnabled
+    });
+  }
+
   if (isFree && caps.canStart) {
     session.push({
       id: 'start-guest',

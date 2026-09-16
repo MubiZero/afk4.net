@@ -121,3 +121,21 @@ describe('SeatTile', () => {
     expect(container.querySelector('.seat-client')).toBeNull();
   });
 });
+
+// Из двух зовущих мест стойка должна видеть, к какому идти первым, — поэтому на плитке время
+// ожидания, а не просто значок «зовут».
+describe('SeatTile: вызов оператора', () => {
+  it('показывает, сколько место уже ждёт', () => {
+    const calledAt = new Date(Date.now() - 5 * 60_000).toISOString();
+    const { getByLabelText } = renderTile(seat({ assistanceRequestedAtUtc: calledAt }));
+
+    const badge = getByLabelText('Зовёт оператора');
+    expect(badge.textContent).toContain('5');
+  });
+
+  it('молчащее место значка не несёт', () => {
+    const { queryByLabelText } = renderTile(seat({}));
+    expect(queryByLabelText('Зовёт оператора')).toBeNull();
+  });
+});
+

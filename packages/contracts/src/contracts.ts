@@ -982,6 +982,29 @@ export interface DebtRowDto {
   settledButSuspended: boolean;
 }
 
+/**
+ * Игрок позвал оператора со своей машины. Приходит от агента: устройство известно всегда, а
+ * сессии может не быть вовсе — кнопка есть и на запертом экране.
+ *
+ * Контракт: Devices/AssistanceRequestContracts.cs
+ */
+export interface DeviceAssistanceRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  requestedAtUtc: IsoDateTime;
+}
+
+/**
+ * Состояние вызова после обращения: когда позвали. Null — вызова нет.
+ *
+ * Контракт: Devices/AssistanceRequestContracts.cs
+ */
+export interface DeviceAssistanceStateDto {
+  deviceId: Guid;
+  assistanceRequestedAtUtc: IsoDateTime | null;
+}
+
 /** Контракт: Devices/DeviceCommandDto.cs */
 export interface DeviceCommandDto {
   commandId: Guid;
@@ -4115,6 +4138,11 @@ export interface SeatStatusDto {
   tariffName?: string | null;
   /** When the active session started (UTC) — lets the operator show real elapsed time. */
   sessionStartedAtUtc?: IsoDateTime | null;
+  /**
+   * Когда с этого места позвали оператора. Null — не зовут. Время, а не флаг: стойке важно,
+   * кто ждёт дольше.
+   */
+  assistanceRequestedAtUtc?: IsoDateTime | null;
 }
 
 /**

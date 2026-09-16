@@ -20,6 +20,7 @@ function renderWorkspace(overrides: Partial<WorkspaceProps> = {}) {
     onSelectSeat: () => {},
     onFilterChange: () => {},
     onPcControlAction: async () => ({ detail: '' }),
+    onResolveAssistance: async () => ({ detail: '' }),
     onSeatAction: async () => ({}),
     ...overrides
   };

@@ -195,7 +195,8 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     playerDisplayName,
     tariffName,
     sessionStartedAtUtc,
-    zoneId: dto.zoneId
+    zoneId: dto.zoneId,
+    assistanceRequestedAtUtc: dto.assistanceRequestedAtUtc ?? null
   };
 }
 

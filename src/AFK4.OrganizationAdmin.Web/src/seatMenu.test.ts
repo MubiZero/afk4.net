@@ -23,10 +23,12 @@ const allCaps: SeatMenuCaps = {
   actionsEnabled: true,
   canStart: true,
   canExtend: true,
-  canLockUnlock: true
+  canLockUnlock: true,
+  canResolveAssistance: true
 };
 const noCaps: SeatMenuCaps = {
   actionsEnabled: false,
+  canResolveAssistance: false,
   canStart: false,
   canExtend: false,
   canLockUnlock: false
@@ -95,5 +97,26 @@ describe('buildSeatMenu', () => {
   it('returns an empty menu when the operator can do nothing here', () => {
     const sections = buildSeatMenu(seat({ tone: 'ready', deviceId: null }), noCaps);
     expect(sections).toHaveLength(0);
+  });
+
+
+  // Место зовёт оператора: снять вызов — первый пункт меню, до всего остального.
+  it('зовущее место первым пунктом предлагает снять вызов', () => {
+    const sections = buildSeatMenu(
+      seat({ tone: 'active', activeSessionId: 'sess-1', assistanceRequestedAtUtc: '2026-09-16T10:00:00Z' }),
+      allCaps);
+    expect(ids(sections)[0]).toBe('resolve-assistance');
+  });
+
+  it('без права снимать вызов пункта нет, даже когда место зовёт', () => {
+    const sections = buildSeatMenu(
+      seat({ tone: 'active', activeSessionId: 'sess-1', assistanceRequestedAtUtc: '2026-09-16T10:00:00Z' }),
+      { ...allCaps, canResolveAssistance: false });
+    expect(ids(sections)).not.toContain('resolve-assistance');
+  });
+
+  it('место, которое не зовёт, пункта не показывает', () => {
+    const sections = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);
+    expect(ids(sections)).not.toContain('resolve-assistance');
   });
 });

@@ -140,6 +140,10 @@ public static class OrganizationPermissionNames
 
     public const string ManageShopOrders = "organization.shop.orders.manage";
 
+    // Снять с места вызов оператора. Право того же круга, что и «отдать заказ»: зовут человека
+    // с зала, а не того, кто правит настройки.
+    public const string ResolveAssistanceRequest = "organization.assistance.resolve";
+
     // Owner-only: configure org-wide loyalty/cashback rates.
     public const string ManageLoyaltySettings = "organization.loyalty.settings.manage";
 

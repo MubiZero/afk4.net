@@ -35,6 +35,7 @@ export function MapWorkspace({
   onStartSeat,
   onFilterChange,
   onPcControlAction,
+  onResolveAssistance,
   onSeatAction
 }: {
   floorMap: OperatorFloorMapState;
@@ -47,6 +48,7 @@ export function MapWorkspace({
   onStartSeat?: (seatId: string) => void;
   onFilterChange: (filter: MapFilterId) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
+  onResolveAssistance: (seat: SeatSummary) => Promise<PcControlActionResult>;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
 }) {
   const { t } = useI18n();
@@ -57,7 +59,8 @@ export function MapWorkspace({
     actionsEnabled,
     canStart: hasPermission(session, permissionNames.startSession),
     canExtend: hasPermission(session, permissionNames.extendSession),
-    canLockUnlock: hasPermission(session, permissionNames.dispatchDeviceCommand)
+    canLockUnlock: hasPermission(session, permissionNames.dispatchDeviceCommand),
+    canResolveAssistance: hasPermission(session, permissionNames.resolveAssistanceRequest)
   }), [actionsEnabled, session]);
   const visibleSeats = useMemo(
     () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
@@ -93,6 +96,16 @@ export function MapWorkspace({
     setFeedback({ label, state: 'pending' });
     try {
       const result = await onPcControlAction(seat, action);
+      setFeedback({ label, state: 'confirmed', detail: result.detail });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
+  const runResolveAssistance = async (label: string, seat: SeatSummary) => {
+    setFeedback({ label, state: 'pending' });
+    try {
+      const result = await onResolveAssistance(seat);
       setFeedback({ label, state: 'confirmed', detail: result.detail });
     } catch (error) {
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
@@ -136,6 +149,8 @@ export function MapWorkspace({
       void runSeatAction(label, { type: 'start', seat, billing: guestBillingSelection, durationMode: 'fixed' });
     } else if (run.kind === 'extend') {
       void runSeatAction(label, { type: 'extend', seat, minutes: run.minutes, billing: guestBillingSelection });
+    } else if (run.kind === 'resolve-assistance') {
+      void runResolveAssistance(label, seat);
     } else {
       void runPcControlAction(run.action, label, seat);
     }

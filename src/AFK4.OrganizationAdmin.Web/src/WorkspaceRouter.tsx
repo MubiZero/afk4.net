@@ -30,6 +30,7 @@ export function WorkspaceRouter({
   onStartSeat,
   onFilterChange,
   onPcControlAction,
+  onResolveAssistance,
   onSeatAction,
   onNavigate,
   onOpenSeat,
@@ -48,6 +49,7 @@ export function WorkspaceRouter({
   onStartSeat?: (seatId: string) => void;
   onFilterChange: (filter: MapFilterId) => void;
   onPcControlAction: ComponentProps<typeof MapWorkspace>['onPcControlAction'];
+  onResolveAssistance: ComponentProps<typeof MapWorkspace>['onResolveAssistance'];
   onSeatAction: ComponentProps<typeof MapWorkspace>['onSeatAction'];
   onNavigate: (workspace: WorkspaceId) => void;
   onOpenSeat: (seatId: string) => void;
@@ -69,6 +71,7 @@ export function WorkspaceRouter({
           onStartSeat={onStartSeat}
           onFilterChange={onFilterChange}
           onPcControlAction={onPcControlAction}
+          onResolveAssistance={onResolveAssistance}
           onSeatAction={onSeatAction}
         />
       )}
