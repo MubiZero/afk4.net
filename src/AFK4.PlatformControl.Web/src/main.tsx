@@ -12,8 +12,6 @@ if (container === null) {
   throw new Error('Root element not found.');
 }
 
-document.title = 'Platform Control';
-
 createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
