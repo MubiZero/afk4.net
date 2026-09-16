@@ -30,4 +30,7 @@ public sealed record SeatStatusDto(
     // carry no named tariff, or a free seat.
     string? TariffName = null,
     // When the active session started (UTC) — lets the operator show real elapsed time.
-    DateTimeOffset? SessionStartedAtUtc = null);
+    DateTimeOffset? SessionStartedAtUtc = null,
+    // Когда с этого места позвали оператора. Null — не зовут. Время, а не флаг: стойке важно,
+    // кто ждёт дольше.
+    DateTimeOffset? AssistanceRequestedAtUtc = null);

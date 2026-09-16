@@ -2,6 +2,7 @@ import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import { normalizeDeviceCommandQuery } from '../queryHelpers';
 import type {
+  DeviceAssistanceStateDto,
   DeviceCommandDto,
   DeviceCommandStatusDto,
   DeviceDetailDto,
@@ -13,6 +14,7 @@ import type {
   RotateDeviceCredentialResponse,
 } from '@afk4/contracts';
 export type {
+  DeviceAssistanceStateDto,
   DeviceCommandDto,
   DeviceCommandStatusDto,
   DeviceDetailDto,
@@ -33,6 +35,11 @@ export function createDeviceClient(api: PlatformApiClient) {
   return {
     listDevices(branchId: Guid): Promise<DeviceInventoryItemDto[]> {
       return api.get<DeviceInventoryItemDto[]>(`branches/${branchId}/devices`);
+    },
+    // Оператор подошёл к месту — вызов снят.
+    resolveAssistanceRequest(deviceId: Guid, request: DeviceStateChangeRequest): Promise<DeviceAssistanceStateDto> {
+      return api.post<DeviceAssistanceStateDto, DeviceStateChangeRequest>(
+        `devices/${deviceId}/assistance-request/resolve`, request);
     },
     dispatchDeviceCommand(deviceId: Guid, request: DispatchDeviceCommandRequest): Promise<DeviceCommandDto> {
       return api.post<DeviceCommandDto, DispatchDeviceCommandRequest>(`devices/${deviceId}/commands`, request);

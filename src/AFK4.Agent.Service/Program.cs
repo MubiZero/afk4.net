@@ -72,6 +72,7 @@ builder.Services.AddSingleton<IPlayerShellLaunchContext, PlayerShellLaunchContex
 builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
 builder.Services.AddSingleton<IShellWarningStore, ShellWarningStore>();
 builder.Services.AddSingleton<IPlayerShellStatePublisher, NamedPipePlayerShellStateServer>();
+builder.Services.AddSingleton<IAssistanceRequestReporter, HttpAssistanceRequestReporter>();
 builder.Services.AddSingleton<IPlayerShellCommandHandler, PlayerShellCommandHandler>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
 builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler>();

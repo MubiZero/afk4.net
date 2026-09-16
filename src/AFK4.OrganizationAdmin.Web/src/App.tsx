@@ -230,6 +230,7 @@ function AppInner() {
     setFloorMap,
     offlineActionAudit,
     handleSeatAction,
+    handleResolveAssistance,
     handlePcControlAction
   } = useFloorMap({
     config,
@@ -513,6 +514,7 @@ function AppInner() {
             onStartSeat={handleStartSeat}
             onFilterChange={setMapFilter}
             onPcControlAction={handlePcControlAction}
+            onResolveAssistance={handleResolveAssistance}
             onSeatAction={handleSeatAction}
             onNavigate={setWorkspace}
             onOpenSeat={handleOpenSeat}

@@ -71,6 +71,7 @@ export interface FloorMap {
   setFloorMap: Dispatch<SetStateAction<OperatorFloorMapState>>;
   offlineActionAudit: string[];
   handleSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
+  handleResolveAssistance: (seat: SeatSummary) => Promise<PcControlActionResult>;
   handlePcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
 }
 
@@ -392,6 +393,30 @@ export function useFloorMap({
     }
   };
 
+  /**
+   * Оператор подошёл к месту, которое его звало. Карта перечитывается сразу: значок вызова
+   * должен исчезнуть у всех, кто смотрит на этот зал, а не только у того, кто нажал.
+   */
+  const handleResolveAssistance = async (seat: SeatSummary): Promise<PcControlActionResult> => {
+    const nextBackend = requireBackend(backendContext, t);
+    if (!seat.deviceId) {
+      throw new Error(t('op.shell.err.noDevice'));
+    }
+
+    if (!hasPermission(nextBackend.session, permissionNames.resolveAssistanceRequest)) {
+      throw new Error(t('op.shell.err.noPermDispatch'));
+    }
+
+    const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+    await clients.devices.resolveAssistanceRequest(seat.deviceId, { organizationId: nextBackend.session.organizationId });
+
+    if (authSession !== null && activeBranchId) {
+      setFloorMap(await loadBackendFloorMapState(config, authSession, activeBranchId, t));
+    }
+
+    return { detail: t('op.map.menu.resolveAssistanceHint') };
+  };
+
   const handlePcControlAction = async (seat: SeatSummary, action: PcControlActionId): Promise<PcControlActionResult> => {
     const nextBackend = requireBackend(backendContext, t);
     if (!seat.deviceId) {
@@ -475,6 +500,7 @@ export function useFloorMap({
     setFloorMap,
     offlineActionAudit,
     handleSeatAction,
+    handleResolveAssistance,
     handlePcControlAction
   };
 }

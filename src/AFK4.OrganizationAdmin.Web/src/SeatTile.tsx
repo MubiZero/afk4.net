@@ -1,4 +1,4 @@
-import { Hourglass, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
+import { BellRing, Hourglass, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
 import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
@@ -40,6 +40,11 @@ export function SeatTile({
   // Сессия идёт, но ПК без связи: тон серый, время/сумма сессии остаются — значок обрыва говорит,
   // что деньги капают без контроля над ПК (сессия не теряется, см. модель SeatTone).
   const sessionOffline = seat.isDeviceOnline === false && (lead.kind === 'prepaid' || lead.kind === 'postpaid');
+  // Игрок позвал оператора. Показываем не «кто-то зовёт», а сколько уже ждёт: из двух зовущих
+  // мест стойка должна видеть, к какому идти первым.
+  const callingForSeconds = seat.assistanceRequestedAtUtc
+    ? Math.max(0, Math.round((Date.now() - new Date(seat.assistanceRequestedAtUtc).getTime()) / 1000))
+    : null;
   // Свободная плитка — это и есть «＋»-приглашение: клик сразу открывает запуск сессии (выбрав место).
   // Остальные плитки просто выбираются (раскрывают карточку справа).
   const activate = lead.kind === 'free' && onStartSession ? onStartSession : onSelect;
@@ -68,6 +73,12 @@ export function SeatTile({
           <strong>{seat.name}</strong>
           {clientName && <span className="seat-client">{clientName}</span>}
         </span>
+        {callingForSeconds !== null && (
+          <span className="seat-calling" aria-label={t('op.map.seatCalling')}>
+            <BellRing size={12} aria-hidden="true" />
+            {formatDurationCompact(callingForSeconds, t)}
+          </span>
+        )}
         {sessionOffline && (
           <WifiOff className="seat-offline-mark" size={13} aria-label={t('op.floor.remaining.pcOffline')} />
         )}

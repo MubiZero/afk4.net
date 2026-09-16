@@ -38,4 +38,11 @@ public sealed class DeviceEntity
     /// null — просьбы нет.
     /// </summary>
     public DateTimeOffset? CredentialRotationRequestedAtUtc { get; set; }
+
+    /// <summary>
+    /// Когда с этой машины позвали оператора. Живёт на устройстве, а не на сессии: кнопка есть и
+    /// на запертом экране, где сессии нет вовсе. Повторное нажатие время не сбрасывает — стойка
+    /// должна видеть, сколько человек уже ждёт.
+    /// </summary>
+    public DateTimeOffset? AssistanceRequestedAtUtc { get; set; }
 }

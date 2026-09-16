@@ -3005,6 +3005,61 @@ class DebtRowDto {
       };
 }
 
+/// Игрок позвал оператора со своей машины. Приходит от агента: устройство известно всегда, а
+/// сессии может не быть вовсе — кнопка есть и на запертом экране.
+///
+/// Контракт: Devices/AssistanceRequestContracts.cs
+class DeviceAssistanceRequest {
+  const DeviceAssistanceRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+    required this.requestedAtUtc,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+  final DateTime requestedAtUtc;
+
+  factory DeviceAssistanceRequest.fromJson(Map<String, dynamic> json) => DeviceAssistanceRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+        requestedAtUtc: DateTime.parse(json['requestedAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+        'requestedAtUtc': requestedAtUtc.toIso8601String(),
+      };
+}
+
+/// Состояние вызова после обращения: когда позвали. Null — вызова нет.
+///
+/// Контракт: Devices/AssistanceRequestContracts.cs
+class DeviceAssistanceStateDto {
+  const DeviceAssistanceStateDto({
+    required this.deviceId,
+    this.assistanceRequestedAtUtc,
+  });
+
+  final String deviceId;
+  final DateTime? assistanceRequestedAtUtc;
+
+  factory DeviceAssistanceStateDto.fromJson(Map<String, dynamic> json) => DeviceAssistanceStateDto(
+        deviceId: json['deviceId'] as String,
+        assistanceRequestedAtUtc: json['assistanceRequestedAtUtc'] == null ? null : DateTime.parse(json['assistanceRequestedAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'deviceId': deviceId,
+        'assistanceRequestedAtUtc': assistanceRequestedAtUtc?.toIso8601String(),
+      };
+}
+
 /// Контракт: Devices/DeviceCommandDto.cs
 class DeviceCommandDto {
   const DeviceCommandDto({
@@ -12495,6 +12550,7 @@ class SeatStatusDto {
     this.playerDisplayName,
     this.tariffName,
     this.sessionStartedAtUtc,
+    this.assistanceRequestedAtUtc,
   });
 
   final String seatId;
@@ -12533,6 +12589,10 @@ class SeatStatusDto {
   /// When the active session started (UTC) — lets the operator show real elapsed time.
   final DateTime? sessionStartedAtUtc;
 
+  /// Когда с этого места позвали оператора. Null — не зовут. Время, а не флаг: стойке важно,
+  /// кто ждёт дольше.
+  final DateTime? assistanceRequestedAtUtc;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -12555,6 +12615,7 @@ class SeatStatusDto {
         playerDisplayName: json['playerDisplayName'] == null ? null : json['playerDisplayName'] as String,
         tariffName: json['tariffName'] == null ? null : json['tariffName'] as String,
         sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
+        assistanceRequestedAtUtc: json['assistanceRequestedAtUtc'] == null ? null : DateTime.parse(json['assistanceRequestedAtUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -12579,6 +12640,7 @@ class SeatStatusDto {
         'playerDisplayName': playerDisplayName,
         'tariffName': tariffName,
         'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
+        'assistanceRequestedAtUtc': assistanceRequestedAtUtc?.toIso8601String(),
       };
 }
 

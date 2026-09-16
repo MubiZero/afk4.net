@@ -642,6 +642,126 @@ internal static class DeviceEndpoints
             return Results.NoContent();
         });
 
+        // Игрок нажал «позвать оператора». Зовёт агент своим ключом устройства: на запертом
+        // экране сессии нет, и назвать себя игроку нечем — а машина известна всегда.
+        //
+        // Повторное нажатие не сдвигает время: стойка должна видеть, сколько человек уже ждёт,
+        // а не «позвали только что» после десятого тычка в кнопку.
+        app.MapPost("/api/devices/{deviceId:guid}/assistance-request", async (
+            Guid deviceId,
+            DeviceAssistanceRequest request,
+            HttpContext httpContext,
+            PlatformDbContext dbContext,
+            IDeviceCredentialValidator credentialValidator,
+            IOrganizationStatusGuard organizationStatusGuard,
+            IHubContext<DeviceHub> hubContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            if (request.OrganizationId == Guid.Empty || request.BranchId == Guid.Empty)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId and BranchId are required." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var suspended = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            if (suspended is not null)
+            {
+                return suspended;
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(
+                candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            var observedAtUtc = timeProvider.GetUtcNow();
+            if (device.AssistanceRequestedAtUtc is null)
+            {
+                device.AssistanceRequestedAtUtc = request.RequestedAtUtc == default
+                    ? observedAtUtc
+                    : request.RequestedAtUtc;
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await NotifyDeviceChangesAsync(hubContext, dbContext, [deviceId], observedAtUtc, cancellationToken);
+            }
+
+            return Results.Ok(new DeviceAssistanceStateDto(deviceId, device.AssistanceRequestedAtUtc));
+        });
+
+        // Оператор подошёл — вызов снят. Право то же, что у «отдать заказ»: это работа зала.
+        organizations.MapPost("devices/{deviceId:guid}/assistance-request/resolve", async (
+            Guid deviceId,
+            DeviceStateChangeRequest request,
+            PlatformDbContext dbContext,
+            IStaffContextAccessor staffContextAccessor,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IHubContext<DeviceHub> hubContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var scope = await LoadDeviceMutationScopeAsync(
+                dbContext,
+                staffContextAccessor,
+                authorizationService,
+                auditRecordWriter,
+                deviceId,
+                OrganizationPermissionNames.ResolveAssistanceRequest,
+                AuditActionNames.ResolveAssistanceRequest,
+                new { request.OrganizationId },
+                cancellationToken);
+
+            if (scope.ErrorResult is not null)
+            {
+                return scope.ErrorResult;
+            }
+
+            var device = scope.Device!;
+            var authorization = scope.Authorization!;
+            var organizationValidation = ValidateDeviceMutationOrganization(request.OrganizationId, authorization, device);
+            if (organizationValidation is not null)
+            {
+                return organizationValidation;
+            }
+
+            var observedAtUtc = timeProvider.GetUtcNow();
+            var waitedSeconds = device.AssistanceRequestedAtUtc is { } requestedAt
+                ? (int)Math.Max(0, (observedAtUtc - requestedAt).TotalSeconds)
+                : 0;
+
+            device.AssistanceRequestedAtUtc = null;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                device.OrganizationId,
+                device.BranchId,
+                authorization.StaffContext!.StaffUserId,
+                AuditActionNames.ResolveAssistanceRequest,
+                "Device",
+                deviceId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { WaitedSeconds = waitedSeconds },
+                cancellationToken);
+
+            await NotifyDeviceChangesAsync(hubContext, dbContext, [deviceId], observedAtUtc, cancellationToken);
+
+            return Results.Ok(new DeviceAssistanceStateDto(deviceId, null));
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ResolveAssistanceRequest);
+
         organizations.MapGet("branches/{branchId:guid}/devices", async (
             Guid branchId,
             PlatformDbContext dbContext,

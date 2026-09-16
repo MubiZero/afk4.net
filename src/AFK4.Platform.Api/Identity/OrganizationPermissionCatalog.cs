@@ -48,6 +48,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageReservations,
                 OrganizationPermissionNames.ManagePosCatalog,
                 OrganizationPermissionNames.ServeShopOrders,
+                OrganizationPermissionNames.ResolveAssistanceRequest,
                 OrganizationPermissionNames.ManageShopOrders,
                 OrganizationPermissionNames.CreatePosSale,
                 OrganizationPermissionNames.PayPosSale,
@@ -110,6 +111,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageReservations,
                 OrganizationPermissionNames.ManagePosCatalog,
                 OrganizationPermissionNames.ServeShopOrders,
+                OrganizationPermissionNames.ResolveAssistanceRequest,
                 OrganizationPermissionNames.ManageShopOrders,
                 OrganizationPermissionNames.CreatePosSale,
                 OrganizationPermissionNames.PayPosSale,
@@ -162,6 +164,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.VoidPosSale,
                 OrganizationPermissionNames.VoidOwnRecentPosSale,
                 OrganizationPermissionNames.ServeShopOrders,
+                OrganizationPermissionNames.ResolveAssistanceRequest,
                 OrganizationPermissionNames.ManageShopOrders,
                 OrganizationPermissionNames.ViewInventory,
                 OrganizationPermissionNames.ManageInventoryStock,
@@ -193,6 +196,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.PayPosSale,
                 OrganizationPermissionNames.VoidOwnRecentPosSale,
                 OrganizationPermissionNames.ServeShopOrders,
+                OrganizationPermissionNames.ResolveAssistanceRequest,
                 OrganizationPermissionNames.ViewReceipt
             },
             [OrganizationRoleNames.Technician] = new HashSet<string>
