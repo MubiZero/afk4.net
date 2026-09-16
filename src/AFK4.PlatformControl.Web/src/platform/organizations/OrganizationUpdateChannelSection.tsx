@@ -8,10 +8,9 @@ import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { OrganizationDetail } from '@/api/types';
+import { UPDATE_CHANNELS } from '@/platform/updates/updatesModel';
 
 type Client = Pick<OrganizationsApi, 'updateUpdateChannel'>;
-
-const CHANNEL_OPTIONS = ['stable', 'beta', 'canary'] as const;
 
 interface Props {
   client: Client;
@@ -51,7 +50,7 @@ export function OrganizationUpdateChannelSection({ client, organization, onUpdat
         <label className="ui-field">
           <span>{t('platform.organization.updateChannelForm.channel')}</span>
           <Select value={channel} onChange={event => setChannel(event.target.value)}>
-              {CHANNEL_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+              {UPDATE_CHANNELS.map(option => <option key={option.name} value={option.name}>{t(option.labelKey)}</option>)}
           </Select>
         </label>
         <label className="ui-field">

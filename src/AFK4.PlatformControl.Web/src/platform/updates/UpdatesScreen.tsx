@@ -15,7 +15,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
-import { UPDATE_COMPONENTS, componentLabelKey } from './updatesModel';
+import { UPDATE_CHANNELS, UPDATE_COMPONENTS, channelLabelKey, componentLabelKey } from './updatesModel';
 
 export type UpdatesClient = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout' | 'changeRolloutState'>;
 type OrganizationsClient = Pick<OrganizationsApi, 'listOrganizations'>;
@@ -132,7 +132,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
               <TableRow key={row.updatePackageId}>
                 <TableCell>{t(componentLabelKey(row.component))}</TableCell>
                 <TableCell className="pc-num">{row.version}</TableCell>
-                <TableCell>{row.channel}</TableCell>
+                <TableCell>{t(channelLabelKey(row.channel))}</TableCell>
                 <TableCell>
                   <StateBadge state={row.state} />
                   <RolloutBadge rollout={rolloutByPackageId.get(row.updatePackageId)} />
@@ -324,9 +324,10 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
             </select>
           </NativeField>
           <NativeField label={t('platform.updates.field.channel')} name="channel">
-            <select name="channel" className="ui-select" defaultValue="stable">
-              <option value="stable">stable</option>
-              <option value="beta">beta</option>
+            <select name="channel" className="ui-select" defaultValue={UPDATE_CHANNELS[0]!.name}>
+              {UPDATE_CHANNELS.map(channel => (
+                <option key={channel.name} value={channel.name}>{t(channel.labelKey)}</option>
+              ))}
             </select>
           </NativeField>
           <NativeField label={t('platform.updates.field.version')} name="version"><Input name="version" required /></NativeField>
