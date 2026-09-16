@@ -49,6 +49,15 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClient(IOptions<A
         }
     }
 
+    /// <summary>
+    /// Пишет запрос и сразу переходит к чтению ответа. Flush здесь не зовётся намеренно: на
+    /// именованном канале это FlushFileBuffers, то есть ожидание, пока собеседник вычитает
+    /// написанное. Пишущему, который тут же сам встаёт на чтение, ждать нечего — а на занятой
+    /// машине цикл приёма получает поток из пула не сразу, и весь таймаут вызова сгорал внутри
+    /// записи четырёх байт: агент докладывал «Organization Admin не запущен» при запущенной
+    /// админке. Отвечающая сторона — наоборот, дописывает перед закрытием канала: закрытый канал
+    /// уносит с собой невычитанное.
+    /// </summary>
     internal static async Task WriteAsync<T>(Stream stream, T message, CancellationToken cancellationToken)
     {
         var payload = JsonSerializer.SerializeToUtf8Bytes(message, JsonOptions);
@@ -57,7 +66,6 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClient(IOptions<A
         BinaryPrimitives.WriteInt32BigEndian(prefix, payload.Length);
         await stream.WriteAsync(prefix, cancellationToken);
         await stream.WriteAsync(payload, cancellationToken);
-        await stream.FlushAsync(cancellationToken);
     }
 
     internal static async Task<LocalUpdateCoordinationResponse> ReadAsync(Stream stream, CancellationToken cancellationToken)
