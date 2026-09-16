@@ -35,13 +35,11 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
         : await resolver.resolveBySlugPair(organizationSlug.trim(), branchSlug.trim());
       onResolved(resolution);
     } catch (cause) {
-      if (cause instanceof ConnectionResolutionError) {
-        setError(buildResolutionMessage(cause, t));
-      } else if (cause instanceof Error) {
-        setError(localizeResolutionErrorDetail(cause.message, t));
-      } else {
-        setError(t('operator.connect.error.generic'));
-      }
+      // Сбой до ответа (сети нет, сервер не поднялся) несёт английский текст из fetch — он для
+      // журнала, а не для человека, который ещё даже не вошёл.
+      setError(cause instanceof ConnectionResolutionError
+        ? buildResolutionMessage(cause, t)
+        : t('operator.connect.error.generic'));
     } finally {
       setResolving(false);
     }
@@ -115,28 +113,31 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
   );
 }
 
+// Это первый экран, который видит человек: до входа и до всего остального. Английская фраза
+// сервера — «OrganizationSlug must contain only lowercase letters…» — доезжала до него дословно
+// и читалась как поломка программы. Теперь причину называет код отказа.
+const CONNECT_ERROR_KEYS: Record<string, MessageKey> = {
+  connection_input_missing: 'operator.connect.error.inputMissing',
+  connection_input_ambiguous: 'operator.connect.error.inputAmbiguous',
+  connection_slug_invalid: 'operator.connect.error.slugInvalid',
+  setup_code_required: 'operator.connect.error.setupCodeRequired',
+  setup_code_not_usable: 'operator.connect.error.setupCodeExpired'
+};
+
 function buildResolutionMessage(error: ConnectionResolutionError, t: Translate): string {
+  const named = error.code !== null ? CONNECT_ERROR_KEYS[error.code] : undefined;
+  if (named !== undefined) {
+    return t(named);
+  }
+
   switch (error.status) {
     case 404:
       return t('operator.connect.error.notFound');
     case 400:
-      return localizeResolutionErrorDetail(error.message, t);
+      return t('operator.connect.error.generic');
     default:
-      return `${localizeResolutionErrorDetail(error.message, t)} ${t('operator.connect.error.platformCode')} ${error.status}.`;
+      return `${t('operator.connect.error.generic')} ${t('operator.connect.error.platformCode')} ${error.status}.`;
   }
-}
-
-function localizeResolutionErrorDetail(message: string, t: Translate): string {
-  const normalized = message.trim();
-  if (!normalized || normalized === 'Failed to resolve operator connection.') {
-    return t('operator.connect.error.generic');
-  }
-
-  if (/setup code is no longer usable/i.test(normalized)) {
-    return t('operator.connect.error.setupCodeExpired');
-  }
-
-  return normalized;
 }
 
 export function isOperatorOrganizationBlocked(

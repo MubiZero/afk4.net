@@ -16,10 +16,14 @@ export const OperatorOrganizationStatus = {
 
 export class ConnectionResolutionError extends Error {
   public readonly status: number;
+  /// Машинное имя отказа. По нему экран подключения называет причину на языке того, кто его
+  /// читает; английская фраза из `message` остаётся для журналов.
+  public readonly code: string | null;
 
-  public constructor(status: number, message: string) {
+  public constructor(status: number, message: string, code: string | null = null) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -68,18 +72,24 @@ export class ConnectionResolver {
   private static async toError(response: Response): Promise<ConnectionResolutionError> {
     // Sentinel mapped to a localized message by localizeResolutionErrorDetail in the UI layer.
     let message = 'Failed to resolve operator connection.';
+    let code: string | null = null;
     try {
       const text = await response.text();
       if (text.length > 0) {
-        const parsed = JSON.parse(text) as { error?: string };
-        if (typeof parsed.error === 'string' && parsed.error.length > 0) {
-          message = parsed.error;
+        const parsed = JSON.parse(text) as { error?: string; code?: string; Error?: string; Code?: string };
+        const detail = parsed.error ?? parsed.Error;
+        if (typeof detail === 'string' && detail.length > 0) {
+          message = detail;
+        }
+        const named = parsed.code ?? parsed.Code;
+        if (typeof named === 'string' && named.length > 0) {
+          code = named;
         }
       }
     } catch {
       // Fall back to default message.
     }
-    return new ConnectionResolutionError(response.status, message);
+    return new ConnectionResolutionError(response.status, message, code);
   }
 }
 

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
@@ -410,6 +410,69 @@ public sealed class ReservationEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    }
+
+    // Отказ по брони называет себя машинным именем. Без него до стойки доезжала английская фраза
+    // сервера — «Only pending reservations can be confirmed», — а оператору нужно понять, что
+    // бронь уже закрыли без него, и просто обновить список.
+    [Fact]
+    public async Task ConfirmingAClosedBooking_NamesTheReason()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        await SeedLayoutAsync(factory);
+        var created = await CreateReservationAsync(client);
+
+        var cancelResponse = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{created.ReservationId}/cancel",
+            new CancelReservationRequest(TestIds.OrganizationId, "гость передумал", created.Version));
+        var cancelled = await cancelResponse.Content.ReadFromJsonAsync<ReservationDto>();
+        var confirm = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{created.ReservationId}/confirm",
+            new ConfirmReservationRequest(TestIds.OrganizationId, cancelled!.Version));
+
+        Assert.Equal(HttpStatusCode.BadRequest, confirm.StatusCode);
+        var body = await confirm.Content.ReadFromJsonAsync<ReservationConflictBody>();
+        Assert.Equal(ReservationErrorCodeNames.NotPending, body!.Code);
+        Assert.Contains("pending", body.Error);
+    }
+
+    [Fact]
+    public async Task CancellingWithoutAReason_NamesTheReason()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        await SeedLayoutAsync(factory);
+        var created = await CreateReservationAsync(client);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{created.ReservationId}/cancel",
+            new CancelReservationRequest(TestIds.OrganizationId, "   ", created.Version));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ReservationConflictBody>();
+        Assert.Equal(ReservationErrorCodeNames.CancelReasonRequired, body!.Code);
+    }
+
+    private static async Task<ReservationDto> CreateReservationAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations",
+            new CreateReservationRequest(
+                TestIds.OrganizationId,
+                PlayerAccountId: null,
+                SeatOneId,
+                CustomerName: "Aziz P.",
+                PhoneNumber: "+992900000001",
+                StartsAtUtc: BookingDay.AddHours(16),
+                DurationMinutes: 60,
+                Source: ReservationSourceNames.Online,
+                Note: "online request"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<ReservationDto>())!;
     }
 
     private static async Task SeedLayoutAsync(PlatformApiFactory factory)

@@ -39,7 +39,20 @@ const codeMessageKeys = {
   shift_sign_off_must_differ: 'op.error.code.shiftSignOffMustDiffer',
   shift_sign_off_not_authorized: 'op.error.code.shiftSignOffNotAuthorized',
   cash_movement_needs_open_shift: 'op.error.code.cashMovementNeedsOpenShift',
-  tariff_name_taken: 'op.error.code.tariffNameTaken'
+  tariff_name_taken: 'op.error.code.tariffNameTaken',
+  // Брони: отказ почти всегда про состояние, которое успело измениться, — сосед подтвердил её
+  // раньше, гость уже сидит, заявку уже отклонили. Дальше оператор делает разное, поэтому
+  // отличать их нужно, а не сводить к одному «не получилось».
+  reservation_not_pending: 'op.error.code.reservationNotPending',
+  reservation_not_changeable: 'op.error.code.reservationNotChangeable',
+  reservation_not_seatable: 'op.error.code.reservationNotSeatable',
+  reservation_seat_required: 'op.error.code.reservationSeatRequired',
+  reservation_not_cancellable: 'op.error.code.reservationNotCancellable',
+  reservation_cancel_reason_required: 'op.error.code.reservationCancelReasonRequired',
+  reservation_not_rejectable: 'op.error.code.reservationNotRejectable',
+  reservation_refusal_note_required: 'op.error.code.reservationRefusalNoteRequired',
+  reservation_reject_reason_unsupported: 'op.error.code.reservationRejectReasonUnsupported',
+  reservation_no_show_not_allowed: 'op.error.code.reservationNoShowNotAllowed'
 } as const satisfies Record<string, MessageKey>;
 
 /**
