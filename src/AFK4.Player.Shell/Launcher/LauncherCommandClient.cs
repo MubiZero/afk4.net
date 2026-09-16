@@ -33,7 +33,6 @@ public sealed class LauncherCommandClient(PlayerShellOptions options) : ILaunche
 
             await pipe.ConnectAsync(options.PipeConnectionTimeoutMilliseconds, cancellationToken);
             await JsonSerializer.SerializeAsync(pipe, command, JsonOptions, cancellationToken);
-            await pipe.FlushAsync(cancellationToken);
 
             var result = await JsonSerializer.DeserializeAsync<PlayerShellCommandResultDto>(
                 pipe,

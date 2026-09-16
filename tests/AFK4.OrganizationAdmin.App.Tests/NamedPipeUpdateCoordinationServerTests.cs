@@ -125,13 +125,20 @@ public sealed class NamedPipeUpdateCoordinationServerTests
             throw new IOException("disk unavailable");
     }
 
+    /// <summary>
+    /// Бюджет времени для проверок, которые проверяют протокол, а не таймаут. Пяти секунд на
+    /// загруженном раннере не хватало: цикл приёма ещё не получил поток, клиент сдавался посреди
+    /// обмена, и падение выглядело случайным. Минута — как в соседнем наборе агента.
+    /// </summary>
+    private static readonly TimeSpan ProtocolTimeout = TimeSpan.FromSeconds(60);
+
     private static async Task<LocalUpdateCoordinationResponse> SendAsync(string pipeName, LocalUpdateCoordinationRequest request)
     {
         await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)); await pipe.ConnectAsync(timeout.Token);
+        using var timeout = new CancellationTokenSource(ProtocolTimeout); await pipe.ConnectAsync(timeout.Token);
         var payload = JsonSerializer.SerializeToUtf8Bytes(request, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var prefix = new byte[4]; BinaryPrimitives.WriteInt32BigEndian(prefix, payload.Length);
-        await pipe.WriteAsync(prefix, timeout.Token); await pipe.WriteAsync(payload, timeout.Token); await pipe.FlushAsync(timeout.Token);
+        await pipe.WriteAsync(prefix, timeout.Token); await pipe.WriteAsync(payload, timeout.Token);
         await pipe.ReadExactlyAsync(prefix, timeout.Token); var responsePayload = new byte[BinaryPrimitives.ReadInt32BigEndian(prefix)];
         await pipe.ReadExactlyAsync(responsePayload, timeout.Token);
         return JsonSerializer.Deserialize<LocalUpdateCoordinationResponse>(responsePayload, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;

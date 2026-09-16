@@ -40,6 +40,8 @@ public sealed class NamedPipePlayerShellCommandServer(
                     : await commandHandler.HandleAsync(command, stoppingToken);
 
                 await JsonSerializer.SerializeAsync(pipe, result, JsonOptions, stoppingToken);
+                // Перед закрытием канала ответ обязан быть вычитан: Windows выбрасывает
+                // недочитанное вместе с закрытым каналом, и оболочка осталась бы без ответа.
                 await pipe.FlushAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
