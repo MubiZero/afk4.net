@@ -627,4 +627,6 @@ export interface HealthOverview {
   openIncidents: Incident[];
   recentFailures: QueueFailure[];
   mediaStorageConfigured: boolean;
+  // Резервный канал критических оповещений: SMS уходят только по одобренному шаблону шлюза.
+  alertSmsConfigured: boolean;
 }

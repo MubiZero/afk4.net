@@ -35,7 +35,7 @@ function queue(overrides: Partial<QueueHealth> = {}): QueueHealth {
 }
 
 function overview(overrides: Partial<HealthOverview> = {}): HealthOverview {
-  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [job()], queues: [queue()], openIncidents: [], recentFailures: [], mediaStorageConfigured: true, ...overrides };
+  return { generatedAtUtc: '2026-08-07T00:00:00Z', jobs: [job()], queues: [queue()], openIncidents: [], recentFailures: [], mediaStorageConfigured: true, alertSmsConfigured: true, ...overrides };
 }
 
 function fakeClient(result: HealthOverview | (() => Promise<HealthOverview>)) {
@@ -137,6 +137,21 @@ it('warns when file storage is not configured', async () => {
   render(<I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({ mediaStorageConfigured: false }))} /></I18nProvider>);
 
   expect(await screen.findByText(/Не настроено: логотипы и фото зала/)).toBeTruthy();
+});
+
+// «Почта умерла — придёт SMS» должно быть правдой. Пока шаблон у шлюза не заведён, канал молчит,
+// и узнать об этом надо до аварии, а не по ней самой.
+it('говорит, когда резервный канал оповещений молчит', async () => {
+  render(<I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({ alertSmsConfigured: false }))} /></I18nProvider>);
+
+  expect(await screen.findByText(/Критические оповещения уходят только письмом/)).toBeTruthy();
+});
+
+it('настроенный канал оповещений карточкой не шумит', async () => {
+  render(<I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview())} /></I18nProvider>);
+
+  await screen.findByText('Задания');
+  expect(screen.queryByText(/Критические оповещения уходят только письмом/)).toBeNull();
 });
 
 // Отправку проверочного письма бэкенд спрашивает по отдельному праву. Пока карточка не имела

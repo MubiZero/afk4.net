@@ -2853,6 +2853,8 @@
   "platform.error.subscriptionPeriodEnd": "Анҷоми давраи пардохтшуда бояд аз оғози он дертар бошад.",
   "platform.error.subscriptionPlanNotFound": "Чунин тариф дар феҳрист нест. Саҳифаро нав кунед — шояд онро аз фурӯш бардоштаанд.",
   "platform.error.subscriptionTrialPeriodEnd": "Барои давраи озмоишӣ санаи анҷоми он лозим аст.",
+  "platform.health.alertSms.missing": "Огоҳиномаҳои муҳим танҳо бо почта мераванд. Канали захиравӣ хомӯш аст: дар шлюз шаблони тасдиқшудаи platform.alert нест ё гиранда муайян нашудааст.",
+  "platform.health.alertSms.title": "Огоҳиномаи SMS танзим нашудааст",
   "platform.health.failureStreak": "{count, plural, other {# нокомии пайдарпай}}",
   "platform.health.failures.attempts": "{count, plural, one {# кӯшиш} other {# кӯшиш}}",
   "platform.health.failures.empty": "Нокомии нав нест",

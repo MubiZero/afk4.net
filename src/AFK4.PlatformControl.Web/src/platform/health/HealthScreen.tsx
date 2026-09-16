@@ -142,6 +142,18 @@ function HealthOverviewView({ overview }: { overview: HealthOverview }) {
           </CardContent>
         </Card>
       )}
+      {/* Резервный канал оповещений: про то, что он молчит, надо знать до аварии, а не выяснять
+          по ней самой. */}
+      {overview.alertSmsConfigured ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('platform.health.alertSms.title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CardDescription>{t('platform.health.alertSms.missing')}</CardDescription>
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

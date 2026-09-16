@@ -19,6 +19,8 @@ public sealed class EfPlatformHealthOverviewService(
     PlatformJobIntervalCatalog jobIntervalCatalog,
     IOptions<PlatformHealthOptions> healthOptions,
     IOptions<MediaOptions> mediaOptions,
+    IOptions<SmsOptions> smsOptions,
+    IOptions<PlatformAlertOptions> alertOptions,
     TimeProvider timeProvider)
     : IPlatformHealthOverviewService
 {
@@ -147,7 +149,13 @@ public sealed class EfPlatformHealthOverviewService(
                 incident.LastSeenAtUtc))
             .ToList();
 
+        // Канал считается рабочим, только когда есть и одобренный шаблон, и кому слать: шаблон без
+        // получателей — это тоже молчание, просто с другой стороны.
+        var alertSmsConfigured =
+            !string.IsNullOrWhiteSpace(smsOptions.Value.TemplateIds.GetValueOrDefault(PlatformAlertNotifier.AlertTemplateKey))
+            && alertOptions.Value.SmsRecipients.Count > 0;
+
         return new PlatformHealthOverviewDto(
-            now, jobs, queues, incidents, recentFailures, mediaOptions.Value.S3.IsConfigured);
+            now, jobs, queues, incidents, recentFailures, mediaOptions.Value.S3.IsConfigured, alertSmsConfigured);
     }
 }
