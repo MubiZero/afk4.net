@@ -9,16 +9,22 @@ import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { Invoice } from '@/api/types';
 import { INVOICE_STATUS_VARIANT, INVOICE_STATUS_LABEL } from '@/platform/billing/billingModel';
+import { ManualInvoiceDialog } from './ManualInvoiceDialog';
 
-type Client = Pick<InvoicesApi, 'listOrganizationInvoices' | 'generateInvoice'>;
+type Client = Pick<InvoicesApi, 'listOrganizationInvoices' | 'generateInvoice' | 'createInvoice'>;
 
-export function OrganizationInvoicesSection({ client, organizationId }: { client: Client; organizationId: string }) {
+export function OrganizationInvoicesSection({ client, organizationId, canManage = true }: {
+  client: Client;
+  organizationId: string;
+  canManage?: boolean;
+}) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +52,12 @@ export function OrganizationInvoicesSection({ client, organizationId }: { client
     <Card>
       <CardHeader>
         <CardTitle>{t('platform.organization.section.invoices')}</CardTitle>
-        <Button variant="outline" disabled={pending} onClick={() => void generate()}>{t('platform.organization.invoices.generate')}</Button>
+        {canManage ? (
+          <span className="pc-cell-actions">
+            <Button variant="outline" disabled={pending} onClick={() => void generate()}>{t('platform.organization.invoices.generate')}</Button>
+            <Button variant="outline" onClick={() => setManualOpen(true)}>{t('platform.organization.invoices.manual')}</Button>
+          </span>
+        ) : null}
       </CardHeader>
       <CardContent>
         {error ? (
@@ -67,6 +78,15 @@ export function OrganizationInvoicesSection({ client, organizationId }: { client
           ))
         )}
       </CardContent>
+      {manualOpen ? (
+        <ManualInvoiceDialog
+          client={client}
+          organizationId={organizationId}
+          currencyCode={invoices?.[0]?.currencyCode ?? null}
+          onClose={() => setManualOpen(false)}
+          onCreated={() => { setManualOpen(false); setTick(n => n + 1); }}
+        />
+      ) : null}
     </Card>
   );
 }
