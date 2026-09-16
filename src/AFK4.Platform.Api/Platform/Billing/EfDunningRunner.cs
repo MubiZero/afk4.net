@@ -1,4 +1,7 @@
+using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +12,8 @@ namespace AFK4.Platform.Api.Platform.Billing;
 public sealed class EfDunningRunner(
     PlatformDbContext dbContext,
     IOptions<BillingOptions> options,
-    IInvoiceNotifier invoiceNotifier) : IDunningRunner
+    IInvoiceNotifier invoiceNotifier,
+    IAuditRecordWriter auditRecordWriter) : IDunningRunner
 {
     private readonly BillingOptions options = options.Value;
 
@@ -169,6 +173,7 @@ public sealed class EfDunningRunner(
                 continue;
             }
 
+            var previous = subscription.Status;
             subscription.Status = target;
             subscription.UpdatedAtUtc = now;
             if (organizations.TryGetValue(subscription.OrganizationId, out var organization))
@@ -176,6 +181,21 @@ public sealed class EfDunningRunner(
                 organization.SubscriptionStatus = target;
                 organization.UpdatedAtUtc = now;
             }
+
+            // Ручная правка подписки пишется в журнал, а этот переход — тоже деньги, только его
+            // делает автоматика. Без записи вопрос «когда клуб стал должником» оставался без
+            // ответа: состояние менялось само и молча.
+            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                subscription.OrganizationId,
+                null,
+                null,
+                AuditActionNames.SyncSubscriptionStatus,
+                "OrganizationSubscription",
+                subscription.OrganizationSubscriptionId.ToString("D"),
+                AuditOutcome.Succeeded,
+                "PlatformApi",
+                JsonSerializer.Serialize(new { From = previous, To = target, Automatic = true })),
+                cancellationToken);
 
             changed = true;
         }
