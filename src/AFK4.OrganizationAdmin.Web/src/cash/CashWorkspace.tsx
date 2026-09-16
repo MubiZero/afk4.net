@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
-import type { OperatorBackendContext } from '../operatorTypes';
+import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import { visibleCashTabs } from './cashModel';
 import { CashShiftHeader } from './CashShiftHeader';
 import { CashTabBar, type CashTab } from './CashTabBar';
 import { CashSalesWorkspace } from './CashSalesWorkspace';
 import { CashShiftWorkspace } from './CashShiftWorkspace';
 import { CashJournalWorkspace } from './CashJournalWorkspace';
+import { CashTopUpRequests } from './CashTopUpRequests';
+import { useFeedbackToasts } from '../useFeedbackToasts';
 
 // Единый раздел «Касса» = шапка-якорь смены (статус + командная панель) + под-вкладки.
 // S1: payments+shifts слиты во вкладку «Смена» (shift); действия смены живут в шапке.
@@ -23,11 +25,14 @@ export function CashWorkspace({
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<CashTab>(() => visibleCashTabs(session)[0] ?? 'sales');
   const [shiftNonce, setShiftNonce] = useState(0);
+  const [feedback, setFeedback] = useState<Feedback>({ label: '', state: 'idle' });
+  useFeedbackToasts(feedback);
 
   const visible = new Set(visibleCashTabs(session));
   const allTabs: { id: CashTab; label: string }[] = [
     { id: 'sales', label: t('op.cash.sales.tab') },
     { id: 'shift', label: t('op.cash.tab.shift') },
+    { id: 'topups', label: t('op.cash.topups.tab') },
     { id: 'journal', label: t('op.cash.journal.tab') }
   ];
   const tabs = allTabs.filter((tab) => visible.has(tab.id));
@@ -46,6 +51,14 @@ export function CashWorkspace({
         {activeTab === 'sales' && <CashSalesWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
         {activeTab === 'shift' && backend !== null && (
           <CashShiftWorkspace backend={backend} branchId={backend.branchId} currencyCode={currencyCode} session={session} shiftNonce={shiftNonce} onShiftChanged={() => setShiftNonce((n) => n + 1)} />
+        )}
+        {activeTab === 'topups' && backend !== null && (
+          <CashTopUpRequests
+            backend={backend}
+            branchId={backend.branchId}
+            currencyCode={currencyCode}
+            onFeedback={setFeedback}
+          />
         )}
         {activeTab === 'journal' && <CashJournalWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
       </div>
