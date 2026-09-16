@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+import { HostBridgeRequestError } from './hostBridge';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { TariffScreen, type TariffClient } from './TariffScreen';
@@ -71,4 +72,19 @@ describe('TariffScreen', () => {
 
     await waitFor(() => expect(screen.getByText(/Не удалось создать тариф/)).toBeTruthy());
   });
+
+  // Самый частый отказ на этом шаге: клуб заводит «Стандарт» второй раз. Раньше человек читал
+  // «не удалось создать тариф. Проверьте цену» и правил цену, которая была ни при чём.
+  it('называет занятое имя тарифа, а не отправляет проверять цену', async () => {
+    renderScreen({
+      createTariff: mock().mockRejectedValue(
+        new HostBridgeRequestError('Platform API returned 400', 'tariff_name_taken', null),
+      ),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
+
+    await waitFor(() => expect(screen.getByText(/Тариф с таким именем в клубе уже есть/)).toBeTruthy());
+  });
+
 });

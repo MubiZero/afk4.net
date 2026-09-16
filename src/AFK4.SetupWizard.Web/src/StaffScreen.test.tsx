@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+import { HostBridgeRequestError } from './hostBridge';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { StaffScreen, type StaffClient } from './StaffScreen';
@@ -71,4 +72,37 @@ describe('StaffScreen', () => {
     await waitFor(() => expect(screen.getByText(/Не удалось пригласить/)).toBeTruthy());
     expect((screen.getByLabelText('Имя') as HTMLInputElement).value).toBe('Дилшод');
   });
+
+  // «Проверьте номер» на номере, который в порядке, — это ложный след: человек уже работает в
+  // клубе, и приглашение ему просто не нужно.
+  it('различает занятый номер и неверный', async () => {
+    const invite = mock()
+      .mockRejectedValueOnce(new HostBridgeRequestError('Platform API returned 400', 'staff_phone_taken', null))
+      .mockRejectedValueOnce(new HostBridgeRequestError('Platform API returned 400', 'invalid_phone', null));
+    renderScreen({ invite });
+
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '+992900000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    await waitFor(() => expect(screen.getByText(/уже принадлежит сотруднику клуба/)).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    await waitFor(() => expect(screen.getByText(/приглашение уходит SMS/)).toBeTruthy());
+  });
+
+  // Предел подписки чинится не повтором, а разговором с владельцем.
+  it('предел тарифного плана называет пределом, а не сбоем', async () => {
+    renderScreen({
+      invite: mock().mockRejectedValue(
+        new HostBridgeRequestError('Platform API returned 409', 'plan_limit_reached', null),
+      ),
+    });
+
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '+992900000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+
+    await waitFor(() => expect(screen.getByText(/Тарифный план клуба/)).toBeTruthy());
+  });
+
 });

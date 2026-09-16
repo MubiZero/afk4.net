@@ -174,7 +174,12 @@ internal static class StaffOnboardingEndpoints
             var validation = ValidateCreateStaffInviteRequest(request);
             if (validation is not null)
             {
-                return Results.BadRequest(new { Error = validation });
+                // Номер правит сам человек за мастером установки, поэтому эта причина едет кодом;
+                // остальные отказы валидации означают ошибку клиента, а не ввода.
+                var validationCode = PhoneNumberNormalizer.Normalize(request.PhoneNumber) is null
+                    ? StaffInviteErrorCodeNames.InvalidPhone
+                    : null;
+                return Results.BadRequest(new { Error = validation, Code = validationCode });
             }
 
             var result = await staffInviteService.CreateInviteAsync(
@@ -206,7 +211,7 @@ internal static class StaffOnboardingEndpoints
                     return Results.Conflict(new { Error = result.Error, result.PlanLimit.Code, PlanLimit = result.PlanLimit });
                 }
 
-                return Results.BadRequest(new { Error = result.Error });
+                return Results.BadRequest(new { Error = result.Error, Code = result.ErrorCode });
             }
 
             await WriteAuditAsync(

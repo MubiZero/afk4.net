@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { HostBridgeRequestError, isHostBridgeUnavailableError } from './hostBridge';
+import { wizardErrorMessage } from './wizardErrors';
 import {
   type WizardBranch,
   type WizardEnrollResult,
@@ -113,7 +113,9 @@ export function DeviceScreen({
         });
         onEnrolled(result, seat);
       } catch (error) {
-        setRequest({ kind: 'error', message: messageForError(error, t) });
+        // Словарь отказов общий на весь мастер: те же коды приходят и на шагах настройки клуба,
+        // и держать для них второй список значило бы объяснять одну и ту же причину дважды.
+        setRequest({ kind: 'error', message: wizardErrorMessage(error, t, 'setup.wizard.device.error.generic') });
       }
     },
     [
@@ -210,31 +212,3 @@ export function DeviceScreen({
     </section>
   );
 }
-
-/**
- * Отказ словами, понятными тому, кто ставит клуб.
- *
- * Раньше здесь стояло `return error.message`, и в русский мастер приезжали английские строки
- * из .NET: «Seat name is required.», «Role must be GamingPc or ManagerWorkstation.», «No such
- * host is known.», «Platform API returned 500 for /api/...». Мост при этом с самого начала нёс
- * КОД ошибки рядом с текстом — им и пользуемся, а текст остаётся в журнале, где он и нужен.
- */
-function messageForError(error: unknown, t: (key: MessageKey) => string): string {
-  if (isHostBridgeUnavailableError(error)) {
-    return t('setup.wizard.device.error.bridgeMissing');
-  }
-  if (error instanceof HostBridgeRequestError) {
-    return t(DEVICE_ERROR_KEYS[error.code] ?? 'setup.wizard.device.error.generic');
-  }
-  return t('setup.wizard.device.error.generic');
-}
-
-// Коды моста (SetupWizardWebHostBridge.ErrorCodeFor) — человеческим языком. Незнакомый код
-// попадает в общую надпись: выдумывать объяснение коду, которого мы не знаем, хуже, чем сказать
-// «не получилось, попробуйте ещё раз».
-const DEVICE_ERROR_KEYS: Record<string, MessageKey> = {
-  wizard_create_seat_failed: 'setup.wizard.device.error.createSeat',
-  wizard_enroll_failed: 'setup.wizard.device.error.enroll',
-  wizard_request_failed: 'setup.wizard.device.error.generic',
-  host_timeout: 'setup.wizard.device.error.timedOut'
-};

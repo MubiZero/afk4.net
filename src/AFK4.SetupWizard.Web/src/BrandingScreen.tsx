@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
+import { wizardErrorMessage } from './wizardErrors';
 import type { WizardBrandingPreset } from './wizardApi';
 import { handleRadioGroupKeys, radioTabIndex } from './radioGroup';
 
@@ -45,9 +46,9 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [accentColor, setAccentColor] = useState<string>(COLORS[0]);
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadFailed, setUploadFailed] = useState(false);
+  const [uploadFailure, setUploadFailure] = useState<string | null>(null);
   const [ownLogoUrl, setOwnLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
 
   async function upload(): Promise<void> {
     setUploading(true);
-    setUploadFailed(false);
+    setUploadFailure(null);
     try {
       const result = await client.uploadLogo();
       // Пустой ответ — человек закрыл окно выбора: это не ошибка, экран остаётся как был.
@@ -77,8 +78,8 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         setOwnLogoUrl(result.logoUrl);
         setLogoUrl(result.logoUrl);
       }
-    } catch {
-      setUploadFailed(true);
+    } catch (error) {
+      setUploadFailure(wizardErrorMessage(error, t, 'setup.wizard.branding.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -86,12 +87,12 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
 
   async function save(): Promise<void> {
     setSaving(true);
-    setFailed(false);
+    setFailure(null);
     try {
       await client.save(logoUrl, accentColor);
       onContinue();
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(wizardErrorMessage(error, t, 'setup.wizard.branding.failed'));
     } finally {
       setSaving(false);
     }
@@ -142,7 +143,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
             <img src={ownLogoUrl} alt={t('setup.wizard.branding.ownLogo')} />
           </span>
         )}
-        {uploadFailed ? <p className="ui-alert">{t('setup.wizard.branding.uploadFailed')}</p> : null}
+        {uploadFailure === null ? null : <p className="ui-alert" role="alert">{uploadFailure}</p>}
       </div>
 
       <div className="ui-field">
@@ -170,7 +171,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         </div>
       </div>
 
-      {failed ? <p className="ui-alert">{t('setup.wizard.branding.failed')}</p> : null}
+      {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
 
       <div className="wizard-actions">
         <button type="button" className="ui-btn" onClick={onBack}>

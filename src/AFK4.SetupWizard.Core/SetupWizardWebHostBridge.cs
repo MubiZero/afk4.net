@@ -589,6 +589,14 @@ public sealed class SetupWizardWebHostBridge(
         "wizard:createSeatAuth" => "wizard_create_seat_failed",
         "wizard:enrollAuth" => "wizard_enroll_failed",
         "wizard:provisionShell" => "wizard_shell_provision_failed",
+        // Шаги настройки клуба. Без своих кодов все четыре падали в общий wizard_request_failed,
+        // и экран не мог сказать даже, что именно не получилось.
+        "wizard:brandingPresets" => "wizard_branding_presets_failed",
+        "wizard:uploadLogo" => "wizard_upload_logo_failed",
+        "wizard:saveBranding" => "wizard_save_branding_failed",
+        "wizard:inviteStaff" => "wizard_invite_staff_failed",
+        "wizard:createSeats" => "wizard_create_seats_failed",
+        "wizard:createTariff" => "wizard_create_tariff_failed",
         _ => "wizard_request_failed"
     };
 

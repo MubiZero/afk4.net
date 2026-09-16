@@ -200,6 +200,62 @@ public sealed class SetupWizardApiClientTests
         Assert.Equal("access-123", request.Headers.Authorization.Parameter);
     }
 
+    // Мастер работает на трёх языках, а текст отказа с сервера всегда английский: показать его
+    // человеку нельзя. Код рядом с текстом — единственное, по чему экран назовёт причину сам.
+    [Fact]
+    public async Task CreateTariffAsync_WhenTheNameIsTaken_SurfacesTheServerCode()
+    {
+        var handler = new RecordingHandler(_ => ErrorResponse(
+            HttpStatusCode.BadRequest,
+            """{"error":"Tariff name already exists.","code":"tariff_name_taken"}"""));
+        var client = CreateClient(handler);
+
+        var exception = await Assert.ThrowsAsync<SetupWizardApiException>(() => client.CreateTariffAsync(
+            OrganizationId, BranchId, "access-123", "Стандарт", 1000, CancellationToken.None));
+
+        Assert.Equal("tariff_name_taken", exception.Code);
+    }
+
+    // Код может приехать и в поле error — так отвечают касса, склад и сброс пароля.
+    [Fact]
+    public async Task EnrollAuthenticatedAsync_WhenTheSeatIsTaken_SurfacesTheServerCode()
+    {
+        var handler = new RecordingHandler(_ => ErrorResponse(
+            HttpStatusCode.Conflict,
+            """{"error":"seat_occupied"}"""));
+        var client = CreateClient(handler);
+
+        var exception = await Assert.ThrowsAsync<SetupWizardApiException>(() => client.EnrollAuthenticatedAsync(
+            OrganizationId,
+            "access-123",
+            new AuthenticatedInstallEnrollRequest(BranchId, SeatId, "GamingPc", "Стенд 5", "WIN-1", "pem"),
+            CancellationToken.None));
+
+        Assert.Equal("seat_occupied", exception.Code);
+    }
+
+    // Свободный текст кодом не считаем: иначе английская фраза уехала бы в интерфейс под видом
+    // машинного имени, и экран показал бы её как «причину».
+    [Fact]
+    public async Task CreateSeatAuthenticatedAsync_WithAPlainEnglishReason_StaysAnOrdinaryHttpFailure()
+    {
+        var handler = new RecordingHandler(_ => ErrorResponse(
+            HttpStatusCode.BadRequest,
+            """{"error":"Seat name is required."}"""));
+        var client = CreateClient(handler);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => client.CreateSeatAuthenticatedAsync(
+            OrganizationId,
+            "access-123",
+            BranchId,
+            ZoneId,
+            string.Empty,
+            CancellationToken.None));
+    }
+
+    private static HttpResponseMessage ErrorResponse(HttpStatusCode status, string body) =>
+        new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
     private static SetupWizardApiClient CreateClient(HttpMessageHandler handler) =>
         new(new HttpClient(handler) { BaseAddress = SetupWizardDefaults.PlatformBaseUrl });
 

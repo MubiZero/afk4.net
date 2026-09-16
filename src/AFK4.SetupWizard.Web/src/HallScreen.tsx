@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { WizardZone } from './wizardApi';
+import { wizardErrorMessage } from './wizardErrors';
 
 export interface HallClient {
   createSeats(zoneId: string, namePrefix: string, count: number): Promise<{ names: string[] }>;
@@ -29,7 +30,7 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
   const [count, setCount] = useState('10');
   const [createdNames, setCreatedNames] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const parsedCount = Number.parseInt(count, 10);
   const canCreate =
@@ -38,12 +39,12 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
   async function create(): Promise<void> {
     if (!canCreate) return;
     setCreating(true);
-    setFailed(false);
+    setFailure(null);
     try {
       const result = await client.createSeats(zoneId, namePrefix.trim(), parsedCount);
       setCreatedNames(result.names);
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(wizardErrorMessage(error, t, 'setup.wizard.hall.failed'));
     } finally {
       setCreating(false);
     }
@@ -105,7 +106,7 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         {t('setup.wizard.hall.create')}
       </button>
 
-      {failed ? <p className="ui-alert">{t('setup.wizard.hall.failed')}</p> : null}
+      {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
       {createdNames.length > 0 ? (
         <p className="ui-field-hint">{t('setup.wizard.hall.created', { count: createdNames.length })}</p>
       ) : null}

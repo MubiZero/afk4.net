@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Loader2, UserPlus } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import type { WizardStaffInvited } from './wizardApi';
+import { wizardErrorMessage } from './wizardErrors';
 
 // Владельца в списке нет: он и так есть — это тот, кто сейчас ставит клуб.
 const ROLES: { name: string; labelKey: MessageKey }[] = [
@@ -33,21 +34,21 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
   const [roleName, setRoleName] = useState(ROLES[2].name);
   const [invited, setInvited] = useState<WizardStaffInvited[]>([]);
   const [sending, setSending] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const canSend = displayName.trim() !== '' && phoneNumber.trim() !== '' && !sending;
 
   async function invite(): Promise<void> {
     if (!canSend) return;
     setSending(true);
-    setFailed(false);
+    setFailure(null);
     try {
       const result = await client.invite(displayName.trim(), phoneNumber.trim(), roleName);
       setInvited((current) => [...current, result]);
       setDisplayName('');
       setPhoneNumber('');
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(wizardErrorMessage(error, t, 'setup.wizard.staff.failed'));
     } finally {
       setSending(false);
     }
@@ -103,7 +104,7 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
         {t('setup.wizard.staff.add')}
       </button>
 
-      {failed ? <p className="ui-alert">{t('setup.wizard.staff.failed')}</p> : null}
+      {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
 
       {invited.length > 0 ? (
         <ul className="wizard-staff-list">

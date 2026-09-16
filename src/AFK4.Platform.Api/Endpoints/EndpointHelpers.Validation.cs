@@ -132,6 +132,9 @@ internal static partial class EndpointHelpers
 
         // Телефон обязателен, почта — нет: приглашение едет SMS, а почты у администратора зала
         // может не быть вовсе. Названная почта обязана быть похожей на почту.
+        //
+        // Номер — единственная причина отказа, которую человек за мастером установки правит сам,
+        // поэтому она называется кодом: остальные означают ошибку клиента, а не ввода.
         if (PhoneNumberNormalizer.Normalize(request.PhoneNumber) is null)
         {
             return "A valid PhoneNumber is required to send the invite.";

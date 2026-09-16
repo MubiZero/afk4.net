@@ -80,17 +80,19 @@ internal static partial class EndpointHelpers
     {
         if (result.Conflict)
         {
-            return Results.Conflict(new { Error = result.Error });
+            return Results.Conflict(new { Error = result.Error, result.Code });
         }
 
         if (result.NotFound)
         {
-            return Results.NotFound(new { Error = result.Error });
+            return Results.NotFound(new { Error = result.Error, result.Code });
         }
 
         if (!result.Succeeded)
         {
-            return Results.BadRequest(new { Error = result.Error });
+            // Код рядом с фразой, а не вместо неё: фраза остаётся в журналах и в уже написанных
+            // проверках, а код — то единственное, по чему клиент назовёт причину своим языком.
+            return Results.BadRequest(new { Error = result.Error, result.Code });
         }
 
         return Results.Ok(result.Response);
@@ -146,9 +148,9 @@ internal static partial class EndpointHelpers
         return result.Status switch
         {
             InstallOperationStatus.Succeeded => Results.Ok(result.Value),
-            InstallOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
-            InstallOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-            _ => Results.BadRequest(new { Error = result.Error })
+            InstallOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
+            InstallOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+            _ => Results.BadRequest(new { Error = result.Error, result.Code })
         };
     }
 

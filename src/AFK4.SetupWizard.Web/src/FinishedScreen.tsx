@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { closeWizard, provisionShell, type WizardEnrollResult, type WizardRole, type WizardSeat, type WizardShellOutcome } from './wizardApi';
+import { wizardErrorMessage } from './wizardErrors';
 
 interface FinishedScreenProps {
   result: WizardEnrollResult;
@@ -105,6 +106,15 @@ function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: 
   const { t } = useI18n();
   const [outcome, setOutcome] = useState(initial);
   const [busy, setBusy] = useState(false);
+  // Сорвавшийся повтор. Без него кнопка молча возвращалась в исходное состояние, и человек у ПК
+  // видел ровно то же, что до нажатия, — будто она не работает.
+  const [retryFailure, setRetryFailure] = useState<string | null>(null);
+
+  // На игровом ПК ставится оболочка игрока, на рабочем месте управляющего — панель. Одна строка
+  // на обе роли обещала управляющему «оболочку игрока», которой у него не будет.
+  const appName = role === 'gaming_pc'
+    ? t('op.helper.update.component.playerShell')
+    : t('op.helper.update.component.organizationAdmin');
 
   // Успех (или уже было установлено) не показываем — зелёная плашка только шумит.
   // Показываем строку лишь когда установка оболочки сорвалась: это actionable (есть «Повторить»).
@@ -118,22 +128,28 @@ function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: 
           говорит: «(msiexec 1603)» рядом с русской фразой читается как часть поломки. Он
           остаётся в подсказке и в журнале, а на экране — только то, что делать дальше. */}
       <span title={outcome.exitCode !== null ? `msiexec ${outcome.exitCode}` : undefined}>
-        {t('setup.wizard.finished.shell.failed')}
+        {t('setup.wizard.finished.shell.failed', { app: appName })}
       </span>
+      {retryFailure === null ? null : <span className="wizard-shell-status-detail">{retryFailure}</span>}
       <button
         type="button"
         className="ui-btn"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
+          setRetryFailure(null);
           try {
             setOutcome(await provisionShell(role));
+          } catch (error) {
+            setRetryFailure(wizardErrorMessage(error, t, 'setup.wizard.finished.shell.retryFailed'));
           } finally {
             setBusy(false);
           }
         }}
       >
-        {busy ? t('setup.wizard.finished.shell.installing') : t('setup.wizard.finished.shell.retry')}
+        {busy
+          ? t('setup.wizard.finished.shell.installing', { app: appName })
+          : t('setup.wizard.finished.shell.retry')}
       </button>
     </div>
   );

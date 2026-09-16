@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Notifications;
@@ -50,7 +51,9 @@ public sealed class EfStaffInviteService(
         var normalizedPhone = PhoneNumberNormalizer.Normalize(phoneNumber);
         if (normalizedPhone is null)
         {
-            return StaffInviteCreateResult.Failed("A valid phone number is required to send the invite.");
+            return StaffInviteCreateResult.Failed(
+                "A valid phone number is required to send the invite.",
+                StaffInviteErrorCodeNames.InvalidPhone);
         }
 
         var normalizedUserName = userName.Trim().ToUpperInvariant();
@@ -59,7 +62,9 @@ public sealed class EfStaffInviteService(
             cancellationToken);
         if (alreadyExists)
         {
-            return StaffInviteCreateResult.Failed("A staff user with this username already exists in the organization.");
+            return StaffInviteCreateResult.Failed(
+                "A staff user with this username already exists in the organization.",
+                StaffInviteErrorCodeNames.UserNameTaken);
         }
 
         // Номер — глобальный вход сотрудника, и второй счёт на тот же номер сделал бы вход
@@ -71,7 +76,9 @@ public sealed class EfStaffInviteService(
             cancellationToken);
         if (phoneTaken)
         {
-            return StaffInviteCreateResult.Failed("This phone number already belongs to a staff member.");
+            return StaffInviteCreateResult.Failed(
+                "This phone number already belongs to a staff member.",
+                StaffInviteErrorCodeNames.PhoneTaken);
         }
 
         var planLimit = await planLimitGuard.CheckStaffUserAsync(organizationId, branchId, cancellationToken);

@@ -157,7 +157,8 @@ public sealed class EfInstallService(
                 return InstallOperationResult<InstallEnrollResponse>.Conflict(
                     "Seat already has an active device assignment.",
                     organizationId,
-                    branchId);
+                    branchId,
+                    InstallErrorCodeNames.SeatOccupied);
             }
         }
 

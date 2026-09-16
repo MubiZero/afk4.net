@@ -794,7 +794,15 @@ textarea,
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
-}.wizard-shell-status.is-error {
+}/* Причина сорвавшегося повтора — рядом с кнопкой, обычным весом: заголовок строки уже кричит
+   красным, а это пояснение, а не второй крик. */
+.wizard-shell-status-detail {
+  flex-basis: 100%;
+  font-weight: 400;
+  font-size: var(--text-xs);
+}
+
+.wizard-shell-status.is-error {
   display: flex;
   align-items: center;
   justify-content: space-between;

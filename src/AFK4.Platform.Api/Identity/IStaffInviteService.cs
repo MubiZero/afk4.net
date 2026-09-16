@@ -23,16 +23,24 @@ public interface IStaffInviteService
         string phoneNumber, string code, string password, CancellationToken cancellationToken);
 }
 
+/// <param name="Code">Код приглашения, который человек вводит при приёме (не путать с
+/// <paramref name="ErrorCode"/>).</param>
+/// <param name="ErrorCode">
+/// Машинное имя отказа (<see cref="Shared.Contracts.Identity.StaffInviteErrorCodeNames"/>).
+/// Мастер установки работает на трёх языках, а <paramref name="Error"/> всегда английский —
+/// назвать причину человеку можно только по коду.
+/// </param>
 public sealed record StaffInviteCreateResult(
     bool Succeeded,
     string? Error,
     Guid StaffInviteId,
     string Code,
     DateTimeOffset ExpiresAtUtc,
-    PlanLimitExceededDto? PlanLimit = null)
+    PlanLimitExceededDto? PlanLimit = null,
+    string? ErrorCode = null)
 {
-    public static StaffInviteCreateResult Failed(string error) =>
-        new(false, error, Guid.Empty, string.Empty, default);
+    public static StaffInviteCreateResult Failed(string error, string? errorCode = null) =>
+        new(false, error, Guid.Empty, string.Empty, default, null, errorCode);
 
     public static StaffInviteCreateResult Success(Guid staffInviteId, string code, DateTimeOffset expiresAtUtc) =>
         new(true, null, staffInviteId, code, expiresAtUtc);

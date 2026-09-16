@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+import { HostBridgeRequestError } from './hostBridge';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { HallScreen, type HallClient } from './HallScreen';
@@ -64,4 +65,16 @@ describe('HallScreen', () => {
 
     await waitFor(() => expect(screen.getByText(/Не удалось завести места/)).toBeTruthy());
   });
+
+  // Обрыв связи с хостом — это не «сервер отказал завести места»: чинится перезапуском мастера.
+  it('обрыв моста называет своими словами', async () => {
+    renderScreen({
+      createSeats: mock().mockRejectedValue(new HostBridgeRequestError('boom', 'host_timeout', null)),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Завести места' }));
+
+    await waitFor(() => expect(screen.getByText(/Локальный агент не ответил вовремя/)).toBeTruthy());
+  });
+
 });
