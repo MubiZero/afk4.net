@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -289,6 +290,42 @@ void main() {
 
     expect(identityHashCode(client), identity);
     expect(client.session, isNull);
+  });
+
+  test('выход гасит пару токенов на сервере', () async {
+    final http = _RecordingClient((_) => makeResponse('', status: 204));
+    final client = PlayerApiClient(
+      baseUrl: 'https://api',
+      httpClient: http,
+      session: theSession(),
+    );
+
+    await client.signOut();
+
+    expect(http.requests.single.url.path, '/api/public/player/sign-out');
+    expect(jsonDecode(http.requests.single.body), {'refreshToken': 'refresh-1'});
+    expect(http.requests.single.headers['Authorization'], 'Bearer access-1');
+  });
+
+  // Сеть легла — человек всё равно должен уйти с экрана, поэтому отказ наверх не поднимается.
+  test('выход не падает, когда сервер недоступен', () async {
+    final http = _RecordingClient((_) => throw const SocketException('down'));
+    final client = PlayerApiClient(
+      baseUrl: 'https://api',
+      httpClient: http,
+      session: theSession(),
+    );
+
+    await client.signOut();
+  });
+
+  test('выход без сессии сервер не зовёт', () async {
+    final http = _RecordingClient((_) => makeResponse('', status: 204));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
+
+    await client.signOut();
+
+    expect(http.requests, isEmpty);
   });
 
   test('запрос без сессии идёт без заголовка авторизации', () async {

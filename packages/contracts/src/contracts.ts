@@ -3347,6 +3347,11 @@ export interface PlayerSignInResponse {
   refreshTokenExpiresAtUtc: IsoDateTime;
 }
 
+/** Контракт: Players/PlayerSignOutRequest.cs */
+export interface PlayerSignOutRequest {
+  refreshToken: string;
+}
+
 /**
  * Заявка на пополнение кошелька: игрок просит зачислить сумму, клуб подтверждает.
  *
@@ -4635,6 +4640,12 @@ export interface StaffSignInResponse {
   branchIds: Guid[];
   permissions: string[];
   roleNames: string[];
+}
+
+/** Контракт: Identity/StaffSignOutRequest.cs */
+export interface StaffSignOutRequest {
+  organizationId: Guid;
+  refreshToken: string;
 }
 
 /** Контракт: Identity/StaffUserDto.cs */

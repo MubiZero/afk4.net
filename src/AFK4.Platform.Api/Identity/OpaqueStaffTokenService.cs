@@ -93,6 +93,57 @@ public sealed class OpaqueStaffTokenService(
             : await CreateContextAsync(user, cancellationToken);
     }
 
+    public async Task<bool> RevokeAsync(
+        StaffSignOutRequest request,
+        string? accessToken,
+        CancellationToken cancellationToken)
+    {
+        if (request.OrganizationId == Guid.Empty || string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var refreshTokenHash = HashToken(request.RefreshToken);
+        var candidateRefreshTokens = await dbContext.StaffRefreshTokens
+            .Where(candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.RevokedAtUtc == null)
+            .ToArrayAsync(cancellationToken);
+        var refreshToken = candidateRefreshTokens.SingleOrDefault(
+            candidate => candidate.TokenHash.SequenceEqual(refreshTokenHash));
+
+        if (refreshToken is null)
+        {
+            return false;
+        }
+
+        refreshToken.RevokedAtUtc = now;
+
+        // Access гасится по предъявленному значению, а не по владельцу: иначе выход на кассе
+        // оборвал бы тому же сотруднику работу на соседней машине. Токен уже истёк или запрос
+        // пришёл без него — гасить нечего, отзыва refresh достаточно.
+        if (!string.IsNullOrWhiteSpace(accessToken))
+        {
+            var accessTokenHash = HashToken(accessToken);
+            var candidateAccessTokens = await dbContext.StaffAccessTokens
+                .Where(candidate =>
+                    candidate.OrganizationId == refreshToken.OrganizationId &&
+                    candidate.StaffUserId == refreshToken.StaffUserId &&
+                    candidate.RevokedAtUtc == null)
+                .ToArrayAsync(cancellationToken);
+            var presentedAccessToken = candidateAccessTokens.SingleOrDefault(
+                candidate => candidate.TokenHash.SequenceEqual(accessTokenHash));
+            if (presentedAccessToken is not null)
+            {
+                presentedAccessToken.RevokedAtUtc = now;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private async Task<StaffSignInResponse> IssueTokenPairAsync(
         StaffUserEntity user,
         CancellationToken cancellationToken)

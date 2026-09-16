@@ -128,14 +128,37 @@ describe('refreshOperatorSession', () => {
 });
 
 describe('signOutOperator', () => {
-  it('clears the stored session locally without a network call', async () => {
+  it('revokes the token pair on the server and clears the stored session', async () => {
     await signInByLoginOperator('u', 'p');
+    fetchMock.mockClear();
+    fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
+
+    await expect(signOutOperator()).resolves.toEqual({ signedOut: true });
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/organizations/o/auth/staff/sign-out');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      organizationId: 'o', refreshToken: 'r'
+    });
+    expect((fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>).Authorization).toBe('Bearer a');
+    expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
+  });
+
+  it('still signs out locally when the server call fails', async () => {
+    await signInByLoginOperator('u', 'p');
+    fetchMock.mockClear();
+    fetchMock.mockImplementation(async () => { throw new Error('network down'); });
+
+    await expect(signOutOperator()).resolves.toEqual({ signedOut: true });
+
+    expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
+  });
+
+  it('does not call the server when there is no stored session', async () => {
     fetchMock.mockClear();
 
     await expect(signOutOperator()).resolves.toEqual({ signedOut: true });
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
   });
 });
 

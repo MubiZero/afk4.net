@@ -483,6 +483,129 @@ public sealed class StaffAuthenticationEndpointTests
         await dbContext.SaveChangesAsync();
     }
 
+    [Fact]
+    public async Task PostStaffSignOut_RevokesPresentedPair_SoNeitherTokenWorksAgain()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+        var session = await SignInTechnicianAsync(client);
+
+        using var signOutRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-out")
+        {
+            Content = JsonContent.Create(new StaffSignOutRequest(TestIds.OrganizationId, session.RefreshToken))
+        };
+        signOutRequest.Headers.Add("Authorization", $"Bearer {session.AccessToken}");
+        var signOutResponse = await client.SendAsync(signOutRequest);
+
+        Assert.Equal(HttpStatusCode.NoContent, signOutResponse.StatusCode);
+
+        var refreshResponse = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/refresh",
+            new StaffRefreshTokenRequest(TestIds.OrganizationId, session.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
+        Assert.Null(await ValidateAccessTokenAsync(factory, session.AccessToken));
+    }
+
+    [Fact]
+    public async Task PostStaffSignOut_LeavesTheSameStaffSignedInOnAnotherWorkstation()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+        var till = await SignInTechnicianAsync(client);
+        var backOffice = await SignInTechnicianAsync(client);
+
+        using var signOutRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-out")
+        {
+            Content = JsonContent.Create(new StaffSignOutRequest(TestIds.OrganizationId, till.RefreshToken))
+        };
+        signOutRequest.Headers.Add("Authorization", $"Bearer {till.AccessToken}");
+        await client.SendAsync(signOutRequest);
+
+        var refreshResponse = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/refresh",
+            new StaffRefreshTokenRequest(TestIds.OrganizationId, backOffice.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
+        Assert.NotNull(await ValidateAccessTokenAsync(factory, backOffice.AccessToken));
+    }
+
+    [Fact]
+    public async Task PostStaffSignOut_WithoutAccessToken_StillRevokesTheRefreshToken()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+        var session = await SignInTechnicianAsync(client);
+
+        var signOutResponse = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-out",
+            new StaffSignOutRequest(TestIds.OrganizationId, session.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.NoContent, signOutResponse.StatusCode);
+
+        var refreshResponse = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/refresh",
+            new StaffRefreshTokenRequest(TestIds.OrganizationId, session.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStaffSignOut_WithAnotherRouteOrganization_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+        var session = await SignInTechnicianAsync(client);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{Guid.NewGuid():D}/auth/staff/sign-out",
+            new StaffSignOutRequest(TestIds.OrganizationId, session.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStaffSignOut_WithUnknownRefreshToken_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-out",
+            new StaffSignOutRequest(TestIds.OrganizationId, "not-a-token"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private static async Task<StaffSignInResponse> SignInTechnicianAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
+            new StaffSignInRequest(
+                OrganizationId: TestIds.OrganizationId,
+                UserName: "tech@afk4.test",
+                Password: "Passw0rd!"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
+        Assert.NotNull(body);
+        return body;
+    }
+
+    private static async Task<StaffContext?> ValidateAccessTokenAsync(PlatformApiFactory factory, string accessToken)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var tokenService = scope.ServiceProvider.GetRequiredService<IStaffTokenService>();
+        return await tokenService.ValidateAsync(accessToken, CancellationToken.None);
+    }
+
     private static async Task SeedTechnicianAsync(PlatformApiFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
