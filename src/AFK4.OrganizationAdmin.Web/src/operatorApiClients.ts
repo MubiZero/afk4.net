@@ -7,6 +7,7 @@ export * from './api/clients/floorMap';
 export * from './api/clients/sessions';
 export * from './api/clients/pos';
 export * from './api/clients/players';
+export * from './api/clients/search';
 export * from './api/clients/dashboard';
 export * from './api/clients/reservations';
 export * from './api/clients/shifts';

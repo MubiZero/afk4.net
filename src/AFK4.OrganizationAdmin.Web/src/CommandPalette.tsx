@@ -1,49 +1,76 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import type { MessageKey } from '@afk4/i18n';
 import { navSections } from './operatorData';
-import { canOpenWorkspace } from './operatorPermissions';
-import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { canOpenWorkspace, hasPermission, permissionNames } from './operatorPermissions';
+import { createAuthenticatedOperatorClients, formatDateTime, formatMinorUnits } from './operatorHelpers';
+import type { BranchSearchResultDto } from './operatorApiClients';
 import type { OperatorBackendContext, WorkspaceId } from './operatorTypes';
 import type { OperatorAuthSession } from './authClient';
 
-/// Строка палитры: либо экран, либо человек. Список один и плоский — стрелки ходят сквозь
-/// оба раздела, потому что для того, кто набирает, это один список, а не два.
+/// Строка палитры: либо экран, либо найденная сущность. Список один и плоский — стрелки ходят
+/// сквозь все разделы, потому что для того, кто набирает, это один список, а не пять.
 type PaletteOption =
   | { kind: 'nav'; key: string; label: string; workspaceId: WorkspaceId }
-  | { kind: 'person'; key: string; label: string; hint: string | null; playerAccountId: string };
+  | { kind: 'entity'; key: string; label: string; hint: string | null; entity: BranchSearchResultDto };
 
-/// Кого нашли по набранному: пусто, ищем, нашли или не смогли.
-type PeopleState =
+/// Что нашли по набранному: пусто, ищем, нашли или не смогли.
+type SearchState =
   | { status: 'off' }
   | { status: 'searching' }
-  | { status: 'ready'; people: PaletteOption[] }
+  | { status: 'ready'; results: BranchSearchResultDto[] }
   | { status: 'failed' };
 
-// Максимум строк в палитре — чтобы окно не переполнялось; остальное отсекаем с подсказкой.
+// Максимум строк-экранов в палитре — чтобы окно не переполнялось; остальное отсекаем с подсказкой.
 const MAX_VISIBLE = 8;
 
-// Людей показываем немного: палитра — это «отвези меня к нему», а не список клиентов.
-// Кому нужен список — тому нужен раздел «Клиенты» с фильтрами.
-const MAX_PEOPLE = 5;
+// Находок каждого вида показываем немного: палитра — это «отвези меня туда», а не список.
+// Кому нужен список — тому нужен раздел с фильтрами.
+const MAX_PER_KIND = 5;
 
 // Одна буква совпала бы с половиной клубной базы, и каждая следующая гоняла бы сеть впустую.
-const MIN_PEOPLE_QUERY = 2;
+const MIN_QUERY = 2;
 
 // Столько же, сколько ждёт поиск в самом разделе клиентов: набор идёт быстрее, чем ответ сети.
-const PEOPLE_DEBOUNCE_MS = 200;
+const SEARCH_DEBOUNCE_MS = 200;
 
-export function CommandPalette({ session, backend, visibleWorkspaceIds, onNavigate, onOpenPerson, onClose }: {
+/// Виды находок в том порядке, в каком они полезны за стойкой: место под рукой, потом человек,
+/// потом бронь, потом чек. Каждый вид показываем только тому, кому этот раздел и так открыт, —
+/// иначе палитра стала бы обходом прав.
+const ENTITY_KINDS = [
+  { kind: 'seat', headingKey: 'op.command.palette.seatsHeading', workspaceId: 'map', permission: permissionNames.viewFloorMap },
+  { kind: 'player', headingKey: 'op.command.palette.peopleHeading', workspaceId: 'players', permission: permissionNames.viewPlayers },
+  { kind: 'reservation', headingKey: 'op.command.palette.reservationsHeading', workspaceId: 'booking', permission: permissionNames.viewReservations },
+  { kind: 'receipt', headingKey: 'op.command.palette.receiptsHeading', workspaceId: 'cash', permission: permissionNames.viewReceipt }
+] as const satisfies readonly { kind: string; headingKey: MessageKey; workspaceId: WorkspaceId; permission: string }[];
+
+export type PaletteReservationTarget = { reservationId: string; startsAtUtc: string | null };
+
+export function CommandPalette({
+  session,
+  backend,
+  visibleWorkspaceIds,
+  onNavigate,
+  onOpenPerson,
+  onOpenSeat,
+  onOpenReservation,
+  onOpenReceipt,
+  onClose
+}: {
   session: OperatorAuthSession | null;
-  // Нужен для поиска людей: палитра спрашивает клиентов того же филиала, в котором смена.
-  // null — работа без бэкенда (фикстуры): тогда людей палитра не ищет.
+  // Нужен для поиска сущностей: палитра спрашивает тот филиал, в котором идёт смена.
+  // null — работа без бэкенда (фикстуры): тогда палитра ищет только экраны.
   backend?: OperatorBackendContext | null;
   // Extra restriction on top of ordinary permission checks — a support session's writableAreas
   // (see support/supportWorkspaces.ts). `null`/omitted outside support mode: permissions alone decide.
   visibleWorkspaceIds?: ReadonlySet<WorkspaceId> | null;
   onNavigate: (id: WorkspaceId) => void;
-  // Открыть карточку человека. Не задан — палитра людей не ищет (так её зовут тесты соседних
-  // экранов, которым нужен только переход по разделам).
+  // Открыть найденное. Обработчик не задан — вид не ищется: строка, которая никуда не ведёт,
+  // хуже отсутствующей.
   onOpenPerson?: (person: { playerAccountId: string; search: string }) => void;
+  onOpenSeat?: (seatId: string) => void;
+  onOpenReservation?: (target: PaletteReservationTarget) => void;
+  onOpenReceipt?: (target: { receiptId: string }) => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -70,63 +97,102 @@ export function CommandPalette({ session, backend, visibleWorkspaceIds, onNaviga
   const visibleNav = filtered.slice(0, MAX_VISIBLE);
   const hiddenCount = filtered.length - visibleNav.length;
 
-  // Людей ищем только там, где карточку клиента вообще можно открыть: право на раздел и
-  // (в режиме поддержки) разрешение видеть его. Иначе палитра стала бы обходом прав.
-  const peopleSearchable =
-    backend != null &&
-    onOpenPerson != null &&
-    canOpenWorkspace(session, 'players') &&
-    (visibleWorkspaceIds == null || visibleWorkspaceIds.has('players'));
+  const openers: Record<string, ((entity: BranchSearchResultDto) => void) | undefined> = {
+    seat: onOpenSeat ? (entity) => onOpenSeat(entity.id) : undefined,
+    player: onOpenPerson ? (entity) => onOpenPerson({ playerAccountId: entity.id, search: query.trim() }) : undefined,
+    reservation: onOpenReservation
+      ? (entity) => onOpenReservation({ reservationId: entity.id, startsAtUtc: entity.occursAtUtc ?? null })
+      : undefined,
+    receipt: onOpenReceipt ? (entity) => onOpenReceipt({ receiptId: entity.id }) : undefined
+  };
 
-  const [people, setPeople] = useState<PeopleState>({ status: 'off' });
+  // Ищем только то, что этому человеку и так видно и есть чем открыть.
+  const searchableKinds = ENTITY_KINDS.filter((entry) =>
+    openers[entry.kind] != null &&
+    canOpenWorkspace(session, entry.workspaceId) &&
+    hasPermission(session, entry.permission) &&
+    (visibleWorkspaceIds == null || visibleWorkspaceIds.has(entry.workspaceId)));
+  const searchableKindNames = searchableKinds.map((entry) => entry.kind).join(',');
+
+  const [search, setSearch] = useState<SearchState>({ status: 'off' });
   const needle = query.trim();
-  const lookingForPeople = peopleSearchable && needle.length >= MIN_PEOPLE_QUERY;
+  const searching = backend != null && searchableKinds.length > 0 && needle.length >= MIN_QUERY;
 
   const platformBaseUrl = backend?.config.platformBaseUrl;
   const accessToken = backend?.session.accessToken;
   const branchId = backend?.branchId;
 
   useEffect(() => {
-    if (!lookingForPeople || backend == null) {
-      setPeople({ status: 'off' });
+    if (!searching || backend == null) {
+      setSearch({ status: 'off' });
       return undefined;
     }
 
     let disposed = false;
-    setPeople({ status: 'searching' });
+    setSearch({ status: 'searching' });
     const timer = window.setTimeout(() => {
       const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-      clients.players
-        .searchPlayers(backend.branchId, needle, MAX_PEOPLE)
+      clients.search
+        .searchBranch(backend.branchId, needle, MAX_PER_KIND)
         .then((found) => {
           if (disposed) return;
-          setPeople({
-            status: 'ready',
-            people: found.map((person) => ({
-              kind: 'person' as const,
-              key: `person:${person.playerAccountId}`,
-              label: person.displayName,
-              // Номер телефона — то, чем людей и различают: тёзок в клубной базе больше, чем
-              // кажется, и без номера палитра предлагала бы выбрать из двух одинаковых строк.
-              hint: person.phoneNumber,
-              playerAccountId: person.playerAccountId
-            }))
-          });
+          setSearch({ status: 'ready', results: found });
         })
         .catch(() => {
-          if (!disposed) setPeople({ status: 'failed' });
+          if (!disposed) setSearch({ status: 'failed' });
         });
-    }, PEOPLE_DEBOUNCE_MS);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => {
       disposed = true;
       window.clearTimeout(timer);
     };
     // Сессия и филиал в зависимостях: смена смены или филиала меняет, у кого спрашивать.
-  }, [needle, lookingForPeople, platformBaseUrl, accessToken, branchId]);
+  }, [needle, searching, searchableKindNames, platformBaseUrl, accessToken, branchId]);
 
-  const visiblePeople = people.status === 'ready' ? people.people : [];
-  const options = [...visibleNav, ...visiblePeople];
+  // Подпись строки: то, чем находку узнают глазами. Время и деньги форматирует клиент — язык
+  // и часовой пояс знает он, а не сервер.
+  const hintOf = (entity: BranchSearchResultDto): string | null => {
+    const parts: string[] = [];
+    if (entity.kind === 'receipt' && entity.amountMinorUnits != null) {
+      parts.push(formatMinorUnits(entity.amountMinorUnits, entity.currencyCode ?? ''));
+    }
+
+    if (entity.subtitle) {
+      parts.push(entity.subtitle);
+    }
+
+    if (entity.occursAtUtc) {
+      parts.push(formatDateTime(entity.occursAtUtc));
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+
+  const found = search.status === 'ready' ? search.results : [];
+  const groups = searchableKinds
+    .map((entry) => ({
+      ...entry,
+      options: found
+        .filter((entity) => entity.kind === entry.kind)
+        .map<PaletteOption>((entity) => ({
+          kind: 'entity',
+          key: `${entity.kind}:${entity.id}`,
+          label: entity.title,
+          hint: hintOf(entity),
+          entity
+        }))
+    }))
+    .filter((group) => group.options.length > 0);
+
+  const options = [...visibleNav, ...groups.flatMap((group) => group.options)];
+  // Смещение, с которого начинается каждая группа в плоском списке: строки нумеруются сквозь
+  // все разделы, иначе стрелки и подсветка разъезжаются.
+  const groupOffsets = groups.reduce<number[]>((offsets, _group, index) => {
+    const previous = index === 0 ? visibleNav.length : offsets[index - 1]! + groups[index - 1]!.options.length;
+    offsets.push(previous);
+    return offsets;
+  }, []);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -139,15 +205,12 @@ export function CommandPalette({ session, backend, visibleWorkspaceIds, onNaviga
 
   const optionId = (index: number) => `command-palette-option-${index}`;
   const navListboxId = 'command-palette-listbox';
-  const peopleListboxId = 'command-palette-people-listbox';
 
   function choose(option: PaletteOption) {
     if (option.kind === 'nav') {
       onNavigate(option.workspaceId);
     } else {
-      // Раздел клиентов ищет по той же строке, что набрали здесь: человек должен оказаться в
-      // списке, из которого его карточку и открывают.
-      onOpenPerson?.({ playerAccountId: option.playerAccountId, search: needle });
+      openers[option.entity.kind]?.(option.entity);
     }
     onClose();
   }
@@ -188,7 +251,7 @@ export function CommandPalette({ session, backend, visibleWorkspaceIds, onNaviga
       onClick={() => choose(option)}
     >
       {option.label}
-      {option.kind === 'person' && option.hint && (
+      {option.kind === 'entity' && option.hint && (
         <span className="command-palette-option-hint">{option.hint}</span>
       )}
     </li>
@@ -213,8 +276,8 @@ export function CommandPalette({ session, backend, visibleWorkspaceIds, onNaviga
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           aria-label={t('op.command.palette.label')}
-          placeholder={peopleSearchable
-            ? t('op.command.palette.placeholderWithPeople')
+          placeholder={searchableKinds.length > 0
+            ? t('op.command.palette.placeholderWithEntities')
             : t('op.command.palette.placeholder')}
           aria-activedescendant={options.length ? optionId(activeIndex) : undefined}
         />
@@ -233,27 +296,28 @@ export function CommandPalette({ session, backend, visibleWorkspaceIds, onNaviga
             )}
           </div>
 
-          {lookingForPeople && (
-            <div className="command-palette-group">
-              <p className="command-palette-heading">{t('op.command.palette.peopleHeading')}</p>
-              {people.status === 'searching' && (
-                <p className="command-palette-empty">{t('op.command.palette.peopleSearching')}</p>
+          {searching && (
+            <>
+              {search.status === 'searching' && (
+                <p className="command-palette-empty">{t('op.command.palette.searching')}</p>
               )}
-              {people.status === 'failed' && (
-                <p className="command-palette-empty">{t('op.command.palette.peopleFailed')}</p>
+              {search.status === 'failed' && (
+                <p className="command-palette-empty">{t('op.command.palette.searchFailed')}</p>
               )}
-              {people.status === 'ready' && visiblePeople.length === 0 && (
-                <p className="command-palette-empty">{t('op.command.palette.peopleEmpty')}</p>
+              {search.status === 'ready' && groups.length === 0 && (
+                <p className="command-palette-empty">{t('op.command.palette.entityEmpty')}</p>
               )}
-              {visiblePeople.length > 0 && (
-                <ul id={peopleListboxId} className="command-palette-list" role="listbox">
-                  {visiblePeople.map((option, index) => renderOption(option, visibleNav.length + index))}
-                </ul>
-              )}
-            </div>
+              {groups.map((group, groupIndex) => (
+                <div className="command-palette-group" key={group.kind}>
+                  <p className="command-palette-heading">{t(group.headingKey)}</p>
+                  <ul id={`command-palette-${group.kind}-listbox`} className="command-palette-list" role="listbox">
+                    {group.options.map((option, index) => renderOption(option, groupOffsets[groupIndex]! + index))}
+                  </ul>
+                </div>
+              ))}
+            </>
           )}
         </div>
-        <p className="command-palette-soon">{t('op.command.palette.entitySoon')}</p>
       </div>
     </div>
   );

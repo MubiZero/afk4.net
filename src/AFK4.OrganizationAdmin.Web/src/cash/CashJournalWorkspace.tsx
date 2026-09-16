@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
@@ -12,11 +12,14 @@ import { visibleCashJournalSegments, type CashJournalSegment } from './cashTermi
 export function CashJournalWorkspace({
   backend,
   currencyCode,
-  session
+  session,
+  openReceipt
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  // Чек из командной палитры: сегмент «Чеки» открывается сам — человек искал чек, а не сегмент.
+  openReceipt?: { receiptId: string } | null;
 }) {
   const { t } = useI18n();
   const visibleSegments = visibleCashJournalSegments(session);
@@ -30,6 +33,13 @@ export function CashJournalWorkspace({
   };
   const segments = visibleSegments.map((id) => ({ id, label: labels[id] }));
   const [active, setActive] = useState<CashJournalSegment>(() => visibleSegments[0] ?? 'ops');
+
+  useEffect(() => {
+    if (openReceipt && canReceipts) {
+      setActive('receipts');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openReceipt?.receiptId, canReceipts]);
 
   return (
     <main className="workspace-screen cash-journal-screen">
@@ -60,7 +70,13 @@ export function CashJournalWorkspace({
         />
       )}
       {active === 'receipts' && canReceipts && backend !== null && (
-        <CashReceiptsLedger backend={backend} branchId={backend.branchId} currencyCode={currencyCode} session={session} />
+        <CashReceiptsLedger
+          backend={backend}
+          branchId={backend.branchId}
+          currencyCode={currencyCode}
+          session={session}
+          openReceipt={openReceipt}
+        />
       )}
       {active === 'review' && canReview && <ReviewWorkspace currencyCode={currencyCode} backend={backend} embedded />}
     </main>

@@ -30,6 +30,7 @@ import { createMediaClient } from './media';
 import { createDcTopUpClient } from './dcTopUps';
 import { createDcConfigClient } from './dcConfig';
 import { createReportsClient } from './reports';
+import { createSearchClient } from './search';
 import { withCriticalUpdateActivity } from '../../updateActivity';
 
 export function createOperatorApiClients(api: PlatformApiClient, organizationId: string) {
@@ -39,6 +40,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     sessions: createSessionClient(organizationApi),
     pos: createPosClient(organizationApi),
     players: createPlayerClient(organizationApi),
+    search: createSearchClient(organizationApi),
     dashboard: createDashboardClient(organizationApi),
     reservations: createReservationClient(organizationApi),
     shifts: createShiftClient(organizationApi),

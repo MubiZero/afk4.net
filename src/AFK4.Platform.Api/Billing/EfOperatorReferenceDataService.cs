@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Analytics;
+using AFK4.Platform.Api.Search;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Operator;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public sealed class EfOperatorReferenceDataService(
         }
 
         var normalizedQuery = trimmedQuery.ToUpperInvariant();
+        var digits = PhoneQuery.Digits(trimmedQuery);
         var take = limit <= 0
             ? DefaultLimit
             : Math.Min(limit, MaximumLimit);
@@ -39,9 +41,18 @@ public sealed class EfOperatorReferenceDataService(
                 player.OrganizationId == organizationId &&
                 player.HomeBranchId == branchId &&
                 (includeInactive || player.IsActive))
+            // Номер набирают подряд цифрами, а записан он с пробелами и дефисами — сравниваем
+            // цифры с цифрами, иначе поиск по телефону молча не находит никого (см. PhoneQuery).
             .Where(player =>
                 player.DisplayName.ToUpper().Contains(normalizedQuery) ||
-                (player.PhoneNumber != null && player.PhoneNumber.Contains(trimmedQuery)))
+                (digits.Length > 0 && player.PhoneNumber != null &&
+                    player.PhoneNumber
+                        .Replace(" ", string.Empty)
+                        .Replace("-", string.Empty)
+                        .Replace("(", string.Empty)
+                        .Replace(")", string.Empty)
+                        .Replace("+", string.Empty)
+                        .Contains(digits)))
             .OrderBy(player => player.DisplayName)
             .ThenBy(player => player.PlayerAccountId)
             .Take(take)

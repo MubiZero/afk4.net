@@ -65,13 +65,6 @@ describe('CommandPalette', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a non-interactive "coming soon" entity block', () => {
-    renderPalette(managerPerms);
-    const soon = screen.getByText('Поиск ПК и чеков появится позже');
-    expect(soon).toBeDefined();
-    expect(soon.closest('button')).toBeNull();
-  });
-
   it('hides screens the session cannot open (cashier has no management screen)', () => {
     renderPalette(cashierPerms);
     expect(screen.getByText('Касса')).toBeDefined();

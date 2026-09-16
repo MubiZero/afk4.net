@@ -45,13 +45,19 @@ const session = {
 };
 const backend = { config: { platformBaseUrl: 'http://test' }, session: { accessToken: 't', ...session }, branchId: 'b1' };
 
-function renderReceipts(overrides: Partial<typeof session> = {}) {
+function renderReceipts(overrides: Partial<typeof session> = {}, openReceipt: { receiptId: string } | null = null) {
   const merged = { ...session, ...overrides };
   const mergedBackend = { ...backend, session: { accessToken: 't', ...merged } };
   render(
     <I18nProvider initialLocale="ru">
       <ToastProvider>
-        <CashReceiptsLedger backend={mergedBackend as never} branchId="b1" currencyCode="TJS" session={merged as never} />
+        <CashReceiptsLedger
+          backend={mergedBackend as never}
+          branchId="b1"
+          currencyCode="TJS"
+          session={merged as never}
+          openReceipt={openReceipt}
+        />
       </ToastProvider>
     </I18nProvider>
   );
@@ -137,6 +143,61 @@ describe('CashReceiptsLedger', () => {
 
     await waitFor(() => expect(getSale).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Отменить чек' })).toBeNull();
+  });
+
+  // Чек из палитры открывается по номеру, а лента показывает только последние 50 продаж смены:
+  // с чеком приходят и через неделю, и такой чек не должен упираться в «выберите из списка».
+  it('открывает чек, которого нет в ленте смены', async () => {
+    getReceipt.mockImplementationOnce(async () => ({
+      receiptId: 'r-old', receiptNumber: 'POS-20260601-0003', receiptType: 'sale', posSaleId: 's-old', total: m(4500)
+    }));
+    getSale.mockImplementationOnce(async () => ({
+      posSaleId: 's-old', state: 'paid', total: m(4500),
+      shiftId: 'shift-old', createdByStaffUserId: 'cashier-1', createdAtUtc: '2026-06-01T08:00:00Z',
+      lines: [{ productId: 'p9', productName: 'Пицца', quantity: 1, unitPrice: m(4500), lineTotal: m(4500) }],
+      payments: [{ paymentMethod: 'cash', amount: m(4500) }],
+      latestReceipt: { receiptId: 'r-old', receiptNumber: 'POS-20260601-0003', total: m(4500) }
+    }));
+
+    renderReceipts({}, { receiptId: 'r-old' });
+
+    const inspector = await screen.findByLabelText('Детали выбранной записи');
+    await waitFor(() => expect(inspector).toHaveTextContent('POS-20260601-0003'));
+    expect(inspector).toHaveTextContent('Пицца');
+    expect((getReceipt.mock.calls[0] as unknown[])?.[0]).toBe('r-old');
+  });
+
+  // Возврат по такому чеку должен быть доступен: состояние продажи знает сама продажа, а не
+  // строка ленты, которой там нет.
+  it('по чеку вне ленты возврат всё равно предлагается', async () => {
+    getReceipt.mockImplementationOnce(async () => ({
+      receiptId: 'r-old', receiptNumber: 'POS-20260601-0003', receiptType: 'sale', posSaleId: 's-old', total: m(4500)
+    }));
+    getSale.mockImplementationOnce(async () => ({
+      posSaleId: 's-old', state: 'paid', total: m(4500),
+      shiftId: 'shift-old', createdByStaffUserId: 'cashier-1', createdAtUtc: '2026-06-01T08:00:00Z',
+      lines: [{ productId: 'p9', productName: 'Пицца', quantity: 1, unitPrice: m(4500), lineTotal: m(4500) }],
+      payments: [{ paymentMethod: 'cash', amount: m(4500) }],
+      latestReceipt: { receiptId: 'r-old', receiptNumber: 'POS-20260601-0003', total: m(4500) }
+    }));
+
+    renderReceipts({}, { receiptId: 'r-old' });
+
+    expect(await screen.findByRole('button', { name: /Возврат по чеку/ })).toBeInTheDocument();
+  });
+
+  // Чек закрытия сессии продажи не имеет вовсе — это нормальный чек, а не сбой загрузки.
+  it('чек без продажи открывается и не притворяется ошибкой', async () => {
+    getReceipt.mockImplementationOnce(async () => ({
+      receiptId: 'r-session', receiptNumber: 'POS-20260601-0009', receiptType: 'session', sessionId: 'sess-1', total: m(8000)
+    }));
+
+    renderReceipts({}, { receiptId: 'r-session' });
+
+    const inspector = await screen.findByLabelText('Детали выбранной записи');
+    await waitFor(() => expect(inspector).toHaveTextContent('POS-20260601-0009'));
+    expect(inspector).toHaveTextContent('80 с.');
+    expect(screen.queryByText('Не удалось загрузить детали чека')).toBeNull();
   });
 
   // Старший отменяет что угодно: его право шире, и окно к нему не применяется.
