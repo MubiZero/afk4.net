@@ -199,4 +199,20 @@ public sealed class CoolifyContainerDeploymentTests
     {
         return value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
     }
+
+    // Мерж пачки PR подряд: Coolify подменяет очередь, и опрос получает 404 на свой deployment.
+    // Раньше это валило прогон красным, хотя деплой не ломался — его просто обогнал следующий.
+    [Fact]
+    public void CoolifyStagingDeployWorkflow_TreatsASupersededDeploymentAsHandedOverNotFailed()
+    {
+        var workflow = File.ReadAllText(Path.Combine(GetRepositoryRoot(), ".github", "workflows", "coolify-staging-deploy.yml"));
+
+        Assert.Contains("$statusCode -eq 404", workflow, StringComparison.Ordinal);
+        Assert.Contains("superseded by a newer push", workflow, StringComparison.Ordinal);
+
+        // Сетевая ошибка — повод повторить, а не валить прогон с первого раза; но и бесконечно
+        // глотать её нельзя.
+        Assert.Contains("$transientFailures", workflow, StringComparison.Ordinal);
+        Assert.Contains("three times in a row", workflow, StringComparison.Ordinal);
+    }
 }
