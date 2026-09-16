@@ -255,8 +255,10 @@ class _RootState extends State<_Root> {
   /// вошедший не должен видеть чужой кошелёк. Правило перенесено из веб-версии.
   Future<void> _signOut() async {
     // Снимаем устройство до того, как выбросить сессию: после выхода звать сервер уже нечем,
-    // а токен остался бы висеть на прежнем игроке — и уведомления пришли бы ему.
+    // а токен остался бы висеть на прежнем игроке — и уведомления пришли бы ему. По той же
+    // причине здесь же гасим пару токенов на сервере: без этого refresh жил бы ещё месяц.
     await _push?.clearOnSignOut();
+    await widget.api.signOut();
     widget.api.updateSession(null);
     await widget.sessionStore.clear();
     if (!mounted) return;

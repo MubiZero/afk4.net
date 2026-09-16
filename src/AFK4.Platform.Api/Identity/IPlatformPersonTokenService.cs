@@ -25,4 +25,10 @@ public interface IPlatformPersonTokenService
     Task<PlatformPersonSessionResponse?> RefreshAsync(string? refreshToken, CancellationToken cancellationToken);
 
     Task<PlatformPersonContext?> ValidateAsync(string? bearerToken, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Выход гасит предъявленную пару токенов. Телефон бывает общим, и «выйти» должно значить
+    /// «этим токеном больше не войти», а не «убрал с экрана».
+    /// </summary>
+    Task<bool> RevokeAsync(string? refreshToken, string? accessToken, CancellationToken cancellationToken);
 }

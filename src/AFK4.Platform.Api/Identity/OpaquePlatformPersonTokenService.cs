@@ -149,6 +149,48 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
             NetworkBanned: person.NetworkBanAtUtc is not null);
     }
 
+    public async Task<bool> RevokeAsync(
+        string? refreshToken,
+        string? accessToken,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var revokedAnything = false;
+
+        if (TryReadTokenId(refreshToken, out var refreshTokenId))
+        {
+            var stored = await dbContext.PlatformPersonRefreshTokens
+                .SingleOrDefaultAsync(token => token.PlatformPersonRefreshTokenId == refreshTokenId, cancellationToken);
+            if (stored is not null
+                && stored.RevokedAtUtc is null
+                && stored.TokenHash.SequenceEqual(HashToken(refreshToken!)))
+            {
+                stored.RevokedAtUtc = now;
+                revokedAnything = true;
+            }
+        }
+
+        if (TryReadTokenId(accessToken, out var accessTokenId))
+        {
+            var stored = await dbContext.PlatformPersonAccessTokens
+                .SingleOrDefaultAsync(token => token.PlatformPersonAccessTokenId == accessTokenId, cancellationToken);
+            if (stored is not null
+                && stored.RevokedAtUtc is null
+                && stored.TokenHash.SequenceEqual(HashToken(accessToken!)))
+            {
+                stored.RevokedAtUtc = now;
+                revokedAnything = true;
+            }
+        }
+
+        if (revokedAnything)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return revokedAnything;
+    }
+
     private Task<PlayerAccountEntity?> FindPinnedAccountAsync(
         Guid platformPersonId,
         Guid pinnedOrganizationId,

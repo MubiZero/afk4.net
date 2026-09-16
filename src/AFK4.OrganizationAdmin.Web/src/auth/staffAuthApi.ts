@@ -50,10 +50,19 @@ export class StaffAuthApi {
     this.fetchImpl = fetchImpl ?? ((i, init) => globalThis.fetch(i, init));
   }
 
-  private async post<T>(path: string, body: unknown, on409?: (r: Response) => Promise<never>): Promise<T> {
+  private async post<T>(
+    path: string,
+    body: unknown,
+    on409?: (r: Response) => Promise<never>,
+    bearerToken?: string
+  ): Promise<T> {
     const res = await this.fetchImpl(new URL(path, this.base).toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...organizationAdminHeaders() },
+      headers: {
+        'Content-Type': 'application/json',
+        ...organizationAdminHeaders(),
+        ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {})
+      },
       body: JSON.stringify(body)
     });
     if (res.status === 409 && on409) return on409(res);
@@ -77,6 +86,18 @@ export class StaffAuthApi {
     return this.post<StaffSignInResponse>(
       `api/organizations/${organizationId}/auth/staff/refresh`,
       { organizationId, refreshToken });
+  }
+
+  /**
+   * Выход гасит пару токенов на сервере. Access передаётся заголовком: сервер отзывает именно тот
+   * токен, которым подписан запрос, и смена того же сотрудника на другой машине не обрывается.
+   */
+  signOut(organizationId: string, refreshToken: string, accessToken: string): Promise<void> {
+    return this.post<void>(
+      `api/organizations/${organizationId}/auth/staff/sign-out`,
+      { organizationId, refreshToken },
+      undefined,
+      accessToken);
   }
 
   forgotByEmail(userNameOrEmail: string) { return this.post<void>('api/auth/staff/forgot-password', { userNameOrEmail }); }

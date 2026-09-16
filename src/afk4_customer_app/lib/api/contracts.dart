@@ -10725,6 +10725,23 @@ class PlayerSignInResponse {
       };
 }
 
+/// Контракт: Players/PlayerSignOutRequest.cs
+class PlayerSignOutRequest {
+  const PlayerSignOutRequest({
+    required this.refreshToken,
+  });
+
+  final String refreshToken;
+
+  factory PlayerSignOutRequest.fromJson(Map<String, dynamic> json) => PlayerSignOutRequest(
+        refreshToken: json['refreshToken'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'refreshToken': refreshToken,
+      };
+}
+
 /// Заявка на пополнение кошелька: игрок просит зачислить сумму, клуб подтверждает.
 ///
 /// Контракт: Players/PlayerTopUpIntentDto.cs
@@ -14580,6 +14597,27 @@ class StaffSignInResponse {
         'branchIds': branchIds.map((item) => item).toList(),
         'permissions': permissions.map((item) => item).toList(),
         'roleNames': roleNames.map((item) => item).toList(),
+      };
+}
+
+/// Контракт: Identity/StaffSignOutRequest.cs
+class StaffSignOutRequest {
+  const StaffSignOutRequest({
+    required this.organizationId,
+    required this.refreshToken,
+  });
+
+  final String organizationId;
+  final String refreshToken;
+
+  factory StaffSignOutRequest.fromJson(Map<String, dynamic> json) => StaffSignOutRequest(
+        organizationId: json['organizationId'] as String,
+        refreshToken: json['refreshToken'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'refreshToken': refreshToken,
       };
 }
 

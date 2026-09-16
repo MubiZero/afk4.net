@@ -199,6 +199,54 @@ public sealed class PlayerAuthenticationEndpointTests
     }
 
     [Fact]
+    public async Task PostPlayerSignOut_RevokesPresentedPair_SoProfileAndRefreshStopWorking()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (orgId, _) = await SeedPlayerWithPinAsync(factory, "1234");
+        using var client = factory.CreateClient();
+
+        var signIn = await client.PostAsJsonAsync(
+            "/api/public/player/sign-in",
+            new PlayerSignInRequest(orgId, "+992900000001", "1234"));
+        var tokens = await signIn.Content.ReadFromJsonAsync<PlayerSignInResponse>();
+        Assert.NotNull(tokens);
+
+        using var signOutRequest = new HttpRequestMessage(HttpMethod.Post, "/api/public/player/sign-out")
+        {
+            Content = JsonContent.Create(new PlayerSignOutRequest(tokens!.RefreshToken))
+        };
+        signOutRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        var signOut = await client.SendAsync(signOutRequest);
+
+        Assert.Equal(HttpStatusCode.NoContent, signOut.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        var profile = await client.GetAsync("/api/me/profile");
+        client.DefaultRequestHeaders.Authorization = null;
+        var refresh = await client.PostAsJsonAsync(
+            "/api/public/player/refresh",
+            new PlayerRefreshRequest(tokens.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, profile.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, refresh.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostPlayerSignOut_WithUnknownRefreshToken_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedPlayerWithPinAsync(factory, "1234");
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/public/player/sign-out",
+            new PlayerSignOutRequest("not-a-token"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PostPlayerSignIn_WrongPin_Returns401()
     {
         await using var factory = new PlatformApiFactory();

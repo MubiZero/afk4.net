@@ -207,6 +207,30 @@ internal static class AuthEndpoints
                 : Results.Ok(response);
         });
 
+        // Выход отзывает предъявленную пару токенов. Без него «выйти» значило бы «стереть сессию
+        // с этой машины»: refresh жил бы ещё месяц и пускал обратно любого, кто его унёс. Маршрут
+        // намеренно не требует живого access — сотрудник, чей токен истёк за ночь, всё равно
+        // должен иметь возможность закрыть свою сессию.
+        organizations.MapPost("auth/staff/sign-out", async (
+            Guid organizationId,
+            StaffSignOutRequest request,
+            HttpContext httpContext,
+            IStaffTokenService tokenService,
+            CancellationToken cancellationToken) =>
+        {
+            if (request.OrganizationId != organizationId)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var revoked = await tokenService.RevokeAsync(
+                request,
+                ReadBearerToken(httpContext),
+                cancellationToken);
+
+            return revoked ? Results.NoContent() : Results.Unauthorized();
+        });
+
         // Самопосадка за игровой ПК. Маршрут остался прежним, чтобы ни одна установленная в поле
         // оболочка не заметила перемены, но проверяет он теперь сетевой PIN личности: PIN
         // принадлежит человеку и работает во всех клубах сети. Клубный хеш, который назначал
@@ -292,6 +316,22 @@ internal static class AuthEndpoints
 
             var legacy = await tokenService.RefreshAsync(request, cancellationToken);
             return legacy is null ? Results.Unauthorized() : Results.Ok(legacy);
+        }).RequireRateLimiting("player-public");
+
+        // Телефон бывает общим, а планшет на стойке — тем более: выход обязан гасить токены на
+        // сервере, иначе следующий в руках человек продолжит чужую сессию из сохранённого refresh.
+        app.MapPost("/api/public/player/sign-out", async (
+            PlayerSignOutRequest request,
+            HttpContext httpContext,
+            IPlatformPersonTokenService personTokenService,
+            CancellationToken cancellationToken) =>
+        {
+            var revoked = await personTokenService.RevokeAsync(
+                request.RefreshToken,
+                ReadBearerToken(httpContext),
+                cancellationToken);
+
+            return revoked ? Results.NoContent() : Results.Unauthorized();
         }).RequireRateLimiting("player-public");
 
         // Каталог клубов для мобильного приложения: у него нет поддомена, из которого веб-сборка
@@ -665,5 +705,17 @@ internal static class AuthEndpoints
             };
         }).RequireRateLimiting("staff-reset");
 
+    }
+
+    // Выход гасит именно тот access, которым подписан запрос, поэтому строку из заголовка читаем
+    // здесь: контекст сотрудника его уже не несёт, а отзывать все токены владельца — значит
+    // выкинуть его же со второй машины.
+    private static string? ReadBearerToken(HttpContext httpContext)
+    {
+        const string bearerPrefix = "Bearer ";
+        var authorization = httpContext.Request.Headers.Authorization.ToString();
+        return authorization.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase)
+            ? authorization[bearerPrefix.Length..].Trim()
+            : null;
     }
 }

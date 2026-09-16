@@ -621,6 +621,12 @@ public sealed class ReservationEndpointTests
             string? bearerToken,
             CancellationToken cancellationToken) =>
             Task.FromResult<StaffContext?>(bearerToken == "start-token" ? context : null);
+
+        public Task<bool> RevokeAsync(
+            StaffSignOutRequest request,
+            string? accessToken,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed record ReservationConflictBody(string? Error, string? Code, int? CurrentVersion);

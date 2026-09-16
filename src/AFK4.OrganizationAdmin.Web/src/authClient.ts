@@ -67,10 +67,21 @@ export async function refreshOperatorSession(): Promise<OperatorAuthSession> {
   return session;
 }
 
-export function signOutOperator(): Promise<{ signedOut: boolean }> {
-  // Серверного sign-out (токен revoke) пока нет — очищаем только локально сохранённую сессию.
+export async function signOutOperator(): Promise<{ signedOut: boolean }> {
+  const current = readStoredSession();
+  // Локальная сессия стирается в любом случае: человек нажал «Выйти», и экран обязан закрыться,
+  // даже если сеть легла. Серверный отзыв — попытка: не дошла, токены доживут свой срок, но
+  // машина уже чужая. Поэтому сначала зовём сервер, и только потом чистим.
+  if (current) {
+    try {
+      await api().signOut(current.organizationId, current.refreshToken, current.accessToken);
+    } catch {
+      // Отзыв не дошёл — выход всё равно состоится локально.
+    }
+  }
+
   clearStoredSession();
-  return Promise.resolve({ signedOut: true });
+  return { signedOut: true };
 }
 
 export function forgotPasswordByEmail(userNameOrEmail: string): Promise<void> {
