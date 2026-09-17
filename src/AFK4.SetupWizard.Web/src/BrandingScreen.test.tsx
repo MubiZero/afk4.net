@@ -25,6 +25,31 @@ function renderScreen(client: BrandingClient, onContinue = mock()) {
 }
 
 describe('BrandingScreen', () => {
+  // На телефонном интернете блок логотипов стоял пустым, пока идёт запрос, — раздел читался как
+  // сломанный. Спиннер с задержкой: на быстрой сети он не мелькнёт.
+  it('пока грузятся готовые логотипы, говорит об этом', async () => {
+    let release: (value: { presets: typeof PRESETS }) => void = () => {};
+    const presets = mock(() => new Promise<{ presets: typeof PRESETS }>((resolve) => { release = resolve; }));
+    renderScreen({ presets, save: mock(), uploadLogo: mock() });
+
+    expect(await screen.findByText(/Загружаем готовые логотипы/i)).toBeTruthy();
+
+    release({ presets: PRESETS });
+    await waitFor(() => expect(screen.queryByText(/Загружаем готовые логотипы/i)).toBeNull());
+  });
+
+  // Пресетов может не быть вовсе — шаг всё равно рабочий, и это надо сказать, а не оставить
+  // пустое место.
+  it('отсутствие готовых логотипов объясняет словами', async () => {
+    renderScreen({
+      presets: mock().mockRejectedValue(new Error('network')),
+      save: mock(),
+      uploadLogo: mock(),
+    });
+
+    expect(await screen.findByText(/Готовые логотипы сейчас недоступны/i)).toBeTruthy();
+  });
+
   it('saves the chosen preset and colour', async () => {
     const save = mock().mockResolvedValue({ saved: true });
     const onContinue = renderScreen({ presets: mock().mockResolvedValue({ presets: PRESETS }), save, uploadLogo: mock() });
