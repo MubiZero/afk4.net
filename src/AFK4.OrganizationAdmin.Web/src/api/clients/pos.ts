@@ -2,7 +2,6 @@ import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import type {
   CreatePosSaleRequest,
-  ManualPaymentRequest,
   PosProductDto,
   PosSaleDto,
   ReceiptDto,
@@ -31,9 +30,6 @@ export function createPosClient(api: PlatformApiClient) {
     },
     createSale(branchId: Guid, request: CreatePosSaleRequest): Promise<PosSaleDto> {
       return api.post<PosSaleDto, CreatePosSaleRequest>(`branches/${branchId}/pos/sales`, request);
-    },
-    paySaleManual(saleId: Guid, request: ManualPaymentRequest): Promise<PosSaleDto> {
-      return api.post<PosSaleDto, ManualPaymentRequest>(`pos/sales/${saleId}/payments/manual`, request);
     },
     settleSale(saleId: Guid, request: SettlePosSaleRequest): Promise<PosSaleDto> {
       return api.post<PosSaleDto, SettlePosSaleRequest>(`pos/sales/${saleId}/settlements`, request);

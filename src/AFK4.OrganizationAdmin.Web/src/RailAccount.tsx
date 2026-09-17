@@ -80,8 +80,9 @@ export function RailAccount({ displayName, shift, onOpenAccount, onSignOut }: {
       <div className={`rail-shift tone-${shift.tone}`} title={shift.full}>
         <span className="rail-shift-cap">{t('op.pos.strip.shift')}</span>
         <strong className="rail-shift-value">
-          {shift.tone === 'open' && <span className="rail-shift-prefix">с </span>}
-          {shift.value}
+          {shift.tone === 'open'
+            ? t('op.shell.rail.shiftSince', { time: shift.value })
+            : shift.value}
         </strong>
       </div>
       {open && createPortal(

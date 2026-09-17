@@ -5,7 +5,6 @@ import {
   type CreatePosSaleRequest,
   type EndSessionRequest,
   type ExtendSessionRequest,
-  type ManualPaymentRequest,
   type OpenShiftRequest,
   type SettlePosSaleRequest,
   type StartGuestSessionRequest,
@@ -91,13 +90,6 @@ describe('operator API clients', () => {
       lines: [],
       playerAccountId: '12121212-1212-1212-1212-121212121212'
     };
-    const paymentRequest: ManualPaymentRequest = {
-      organizationId,
-      paymentMethod: 'cash',
-      amount: { currencyCode: 'TJS', minorUnits: 1200 },
-      note: 'cash',
-      idempotencyKey: 'idem-pay'
-    };
     const refundRequest = {
       organizationId,
       reason: 'customer refund',
@@ -137,7 +129,6 @@ describe('operator API clients', () => {
       limit: 8
     });
     await clients.pos.createSale(branchId, saleRequest);
-    await clients.pos.paySaleManual(saleId, paymentRequest);
     await clients.pos.refundSale(saleId, refundRequest);
     await clients.pos.voidSale(saleId, voidRequest);
     await clients.pos.getSale(saleId);
@@ -161,7 +152,6 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/branches/${branchId}/inventory/stock-movements`,
       `GET /api/organizations/organization-id/branches/${branchId}/inventory/stock-movements?productId=77777777-7777-7777-7777-777777777777&limit=8`,
       `POST /api/organizations/organization-id/branches/${branchId}/pos/sales`,
-      `POST /api/organizations/organization-id/pos/sales/${saleId}/payments/manual`,
       `POST /api/organizations/organization-id/pos/sales/${saleId}/refunds`,
       `POST /api/organizations/organization-id/pos/sales/${saleId}/void`,
       `GET /api/organizations/organization-id/pos/sales/${saleId}`,
@@ -174,7 +164,6 @@ describe('operator API clients', () => {
     ]);
     expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/inventory/stock-movements`)).toEqual(stockRequest);
     expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/pos/sales`)).toEqual(saleRequest);
-    expect(bodyOf(calls, `POST /api/organizations/organization-id/pos/sales/${saleId}/payments/manual`)).toEqual(paymentRequest);
     expect(bodyOf(calls, `POST /api/organizations/organization-id/pos/sales/${saleId}/refunds`)).toEqual(refundRequest);
     expect(bodyOf(calls, `POST /api/organizations/organization-id/pos/sales/${saleId}/void`)).toEqual(voidRequest);
     expect(bodyOf(calls, 'POST /api/organizations/organization-id/players/12121212-1212-1212-1212-121212121212/packages/purchases')).toEqual({

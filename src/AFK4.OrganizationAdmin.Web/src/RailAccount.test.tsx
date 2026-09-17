@@ -18,7 +18,9 @@ function renderWidget(onOpenAccount = () => {}, onSignOut = () => {}, shift = op
 describe('RailAccount', () => {
   it('shows the shift badge value under the avatar with a collapsed menu by default', () => {
     const { getByText, getByTitle, queryByRole } = renderWidget();
-    getByText('13:00');
+    // Предлог берётся из каталога вместе со временем: в английском окне «с 13:00» читалось
+    // русским предлогом перед цифрами.
+    getByText('с 13:00');
     getByTitle(/Смена открыта/);
     expect(queryByRole('menu')).toBeNull();
   });

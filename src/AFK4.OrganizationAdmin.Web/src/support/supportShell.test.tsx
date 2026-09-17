@@ -68,6 +68,27 @@ describe('App under an active support session', () => {
     delete window.__AFK4_ORGANIZATION_ADMIN_CONFIG__;
   });
 
+  // Имя сессии поддержки сервер записывает по-русски («Поддержка платформы»), и в английском
+  // окне оно оставалось русской строкой сразу в трёх местах: в рельсе, в панели аккаунта и в
+  // строке состояния.
+  it('называет поддержку на языке окна, а не строкой из ответа сервера', async () => {
+    localStorage.setItem('afk4.locale', 'en');
+    writeSupportSession({
+      sessionToken: 'support-token-2',
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      organizationName: 'AFK4 Dushanbe',
+      reason: 'Shift will not open',
+      expiresAtUtc: new Date(Date.now() + 5 * 60_000).toISOString(),
+      writableAreas: ['branch-settings'],
+      branches: [{ branchId: 'b1', name: 'Rudaki' }]
+    });
+
+    render(<App />);
+
+    expect((await screen.findAllByText(/Platform support/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Поддержка платформы/)).not.toBeInTheDocument();
+  });
+
   it('renders the real operator shell — not the sign-in form, not a placeholder screen', async () => {
     writeSupportSession({
       sessionToken: 'support-token-1',

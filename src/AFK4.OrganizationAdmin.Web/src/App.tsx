@@ -401,7 +401,20 @@ function AppInner() {
   const hasContextContent = workspace === 'map' && selectedSeat !== null;
   const contextCol = hasContextContent ? 'minmax(260px, 292px)' : '0px';
   const actionsEnabled = floorMap.source === 'backend' && floorMap.loadStatus === 'ready';
-  const operatorDisplayName = operatorDisplayNameLabel(authSession.displayName, t);
+  // Сессия поддержки приходит с именем, которое сервер записал по-русски («Поддержка
+  // платформы»): в английском и таджикском окне оно оставалось русской строкой в трёх местах
+  // сразу — в рельсе, в панели аккаунта и в строке состояния.
+  const operatorDisplayName = authSession.isSupportSession === true
+    ? t('op.helper.staff.platformSupport')
+    : operatorDisplayNameLabel(authSession.displayName, t);
+  const operatorRoleNames = authSession.isSupportSession === true
+    ? [t('op.helper.staff.platformSupport')]
+    : authSession.roleNames ?? [];
+  // Строка состояния показывает имя как есть — кроме сессии поддержки, у которой имени нет:
+  // там стоит подпись роли, и она должна быть на языке окна.
+  const operatorStatusName = authSession.isSupportSession === true
+    ? t('op.helper.staff.platformSupport')
+    : authSession.displayName;
 
   return (
     <>
@@ -559,8 +572,8 @@ function AppInner() {
         )}
 
         <ShellStatusBar
-          operatorName={authSession.displayName}
-          roleNames={authSession.roleNames ?? []}
+          operatorName={operatorStatusName}
+          roleNames={operatorRoleNames}
           clubName={displayedFloorMap.source === 'backend' ? displayedFloorMap.branchName : ''}
           realtimeState={realtimeState}
           realtimeError={realtimeError}
