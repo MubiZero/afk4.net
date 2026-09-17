@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 
@@ -49,7 +50,8 @@ describe('AcceptInvite (operator)', () => {
   it('не отправляет короткий пароль на сервер', async () => {
     renderScreen();
 
-    fill('937380070', '123456', 'short');
+    // Короче минимума, каким бы он ни был: правило живёт в @afk4/contracts, а не в этой строке.
+    fill('937380070', '123456', 'x'.repeat(MIN_STAFF_PASSWORD_LENGTH - 1));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(acceptStaffInvite).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -290,7 +291,7 @@ describe('StaffRolesDestination', () => {
     await waitFor(() => expect(updateStaffUserState).toHaveBeenCalledWith('b1', staffUserId, expect.objectContaining({ isActive: true })));
   });
 
-  it('rejects a reset password shorter than 8 characters without opening a confirm dialog', () => {
+  it('rejects a reset password shorter than the minimum without opening a confirm dialog', () => {
     const onFeedback = mock(() => {});
     wrap(
       <StaffRolesDestination
@@ -302,7 +303,10 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    fireEvent.change(screen.getByLabelText('Новый пароль для входа'), { target: { value: 'short' } });
+    fireEvent.change(screen.getByLabelText('Новый пароль для входа'), {
+      // Короче минимума, каким бы он ни был: правило живёт в @afk4/contracts.
+      target: { value: 'x'.repeat(MIN_STAFF_PASSWORD_LENGTH - 1) },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить пароль' }));
 
     expect(screen.queryByRole('alertdialog')).toBeNull();

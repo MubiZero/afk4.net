@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
 import { acceptStaffInvite, StaffAuthApiError } from './authClient';
 import { AuthFrame } from './AuthFrame';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
@@ -27,7 +28,10 @@ export function AcceptInvite({ onBackToSignIn }: { onBackToSignIn: () => void })
     event.preventDefault();
     setError(null);
     if (localPhoneDigits(phone).length !== 9) { setError(t('op.auth.hint.phone')); return; }
-    if (!code.trim() || password.length < 8) { setError(t('auth.invite.error.fields')); return; }
+    if (!code.trim() || password.length < MIN_STAFF_PASSWORD_LENGTH) {
+      setError(t('auth.invite.error.fields', { min: MIN_STAFF_PASSWORD_LENGTH }));
+      return;
+    }
 
     setIsBusy(true);
     try {

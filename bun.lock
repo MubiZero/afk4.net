@@ -163,6 +163,7 @@
       "name": "afk4-setup-wizard-web",
       "version": "0.1.0",
       "dependencies": {
+        "@afk4/contracts": "workspace:*",
         "@afk4/formatting": "workspace:*",
         "@afk4/host-bridge": "workspace:*",
         "@afk4/i18n": "workspace:*",

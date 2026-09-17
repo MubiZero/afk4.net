@@ -1,3 +1,4 @@
+﻿using AFK4.Platform.Api.Endpoints;
 using System.Net;
 using System.Text.Json;
 using System.Net.Http.Json;
@@ -16,6 +17,10 @@ namespace AFK4.Platform.Api.Tests.Platform;
 
 public sealed class PlatformOrganizationEndpointTests
 {
+    // Короче минимума, каким бы он ни был: правило живёт в EndpointHelpers, а не в этой строке.
+    private static readonly string TooShortPassword =
+        new('x', EndpointHelpers.MinimumStaffPasswordLength - 1);
+
     private static CreateOrganizationRequest BuildCreateOrganizationRequest(
         string orgSlug = "demo-club",
         string branchSlug = "demo-branch",
@@ -492,7 +497,7 @@ public sealed class PlatformOrganizationEndpointTests
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
             "/api/account-activation/organization-owner",
-            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "short"));
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", TooShortPassword));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

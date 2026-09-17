@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
 import {
   forgotPasswordByEmail,
   forgotPasswordByPhone,
@@ -23,7 +24,7 @@ interface ForgotPasswordScreenProps {
 
 type Step = 'request' | 'verify' | 'done';
 
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = MIN_STAFF_PASSWORD_LENGTH;
 
 // Both channels follow the same shape: request a 6-digit code, then enter it with a new password.
 // Email mails the code; SMS texts it — the verify step is identical from there on.
