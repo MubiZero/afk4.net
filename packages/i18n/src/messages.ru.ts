@@ -3637,6 +3637,7 @@ export const ru = {
   "setup.wizard.staff.name": "Имя",
   "setup.wizard.staff.next": "Дальше",
   "setup.wizard.staff.phone": "Телефон",
+  "setup.wizard.staff.phoneIncomplete": "В номере девять цифр: 90 000 00 00.",
   "setup.wizard.staff.role": "Роль",
   "setup.wizard.staff.skip": "Пропустить",
   "setup.wizard.staff.subtitle": "Каждому придёт код в SMS — по нему он войдёт и сам задаст пароль.",

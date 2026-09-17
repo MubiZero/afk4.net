@@ -37,7 +37,9 @@ describe('StaffScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
     await waitFor(() => expect(screen.getByText('123456')).toBeTruthy());
-    expect(invite).toHaveBeenCalledWith('Дилшод', '+992 90 000-00-00', 'operator');
+    // Номер уезжает нормализованным, как и на входе в мастер: сервер не должен разбирать
+    // пробелы и дефисы, которые набрал человек.
+    expect(invite).toHaveBeenCalledWith('Дилшод', '992900000000', 'operator');
     expect(screen.getByText(/Дилшод · Оператор/)).toBeTruthy();
   });
 
@@ -51,6 +53,21 @@ describe('StaffScreen', () => {
 
     expect(invite).not.toHaveBeenCalled();
     expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // Номер набирают со слуха: недобранная цифра уходила приглашением постороннему человеку, а
+  // поле очищается сразу после отправки — заметить было негде.
+  it('не отправляет приглашение на недобранный номер', () => {
+    const invite = mock();
+    renderScreen({ invite });
+
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '90 000 00' } });
+    fireEvent.blur(screen.getByLabelText('Телефон'));
+
+    expect(screen.getByText(/девять цифр/i)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Пригласить' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(invite).not.toHaveBeenCalled();
   });
 
   // Клуб можно открыть и одному: шаг проходится без единого приглашения.
