@@ -1,4 +1,4 @@
-namespace AFK4.Agent.Service.Enforcement;
+﻿namespace AFK4.Agent.Service.Enforcement;
 
 public interface IGraceModeMonitor
 {
@@ -16,12 +16,13 @@ public sealed class GraceModeMonitor(
     public async Task EnforceAsync(CancellationToken cancellationToken)
     {
         var lease = leaseStore.Current;
+        var now = timeProvider.GetUtcNow();
         if (lease is null)
         {
+            await LockAfterRestartIfLeaseLapsedAsync(now, cancellationToken);
             return;
         }
 
-        var now = timeProvider.GetUtcNow();
         if (lease.ExpiresAtUtc > now)
         {
             return;
@@ -47,6 +48,40 @@ public sealed class GraceModeMonitor(
             "Session lease {SessionId} expired at {ExpiresAtUtc}. Workstation locked: {Enforced}.",
             lease.SessionId,
             lease.ExpiresAtUtc,
+            outcome.Describe());
+    }
+
+    /// <summary>
+    /// Служба перезапустилась, пока за ПК сидел гость.
+    ///
+    /// Просроченную аренду хранилище при загрузке удаляет — она больше не даёт права играть. Но в
+    /// состоянии осталось, что машина была отдана гостю, и без этой проверки агент после
+    /// перезапуска не запирал её уже никогда: аренды нет, значит и запирать «нечего». ПК оставался
+    /// бесплатным, пока не вернётся связь, а при затяжном обрыве это часы.
+    ///
+    /// Внутри льготного окна (его время теперь тоже переживает перезапуск) машина остаётся
+    /// открытой: гость заплатил, а сеть пропала не по его вине.
+    /// </summary>
+    private async Task LockAfterRestartIfLeaseLapsedAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var state = runtimeStateStore.Current;
+        if (state.IsLocked || state.ActiveSessionId is null || state.LeaseExpiresAtUtc is not { } expiresAtUtc)
+        {
+            return;
+        }
+
+        if (expiresAtUtc > now || offlineLeaseExtender.WithinGraceWindow(now))
+        {
+            return;
+        }
+
+        runtimeStateStore.MarkLocked(now);
+        var outcome = await workstationLockController.LockAsync(cancellationToken);
+
+        logger.LogWarning(
+            "Session {SessionId} lease lapsed at {ExpiresAtUtc} and did not survive an Agent restart. Workstation locked: {Enforced}.",
+            state.ActiveSessionId,
+            expiresAtUtc,
             outcome.Describe());
     }
 }
