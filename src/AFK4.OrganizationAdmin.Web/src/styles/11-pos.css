@@ -713,7 +713,9 @@
 
 .pos-cart-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* Третья колонка — правка самой строки: минус, плюс, убрать. Раньше ошибку в одной позиции
+     чинили только «Очистить корзину», то есть пробивали весь чек заново. */
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
   min-height: 46px;
@@ -953,3 +955,6 @@
     animation: none;
   }
 }
+
+.pos-cart-row-actions { display: flex; gap: var(--space-1); }
+.pos-cart-row.empty .pos-cart-row-actions { display: none; }

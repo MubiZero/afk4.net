@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Search, UserRoundPlus, X } from 'lucide-react';
+import { Minus, Plus, Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { knownErrorMessage, projectOperatorError } from './apiErrors';
 import type {
@@ -385,6 +385,20 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     });
   }, []);
 
+  // Ошиблись одной позицией из пяти — правится она одна. Раньше в корзине не было ни одной
+  // кнопки у строки: единственным выходом была «Очистить корзину», то есть пробить весь чек
+  // заново под очередью.
+  const changeQuantity = useCallback((item: PosCartItem, delta: number) => {
+    setCartItems((items) => items.flatMap((candidate) => {
+      const match = item.productId
+        ? candidate.productId === item.productId
+        : candidate.productId === undefined && candidate.name === item.name;
+      if (!match) return [candidate];
+      const quantity = candidate.quantity + delta;
+      return quantity > 0 ? [{ ...candidate, quantity }] : [];
+    }));
+  }, []);
+
   const onScan = useCallback((code: string) => {
     const found = matchByBarcode(catalog, code);
     if (found) {
@@ -741,6 +755,32 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                     <span>{t('op.pos.cart.itemQty', { count: item.quantity })}</span>
                   </div>
                   <b><Money minorUnits={item.priceMinorUnits * item.quantity} currencyCode={currencyCode} /></b>
+                  <span className="pos-cart-row-actions">
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn--icon ui-btn--sm"
+                      aria-label={t('op.pos.cart.decrease', { name: item.name })}
+                      onClick={() => changeQuantity(item, -1)}
+                    >
+                      <Minus size={14} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn--icon ui-btn--sm"
+                      aria-label={t('op.pos.cart.increase', { name: item.name })}
+                      onClick={() => changeQuantity(item, 1)}
+                    >
+                      <Plus size={14} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn--icon ui-btn--sm"
+                      aria-label={t('op.pos.cart.remove', { name: item.name })}
+                      onClick={() => changeQuantity(item, -item.quantity)}
+                    >
+                      <X size={14} aria-hidden="true" />
+                    </button>
+                  </span>
                 </article>
               ))
             )}

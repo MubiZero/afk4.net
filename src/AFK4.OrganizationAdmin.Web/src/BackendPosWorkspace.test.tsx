@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { BackendPosWorkspace } from './BackendPosWorkspace';
 import { ToastProvider } from './operatorToast';
@@ -173,7 +173,9 @@ function renderBackendPos(nextBackend = backend) {
 // Чек начинается пустым (см. тест ниже), поэтому денежные сценарии сначала кладут товар руками —
 // кликом по карточке каталога, ровно как кассир.
 function addColaToCart() {
-  fireEvent.click(screen.getByRole('button', { name: /Cola/ }));
+  // Именно плитка каталога: у строки чека тоже есть кнопки с именем товара («Убрать из чека: Cola»).
+  const catalog = document.querySelector('.pos-catalog-grid') as HTMLElement;
+  fireEvent.click(within(catalog).getByRole('button', { name: /Cola/ }));
 }
 
 describe('BackendPosWorkspace', () => {
@@ -248,6 +250,36 @@ describe('BackendPosWorkspace', () => {
     await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/players/player-1/wallet-summary'));
     expect(requestedUrls).toContain('http://test/api/organizations/organization-1/players/player-1/packages');
     await waitFor(() => expect(screen.getByText('15 с.')).toBeInTheDocument());
+  });
+
+  // Ошиблись одной позицией из пяти — правится она одна. Раньше у строки чека не было ни одной
+  // кнопки, и единственным выходом была «Очистить корзину»: весь чек заново, под очередью.
+  it('позицию в чеке можно убавить и убрать по одной', async () => {
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+    addColaToCart();
+    addColaToCart();
+
+    const cart = document.querySelector('.pos-cart-list') as HTMLElement;
+    expect(within(cart).getByText('2 шт.')).toBeInTheDocument();
+
+    fireEvent.click(within(cart).getByRole('button', { name: 'Убрать одну штуку: Cola' }));
+    expect(within(cart).getByText('1 шт.')).toBeInTheDocument();
+
+    fireEvent.click(within(cart).getByRole('button', { name: 'Убрать из чека: Cola' }));
+    expect(within(cart).getByText('Корзина пуста')).toBeInTheDocument();
+  });
+
+  it('убавление последней штуки убирает строку, а не оставляет ноль', async () => {
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+    addColaToCart();
+
+    const cart = document.querySelector('.pos-cart-list') as HTMLElement;
+    fireEvent.click(within(cart).getByRole('button', { name: 'Убрать одну штуку: Cola' }));
+
+    expect(within(cart).getByText('Корзина пуста')).toBeInTheDocument();
+    expect(within(cart).queryByText('0 шт.')).toBeNull();
   });
 
   it('keeps wallet, cash, cart, and client after a stable settlement failure', async () => {
