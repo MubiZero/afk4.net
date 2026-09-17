@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -78,6 +78,18 @@ internal static class AuthEndpoints
         this WebApplication app,
         IEndpointRouteBuilder organizations)
     {
+        // «Не подошло» и «заперто после пяти промахов» — разные новости: под первой человек
+        // ищет опечатку и пробует снова, под второй ждёт четверть часа. Код уезжает клиенту,
+        // который и решает, какими словами это сказать.
+        static IResult SignInResult(StaffSignInOutcome outcome) => outcome switch
+        {
+            { LockedOut: true } => Results.Json(
+                new { Error = "Too many failed password attempts.", Code = StaffAuthErrorCodeNames.TooManyPasswordAttempts },
+                statusCode: StatusCodes.Status429TooManyRequests),
+            { SignedIn: null } => Results.Unauthorized(),
+            _ => Results.Ok(outcome.SignedIn)
+        };
+
         organizations.MapPost("auth/staff/sign-in", async (
             Guid organizationId,
             StaffSignInRequest request,
@@ -89,11 +101,7 @@ internal static class AuthEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var response = await credentialService.SignInAsync(request, cancellationToken);
-
-            return response is null
-                ? Results.Unauthorized()
-                : Results.Ok(response);
+            return SignInResult(await credentialService.SignInAsync(request, cancellationToken));
         });
 
         organizations.MapPost("auth/staff/sign-in-by-organization-key", async (
@@ -102,15 +110,12 @@ internal static class AuthEndpoints
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
-            var response = await credentialService.SignInByOrganizationKeyAsync(request, cancellationToken);
+            var outcome = await credentialService.SignInByOrganizationKeyAsync(request, cancellationToken);
 
-            return response switch
-            {
-                null => Results.Unauthorized(),
-                { OrganizationId: var responseOrganizationId } when responseOrganizationId != organizationId
-                    => Results.StatusCode(StatusCodes.Status403Forbidden),
-                _ => Results.Ok(response)
-            };
+            return outcome.SignedIn is { OrganizationId: var responseOrganizationId }
+                && responseOrganizationId != organizationId
+                    ? Results.StatusCode(StatusCodes.Status403Forbidden)
+                    : SignInResult(outcome);
         });
 
         organizations.MapPost("auth/staff/sign-in-by-login", async (
@@ -124,9 +129,7 @@ internal static class AuthEndpoints
                 request,
                 cancellationToken);
 
-            return resolution.SignedIn is null
-                ? Results.Unauthorized()
-                : Results.Ok(resolution.SignedIn);
+            return SignInResult(new StaffSignInOutcome(resolution.SignedIn, resolution.LockedOut));
         });
 
         // ── Вход до того, как известна организация ───────────────────────────────────────
@@ -145,11 +148,7 @@ internal static class AuthEndpoints
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
-            var response = await credentialService.SignInAsync(request, cancellationToken);
-
-            return response is null
-                ? Results.Unauthorized()
-                : Results.Ok(response);
+            return SignInResult(await credentialService.SignInAsync(request, cancellationToken));
         }).RequireRateLimiting("staff-sign-in");
 
         app.MapPost(StaffAuthRoutes.SignInByLogin, async (
@@ -162,9 +161,9 @@ internal static class AuthEndpoints
                 request,
                 cancellationToken);
 
-            if (resolution.SignedIn is not null)
+            if (resolution.SignedIn is not null || resolution.LockedOut)
             {
-                return Results.Ok(resolution.SignedIn);
+                return SignInResult(new StaffSignInOutcome(resolution.SignedIn, resolution.LockedOut));
             }
 
             // Один логин работает в нескольких клубах — человек выбирает, в какой войти, и
@@ -182,11 +181,7 @@ internal static class AuthEndpoints
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
-            var signedIn = await credentialService.SignInByPhoneAsync(request, cancellationToken);
-
-            return signedIn is null
-                ? Results.Unauthorized()
-                : Results.Ok(signedIn);
+            return SignInResult(await credentialService.SignInByPhoneAsync(request, cancellationToken));
         }).RequireRateLimiting("staff-sign-in");
 
         organizations.MapPost("auth/staff/refresh", async (
@@ -497,14 +492,12 @@ internal static class AuthEndpoints
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
-            var signedIn = await credentialService.SignInByPhoneAsync(request, cancellationToken);
-            return signedIn switch
-            {
-                null => Results.Unauthorized(),
-                { OrganizationId: var responseOrganizationId } when responseOrganizationId != organizationId
-                    => Results.StatusCode(StatusCodes.Status403Forbidden),
-                _ => Results.Ok(signedIn)
-            };
+            var outcome = await credentialService.SignInByPhoneAsync(request, cancellationToken);
+
+            return outcome.SignedIn is { OrganizationId: var responseOrganizationId }
+                && responseOrganizationId != organizationId
+                    ? Results.StatusCode(StatusCodes.Status403Forbidden)
+                    : SignInResult(outcome);
         });
 
         organizations.MapPost("account/phone/start-verification", async (

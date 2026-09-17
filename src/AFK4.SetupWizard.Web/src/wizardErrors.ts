@@ -25,6 +25,7 @@ const CODE_KEYS = {
   wizard_local_config_write_failed: 'setup.wizard.device.error.localConfig',
 
   // Коды сервера: почему он отказал. Эти причины человек за мастером правит сам.
+  too_many_password_attempts: 'setup.wizard.error.tooManyPasswordAttempts',
   tariff_name_taken: 'setup.wizard.error.tariffNameTaken',
   seat_occupied: 'setup.wizard.error.seatOccupied',
   invalid_phone: 'setup.wizard.error.invalidPhone',

@@ -1,4 +1,4 @@
-using AFK4.Platform.Api.Data;
+﻿using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -8,11 +8,18 @@ namespace AFK4.Platform.Api.Identity;
 
 public sealed class PasswordHashingStaffCredentialService(
     PlatformDbContext dbContext,
-    IStaffTokenService tokenService) : IStaffCredentialService
+    IStaffTokenService tokenService,
+    TimeProvider timeProvider) : IStaffCredentialService
 {
+    // Те же пять попыток и те же пятнадцать минут, что у администратора платформы. Порог не про
+    // подбор, а про человека, промахнувшегося раскладкой: исправиться он успевает.
+    private const int MaxFailedAttempts = 5;
+
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
     private readonly PasswordHasher<StaffUserEntity> passwordHasher = new();
 
-    public async Task<StaffSignInResponse?> SignInAsync(
+    public async Task<StaffSignInOutcome> SignInAsync(
         StaffSignInRequest request,
         CancellationToken cancellationToken)
     {
@@ -20,23 +27,64 @@ public sealed class PasswordHashingStaffCredentialService(
             string.IsNullOrWhiteSpace(request.UserName) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return null;
+            return StaffSignInOutcome.Rejected;
         }
 
         var user = await ResolveOrgUserAsync(request.OrganizationId, request.UserName, cancellationToken);
         if (user is null)
         {
-            return null;
+            return StaffSignInOutcome.Rejected;
         }
 
-        var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-
-        return result == PasswordVerificationResult.Failed
-            ? null
-            : await tokenService.IssueAsync(user, cancellationToken);
+        return await VerifyAndIssueAsync(user, request.Password, cancellationToken);
     }
 
-    public async Task<StaffSignInResponse?> SignInByOrganizationKeyAsync(
+    /// <summary>
+    /// Проверить пароль и выдать вход, считая промахи.
+    ///
+    /// Без счёта промахов короткий пароль перебирается за часы: ограничение частоты стоит на
+    /// адресе, а адресов у перебирающего столько, сколько он захочет купить. Счёт живёт на самой
+    /// учётной записи, поэтому от смены адреса не спасает.
+    /// </summary>
+    private async Task<StaffSignInOutcome> VerifyAndIssueAsync(
+        StaffUserEntity user,
+        string password,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        if (user.PasswordLockedUntilUtc is { } lockedUntil && lockedUntil > now)
+        {
+            return StaffSignInOutcome.Locked;
+        }
+
+        var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+        if (result == PasswordVerificationResult.Failed)
+        {
+            user.FailedPasswordAttempts++;
+            var lockedOut = user.FailedPasswordAttempts >= MaxFailedAttempts;
+            if (lockedOut)
+            {
+                user.PasswordLockedUntilUtc = now.Add(LockoutDuration);
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return lockedOut ? StaffSignInOutcome.Locked : StaffSignInOutcome.Rejected;
+        }
+
+        if (user.FailedPasswordAttempts != 0 || user.PasswordLockedUntilUtc is not null)
+        {
+            // Верный пароль снимает счёт: иначе пять промахов за месяц однажды запрут того, кто
+            // каждый раз заходил успешно.
+            user.FailedPasswordAttempts = 0;
+            user.PasswordLockedUntilUtc = null;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return StaffSignInOutcome.Success(await tokenService.IssueAsync(user, cancellationToken));
+    }
+
+    public async Task<StaffSignInOutcome> SignInByOrganizationKeyAsync(
         StaffSignInByOrganizationKeyRequest request,
         CancellationToken cancellationToken)
     {
@@ -44,14 +92,14 @@ public sealed class PasswordHashingStaffCredentialService(
             string.IsNullOrWhiteSpace(request.UserName) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return null;
+            return StaffSignInOutcome.Rejected;
         }
 
         var organizationKey = SlugValidator.Normalize(request.OrganizationKey);
         if (Guid.TryParse(organizationKey, out _) ||
             SlugValidator.Validate(organizationKey, nameof(request.OrganizationKey)) is not null)
         {
-            return null;
+            return StaffSignInOutcome.Rejected;
         }
 
         var organizationId = await dbContext.Organizations
@@ -61,7 +109,7 @@ public sealed class PasswordHashingStaffCredentialService(
             .SingleOrDefaultAsync(cancellationToken);
 
         return organizationId is null
-            ? null
+            ? StaffSignInOutcome.Rejected
             : await SignInAsync(
                 new StaffSignInRequest(organizationId.Value, request.UserName, request.Password),
                 cancellationToken);
@@ -80,8 +128,8 @@ public sealed class PasswordHashingStaffCredentialService(
 
         var normalizedLogin = request.Login.Trim().ToUpperInvariant();
         var loweredLogin = request.Login.Trim().ToLowerInvariant();
+        // Не AsNoTracking: промахи по паролю здесь записываются на учётные записи.
         var candidates = await dbContext.StaffUsers
-            .AsNoTracking()
             // organizationId == null — вход из мастера установки, где организация ещё не
             // известна. Перебором это не становится: в matched попадают только те записи,
             // для которых пароль уже сошёлся, поэтому наружу уходят имена клубов, где эта же
@@ -90,30 +138,55 @@ public sealed class PasswordHashingStaffCredentialService(
                 candidate.IsActive &&
                 (candidate.NormalizedUserName == normalizedLogin ||
                  (candidate.Email != null && candidate.Email.ToLower() == loweredLogin)))
-            .Select(candidate => new { candidate.OrganizationId, candidate.StaffUserId, candidate.PasswordHash })
             .ToListAsync(cancellationToken);
 
+        var now = timeProvider.GetUtcNow();
         var matched = new List<(Guid OrganizationId, Guid StaffUserId)>();
+        var anyLocked = false;
+        var changed = false;
         foreach (var candidate in candidates)
         {
-            // VerifyHashedPassword only reads the hash; the entity is a placeholder.
-            var placeholder = new StaffUserEntity
+            // Запертую учётную запись даже не проверяем: иначе пятнадцать минут ожидания можно
+            // было бы пересидеть, заходя этим же логином из мастера.
+            if (candidate.PasswordLockedUntilUtc is { } lockedUntil && lockedUntil > now)
             {
-                StaffUserId = candidate.StaffUserId,
-                OrganizationId = candidate.OrganizationId
-            };
-            var result = passwordHasher.VerifyHashedPassword(placeholder, candidate.PasswordHash, request.Password);
+                anyLocked = true;
+                continue;
+            }
+
+            var result = passwordHasher.VerifyHashedPassword(candidate, candidate.PasswordHash, request.Password);
             if (result != PasswordVerificationResult.Failed)
             {
                 matched.Add((candidate.OrganizationId, candidate.StaffUserId));
+                if (candidate.FailedPasswordAttempts != 0 || candidate.PasswordLockedUntilUtc is not null)
+                {
+                    candidate.FailedPasswordAttempts = 0;
+                    candidate.PasswordLockedUntilUtc = null;
+                    changed = true;
+                }
+
+                continue;
             }
+
+            candidate.FailedPasswordAttempts++;
+            changed = true;
+            if (candidate.FailedPasswordAttempts >= MaxFailedAttempts)
+            {
+                candidate.PasswordLockedUntilUtc = now.Add(LockoutDuration);
+                anyLocked = true;
+            }
+        }
+
+        if (changed)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         var matchedOrgIds = matched.Select(entry => entry.OrganizationId).Distinct().ToList();
 
         if (matchedOrgIds.Count == 0)
         {
-            return StaffLoginResolution.None;
+            return anyLocked ? StaffLoginResolution.Locked : StaffLoginResolution.None;
         }
 
         if (matchedOrgIds.Count == 1)
@@ -192,37 +265,32 @@ public sealed class PasswordHashingStaffCredentialService(
             cancellationToken);
     }
 
-    public async Task<StaffSignInResponse?> SignInByPhoneAsync(
+    public async Task<StaffSignInOutcome> SignInByPhoneAsync(
         StaffSignInByPhoneRequest request,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.PhoneNumber) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return null;
+            return StaffSignInOutcome.Rejected;
         }
 
         var normalizedPhone = PhoneNumberNormalizer.Normalize(request.PhoneNumber);
         if (normalizedPhone is null)
         {
-            return null;
+            return StaffSignInOutcome.Rejected;
         }
 
+        // Не AsNoTracking: промах по паролю здесь записывается на учётную запись.
         var user = await dbContext.StaffUsers
-            .AsNoTracking()
             .FirstOrDefaultAsync(
                 candidate => candidate.NormalizedPhone == normalizedPhone
                     && candidate.PhoneVerifiedAtUtc != null
                     && candidate.IsActive,
                 cancellationToken);
-        if (user is null)
-        {
-            return null;
-        }
 
-        var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-        return result == PasswordVerificationResult.Failed
-            ? null
-            : await tokenService.IssueAsync(user, cancellationToken);
+        return user is null
+            ? StaffSignInOutcome.Rejected
+            : await VerifyAndIssueAsync(user, request.Password, cancellationToken);
     }
 }
