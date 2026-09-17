@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
@@ -25,7 +25,8 @@ public sealed class Worker(
     ICommandResultOutbox commandResultOutbox,
     IDeviceCredentialStore credentialStore,
     IShellWarningStore shellWarningStore,
-    TimeProvider timeProvider) : BackgroundService
+    TimeProvider timeProvider,
+    IProcessPolicyEnforcer? processPolicyEnforcer = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -62,6 +63,7 @@ public sealed class Worker(
         client.BaseAddress = agentOptions.PlatformBaseUrl;
 
         await TryEnforceGraceModeAsync(stoppingToken);
+        await TryEnforceProcessPolicyAsync(stoppingToken);
         await TryMaintainPlayerShellAsync(stoppingToken);
         await TryReconcileSessionAsync(stoppingToken);
         await TryReportInstalledAppsAsync(stoppingToken);
@@ -69,6 +71,7 @@ public sealed class Worker(
         while (!stoppingToken.IsCancellationRequested)
         {
             await TryEnforceGraceModeAsync(stoppingToken);
+            await TryEnforceProcessPolicyAsync(stoppingToken);
             await TryMaintainPlayerShellAsync(stoppingToken);
             await TryReportInstalledAppsOnScheduleAsync(stoppingToken);
             var outcome = await TrySendHeartbeatAsync(client, stoppingToken);
@@ -322,6 +325,34 @@ public sealed class Worker(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Grace mode enforcement failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    /// <summary>
+    /// Закрыть то, чему на этой машине быть не должно (<see cref="AgentOptions.DeniedProcessNames"/>).
+    ///
+    /// Правило, исполнитель и проверка на него были написаны, а звать исполнителя было некому: в
+    /// службе не осталось ни одного вызова. Клуб, вписавший в настройку обход киоска или чит,
+    /// считал, что запрет работает, — и ничего не работало.
+    /// </summary>
+    private async Task TryEnforceProcessPolicyAsync(CancellationToken cancellationToken)
+    {
+        if (processPolicyEnforcer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await processPolicyEnforcer.EnforceAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Process policy enforcement failed. Continuing with heartbeat loop.");
         }
     }
 
