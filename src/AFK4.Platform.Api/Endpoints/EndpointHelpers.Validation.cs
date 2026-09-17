@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -176,10 +176,20 @@ internal static partial class EndpointHelpers
             : "DisplayName must contain 160 characters or fewer.";
     }
 
+    /// <summary>
+    /// Минимальная длина пароля сотрудника.
+    ///
+    /// Шесть, а не восемь: пароль набирают вручную на каждой машине при установке, а короткий
+    /// перебор больше не бесконечен — пять промахов подряд запирают учётную запись на четверть
+    /// часа (PasswordHashingStaffCredentialService). Экраны читают это же число из
+    /// @afk4/contracts, совпадение стережёт passwordPolicy.test.ts.
+    /// </summary>
+    public const int MinimumStaffPasswordLength = 6;
+
     public static string? ValidateStaffPassword(string password)
     {
-        return string.IsNullOrWhiteSpace(password) || password.Length < 8
-            ? "Password must contain at least 8 characters."
+        return string.IsNullOrWhiteSpace(password) || password.Length < MinimumStaffPasswordLength
+            ? $"Password must contain at least {MinimumStaffPasswordLength} characters."
             : null;
     }
 

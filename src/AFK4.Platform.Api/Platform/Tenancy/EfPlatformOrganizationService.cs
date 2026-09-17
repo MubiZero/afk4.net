@@ -1,7 +1,8 @@
-using AFK4.Shared.Contracts.Platform.Billing;
+﻿using AFK4.Shared.Contracts.Platform.Billing;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Audit;
+using AFK4.Platform.Api.Endpoints;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Platform.Entitlements;
@@ -24,7 +25,10 @@ public sealed class EfPlatformOrganizationService(
     IOptions<PlatformOrganizationOptions> organizationOptions,
     IPlanLimitGuard planLimitGuard) : IPlatformOrganizationService
 {
-    private const int MinPasswordLength = 8;
+    // Владелец клуба — сотрудник: он входит в приложение клуба и в мастер установки теми же
+    // дверями. Правило у него одно с остальными сотрудниками, иначе при регистрации от него
+    // требовали бы восемь символов, а сменить пароль на короткий он мог бы через минуту.
+    private const int MinPasswordLength = EndpointHelpers.MinimumStaffPasswordLength;
     private const int MaxUserNameLength = 256;
     private const int MaxDisplayNameLength = 160;
     private const int MaxBranchCityLength = 120;

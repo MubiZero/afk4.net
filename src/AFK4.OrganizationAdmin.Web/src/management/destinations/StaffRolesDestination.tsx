@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
 import { KeyRound, Pencil, Power, PowerOff, Users } from 'lucide-react';
 import { ManagementScreen } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
@@ -274,7 +275,7 @@ export function StaffRolesDestination({
     if (!selectedStaffUser) return;
     const staffUserId = readString(selectedStaffUser, 'staffUserId');
     const trimmedPassword = newPassword.trim();
-    if (!isGuid(staffUserId) || trimmedPassword.length < 8) {
+    if (!isGuid(staffUserId) || trimmedPassword.length < MIN_STAFF_PASSWORD_LENGTH) {
       onFeedback?.({ label: t('op.settings.action.resetPassword'), state: 'failed', detail: t('op.settings.staff.error.passwordTooShort') });
       return;
     }

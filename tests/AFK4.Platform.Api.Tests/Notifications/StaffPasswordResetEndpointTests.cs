@@ -1,3 +1,4 @@
+﻿using AFK4.Platform.Api.Endpoints;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
@@ -12,6 +13,10 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed partial class StaffPasswordResetEndpointTests
 {
+    // Короче минимума, каким бы он ни был: правило живёт в EndpointHelpers, а не в этой строке.
+    private static readonly string TooShortPassword =
+        new('x', EndpointHelpers.MinimumStaffPasswordLength - 1);
+
     [GeneratedRegex(@"\b[0-9]{6}\b")]
     private static partial Regex CodePattern();
 
@@ -124,7 +129,7 @@ public sealed partial class StaffPasswordResetEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest("reset.owner@club.example", "123456", "short"));
+            new StaffResetPasswordRequest("reset.owner@club.example", "123456", TooShortPassword));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

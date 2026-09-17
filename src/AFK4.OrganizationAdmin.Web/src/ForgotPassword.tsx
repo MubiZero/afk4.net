@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
 import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByEmail, resetPasswordByPhone, StaffAuthApiError } from './authClient';
 import { AuthFrame } from './AuthFrame';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
@@ -58,7 +59,10 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
 
   async function submitReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!code.trim() || newPassword.length < 8) { setError(t('auth.forgot.phone.error.fields')); return; }
+    if (!code.trim() || newPassword.length < MIN_STAFF_PASSWORD_LENGTH) {
+      setError(t('auth.forgot.phone.error.fields', { min: MIN_STAFF_PASSWORD_LENGTH }));
+      return;
+    }
     setIsBusy(true); setError(null);
     try {
       if (channel === 'email') {
