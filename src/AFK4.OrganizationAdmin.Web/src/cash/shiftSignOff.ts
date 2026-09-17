@@ -1,3 +1,4 @@
+import { PlatformApiError } from '../platformApi';
 import type { StaffUserDto } from '../operatorApiClients';
 
 /**
@@ -22,4 +23,21 @@ export function signOffCandidates(
     .filter((user) => user.staffUserId !== openedByStaffUserId && user.staffUserId !== closingStaffUserId)
     .map((user) => ({ staffUserId: user.staffUserId, displayName: user.displayName }))
     .sort((left, right) => left.displayName.localeCompare(right.displayName));
+}
+
+/**
+ * Сервер отказал закрыть смену, потому что расхождение больше допуска и нужна подпись старшего.
+ *
+ * Клиент считает необходимость подписи сам — но только когда допуск филиала успел загрузиться.
+ * Если не успел, единственный, кто знает правду, — сервер, и его отказ нужно услышать, иначе
+ * поле подписи не появится никогда, а смену с недостачей не закрыть.
+ */
+export function isSignOffRequired(error: unknown): boolean {
+  if (!(error instanceof PlatformApiError)) return false;
+  try {
+    const parsed = JSON.parse(error.body) as { code?: unknown; error?: unknown };
+    return parsed.code === 'shift_sign_off_required' || parsed.error === 'shift_sign_off_required';
+  } catch {
+    return false;
+  }
 }

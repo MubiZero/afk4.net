@@ -13,6 +13,15 @@ describe('projectOperatorError', () => {
     });
   });
 
+  // Сбой до ответа сервера: fetch бросает TypeError с браузерным текстом («Failed to fetch»).
+  // Он попадал на экран кассы как есть — английская строка в момент, когда в руках деньги.
+  it('обрыв связи объясняет по-человечески, а не текстом браузера', () => {
+    expect(projectOperatorError(new TypeError('Failed to fetch'), t)).toEqual({
+      title: 'Действие не выполнено',
+      detail: 'Нет связи с сервером. Проверьте сеть и повторите.'
+    });
+  });
+
   it('uses a stable fallback when the failure has no details', () => {
     expect(projectOperatorError(undefined, t)).toEqual({
       title: 'Действие не выполнено',
