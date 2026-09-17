@@ -1,4 +1,4 @@
-using AFK4.Shared.Contracts.Platform.Organizations;
+﻿using AFK4.Shared.Contracts.Platform.Organizations;
 
 namespace AFK4.Platform.Api.Platform.Tenancy;
 
@@ -29,8 +29,8 @@ public sealed record PlatformOrganizationOperationResult<T>(
     public static PlatformOrganizationOperationResult<T> Success(T value) =>
         new(PlatformOrganizationOperationStatus.Succeeded, value, null);
 
-    public static PlatformOrganizationOperationResult<T> BadRequest(string error) =>
-        new(PlatformOrganizationOperationStatus.BadRequest, null, error);
+    public static PlatformOrganizationOperationResult<T> BadRequest(string error, string? code = null) =>
+        new(PlatformOrganizationOperationStatus.BadRequest, null, error, PlanLimit: null, Code: code);
 
     public static PlatformOrganizationOperationResult<T> Conflict(string error, string? code = null) =>
         new(PlatformOrganizationOperationStatus.Conflict, null, error, PlanLimit: null, Code: code);

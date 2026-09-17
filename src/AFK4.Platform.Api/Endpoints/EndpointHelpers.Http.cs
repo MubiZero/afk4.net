@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -132,12 +132,13 @@ internal static partial class EndpointHelpers
 
         if (result.NotFound)
         {
-            return Results.NotFound(new { Error = result.Error });
+            return Results.NotFound(new { Error = result.Error, result.Code });
         }
 
         if (!result.Succeeded)
         {
-            return Results.BadRequest(new { Error = result.Error });
+            // Код рядом с фразой: без него отказ по брони доезжал до стойки английской строкой.
+            return Results.BadRequest(new { Error = result.Error, result.Code });
         }
 
         return Results.Ok(result.Response);

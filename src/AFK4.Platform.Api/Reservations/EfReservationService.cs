@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
@@ -279,7 +279,8 @@ public sealed class EfReservationService(
 
         if (!CanChange(reservation))
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Only pending or confirmed reservations can be changed.");
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Only pending or confirmed reservations can be changed.", ReservationErrorCodeNames.NotChangeable);
         }
 
         var nextCustomerName = string.IsNullOrWhiteSpace(request.CustomerName)
@@ -396,7 +397,8 @@ public sealed class EfReservationService(
 
         if (reservation.State != ReservationStateNames.Pending)
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Only pending reservations can be confirmed.");
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Only pending reservations can be confirmed.", ReservationErrorCodeNames.NotPending);
         }
 
         var conflict = await FindConflictAsync(
@@ -456,12 +458,14 @@ public sealed class EfReservationService(
 
         if (!CanChange(reservation))
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Only pending or confirmed reservations can be seated.");
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Only pending or confirmed reservations can be seated.", ReservationErrorCodeNames.NotSeatable);
         }
 
         if (reservation.SeatId is null)
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Reservation must have a seat before seating.");
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Reservation must have a seat before seating.", ReservationErrorCodeNames.SeatRequired);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -508,7 +512,8 @@ public sealed class EfReservationService(
         if (!RejectReasonCodes.IsSupported(request.ReasonCode))
         {
             return ReservationServiceResult<ReservationDto>.Invalid(
-                $"ReasonCode must be one of: {string.Join(", ", RejectReasonCodes.All)}.");
+                $"ReasonCode must be one of: {string.Join(", ", RejectReasonCodes.All)}.",
+                ReservationErrorCodeNames.RejectReasonUnsupported);
         }
 
         var note = NormalizeNullable(request.Note);
@@ -518,7 +523,7 @@ public sealed class EfReservationService(
         if (request.ReasonCode == RejectReasonCodes.Other && note is null)
         {
             return ReservationServiceResult<ReservationDto>.Invalid(
-                "A free-form refusal must say what happened.");
+                "A free-form refusal must say what happened.", ReservationErrorCodeNames.RefusalNoteRequired);
         }
 
         var reservation = await LoadForWriteAsync(request.OrganizationId, reservationId, cancellationToken);
@@ -546,7 +551,8 @@ public sealed class EfReservationService(
         if (reservation.State != ReservationStateNames.Pending)
         {
             return ReservationServiceResult<ReservationDto>.Invalid(
-                "Only a request the club has not answered yet can be rejected.");
+                "Only a request the club has not answered yet can be rejected.",
+                ReservationErrorCodeNames.NotRejectable);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -625,7 +631,7 @@ public sealed class EfReservationService(
         var now = timeProvider.GetUtcNow();
         if (ReservationNoShow.WhyNot(reservation, now) is { } refusal)
         {
-            return ReservationServiceResult<ReservationDto>.Invalid(refusal);
+            return ReservationServiceResult<ReservationDto>.Invalid(refusal, ReservationErrorCodeNames.NoShowNotAllowed);
         }
 
         // Уже отмеченная неявка отвечает собой: повторный клик и вторая вкладка — не ошибка
@@ -679,12 +685,14 @@ public sealed class EfReservationService(
 
         if (string.IsNullOrWhiteSpace(request.Reason))
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Cancel reason is required.");
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Cancel reason is required.", ReservationErrorCodeNames.CancelReasonRequired);
         }
 
         if (reservation.State is not ReservationStateNames.Pending and not ReservationStateNames.Confirmed and not ReservationStateNames.Cancelled)
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Only pending or confirmed reservations can be cancelled.");
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Only pending or confirmed reservations can be cancelled.", ReservationErrorCodeNames.NotCancellable);
         }
 
         if (reservation.State != ReservationStateNames.Cancelled)

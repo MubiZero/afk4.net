@@ -542,10 +542,10 @@ describe('App', () => {
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
       if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
-        return Promise.resolve(new Response(JSON.stringify({ error: 'Setup code is no longer usable.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }));
+        return Promise.resolve(new Response(
+          JSON.stringify({ error: 'Setup code is no longer usable.', code: 'setup_code_not_usable' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ));
       }
       return mockPlatformFetch(input, init);
     });
@@ -560,6 +560,34 @@ describe('App', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Код подключения больше не действует.');
     expect(alert).not.toHaveTextContent(/Setup code|Failed to resolve|operator connection|HTTP/);
+  });
+
+  // Даже когда сервер причину не назвал, английская фраза из ответа на экран не попадает: это
+  // первое, что видит человек, и «OrganizationSlug must contain only lowercase letters…»
+  // читается как поломка программы.
+  it('не показывает английский текст сервера, если отказ остался без имени', async () => {
+    installSessionBridge(null);
+    fetchMock.mockImplementation((input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
+        return Promise.resolve(new Response(
+          JSON.stringify({ error: 'OrganizationSlug must contain only lowercase letters, digits, and single hyphens.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Подключение клуба' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Ключ клуба'), { target: { value: 'Клуб' } });
+    fireEvent.change(screen.getByLabelText('Ключ филиала'), { target: { value: 'Главный' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Не удалось настроить подключение оператора.');
+    expect(alert).not.toHaveTextContent(/OrganizationSlug|lowercase/);
   });
 
   it('shows blocked-state copy and does not persist the connection when the resolved organization is suspended', async () => {

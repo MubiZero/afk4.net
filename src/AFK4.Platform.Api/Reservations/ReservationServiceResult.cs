@@ -1,4 +1,4 @@
-namespace AFK4.Platform.Api.Reservations;
+﻿namespace AFK4.Platform.Api.Reservations;
 
 public sealed record ReservationServiceResult<TResponse>(
     bool Succeeded,
@@ -19,5 +19,10 @@ public sealed record ReservationServiceResult<TResponse>(
 
     public static ReservationServiceResult<TResponse> Missing(string error) => new(false, false, true, error, default);
 
-    public static ReservationServiceResult<TResponse> Invalid(string error) => new(false, false, false, error, default);
+    /// <param name="code">
+    /// Машинное имя отказа. Без него у стойки остаётся английская фраза из <paramref name="error"/>,
+    /// которую нельзя показать ни по-русски, ни по-таджикски.
+    /// </param>
+    public static ReservationServiceResult<TResponse> Invalid(string error, string? code = null) =>
+        new(false, false, false, error, default, code);
 }

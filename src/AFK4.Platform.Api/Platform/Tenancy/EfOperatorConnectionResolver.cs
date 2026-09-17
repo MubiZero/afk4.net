@@ -1,4 +1,4 @@
-using AFK4.Platform.Api.Data;
+﻿using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using Microsoft.EntityFrameworkCore;
@@ -18,13 +18,15 @@ public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext) : 
         if (!hasSlugPair && !hasSetupCode)
         {
             return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(
-                "Provide either an organization slug + branch slug or a setup code.");
+                "Provide either an organization slug + branch slug or a setup code.",
+                OperatorConnectionErrorCodeNames.InputMissing);
         }
 
         if (hasSlugPair && hasSetupCode)
         {
             return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(
-                "Provide either an organization slug + branch slug or a setup code, not both.");
+                "Provide either an organization slug + branch slug or a setup code, not both.",
+                OperatorConnectionErrorCodeNames.InputAmbiguous);
         }
 
         return hasSetupCode
@@ -41,14 +43,16 @@ public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext) : 
         var organizationSlugError = SlugValidator.Validate(organizationSlug, "OrganizationSlug");
         if (organizationSlugError is not null)
         {
-            return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(organizationSlugError);
+            return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(
+                organizationSlugError, OperatorConnectionErrorCodeNames.SlugInvalid);
         }
 
         var branchSlug = SlugValidator.Normalize(branchSlugRaw);
         var branchSlugError = SlugValidator.Validate(branchSlug, "BranchSlug");
         if (branchSlugError is not null)
         {
-            return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(branchSlugError);
+            return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(
+                branchSlugError, OperatorConnectionErrorCodeNames.SlugInvalid);
         }
 
         var organization = await dbContext.Organizations
@@ -83,7 +87,7 @@ public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext) : 
         if (normalized.Length == 0)
         {
             return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(
-                "SetupCode is required.");
+                "SetupCode is required.", OperatorConnectionErrorCodeNames.SetupCodeRequired);
         }
 
         var invite = await dbContext.OrganizationOwnerInvites
@@ -98,7 +102,8 @@ public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext) : 
         if (invite.Status != OrganizationOwnerInviteStatusNames.Pending)
         {
             return PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>.BadRequest(
-                $"Setup code is no longer usable (status = {invite.Status}).");
+                $"Setup code is no longer usable (status = {invite.Status}).",
+                OperatorConnectionErrorCodeNames.SetupCodeNotUsable);
         }
 
         var organization = await dbContext.Organizations
