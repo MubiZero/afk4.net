@@ -1,4 +1,4 @@
-using AFK4.Shared.Contracts.Sessions;
+﻿using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Agent.Service;
 
@@ -13,6 +13,14 @@ namespace AFK4.Agent.Service;
 public static class HeartbeatCadence
 {
     public static readonly TimeSpan RefreshThreshold = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Насколько растягивается обычный интервал. Ровный интервал у всего парка означает, что
+    /// после общего перезапуска — грозы, скачка питания, перезагрузки коммутатора — все машины
+    /// стучатся в платформу одной волной и продолжают стучаться в такт. Разброс их расталкивает.
+    /// Интервал только удлиняется: укорачивать его значило бы добавлять нагрузки.
+    /// </summary>
+    public const double NormalJitterShare = 0.1;
     public static readonly TimeSpan EscalatedBase = TimeSpan.FromSeconds(2);
     public static readonly TimeSpan EscalatedJitterMax = TimeSpan.FromSeconds(1);
 
@@ -28,7 +36,9 @@ public static class HeartbeatCadence
             return EscalatedBase + EscalatedJitterMax * Math.Clamp(jitterFraction, 0, 1);
         }
 
-        return TimeSpan.FromSeconds(normalIntervalSeconds);
+        var normal = TimeSpan.FromSeconds(normalIntervalSeconds);
+
+        return normal + normal * NormalJitterShare * Math.Clamp(jitterFraction, 0, 1);
     }
 
     private static bool IsLeaseNearOrPastExpiry(SessionLeaseDto? lease, DateTimeOffset nowUtc) =>

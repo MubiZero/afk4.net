@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
@@ -170,28 +170,4 @@ public sealed class SessionEnforcementCoordinatorTests
         }
     }
 
-    private sealed class TemporaryDirectory : IDisposable
-    {
-        private TemporaryDirectory(string path)
-        {
-            Path = path;
-        }
-
-        public string Path { get; }
-
-        public static TemporaryDirectory Create()
-        {
-            return new TemporaryDirectory(System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
-                $"afk4-agent-enforcement-{Guid.NewGuid():N}"));
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(Path))
-            {
-                Directory.Delete(Path, recursive: true);
-            }
-        }
-    }
 }
