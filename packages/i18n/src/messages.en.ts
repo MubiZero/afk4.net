@@ -1946,6 +1946,7 @@ export const en = {
   "op.players.error.noPermEditProfile": "No permission to edit the client profile.",
   "op.players.error.noPermRefund": "No permission to refund operations.",
   "op.players.error.noPermTopUp": "No permission to top up deposit.",
+  "op.players.error.phoneTaken": "A client with this phone already exists: {name}. Opened their card — a second one would be a duplicate.",
   "op.players.error.refundInvalid": "This operation cannot be refunded.",
   "op.players.error.selectPlayer": "Select a player before the operation.",
   "op.players.error.topUpInvalid": "Enter an amount and reason for the top-up.",

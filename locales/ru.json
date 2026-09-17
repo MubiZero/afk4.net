@@ -1945,6 +1945,7 @@
   "op.players.error.noPermEditProfile": "Нет права на правку профиля клиента.",
   "op.players.error.noPermRefund": "Нет прав на возврат операции.",
   "op.players.error.noPermTopUp": "Нет прав на пополнение депозита.",
+  "op.players.error.phoneTaken": "Клиент с таким номером уже есть: {name}. Открыли его карточку — вторая создаст двойника.",
   "op.players.error.refundInvalid": "Эту операцию нельзя вернуть.",
   "op.players.error.selectPlayer": "Выберите игрока перед операцией.",
   "op.players.error.topUpInvalid": "Заполните сумму и причину пополнения депозита.",

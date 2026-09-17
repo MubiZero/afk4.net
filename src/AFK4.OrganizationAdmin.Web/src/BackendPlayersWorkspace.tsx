@@ -26,6 +26,7 @@ import { ClientsTable } from './players/ClientsTable';
 import { ClientDrawer } from './players/ClientDrawer';
 import { useReputation } from './players/useReputation';
 import { HistorySection } from './players/HistorySection';
+import { fullPhoneDigits } from './phoneFormat';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
 import { ClientBookingModal, type ClientBookingDraft } from './players/ClientBookingModal';
@@ -501,6 +502,20 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         const displayName = newPlayerName.trim() || clientSearch.trim();
         if (!displayName) {
           throw new Error(t('op.players.error.createNameRequired'));
+        }
+
+        // Тот же человек со вторым номером-двойником — это разошедшиеся баланс, долг и история.
+        // Поиск по номеру здесь дешевле, чем потом сводить две карточки руками.
+        const phone = newPlayerPhone.trim();
+        if (phone.length > 0) {
+          const digits = fullPhoneDigits(phone);
+          const sameNumber = (await apiClients.players.searchPlayers(nextBackend.branchId, phone, 5))
+            .find((candidate) => fullPhoneDigits(readString(candidate, 'phoneNumber')) === digits);
+          if (sameNumber) {
+            setNewClientOpen(false);
+            handleSelectClient(readString(sameNumber, 'playerAccountId'));
+            throw new Error(t('op.players.error.phoneTaken', { name: readString(sameNumber, 'displayName') }));
+          }
         }
 
         const created = await apiClients.players.createPlayer(nextBackend.branchId, {
