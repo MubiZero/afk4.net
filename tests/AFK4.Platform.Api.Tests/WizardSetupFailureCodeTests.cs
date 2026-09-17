@@ -120,7 +120,9 @@ public sealed class WizardSetupFailureCodeTests
                 DeviceRoleNames.GamingPc,
                 "Стенд 12",
                 machineName,
-                "-----BEGIN PUBLIC KEY-----\nx\n-----END PUBLIC KEY-----"));
+                // Ключ у каждой машины свой: по нему платформа опознаёт ту же машину при
+                // повторной регистрации, так что одинаковый ключ означал бы один и тот же ПК.
+                $"-----BEGIN PUBLIC KEY-----\n{machineName}\n-----END PUBLIC KEY-----"));
 
     private static async Task<string?> ReadCodeAsync(HttpResponseMessage response)
     {
