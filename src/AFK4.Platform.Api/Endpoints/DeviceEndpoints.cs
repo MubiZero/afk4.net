@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -73,6 +73,14 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class DeviceEndpoints
 {
+    /// <summary>Общее правило «на связи»: сердцебиение не старше допустимого.</summary>
+    private static DeviceOnlineWindow OnlineWindow(
+        TimeProvider timeProvider,
+        IOptions<BranchDiagnosticsOptions> diagnosticsOptions)
+    {
+        return new DeviceOnlineWindow(timeProvider.GetUtcNow(), diagnosticsOptions.Value.StaleHeartbeatSeconds);
+    }
+
     public static void MapDeviceEndpoints(
         this WebApplication app,
         IEndpointRouteBuilder organizations)
@@ -767,6 +775,8 @@ internal static class DeviceEndpoints
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
+            TimeProvider timeProvider,
+            IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -789,6 +799,7 @@ internal static class DeviceEndpoints
                 authorization.StaffContext!.OrganizationId,
                 branchId,
                 enrollmentState: null,
+                OnlineWindow(timeProvider, diagnosticsOptions),
                 cancellationToken);
 
             return Results.Ok(devices);
@@ -800,6 +811,8 @@ internal static class DeviceEndpoints
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
+            TimeProvider timeProvider,
+            IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -822,6 +835,7 @@ internal static class DeviceEndpoints
                 authorization.StaffContext!.OrganizationId,
                 branchId,
                 DeviceEnrollmentStateNames.Pending,
+                OnlineWindow(timeProvider, diagnosticsOptions),
                 cancellationToken);
 
             return Results.Ok(devices);
@@ -833,6 +847,8 @@ internal static class DeviceEndpoints
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
+            TimeProvider timeProvider,
+            IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -913,7 +929,7 @@ internal static class DeviceEndpoints
                 ShellVersion: device.ShellVersion,
                 EnrolledAtUtc: device.EnrolledAtUtc,
                 LastHeartbeatAtUtc: device.LastHeartbeatAtUtc,
-                IsOnline: device.IsOnline,
+                IsOnline: IsDeviceOnline(device, timeProvider.GetUtcNow(), diagnosticsOptions.Value.StaleHeartbeatSeconds),
                 IsLocked: device.IsLocked,
                 SeatId: seat?.SeatId,
                 SeatName: seat?.Name,
@@ -937,6 +953,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
+            IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1000,7 +1017,7 @@ internal static class DeviceEndpoints
             var observedAtUtc = timeProvider.GetUtcNow();
             await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
 
-            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, OnlineWindow(timeProvider, diagnosticsOptions), cancellationToken));
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
@@ -1013,6 +1030,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
+            IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1083,7 +1101,7 @@ internal static class DeviceEndpoints
 
             await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
 
-            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, OnlineWindow(timeProvider, diagnosticsOptions), cancellationToken));
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
@@ -1096,6 +1114,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
+            IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1160,7 +1179,7 @@ internal static class DeviceEndpoints
             var observedAtUtc = timeProvider.GetUtcNow();
             await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
 
-            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, OnlineWindow(timeProvider, diagnosticsOptions), cancellationToken));
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
@@ -1173,6 +1192,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
+            IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1239,7 +1259,7 @@ internal static class DeviceEndpoints
 
             await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
 
-            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+            return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, OnlineWindow(timeProvider, diagnosticsOptions), cancellationToken));
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.RevokeDeviceCredential);
 

@@ -1,4 +1,6 @@
-using AFK4.Platform.Api.Data;
+﻿using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Diagnostics;
+using AFK4.Platform.Api.Endpoints;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Dashboard;
@@ -8,12 +10,15 @@ using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Dashboard;
 
 public sealed class EfOperatorDashboardService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IOperatorDashboardService
+    TimeProvider timeProvider,
+    IOptions<BranchDiagnosticsOptions> diagnosticsOptions) : IOperatorDashboardService
 {
     private const string DefaultCurrencyCode = "TJS";
     private const int DefaultLimit = 8;
@@ -107,8 +112,11 @@ public sealed class EfOperatorDashboardService(
             session.StartedAtUtc >= fromUtc &&
             session.StartedAtUtc <= toUtc);
         var totalSeats = seats.Count;
-        var onlineDevices = devices.Count(device => device.IsOnline);
-        var offlineDevices = devices.Count(device => !device.IsOnline);
+        // «На связи» — это свежее сердцебиение, а не залипший флаг в базе: иначе сводка считала
+        // живыми машины, которые выключили неделю назад.
+        var onlineWindow = new DeviceOnlineWindow(timeProvider.GetUtcNow(), diagnosticsOptions.Value.StaleHeartbeatSeconds);
+        var onlineDevices = devices.Count(device => IsDeviceOnline(device, onlineWindow.NowUtc, onlineWindow.StaleHeartbeatSeconds));
+        var offlineDevices = devices.Count - onlineDevices;
         var pendingCommands = commands.Count(command => IsStatus(command.Status, "Pending"));
         var failedCommands = commands.Count(command => IsStatus(command.Status, "Failed") || IsStatus(command.Status, "Rejected"));
         var totalAlerts = pendingCommands + failedCommands + offlineDevices + endingSessionCount;
@@ -174,7 +182,7 @@ public sealed class EfOperatorDashboardService(
                 ActiveReservations: activeReservations.Count,
                 AvailableSlots: Math.Max(0, totalSeats - activeSessionCount - endingSessionCount - activeReservations.Where(reservation => reservation.SeatId is not null).Select(reservation => reservation.SeatId).Distinct().Count()),
                 Source: "reservation-contract"),
-            BuildFocusQueue(commands, devices, assignments, seats, sessions, limit),
+            BuildFocusQueue(commands, devices, assignments, seats, sessions, limit, onlineWindow),
             payments.Take(limit).Select(payment => new OperatorDashboardRecentPaymentDto(
                 payment.PaymentId,
                 payment.PosSaleId,
@@ -193,7 +201,8 @@ public sealed class EfOperatorDashboardService(
         IReadOnlyList<DeviceSeatAssignmentEntity> assignments,
         IReadOnlyList<SeatEntity> seats,
         IReadOnlyList<SessionEntity> sessions,
-        int limit)
+        int limit,
+        DeviceOnlineWindow onlineWindow)
     {
         var queue = new List<OperatorDashboardQueueItemDto>();
         var deviceById = devices.ToDictionary(device => device.DeviceId);
@@ -234,7 +243,9 @@ public sealed class EfOperatorDashboardService(
             }
         }
 
-        foreach (var device in devices.Where(device => !device.IsOnline).OrderBy(device => device.MachineName))
+        foreach (var device in devices
+            .Where(device => !IsDeviceOnline(device, onlineWindow.NowUtc, onlineWindow.StaleHeartbeatSeconds))
+            .OrderBy(device => device.MachineName))
         {
             var seatId = assignmentByDeviceId.TryGetValue(device.DeviceId, out var assignment)
                 ? assignment.SeatId

@@ -1,8 +1,9 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Devices;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -67,6 +68,33 @@ public sealed class DeviceInventoryEndpointTests
         Assert.Null(devices[1].SeatId);
     }
 
+    // Флаг IsOnline в базе залипает: его ставит каждое сердцебиение, а снимают только руками при
+    // удалении устройства. Машина, у которой выдернули сеть или питание, оставалась «в сети»
+    // навсегда, и список устройств показывал зелёный значок связи у мёртвого ПК.
+    [Fact]
+    public async Task GetBranchDevices_WithStaleHeartbeat_ReportsTheDeviceOffline()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedDevicesAsync(factory);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var device = await dbContext.Devices.SingleAsync(candidate => candidate.DeviceId == TestIds.DeviceId);
+            // Флаг остаётся поднятым — ровно так выглядит машина, которую выдернули из розетки.
+            device.LastHeartbeatAtUtc = DateTimeOffset.UtcNow.AddHours(-3);
+            device.IsOnline = true;
+            await dbContext.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices");
+        var devices = await response.Content.ReadFromJsonAsync<IReadOnlyList<DeviceInventoryItemDto>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(devices!.Single(device => device.DeviceId == TestIds.DeviceId).IsOnline);
+    }
+
     private static async Task SeedDevicesAsync(PlatformApiFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -102,7 +130,8 @@ public sealed class DeviceInventoryEndpointTests
                 AgentVersion = "0.1.1",
                 ShellVersion = "0.1.2",
                 EnrolledAtUtc = DateTimeOffset.Parse("2026-05-13T09:00:00Z"),
-                LastHeartbeatAtUtc = DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                // Свежее сердцебиение: «на связи» теперь считается по нему, а не по флагу в базе.
+                LastHeartbeatAtUtc = DateTimeOffset.UtcNow.AddSeconds(-30),
                 IsOnline = true,
                 IsLocked = true
             },

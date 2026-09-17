@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -72,11 +72,27 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static partial class EndpointHelpers
 {
+    /// <summary>
+    /// На связи ли машина прямо сейчас.
+    ///
+    /// Флаг <c>IsOnline</c> в базе залипает: его ставит каждое сердцебиение, а снимают только
+    /// руками при удалении устройства. Машина, у которой выдернули сеть или питание, оставалась
+    /// «в сети» навсегда — и список устройств показывал зелёный значок связи у мёртвого ПК.
+    /// Правда — во времени последнего сердцебиения; ровно так уже считает карта зала.
+    /// </summary>
+    public static bool IsDeviceOnline(DeviceEntity device, DateTimeOffset now, int staleHeartbeatSeconds)
+    {
+        return device.IsOnline
+            && device.LastHeartbeatAtUtc is { } lastHeartbeatAtUtc
+            && lastHeartbeatAtUtc >= now - TimeSpan.FromSeconds(staleHeartbeatSeconds);
+    }
+
     public static async Task<IReadOnlyList<DeviceInventoryItemDto>> LoadBranchDeviceInventoryAsync(
         PlatformDbContext dbContext,
         Guid organizationId,
         Guid branchId,
         string? enrollmentState,
+        DeviceOnlineWindow onlineWindow,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Devices
@@ -92,12 +108,13 @@ internal static partial class EndpointHelpers
             .ThenBy(device => device.DeviceId)
             .ToListAsync(cancellationToken);
 
-        return await BuildDeviceInventoryAsync(dbContext, devices, cancellationToken);
+        return await BuildDeviceInventoryAsync(dbContext, devices, onlineWindow, cancellationToken);
     }
 
     public static async Task<DeviceInventoryItemDto?> LoadDeviceInventoryItemAsync(
         PlatformDbContext dbContext,
         Guid deviceId,
+        DeviceOnlineWindow onlineWindow,
         CancellationToken cancellationToken)
     {
         var device = await dbContext.Devices
@@ -109,13 +126,14 @@ internal static partial class EndpointHelpers
             return null;
         }
 
-        var items = await BuildDeviceInventoryAsync(dbContext, [device], cancellationToken);
+        var items = await BuildDeviceInventoryAsync(dbContext, [device], onlineWindow, cancellationToken);
         return items.SingleOrDefault();
     }
 
     public static async Task<IReadOnlyList<DeviceInventoryItemDto>> BuildDeviceInventoryAsync(
         PlatformDbContext dbContext,
         IReadOnlyList<DeviceEntity> devices,
+        DeviceOnlineWindow onlineWindow,
         CancellationToken cancellationToken)
     {
         if (devices.Count == 0)
@@ -199,7 +217,7 @@ internal static partial class EndpointHelpers
                 ShellVersion: device.ShellVersion,
                 EnrolledAtUtc: device.EnrolledAtUtc,
                 LastHeartbeatAtUtc: device.LastHeartbeatAtUtc,
-                IsOnline: device.IsOnline,
+                IsOnline: IsDeviceOnline(device, onlineWindow.NowUtc, onlineWindow.StaleHeartbeatSeconds),
                 IsLocked: device.IsLocked,
                 SeatId: seat?.SeatId,
                 SeatName: seat?.Name,
