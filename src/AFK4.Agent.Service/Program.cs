@@ -48,7 +48,12 @@ builder.Services.AddWindowsService(options =>
 {
     options.ServiceName = "AFK4.Agent.Service";
 });
-builder.Services.AddSingleton(TimeProvider.System);
+// Часы агента подтягиваются к часам платформы: аренда приходит абсолютным временем, а на игровом
+// ПК часы врут регулярно. Один экземпляр на всех — время должно быть одно и то же и у проверки
+// аренды, и у монитора льготы, и у экрана игрока.
+builder.Services.AddSingleton(new PlatformSyncedTimeProvider(TimeProvider.System));
+builder.Services.AddSingleton<TimeProvider>(provider => provider.GetRequiredService<PlatformSyncedTimeProvider>());
+builder.Services.AddSingleton<IPlatformClockSynchronizer>(provider => provider.GetRequiredService<PlatformSyncedTimeProvider>());
 builder.Services.AddHttpClient("platform");
 // Artifact downloads stream large MSIs; the per-request CancellationToken bounds the transfer,
 // so disable the default 100s client timeout to avoid aborting slow but healthy downloads.

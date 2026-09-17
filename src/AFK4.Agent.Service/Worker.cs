@@ -26,7 +26,8 @@ public sealed class Worker(
     IDeviceCredentialStore credentialStore,
     IShellWarningStore shellWarningStore,
     TimeProvider timeProvider,
-    IProcessPolicyEnforcer? processPolicyEnforcer = null) : BackgroundService
+    IProcessPolicyEnforcer? processPolicyEnforcer = null,
+    IPlatformClockSynchronizer? platformClockSynchronizer = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -113,11 +114,15 @@ public sealed class Worker(
             var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: cancellationToken);
             if (heartbeat is not null)
             {
+                // Сначала поправка часов: всё, что считается ниже по времени, должно считаться уже
+                // по времени платформы.
+                platformClockSynchronizer?.Synchronize(heartbeat.ServerTimeUtc);
+                WarnOnClockDrift();
+
                 // Stamp the contact on the agent's own clock (spec §8) so offline grace is measured from
                 // when the network actually dropped, robust to absolute-clock drift on the gaming PC.
                 var agentNowUtc = timeProvider.GetUtcNow();
                 offlineGraceState.RecordSuccessfulContact(agentNowUtc, heartbeat.EffectiveGraceMinutes);
-                WarnOnClockDrift(heartbeat.ServerTimeUtc, agentNowUtc);
                 // Код для монитора приезжает с сердцебиением — оболочка покажет его, пока за ПК
                 // никто не сидит. Пустой он у занятой машины: звать к ней некого.
                 seatingCode = heartbeat.SeatingCode;
@@ -207,23 +212,22 @@ public sealed class Worker(
 
     private readonly record struct HeartbeatOutcome(bool Succeeded, int IntervalSeconds);
 
-    private void WarnOnClockDrift(DateTimeOffset serverTimeUtc, DateTimeOffset agentNowUtc)
+    /// <summary>
+    /// Поправка уже применена — но машину с неверными часами всё равно надо чинить: до первого
+    /// сердцебиения после включения она живёт по своим часам, и это тоже время сессии.
+    /// </summary>
+    private void WarnOnClockDrift()
     {
-        var drift = ClockDriftCheck.Drift(serverTimeUtc, agentNowUtc);
+        var drift = platformClockSynchronizer?.Offset ?? TimeSpan.Zero;
         if (!ClockDriftCheck.IsExcessive(drift, ClockDriftCheck.WarningThreshold))
         {
             return;
         }
 
-        // Lease refresh and the offline grace window both lean on the agent and server clocks agreeing.
-        // We only log it (no behaviour change) — a fix would correct against ServerTimeUtc, but first we
-        // need to know whether real fleets actually drift.
         logger.LogWarning(
-            "Agent clock differs from server by {DriftSeconds:F0}s (server {ServerTimeUtc:o}, agent {AgentTimeUtc:o}). "
-            + "Lease and offline-grace timing assume a synchronised clock — check NTP on this gaming PC.",
-            drift.TotalSeconds,
-            serverTimeUtc,
-            agentNowUtc);
+            "This PC's own clock differs from the platform by {DriftSeconds:F0}s. Session timing now follows the "
+            + "platform, but the machine still needs its clock fixed — check NTP on this gaming PC.",
+            drift.TotalSeconds);
     }
 
     private async Task HandleHeartbeatCommandsAsync(
