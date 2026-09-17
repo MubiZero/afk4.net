@@ -30,6 +30,7 @@ import { fullPhoneDigits } from './phoneFormat';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
 import { ClientBookingModal, type ClientBookingDraft } from './players/ClientBookingModal';
+import { ClientPackageModal } from './players/ClientPackageModal';
 import { CorrectionModal, correctionQuantities, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
 import { EditProfileModal } from './players/EditProfileModal';
@@ -74,6 +75,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   const [bookingDraft, setBookingDraft] = useState<ClientBookingDraft | null>(null);
   const [bookingSeats, setBookingSeats] = useState<{ seatId: string; label: string }[]>([]);
   const [bookingBusy, setBookingBusy] = useState(false);
+  const [packageModalOpen, setPackageModalOpen] = useState(false);
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDto[]>([]);
   const [playerPackages, setPlayerPackages] = useState<PlayerPackageDto[]>([]);
@@ -381,6 +383,13 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     && Boolean(selectedClient.playerAccountId)
     && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.manageReservations);
+  // Пакет продают тому, чья карточка открыта. Право то же, что в Кассе: продажа есть продажа.
+  const canSellPackage = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
+    && hasPermission(backend.session, permissionNames.purchasePackage);
   const canManualCorrect = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
@@ -861,8 +870,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             canManageClient={canManageClient}
             canCorrect={canManualCorrect}
             canCreateReservation={canCreateClientReservation}
+            canSellPackage={canSellPackage}
             onCorrect={() => setCorrectionOpen(true)}
             onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
+            onSellPackage={() => setPackageModalOpen(true)}
             onEditProfile={openEditProfile}
             onToggleActive={() => setActiveStateOpen(true)}
             reputation={reputation}
@@ -886,6 +897,19 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             onRefund={(entry) => setRefundTarget(entry)}
           />
         </PanelModal>
+      )}
+
+      {packageModalOpen && backend !== null && selectedClient?.playerAccountId && (
+        <ClientPackageModal
+          backend={backend}
+          player={selectedClient as PlayerClientItem & { playerAccountId: string }}
+          onClose={() => setPackageModalOpen(false)}
+          onPurchased={() => {
+            setPackageModalOpen(false);
+            setFeedback({ label: t('op.players.packages.sellBtn'), state: 'confirmed' });
+            bumpLedger();
+          }}
+        />
       )}
 
       {bookingDraft !== null && selectedClient !== null && (

@@ -21,6 +21,11 @@ const person = {
 };
 
 const createReservation = mock(async (_branchId: string, _request: Record<string, unknown>) => ({ reservationId: 'r1' }));
+const purchasePackage = mock(async (_playerAccountId: string, _request: Record<string, unknown>) => ({ playerPackageId: 'pp1' }));
+const getPackageOptions = mock(async () => [
+  { packageDefinitionId: 'pkg-1', name: 'Ночной', priceMinorUnits: 12000, currencyCode: 'TJS', minutes: 300 }
+]);
+const getCurrentShift = mock(async () => ({ shiftId: 'shift-1' }));
 const getFloorMap = mock(async () => ({
   branchId: 'b1',
   branchName: 'Главный',
@@ -41,8 +46,11 @@ mock.module('./operatorHelpers', () => ({
         walletBalance: { currencyCode: 'TJS', minorUnits: 1000 },
         debtBalance: { currencyCode: 'TJS', minorUnits: 0 }
       })),
-      getPlayerPackages: mock(async () => [])
+      getPlayerPackages: mock(async () => []),
+      purchasePackage
     },
+    settings: { getPackageOptions },
+    shifts: { getCurrentShift },
     reservations: { create: createReservation },
     floorMap: { getFloorMap }
   })
@@ -58,7 +66,11 @@ afterAll(() => {
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },
-  session: { accessToken: 't', organizationId: 'org', permissions: ['organization.reservations.manage'] },
+  session: {
+    accessToken: 't',
+    organizationId: 'org',
+    permissions: ['organization.reservations.manage', 'organization.packages.purchase']
+  },
   branchId: 'b1'
 };
 
@@ -123,5 +135,30 @@ describe('BackendPlayersWorkspace · бронь из карточки клиен
     const seat = await screen.findByLabelText('Место');
     const options = [...seat.querySelectorAll('option')].map((option) => option.textContent);
     expect(options).toEqual(['Место выберем позже', 'PC-01']);
+  });
+});
+
+// Пакеты в карточке были только для просмотра, а продавались в Кассе — где того же человека
+// приходилось искать заново. Один визит гостя превращался в два поиска на двух экранах.
+describe('BackendPlayersWorkspace · продажа пакета из карточки', () => {
+  afterEach(() => {
+    cleanup();
+    purchasePackage.mockClear();
+    getPackageOptions.mockClear();
+    playersSnapshotCache.clear();
+  });
+
+  it('продаёт пакет тому, чья карточка открыта', async () => {
+    renderWorkspace();
+    await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Продать пакет' }));
+
+    await waitFor(() => expect(getPackageOptions).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: 'Купить пакет' }));
+
+    await waitFor(() => expect(purchasePackage).toHaveBeenCalledTimes(1));
+    expect(purchasePackage.mock.calls[0]![0]).toBe('p1');
+    expect((purchasePackage.mock.calls[0]![1] as Record<string, unknown>).packageDefinitionId).toBe('pkg-1');
   });
 });

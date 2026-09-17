@@ -41,8 +41,10 @@ export function ClientDrawer({
   canManageClient,
   canCorrect,
   canCreateReservation,
+  canSellPackage,
   onCorrect,
   onCreateReservation,
+  onSellPackage,
   onEditProfile,
   onToggleActive,
   onOpenFullHistory,
@@ -71,8 +73,10 @@ export function ClientDrawer({
   canManageClient: boolean;
   canCorrect: boolean;
   canCreateReservation: boolean;
+  canSellPackage: boolean;
   onCorrect: () => void;
   onCreateReservation: () => void;
+  onSellPackage: () => void;
   onEditProfile: () => void;
   onToggleActive: () => void;
   onOpenFullHistory: () => void;
@@ -86,7 +90,7 @@ export function ClientDrawer({
   const isInactive = !client.isActive;
   // Триггер «⋯» показываем, если у оператора есть ХОТЯ БЫ одно из трёх прав — иначе меню
   // рендерится пустым (см. ClientActionsMenu), а кнопка без пунктов бесполезна.
-  const showActionsMenu = canManageClient || canCreateReservation || canCorrect;
+  const showActionsMenu = canManageClient || canCreateReservation || canCorrect || canSellPackage;
 
   return (
     <aside className="drawer-panel">
@@ -104,6 +108,8 @@ export function ClientDrawer({
             onToggleActive={onToggleActive}
             canCreateReservation={canCreateReservation}
             onCreateReservation={onCreateReservation}
+            canSellPackage={canSellPackage}
+            onSellPackage={onSellPackage}
             canCorrect={canCorrect}
             onCorrect={onCorrect}
           />

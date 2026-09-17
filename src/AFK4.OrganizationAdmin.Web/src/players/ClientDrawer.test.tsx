@@ -45,6 +45,8 @@ const baseProps: DrawerProps = {
   onOpenPayDebt: () => {},
   canManageClient: true,
   canCorrect: false,
+  canSellPackage: false,
+  onSellPackage: () => {},
   canCreateReservation: true,
   onCorrect: () => {},
   onCreateReservation: () => {},

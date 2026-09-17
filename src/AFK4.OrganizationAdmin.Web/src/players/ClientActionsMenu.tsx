@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { CalendarClock, MoreHorizontal, Pencil, Power, PowerOff, SlidersHorizontal } from 'lucide-react';
+import { CalendarClock, MoreHorizontal, Pencil, Power, PowerOff, SlidersHorizontal, Ticket } from 'lucide-react';
 
 interface MenuAction {
   key: string;
@@ -26,6 +26,8 @@ export function ClientActionsMenu({
   onToggleActive,
   canCreateReservation = false,
   onCreateReservation,
+  canSellPackage = false,
+  onSellPackage,
   canCorrect = false,
   onCorrect,
 }: {
@@ -35,6 +37,8 @@ export function ClientActionsMenu({
   onToggleActive: () => void;
   canCreateReservation?: boolean;
   onCreateReservation?: () => void;
+  canSellPackage?: boolean;
+  onSellPackage?: () => void;
   canCorrect?: boolean;
   onCorrect?: () => void;
 }) {
@@ -45,6 +49,7 @@ export function ClientActionsMenu({
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const showReservation = canCreateReservation && Boolean(onCreateReservation);
+  const showSellPackage = canSellPackage && Boolean(onSellPackage);
   const showCorrection = canCorrect && Boolean(onCorrect);
 
   const items: MenuAction[] = [];
@@ -54,6 +59,16 @@ export function ClientActionsMenu({
       label: t('op.players.actions.bookingBtn'),
       icon: <CalendarClock size={14} aria-hidden="true" />,
       onSelect: onCreateReservation!,
+    });
+  }
+  // Пакет продаётся тому, чья карточка открыта: раньше за этим уходили в Кассу и искали
+  // того же человека второй раз.
+  if (showSellPackage) {
+    items.push({
+      key: 'sellPackage',
+      label: t('op.players.packages.sellBtn'),
+      icon: <Ticket size={14} aria-hidden="true" />,
+      onSelect: onSellPackage!,
     });
   }
   if (canManageClient) {
