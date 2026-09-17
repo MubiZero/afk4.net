@@ -42,7 +42,10 @@ interface BrandingScreenProps {
 
 export function BrandingScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: BrandingScreenProps) {
   const { t } = useI18n();
-  const [presets, setPresets] = useState<WizardBrandingPreset[]>([]);
+  // null — ещё грузим. Пустой массив — пресетов не будет (отказ или их правда нет): шаг всё
+  // равно рабочий. Раньше оба состояния выглядели одинаково пустым блоком, и на телефонном
+  // интернете раздел читался как сломанный.
+  const [presets, setPresets] = useState<WizardBrandingPreset[] | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [accentColor, setAccentColor] = useState<string>(COLORS[0]);
   const [saving, setSaving] = useState(false);
@@ -50,6 +53,18 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
   const [uploading, setUploading] = useState(false);
   const [uploadFailure, setUploadFailure] = useState<string | null>(null);
   const [ownLogoUrl, setOwnLogoUrl] = useState<string | null>(null);
+
+  // Спиннер с задержкой: на быстрой сети он бы мелькнул и только дёрнул глаз. Тот же приём и с
+  // тем же порогом, что на экране входа.
+  const [showPresetsSkeleton, setShowPresetsSkeleton] = useState(false);
+  useEffect(() => {
+    if (presets !== null) {
+      setShowPresetsSkeleton(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowPresetsSkeleton(true), 300);
+    return () => clearTimeout(timer);
+  }, [presets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,8 +129,15 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
         {/* Не radiogroup: нажатие по выбранному снимает выбор, а переключатель так не умеет —
             выбранный остаётся выбранным, пока не выбрали другой. Здесь это кнопки-переключатели,
             и «без логотипа» — законное состояние: клуб откроется и без него. */}
+        {presets === null && showPresetsSkeleton && (
+          <p className="ui-field-hint" role="status">{t('setup.wizard.branding.logoLoading')}</p>
+        )}
+        {presets !== null && presets.length === 0 && (
+          <p className="ui-field-hint">{t('setup.wizard.branding.logoUnavailable')}</p>
+        )}
+
         <div className="wizard-preset-grid" role="group" aria-label={t('setup.wizard.branding.logo')}>
-          {presets.map((preset, index) => (
+          {(presets ?? []).map((preset, index) => (
             <button
               key={preset.id}
               type="button"
