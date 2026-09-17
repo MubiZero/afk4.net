@@ -845,6 +845,7 @@
   "op.booking.tagline": "seating guests and online requests",
   "op.booking.timeline.aria": "Reservation timeline by seat",
   "op.booking.title": "Reservations",
+  "op.booking.truncated": "Showing the first {count} bookings for the day — the rest did not fit. Pick another day or open a booking through search.",
   "op.bookingRules.bookingsUnit": "bookings",
   "op.bookingRules.defaultsNote": "This branch has never configured booking intake — the defaults are in force.",
   "op.bookingRules.holdSeat": "Hold the seat after the start",

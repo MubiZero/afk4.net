@@ -18,6 +18,7 @@ import {
   projectPlayerClient,
   formatTime,
   readArray,
+  readMoney,
   readString,
   requireBackend,
   toDateInputValue,
@@ -27,6 +28,10 @@ import {
 import { localPhoneDigits } from './phoneFormat';
 
 // Старт по умолчанию выравниваем по 15 мин, чтобы он совпадал с шагом дропдауна минут.
+// Сколько броней тянем на день. Настоящий предел — сервера, но показать надо и то, что в
+// него упёрлись: иначе часть дня просто исчезает с экрана.
+const DAY_RESERVATION_LIMIT = 200;
+
 function roundToQuarter(date: Date): Date {
   const next = new Date(date);
   next.setMinutes(Math.round(next.getMinutes() / 15) * 15, 0, 0);
@@ -124,6 +129,8 @@ export function BackendBookingWorkspace({
   });
   const [groupConflicts, setGroupConflicts] = useState<Set<string>>(new Set());
   const [startDialogOpen, setStartDialogOpen] = useState(false);
+  // Баланс и долг клиента брони: тянем, когда открывают запуск сессии, и только для клиента клуба.
+  const [startClientWallet, setStartClientWallet] = useState<{ balanceMinorUnits: number; debtMinorUnits: number } | null>(null);
   const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
   const [startFormValid, setStartFormValid] = useState(true);
   const [startIdempotencyKey, setStartIdempotencyKey] = useState('');
@@ -174,7 +181,9 @@ export function BackendBookingWorkspace({
     clients.reservations.search(backend.branchId, {
       fromUtc: bookingFromUtc,
       toUtc: bookingToUtc,
-      limit: 40
+      // Сорока броней не хватает загруженному дню полусотни мест: остальные просто не
+      // доезжали до экрана, и ни оператор, ни интерфейс об этом не знали.
+      limit: DAY_RESERVATION_LIMIT
     })
       .then((result) => {
         if (disposed) return;
@@ -224,10 +233,9 @@ export function BackendBookingWorkspace({
     return () => { disposed = true; };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
 
-  const items = mapReservationsToItems(
-    readArray<ReservationDto>(reservationResult, 'reservations'),
-    t('op.booking.guest')
-  );
+  const dayReservations = readArray<ReservationDto>(reservationResult, 'reservations');
+  const dayIsTruncated = dayReservations.length >= DAY_RESERVATION_LIMIT;
+  const items = mapReservationsToItems(dayReservations, t('op.booking.guest'));
 
   const dayStartMs = new Date(`${toDateInputValue(selectedDate)}T00:00:00`).getTime();
   const nowMs = Date.now();
@@ -611,7 +619,20 @@ export function BackendBookingWorkspace({
     setStartVersion(selectedItem.version);
     setStartAttempt(null);
     setStartAttemptUnresolved(false);
+    setStartClientWallet(null);
     setStartDialogOpen(true);
+
+    // Кошелёк и долг клиента подтягиваем рядом с диалогом: без них форма не может сказать
+    // «хватит на N минут», хотя с Карты говорит. Не пришли — просто нет подсказки, как раньше.
+    const playerAccountId = selectedItem.playerAccountId;
+    if (backend === null || playerAccountId.length === 0) return;
+    void createAuthenticatedOperatorClients(backend.config, backend.session).players
+      .getWalletSummary(playerAccountId)
+      .then((summary) => setStartClientWallet({
+        balanceMinorUnits: readMoney(summary, 'walletBalance')?.minorUnits ?? 0,
+        debtMinorUnits: readMoney(summary, 'debtBalance')?.minorUnits ?? 0
+      }))
+      .catch(() => setStartClientWallet(null));
   };
 
   const submitReservationStart = async () => {
@@ -731,6 +752,11 @@ export function BackendBookingWorkspace({
         <p className="ui-alert ui-alert--spaced" role="alert">{loadError ?? t('op.booking.load.failed')}</p>
       )}
 
+      {/* Упёрлись в предел выдачи: молчать об этом нельзя — день выглядел бы свободнее, чем он есть. */}
+      {dayIsTruncated && (
+        <p className="ui-alert ui-alert--spaced" role="status">{t('op.booking.truncated', { count: DAY_RESERVATION_LIMIT })}</p>
+      )}
+
       {loadStatus !== 'failed' && sessionsFailed && (
         <p className="ui-alert ui-alert--spaced" role="alert">{t('op.booking.sessions.failed')}</p>
       )}
@@ -822,8 +848,10 @@ export function BackendBookingWorkspace({
                 playerAccountId: selectedItem.playerAccountId,
                 name: selectedItem.customerName,
                 phoneNumber: selectedItem.phoneNumber,
-                balanceMinorUnits: null,
-                debtMinorUnits: 0
+                // Кошелёк и долг: с Карты форма их знает и подсказывает «хватит на N минут», а из
+                // брони приезжали нули — тот же запуск, а подсказки нет.
+                balanceMinorUnits: startClientWallet?.balanceMinorUnits ?? null,
+                debtMinorUnits: startClientWallet?.debtMinorUnits ?? 0
               } : null}
               loadTariffs={loadStartTariffs}
               loadPackages={loadStartPackages}

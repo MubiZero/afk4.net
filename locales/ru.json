@@ -845,6 +845,7 @@
   "op.booking.tagline": "посадка гостей и онлайн-заявки",
   "op.booking.timeline.aria": "Таймлайн броней по местам",
   "op.booking.title": "Брони",
+  "op.booking.truncated": "Показаны первые {count} броней за день — остальные не поместились. Выберите другой день или откройте бронь через поиск.",
   "op.bookingRules.bookingsUnit": "броней",
   "op.bookingRules.defaultsNote": "Филиал приём броней ещё не настраивал — работают значения по умолчанию.",
   "op.bookingRules.holdSeat": "Держим место после начала",
