@@ -179,12 +179,12 @@ internal static partial class EndpointHelpers
     /// <summary>
     /// Минимальная длина пароля сотрудника.
     ///
-    /// Четыре, а не восемь: пароль набирают вручную на каждой машине при установке, а короткий
+    /// Шесть, а не восемь: пароль набирают вручную на каждой машине при установке, а короткий
     /// перебор больше не бесконечен — пять промахов подряд запирают учётную запись на четверть
     /// часа (PasswordHashingStaffCredentialService). Экраны читают это же число из
     /// @afk4/contracts, совпадение стережёт passwordPolicy.test.ts.
     /// </summary>
-    public const int MinimumStaffPasswordLength = 4;
+    public const int MinimumStaffPasswordLength = 6;
 
     public static string? ValidateStaffPassword(string password)
     {
