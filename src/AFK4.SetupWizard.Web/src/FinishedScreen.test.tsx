@@ -24,6 +24,12 @@ const failedShell: WizardShellOutcome = { status: 'failed', exitCode: 1603, mess
 
 const installed: WizardShellOutcome = { status: 'installed', exitCode: 0, message: null };
 
+const agentStartFailed: WizardShellOutcome = {
+  status: 'agent_start_failed',
+  exitCode: 0,
+  message: 'sc.exe exited with code 1053.',
+};
+
 function renderFinished(
   role: WizardRole = 'gaming_pc',
   shell: WizardShellOutcome = failedShell,
@@ -107,6 +113,16 @@ describe('FinishedScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Повторить установку' }));
 
     expect(await screen.findByText(/Не удаётся связаться с локальным агентом/)).toBeInTheDocument();
+  });
+
+  // Не запустившаяся служба — не то же, что не установившееся приложение: приложение как раз
+  // встало. Одна фраза на два случая отправляла разбираться не туда.
+  it('не запустившуюся службу называет службой, а не установкой приложения', () => {
+    renderFinished('gaming_pc', agentStartFailed);
+
+    expect(screen.getByText(/служба AFK4 не запустилась/)).toBeInTheDocument();
+    expect(screen.queryByText(/Не удалось установить/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить установку' })).toBeInTheDocument();
   });
 
   it('кнопка закрытия закрывает мастер', () => {

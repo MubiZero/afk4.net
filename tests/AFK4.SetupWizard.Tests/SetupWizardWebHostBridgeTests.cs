@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
@@ -486,6 +486,62 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.NotNull(bridge.Deps.Bootstrap.Written);
     }
 
+    // Регистрация прошла, а настройка на машину не легла — почти всегда из-за прав. Под общим
+    // «не удалось зарегистрировать устройство» человек искал причину в сети и в платформе, где
+    // её нет.
+    [Fact]
+    public async Task Enroll_WhenTheLocalConfigCannotBeWritten_SaysSoInsteadOfBlamingTheEnrollment()
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.Bootstrap.Failure = new UnauthorizedAccessException("Access to the path is denied.");
+
+        var response = await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(
+            "wizard_local_config_write_failed",
+            response.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    // Приложение встало, а служба не запустилась: машина зарегистрирована и настроена, но на
+    // связь не выйдет. Раньше это вылетало исключением и доезжало как провал регистрации.
+    [Fact]
+    public async Task Enroll_WhenTheAgentServiceDoesNotStart_ReportsThatAndNotAFailedEnrollment()
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.Completion.Failure = new InvalidOperationException("sc.exe exited with code 1053.");
+
+        var response = await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+
+        var shell = response.GetProperty("payload").GetProperty("shell");
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal("agent_start_failed", shell.GetProperty("status").GetString());
+        // Настройка на машине есть — повтор не должен гнать человека через весь мастер заново.
+        Assert.NotNull(bridge.Deps.Bootstrap.Written);
+    }
+
+    // Приложение клуба не открываем, пока служба не поднялась: кассир увидел бы рабочее окно на
+    // машине, которая с платформой не разговаривает.
+    [Fact]
+    public async Task Enroll_WhenTheAgentServiceDoesNotStart_DoesNotOpenTheClubApplication()
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.Completion.Failure = new InvalidOperationException("sc.exe exited with code 1053.");
+
+        await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","role":"manager_workstation"}""");
+
+        Assert.False(bridge.Deps.Launcher.Launched);
+    }
+
     [Fact]
     public async Task ProvisionShell_RetriesInstallForTheRoleItIsGiven()
     {
@@ -920,9 +976,17 @@ public sealed class SetupWizardWebHostBridgeTests
         /// WM_SETTINGCHANGE тест отпускает сам, проверив, что поток вызова свободен.
         public Action? Blocker { get; set; }
 
+        /// Изображает отказ записи: права под %ProgramData%, занятый файл, политика.
+        public Exception? Failure { get; set; }
+
         public void Write(SetupWizardBootstrapConfig config)
         {
             Blocker?.Invoke();
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
             Written = config;
         }
     }
@@ -931,7 +995,18 @@ public sealed class SetupWizardWebHostBridgeTests
     {
         public bool Completed { get; private set; }
 
-        public void Complete() => Completed = true;
+        /// Изображает службу, которая не поднялась: sc.exe вернул код, отличный от нуля.
+        public Exception? Failure { get; set; }
+
+        public void Complete()
+        {
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
+            Completed = true;
+        }
     }
 
     private sealed class FakeProvisioner : ISetupWizardShellProvisioner

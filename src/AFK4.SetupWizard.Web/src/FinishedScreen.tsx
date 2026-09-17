@@ -135,10 +135,16 @@ function ShellStatusRow({ initial, role, provisionShell }: {
     : t('op.helper.update.component.organizationAdmin');
 
   // Успех (или уже было установлено) не показываем — зелёная плашка только шумит.
-  // Показываем строку лишь когда установка оболочки сорвалась: это actionable (есть «Повторить»).
+  // Показываем строку лишь когда что-то сорвалось: это actionable (есть «Повторить»).
   if (outcome.status === 'installed' || outcome.status === 'already_present' || outcome.status === 'skipped') {
     return null;
   }
+
+  // Не запустившаяся служба — не то же, что не установившееся приложение: приложение как раз
+  // встало. Одна фраза на два случая отправляла разбираться не туда.
+  const failureText = outcome.status === 'agent_start_failed'
+    ? t('setup.wizard.finished.agent.failed')
+    : t('setup.wizard.finished.shell.failed', { app: appName });
 
   return (
     <div className="wizard-shell-status is-error" role="alert">
@@ -146,7 +152,7 @@ function ShellStatusRow({ initial, role, provisionShell }: {
           говорит: «(msiexec 1603)» рядом с русской фразой читается как часть поломки. Он
           остаётся в подсказке и в журнале, а на экране — только то, что делать дальше. */}
       <span title={outcome.exitCode !== null ? `msiexec ${outcome.exitCode}` : undefined}>
-        {t('setup.wizard.finished.shell.failed', { app: appName })}
+        {failureText}
       </span>
       {retryFailure === null ? null : <span className="wizard-shell-status-detail">{retryFailure}</span>}
       <button
