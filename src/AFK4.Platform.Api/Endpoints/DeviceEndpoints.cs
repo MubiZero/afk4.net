@@ -917,7 +917,8 @@ internal static class DeviceEndpoints
                     command.Status,
                     command.Message,
                     command.CreatedAtUtc,
-                    command.UpdatedAtUtc))
+                    command.UpdatedAtUtc,
+                    command.Outcome))
                 .ToListAsync(cancellationToken);
 
             return Results.Ok(new DeviceDetailDto(
@@ -1589,7 +1590,8 @@ internal static class DeviceEndpoints
                     command.Status,
                     command.Message,
                     command.CreatedAtUtc,
-                    command.UpdatedAtUtc))
+                    command.UpdatedAtUtc,
+                    command.Outcome))
                 .ToListAsync(cancellationToken);
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
@@ -1671,7 +1673,8 @@ internal static class DeviceEndpoints
                         command.Status,
                         command.Message,
                         command.CreatedAtUtc,
-                        command.UpdatedAtUtc))
+                        command.UpdatedAtUtc,
+                        command.Outcome))
                     .ToListAsync(cancellationToken);
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(

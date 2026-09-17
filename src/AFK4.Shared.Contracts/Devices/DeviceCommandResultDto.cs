@@ -1,4 +1,4 @@
-namespace AFK4.Shared.Contracts.Devices;
+﻿namespace AFK4.Shared.Contracts.Devices;
 
 public sealed record DeviceCommandResultDto(
     Guid OrganizationId,
@@ -7,4 +7,5 @@ public sealed record DeviceCommandResultDto(
     Guid CommandId,
     string Status,
     string Message,
-    DateTimeOffset ObservedAtUtc);
+    DateTimeOffset ObservedAtUtc,
+    string Outcome = DeviceCommandOutcomeNames.Accepted);

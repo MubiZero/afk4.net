@@ -1326,6 +1326,8 @@ export function commandStatusLabel(status: string, t: TFunc): string {
       return t('op.helper.command.status.done');
     case 'failed':
       return t('op.helper.command.status.failed');
+    case 'rejected':
+      return t('op.helper.command.status.rejected');
     case 'cancelled':
     case 'canceled':
       return t('op.helper.command.status.cancelled');

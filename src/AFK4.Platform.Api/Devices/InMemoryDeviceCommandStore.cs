@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using AFK4.Shared.Contracts.Devices;
 
 namespace AFK4.Platform.Api.Devices;
@@ -35,11 +35,13 @@ public sealed class InMemoryDeviceCommandStore : IDeviceCommandStore
                 Status: result.Status,
                 Message: result.Message,
                 CreatedAtUtc: result.ObservedAtUtc,
-                UpdatedAtUtc: result.ObservedAtUtc),
+                UpdatedAtUtc: result.ObservedAtUtc,
+                Outcome: result.Outcome),
             (_, existing) => existing with
             {
                 Status = result.Status,
                 Message = result.Message,
+                Outcome = result.Outcome,
                 UpdatedAtUtc = result.ObservedAtUtc
             });
 

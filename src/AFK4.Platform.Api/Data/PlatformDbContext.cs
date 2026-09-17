@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Data;
 
@@ -538,6 +538,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(command => command.Type).HasMaxLength(64).IsRequired();
             entity.Property(command => command.Status).HasMaxLength(32).IsRequired();
             entity.Property(command => command.Message).HasMaxLength(512);
+            entity.Property(command => command.Outcome).HasMaxLength(64);
             entity.Property(command => command.PayloadJson).HasColumnType("jsonb").IsRequired();
             entity.HasIndex(command => new { command.DeviceId, command.CommandId }).IsUnique();
         });

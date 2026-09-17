@@ -1,7 +1,8 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
@@ -99,6 +100,39 @@ public sealed class SessionEnforcementCoordinatorTests
         Assert.Equal(0, lockController.UnlockCount);
     }
 
+    // «Заперто» и «заперто, но на самой машине ничего не применилось» — разные новости для
+    // оператора. Раньше оба случая уезжали в журнал одинаковым успехом, и англоязычное
+    // «Workstation locked (nothing)» было единственным следом того, что диспетчер задач у гостя
+    // остался открыт.
+    [Fact]
+    public async Task LockAsync_WhenNothingCouldBeEnforced_SaysSoInsteadOfReportingAPlainSuccess()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var directory = TemporaryDirectory.Create();
+        var leaseStore = new FileSessionLeaseStore(directory.Path, new FixedTimeProvider(Now));
+        var runtimeStore = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now));
+        var coordinator = CreateCoordinator(key, leaseStore, runtimeStore, new PowerlessWorkstationLockController());
+
+        var result = await coordinator.LockAsync(SessionId, CancellationToken.None);
+
+        Assert.Equal("Accepted", result.Status);
+        Assert.Equal(DeviceCommandOutcomeNames.MachinePoliciesUnavailable, result.Outcome);
+    }
+
+    [Fact]
+    public async Task LockAsync_WhenPoliciesApply_ReportsThatTheWorkstationIsLocked()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var directory = TemporaryDirectory.Create();
+        var leaseStore = new FileSessionLeaseStore(directory.Path, new FixedTimeProvider(Now));
+        var runtimeStore = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now));
+        var coordinator = CreateCoordinator(key, leaseStore, runtimeStore, new RecordingWorkstationLockController());
+
+        var result = await coordinator.LockAsync(SessionId, CancellationToken.None);
+
+        Assert.Equal(DeviceCommandOutcomeNames.WorkstationLocked, result.Outcome);
+    }
+
     private static SessionEnforcementCoordinator CreateCoordinator(
         ECDsa key,
         ISessionLeaseStore leaseStore,
@@ -160,6 +194,16 @@ public sealed class SessionEnforcementCoordinatorTests
             UnlockCount++;
             return Task.FromResult(new WorkstationLockOutcome(["task manager restored"]));
         }
+    }
+
+    /// <summary>Машина, на которой агент не смог применить ни одной политики.</summary>
+    private sealed class PowerlessWorkstationLockController : IWorkstationLockController
+    {
+        public Task<WorkstationLockOutcome> LockAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(WorkstationLockOutcome.Nothing);
+
+        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(WorkstationLockOutcome.Nothing);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
