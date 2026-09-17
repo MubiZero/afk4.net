@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
@@ -145,23 +145,69 @@ public sealed class UpdateEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // Список допустимых статусов выписывался руками и отстал от контракта: агент сообщал
+    // «отложено» и «готово к установке», а сервер отвечал 400 — клуб видел устройство навсегда
+    // застрявшим на «предложено».
+    [Theory]
+    [InlineData(UpdateStatusNames.Deferred)]
+    [InlineData(UpdateStatusNames.ReadyToInstall)]
+    [InlineData(UpdateStatusNames.AwaitingAppExit)]
+    [InlineData(UpdateStatusNames.HealthChecking)]
+    [InlineData(UpdateStatusNames.RollbackRequired)]
+    public async Task PostDeviceUpdateStatus_AcceptsEveryStatusTheContractDefines(string status)
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        var release = await SeedValidatedRolloutAsync(factory);
+
+        var response = await SendStatusAsync(client, enrollment, release, status);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostDeviceUpdateStatus_RejectsAStatusThatIsNotInTheContract()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        var release = await SeedValidatedRolloutAsync(factory);
+
+        var response = await SendStatusAsync(client, enrollment, release, "almost-installed");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static async Task ReportStatusAsync(
         HttpClient client,
         DeviceEnrollmentResponse enrollment,
         (Guid PackageId, Guid RolloutId) release)
     {
+        var response = await SendStatusAsync(client, enrollment, release, UpdateStatusNames.Installing);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private static async Task<HttpResponseMessage> SendStatusAsync(
+        HttpClient client,
+        DeviceEnrollmentResponse enrollment,
+        (Guid PackageId, Guid RolloutId) release,
+        string status)
+    {
         var request = new DeviceUpdateStatusReportRequest(
             enrollment.OrganizationId, enrollment.BranchId, enrollment.DeviceId,
             release.RolloutId, release.PackageId, UpdateComponentNames.AgentService,
-            "1.2.2", "1.2.3", UpdateStatusNames.Installing, "install started",
+            "1.2.2", "1.2.3", status, "install started",
             DateTimeOffset.Parse("2026-07-29T14:06:00Z"));
         using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{enrollment.DeviceId}/updates/status")
         {
             Content = JsonContent.Create(request)
         };
         message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
-        var response = await client.SendAsync(message);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return await client.SendAsync(message);
     }
 
     private static async Task<(Guid PackageId, Guid RolloutId)> SeedValidatedRolloutAsync(PlatformApiFactory factory)
