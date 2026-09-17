@@ -33,14 +33,17 @@ export interface CheckoutPaymentDraft {
  * invalidates its controlled value. */
 export function getAvailableCheckoutMethods(
   drafts: readonly CheckoutPaymentDraft[],
-  rowIndex?: number
+  rowIndex?: number,
+  // Кошелёк есть не у всякой продажи: у гостя без карты клуба списывать не с чего, и сервер
+  // такую часть отклонит («wallet_player_required»). Наличные и карта от клиента не зависят.
+  allowed: readonly CheckoutMethod[] = checkoutMethods
 ): CheckoutMethod[] {
   const used = new Set(
     drafts
       .filter((_, index) => index !== rowIndex)
       .map((draft) => draft.method)
   );
-  return checkoutMethods.filter((method) => !used.has(method));
+  return allowed.filter((method) => !used.has(method));
 }
 
 export interface CheckoutValidation {

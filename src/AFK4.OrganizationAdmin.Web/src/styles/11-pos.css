@@ -958,3 +958,12 @@
 
 .pos-cart-row-actions { display: flex; gap: var(--space-1); }
 .pos-cart-row.empty .pos-cart-row-actions { display: none; }
+
+/* Почему оплата недоступна. Серый прямоугольник без объяснения заставлял кассира гадать:
+   нет смены? нет прав? каталог не догрузился? */
+.pos-tender-blocked {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
+}

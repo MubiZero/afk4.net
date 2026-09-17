@@ -4,6 +4,7 @@ import { useI18n } from '@afk4/i18n';
 import {
   buildCheckoutPayments,
   checkoutMethodLabel,
+  checkoutMethods,
   formatCheckoutAmount,
   getAvailableCheckoutMethods,
   initialCheckoutDrafts,
@@ -54,6 +55,7 @@ export function PaymentDialog({
   cancelDisabled = false,
   confirmVariant = 'danger',
   endWithoutPayment,
+  extraAction,
   onCancel,
   onConfirm
 }: {
@@ -70,6 +72,8 @@ export function PaymentDialog({
   cancelDisabled?: boolean;
   confirmVariant?: 'danger' | 'accent';
   endWithoutPayment?: { label: string; onEnd: () => void };
+  /// Действие, которое доступно, даже когда диалог заперт: «проверить, прошла ли оплата».
+  extraAction?: { label: string; onSelect: () => void };
   onCancel: () => void;
   onConfirm: (payments: PaymentPartDto[]) => void;
 }) {
@@ -82,6 +86,9 @@ export function PaymentDialog({
   const [splitDrafts, setSplitDrafts] = useState<CheckoutPaymentDraft[]>(() => initialCheckoutDrafts(grandTotalMinorUnits));
 
   const hasWallet = walletBalanceMinorUnits !== null && walletBalanceMinorUnits > 0;
+  // «Часть наличными, часть картой» — обычная просьба гостя без карты клуба, и сервер её
+  // принимает: клиент нужен только для списания с кошелька.
+  const splitMethods = hasWallet ? checkoutMethods : checkoutMethods.filter((method) => method !== 'wallet');
   const walletBalance = walletBalanceMinorUnits;
   // Ноль к оплате со «завершить без оплаты» (сессия) — оплаты нет вовсе.
   const isZeroBill = grandTotalMinorUnits === 0 && Boolean(endWithoutPayment);
@@ -111,7 +118,7 @@ export function PaymentDialog({
     setSplitDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, ...patch } : draft)));
   };
   const addSplitDraft = () => setSplitDrafts((current) => {
-    const nextMethod = getAvailableCheckoutMethods(current)[0];
+    const nextMethod = getAvailableCheckoutMethods(current, undefined, splitMethods)[0];
     return nextMethod ? [...current, { method: nextMethod, amountText: '' }] : current;
   });
   const removeSplitDraft = (index: number) => {
@@ -124,7 +131,7 @@ export function PaymentDialog({
     ...(hasWallet ? [{ id: 'deposit' as PayMode, label: t('op.checkout.method.wallet') }] : []),
     ...(allowSplit ? [{ id: 'split' as PayMode, label: t('op.checkout.tab.split') }] : [])
   ];
-  const canAddSplitMethod = getAvailableCheckoutMethods(splitDrafts).length > 0;
+  const canAddSplitMethod = getAvailableCheckoutMethods(splitDrafts, undefined, splitMethods).length > 0;
 
   return (
     <>
@@ -209,7 +216,7 @@ export function PaymentDialog({
                     disabled={editingDisabled}
                     onChange={(event) => updateSplitDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
                   >
-                    {getAvailableCheckoutMethods(splitDrafts, index).map((method) => (
+                    {getAvailableCheckoutMethods(splitDrafts, index, splitMethods).map((method) => (
                       <option key={method} value={method}>{checkoutMethodLabel(method, t)}</option>
                     ))}
                   </select>
@@ -255,6 +262,11 @@ export function PaymentDialog({
       )}
 
       <div className="critical-confirmation-actions">
+        {/* Доступно и в запертом окне: после обрыва связи это единственный способ узнать,
+            прошла ли оплата, не рискуя списать деньги второй раз. */}
+        {extraAction && (
+          <button type="button" onClick={extraAction.onSelect} disabled={disabled}>{extraAction.label}</button>
+        )}
         <button type="button" onClick={onCancel} disabled={disabled || cancelDisabled}>{t('common.cancel')}</button>
         <button
           type="button"
