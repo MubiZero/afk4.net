@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
@@ -638,6 +638,83 @@ public sealed class WorkerTests
             {
                 Content = JsonContent.Create(response)
             };
+        }
+    }
+
+    // Правило «эти программы на игровом ПК запускать нельзя», исполнитель к нему и проверка на
+    // исполнителя были написаны — а звать исполнителя было некому: в службе не осталось ни одного
+    // вызова. Клуб, вписавший в настройку обход киоска или чит, считал, что запрет работает.
+    [Fact]
+    public async Task ExecuteAsync_ClosesTheProcessesTheClubForbade()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var terminated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeniedProcessNames = ["cheat-engine"]
+        });
+        using var heartbeatHandler = new GraceAdvertisingHeartbeatHandler(effectiveGraceMinutes: 15);
+        var terminator = new RecordingProcessTerminator(terminated);
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(heartbeatHandler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new RecordingDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
+            TimeProvider.System,
+            new ProcessPolicyEnforcer(options, terminator, NullLogger<ProcessPolicyEnforcer>.Instance));
+
+        await worker.StartAsync(stopping.Token);
+        await terminated.Task.WaitAsync(WorkerObservationTimeout);
+        stopping.Cancel();
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Contains("cheat-engine", terminator.Terminated);
+    }
+
+    private sealed class RecordingProcessTerminator(TaskCompletionSource terminated) : IRunningProcessTerminator
+    {
+        private readonly List<string> names = [];
+
+        public IReadOnlyList<string> Terminated
+        {
+            get
+            {
+                lock (names)
+                {
+                    return names.ToArray();
+                }
+            }
+        }
+
+        public int TerminateByName(string processName)
+        {
+            lock (names)
+            {
+                names.Add(processName);
+            }
+
+            terminated.TrySetResult();
+
+            return 1;
         }
     }
 
