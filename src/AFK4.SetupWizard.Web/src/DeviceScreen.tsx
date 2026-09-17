@@ -152,6 +152,22 @@ export function DeviceScreen({
       </div>
 
       <form className="wizard-form" onSubmit={handleSubmit} noValidate>
+        {/* Свободных мест нет — место заведётся само, и сказать об этом надо до нажатия:
+            иначе в зале молча появляется ещё одна строка, о которой человек узнаёт из панели. */}
+        {requiresSeat && freeSeats.length === 0 && defaultZone !== null && (
+          <p className="ui-field-hint">
+            {t('setup.wizard.device.seat.willCreate', { name: trimmedDisplayName || defaultDisplayName })}
+          </p>
+        )}
+
+        {/* Зала нет вовсе — место создавать негде. Раньше кнопка просто не нажималась, и
+            причину человек у ПК не узнавал ниоткуда. */}
+        {requiresSeat && defaultZone === null && (
+          <div role="alert" className="ui-alert">
+            {t('setup.wizard.device.seat.noZone')}
+          </div>
+        )}
+
         {freeSeats.length > 0 && (
           <label className="ui-field">
             <span className="ui-field-label">{t('setup.wizard.device.seat.label')}</span>

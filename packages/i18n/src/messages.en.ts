@@ -3566,6 +3566,8 @@ export const en = {
   "setup.wizard.device.seat.hint": "Seats already exist in this hall. Pick the one this PC stands at, otherwise the hall gets a duplicate.",
   "setup.wizard.device.seat.label": "Which seat in the hall this is",
   "setup.wizard.device.seat.new": "Create a new seat",
+  "setup.wizard.device.seat.noZone": "This branch has no hall yet, and a seat lives in a hall. Create a hall in the club app and come back here.",
+  "setup.wizard.device.seat.willCreate": "No free seats in the hall — a new one will be created: “{name}”.",
   "setup.wizard.error.bridgeMissing": "Cannot reach the local agent. Restart Setup Wizard.",
   "setup.wizard.error.invalidPhone": "Check the number: the invite is sent by SMS, and this one cannot receive it.",
   "setup.wizard.error.planLimitReached": "The club's plan does not allow adding more. Ask the owner — the limit is part of the subscription.",
