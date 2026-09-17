@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.Extensions.Options;
 
@@ -6,6 +6,12 @@ namespace AFK4.Agent.Service.Updates;
 
 public sealed class ExternalProcessUpdateInstaller(IOptions<AgentOptions> options) : IUpdateInstallExecutor
 {
+    /// <summary>
+    /// Код msiexec «установлено, требуется перезагрузка». Скрипт установки отдаёт его как есть,
+    /// не сводя к нулю: иначе платформа считает парк обновлённым, пока он работает на старом.
+    /// </summary>
+    private const int RebootRequiredExitCode = 3010;
+
     public async Task<UpdateInstallResult> ExecuteAsync(
         ComponentUpdateInstructionDto instruction,
         DownloadedUpdateArtifact artifact,
@@ -52,9 +58,13 @@ public sealed class ExternalProcessUpdateInstaller(IOptions<AgentOptions> option
             return UpdateInstallResult.Failed("Update installer timed out.");
         }
 
-        return process.ExitCode == 0
-            ? UpdateInstallResult.Success("Update installer completed.")
-            : UpdateInstallResult.Failed($"Update installer exited with code {process.ExitCode}.");
+        return process.ExitCode switch
+        {
+            0 => UpdateInstallResult.Success("Update installer completed."),
+            RebootRequiredExitCode => UpdateInstallResult.RestartRequired(
+                "Update installer completed, but Windows must restart before the new build runs."),
+            _ => UpdateInstallResult.Failed($"Update installer exited with code {process.ExitCode}.")
+        };
     }
 
     private static string CreateInstallerArguments(

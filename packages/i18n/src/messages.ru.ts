@@ -1850,6 +1850,7 @@ export const ru = {
   "op.network.updates.status.installed": "Установлено",
   "op.network.updates.status.installing": "Устанавливается",
   "op.network.updates.status.offered": "Доступно обновление",
+  "op.network.updates.status.pendingRestart": "Установлено, нужна перезагрузка",
   "op.network.updates.status.readyToInstall": "Готово к установке",
   "op.network.updates.targetVersion": "Готово к установке",
   "op.network.updates.window.from": "С",

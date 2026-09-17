@@ -27,6 +27,11 @@ public sealed class SafeUpdateInstaller(
         await stateStore.SaveAsync(state, cancellationToken);
 
         var installResult = await executor.ExecuteAsync(instruction, artifact, state, cancellationToken);
+        if (installResult.RestartPending)
+        {
+            return await RecordRestartPendingAsync(instruction, state, installResult, cancellationToken);
+        }
+
         if (installResult.Succeeded)
         {
             var installed = state
@@ -90,6 +95,32 @@ public sealed class SafeUpdateInstaller(
             cancellationToken);
 
         return UpdateInstallResult.Failed(finalMessage);
+    }
+
+    /// <summary>
+    /// Установленная версия остаётся прежней: до перезагрузки машины работает старая сборка.
+    ///
+    /// Пакет в «известные хорошие» не записывается — он ещё ни разу не запускался, откатываться
+    /// на него было бы откатом в неизвестность. Перезапуск службы тоже не нужен: файлы подменит
+    /// перезагрузка, а не рестарт сервиса. А вот приложение клуба, которое закрыли ради
+    /// установки, вернуть на экран кассиру нужно в любом случае.
+    /// </summary>
+    private async Task<UpdateInstallResult> RecordRestartPendingAsync(
+        ComponentUpdateInstructionDto instruction,
+        UpdateInstallState state,
+        UpdateInstallResult installResult,
+        CancellationToken cancellationToken)
+    {
+        await stateStore.SaveAsync(
+            state.WithStatus(UpdateStatusNames.PendingRestart, installResult.Message, timeProvider.GetUtcNow()),
+            cancellationToken);
+
+        if (instruction.Component == UpdateComponentNames.OrganizationAdmin && organizationAdminProcessLauncher is not null)
+        {
+            await organizationAdminProcessLauncher.ScheduleAfterRestartAsync(instruction, cancellationToken);
+        }
+
+        return installResult;
     }
 
     private string GetInstalledVersion(string component)

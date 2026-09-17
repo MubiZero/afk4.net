@@ -1,4 +1,4 @@
-using System.Management.Automation.Language;
+﻿using System.Management.Automation.Language;
 
 namespace AFK4.Agent.Service.Tests;
 
@@ -51,14 +51,27 @@ public sealed class UpdateHelperScriptTests
 
         var successBranchIndex = script.IndexOf("$process.ExitCode -eq 0", StringComparison.Ordinal);
         var startCallIndex = script.IndexOf("Start-AgentServiceAfterSelfUpdate -Name $AgentServiceName", StringComparison.Ordinal);
-        var successExitIndex = script.IndexOf("exit 0", successBranchIndex, StringComparison.Ordinal);
+        var exitIndex = script.IndexOf("exit $process.ExitCode", successBranchIndex, StringComparison.Ordinal);
 
         Assert.Contains("[string] $AgentServiceName = 'AFK4.Agent.Service'", script, StringComparison.Ordinal);
         Assert.Contains("function Start-AgentServiceAfterSelfUpdate", script, StringComparison.Ordinal);
         Assert.Contains("$Component -ne 'agent-service'", script, StringComparison.Ordinal);
         Assert.Contains("Start-Service -Name $Name -ErrorAction Stop", script, StringComparison.Ordinal);
         Assert.True(startCallIndex > successBranchIndex, "The helper should start AFK4.Agent.Service only after msiexec succeeds.");
-        Assert.True(startCallIndex < successExitIndex, "The helper should attempt service startup before returning success.");
+        Assert.True(startCallIndex < exitIndex, "The helper should attempt service startup before returning.");
+    }
+
+    // 3010 значит «установлено, нужна перезагрузка». Раньше скрипт сводил его к нулю, и платформа
+    // записывала «обновлено» по всему парку, который до перезагрузки работал на старой сборке.
+    [Fact]
+    public void InstallUpdateMsiScript_ReportsRebootRequiredInsteadOfCollapsingItToSuccess()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1");
+        var script = File.ReadAllText(scriptPath);
+
+        Assert.Contains("$rebootRequiredExitCode = 3010", script, StringComparison.Ordinal);
+        Assert.Contains("exit $process.ExitCode", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("exit 0", script, StringComparison.Ordinal);
     }
 
     [Fact]
