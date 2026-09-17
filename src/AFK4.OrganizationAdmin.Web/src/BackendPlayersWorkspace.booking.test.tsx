@@ -193,9 +193,13 @@ describe('BackendPlayersWorkspace · посадить за ПК из карто�
     const seat = await screen.findByLabelText('Место');
     expect([...seat.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Зал · PC-01']);
 
+    // Кнопка оживает не сразу: форма ждёт список тарифов. Ждём именно его, а не отмеренную
+    // секунду — на загруженном раннере секунды не хватало, и проверка падала на ровном месте.
+    await waitFor(() => expect(getTariffOptions).toHaveBeenCalled());
+
     // Пункт меню и кнопка подтверждения называются одинаково — берём ту, что в диалоге.
     const submit = (await screen.findAllByRole('button', { name: 'Посадить за ПК' })).at(-1)!;
-    await waitFor(() => expect(submit).not.toBeDisabled());
+    await waitFor(() => expect(submit).not.toBeDisabled(), { timeout: 5000 });
     fireEvent.click(submit);
 
     await waitFor(() => expect(startGuestSession).toHaveBeenCalledTimes(1));
