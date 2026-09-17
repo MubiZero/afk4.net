@@ -370,6 +370,18 @@ describe('BackendPosWorkspace', () => {
     expect(screen.getByText('Откройте смену перед оплатой.')).toBeInTheDocument();
   });
 
+  // Опечатка в поиске читалась как «товар исчез из системы»: пустой результат отбора выглядел
+  // ровно как пустой каталог.
+  it('пустой поиск не выдаёт себя за пустой каталог', async () => {
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+
+    fireEvent.change(screen.getByPlaceholderText('Товар, услуга, SKU'), { target: { value: 'шоколадный самовар' } });
+
+    expect(screen.getByText('Ничего не нашлось')).toBeInTheDocument();
+    expect(screen.queryByText('Каталог пуст')).toBeNull();
+  });
+
   it('replays an ambiguous multipart settlement once with the same idempotency key', async () => {
     settlementNetworkFailuresRemaining = 1;
     renderBackendPos();
