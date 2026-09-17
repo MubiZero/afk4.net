@@ -1,4 +1,4 @@
-namespace AFK4.Platform.Api.Data;
+﻿namespace AFK4.Platform.Api.Data;
 
 public sealed class StaffUserEntity
 {
@@ -25,6 +25,14 @@ public sealed class StaffUserEntity
     public DateTimeOffset? PhoneVerifiedAtUtc { get; set; }
 
     public string PasswordHash { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Подряд идущие промахи по паролю и до какого момента вход закрыт. Те же поля и тот же
+    /// порядок, что у администратора платформы: одна дверь — один механизм.
+    /// </summary>
+    public int FailedPasswordAttempts { get; set; }
+
+    public DateTimeOffset? PasswordLockedUntilUtc { get; set; }
 
     public bool IsActive { get; set; } = true;
 

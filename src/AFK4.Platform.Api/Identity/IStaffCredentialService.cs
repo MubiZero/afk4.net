@@ -1,12 +1,12 @@
-using AFK4.Shared.Contracts.Identity;
+﻿using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Platform.Api.Identity;
 
 public interface IStaffCredentialService
 {
-    Task<StaffSignInResponse?> SignInAsync(StaffSignInRequest request, CancellationToken cancellationToken);
+    Task<StaffSignInOutcome> SignInAsync(StaffSignInRequest request, CancellationToken cancellationToken);
 
-    Task<StaffSignInResponse?> SignInByOrganizationKeyAsync(
+    Task<StaffSignInOutcome> SignInByOrganizationKeyAsync(
         StaffSignInByOrganizationKeyRequest request,
         CancellationToken cancellationToken);
 
@@ -22,7 +22,7 @@ public interface IStaffCredentialService
         StaffSignInByLoginRequest request,
         CancellationToken cancellationToken);
 
-    Task<StaffSignInResponse?> SignInByPhoneAsync(
+    Task<StaffSignInOutcome> SignInByPhoneAsync(
         StaffSignInByPhoneRequest request,
         CancellationToken cancellationToken);
 }
@@ -37,8 +37,25 @@ public interface IStaffCredentialService
 /// </summary>
 public sealed record StaffLoginResolution(
     StaffSignInResponse? SignedIn,
-    IReadOnlyList<StaffSignInClubChoice> Clubs)
+    IReadOnlyList<StaffSignInClubChoice> Clubs,
+    bool LockedOut = false)
 {
     public static readonly StaffLoginResolution None =
         new(null, Array.Empty<StaffSignInClubChoice>());
+
+    public static readonly StaffLoginResolution Locked =
+        new(null, Array.Empty<StaffSignInClubChoice>(), LockedOut: true);
+}
+
+/// <summary>
+/// Чем закончился вход. «Не подошло» и «заперто после пяти промахов» — разные новости: под
+/// первой человек ищет опечатку и пробует снова, под второй ждёт четверть часа.
+/// </summary>
+public sealed record StaffSignInOutcome(StaffSignInResponse? SignedIn, bool LockedOut)
+{
+    public static readonly StaffSignInOutcome Rejected = new(null, false);
+
+    public static readonly StaffSignInOutcome Locked = new(null, true);
+
+    public static StaffSignInOutcome Success(StaffSignInResponse response) => new(response, false);
 }
