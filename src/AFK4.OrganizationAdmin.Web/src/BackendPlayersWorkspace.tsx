@@ -15,7 +15,8 @@ import {
   readMoney,
   readString,
   requireBackend,
-  resolveReasonInput
+  resolveReasonInput,
+  toDateTimeInputValue
 } from './operatorHelpers';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContextMap, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
 import { fetchPlayersData, playersSnapshotCache } from './players/playersSnapshot';
@@ -27,6 +28,7 @@ import { useReputation } from './players/useReputation';
 import { HistorySection } from './players/HistorySection';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
+import { ClientBookingModal, type ClientBookingDraft } from './players/ClientBookingModal';
 import { CorrectionModal, correctionQuantities, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
 import { EditProfileModal } from './players/EditProfileModal';
@@ -66,6 +68,11 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
   const [debtPaymentReason, setDebtPaymentReason] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
+  // Бронь из карточки клиента спрашивает время, длительность и место, а не создаёт их за
+  // оператора: раньше один клик молча заводил бронь «через 30 минут, на час, без места».
+  const [bookingDraft, setBookingDraft] = useState<ClientBookingDraft | null>(null);
+  const [bookingSeats, setBookingSeats] = useState<{ seatId: string; label: string }[]>([]);
+  const [bookingBusy, setBookingBusy] = useState(false);
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDto[]>([]);
   const [playerPackages, setPlayerPackages] = useState<PlayerPackageDto[]>([]);
@@ -520,22 +527,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           throw new Error(t('op.players.error.noPermBooking'));
         }
 
-        const backendClient = requireSelectedBackendClient();
-
-        await apiClients.reservations.create(nextBackend.branchId, {
-          organizationId: nextBackend.session.organizationId,
-          playerAccountId: backendClient.playerAccountId,
-          seatId: null,
-          customerName: backendClient.name,
-          phoneNumber: backendClient.phoneNumber || null,
-          startsAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(),
-          durationMinutes: 60,
-          source: 'operator',
-          // note sent to the API; surfaces in the audit log shown to operators
-          note: t('op.players.note.createdFromCard')
-        });
-        // Обновляем кросс-контекст профиля, чтобы новая бронь сразу появилась полосой «ближайшая бронь».
-        bumpLedger();
+        requireSelectedBackendClient();
+        openBookingModal();
       } else if (id === 'correction') {
         if (!hasPermission(nextBackend.session, permissionNames.manualCorrection)) {
           throw new Error(t('op.players.error.noPermCorrection'));
@@ -686,6 +679,63 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   const showSkeleton = loadStatus === 'loading' && clients.length === 0;
   const emptyDescription = loadStatus === 'backend' ? t('op.players.list.emptyBackend') : t('op.players.list.emptyConnect');
 
+  // Ближайшая четверть часа через 15 минут — тот же старт по умолчанию, что и в «Бронях»:
+  // один и тот же смысл не должен считаться по-разному на двух экранах.
+  const nextQuarterHour = () => {
+    const at = new Date(Date.now() + 15 * 60_000);
+    at.setMinutes(Math.ceil(at.getMinutes() / 15) * 15, 0, 0);
+    return toDateTimeInputValue(at);
+  };
+
+  const openBookingModal = () => {
+    setBookingDraft({ startsAt: nextQuarterHour(), durationMinutes: 60, seatId: '' });
+    const nextBackend = backend;
+    if (nextBackend === null) return;
+    // Свободные места подтягиваем рядом с диалогом: без них бронь получалась «без места», и её
+    // приходилось дозаполнять в другом разделе.
+    void createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).floorMap
+      .getFloorMap(nextBackend.branchId)
+      .then((map) => setBookingSeats(map.seats
+        .filter((seat) => seat.state === 'free' || seat.state === 'ready')
+        .map((seat) => ({ seatId: seat.seatId, label: seat.seatName }))))
+      .catch(() => setBookingSeats([]));
+  };
+
+  const submitBooking = async () => {
+    const draft = bookingDraft;
+    if (draft === null) return;
+    const label = t('op.players.actions.bookingBtn');
+    setBookingBusy(true);
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      const backendClient = requireSelectedBackendClient();
+      const startsAt = new Date(draft.startsAt);
+      if (Number.isNaN(startsAt.getTime())) throw new Error(t('op.booking.error.invalidStart'));
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await apiClients.reservations.create(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        playerAccountId: backendClient.playerAccountId,
+        seatId: draft.seatId || null,
+        customerName: backendClient.name,
+        phoneNumber: backendClient.phoneNumber || null,
+        startsAtUtc: startsAt.toISOString(),
+        durationMinutes: draft.durationMinutes,
+        source: 'operator',
+        // note sent to the API; surfaces in the audit log shown to operators
+        note: t('op.players.note.createdFromCard')
+      });
+      setBookingDraft(null);
+      setFeedback({ label, state: 'confirmed' });
+      // Обновляем кросс-контекст профиля, чтобы новая бронь сразу появилась полосой «ближайшая бронь».
+      bumpLedger();
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    } finally {
+      setBookingBusy(false);
+    }
+  };
+
   const submitNewClient = async () => {
     await runClientAction('newCard', t('op.pos.cart.newCardLabel'));
     setNewClientOpen(false);
@@ -821,6 +871,18 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             onRefund={(entry) => setRefundTarget(entry)}
           />
         </PanelModal>
+      )}
+
+      {bookingDraft !== null && selectedClient !== null && (
+        <ClientBookingModal
+          clientName={selectedClient.name}
+          draft={bookingDraft}
+          seats={bookingSeats}
+          busy={bookingBusy}
+          onChange={setBookingDraft}
+          onClose={() => setBookingDraft(null)}
+          onSubmit={() => void submitBooking()}
+        />
       )}
 
       {newClientOpen && (
