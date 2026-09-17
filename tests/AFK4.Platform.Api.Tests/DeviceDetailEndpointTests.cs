@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
@@ -55,7 +55,7 @@ public sealed class DeviceDetailEndpointTests
         Assert.Equal("0.1.1", detail.AgentVersion);
         Assert.Equal("0.1.2", detail.ShellVersion);
         Assert.Equal(DateTimeOffset.Parse("2026-05-13T09:00:00Z"), detail.EnrolledAtUtc);
-        Assert.Equal(DateTimeOffset.Parse("2026-05-13T10:00:00Z"), detail.LastHeartbeatAtUtc);
+        Assert.NotNull(detail.LastHeartbeatAtUtc);
         Assert.True(detail.IsOnline);
         Assert.True(detail.IsLocked);
         Assert.Equal(Guid.Parse("11111111-1111-4111-8111-111111111111"), detail.SeatId);
@@ -117,7 +117,8 @@ public sealed class DeviceDetailEndpointTests
             AgentVersion = "0.1.1",
             ShellVersion = "0.1.2",
             EnrolledAtUtc = DateTimeOffset.Parse("2026-05-13T09:00:00Z"),
-            LastHeartbeatAtUtc = DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            // Свежее сердцебиение: «на связи» теперь считается по нему, а не по флагу в базе.
+            LastHeartbeatAtUtc = DateTimeOffset.UtcNow.AddSeconds(-30),
             IsOnline = true,
             IsLocked = true
         });

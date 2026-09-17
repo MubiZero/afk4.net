@@ -1,10 +1,12 @@
-using AFK4.Platform.Api.Dashboard;
+﻿using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using AFK4.Platform.Api.Diagnostics;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -322,7 +324,7 @@ public sealed class EfOperatorDashboardServiceTests
     private static readonly Guid OpenShiftId = Guid.Parse("12121212-1212-4212-8212-121212121212");
 
     private static EfOperatorDashboardService CreateService(PlatformDbContext db) =>
-        new(db, new FixedTimeProvider(Now));
+        new(db, new FixedTimeProvider(Now), Options.Create(new BranchDiagnosticsOptions()));
 
     private static PlatformDbContext CreateDbContext()
     {

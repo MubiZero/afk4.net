@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
@@ -135,7 +135,8 @@ public sealed class DashboardEndpointTests
                 AgentVersion = "0.1.14",
                 ShellVersion = "0.1.14",
                 EnrolledAtUtc = DashboardDay.AddHours(7),
-                LastHeartbeatAtUtc = DashboardDay.AddHours(12),
+                // Свежее сердцебиение: сводка считает живыми только тех, кто недавно отвечал.
+                LastHeartbeatAtUtc = DateTimeOffset.UtcNow.AddSeconds(-30),
                 IsOnline = true,
                 IsLocked = false
             },
