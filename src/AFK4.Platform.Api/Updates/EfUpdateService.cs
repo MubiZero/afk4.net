@@ -1,3 +1,4 @@
+﻿using System.Reflection;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Updates;
@@ -324,11 +325,21 @@ public sealed class EfUpdateService(
         _ => false
     };
 
-    private static bool IsSupportedStatus(string status) => status is
-        UpdateStatusNames.NotStarted or UpdateStatusNames.Offered or UpdateStatusNames.Downloading or
-        UpdateStatusNames.Downloaded or UpdateStatusNames.Installing or UpdateStatusNames.Installed or
-        UpdateStatusNames.Superseded or UpdateStatusNames.Failed or UpdateStatusNames.RollbackStarted or
-        UpdateStatusNames.RolledBack;
+    /// <summary>
+    /// Набор берётся из самого контракта, а не переписывается руками.
+    ///
+    /// Выписанный список отстал от контракта: агент честно сообщал «отложено» (обновление ждёт
+    /// окна обслуживания или свободного места) и «готово к установке», а сервер отвечал 400
+    /// «Unsupported update status». Клуб видел устройство застрявшим на «предложено», а у агента
+    /// на этом обрывалась вся проверка обновлений — включая остальные компоненты.
+    /// </summary>
+    private static readonly HashSet<string> SupportedStatuses = typeof(UpdateStatusNames)
+        .GetFields(BindingFlags.Public | BindingFlags.Static)
+        .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+        .Select(field => (string)field.GetRawConstantValue()!)
+        .ToHashSet(StringComparer.Ordinal);
+
+    private static bool IsSupportedStatus(string status) => SupportedStatuses.Contains(status);
 
     private static bool IsInstalledVersionAtLeastPackage(string installedVersion, string packageVersion) =>
         UpdateVersionComparer.Instance.Compare(installedVersion, packageVersion) >= 0;
