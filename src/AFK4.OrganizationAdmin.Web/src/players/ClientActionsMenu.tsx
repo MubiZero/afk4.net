@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { CalendarClock, MoreHorizontal, Pencil, Power, PowerOff, SlidersHorizontal } from 'lucide-react';
+import { CalendarClock, MonitorPlay, MoreHorizontal, Pencil, Power, PowerOff, SlidersHorizontal, Ticket } from 'lucide-react';
 
 interface MenuAction {
   key: string;
@@ -26,6 +26,10 @@ export function ClientActionsMenu({
   onToggleActive,
   canCreateReservation = false,
   onCreateReservation,
+  canSellPackage = false,
+  onSellPackage,
+  canStartSession = false,
+  onStartSession,
   canCorrect = false,
   onCorrect,
 }: {
@@ -35,6 +39,10 @@ export function ClientActionsMenu({
   onToggleActive: () => void;
   canCreateReservation?: boolean;
   onCreateReservation?: () => void;
+  canSellPackage?: boolean;
+  onSellPackage?: () => void;
+  canStartSession?: boolean;
+  onStartSession?: () => void;
   canCorrect?: boolean;
   onCorrect?: () => void;
 }) {
@@ -45,6 +53,8 @@ export function ClientActionsMenu({
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const showReservation = canCreateReservation && Boolean(onCreateReservation);
+  const showSellPackage = canSellPackage && Boolean(onSellPackage);
+  const showStartSession = canStartSession && Boolean(onStartSession);
   const showCorrection = canCorrect && Boolean(onCorrect);
 
   const items: MenuAction[] = [];
@@ -54,6 +64,26 @@ export function ClientActionsMenu({
       label: t('op.players.actions.bookingBtn'),
       icon: <CalendarClock size={14} aria-hidden="true" />,
       onSelect: onCreateReservation!,
+    });
+  }
+  // Посадить за ПК отсюда же: иначе это третий поиск того же человека за визит — после кассы
+  // и после этой самой карточки.
+  if (showStartSession) {
+    items.push({
+      key: 'startSession',
+      label: t('op.players.session.start'),
+      icon: <MonitorPlay size={14} aria-hidden="true" />,
+      onSelect: onStartSession!,
+    });
+  }
+  // Пакет продаётся тому, чья карточка открыта: раньше за этим уходили в Кассу и искали
+  // того же человека второй раз.
+  if (showSellPackage) {
+    items.push({
+      key: 'sellPackage',
+      label: t('op.players.packages.sellBtn'),
+      icon: <Ticket size={14} aria-hidden="true" />,
+      onSelect: onSellPackage!,
     });
   }
   if (canManageClient) {

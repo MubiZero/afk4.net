@@ -26,9 +26,12 @@ import { ClientsTable } from './players/ClientsTable';
 import { ClientDrawer } from './players/ClientDrawer';
 import { useReputation } from './players/useReputation';
 import { HistorySection } from './players/HistorySection';
+import { fullPhoneDigits } from './phoneFormat';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
 import { ClientBookingModal, type ClientBookingDraft } from './players/ClientBookingModal';
+import { ClientPackageModal } from './players/ClientPackageModal';
+import { ClientSessionModal } from './players/ClientSessionModal';
 import { CorrectionModal, correctionQuantities, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
 import { EditProfileModal } from './players/EditProfileModal';
@@ -73,6 +76,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   const [bookingDraft, setBookingDraft] = useState<ClientBookingDraft | null>(null);
   const [bookingSeats, setBookingSeats] = useState<{ seatId: string; label: string }[]>([]);
   const [bookingBusy, setBookingBusy] = useState(false);
+  const [packageModalOpen, setPackageModalOpen] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDto[]>([]);
   const [playerPackages, setPlayerPackages] = useState<PlayerPackageDto[]>([]);
@@ -380,6 +385,20 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     && Boolean(selectedClient.playerAccountId)
     && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.manageReservations);
+  // Пакет продают тому, чья карточка открыта. Право то же, что в Кассе: продажа есть продажа.
+  const canSellPackage = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
+    && hasPermission(backend.session, permissionNames.purchasePackage);
+  // Посадить за ПК: право то же, что на Карте.
+  const canStartClientSession = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
+    && hasPermission(backend.session, permissionNames.startSession);
   const canManualCorrect = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
@@ -501,6 +520,20 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         const displayName = newPlayerName.trim() || clientSearch.trim();
         if (!displayName) {
           throw new Error(t('op.players.error.createNameRequired'));
+        }
+
+        // Тот же человек со вторым номером-двойником — это разошедшиеся баланс, долг и история.
+        // Поиск по номеру здесь дешевле, чем потом сводить две карточки руками.
+        const phone = newPlayerPhone.trim();
+        if (phone.length > 0) {
+          const digits = fullPhoneDigits(phone);
+          const sameNumber = (await apiClients.players.searchPlayers(nextBackend.branchId, phone, 5))
+            .find((candidate) => fullPhoneDigits(readString(candidate, 'phoneNumber')) === digits);
+          if (sameNumber) {
+            setNewClientOpen(false);
+            handleSelectClient(readString(sameNumber, 'playerAccountId'));
+            throw new Error(t('op.players.error.phoneTaken', { name: readString(sameNumber, 'displayName') }));
+          }
         }
 
         const created = await apiClients.players.createPlayer(nextBackend.branchId, {
@@ -846,8 +879,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             canManageClient={canManageClient}
             canCorrect={canManualCorrect}
             canCreateReservation={canCreateClientReservation}
+            canSellPackage={canSellPackage}
+            canStartSession={canStartClientSession}
             onCorrect={() => setCorrectionOpen(true)}
             onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
+            onSellPackage={() => setPackageModalOpen(true)}
+            onStartSession={() => setSessionModalOpen(true)}
             onEditProfile={openEditProfile}
             onToggleActive={() => setActiveStateOpen(true)}
             reputation={reputation}
@@ -871,6 +908,33 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             onRefund={(entry) => setRefundTarget(entry)}
           />
         </PanelModal>
+      )}
+
+      {sessionModalOpen && backend !== null && selectedClient?.playerAccountId && (
+        <ClientSessionModal
+          backend={backend}
+          player={selectedClient as PlayerClientItem & { playerAccountId: string }}
+          currencyCode={currencyCode}
+          onClose={() => setSessionModalOpen(false)}
+          onStarted={(seatName) => {
+            setSessionModalOpen(false);
+            setFeedback({ label: t('op.players.session.start'), state: 'confirmed', detail: seatName });
+            bumpLedger();
+          }}
+        />
+      )}
+
+      {packageModalOpen && backend !== null && selectedClient?.playerAccountId && (
+        <ClientPackageModal
+          backend={backend}
+          player={selectedClient as PlayerClientItem & { playerAccountId: string }}
+          onClose={() => setPackageModalOpen(false)}
+          onPurchased={() => {
+            setPackageModalOpen(false);
+            setFeedback({ label: t('op.players.packages.sellBtn'), state: 'confirmed' });
+            bumpLedger();
+          }}
+        />
       )}
 
       {bookingDraft !== null && selectedClient !== null && (

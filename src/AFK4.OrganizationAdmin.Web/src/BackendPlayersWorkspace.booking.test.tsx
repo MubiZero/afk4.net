@@ -21,6 +21,15 @@ const person = {
 };
 
 const createReservation = mock(async (_branchId: string, _request: Record<string, unknown>) => ({ reservationId: 'r1' }));
+const purchasePackage = mock(async (_playerAccountId: string, _request: Record<string, unknown>) => ({ playerPackageId: 'pp1' }));
+const getPackageOptions = mock(async () => [
+  { packageDefinitionId: 'pkg-1', name: 'Ночной', priceMinorUnits: 12000, currencyCode: 'TJS', minutes: 300 }
+]);
+const getCurrentShift = mock(async () => ({ shiftId: 'shift-1' }));
+const startGuestSession = mock(async (_branchId: string, _request: Record<string, unknown>) => ({ sessionId: 's1' }));
+const getTariffOptions = mock(async () => [
+  { tariffRuleVersionId: 'rule-1', tariffVersionId: 'ver-1', tariffId: 't1', name: 'Дневной', pricePerMinuteMinorUnits: 50, currencyCode: 'TJS', zoneId: null, zoneName: null }
+]);
 const getFloorMap = mock(async () => ({
   branchId: 'b1',
   branchName: 'Главный',
@@ -41,8 +50,12 @@ mock.module('./operatorHelpers', () => ({
         walletBalance: { currencyCode: 'TJS', minorUnits: 1000 },
         debtBalance: { currencyCode: 'TJS', minorUnits: 0 }
       })),
-      getPlayerPackages: mock(async () => [])
+      getPlayerPackages: mock(async () => []),
+      purchasePackage
     },
+    settings: { getPackageOptions, getTariffOptions },
+    shifts: { getCurrentShift },
+    sessions: { startGuestSession },
     reservations: { create: createReservation },
     floorMap: { getFloorMap }
   })
@@ -58,7 +71,16 @@ afterAll(() => {
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },
-  session: { accessToken: 't', organizationId: 'org', permissions: ['organization.reservations.manage'] },
+  session: {
+    accessToken: 't',
+    organizationId: 'org',
+    permissions: [
+      'organization.reservations.manage',
+      'organization.packages.purchase',
+      'organization.sessions.start',
+      'organization.tariffs.view'
+    ]
+  },
   branchId: 'b1'
 };
 
@@ -123,5 +145,62 @@ describe('BackendPlayersWorkspace · бронь из карточки клиен
     const seat = await screen.findByLabelText('Место');
     const options = [...seat.querySelectorAll('option')].map((option) => option.textContent);
     expect(options).toEqual(['Место выберем позже', 'PC-01']);
+  });
+});
+
+// Пакеты в карточке были только для просмотра, а продавались в Кассе — где того же человека
+// приходилось искать заново. Один визит гостя превращался в два поиска на двух экранах.
+describe('BackendPlayersWorkspace · продажа пакета из карточки', () => {
+  afterEach(() => {
+    cleanup();
+    purchasePackage.mockClear();
+    getPackageOptions.mockClear();
+    playersSnapshotCache.clear();
+  });
+
+  it('продаёт пакет тому, чья карточка открыта', async () => {
+    renderWorkspace();
+    await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Продать пакет' }));
+
+    await waitFor(() => expect(getPackageOptions).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: 'Купить пакет' }));
+
+    await waitFor(() => expect(purchasePackage).toHaveBeenCalledTimes(1));
+    expect(purchasePackage.mock.calls[0]![0]).toBe('p1');
+    expect((purchasePackage.mock.calls[0]![1] as Record<string, unknown>).packageDefinitionId).toBe('pkg-1');
+  });
+});
+
+// Третий поиск того же человека за визит: после кассы и после карточки оператор шёл на Карту и
+// искал его снова, чтобы посадить за ПК.
+describe('BackendPlayersWorkspace · посадить за ПК из карточки', () => {
+  afterEach(() => {
+    cleanup();
+    startGuestSession.mockClear();
+    getFloorMap.mockClear();
+    playersSnapshotCache.clear();
+  });
+
+  it('предлагает только свободные места и сажает выбранного клиента', async () => {
+    renderWorkspace();
+    await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Посадить за ПК' }));
+
+    await waitFor(() => expect(getFloorMap).toHaveBeenCalled());
+    const seat = await screen.findByLabelText('Место');
+    expect([...seat.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Зал · PC-01']);
+
+    // Пункт меню и кнопка подтверждения называются одинаково — берём ту, что в диалоге.
+    const submit = (await screen.findAllByRole('button', { name: 'Посадить за ПК' })).at(-1)!;
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(startGuestSession).toHaveBeenCalledTimes(1));
+    const payload = startGuestSession.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload.seatId).toBe('seat-1');
+    expect(payload.playerAccountId).toBe('p1');
   });
 });
