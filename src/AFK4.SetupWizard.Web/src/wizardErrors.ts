@@ -20,6 +20,9 @@ const CODE_KEYS = {
   host_timeout: 'setup.wizard.error.timedOut',
   wizard_create_seat_failed: 'setup.wizard.device.error.createSeat',
   wizard_enroll_failed: 'setup.wizard.device.error.enroll',
+  // Регистрация прошла, а настройка на эту машину не легла — почти всегда права. Под общим
+  // «не удалось зарегистрировать» причину искали в сети и в платформе, где её нет.
+  wizard_local_config_write_failed: 'setup.wizard.device.error.localConfig',
 
   // Коды сервера: почему он отказал. Эти причины человек за мастером правит сам.
   tariff_name_taken: 'setup.wizard.error.tariffNameTaken',

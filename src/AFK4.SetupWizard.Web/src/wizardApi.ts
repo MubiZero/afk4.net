@@ -54,7 +54,9 @@ export interface WizardEnrollResult {
 }
 
 export interface WizardShellOutcome {
-  status: 'installed' | 'already_present' | 'skipped' | 'failed';
+  /// 'agent_start_failed' — приложение встало, а служба AFK4 не запустилась: машина
+  /// зарегистрирована и настроена, но на связь не выйдет.
+  status: 'installed' | 'already_present' | 'skipped' | 'failed' | 'agent_start_failed';
   exitCode: number | null;
   message: string | null;
 }

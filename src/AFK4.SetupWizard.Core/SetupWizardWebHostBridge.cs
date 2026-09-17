@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.Shared.Contracts.FloorMap;
@@ -160,8 +160,7 @@ public sealed class SetupWizardWebHostBridge(
 
         if (provisioner is null)
         {
-            completionAction.Complete();
-            return new WizardShellOutcome("skipped", null, null);
+            return StartAgentService(new WizardShellOutcome("skipped", null, null));
         }
 
         // msiexec runs synchronously and can take minutes on a fresh PC — log the outcome so a
@@ -175,7 +174,13 @@ public sealed class SetupWizardWebHostBridge(
             return new WizardShellOutcome("failed", result.ExitCode, result.Message);
         }
 
-        completionAction.Complete();
+        var status = result.Status == ShellProvisionStatus.AlreadyPresent ? "already_present" : "installed";
+        SetupWizardStartupLog.Write($"{role} app install {status} (exitCode={result.ExitCode}).");
+        var outcome = StartAgentService(new WizardShellOutcome(status, result.ExitCode, null));
+        if (outcome.Status == AgentStartFailedStatus)
+        {
+            return outcome;
+        }
 
         // Gaming PCs get their Player Shell launched by the agent service at the lock screen; the
         // Organization Admin has no such trigger, so start it here so the operator doesn't have to click
@@ -185,9 +190,29 @@ public sealed class SetupWizardWebHostBridge(
             operatorLauncher.Launch();
         }
 
-        var status = result.Status == ShellProvisionStatus.AlreadyPresent ? "already_present" : "installed";
-        SetupWizardStartupLog.Write($"{role} app install {status} (exitCode={result.ExitCode}).");
-        return new WizardShellOutcome(status, result.ExitCode, null);
+        return outcome;
+    }
+
+    /// <summary>
+    /// Поднять службу агента. Без неё машина зарегистрирована и настроена, но не работает: не
+    /// шлёт сердцебиение, не запирается, не открывается гостю.
+    ///
+    /// Раньше отказ отсюда вылетал исключением и доезжал до человека как «не удалось
+    /// зарегистрировать устройство» — хотя регистрация прошла, а настройка легла. Искать причину
+    /// он шёл в сеть и в платформу, где её нет.
+    /// </summary>
+    private WizardShellOutcome StartAgentService(WizardShellOutcome installOutcome)
+    {
+        try
+        {
+            completionAction.Complete();
+            return installOutcome;
+        }
+        catch (Exception exception)
+        {
+            SetupWizardStartupLog.Write("Agent service could not be started after enrollment.", exception);
+            return new WizardShellOutcome(AgentStartFailedStatus, installOutcome.ExitCode, exception.Message);
+        }
     }
 
     private async Task<WizardPhoneSignInResult> PhoneSignInAsync(JsonElement payload, CancellationToken cancellationToken)
@@ -520,7 +545,22 @@ public sealed class SetupWizardWebHostBridge(
             response.UpdateChannel,
             response.LeaseSigningPublicKeyPem,
             response.UpdatePackageSigningPublicKeyPem);
-        await Task.Run(() => bootstrapWriter.Write(bootstrap), CancellationToken.None);
+        try
+        {
+            await Task.Run(() => bootstrapWriter.Write(bootstrap), CancellationToken.None);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Регистрация на платформе уже прошла, а настройка на машину не легла — чаще всего
+            // из-за прав. Под общим «не удалось зарегистрировать» человек искал бы причину в
+            // сети и в платформе, где её нет. Повтор при этом безопасен: платформа опознаёт ту
+            // же машину по её ключу и возвращается на то же устройство.
+            SetupWizardStartupLog.Write(
+                "Device was enrolled with the platform, but writing the local configuration failed.",
+                exception);
+            throw new SetupWizardApiException(LocalConfigWriteFailedCode, exception.Message, remainingAttempts: null);
+        }
         var shell = await FinalizeForRoleAsync(role, cancellationToken);
 
         return new WizardEnrollResult(
@@ -597,6 +637,12 @@ public sealed class SetupWizardWebHostBridge(
         return payload.Deserialize<T>(JsonOptions)
             ?? throw new InvalidOperationException("Host bridge payload is invalid.");
     }
+
+    /// <summary>Регистрация прошла, а настройка на эту машину не записалась.</summary>
+    private const string LocalConfigWriteFailedCode = "wizard_local_config_write_failed";
+
+    /// <summary>Приложение встало, а служба агента не запустилась.</summary>
+    private const string AgentStartFailedStatus = "agent_start_failed";
 
     private static string ErrorCodeFor(string? requestType) => requestType switch
     {
