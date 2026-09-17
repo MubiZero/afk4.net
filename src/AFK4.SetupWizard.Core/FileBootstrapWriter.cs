@@ -1,6 +1,4 @@
-using System.Diagnostics;
-using System.Runtime.Versioning;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -49,49 +47,11 @@ public sealed class FileBootstrapWriter(
 
         if (restrictAccess)
         {
-            RestrictAccessToSystemAndAdministrators(filePath);
+            RestrictedFile.RestrictToSystemAndAdministrators(
+                filePath,
+                exception => SetupWizardStartupLog.Write(
+                    $"Could not restrict access to '{filePath}'. The device credential stays readable by local users.",
+                    exception));
         }
-    }
-
-    // Best-effort hardening — the bootstrap file contains the device credential, so strip
-    // inherited ACLs and grant only SYSTEM + Administrators. Failure here never blocks enrollment.
-    private static void RestrictAccessToSystemAndAdministrators(string path)
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        try
-        {
-            RunIcacls(path);
-        }
-        catch
-        {
-            // Ignore: a slightly looser ACL must not break setup.
-        }
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static void RunIcacls(string path)
-    {
-        var icacls = Path.Combine(Environment.SystemDirectory, "icacls.exe");
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = File.Exists(icacls) ? icacls : "icacls.exe",
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-        startInfo.ArgumentList.Add(path);
-        startInfo.ArgumentList.Add("/inheritance:r");
-        startInfo.ArgumentList.Add("/grant:r");
-        startInfo.ArgumentList.Add("*S-1-5-18:F");      // NT AUTHORITY\SYSTEM
-        startInfo.ArgumentList.Add("/grant:r");
-        startInfo.ArgumentList.Add("*S-1-5-32-544:F");  // BUILTIN\Administrators
-
-        using var process = Process.Start(startInfo);
-        process?.WaitForExit(5000);
     }
 }
