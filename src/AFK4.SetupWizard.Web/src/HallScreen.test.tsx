@@ -50,6 +50,37 @@ describe('HallScreen', () => {
     expect(createSeats).not.toHaveBeenCalled();
   });
 
+  // Шаг можно пройти мимо — но чем это обернётся, человек должен узнать здесь, а не открыв
+  // пустую карту зала перед первым гостем.
+  it('говорит, чем обернётся пустой зал', () => {
+    renderScreen({ createSeats: mock() });
+
+    expect(screen.getByText(/карта зала будет пустой/i)).toBeTruthy();
+  });
+
+  // Предел проверяет хост; экран не должен отправлять заведомо отвергнутый запрос и показывать
+  // на него общее «не удалось».
+  it('не отправляет количество больше предела и называет предел', () => {
+    const createSeats = mock();
+    renderScreen({ createSeats });
+
+    fireEvent.change(screen.getByLabelText(/сколько мест/i), { target: { value: '600' } });
+
+    expect(screen.getByText(/до 60 мест/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /завести места/i }));
+    expect(createSeats).not.toHaveBeenCalled();
+  });
+
+  // Места заводятся по одному: обрыв на середине оставляет часть заведёнными, и человек боится
+  // нажать ещё раз. Сервер место с тем же именем не задваивает — об этом и говорим.
+  it('после отказа говорит, что повтор безопасен', async () => {
+    renderScreen({ createSeats: mock().mockRejectedValue(new Error('network')) });
+
+    fireEvent.click(screen.getByRole('button', { name: /завести места/i }));
+
+    await waitFor(() => expect(screen.getByText(/не задвоятся/i)).toBeTruthy());
+  });
+
   it('can be passed without creating seats', () => {
     const onContinue = renderScreen({ createSeats: mock() });
 

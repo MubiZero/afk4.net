@@ -8,6 +8,12 @@ export interface HallClient {
   createSeats(zoneId: string, namePrefix: string, count: number): Promise<{ names: string[] }>;
 }
 
+/// Столько мест мастер заводит за один раз. Ограничение живёт на стороне хоста
+/// (SetupWizardWebHostBridge.MaxSeatsPerRun) и проверяется там же; здесь оно нужно, чтобы не
+/// отправлять заведомо отвергнутый запрос и показать предел словами, а не общим «не удалось».
+/// Совпадение двух чисел стережёт hallSeatLimit.test.ts.
+export const MAX_SEATS_PER_RUN = 60;
+
 interface HallScreenProps {
   /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
   stepNumber: number;
@@ -33,8 +39,14 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
   const [failure, setFailure] = useState<string | null>(null);
 
   const parsedCount = Number.parseInt(count, 10);
+  const countTooBig = Number.isFinite(parsedCount) && parsedCount > MAX_SEATS_PER_RUN;
   const canCreate =
-    zoneId !== '' && namePrefix.trim() !== '' && Number.isFinite(parsedCount) && parsedCount > 0 && !creating;
+    zoneId !== ''
+    && namePrefix.trim() !== ''
+    && Number.isFinite(parsedCount)
+    && parsedCount > 0
+    && !countTooBig
+    && !creating;
 
   async function create(): Promise<void> {
     if (!canCreate) return;
@@ -89,7 +101,7 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
           id="hall-count"
           type="number"
           min={1}
-          max={60}
+          max={MAX_SEATS_PER_RUN}
           value={count}
           onChange={(event) => setCount(event.target.value)}
         />
@@ -106,10 +118,26 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         {t('setup.wizard.hall.create')}
       </button>
 
-      {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
+      {countTooBig && (
+        <p className="ui-field-hint">{t('setup.wizard.hall.tooMany', { max: MAX_SEATS_PER_RUN })}</p>
+      )}
+
+      {failure === null ? null : (
+        <>
+          <p className="ui-alert" role="alert">{failure}</p>
+          {/* Места заводятся по одному, и обрыв связи на середине оставляет часть заведёнными.
+              Повтор безопасен: место с тем же именем сервер не задваивает, а возвращает
+              существующее. Без этой строки человек боится нажать и идёт в панель считать руками. */}
+          <p className="ui-field-hint">{t('setup.wizard.hall.retrySafe')}</p>
+        </>
+      )}
       {createdNames.length > 0 ? (
         <p className="ui-field-hint">{t('setup.wizard.hall.created', { count: createdNames.length })}</p>
-      ) : null}
+      ) : (
+        /* Шаг можно пройти мимо, и это законно — но чем это обернётся, человек должен узнать
+           здесь, а не открыв пустую карту зала перед первым гостем. */
+        <p className="ui-field-hint">{t('setup.wizard.hall.skipMeaning')}</p>
+      )}
 
       <div className="wizard-actions">
         <button type="button" className="ui-btn" onClick={onBack}>
