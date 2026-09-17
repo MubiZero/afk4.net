@@ -27,7 +27,37 @@ public sealed class DefaultDeviceCommandHandler(
         ["low-balance"] = PlayerShellWarningKinds.LowBalance
     };
 
+    /// <summary>
+    /// На команду всегда есть ответ.
+    ///
+    /// Исполнение ходит в файлы состояния и в реестр — и то и другое может отказать. Раньше такое
+    /// исключение уходило из обработчика наружу: в очередь ничего не клалось, платформа ответа не
+    /// получала, а оператор видел команду вечно «в пути». Отдельно от этого сбой посреди пачки
+    /// команд, пришедшей с сердцебиением, ронял и всю остальную пачку.
+    /// </summary>
     public async Task<DeviceCommandResultDto> HandleAsync(DeviceCommandDto command, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ExecuteAsync(command, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception,
+                "Device command {CommandId} of type {CommandType} could not be carried out.",
+                command.CommandId,
+                command.Type);
+
+            return CreateResult(
+                command,
+                status: "Failed",
+                message: $"Agent could not carry out the command: {exception.Message}",
+                outcome: DeviceCommandOutcomeNames.CommandExecutionFailed);
+        }
+    }
+
+    private async Task<DeviceCommandResultDto> ExecuteAsync(DeviceCommandDto command, CancellationToken cancellationToken)
     {
         var agentOptions = options.Value;
         var status = "Accepted";
@@ -92,7 +122,18 @@ public sealed class DefaultDeviceCommandHandler(
             logger.LogWarning("Device command type '{CommandType}' is not implemented by this agent.", command.Type);
         }
 
-        var result = new DeviceCommandResultDto(
+        return CreateResult(command, status, message, outcome);
+    }
+
+    private DeviceCommandResultDto CreateResult(
+        DeviceCommandDto command,
+        string status,
+        string message,
+        string outcome)
+    {
+        var agentOptions = options.Value;
+
+        return new DeviceCommandResultDto(
             OrganizationId: agentOptions.OrganizationId,
             BranchId: agentOptions.BranchId,
             DeviceId: agentOptions.DeviceId,
@@ -101,8 +142,6 @@ public sealed class DefaultDeviceCommandHandler(
             Message: message,
             ObservedAtUtc: DateTimeOffset.UtcNow,
             Outcome: outcome);
-
-        return result;
     }
 
     private static (SessionLeaseDto? Lease, string? Error, string? Outcome) TryReadAndValidateLease(DeviceCommandDto command)

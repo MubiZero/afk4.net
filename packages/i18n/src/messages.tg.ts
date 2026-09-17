@@ -1300,6 +1300,7 @@ export const tg = {
   "op.helper.cmdMsg.notConfirmedLock": "Агент қулфро тасдиқ накард.",
   "op.helper.cmdMsg.queued": "Ба навбати агент гузошта шуд",
   "op.helper.cmdOutcome.accepted": "Фармон қабул шуд",
+  "op.helper.cmdOutcome.commandExecutionFailed": "Фармон дар худи ПК иҷро нашуд",
   "op.helper.cmdOutcome.commandNotImplemented": "Агент чунин фармонро иҷро карда наметавонад",
   "op.helper.cmdOutcome.leaseAccepted": "ПК барои сессия кушода шуд",
   "op.helper.cmdOutcome.leaseInvalid": "Иҷозати сессия аз санҷиш нагузашт",

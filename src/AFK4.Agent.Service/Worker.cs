@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net;
+using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
@@ -267,6 +268,19 @@ public sealed class Worker(
                 }
 
                 var response = await client.SendAsync(message, cancellationToken);
+                if (IsPermanentRejection(response.StatusCode))
+                {
+                    // Платформа этот ответ не примет никогда. Оставить его в очереди — значит
+                    // запереть за ним все следующие: очередь идёт по порядку и дальше первого
+                    // непринятого не продвигается. Выбрасываем и идём дальше, со следом в журнале.
+                    logger.LogError(
+                        "Platform refused command result {CommandId} with {StatusCode}. Dropping it so the rest of the queue can go through.",
+                        result.CommandId,
+                        (int)response.StatusCode);
+                    commandResultOutbox.Acknowledge(result.CommandId);
+                    continue;
+                }
+
                 response.EnsureSuccessStatusCode();
                 commandResultOutbox.Acknowledge(result.CommandId);
 
@@ -290,6 +304,21 @@ public sealed class Worker(
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Отказ, который не пройдёт и в следующий раз: платформа поняла запрос и отвергла его.
+    /// Перегрузка и просроченный ключ сюда не относятся — их стоит повторить.
+    /// </summary>
+    private static bool IsPermanentRejection(HttpStatusCode statusCode)
+    {
+        if (statusCode is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests
+            or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            return false;
+        }
+
+        return (int)statusCode is >= 400 and < 500;
     }
 
     private async Task TryReconcileSessionAsync(CancellationToken cancellationToken)

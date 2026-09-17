@@ -1,4 +1,4 @@
-namespace AFK4.Shared.Contracts.Devices;
+﻿namespace AFK4.Shared.Contracts.Devices;
 
 /// <summary>
 /// Чем закончилась команда на устройстве — машинным именем, а не фразой.
@@ -39,6 +39,12 @@ public static class DeviceCommandOutcomeNames
 
     /// <summary>Такой тип команды этот агент не исполняет.</summary>
     public const string CommandNotImplemented = "command-not-implemented";
+
+    /// <summary>
+    /// Исполнение сорвалось: диск, реестр, права. Агент обязан ответить и в этом случае — молчание
+    /// оператор читает как «команда где-то в пути», и ждать он будет бесконечно.
+    /// </summary>
+    public const string CommandExecutionFailed = "command-execution-failed";
 
     /// <summary>В команде не было аренды сессии.</summary>
     public const string LeaseMissing = "lease-missing";
