@@ -121,8 +121,12 @@ For local MSI experiments, the install command can point directly at
 ```
 
 For production, prefer a helper script that wraps `msiexec.exe`, writes update
-logs, treats MSI exit code `3010` as successful restart-required behavior, and
-keeps Agent restart scheduling outside the currently running Agent process.
+logs and keeps Agent restart scheduling outside the currently running Agent
+process. The script must pass the msiexec exit code through unchanged: code
+`3010` means the package installed but Windows has to restart before the new
+build runs, and the Agent reports that as `pending-restart` rather than
+`installed`. Collapsing it to `0` tells the platform a fleet is updated while
+it is still running the old build.
 
 ## Safety Rules
 
