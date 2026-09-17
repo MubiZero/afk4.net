@@ -1,6 +1,9 @@
 ﻿using AFK4.Agent.Service;
+using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Updates;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Shell;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -25,7 +28,8 @@ public sealed class AgentUpdateCoordinatorTests
             verifier,
             installer,
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
-            new InMemoryUpdateAttemptLedger());
+            new InMemoryUpdateAttemptLedger(),
+            FreeSeatGuard());
 
         var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
 
@@ -62,7 +66,8 @@ public sealed class AgentUpdateCoordinatorTests
             new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Invalid("sha mismatch")),
             installer,
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
-            new InMemoryUpdateAttemptLedger());
+            new InMemoryUpdateAttemptLedger(),
+            FreeSeatGuard());
 
         var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
 
@@ -87,7 +92,8 @@ public sealed class AgentUpdateCoordinatorTests
             new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("hash verified")),
             new RecordingUpdateInstaller(UpdateInstallResult.Failed("installer exit code 1")),
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
-            new InMemoryUpdateAttemptLedger());
+            new InMemoryUpdateAttemptLedger(),
+            FreeSeatGuard());
 
         var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
 
@@ -113,6 +119,7 @@ public sealed class AgentUpdateCoordinatorTests
             new RecordingUpdateInstaller(UpdateInstallResult.Success("installed")),
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
             new InMemoryUpdateAttemptLedger(),
+            FreeSeatGuard(),
             new FixedOrganizationAdminReadiness(new(
                 OrganizationAdminUpdateReadinessNames.DeferredOutsideWindow, "outside window")));
 
@@ -123,6 +130,71 @@ public sealed class AgentUpdateCoordinatorTests
         Assert.Equal(1, second.OfferedCount);
         Assert.Empty(downloader.DownloadedInstructions);
         Assert.Equal(2, updateClient.ReportedStatuses.Count(status => status.Status == UpdateStatusNames.Deferred));
+    }
+
+    [Theory]
+    [InlineData(UpdateComponentNames.AgentService)]
+    [InlineData(UpdateComponentNames.PlayerShell)]
+    public async Task CheckAndApplyUpdatesAsync_WhenGuestIsPlaying_DefersInsteadOfInterruptingTheSession(string component)
+    {
+        var instruction = CreateInstruction() with { Component = component };
+        var updateClient = new RecordingAgentUpdateClient([instruction]);
+        var downloader = new RecordingUpdateArtifactDownloader();
+        var coordinator = new AgentUpdateCoordinator(
+            NullLogger<AgentUpdateCoordinator>.Instance,
+            updateClient,
+            new AgentComponentVersionProvider(Options.Create(CreateOptions())),
+            downloader,
+            new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("verified")),
+            new RecordingUpdateInstaller(UpdateInstallResult.Success("installed")),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger(),
+            BusySeatGuard());
+
+        var first = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+        var second = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.Equal(0, first.AppliedCount);
+        Assert.Equal(0, first.FailedCount);
+        Assert.Empty(downloader.DownloadedInstructions);
+        var deferred = updateClient.ReportedStatuses.Where(status => status.Status == UpdateStatusNames.Deferred).ToList();
+        Assert.Equal(2, deferred.Count);
+        Assert.Contains(BusySessionId.ToString("D"), deferred[0].Message);
+        Assert.Equal(1, second.OfferedCount);
+    }
+
+    [Fact]
+    public async Task CheckAndApplyUpdatesAsync_WhenSeatIsFreeAgain_InstallsThePreviouslyDeferredUpdate()
+    {
+        var instruction = CreateInstruction();
+        var updateClient = new RecordingAgentUpdateClient([instruction]);
+        var installer = new RecordingUpdateInstaller(UpdateInstallResult.Success("installed"));
+        var runtimeStateStore = new SeatRuntimeStateStore(isLocked: false);
+        var coordinator = new AgentUpdateCoordinator(
+            NullLogger<AgentUpdateCoordinator>.Instance,
+            updateClient,
+            new AgentComponentVersionProvider(Options.Create(CreateOptions())),
+            new RecordingUpdateArtifactDownloader(),
+            new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("verified")),
+            installer,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger(),
+            new GuestSeatUpdateGuard(runtimeStateStore));
+
+        await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+        runtimeStateStore.MarkLocked(DateTimeOffset.Parse("2026-05-14T17:00:00Z"));
+        await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.Equal([instruction], installer.InstalledInstructions);
+    }
+
+    [Fact]
+    public void GuestSeatUpdateGuard_DoesNotHoldBackTheClubApplicationUpdate()
+    {
+        var guard = new GuestSeatUpdateGuard(new SeatRuntimeStateStore(isLocked: false));
+
+        Assert.True(guard.Evaluate(UpdateComponentNames.OrganizationAdmin).CanInstall);
+        Assert.False(guard.Evaluate(UpdateComponentNames.PlayerShell).CanInstall);
     }
 
     [Fact]
@@ -155,6 +227,36 @@ public sealed class AgentUpdateCoordinatorTests
         Assert.Contains(components, component => component.Component == UpdateComponentNames.AgentService && component.Version == "1.2.2");
         Assert.Contains(components, component => component.Component == UpdateComponentNames.OrganizationAdmin && component.Version == "1.2.4");
         Assert.DoesNotContain(components, component => component.Component == UpdateComponentNames.PlayerShell);
+    }
+
+    private static readonly Guid BusySessionId = Guid.Parse("5f2f6f4c-6a52-4a1c-9b1f-2a4a1f0f7c31");
+
+    private static GuestSeatUpdateGuard FreeSeatGuard() => new(new SeatRuntimeStateStore(isLocked: true));
+
+    private static GuestSeatUpdateGuard BusySeatGuard() => new(new SeatRuntimeStateStore(isLocked: false));
+
+    private sealed class SeatRuntimeStateStore : IAgentRuntimeStateStore
+    {
+        public SeatRuntimeStateStore(bool isLocked)
+        {
+            Current = isLocked
+                ? AgentRuntimeState.Locked(DateTimeOffset.Parse("2026-05-14T15:00:00Z"))
+                : new AgentRuntimeState(
+                    PlayerShellStateNames.Active,
+                    IsLocked: false,
+                    BusySessionId,
+                    DateTimeOffset.Parse("2026-05-14T18:00:00Z"),
+                    DateTimeOffset.Parse("2026-05-14T15:00:00Z"));
+        }
+
+        public AgentRuntimeState Current { get; private set; }
+
+        public void Save(AgentRuntimeState state) => Current = state;
+
+        public void MarkLocked(DateTimeOffset observedAtUtc) => Current = AgentRuntimeState.Locked(observedAtUtc);
+
+        public void MarkActive(SessionLeaseDto lease, DateTimeOffset observedAtUtc) =>
+            Current = AgentRuntimeState.Active(lease, observedAtUtc);
     }
 
     private static AgentOptions CreateOptions(

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service.Updates;
 
@@ -19,7 +19,7 @@ public sealed class AgentUpdateWorker(
             return;
         }
 
-        await recoveryService.RecoverAsync(stoppingToken);
+        await TryRecoverAsync(stoppingToken);
         await TryLaunchOrganizationAdminAsync(stoppingToken);
         await TryApplyUpdatesAsync(stoppingToken);
 
@@ -28,6 +28,25 @@ public sealed class AgentUpdateWorker(
             await Task.Delay(GetUpdateCheckInterval(), stoppingToken);
             await TryLaunchOrganizationAdminAsync(stoppingToken);
             await TryApplyUpdatesAsync(stoppingToken);
+        }
+    }
+
+    /// <summary>
+    /// Разбор прерванной установки не должен стоить клубу цикла обновлений: раньше любая ошибка
+    /// внутри восстановления вылетала из <c>ExecuteAsync</c>, и служба переставала проверять
+    /// обновления до следующего перезапуска — молча, потому что фоновые сбои не роняют сервис.
+    /// </summary>
+    private async Task TryRecoverAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await recoveryService.RecoverAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception,
+                "Recovery of an interrupted update failed. Continuing with the update loop so the device stays reachable for the next rollout.");
         }
     }
 
