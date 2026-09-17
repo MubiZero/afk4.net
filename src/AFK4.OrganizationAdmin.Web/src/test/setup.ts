@@ -15,6 +15,9 @@ const { cleanup, configure } = await import('@testing-library/react');
 // 1000ms findBy timeout, but under CPU contention it occasionally overruns and a genuinely-correct
 // boot times out — a flaky failure of the test, not the app (production has no such deadline). Give
 // async queries headroom so wall-clock pressure can't fail a passing assertion.
+// Сам предел теста поднят до 20 секунд в скрипте test: по умолчанию он тоже пять, и запас,
+// который здесь выдаётся, был недоступен — проверка умирала ровно в тот момент, когда запросу
+// оставалась последняя попытка.
 configure({ asyncUtilTimeout: 5000 });
 
 // App.test.tsx registers a process-wide mock.module('./operatorRealtime', ...) that bun
