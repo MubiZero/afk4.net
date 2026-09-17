@@ -46,6 +46,8 @@ const baseProps: DrawerProps = {
   canManageClient: true,
   canCorrect: false,
   canSellPackage: false,
+  canStartSession: false,
+  onStartSession: () => {},
   onSellPackage: () => {},
   canCreateReservation: true,
   onCorrect: () => {},
