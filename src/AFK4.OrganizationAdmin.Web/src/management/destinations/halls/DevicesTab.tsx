@@ -4,6 +4,7 @@ import { KeyRound, Lock, MonitorSmartphone, Unlock, Wifi, WifiOff } from 'lucide
 import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
+import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
 import { CriticalActionConfirmation, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
@@ -57,6 +58,13 @@ interface DevicesTabProps {
 // permission-гейтом (can*-проп на секцию/кнопку + серверный hasPermission(nextBackend.session, ...)
 // на каждый вызов). Открытие карточки устройства (B3) происходит автоматически при клике по
 // строке — так того требует список+drawer.
+function commandDetail(command: DeviceCommandStatusDto, t: ReturnType<typeof useI18n>['t']) {
+  const outcomeKey = commandOutcomeLabelKey(command.outcome);
+  if (outcomeKey !== null) return <em>{t(outcomeKey)}</em>;
+
+  return command.message ? <em>{commandStatusMessageLabel(command.message, t)}</em> : null;
+}
+
 export function DevicesTab({
   deviceInventory,
   layoutSeatOptions,
@@ -417,7 +425,7 @@ export function DevicesTab({
                         <span>{commandTypeLabel(command.type, t)}</span>
                         <b>{commandStatusLabel(command.status, t)}</b>
                         <small>{formatDateTime(command.updatedAtUtc)}</small>
-                        {command.message ? <em>{commandStatusMessageLabel(command.message, t)}</em> : null}
+                        {commandDetail(command, t)}
                       </li>
                     ))}
                   </ul>

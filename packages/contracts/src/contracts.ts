@@ -1046,6 +1046,7 @@ export interface DeviceCommandResultDto {
   status: string;
   message: string;
   observedAtUtc: IsoDateTime;
+  outcome?: string;
 }
 
 /** Контракт: Devices/DeviceCommandStatusDto.cs */
@@ -1057,6 +1058,7 @@ export interface DeviceCommandStatusDto {
   message: string | null;
   createdAtUtc: IsoDateTime;
   updatedAtUtc: IsoDateTime;
+  outcome?: string | null;
 }
 
 /** Контракт: Updates/DeviceComponentVersionDto.cs */

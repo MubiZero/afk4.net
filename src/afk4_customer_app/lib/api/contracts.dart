@@ -3151,6 +3151,7 @@ class DeviceCommandResultDto {
     required this.status,
     required this.message,
     required this.observedAtUtc,
+    this.outcome,
   });
 
   final String organizationId;
@@ -3160,6 +3161,7 @@ class DeviceCommandResultDto {
   final String status;
   final String message;
   final DateTime observedAtUtc;
+  final String? outcome;
 
   factory DeviceCommandResultDto.fromJson(Map<String, dynamic> json) => DeviceCommandResultDto(
         organizationId: json['organizationId'] as String,
@@ -3169,6 +3171,7 @@ class DeviceCommandResultDto {
         status: json['status'] as String,
         message: json['message'] as String,
         observedAtUtc: DateTime.parse(json['observedAtUtc'] as String),
+        outcome: json['outcome'] == null ? null : json['outcome'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3179,6 +3182,7 @@ class DeviceCommandResultDto {
         'status': status,
         'message': message,
         'observedAtUtc': observedAtUtc.toIso8601String(),
+        'outcome': outcome,
       };
 }
 
@@ -3192,6 +3196,7 @@ class DeviceCommandStatusDto {
     this.message,
     required this.createdAtUtc,
     required this.updatedAtUtc,
+    this.outcome,
   });
 
   final String deviceId;
@@ -3201,6 +3206,7 @@ class DeviceCommandStatusDto {
   final String? message;
   final DateTime createdAtUtc;
   final DateTime updatedAtUtc;
+  final String? outcome;
 
   factory DeviceCommandStatusDto.fromJson(Map<String, dynamic> json) => DeviceCommandStatusDto(
         deviceId: json['deviceId'] as String,
@@ -3210,6 +3216,7 @@ class DeviceCommandStatusDto {
         message: json['message'] == null ? null : json['message'] as String,
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         updatedAtUtc: DateTime.parse(json['updatedAtUtc'] as String),
+        outcome: json['outcome'] == null ? null : json['outcome'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3220,6 +3227,7 @@ class DeviceCommandStatusDto {
         'message': message,
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
+        'outcome': outcome,
       };
 }
 

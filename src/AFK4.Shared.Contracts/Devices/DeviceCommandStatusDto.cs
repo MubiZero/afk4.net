@@ -1,4 +1,4 @@
-namespace AFK4.Shared.Contracts.Devices;
+﻿namespace AFK4.Shared.Contracts.Devices;
 
 public sealed record DeviceCommandStatusDto(
     Guid DeviceId,
@@ -7,4 +7,5 @@ public sealed record DeviceCommandStatusDto(
     string Status,
     string? Message,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    string? Outcome = null);

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
@@ -172,6 +172,42 @@ public sealed class DeviceCommandEndpointTests
         Assert.Equal("Accepted", command.Status);
         Assert.Equal("handled from heartbeat fallback", command.Message);
         Assert.Equal(result.ObservedAtUtc, command.UpdatedAtUtc);
+    }
+
+    // Исход команды хранится машинным именем и доезжает до клуба: журнал команд читает
+    // администратор на своём языке, а не английскую фразу агента.
+    [Fact]
+    public async Task PostDeviceCommandResult_KeepsTheOutcomeNameForTheClubJournal()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var enrollment = await EnrollDeviceAsync(client, factory);
+        var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
+        await SeedPendingCommandAsync(factory, commandId, enrollment.DeviceId);
+        var result = new DeviceCommandResultDto(
+            enrollment.OrganizationId,
+            enrollment.BranchId,
+            enrollment.DeviceId,
+            commandId,
+            Status: "Accepted",
+            Message: "Workstation locked (nothing).",
+            ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"),
+            Outcome: DeviceCommandOutcomeNames.MachinePoliciesUnavailable);
+        using var message = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/devices/{enrollment.DeviceId:D}/commands/{commandId:D}/result")
+        {
+            Content = JsonContent.Create(result)
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+        await client.SendAsync(message);
+
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var status = await client.GetFromJsonAsync<DeviceCommandStatusDto>(
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{enrollment.DeviceId:D}/commands/{commandId:D}/status");
+
+        Assert.NotNull(status);
+        Assert.Equal(DeviceCommandOutcomeNames.MachinePoliciesUnavailable, status.Outcome);
     }
 
     [Fact]

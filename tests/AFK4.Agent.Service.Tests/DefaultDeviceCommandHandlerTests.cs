@@ -55,21 +55,27 @@ public sealed class DefaultDeviceCommandHandlerTests
             SessionLeaseDto lease,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(SessionEnforcementResult.Accepted("Session lease accepted."));
+            return Task.FromResult(SessionEnforcementResult.Accepted(
+                "Session lease accepted.",
+                DeviceCommandOutcomeNames.LeaseAccepted));
         }
 
         public Task<SessionEnforcementResult> RefreshLeaseAsync(
             SessionLeaseDto lease,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(SessionEnforcementResult.Accepted("Session lease refreshed."));
+            return Task.FromResult(SessionEnforcementResult.Accepted(
+                "Session lease refreshed.",
+                DeviceCommandOutcomeNames.LeaseRefreshed));
         }
 
         public Task<SessionEnforcementResult> LockAsync(
             Guid? sessionId,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(SessionEnforcementResult.Accepted("Workstation locked (task manager disabled)."));
+            return Task.FromResult(SessionEnforcementResult.Accepted(
+                "Workstation locked (task manager disabled).",
+                DeviceCommandOutcomeNames.WorkstationLocked));
         }
     }
 

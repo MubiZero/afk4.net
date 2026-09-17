@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +40,7 @@ public sealed class EfDeviceCommandStore(PlatformDbContext dbContext) : IDeviceC
                 PayloadJson = "{}",
                 Status = result.Status,
                 Message = result.Message,
+                Outcome = result.Outcome,
                 CreatedAtUtc = result.ObservedAtUtc,
                 UpdatedAtUtc = result.ObservedAtUtc
             });
@@ -48,6 +49,7 @@ public sealed class EfDeviceCommandStore(PlatformDbContext dbContext) : IDeviceC
         {
             command.Status = result.Status;
             command.Message = result.Message;
+            command.Outcome = result.Outcome;
             command.UpdatedAtUtc = result.ObservedAtUtc;
         }
 
@@ -74,6 +76,7 @@ public sealed class EfDeviceCommandStore(PlatformDbContext dbContext) : IDeviceC
             Status: command.Status,
             Message: command.Message,
             CreatedAtUtc: command.CreatedAtUtc,
-            UpdatedAtUtc: command.UpdatedAtUtc);
+            UpdatedAtUtc: command.UpdatedAtUtc,
+            Outcome: command.Outcome);
     }
 }
