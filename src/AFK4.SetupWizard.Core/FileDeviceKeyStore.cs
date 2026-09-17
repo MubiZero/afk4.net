@@ -1,7 +1,14 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 
 namespace AFK4.SetupWizard.Core;
 
+/// <summary>
+/// Закрытый ключ этой машины: им она подписывает заявку на регистрацию.
+///
+/// Файл запирается так же, как bootstrap.json. Раньше он писался обычным файлом в
+/// <c>%ProgramData%</c> — то есть был доступен на чтение всем локальным учётным записям, включая
+/// ту, под которой за игровым ПК сидит гость.
+/// </summary>
 public sealed class FileDeviceKeyStore(string keyPath) : IDeviceKeyStore
 {
     public FileDeviceKeyStore()
@@ -31,6 +38,12 @@ public sealed class FileDeviceKeyStore(string keyPath) : IDeviceKeyStore
 
         var privatePem = key.ExportECPrivateKeyPem();
         await File.WriteAllTextAsync(keyPath, privatePem, cancellationToken);
+        RestrictedFile.RestrictToSystemAndAdministrators(
+            keyPath,
+            exception => SetupWizardStartupLog.Write(
+                $"Could not restrict access to the device key file '{keyPath}'. It stays readable by local users.",
+                exception));
+
         return key.ExportSubjectPublicKeyInfoPem();
     }
 }
