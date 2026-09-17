@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
@@ -146,6 +146,99 @@ public sealed class AuthenticatedInstallEndpointTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var device = await db.Devices.SingleAsync(d => d.DeviceId == body!.DeviceId);
         Assert.True(await db.DeviceSeatAssignments.AnyAsync(a => a.DeviceId == body!.DeviceId));
+    }
+
+    // Повторяют после обрыва связи, отказа установщика или просто по ошибке. Раньше каждый
+    // повтор заводил на платформе ещё одно устройство, а место, занятое призраком, мастер
+    // отказывался отдавать той самой машине, которая его и заняла.
+    [Fact]
+    public async Task AuthEnroll_RunAgainOnTheSameMachine_KeepsOneDeviceAndItsSeat()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+
+        var first = await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        var second = await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+
+        Assert.Equal(HttpStatusCode.OK, second.Response.StatusCode);
+        Assert.Equal(first.Body!.DeviceId, second.Body!.DeviceId);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(1, await db.Devices.CountAsync(device => device.DeviceId == first.Body.DeviceId));
+        Assert.Equal(1, await db.Devices.CountAsync(device => device.BranchId == TestIds.BranchId));
+        Assert.Equal(
+            1,
+            await db.DeviceSeatAssignments.CountAsync(assignment =>
+                assignment.SeatId == TestIds.SeatId && assignment.DetachedAtUtc == null));
+
+        // Прежний ключ отозван: повторяют в том числе потому, что предыдущий мог утечь.
+        Assert.Equal(
+            1,
+            await db.DeviceCredentials.CountAsync(credential =>
+                credential.DeviceId == first.Body.DeviceId && credential.RevokedAtUtc == null));
+        Assert.NotEqual(first.Body.CredentialSecret, second.Body.CredentialSecret);
+    }
+
+    // Место занято другой машиной — это по-прежнему отказ, и понятный.
+    [Fact]
+    public async Task AuthEnroll_SeatTakenByAnotherMachine_IsStillRefused()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+
+        await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        var other = await EnrollAsync(
+            client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 13", publicKey: "другой-ключ");
+
+        Assert.Equal(HttpStatusCode.Conflict, other.Response.StatusCode);
+    }
+
+    // Машину переделали из игровой в рабочее место управляющего: место обязано освободиться.
+    [Fact]
+    public async Task AuthEnroll_SameMachineChangingRole_FreesTheSeatItHeld()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+
+        await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        var asWorkstation = await EnrollAsync(client, null, DeviceRoleNames.ManagerWorkstation, "Касса");
+
+        Assert.Equal(HttpStatusCode.OK, asWorkstation.Response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await db.DeviceSeatAssignments.AnyAsync(assignment =>
+            assignment.SeatId == TestIds.SeatId && assignment.DetachedAtUtc == null));
+    }
+
+    private static async Task<(HttpResponseMessage Response, InstallEnrollResponse? Body)> EnrollAsync(
+        HttpClient client,
+        Guid? seatId,
+        string role,
+        string displayName,
+        string publicKey = "-----BEGIN PUBLIC KEY-----\nx\n-----END PUBLIC KEY-----")
+    {
+        var response = await client.PostAsJsonAsync(
+            InstallRoutes.AuthenticatedEnroll(TestIds.OrganizationId),
+            new AuthenticatedInstallEnrollRequest(
+                TestIds.BranchId,
+                seatId,
+                role,
+                displayName,
+                "WIN-INSTALL-01",
+                publicKey));
+        var body = response.StatusCode == HttpStatusCode.OK
+            ? await response.Content.ReadFromJsonAsync<InstallEnrollResponse>()
+            : null;
+
+        return (response, body);
     }
 
     [Fact]

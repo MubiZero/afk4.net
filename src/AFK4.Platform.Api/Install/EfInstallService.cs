@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
@@ -126,6 +126,18 @@ public sealed class EfInstallService(
                 "Manager workstation enrollment must not target a seat.");
         }
 
+        // Эта же машина, зарегистрированная раньше. Опознаём по её ключу: он лежит на диске и
+        // переживает повторный запуск мастера. Без этого каждый повтор — а повторяют после
+        // обрыва связи, отказа установщика или просто по ошибке — заводил на платформе ещё одно
+        // устройство: у клуба копились призраки, а занятое ими место мастер отказывался отдавать
+        // той самой машине, которая его и заняла.
+        var existingDevice = await dbContext.Devices.SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.BranchId == branchId &&
+                candidate.DevicePublicKey == devicePublicKey,
+            cancellationToken);
+
         SeatEntity? seat = null;
         if (requiresSeatAssignment)
         {
@@ -144,15 +156,16 @@ public sealed class EfInstallService(
                     "Seat was not found in this branch.");
             }
 
-            var hasActiveAssignment = await dbContext.DeviceSeatAssignments
-                .AnyAsync(
-                    assignment =>
-                        assignment.OrganizationId == organizationId &&
-                        assignment.BranchId == branchId &&
-                        assignment.SeatId == seatId &&
-                        assignment.DetachedAtUtc == null,
-                    cancellationToken);
-            if (hasActiveAssignment)
+            // Место, занятое этой же машиной, для неё не занято.
+            var occupyingDeviceId = await dbContext.DeviceSeatAssignments
+                .Where(assignment =>
+                    assignment.OrganizationId == organizationId &&
+                    assignment.BranchId == branchId &&
+                    assignment.SeatId == seatId &&
+                    assignment.DetachedAtUtc == null)
+                .Select(assignment => (Guid?)assignment.DeviceId)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (occupyingDeviceId is not null && occupyingDeviceId != existingDevice?.DeviceId)
             {
                 return InstallOperationResult<InstallEnrollResponse>.Conflict(
                     "Seat already has an active device assignment.",
@@ -163,26 +176,41 @@ public sealed class EfInstallService(
         }
 
         var now = timeProvider.GetUtcNow();
-        var deviceId = Guid.NewGuid();
+        var deviceId = existingDevice?.DeviceId ?? Guid.NewGuid();
         var credentialId = Guid.NewGuid();
         var credentialSecret = DeviceCredentialSecrets.CreateCredentialSecret();
         var enrollmentState = branch.RequireManualDeviceApproval
             ? DeviceEnrollmentStateNames.Pending
             : DeviceEnrollmentStateNames.Approved;
-        dbContext.Devices.Add(new DeviceEntity
+        if (existingDevice is null)
         {
-            DeviceId = deviceId,
-            OrganizationId = organizationId,
-            BranchId = branchId,
-            MachineName = machineName,
-            DisplayName = displayName,
-            DevicePublicKey = devicePublicKey,
-            Role = normalizedRole,
-            EnrollmentState = enrollmentState,
-            AgentVersion = string.Empty,
-            ShellVersion = string.Empty,
-            EnrolledAtUtc = now
-        });
+            dbContext.Devices.Add(new DeviceEntity
+            {
+                DeviceId = deviceId,
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                MachineName = machineName,
+                DisplayName = displayName,
+                DevicePublicKey = devicePublicKey,
+                Role = normalizedRole,
+                EnrollmentState = enrollmentState,
+                AgentVersion = string.Empty,
+                ShellVersion = string.Empty,
+                EnrolledAtUtc = now
+            });
+        }
+        else
+        {
+            existingDevice.MachineName = machineName;
+            existingDevice.DisplayName = displayName;
+            existingDevice.Role = normalizedRole;
+            existingDevice.EnrollmentState = enrollmentState;
+            existingDevice.EnrolledAtUtc = now;
+
+            // Прежний ключ мог утечь — тем и опасен повтор после неудачи. Отзываем его: с этого
+            // момента машина говорит только новым.
+            await RevokeActiveCredentialsAsync(deviceId, now, cancellationToken);
+        }
 
         dbContext.DeviceCredentials.Add(new DeviceCredentialEntity
         {
@@ -196,15 +224,13 @@ public sealed class EfInstallService(
 
         if (requiresSeatAssignment)
         {
-            dbContext.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
-            {
-                DeviceSeatAssignmentId = Guid.NewGuid(),
-                OrganizationId = organizationId,
-                BranchId = branchId,
-                SeatId = seat!.SeatId,
-                DeviceId = deviceId,
-                AttachedAtUtc = now
-            });
+            await AttachToSeatAsync(organizationId, branchId, seat!.SeatId, deviceId, now, cancellationToken);
+        }
+        else if (existingDevice is not null)
+        {
+            // Машина была игровой, а стала рабочим местом управляющего: место надо освободить,
+            // иначе оно навсегда числится занятым тем, кого за ним больше нет.
+            await DetachFromSeatsAsync(organizationId, deviceId, now, cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -228,6 +254,72 @@ public sealed class EfInstallService(
             response,
             organizationId,
             branchId);
+    }
+
+    private async Task RevokeActiveCredentialsAsync(
+        Guid deviceId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var active = await dbContext.DeviceCredentials
+            .Where(credential => credential.DeviceId == deviceId && credential.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        foreach (var credential in active)
+        {
+            credential.RevokedAtUtc = now;
+        }
+    }
+
+    /// <summary>Привязать к месту, ничего не трогая, если машина уже за ним и числится.</summary>
+    private async Task AttachToSeatAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid seatId,
+        Guid deviceId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var current = await dbContext.DeviceSeatAssignments
+            .Where(assignment => assignment.DeviceId == deviceId && assignment.DetachedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        if (current.Any(assignment => assignment.SeatId == seatId))
+        {
+            return;
+        }
+
+        // Машину переставили на другое место: прежнее освобождаем, иначе она числится за двумя.
+        foreach (var assignment in current)
+        {
+            assignment.DetachedAtUtc = now;
+        }
+
+        dbContext.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+        {
+            DeviceSeatAssignmentId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            SeatId = seatId,
+            DeviceId = deviceId,
+            AttachedAtUtc = now
+        });
+    }
+
+    private async Task DetachFromSeatsAsync(
+        Guid organizationId,
+        Guid deviceId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var current = await dbContext.DeviceSeatAssignments
+            .Where(assignment =>
+                assignment.OrganizationId == organizationId &&
+                assignment.DeviceId == deviceId &&
+                assignment.DetachedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        foreach (var assignment in current)
+        {
+            assignment.DetachedAtUtc = now;
+        }
     }
 
     public async Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatForStaffAsync(
