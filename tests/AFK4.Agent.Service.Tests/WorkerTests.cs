@@ -718,6 +718,60 @@ public sealed class WorkerTests
         }
     }
 
+    // ПК с севшей батарейкой на плате: часы отстают на три часа. Аренда приходит абсолютным
+    // временем, и по таким часам она выглядела бы действующей ещё три часа после конца оплаты.
+    [Fact]
+    public async Task ExecuteAsync_PullsTheMachineClockToThePlatformTime()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var synchronized = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001"
+        });
+        var serverTimeUtc = DateTimeOffset.Parse("2026-05-13T10:00:00Z");
+        var clock = new PlatformSyncedTimeProvider(new FixedTimeProvider(serverTimeUtc.AddHours(-3)));
+        using var heartbeatHandler = new GraceAdvertisingHeartbeatHandler(effectiveGraceMinutes: 15);
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(heartbeatHandler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new RecordingDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new SignalingGraceState(synchronized),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
+            clock,
+            processPolicyEnforcer: null,
+            clock);
+
+        await worker.StartAsync(stopping.Token);
+        await synchronized.Task.WaitAsync(WorkerObservationTimeout);
+        stopping.Cancel();
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal(serverTimeUtc, clock.GetUtcNow());
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
     private sealed class GraceAdvertisingHeartbeatHandler(int effectiveGraceMinutes) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -737,7 +791,17 @@ public sealed class WorkerTests
 
     private sealed class SignalingGraceState : IOfflineGraceState
     {
-        private readonly TaskCompletionSource recorded = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource recorded;
+
+        public SignalingGraceState()
+            : this(new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously))
+        {
+        }
+
+        public SignalingGraceState(TaskCompletionSource recorded)
+        {
+            this.recorded = recorded;
+        }
 
         public Task Recorded => recorded.Task;
 
