@@ -1,4 +1,4 @@
-using AFK4.Agent.Service.Updates;
+﻿using AFK4.Agent.Service.Updates;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.Extensions.Options;
 
@@ -35,7 +35,59 @@ public sealed class SafeUpdateInstallerTests
     }
 
     [Fact]
-    public async Task InstallAsync_WhenExecutorFailsRollsBackAndReturnsFailure()
+    public async Task InstallAsync_WhenExecutorFailsRollsBackToTheLastVersionThatWorked()
+    {
+        var instruction = CreateInstruction(UpdateComponentNames.PlayerShell);
+        var artifact = CreateArtifact(instruction);
+        // Пакет предыдущей версии лежит на диске — только на него и можно откатиться.
+        var previousPackage = Path.Combine(Path.GetTempPath(), $"afk4-previous-{Guid.NewGuid():N}.msi");
+        await File.WriteAllTextAsync(previousPackage, "previous");
+        var store = new RecordingUpdateInstallStateStore
+        {
+            LastKnownGood = new LastKnownGoodUpdate(
+                UpdateComponentNames.PlayerShell,
+                "1.0.0",
+                previousPackage,
+                DateTimeOffset.Parse("2026-05-01T00:00:00Z"))
+        };
+        var executor = new RecordingInstallExecutor(UpdateInstallResult.Failed("install failed"));
+        var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete"));
+        var restart = new RecordingRestartScheduler(UpdateRestartResult.NotRequired("restart not required"));
+        var installer = new SafeUpdateInstaller(
+            store,
+            executor,
+            rollback,
+            restart,
+            Options.Create(new AgentOptions()),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T17:00:00Z")));
+
+        try
+        {
+            var result = await installer.InstallAsync(instruction, artifact, CancellationToken.None);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal(
+                [UpdateStatusNames.Installing, UpdateStatusNames.Installing, UpdateStatusNames.RollbackStarted, UpdateStatusNames.RolledBack],
+                store.States.Select(state => state.Status));
+            // Откат идёт предыдущим пакетом, а не тем же самым, который только что не установился.
+            var plan = Assert.Single(rollback.RolledBackPlans);
+            Assert.Equal(previousPackage, plan.ArtifactPath);
+            Assert.Equal("1.0.0", plan.TargetVersion);
+            Assert.Contains("install failed", result.Message, StringComparison.Ordinal);
+            Assert.Contains("rollback complete", result.Message, StringComparison.Ordinal);
+            Assert.Empty(restart.ScheduledInstructions);
+        }
+        finally
+        {
+            File.Delete(previousPackage);
+        }
+    }
+
+    // Откатываться некуда: предыдущего пакета на машине нет. Раньше в этом месте запускался тот же
+    // самый пакет, который только что не установился, и это называлось «откатом» — в журнале
+    // появлялось RolledBack там, где не откатывалось ничего.
+    [Fact]
+    public async Task InstallAsync_WithoutAPreviousPackage_SaysRollbackIsImpossibleInsteadOfReinstalling()
     {
         var instruction = CreateInstruction(UpdateComponentNames.PlayerShell);
         var artifact = CreateArtifact(instruction);
@@ -54,13 +106,31 @@ public sealed class SafeUpdateInstallerTests
         var result = await installer.InstallAsync(instruction, artifact, CancellationToken.None);
 
         Assert.False(result.Succeeded);
-        Assert.Equal(
-            [UpdateStatusNames.Installing, UpdateStatusNames.Installing, UpdateStatusNames.RollbackStarted, UpdateStatusNames.RolledBack],
-            store.States.Select(state => state.Status));
-        Assert.Single(rollback.RolledBackPlans);
-        Assert.Contains("install failed", result.Message, StringComparison.Ordinal);
-        Assert.Contains("rollback complete", result.Message, StringComparison.Ordinal);
-        Assert.Empty(restart.ScheduledInstructions);
+        Assert.Empty(rollback.RolledBackPlans);
+        Assert.Equal(UpdateStatusNames.Failed, store.States[^1].Status);
+        Assert.Contains("no previously installed package", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Удачная установка запоминает свой пакет: именно он станет целью отката для следующей версии.
+    [Fact]
+    public async Task InstallAsync_WhenInstallSucceeds_RemembersThePackageAsLastKnownGood()
+    {
+        var instruction = CreateInstruction(UpdateComponentNames.PlayerShell);
+        var artifact = CreateArtifact(instruction);
+        var store = new RecordingUpdateInstallStateStore();
+        var installer = new SafeUpdateInstaller(
+            store,
+            new RecordingInstallExecutor(UpdateInstallResult.Success("installed")),
+            new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete")),
+            new RecordingRestartScheduler(UpdateRestartResult.NotRequired("restart not required")),
+            Options.Create(new AgentOptions()),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T17:00:00Z")));
+
+        await installer.InstallAsync(instruction, artifact, CancellationToken.None);
+
+        Assert.NotNull(store.LastKnownGood);
+        Assert.Equal(instruction.Version, store.LastKnownGood!.Version);
+        Assert.Equal(artifact.FilePath, store.LastKnownGood.ArtifactPath);
     }
 
     [Fact]
@@ -151,6 +221,20 @@ public sealed class SafeUpdateInstallerTests
         public Task SaveAsync(UpdateInstallState state, CancellationToken cancellationToken)
         {
             States.Add(state);
+
+            return Task.CompletedTask;
+        }
+
+        public LastKnownGoodUpdate? LastKnownGood { get; set; }
+
+        public Task<LastKnownGoodUpdate?> LoadLastKnownGoodAsync(string component, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(LastKnownGood);
+        }
+
+        public Task SaveLastKnownGoodAsync(LastKnownGoodUpdate lastKnownGood, CancellationToken cancellationToken)
+        {
+            LastKnownGood = lastKnownGood;
 
             return Task.CompletedTask;
         }

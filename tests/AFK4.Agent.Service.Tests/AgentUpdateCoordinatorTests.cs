@@ -1,4 +1,4 @@
-using AFK4.Agent.Service;
+﻿using AFK4.Agent.Service;
 using AFK4.Agent.Service.Updates;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Updates;
@@ -24,7 +24,8 @@ public sealed class AgentUpdateCoordinatorTests
             downloader,
             verifier,
             installer,
-            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")));
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger());
 
         var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
 
@@ -60,7 +61,8 @@ public sealed class AgentUpdateCoordinatorTests
             new RecordingUpdateArtifactDownloader(),
             new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Invalid("sha mismatch")),
             installer,
-            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")));
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger());
 
         var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
 
@@ -84,7 +86,8 @@ public sealed class AgentUpdateCoordinatorTests
             new RecordingUpdateArtifactDownloader(),
             new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("hash verified")),
             new RecordingUpdateInstaller(UpdateInstallResult.Failed("installer exit code 1")),
-            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")));
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger());
 
         var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
 
@@ -109,6 +112,7 @@ public sealed class AgentUpdateCoordinatorTests
             new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("verified")),
             new RecordingUpdateInstaller(UpdateInstallResult.Success("installed")),
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger(),
             new FixedOrganizationAdminReadiness(new(
                 OrganizationAdminUpdateReadinessNames.DeferredOutsideWindow, "outside window")));
 
@@ -290,6 +294,29 @@ public sealed class AgentUpdateCoordinatorTests
         public override DateTimeOffset GetUtcNow()
         {
             return now;
+        }
+    }
+
+    /// <summary>Журнал попыток в памяти: тесты проверяют поведение координатора, а не файл.</summary>
+    private sealed class InMemoryUpdateAttemptLedger : IUpdateAttemptLedger
+    {
+        private readonly Dictionary<Guid, int> attempts = [];
+
+        public bool ShouldAttempt(Guid rolloutId) => attempts.GetValueOrDefault(rolloutId) < FileUpdateAttemptLedger.MaxAttempts;
+
+        public void RecordAttempt(Guid rolloutId) => attempts[rolloutId] = attempts.GetValueOrDefault(rolloutId) + 1;
+
+        public void ForgetAttempt(Guid rolloutId)
+        {
+            var current = attempts.GetValueOrDefault(rolloutId);
+            if (current <= 1)
+            {
+                attempts.Remove(rolloutId);
+            }
+            else
+            {
+                attempts[rolloutId] = current - 1;
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-using AFK4.Shared.Contracts.Updates;
+﻿using AFK4.Shared.Contracts.Updates;
 
 namespace AFK4.Agent.Service.Updates;
 
@@ -50,7 +50,20 @@ public sealed class UpdateRecoveryService(
             await stateStore.SaveAsync(rollbackStarted, cancellationToken);
             await ReportAsync(rollbackStarted, cancellationToken);
 
-            var rollbackResult = await rollbackExecutor.RollbackAsync(rollbackStarted, cancellationToken);
+            var knownGood = await stateStore.LoadLastKnownGoodAsync(state.Component, cancellationToken);
+            var rollbackTarget = UpdateRollbackPlan.ToKnownGood(rollbackStarted, knownGood);
+            if (rollbackTarget is null)
+            {
+                var noTarget = rollbackStarted.WithStatus(
+                    UpdateStatusNames.Failed,
+                    UpdateRollbackPlan.NoTargetMessage,
+                    timeProvider.GetUtcNow());
+                await stateStore.SaveAsync(noTarget, cancellationToken);
+                await ReportAsync(noTarget, cancellationToken);
+                continue;
+            }
+
+            var rollbackResult = await rollbackExecutor.RollbackAsync(rollbackTarget, cancellationToken);
             var finalState = rollbackStarted.WithStatus(
                 rollbackResult.Succeeded ? UpdateStatusNames.RolledBack : UpdateStatusNames.Failed,
                 rollbackResult.Message,

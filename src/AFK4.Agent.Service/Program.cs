@@ -88,6 +88,7 @@ builder.Services.AddSingleton<IAgentComponentVersionProvider, AgentComponentVers
 builder.Services.AddSingleton<IUpdateArtifactDownloader, HttpUpdateArtifactDownloader>();
 builder.Services.AddSingleton<IUpdatePackageVerifier, Sha256UpdatePackageVerifier>();
 builder.Services.AddSingleton<IUpdateInstallStateStore, FileUpdateInstallStateStore>();
+builder.Services.AddSingleton<IUpdateAttemptLedger, FileUpdateAttemptLedger>();
 builder.Services.AddSingleton<IUpdateInstallExecutor, ExternalProcessUpdateInstaller>();
 builder.Services.AddSingleton<IUpdateRollbackExecutor, ExternalProcessUpdateRollbackExecutor>();
 builder.Services.AddSingleton<IAgentRestartScheduler, ExternalProcessAgentRestartScheduler>();

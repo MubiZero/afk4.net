@@ -1,4 +1,4 @@
-using AFK4.Agent.Service;
+﻿using AFK4.Agent.Service;
 using AFK4.Agent.Service.Updates;
 using AFK4.Shared.Contracts.Updates;
 
@@ -11,6 +11,7 @@ public sealed class UpdateRecoveryServiceTests
     {
         var state = CreateState(UpdateStatusNames.Installing);
         var store = new RecordingUpdateInstallStateStore([state]);
+        var previousPackage = CreateKnownGoodPackage(store, state.Component, "1.2.2");
         var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete"));
         var updateClient = new RecordingAgentUpdateClient();
         var recovery = new UpdateRecoveryService(
@@ -22,7 +23,9 @@ public sealed class UpdateRecoveryServiceTests
 
         await recovery.RecoverAsync(CancellationToken.None);
 
-        Assert.Single(rollback.RolledBackStates);
+        var rolledBack = Assert.Single(rollback.RolledBackStates);
+        Assert.Equal(previousPackage, rolledBack.ArtifactPath);
+        File.Delete(previousPackage);
         Assert.Equal(
             [UpdateStatusNames.RollbackStarted, UpdateStatusNames.RolledBack],
             updateClient.ReportedStatuses.Select(report => report.Status));
@@ -36,6 +39,7 @@ public sealed class UpdateRecoveryServiceTests
     {
         var state = CreateState(UpdateStatusNames.RollbackStarted);
         var store = new RecordingUpdateInstallStateStore([state]);
+        CreateKnownGoodPackage(store, state.Component, "1.2.2");
         var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Failed("rollback failed"));
         var updateClient = new RecordingAgentUpdateClient();
         var recovery = new UpdateRecoveryService(
@@ -154,6 +158,16 @@ public sealed class UpdateRecoveryServiceTests
         Assert.Equal(UpdateStatusNames.Superseded, updateClient.ReportedStatuses.Single().Status);
     }
 
+    /// <summary>Пакет предыдущей версии на диске — единственная законная цель отката.</summary>
+    private static string CreateKnownGoodPackage(RecordingUpdateInstallStateStore store, string component, string version)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"afk4-known-good-{Guid.NewGuid():N}.msi");
+        File.WriteAllText(path, "previous");
+        store.LastKnownGood = new LastKnownGoodUpdate(component, version, path, DateTimeOffset.Parse("2026-05-01T00:00:00Z"));
+
+        return path;
+    }
+
     private static UpdateInstallState CreateState(string status)
     {
         return new UpdateInstallState(
@@ -185,6 +199,20 @@ public sealed class UpdateRecoveryServiceTests
         public Task SaveAsync(UpdateInstallState state, CancellationToken cancellationToken)
         {
             SavedStates.Add(state);
+
+            return Task.CompletedTask;
+        }
+
+        public LastKnownGoodUpdate? LastKnownGood { get; set; }
+
+        public Task<LastKnownGoodUpdate?> LoadLastKnownGoodAsync(string component, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(LastKnownGood);
+        }
+
+        public Task SaveLastKnownGoodAsync(LastKnownGoodUpdate lastKnownGood, CancellationToken cancellationToken)
+        {
+            LastKnownGood = lastKnownGood;
 
             return Task.CompletedTask;
         }
@@ -259,5 +287,27 @@ public sealed class UpdateRecoveryServiceTests
         {
             return now;
         }
+    }
+
+    // Прерванная установка, а предыдущего пакета на машине нет: раньше «восстановление» запускало
+    // тот же пакет, на котором всё и сломалось.
+    [Fact]
+    public async Task RecoverAsync_WithoutAPreviousPackage_ReportsFailedWithoutRunningRollback()
+    {
+        var state = CreateState(UpdateStatusNames.Installing);
+        var store = new RecordingUpdateInstallStateStore([state]);
+        var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete"));
+        var updateClient = new RecordingAgentUpdateClient();
+        var recovery = new UpdateRecoveryService(
+            store,
+            rollback,
+            updateClient,
+            new FixedComponentVersionProvider([new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T18:00:00Z")));
+
+        await recovery.RecoverAsync(CancellationToken.None);
+
+        Assert.Empty(rollback.RolledBackStates);
+        Assert.Equal(UpdateStatusNames.Failed, updateClient.ReportedStatuses[^1].Status);
     }
 }
