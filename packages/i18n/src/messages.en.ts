@@ -3637,6 +3637,7 @@ export const en = {
   "setup.wizard.staff.name": "Name",
   "setup.wizard.staff.next": "Continue",
   "setup.wizard.staff.phone": "Phone",
+  "setup.wizard.staff.phoneIncomplete": "A number has nine digits: 90 000 00 00.",
   "setup.wizard.staff.role": "Role",
   "setup.wizard.staff.skip": "Skip",
   "setup.wizard.staff.subtitle": "Each person gets a code by SMS, signs in with it and sets their own password.",

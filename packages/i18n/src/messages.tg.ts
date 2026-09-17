@@ -3637,6 +3637,7 @@ export const tg = {
   "setup.wizard.staff.name": "Ном",
   "setup.wizard.staff.next": "Идома",
   "setup.wizard.staff.phone": "Рақами телефон",
+  "setup.wizard.staff.phoneIncomplete": "Рақам аз нӯҳ рақам иборат аст: 90 000 00 00.",
   "setup.wizard.staff.role": "Вазифа",
   "setup.wizard.staff.skip": "Гузарондан",
   "setup.wizard.staff.subtitle": "Ба ҳар кас бо СМС рамз меояд — бо он ворид шуда, парольро худаш мегузорад.",

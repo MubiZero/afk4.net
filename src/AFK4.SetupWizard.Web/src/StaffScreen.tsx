@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Loader2, UserPlus } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import type { WizardStaffInvited } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
+import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
 
 // Владельца в списке нет: он и так есть — это тот, кто сейчас ставит клуб.
 const ROLES: { name: string; labelKey: MessageKey }[] = [
@@ -35,18 +36,26 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
   const [invited, setInvited] = useState<WizardStaffInvited[]>([]);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
-  const canSend = displayName.trim() !== '' && phoneNumber.trim() !== '' && !sending;
+  // Номер набирают со слуха, в шумном клубе. Проверка та же, что на входе в мастер: девять цифр
+  // местной части, префикс +992 вне поля. Раньше поле принимало любую непустую строку — номер с
+  // опечаткой в одной цифре уходил приглашением постороннему человеку, и узнать об этом было
+  // неоткуда: поле очищается сразу после отправки.
+  const phoneComplete = localPhoneDigits(phoneNumber).length === 9;
+  const showPhoneHint = phoneTouched && phoneNumber.trim().length > 0 && !phoneComplete;
+  const canSend = displayName.trim() !== '' && phoneComplete && !sending;
 
   async function invite(): Promise<void> {
     if (!canSend) return;
     setSending(true);
     setFailure(null);
     try {
-      const result = await client.invite(displayName.trim(), phoneNumber.trim(), roleName);
+      const result = await client.invite(displayName.trim(), fullPhoneDigits(phoneNumber), roleName);
       setInvited((current) => [...current, result]);
       setDisplayName('');
       setPhoneNumber('');
+      setPhoneTouched(false);
     } catch (error) {
       setFailure(wizardErrorMessage(error, t, 'setup.wizard.staff.failed'));
     } finally {
@@ -76,14 +85,20 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
 
       <div className="ui-field">
         <label className="ui-field-label" htmlFor="staff-phone">{t('setup.wizard.staff.phone')}</label>
-        <input
-          id="staff-phone"
-          type="tel"
-          inputMode="tel"
-          placeholder="+992 90 000-00-00"
-          value={phoneNumber}
-          onChange={(event) => setPhoneNumber(event.target.value)}
-        />
+        <div className="ui-phone-field">
+          <span className="ui-phone-prefix" aria-hidden>+992</span>
+          <input
+            id="staff-phone"
+            type="tel"
+            inputMode="tel"
+            placeholder="90 000 00 00"
+            value={phoneNumber}
+            aria-invalid={showPhoneHint}
+            onBlur={() => setPhoneTouched(true)}
+            onChange={(event) => setPhoneNumber(formatLocal(event.target.value))}
+          />
+        </div>
+        {showPhoneHint && <span className="ui-field-hint">{t('setup.wizard.staff.phoneIncomplete')}</span>}
       </div>
 
       <div className="ui-field">
