@@ -1,4 +1,4 @@
-using AFK4.Agent.Service.Enforcement;
+﻿using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Agent.Service.Tests;
@@ -35,6 +35,18 @@ public sealed class OfflineLeaseExtenderTests
         var extender = new OfflineLeaseExtender(grace);
 
         Assert.False(extender.ShouldExtend(Lease(SessionStateNames.Active), Now));
+    }
+
+    // Связь есть: последний разговор с платформой был уже после того, как аренда кончилась, и
+    // новой она не прислала. Это не обрыв, это конец сессии.
+    [Fact]
+    public void ShouldExtend_WhenTheLastContactHappenedAfterTheLeaseExpired_IsFalse()
+    {
+        var grace = new OfflineGraceState();
+        grace.RecordSuccessfulContact(Now.AddSeconds(-20), effectiveGraceMinutes: 15);
+        var extender = new OfflineLeaseExtender(grace);
+
+        Assert.False(extender.ShouldExtend(Lease(SessionStateNames.Active) with { ExpiresAtUtc = Now.AddMinutes(-2) }, Now));
     }
 
     [Fact]

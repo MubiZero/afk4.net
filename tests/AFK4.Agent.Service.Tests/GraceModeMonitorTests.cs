@@ -81,6 +81,40 @@ public sealed class GraceModeMonitorTests
 
         Assert.Equal(lease, leaseStore.Current); // lease retained for reconnect
         Assert.Equal(0, lockController.LockCount);
+        // Оболочка получает «связь потеряна, сессия продолжается» — раньше это состояние было
+        // заведено в контракте, но его никто не ставил, и игрок узнавал об обрыве по погасшему
+        // экрану в конце льготного окна.
+        Assert.Equal(PlayerShellStateNames.Grace, runtimeStore.Current.State);
+    }
+
+    // Льгота — это про обрыв связи. Если агент разговаривал с платформой уже после того, как
+    // аренда кончилась, и новой она не прислала, сессия правда закончилась. Раньше «последний
+    // контакт» обновлялся каждым сердцебиением, окно не кончалось никогда — и запасной запрет по
+    // сроку аренды не срабатывал вовсе: машина оставалась открытой бесплатно.
+    [Fact]
+    public async Task EnforceAsync_WithExpiredLeaseWhileStillInContact_LocksInsteadOfCallingItAnOutage()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var lease = CreateLease(Now.AddMinutes(-2));
+        leaseStore.Save(lease);
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-15));
+        var lockController = new RecordingWorkstationLockController();
+        var grace = new OfflineGraceState();
+        grace.RecordSuccessfulContact(Now.AddSeconds(-20), effectiveGraceMinutes: 15);
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(grace),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Null(leaseStore.Current);
+        Assert.Equal(PlayerShellStateNames.Locked, runtimeStore.Current.State);
+        Assert.Equal(1, lockController.LockCount);
     }
 
     private static SessionLeaseDto CreateLease(DateTimeOffset expiresAtUtc)
@@ -147,7 +181,7 @@ public sealed class GraceModeMonitorTests
     // Гость заплатил, а сеть пропала не по его вине: внутри льготного окна перезапуск службы не
     // должен выгонять его из-за компьютера. Время последнего контакта теперь переживает рестарт.
     [Fact]
-    public async Task EnforceAsync_AfterRestartWithinGraceWindow_KeepsTheWorkstationOpen()
+    public async Task EnforceAsync_AfterRestartWithinGraceWindow_KeepsTheWorkstationOpenAndSaysConnectionIsLost()
     {
         var leaseStore = new InMemorySessionLeaseStore();
         var runtimeStore = new RecordingRuntimeStateStore();
@@ -165,7 +199,8 @@ public sealed class GraceModeMonitorTests
 
         await monitor.EnforceAsync(CancellationToken.None);
 
-        Assert.Equal(PlayerShellStateNames.Active, runtimeStore.Current.State);
+        Assert.Equal(PlayerShellStateNames.Grace, runtimeStore.Current.State);
+        Assert.False(runtimeStore.Current.IsLocked);
         Assert.Equal(0, lockController.LockCount);
     }
 
