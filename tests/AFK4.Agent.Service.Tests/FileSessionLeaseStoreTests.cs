@@ -1,4 +1,4 @@
-using AFK4.Agent.Service.Enforcement;
+﻿using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Agent.Service.Tests;
@@ -95,28 +95,4 @@ public sealed class FileSessionLeaseStoreTests
         }
     }
 
-    private sealed class TemporaryDirectory : IDisposable
-    {
-        private TemporaryDirectory(string path)
-        {
-            Path = path;
-        }
-
-        public string Path { get; }
-
-        public static TemporaryDirectory Create()
-        {
-            return new TemporaryDirectory(System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
-                $"afk4-agent-lease-{Guid.NewGuid():N}"));
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(Path))
-            {
-                Directory.Delete(Path, recursive: true);
-            }
-        }
-    }
 }

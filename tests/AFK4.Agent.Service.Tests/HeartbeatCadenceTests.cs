@@ -1,4 +1,4 @@
-using AFK4.Agent.Service;
+﻿using AFK4.Agent.Service;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Agent.Service.Tests;
@@ -70,6 +70,22 @@ public sealed class HeartbeatCadenceTests
             jitterFraction: 1.0);
 
         Assert.Equal(HeartbeatCadence.EscalatedBase + HeartbeatCadence.EscalatedJitterMax, delay);
+    }
+
+    // Ровный интервал у всего парка означает, что после общего перезапуска все машины стучатся в
+    // платформу одной волной и продолжают стучаться в такт. Разброс их расталкивает — и только
+    // удлиняет интервал: укорачивать его значило бы добавлять нагрузки.
+    [Fact]
+    public void NextDelay_Normal_SpreadsTheFleetByStretchingTheInterval()
+    {
+        var delay = HeartbeatCadence.NextDelay(
+            lastHeartbeatSucceeded: true,
+            lease: Lease(Now.AddMinutes(1)),
+            normalIntervalSeconds: 10,
+            Now,
+            jitterFraction: 1.0);
+
+        Assert.Equal(TimeSpan.FromSeconds(11), delay);
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using AFK4.Agent.Service.Enforcement;
+﻿using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 
@@ -90,28 +90,4 @@ public sealed class AgentRuntimeStateStoreTests
         }
     }
 
-    private sealed class TemporaryDirectory : IDisposable
-    {
-        private TemporaryDirectory(string path)
-        {
-            Path = path;
-        }
-
-        public string Path { get; }
-
-        public static TemporaryDirectory Create()
-        {
-            return new TemporaryDirectory(System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
-                $"afk4-agent-runtime-{Guid.NewGuid():N}"));
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(Path))
-            {
-                Directory.Delete(Path, recursive: true);
-            }
-        }
-    }
 }
