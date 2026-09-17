@@ -315,6 +315,14 @@
   transform: none;
 }
 
+/* Телефон заявки: по ней перезванивают, и номер должен читаться с карточки, а не всплывать
+   подсказкой (которую вдобавок вытесняла заметка брони). */
+.booking-lane-phone {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .booking-lane-time {
   flex: none;
   display: inline-flex;

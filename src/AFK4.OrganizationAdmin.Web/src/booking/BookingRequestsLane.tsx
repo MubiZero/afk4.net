@@ -1,6 +1,7 @@
 import { Plus, Timer } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { formatTime } from '../operatorHelpers';
+import { formatLocal } from '../phoneFormat';
 import { useSecondClock } from '../useSecondClock';
 import { respondCountdown, type BookingItem } from './bookingModel';
 
@@ -51,6 +52,12 @@ export function BookingRequestsLane({
                     </span>
                     <strong>{request.customerName}</strong>
                   </div>
+                  {/* Номер видимой строкой, а не только подсказкой при наведении: по заявке
+                      перезванивают, и если у брони есть заметка, она вытесняла номер из
+                      подсказки целиком. */}
+                  {request.phoneNumber && (
+                    <span className="booking-lane-phone">+992 {formatLocal(request.phoneNumber)}</span>
+                  )}
                   {countdown !== null && (
                     <div className="booking-lane-respond">
                       <Timer size={12} aria-hidden="true" />

@@ -846,6 +846,7 @@ export const tg = {
   "op.booking.tagline": "нишондани меҳмонон ва дархостҳои онлайн",
   "op.booking.timeline.aria": "Хатти вақти бандҳо аз рӯи ҷойҳо",
   "op.booking.title": "Бронҳо",
+  "op.booking.truncated": "{count} брондошти аввали рӯз нишон дода шуд — боқимонда ҷой нагирифт. Рӯзи дигарро интихоб кунед ё брондоштро тавассути ҷустуҷӯ кушоед.",
   "op.bookingRules.bookingsUnit": "брон",
   "op.bookingRules.defaultsNote": "Ин филиал қабули бронҳоро ҳанӯз танзим накардааст — қиматҳои пешфарз амал мекунанд.",
   "op.bookingRules.holdSeat": "Ҷойро пас аз оғоз нигоҳ медорем",
