@@ -300,6 +300,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   // Все категории каталога — без потолка: строка переносит чипы на новую линию
   // (flex-wrap), а отрезать категории молча значило бы спрятать часть фильтра.
   const categories = [CATEGORY_ALL, ...Array.from(new Set(catalog.map((product) => product.category)))];
+  const catalogIsFiltered = catalog.length > 0 && (productSearch.trim() !== '' || activeCategory !== CATEGORY_ALL);
   const visibleProducts = catalog.filter((product) => {
     const categoryMatches = activeCategory === CATEGORY_ALL || product.category === activeCategory;
     const searchMatches = `${product.name} ${product.category} ${product.note}`.toLowerCase().includes(productSearch.trim().toLowerCase());
@@ -412,6 +413,9 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     if (found) {
       addProduct(found);
       toast.success(t('op.pos.scan.added', { name: found.name }));
+    } else if (catalog.length === 0) {
+      // Каталог ещё едет: «штрих-код не привязан» здесь — неправда, товар может быть.
+      toast.info(t('op.pos.scan.catalogLoading'));
     } else {
       toast.info(t('op.pos.scan.unknown'));
     }
@@ -654,9 +658,13 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
           </div>
           <div className="pos-catalog-grid">
             {visibleProducts.length === 0 ? (
+              /* Опечатка в поиске читалась как «товар исчез из системы»: пустой результат
+                 отбора выглядел ровно как пустой каталог. */
               <div className="pos-empty-state">
-                <strong>{t('op.pos.catalog.emptyTitle')}</strong>
-                <span>{loadStatus === 'backend' ? t('op.pos.catalog.emptyBackend') : t('op.pos.catalog.emptyLoad')}</span>
+                <strong>{catalogIsFiltered ? t('op.pos.catalog.noMatchTitle') : t('op.pos.catalog.emptyTitle')}</strong>
+                <span>{catalogIsFiltered
+                  ? t('op.pos.catalog.noMatchHint')
+                  : loadStatus === 'backend' ? t('op.pos.catalog.emptyBackend') : t('op.pos.catalog.emptyLoad')}</span>
               </div>
             ) : (
               visibleProducts.map((product) => (

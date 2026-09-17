@@ -12,7 +12,7 @@ export type CriticalConfirmationTone = 'warning' | 'danger';
 export type LoadStatus = 'fixture' | 'loading' | 'backend' | 'failed';
 // Фильтры карты: всё / свободно / сессии / нет связи. Один серый бакет «нет связи» вместо
 // прежнего зоопарка (проблемы/сбой/обслуживание) — см. SeatTone.
-export type MapFilterId = 'all' | 'ready' | 'active' | 'offline';
+export type MapFilterId = 'all' | 'ready' | 'active' | 'endingSoon' | 'offline';
 export type MapViewMode = 'grid' | 'plan';
 export type OperatorConfig = ReturnType<typeof getOperatorConfig>;
 export type OperatorBackendContext = {

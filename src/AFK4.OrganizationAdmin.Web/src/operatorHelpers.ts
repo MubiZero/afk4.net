@@ -3,6 +3,7 @@ import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
+import { SEAT_TIME_LOW_SECONDS } from './seatTilePresentation';
 import { createOperatorApiClients, type AuditRecordDto, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type SessionActionResponse, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { refreshOperatorSession, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
@@ -146,6 +147,7 @@ export function mapFilterOptions(t: TFunc): Array<{ id: MapFilterId; label: stri
     { id: 'all', label: t('op.helper.zone.filter.all') },
     { id: 'ready', label: t('op.helper.zone.filter.ready') },
     { id: 'active', label: t('op.helper.zone.filter.active') },
+    { id: 'endingSoon', label: t('op.helper.zone.filter.endingSoon') },
     { id: 'offline', label: t('op.helper.zone.filter.offline') }
   ];
 }
@@ -178,6 +180,14 @@ export function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): bool
     // Только здоровые сессии (ПК на связи). Сессия на отвалившемся ПК — тон offline, её место
     // в бакете «нет связи», не здесь (иначе двойной учёт).
     return seat.tone === 'active';
+  }
+
+  // Кому подойти прямо сейчас: у сессии осталось меньше десяти минут. Плитка это знала и
+  // рисовала полосой, а собрать такие места в один список было нельзя — оператор в час пик
+  // обходил зал глазами. Порог тот же, что у «низкого» остатка на плитке.
+  if (filterId === 'endingSoon') {
+    const remaining = seat.remainingSeconds ?? null;
+    return seat.tone === 'active' && remaining !== null && remaining > 0 && remaining <= SEAT_TIME_LOW_SECONDS;
   }
 
   // Обслуживание — намеренное отключение, это НЕ «нет связи», в бакет не считаем (только «Все»).

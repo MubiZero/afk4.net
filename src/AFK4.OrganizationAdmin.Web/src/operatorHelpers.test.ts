@@ -103,7 +103,7 @@ describe('matchesLifecycleScope', () => {
   });
 });
 
-describe('matchesMapFilter (simplified zoo: all/ready/active/offline)', () => {
+describe('matchesMapFilter (all/ready/active/endingSoon/offline)', () => {
   const seat = (overrides: Partial<SeatSummary>): SeatSummary => ({
     id: 's', zone: 'Зал A', name: 'PC', tone: 'ready', stateLabel: '—', player: '—',
     remaining: '—', device: 'Device', command: 'Idle', app: 'Shell', ...overrides
@@ -127,6 +127,20 @@ describe('matchesMapFilter (simplified zoo: all/ready/active/offline)', () => {
     expect(matchesMapFilter(seat({ tone: 'active', isDeviceOnline: true }), 'offline')).toBe(false);
     // Обслуживание — намеренное, не «нет связи»: в бакет не попадает даже при offline-устройстве.
     expect(matchesMapFilter(seat({ tone: 'service', isDeviceOnline: false }), 'offline')).toBe(false);
+  });
+
+  // Кому подойти прямо сейчас с продлением. Плитка знала про последние десять минут и рисовала
+  // их полосой, а собрать такие места в один список было нельзя.
+  it('«Заканчивается» — живые сессии, которым осталось меньше десяти минут', () => {
+    expect(matchesMapFilter(seat({ tone: 'active', remainingSeconds: 540 }), 'endingSoon')).toBe(true);
+    expect(matchesMapFilter(seat({ tone: 'active', remainingSeconds: 1200 }), 'endingSoon')).toBe(false);
+    // Время уже вышло — это не «скоро закончится», а другой разговор с гостем.
+    expect(matchesMapFilter(seat({ tone: 'active', remainingSeconds: 0 }), 'endingSoon')).toBe(false);
+    // Открытая сессия без обратного отсчёта (постоплата) не заканчивается сама.
+    expect(matchesMapFilter(seat({ tone: 'active', remainingSeconds: null }), 'endingSoon')).toBe(false);
+    // Свободное место и место без связи сюда не попадают.
+    expect(matchesMapFilter(seat({ tone: 'ready', remainingSeconds: 60 }), 'endingSoon')).toBe(false);
+    expect(matchesMapFilter(seat({ tone: 'offline', remainingSeconds: 60 }), 'endingSoon')).toBe(false);
   });
 
   it('«Все» — всё', () => {
