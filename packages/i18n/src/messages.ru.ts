@@ -3566,6 +3566,8 @@ export const ru = {
   "setup.wizard.device.seat.hint": "Места в этом зале уже заведены — выберите то, за которым стоит этот ПК, иначе в зале появится лишнее.",
   "setup.wizard.device.seat.label": "Какое это место в зале",
   "setup.wizard.device.seat.new": "Завести новое место",
+  "setup.wizard.device.seat.noZone": "В этом филиале ещё нет ни одного зала, а место создаётся в зале. Создайте зал в приложении клуба и вернитесь сюда.",
+  "setup.wizard.device.seat.willCreate": "Свободных мест в зале нет — заведём новое: «{name}».",
   "setup.wizard.error.bridgeMissing": "Не удаётся связаться с локальным агентом. Перезапустите Setup Wizard.",
   "setup.wizard.error.invalidPhone": "Проверьте номер: приглашение уходит SMS, а на такой номер его не отправить.",
   "setup.wizard.error.planLimitReached": "Тарифный план клуба больше не позволяет добавлять. Напишите владельцу — предел меняется в подписке.",
