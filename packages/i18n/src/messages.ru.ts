@@ -2309,6 +2309,8 @@ export const ru = {
   "op.settings.action.updateStaffProfile": "Обновить профиль сотрудника",
   "op.settings.action.updateTariff": "Обновить тариф",
   "op.settings.action.updateZone": "Обновить зал",
+  "op.settings.devices.commands.empty": "Этому ПК ещё ничего не отправляли.",
+  "op.settings.devices.commands.title": "История команд",
   "op.settings.devices.confirmRevokeKey.confirm": "Отозвать ключ",
   "op.settings.devices.confirmRevokeKey.detail": "{deviceName} · новый ключ устройства",
   "op.settings.devices.confirmRevokeKey.impact": "После отзыва этот ключ больше нельзя использовать для подключения выбранного ПК.",

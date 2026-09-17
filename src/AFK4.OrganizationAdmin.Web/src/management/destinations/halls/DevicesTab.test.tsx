@@ -23,6 +23,17 @@ const revokeDeviceCredential = mock(async () => undefined);
 const assignDeviceSeat = mock(async () => ({}));
 const renameDevice = mock(async () => ({}));
 const removeDevice = mock(async () => ({}));
+const listDeviceCommands = mock(async () => [
+  {
+    deviceId: '11111111-1111-1111-1111-111111111111',
+    commandId: 'cmd-1',
+    type: 'lock',
+    status: 'failed',
+    message: 'Agent timeout',
+    createdAtUtc: '2026-07-16T09:58:00Z',
+    updatedAtUtc: '2026-07-16T09:59:00Z'
+  }
+]);
 
 const actualHelpers = await import('../../../operatorHelpers');
 mock.module('../../../operatorHelpers', () => ({
@@ -35,7 +46,8 @@ mock.module('../../../operatorHelpers', () => ({
       rotateDeviceCredential,
       revokeDeviceCredential,
       renameDevice,
-      removeDevice
+      removeDevice,
+      listDeviceCommands
     }
   })
 }));
@@ -98,6 +110,7 @@ const baseProps = {
   deviceInventory,
   layoutSeatOptions,
   canManageBranchSettings: false,
+  canViewDeviceCommands: false,
   onDeviceInventoryChange: mock(() => {}),
   onReload: mock(async () => {}),
   onFeedback: mock(() => {})
@@ -184,23 +197,66 @@ describe('DevicesTab', () => {
     expect(getDeviceDetail).not.toHaveBeenCalled();
   });
 
-  it('has no commands section and no command history anywhere in the drawer — dispatch moved to the Map', () => {
+  // Команды отсюда не отправляют: блокировка и разблокировка живут на Карте, рядом с местом и
+  // гостем. Журнал — только чтение, и он не возвращает сюда рычаги управления.
+  it('has no command dispatch controls in the drawer — dispatch moved to the Map', () => {
     wrap(
       <DevicesTab
         {...baseProps}
         backend={backend as never}
         canAssignDeviceSeat
         canViewDeviceDetail
+        canViewDeviceCommands
         canRotateDeviceCredential
         canRevokeDeviceCredential
       />
     );
     fireEvent.click(screen.getByText('PC-VIP-01'));
     expect(screen.queryByText('Команды')).toBeNull();
-    expect(screen.queryByText('Недавние команды')).toBeNull();
     expect(screen.queryByText('История команд филиала')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Отправить команду' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Обновить историю команд' })).toBeNull();
+  });
+
+  // При разборе «команда на ПК не сработала» видно было только состояние последней команды:
+  // сколько раз её слали и чем каждая кончилась, узнать было неоткуда, хотя сервер это отдаёт.
+  it('показывает журнал отправленных этому ПК команд', async () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        backend={backend as never}
+        canAssignDeviceSeat={false}
+        canViewDeviceDetail={false}
+        canViewDeviceCommands
+        canRotateDeviceCredential={false}
+        canRevokeDeviceCredential={false}
+      />
+    );
+    fireEvent.click(screen.getByText('PC-VIP-01'));
+
+    expect(await screen.findByText('История команд')).toBeTruthy();
+    await waitFor(() => expect(listDeviceCommands).toHaveBeenCalled());
+    // Тип, состояние и пояснение приходят машинными словами — на экране они по-русски.
+    expect(screen.getByText('Блокировка')).toBeTruthy();
+    expect(screen.getByText('не выполнена')).toBeTruthy();
+    expect(screen.queryByText('Agent timeout')).toBeNull();
+  });
+
+  it('без права на статус команд журнала нет', () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        backend={backend as never}
+        canAssignDeviceSeat={false}
+        canViewDeviceDetail={false}
+        canViewDeviceCommands={false}
+        canRotateDeviceCredential={false}
+        canRevokeDeviceCredential={false}
+      />
+    );
+    fireEvent.click(screen.getByText('PC-VIP-01'));
+
+    expect(screen.queryByText('История команд')).toBeNull();
   });
 
   it('assigns a device to a seat from the drawer', async () => {

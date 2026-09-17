@@ -8,7 +8,11 @@ import { CriticalActionConfirmation, Skeleton } from '../../../operatorPrimitive
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
 import {
+  commandStatusLabel,
+  commandStatusMessageLabel,
+  commandTypeLabel,
   createAuthenticatedOperatorClients,
+  formatDateTime,
   formatTime,
   isGuid,
   readBoolean,
@@ -16,7 +20,12 @@ import {
   readString,
   requireBackend
 } from '../../../operatorHelpers';
-import type { DeviceDetailDto, DeviceInventoryItemDto, RotateDeviceCredentialResponse } from '../../../operatorApiClients';
+import type {
+  DeviceCommandStatusDto,
+  DeviceDetailDto,
+  DeviceInventoryItemDto,
+  RotateDeviceCredentialResponse
+} from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
 // Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
@@ -30,6 +39,9 @@ interface DevicesTabProps {
   backend: OperatorBackendContext | null;
   canAssignDeviceSeat: boolean;
   canViewDeviceDetail: boolean;
+  /// Журнал отправленных этому ПК команд. Отдельное право: статус команд сервер отдаёт по нему,
+  /// а не по праву на карточку устройства.
+  canViewDeviceCommands: boolean;
   canRotateDeviceCredential: boolean;
   canRevokeDeviceCredential: boolean;
   canManageBranchSettings: boolean;
@@ -51,6 +63,7 @@ export function DevicesTab({
   backend,
   canAssignDeviceSeat,
   canViewDeviceDetail,
+  canViewDeviceCommands,
   canRotateDeviceCredential,
   canRevokeDeviceCredential,
   canManageBranchSettings,
@@ -62,6 +75,8 @@ export function DevicesTab({
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<DeviceDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [commands, setCommands] = useState<DeviceCommandStatusDto[] | null>(null);
+  const [commandsLoading, setCommandsLoading] = useState(false);
   const [assignSeatId, setAssignSeatId] = useState('');
   const [rotatedCredential, setRotatedCredential] = useState<RotateDeviceCredentialResponse | null>(null);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
@@ -96,6 +111,25 @@ export function DevicesTab({
     }
   };
 
+  // Что этому ПК отправляли раньше. Без журнала при разборе «команда не сработала» видно
+  // только состояние последней команды, и понять, сколько раз её слали и чем каждая кончилась,
+  // было неоткуда — хотя сервер этот список отдаёт.
+  const loadCommandHistory = async (deviceId: string) => {
+    setCommandsLoading(true);
+    try {
+      const nextBackend = requireBackend(backend, t);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      setCommands(await apiClients.devices.listDeviceCommands(deviceId, { limit: 20 }));
+    } catch (error) {
+      // Журнал — это подсказка при разборе, а не сама работа: его недоступность не должна
+      // закрывать карточку устройства сообщением об ошибке поверх всего.
+      onFeedback({ label: t('op.settings.devices.commands.title'), state: 'failed', detail: projectOperatorError(error, t).detail });
+      setCommands([]);
+    } finally {
+      setCommandsLoading(false);
+    }
+  };
+
   // Клик по устройству открывает drawer и сразу тянет карточку (B3) — если есть право и связь
   // с сервером; офлайн/без права drawer всё равно открывается, просто без карточки.
   useEffect(() => {
@@ -103,12 +137,16 @@ export function DevicesTab({
     const currentSeatId = readString(selectedDevice, 'seatId');
     setAssignSeatId(isGuid(currentSeatId) ? currentSeatId : (layoutSeatOptions[0]?.seatId ?? ''));
     setDeviceDetail(null);
+    setCommands(null);
     setRotatedCredential(null);
     setCredentialIdToRevoke('');
     setDisplayName(readString(selectedDevice, 'machineName'));
     setRemoveReason('');
     if (canViewDeviceDetail && backend !== null) {
       void loadDeviceCard(selectedDeviceId);
+    }
+    if (canViewDeviceCommands && backend !== null) {
+      void loadCommandHistory(selectedDeviceId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeviceId]);
@@ -366,6 +404,28 @@ export function DevicesTab({
                 <p className="mgmt-drawer-hint">{t('op.settings.devices.deviceCardNotOpen')}</p>
               )}
             </div>
+
+            {canViewDeviceCommands && (
+              <div className="mgmt-drawer-section">
+                <div className="mgmt-section-title"><span>{t('op.settings.devices.commands.title')}</span></div>
+                {commandsLoading ? (
+                  <Skeleton variant="text" lines={3} />
+                ) : commands !== null && commands.length > 0 ? (
+                  <ul className="settings-device-commands">
+                    {commands.map((command) => (
+                      <li key={command.commandId}>
+                        <span>{commandTypeLabel(command.type, t)}</span>
+                        <b>{commandStatusLabel(command.status, t)}</b>
+                        <small>{formatDateTime(command.updatedAtUtc)}</small>
+                        {command.message ? <em>{commandStatusMessageLabel(command.message, t)}</em> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mgmt-drawer-hint">{t('op.settings.devices.commands.empty')}</p>
+                )}
+              </div>
+            )}
 
             {(canAssignDeviceSeat || canRevokeDeviceCredential) && <div className="mgmt-drawer-section">
               <div className="mgmt-section-title"><span>{t('op.settings.devices.lifecycle')}</span></div>

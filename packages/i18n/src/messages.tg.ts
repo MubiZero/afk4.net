@@ -2309,6 +2309,8 @@ export const tg = {
   "op.settings.action.updateStaffProfile": "Навсозии профили корманд",
   "op.settings.action.updateTariff": "Навсозии тариф",
   "op.settings.action.updateZone": "Навсозии толор",
+  "op.settings.devices.commands.empty": "Ба ин компютер ҳанӯз чизе фиристода нашудааст.",
+  "op.settings.devices.commands.title": "Таърихи фармонҳо",
   "op.settings.devices.confirmRevokeKey.confirm": "Калидро бозпас гиред",
   "op.settings.devices.confirmRevokeKey.detail": "{deviceName} · калиди нави дастгоҳ",
   "op.settings.devices.confirmRevokeKey.impact": "Пас аз бозпасгирӣ ин калид барои пайвасткунии ПКи интихобшуда истифода бурда намешавад.",
