@@ -11,6 +11,7 @@ public sealed class AgentUpdateCoordinator(
     IUpdateInstaller installer,
     TimeProvider timeProvider,
     IUpdateAttemptLedger attemptLedger,
+    IGuestSeatUpdateGuard guestSeatGuard,
     IOrganizationAdminUpdateReadiness? organizationAdminReadiness = null) : IAgentUpdateCoordinator
 {
 
@@ -49,6 +50,14 @@ public sealed class AgentUpdateCoordinator(
                 UpdateStatusNames.Offered,
                 "Update offered by platform.",
                 cancellationToken);
+
+            var seat = guestSeatGuard.Evaluate(instruction.Component);
+            if (!seat.CanInstall)
+            {
+                await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Deferred, seat.Message, cancellationToken);
+                ClearAttempted(instruction.UpdateRolloutId);
+                continue;
+            }
 
             if (instruction.Component == UpdateComponentNames.OrganizationAdmin && organizationAdminReadiness is not null)
             {
