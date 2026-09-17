@@ -41,7 +41,7 @@ describe('ReportsWorkspace', () => {
     render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Сводка', 'Смены и касса', 'Выручка', 'Рассылки']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Сводка', 'Смены и касса', 'Выручка', 'Время игры', 'Действия сотрудников', 'Рассылки']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByText('Журнал')).not.toBeInTheDocument();
     expect(screen.queryByText('Действия операторов')).not.toBeInTheDocument();

@@ -6,6 +6,8 @@ import { RevenueReport } from './RevenueReport';
 import { ShiftCashReport } from './ShiftCashReport';
 import { ReportSchedules } from './ReportSchedules';
 import { SummaryReport } from './SummaryReport';
+import { GameplayTimeReport } from './GameplayTimeReport';
+import { OperatorActionsReport } from './OperatorActionsReport';
 import { allowedReportsDestinations, type ReportsDestinationId } from './reportsNav';
 
 export function ReportsWorkspace({ backend, currencyCode, onNavigate }: {
@@ -27,9 +29,13 @@ export function ReportsWorkspace({ backend, currencyCode, onNavigate }: {
     ? <SummaryReport backend={backend} onNavigate={onNavigate} />
     : current === 'shiftsCash'
       ? <ShiftCashReport backend={backend} currencyCode={currencyCode} />
-      : current === 'schedules'
-        ? <ReportSchedules backend={backend} />
-        : <RevenueReport backend={backend} currencyCode={currencyCode} />;
+      : current === 'gameplay'
+        ? <GameplayTimeReport backend={backend} />
+        : current === 'operatorActions'
+          ? <OperatorActionsReport backend={backend} />
+          : current === 'schedules'
+            ? <ReportSchedules backend={backend} />
+            : <RevenueReport backend={backend} currencyCode={currencyCode} />;
 
   return (
     <section className="reports-workspace">
