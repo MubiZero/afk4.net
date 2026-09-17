@@ -124,10 +124,14 @@ $safeVersion = $Version -replace '[^A-Za-z0-9_.-]', '_'
 $logPath = Join-Path $LogDirectory "$safeComponent-$safeVersion-install.log"
 $arguments = @('/i', $PackagePath, '/qn', '/norestart', '/l*v', $logPath)
 
+# msiexec: установка легла, но занятые процессами файлы Windows заменит только при перезагрузке.
+$rebootRequiredExitCode = 3010
+
 $process = Start-Process -FilePath $MsiexecPath -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
-if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
+if ($process.ExitCode -eq 0 -or $process.ExitCode -eq $rebootRequiredExitCode) {
     Start-AgentServiceAfterSelfUpdate -Name $AgentServiceName
-    exit 0
 }
 
+# Код возврата отдаётся агенту как есть. Раньше 3010 сводился к нулю, и платформа записывала
+# «обновлено» по всему парку, который до перезагрузки работал на старой сборке.
 exit $process.ExitCode

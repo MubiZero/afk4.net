@@ -1,4 +1,4 @@
-namespace AFK4.Shared.Contracts.Updates;
+﻿namespace AFK4.Shared.Contracts.Updates;
 
 public static class UpdateStatusNames
 {
@@ -13,6 +13,12 @@ public static class UpdateStatusNames
     public const string Installing = "installing";
 
     public const string Installed = "installed";
+
+    /// <summary>
+    /// Пакет лёг, но файлы, занятые работающими процессами, Windows заменит только после
+    /// перезагрузки машины: до неё устройство работает на прежней сборке.
+    /// </summary>
+    public const string PendingRestart = "pending-restart";
 
     public const string Superseded = "superseded";
 

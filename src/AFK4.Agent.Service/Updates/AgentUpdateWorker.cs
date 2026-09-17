@@ -74,10 +74,11 @@ public sealed class AgentUpdateWorker(
         {
             var result = await updateCoordinator.CheckAndApplyUpdatesAsync(cancellationToken);
             logger.LogInformation(
-                "Update check completed. Offered: {OfferedCount}, applied: {AppliedCount}, failed: {FailedCount}.",
+                "Update check completed. Offered: {OfferedCount}, applied: {AppliedCount}, failed: {FailedCount}, awaiting a Windows restart: {PendingRestartCount}.",
                 result.OfferedCount,
                 result.AppliedCount,
-                result.FailedCount);
+                result.FailedCount,
+                result.PendingRestartCount);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -26,6 +26,7 @@ public sealed class AgentUpdateCoordinator(
         var offeredCount = 0;
         var appliedCount = 0;
         var failedCount = 0;
+        var pendingRestartCount = 0;
         var installedVersionByComponent = installedComponents
             .GroupBy(component => component.Component, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Version, StringComparer.Ordinal);
@@ -112,6 +113,18 @@ public sealed class AgentUpdateCoordinator(
                     "Starting update installer.",
                     cancellationToken);
                 var installResult = await installer.InstallAsync(instruction, artifact, cancellationToken);
+                if (installResult.RestartPending)
+                {
+                    pendingRestartCount++;
+                    await ReportStatusAsync(
+                        instruction,
+                        installedVersion,
+                        UpdateStatusNames.PendingRestart,
+                        installResult.Message,
+                        cancellationToken);
+                    continue;
+                }
+
                 if (installResult.Succeeded)
                 {
                     appliedCount++;
@@ -160,7 +173,8 @@ public sealed class AgentUpdateCoordinator(
         return new AgentUpdateExecutionResult(
             offeredCount,
             appliedCount,
-            failedCount);
+            failedCount,
+            pendingRestartCount);
     }
 
     /// <summary>

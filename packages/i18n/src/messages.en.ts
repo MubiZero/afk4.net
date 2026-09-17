@@ -1850,6 +1850,7 @@ export const en = {
   "op.network.updates.status.installed": "Installed",
   "op.network.updates.status.installing": "Installing",
   "op.network.updates.status.offered": "Update available",
+  "op.network.updates.status.pendingRestart": "Installed, restart required",
   "op.network.updates.status.readyToInstall": "Ready to install",
   "op.network.updates.targetVersion": "Ready to install",
   "op.network.updates.window.from": "From",

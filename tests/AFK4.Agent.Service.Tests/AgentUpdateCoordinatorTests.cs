@@ -198,6 +198,33 @@ public sealed class AgentUpdateCoordinatorTests
     }
 
     [Fact]
+    public async Task CheckAndApplyUpdatesAsync_WhenWindowsNeedsARestart_ReportsItInsteadOfInstalled()
+    {
+        var instruction = CreateInstruction();
+        var updateClient = new RecordingAgentUpdateClient([instruction]);
+        var coordinator = new AgentUpdateCoordinator(
+            NullLogger<AgentUpdateCoordinator>.Instance,
+            updateClient,
+            new AgentComponentVersionProvider(Options.Create(CreateOptions())),
+            new RecordingUpdateArtifactDownloader(),
+            new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("verified")),
+            new RecordingUpdateInstaller(UpdateInstallResult.RestartRequired("reboot required")),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger(),
+            FreeSeatGuard());
+
+        var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.AppliedCount);
+        Assert.Equal(0, result.FailedCount);
+        Assert.Equal(1, result.PendingRestartCount);
+        var last = updateClient.ReportedStatuses[^1];
+        Assert.Equal(UpdateStatusNames.PendingRestart, last.Status);
+        // Устройство всё ещё на старой сборке — именно её и сообщаем.
+        Assert.Equal("1.2.2", last.InstalledVersion);
+    }
+
+    [Fact]
     public void AgentComponentVersionProvider_ReturnsAgentAndPlayerShellVersionsForGamingPcRole()
     {
         var provider = new AgentComponentVersionProvider(Options.Create(

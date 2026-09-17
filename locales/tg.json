@@ -1849,6 +1849,7 @@
   "op.network.updates.status.installed": "Насб шуд",
   "op.network.updates.status.installing": "Насб шуда истодааст",
   "op.network.updates.status.offered": "Навсозӣ дастрас аст",
+  "op.network.updates.status.pendingRestart": "Насб шуд, ПК бояд аз нав бор шавад",
   "op.network.updates.status.readyToInstall": "Барои насб тайёр",
   "op.network.updates.targetVersion": "Барои насб тайёр",
   "op.network.updates.window.from": "Аз",

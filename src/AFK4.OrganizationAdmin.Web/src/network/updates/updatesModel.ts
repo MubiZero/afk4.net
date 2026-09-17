@@ -40,6 +40,7 @@ const STATUS_LABELS: Record<string, MessageKey> = {
   'awaiting-app-exit': 'op.network.updates.status.awaitingAppExit',
   installing: 'op.network.updates.status.installing',
   installed: 'op.network.updates.status.installed',
+  'pending-restart': 'op.network.updates.status.pendingRestart',
   failed: 'op.network.updates.status.failed'
 };
 

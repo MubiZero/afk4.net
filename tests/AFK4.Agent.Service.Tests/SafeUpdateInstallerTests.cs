@@ -173,6 +173,56 @@ public sealed class SafeUpdateInstallerTests
         Assert.Empty(launcher.Scheduled);
     }
 
+    // msiexec вернул 3010: пакет лёг, но занятые файлы Windows заменит только при перезагрузке.
+    // Называть это «установлено» — врать платформе о версии, на которой работает парк.
+    [Fact]
+    public async Task InstallAsync_WhenWindowsNeedsARestart_DoesNotClaimTheNewVersionIsRunning()
+    {
+        var instruction = CreateInstruction(UpdateComponentNames.AgentService);
+        var store = new RecordingUpdateInstallStateStore();
+        var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rolled back"));
+        var restart = new RecordingRestartScheduler(UpdateRestartResult.Scheduled("restart scheduled"));
+        var installer = new SafeUpdateInstaller(
+            store,
+            new RecordingInstallExecutor(UpdateInstallResult.RestartRequired("reboot required")),
+            rollback,
+            restart,
+            Options.Create(new AgentOptions { AgentVersion = "1.2.2" }),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T17:00:00Z")));
+
+        var result = await installer.InstallAsync(instruction, CreateArtifact(instruction), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.RestartPending);
+        Assert.Equal(UpdateStatusNames.PendingRestart, store.States[^1].Status);
+        Assert.Equal("1.2.2", store.States[^1].InstalledVersion);
+        // Откатывать нечего, перезапускать службу незачем, и запоминать пакет «хорошим» рано:
+        // он ещё ни разу не запускался.
+        Assert.Empty(rollback.RolledBackPlans);
+        Assert.Empty(restart.ScheduledInstructions);
+        Assert.Null(store.LastKnownGood);
+    }
+
+    // Кассира ради установки выгнали из приложения — вернуть его на экран нужно и в этом случае.
+    [Fact]
+    public async Task InstallAsync_WhenWindowsNeedsARestart_StillBringsTheClubApplicationBack()
+    {
+        var instruction = CreateInstruction(UpdateComponentNames.OrganizationAdmin);
+        var launcher = new RecordingOrganizationAdminProcessLauncher();
+        var installer = new SafeUpdateInstaller(
+            new RecordingUpdateInstallStateStore(),
+            new RecordingInstallExecutor(UpdateInstallResult.RestartRequired("reboot required")),
+            new RecordingRollbackExecutor(UpdateRollbackResult.Success("rolled back")),
+            new RecordingRestartScheduler(UpdateRestartResult.Scheduled("restart scheduled")),
+            Options.Create(new AgentOptions()),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T17:00:00Z")),
+            launcher);
+
+        await installer.InstallAsync(instruction, CreateArtifact(instruction), CancellationToken.None);
+
+        Assert.Equal(instruction, Assert.Single(launcher.Scheduled));
+    }
+
     private static ComponentUpdateInstructionDto CreateInstruction(string component)
     {
         return new ComponentUpdateInstructionDto(
