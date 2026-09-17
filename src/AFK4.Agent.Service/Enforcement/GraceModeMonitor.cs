@@ -1,4 +1,6 @@
-﻿namespace AFK4.Agent.Service.Enforcement;
+﻿using AFK4.Shared.Contracts.Shell;
+
+namespace AFK4.Agent.Service.Enforcement;
 
 public interface IGraceModeMonitor
 {
@@ -33,6 +35,7 @@ public sealed class GraceModeMonitor(
         // last lease refresh). The lease is retained so a reconnect can refresh or reconcile it.
         if (offlineLeaseExtender.ShouldExtend(lease, now))
         {
+            EnterGraceMode(lease.SessionId, lease.ExpiresAtUtc, now);
             logger.LogInformation(
                 "Session lease {SessionId} lapsed at {ExpiresAtUtc} but is within the offline grace window. Keeping the workstation unlocked.",
                 lease.SessionId,
@@ -62,6 +65,22 @@ public sealed class GraceModeMonitor(
     /// Внутри льготного окна (его время теперь тоже переживает перезапуск) машина остаётся
     /// открытой: гость заплатил, а сеть пропала не по его вине.
     /// </summary>
+    /// <summary>
+    /// Сказать оболочке, что связь потеряна, а сессия продолжается по подписанной аренде. Пишем
+    /// только на переходе: монитор проходит каждое сердцебиение, а состояние живёт файлом.
+    /// </summary>
+    private void EnterGraceMode(Guid sessionId, DateTimeOffset leaseExpiresAtUtc, DateTimeOffset now)
+    {
+        var state = runtimeStateStore.Current;
+        if (string.Equals(state.State, PlayerShellStateNames.Grace, StringComparison.Ordinal) &&
+            state.ActiveSessionId == sessionId)
+        {
+            return;
+        }
+
+        runtimeStateStore.Save(AgentRuntimeState.Grace(sessionId, leaseExpiresAtUtc, now));
+    }
+
     private async Task LockAfterRestartIfLeaseLapsedAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var state = runtimeStateStore.Current;
@@ -70,8 +89,14 @@ public sealed class GraceModeMonitor(
             return;
         }
 
-        if (expiresAtUtc > now || offlineLeaseExtender.WithinGraceWindow(now))
+        if (expiresAtUtc > now)
         {
+            return;
+        }
+
+        if (offlineLeaseExtender.WithinGraceWindow(now, expiresAtUtc))
+        {
+            EnterGraceMode(state.ActiveSessionId.Value, expiresAtUtc, now);
             return;
         }
 

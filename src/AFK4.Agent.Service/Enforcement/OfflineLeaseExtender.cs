@@ -14,10 +14,11 @@ public interface IOfflineLeaseExtender
     bool ShouldExtend(SessionLeaseDto lease, DateTimeOffset nowUtc);
 
     /// <summary>
-    /// Идёт ли ещё льготное окно. Отдельно от <see cref="ShouldExtend"/>: после перезапуска
-    /// подписанной аренды на руках уже нет, а ответить на этот вопрос всё равно надо.
+    /// Идёт ли ещё льготное окно для аренды с таким сроком. Отдельно от <see cref="ShouldExtend"/>:
+    /// после перезапуска подписанной аренды на руках уже нет, а ответить на этот вопрос всё
+    /// равно надо — срок известен из сохранённого состояния.
     /// </summary>
-    bool WithinGraceWindow(DateTimeOffset nowUtc);
+    bool WithinGraceWindow(DateTimeOffset nowUtc, DateTimeOffset leaseExpiresAtUtc);
 }
 
 public sealed class OfflineLeaseExtender(IOfflineGraceState graceState) : IOfflineLeaseExtender
@@ -29,13 +30,23 @@ public sealed class OfflineLeaseExtender(IOfflineGraceState graceState) : IOffli
             return false;
         }
 
-        return WithinGraceWindow(nowUtc);
+        return WithinGraceWindow(nowUtc, lease.ExpiresAtUtc);
     }
 
-    public bool WithinGraceWindow(DateTimeOffset nowUtc)
+    public bool WithinGraceWindow(DateTimeOffset nowUtc, DateTimeOffset leaseExpiresAtUtc)
     {
         var lastContact = graceState.LastSuccessfulContactUtc;
         if (lastContact is null)
+        {
+            return false;
+        }
+
+        // Льгота — это про обрыв связи, а не про любую истёкшую аренду. Если агент разговаривал
+        // с платформой уже после того, как аренда кончилась, и новой она не прислала, значит
+        // сессия правда закончилась: держать машину открытой больше не за что. Без этой проверки
+        // на живой связи «последний контакт» обновлялся каждым сердцебиением, окно не кончалось
+        // никогда, и запасной запрет по сроку аренды не срабатывал вовсе.
+        if (lastContact.Value >= leaseExpiresAtUtc)
         {
             return false;
         }
