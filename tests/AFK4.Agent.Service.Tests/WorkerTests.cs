@@ -377,6 +377,71 @@ public sealed class WorkerTests
         Assert.Equal(command.CommandId, queued.CommandId);
     }
 
+    // Ответ, который платформа не примет никогда, запирал за собой всю очередь: она идёт по
+    // порядку и дальше первого непринятого не продвигается. Такой ответ выбрасываем со следом в
+    // журнале, остальные уходят.
+    [Fact]
+    public async Task ExecuteAsync_WhenThePlatformRefusesACommandResult_DropsItSoTheQueueKeepsMoving()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+        var command = new DeviceCommandDto(
+            Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            "lock",
+            DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            new Dictionary<string, string>());
+        using var handler = new RefusingCommandResultHandler(command);
+        var commandResultOutbox = new InMemoryCommandResultOutbox();
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(handler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new RecordingDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            commandResultOutbox,
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellWarningStore(),
+            TimeProvider.System);
+
+        await worker.StartAsync(stopping.Token);
+        // Сначала дожидаемся, что платформа ответ и правда отвергла: пустая очередь до этого
+        // момента — это просто состояние «работник ещё не начал».
+        await WaitUntilAsync(() => handler.RefusedCount > 0 && commandResultOutbox.Pending.Count == 0, WorkerObservationTimeout);
+        stopping.Cancel();
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Empty(commandResultOutbox.Pending);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (!condition() && DateTimeOffset.UtcNow < deadline)
+        {
+            await Task.Delay(25);
+        }
+
+        Assert.True(condition(), "Условие так и не выполнилось за отведённое время.");
+    }
+
     [Fact]
     public async Task ExecuteAsync_RetriesHeartbeatWithoutStoppingWhenPlatformIsUnavailable()
     {
@@ -883,6 +948,37 @@ public sealed class WorkerTests
             resultAttempted.TrySetResult();
             stopping.Cancel();
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        }
+    }
+
+    /// <summary>
+    /// Платформа отвергает ответ навсегда и работу при этом не обрывает: отмена посреди ответа
+    /// досталась бы SendAsync, и очередь не успела бы с ним разобраться.
+    /// </summary>
+    private sealed class RefusingCommandResultHandler(DeviceCommandDto command) : HttpMessageHandler
+    {
+        public int RefusedCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.RequestUri?.PathAndQuery.EndsWith("/heartbeat", StringComparison.Ordinal) == true)
+            {
+                var response = new DeviceHeartbeatResponse(
+                    ServerTimeUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                    HeartbeatIntervalSeconds: 3600,
+                    Commands: [command]);
+
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(response)
+                });
+            }
+
+            RefusedCount++;
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
         }
     }
 

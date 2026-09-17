@@ -1299,6 +1299,7 @@
   "op.helper.cmdMsg.notConfirmedLock": "Agent did not confirm the lock.",
   "op.helper.cmdMsg.queued": "Queued for the agent",
   "op.helper.cmdOutcome.accepted": "Command accepted",
+  "op.helper.cmdOutcome.commandExecutionFailed": "The command could not be carried out on the PC",
   "op.helper.cmdOutcome.commandNotImplemented": "The agent cannot perform this command",
   "op.helper.cmdOutcome.leaseAccepted": "PC opened for the session",
   "op.helper.cmdOutcome.leaseInvalid": "The session grant did not pass validation",

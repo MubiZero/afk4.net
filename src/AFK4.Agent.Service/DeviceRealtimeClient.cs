@@ -1,4 +1,4 @@
-using AFK4.Shared.Contracts.Devices;
+﻿using AFK4.Shared.Contracts.Devices;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Options;
 
@@ -112,7 +112,22 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         var result = await commandHandler.HandleAsync(command, CancellationToken.None);
         commandResultOutbox?.Enqueue(result);
 
-        await connection.InvokeAsync(DeviceRealtimeMethods.ReportCommandResultAsync, result);
+        try
+        {
+            await connection.InvokeAsync(DeviceRealtimeMethods.ReportCommandResultAsync, result);
+        }
+        catch (Exception exception)
+        {
+            // Ответ уже в очереди — его до-отправит сердцебиение. А вот исключение отсюда уходило
+            // внутрь SignalR и не попадало никуда: в журнале машины про эту команду не было ни
+            // строчки, и разбираться было не с чем.
+            logger.LogWarning(
+                exception,
+                "Command {CommandId} result could not be reported over the realtime channel. It stays queued for the heartbeat.",
+                command.CommandId);
+            return;
+        }
+
         commandResultOutbox?.Acknowledge(result.CommandId);
 
         logger.LogInformation(

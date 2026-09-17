@@ -99,6 +99,25 @@ public sealed class FileCommandResultOutboxTests
         Assert.Empty(outbox.Pending);
     }
 
+    // Очередь копится, только пока платформа недоступна. Если доставка сломана надолго, файл на
+    // игровом ПК не должен расти без конца — выбрасываем самые старые, а не отказываемся
+    // принимать новые: свежий ответ полезнее недельной давности.
+    [Fact]
+    public void Enqueue_BeyondTheLimit_KeepsTheNewestResultsAndDropsTheOldest()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var outbox = new FileCommandResultOutbox(directory.Path);
+
+        for (var index = 0; index < FileCommandResultOutbox.MaxPending + 10; index++)
+        {
+            outbox.Enqueue(CreateResult(Guid.NewGuid()));
+        }
+
+        var pending = outbox.Pending;
+        Assert.Equal(FileCommandResultOutbox.MaxPending, pending.Count);
+        Assert.Equal(pending.Count, new FileCommandResultOutbox(directory.Path).Pending.Count);
+    }
+
     private static DeviceCommandResultDto CreateResult(Guid commandId, string status = "Completed")
     {
         return new DeviceCommandResultDto(

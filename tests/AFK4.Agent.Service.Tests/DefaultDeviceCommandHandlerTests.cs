@@ -1,4 +1,4 @@
-using AFK4.Agent.Service;
+﻿using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
@@ -120,6 +120,42 @@ public sealed class DefaultDeviceCommandHandlerTests
         Assert.Equal("Rejected", result.Status);
         Assert.Contains("moon-phase", result.Message, StringComparison.Ordinal);
         Assert.Null(warnings.Current);
+    }
+
+    // Исполнение ходит в файлы состояния и в реестр — и то и другое может отказать. Раньше такое
+    // исключение уходило наружу: платформа ответа не получала, а оператор видел команду вечно «в
+    // пути».
+    [Fact]
+    public async Task HandleAsync_WhenTheMachineRefusesTheWork_AnswersWithAFailureInsteadOfThrowing()
+    {
+        var handler = new DefaultDeviceCommandHandler(
+            Options.Create(new AgentOptions
+            {
+                OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+                BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+                DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f")
+            }),
+            new BrokenSessionEnforcementCoordinator(),
+            new ShellWarningStore(),
+            NullLogger<DefaultDeviceCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(CreateCommand("lock", reason: "operator-request"), CancellationToken.None);
+
+        Assert.Equal("Failed", result.Status);
+        Assert.Equal(DeviceCommandOutcomeNames.CommandExecutionFailed, result.Outcome);
+        Assert.Contains("state file is read-only", result.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class BrokenSessionEnforcementCoordinator : ISessionEnforcementCoordinator
+    {
+        public Task<SessionEnforcementResult> UnlockAsync(SessionLeaseDto lease, CancellationToken cancellationToken) =>
+            throw new IOException("state file is read-only");
+
+        public Task<SessionEnforcementResult> RefreshLeaseAsync(SessionLeaseDto lease, CancellationToken cancellationToken) =>
+            throw new IOException("state file is read-only");
+
+        public Task<SessionEnforcementResult> LockAsync(Guid? sessionId, CancellationToken cancellationToken) =>
+            throw new IOException("state file is read-only");
     }
 
     private static DefaultDeviceCommandHandler CreateHandler(out ShellWarningStore warnings)

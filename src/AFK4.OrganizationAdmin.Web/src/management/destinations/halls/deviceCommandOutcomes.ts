@@ -12,6 +12,7 @@ const OUTCOME_LABELS: Record<string, MessageKey> = {
   'warning-shown': 'op.helper.cmdOutcome.warningShown',
   'warning-reason-unknown': 'op.helper.cmdOutcome.warningReasonUnknown',
   'command-not-implemented': 'op.helper.cmdOutcome.commandNotImplemented',
+  'command-execution-failed': 'op.helper.cmdOutcome.commandExecutionFailed',
   'lease-missing': 'op.helper.cmdOutcome.leaseMissing',
   'lease-unreadable': 'op.helper.cmdOutcome.leaseUnreadable',
   'lease-invalid': 'op.helper.cmdOutcome.leaseInvalid'

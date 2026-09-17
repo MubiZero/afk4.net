@@ -1299,6 +1299,7 @@
   "op.helper.cmdMsg.notConfirmedLock": "Агент не подтвердил блокировку.",
   "op.helper.cmdMsg.queued": "Поставлено в очередь агента",
   "op.helper.cmdOutcome.accepted": "Команда принята",
+  "op.helper.cmdOutcome.commandExecutionFailed": "Команду не удалось выполнить на самом ПК",
   "op.helper.cmdOutcome.commandNotImplemented": "Агент не умеет выполнять такую команду",
   "op.helper.cmdOutcome.leaseAccepted": "ПК открыт для сессии",
   "op.helper.cmdOutcome.leaseInvalid": "Право на сессию не прошло проверку",
