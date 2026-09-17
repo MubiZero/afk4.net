@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service;
@@ -16,7 +16,10 @@ public interface IDeviceCredentialStore
     /// <summary>Действующий ключ: сменённый, если он есть, иначе тот, что положил установщик.</summary>
     string Current { get; }
 
-    /// <summary>Запомнить новый ключ. Пишется атомарно: оборванная запись не оставит половину.</summary>
+    /// <summary>
+    /// Запомнить новый ключ. Пишется атомарно (оборванная запись не оставит половину) и сразу с
+    /// суженными правами: гость за этим ПК читать ключ не должен.
+    /// </summary>
     void Update(string credentialSecret);
 }
 
@@ -81,11 +84,18 @@ public sealed class FileDeviceCredentialStore : IDeviceCredentialStore
             var stored = JsonSerializer.Deserialize<StoredCredential>(stream, JsonOptions);
             return string.IsNullOrWhiteSpace(stored?.CredentialSecret) ? null : stored!.CredentialSecret;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        catch (JsonException)
         {
             // Битый файл — не повод остаться без входа: откатываемся на ключ из конфига, а
             // испорченный файл убираем, чтобы он не мешал следующей смене.
             TryDelete(credentialFilePath);
+            return null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Файл цел, но прочитать его сейчас нельзя. Удалять нельзя тем более: в нём
+            // единственный действующий ключ, а в конфиге лежит уже отозванный. Работаем на
+            // конфиге и даём шанс следующему запуску.
             return null;
         }
     }
@@ -101,7 +111,11 @@ public sealed class FileDeviceCredentialStore : IDeviceCredentialStore
                 JsonSerializer.Serialize(stream, new StoredCredential(credentialSecret), JsonOptions);
             }
 
-            File.Copy(tempPath, credentialFilePath, overwrite: true);
+            // Права сужаем на временном файле, до того как он станет боевым: иначе между
+            // появлением файла и сужением прав есть окно, в котором ключ читает кто угодно.
+            // Переименование права сохраняет.
+            DeviceSecretFile.RestrictAccess(tempPath);
+            File.Move(tempPath, credentialFilePath, overwrite: true);
         }
         finally
         {

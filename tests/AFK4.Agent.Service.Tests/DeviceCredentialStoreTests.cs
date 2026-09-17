@@ -1,4 +1,4 @@
-namespace AFK4.Agent.Service.Tests;
+﻿namespace AFK4.Agent.Service.Tests;
 
 /// <summary>
 /// Хранилище ключа этой машины: файл рядом с остальным состоянием агента.
@@ -51,6 +51,45 @@ public sealed class DeviceCredentialStoreTests
         {
             Directory.Delete(stateDirectory, recursive: true);
         }
+    }
+
+    // Ключ устройства — право говорить от имени этого ПК. За игровым ПК сидит гость под обычной
+    // учётной записью: файл с унаследованными правами он читает вместе со всей папкой.
+    [WindowsOnlyFact]
+    public void RotatedSecret_IsNotReadableThroughInheritedPermissions()
+    {
+        var stateDirectory = Path.Combine(Path.GetTempPath(), "afk4-credential-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(stateDirectory);
+        try
+        {
+            new FileDeviceCredentialStore(stateDirectory, "provisioned").Update("rotated");
+
+            var permissions = ReadPermissions(Path.Combine(stateDirectory, FileDeviceCredentialStore.CredentialFileName));
+
+            // «(I)» отмечает унаследованное право. Имена учётных записей на разных языках Windows
+            // пишутся по-разному, а эта пометка — нет.
+            Assert.DoesNotContain("(I)", permissions, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(stateDirectory, recursive: true);
+        }
+    }
+
+    private static string ReadPermissions(string path)
+    {
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, "icacls.exe"),
+            ArgumentList = { path },
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true
+        })!;
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit(5000);
+
+        return output;
     }
 
     [Fact]
