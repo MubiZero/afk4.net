@@ -12,6 +12,22 @@ import { WorkingHoursEditor } from './WorkingHoursEditor';
 // plain string, and the existing MediaUpload.test.tsx already uses this same literal.
 const BRANCH_LOGO_PURPOSE = 'branch-logo';
 const BRANCH_COVER_PURPOSE = 'branch-cover';
+const ORGANIZATION_LOGO_PURPOSE = 'organization-logo';
+
+// Та же палитра, что в мастере установки: цвет выбирают один раз при установке, а меняют — здесь,
+// и два разных набора образцов означали бы, что выбранное при установке тут не найти.
+const BRAND_COLORS = ['#C8FF00', '#FF3B30', '#FF9F0A', '#30D158', '#0A84FF', '#BF5AF2', '#FF375F', '#64D2FF'];
+
+const BRAND_COLOR_LABEL_KEYS: Record<string, MessageKey> = {
+  '#C8FF00': 'setup.wizard.branding.color.lime',
+  '#FF3B30': 'setup.wizard.branding.color.red',
+  '#FF9F0A': 'setup.wizard.branding.color.orange',
+  '#30D158': 'setup.wizard.branding.color.green',
+  '#0A84FF': 'setup.wizard.branding.color.blue',
+  '#BF5AF2': 'setup.wizard.branding.color.purple',
+  '#FF375F': 'setup.wizard.branding.color.pink',
+  '#64D2FF': 'setup.wizard.branding.color.sky'
+};
 
 export interface ClubProfileForm {
   name: string;
@@ -36,6 +52,16 @@ export interface ClubProfileForm {
   workingHours: BranchWorkingHoursDay[];
 }
 
+/**
+ * Оформление сети — отдельная запись, а не поле филиала: логотип и цвет принадлежат организации,
+ * их видят гости в приложении и на экранах игровых ПК. Задавал их только мастер установки —
+ * промахнулся с цветом при установке, и поменять было негде.
+ */
+export interface ClubBrandForm {
+  logoUrl: string | null;
+  accentColor: string | null;
+}
+
 const TIME_ZONES = ['Asia/Dushanbe', 'Asia/Tashkent', 'Asia/Almaty', 'Asia/Bishkek', 'Europe/Moscow', 'Asia/Yekaterinburg'];
 const LOCALES: Array<{ value: string; key: MessageKey }> = [
   { value: 'ru', key: 'op.club.locale.ru' },
@@ -45,10 +71,12 @@ const LOCALES: Array<{ value: string; key: MessageKey }> = [
 
 interface ClubProfileFieldsProps {
   form: ClubProfileForm;
+  brand: ClubBrandForm;
   currencyCode: string;
   backend: OperatorBackendContext;
   disabled?: boolean;
   onField: <K extends keyof ClubProfileForm>(key: K, value: ClubProfileForm[K]) => void;
+  onBrandField: <K extends keyof ClubBrandForm>(key: K, value: ClubBrandForm[K]) => void;
   // «Как видит игрок» кладём между панелями — грид (club-profile-layout) сам ставит его в правый
   // верхний угол, поэтому порядок в DOM не важен.
   preview: ReactNode;
@@ -57,7 +85,7 @@ interface ClubProfileFieldsProps {
 // Две панели одинаковой сетки полей (единая ширина колонок = консистентность):
 //  1. «Профиль» — лицо игрока + контакты (рядом превью).
 //  2. «Часы и настройки» — 7-дневный график + пояс/язык/валюта (во всю ширину под превью).
-export function ClubProfileFields({ form, currencyCode, backend, disabled, onField, preview }: ClubProfileFieldsProps) {
+export function ClubProfileFields({ form, brand, currencyCode, backend, disabled, onField, onBrandField, preview }: ClubProfileFieldsProps) {
   const { t } = useI18n();
 
   return (
@@ -156,6 +184,42 @@ export function ClubProfileFields({ form, currencyCode, backend, disabled, onFie
             </label>
           </div>
           <p className="club-field-hint">{t('op.club.hint.coords')}</p>
+
+          {/* Бренд сети, а не зала: логотип и цвет уезжают в приложение гостя и на экраны игровых
+              ПК. До сих пор их ставил только мастер установки — промахнулся с цветом при
+              установке, и поменять было негде. */}
+          <div className="mgmt-section-title"><span>{t('op.club.section.brand')}</span></div>
+          <div className="club-field-grid">
+            <label className="club-logo-field">{t('op.club.field.brandLogo')}
+              <MediaUpload
+                value={brand.logoUrl}
+                purpose={ORGANIZATION_LOGO_PURPOSE}
+                branchId={backend.branchId}
+                backend={backend}
+                disabled={disabled}
+                onChange={(media) => onBrandField('logoUrl', media?.url ?? null)}
+              />
+            </label>
+            <div className="club-brand-colors">
+              <span className="club-brand-colors-label">{t('op.club.field.brandColor')}</span>
+              <div role="radiogroup" aria-label={t('op.club.field.brandColor')} className="club-brand-swatches">
+                {BRAND_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    role="radio"
+                    aria-checked={brand.accentColor === color}
+                    aria-label={t(BRAND_COLOR_LABEL_KEYS[color] ?? 'op.club.field.brandColor')}
+                    className={brand.accentColor === color ? 'club-brand-swatch is-selected' : 'club-brand-swatch'}
+                    style={{ background: color }}
+                    disabled={disabled}
+                    onClick={() => onBrandField('accentColor', color)}
+                  />
+                ))}
+              </div>
+              <span className="club-field-hint">{t('op.club.hint.brand')}</span>
+            </div>
+          </div>
         </div>
       </section>
 

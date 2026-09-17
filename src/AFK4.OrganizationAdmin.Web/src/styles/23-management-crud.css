@@ -121,6 +121,16 @@
 
 .club-logo-field { display: flex; flex-direction: column; gap: 8px; }
 
+/* Оформление сети: образцы цвета. Кружки, а не список кодов — цвет выбирают глазами, а
+   код «#30D158» ничего не говорит ни зрячему, ни диктору (имя цвета лежит в aria-label). */
+.club-brand-colors { display: flex; flex-direction: column; gap: 8px; }
+.club-brand-colors-label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.club-brand-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.club-brand-swatch { width: 32px; height: 32px; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
+.club-brand-swatch.is-selected { border-color: var(--text-primary); box-shadow: 0 0 0 2px var(--surface-panel) inset; }
+.club-brand-swatch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.club-brand-swatch:disabled { cursor: not-allowed; opacity: .5; }
+
 /* Часы работы: компактные строки дней (тумблер работает/выходной, название, диапазон).
    Закрытый день сворачивается в лёгкую строку «Выходной» без полей. */
 .club-hours-grid {

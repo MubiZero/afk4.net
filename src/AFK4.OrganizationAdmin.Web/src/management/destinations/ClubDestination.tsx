@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../ManagementScreen';
-import { ClubProfileFields, type ClubProfileForm } from '../../settings/club/ClubProfileFields';
+import { ClubProfileFields, type ClubBrandForm, type ClubProfileForm } from '../../settings/club/ClubProfileFields';
 import { ClubPlayerPreview } from '../../settings/club/ClubPlayerPreview';
 import { normalizeWorkingHours } from '../../settings/club/workingHours';
 import { mapProfileToForm, buildUpdateBranchProfileRequest } from '../../settings/club/branchProfileRequest';
@@ -22,6 +22,8 @@ const emptyForm: ClubProfileForm = {
   timeZone: 'Asia/Dushanbe', locale: 'ru', workingHours: normalizeWorkingHours(null)
 };
 
+const emptyBrand: ClubBrandForm = { logoUrl: null, accentColor: null };
+
 // Клуб: полный профиль филиала (лицо игрока + контакты + часы + настройки). Название — человекочитаемое,
 // НИКОГДА не UUID. Гейт раздела — manageBranchSettings (managementNav); эндпоинт profile — то же право.
 export function ClubDestination({ backend, currencyCode, onDirtyChange }: DestinationProps) {
@@ -29,6 +31,8 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
   const [form, setForm] = useState<ClubProfileForm>(emptyForm);
   // Снимок последнего загруженного/сохранённого профиля — база для «Отменить».
   const [baseline, setBaseline] = useState<ClubProfileForm>(emptyForm);
+  const [brand, setBrand] = useState<ClubBrandForm>(emptyBrand);
+  const [brandBaseline, setBrandBaseline] = useState<ClubBrandForm>(emptyBrand);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -39,12 +43,21 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
     if (backend === null) return undefined;
     let active = true;
     const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    clients.settings.getBranchProfile(backend.branchId)
-      .then((profile) => {
+    // Профиль филиала и оформление сети приходят разными запросами, но на экране это одна
+    // страница клуба: показывать её без бренда значило бы открыть форму пустой и затереть
+    // выбранное в мастере установки.
+    Promise.all([
+      clients.settings.getBranchProfile(backend.branchId),
+      clients.branding.getBranding()
+    ])
+      .then(([profile, branding]) => {
         if (!active) return;
         const mapped = mapProfileToForm(profile);
+        const loadedBrand: ClubBrandForm = { logoUrl: branding.logoUrl, accentColor: branding.accentColor };
         setForm(mapped);
         setBaseline(mapped);
+        setBrand(loadedBrand);
+        setBrandBaseline(loadedBrand);
         setDirty(false);
       })
       .catch((error) => {
@@ -62,6 +75,12 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
     setSaved(false);
   };
 
+  const onBrandField = <K extends keyof ClubBrandForm>(key: K, value: ClubBrandForm[K]) => {
+    setBrand((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
+    setSaved(false);
+  };
+
   const save = async () => {
     if (backend === null) return;
     if (!form.name.trim() || !form.city.trim()) {
@@ -74,9 +93,18 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
       const request = buildUpdateBranchProfileRequest(backend.session.organizationId, form);
       const profile: BranchProfileDto = await clients.settings.updateBranchProfile(backend.branchId, request);
+      // Оформление сети трогаем, только если его меняли: лишний PATCH писал бы в журнал клуба
+      // событие про бренд каждый раз, когда правят телефон филиала.
+      const brandChanged = brand.logoUrl !== brandBaseline.logoUrl || brand.accentColor !== brandBaseline.accentColor;
+      const savedBrand = brandChanged ? await clients.branding.updateBranding(brand) : null;
+      const nextBrand: ClubBrandForm = savedBrand === null
+        ? brand
+        : { logoUrl: savedBrand.logoUrl, accentColor: savedBrand.accentColor };
       const mapped = mapProfileToForm(profile);
       setForm(mapped);
       setBaseline(mapped);
+      setBrand(nextBrand);
+      setBrandBaseline(nextBrand);
       setDirty(false);
       setSaved(true);
       setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'confirmed' });
@@ -89,6 +117,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
 
   const discard = () => {
     setForm(baseline);
+    setBrand(brandBaseline);
     setDirty(false);
     setSaved(false);
     setFeedback(emptyFeedback);
@@ -107,10 +136,12 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
         {backend !== null && (
           <ClubProfileFields
             form={form}
+            brand={brand}
             currencyCode={currencyCode}
             backend={backend}
             disabled={saving}
             onField={onField}
+            onBrandField={onBrandField}
             preview={<ClubPlayerPreview form={form} />}
           />
         )}

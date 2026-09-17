@@ -4,6 +4,7 @@
 export * from './api/types';
 export * from './api/clients';
 export * from './api/clients/floorMap';
+export * from './api/clients/branding';
 export * from './api/clients/sessions';
 export * from './api/clients/pos';
 export * from './api/clients/players';

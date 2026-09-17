@@ -27,13 +27,16 @@ const form: ClubProfileForm = {
   workingHours: defaultWorkingHours()
 };
 
+const brand = { logoUrl: null, accentColor: null };
+const onBrandField = () => {};
+
 afterEach(cleanup);
 
 describe('ClubProfileFields', () => {
   it('renders name value and section titles', () => {
     render(
       <I18nProvider initialLocale="ru">
-        <ClubProfileFields form={form} currencyCode="TJS" backend={backend} onField={() => {}} preview={null} />
+        <ClubProfileFields form={form} brand={brand} onBrandField={onBrandField} currencyCode="TJS" backend={backend} onField={() => {}} preview={null} />
       </I18nProvider>
     );
     expect(screen.getByDisplayValue('AFK4 Центр')).toBeInTheDocument();
@@ -45,7 +48,7 @@ describe('ClubProfileFields', () => {
     const onField = mock((_k: unknown, _v: unknown) => {});
     render(
       <I18nProvider initialLocale="ru">
-        <ClubProfileFields form={form} currencyCode="TJS" backend={backend} onField={onField} preview={null} />
+        <ClubProfileFields form={form} brand={brand} onBrandField={onBrandField} currencyCode="TJS" backend={backend} onField={onField} preview={null} />
       </I18nProvider>
     );
     fireEvent.change(screen.getByDisplayValue('AFK4 Центр'), { target: { value: 'AFK4 X' } });
@@ -58,7 +61,7 @@ describe('ClubProfileFields', () => {
     const onField = mock((_k: unknown, _v: unknown) => {});
     render(
       <I18nProvider initialLocale="ru">
-        <ClubProfileFields form={form} currencyCode="TJS" backend={backend} onField={onField} preview={null} />
+        <ClubProfileFields form={form} brand={brand} onBrandField={onBrandField} currencyCode="TJS" backend={backend} onField={onField} preview={null} />
       </I18nProvider>
     );
 
