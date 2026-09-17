@@ -40,6 +40,7 @@ export function HallsDevicesDestination({
   const canManageLayout = hasPermission(session, permissionNames.manageLayout);
   const canAssignDeviceSeat = hasPermission(session, permissionNames.assignDeviceSeat);
   const canViewDeviceDetail = hasPermission(session, permissionNames.viewDeviceDetail);
+  const canViewDeviceCommands = hasPermission(session, permissionNames.viewDeviceCommandStatus);
   const canRotateDeviceCredential = hasPermission(session, permissionNames.rotateDeviceCredential);
   const canRevokeDeviceCredential = hasPermission(session, permissionNames.revokeDeviceCredential);
   const canManageBranchSettings = hasPermission(session, permissionNames.manageBranchSettings);
@@ -96,6 +97,7 @@ export function HallsDevicesDestination({
           backend={backend}
           canAssignDeviceSeat={canAssignDeviceSeat}
           canViewDeviceDetail={canViewDeviceDetail}
+          canViewDeviceCommands={canViewDeviceCommands}
           canRotateDeviceCredential={canRotateDeviceCredential}
           canRevokeDeviceCredential={canRevokeDeviceCredential}
           canManageBranchSettings={canManageBranchSettings}

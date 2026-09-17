@@ -2278,6 +2278,8 @@ export const en = {
   "op.settings.action.updateStaffProfile": "Update staff profile",
   "op.settings.action.updateTariff": "Update tariff",
   "op.settings.action.updateZone": "Update zone",
+  "op.settings.devices.commands.empty": "Nothing has been sent to this PC yet.",
+  "op.settings.devices.commands.title": "Command history",
   "op.settings.devices.confirmRevokeKey.confirm": "Revoke key",
   "op.settings.devices.confirmRevokeKey.detail": "{deviceName} · new device key",
   "op.settings.devices.confirmRevokeKey.impact": "After revocation this key can no longer be used to connect the selected PC.",

@@ -228,3 +228,28 @@
     transition-duration: 1ms !important;
   }
 }
+
+/* Журнал команд ПК: что этому месту отправляли раньше и чем каждая попытка кончилась.
+   Одна строка — одна команда: тип, состояние, время и, если сервер что-то пояснил, пояснение. */
+.settings-device-commands {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0 12px;
+  list-style: none;
+}
+
+.settings-device-commands li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+}
+
+.settings-device-commands b { color: var(--text-strong); font-size: 12px; font-weight: 500; }
+.settings-device-commands small { color: var(--text-tertiary); font-size: 11px; }
+.settings-device-commands em { grid-column: 1 / -1; color: var(--text-tertiary); font-size: 11px; font-style: normal; }
