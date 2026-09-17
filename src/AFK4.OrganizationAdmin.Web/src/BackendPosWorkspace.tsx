@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Minus, Plus, Search, UserRoundPlus, X } from 'lucide-react';
-import { useI18n } from '@afk4/i18n';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { knownErrorMessage, projectOperatorError } from './apiErrors';
 import type {
   PaymentPartDto,
@@ -359,12 +359,20 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         }
       : player));
   };
-  const canAcceptPayment = backend !== null
-    && shiftId.length > 0
-    && cartItems.length > 0
-    && cartItems.every((item) => Boolean(item.productId) && item.source === 'backend')
-    && hasPermission(backend.session, permissionNames.createPosSale)
-    && hasPermission(backend.session, permissionNames.payPosSale);
+  // Почему оплата недоступна — четыре разные причины, и чинятся они по-разному: позвать
+  // старшего, открыть смену, дождаться каталога. Раньше всё это было одним серым прямоугольником
+  // без объяснения, и кассир под очередью гадал.
+  const paymentBlockedKey: MessageKey | null = backend === null
+    ? 'op.pos.error.catalogNotLoaded'
+    : !hasPermission(backend.session, permissionNames.createPosSale)
+      || !hasPermission(backend.session, permissionNames.payPosSale)
+      ? 'op.pos.error.noPermissionPayment'
+      : shiftId.length === 0
+        ? 'op.pos.error.openShiftFirst'
+        : cartItems.length > 0 && !cartItems.every((item) => Boolean(item.productId) && item.source === 'backend')
+          ? 'op.pos.error.catalogNotLoaded'
+          : null;
+  const canAcceptPayment = paymentBlockedKey === null && cartItems.length > 0;
 
   const addProduct = useCallback((product: PosCatalogItem) => {
     setCartItems((items) => {
@@ -413,6 +421,39 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
 
 
 
+
+  /**
+   * Узнать у сервера, прошла ли всё-таки оплата.
+   *
+   * Диалог заперт намеренно: после обрыва связи неизвестно, дошёл ли платёж, и отпустить кассира
+   * пробивать чек заново — значит рискнуть списать деньги дважды. Но молчать об этом нельзя:
+   * раньше единственным выходом из запертого окна было перезагрузить приложение.
+   */
+  const checkPaymentOutcome = async () => {
+    const attempt = paymentAttemptRef.current;
+    if (attempt?.saleId == null || backend === null) return;
+    const label = t('op.pos.feedback.payment');
+    setFeedback({ label, state: 'pending' });
+    try {
+      const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+      const sale = await clients.pos.getSale(attempt.saleId);
+      const state = readString(sale, 'state');
+      if (state === 'paid') {
+        paymentAttemptRef.current = null;
+        setPaymentCloseLocked(false);
+        setPayOpen(false);
+        setFeedback({ label, state: 'confirmed' });
+        await loadBackendPos(backend);
+        setCartItems([]);
+        return;
+      }
+      // Продажа не оплачена — повторять безопасно, и окно можно отпустить.
+      setPaymentCloseLocked(false);
+      setFeedback({ label, state: 'failed', detail: t('op.pos.payment.notPaidYet') });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectSettlementError(error, t) });
+    }
+  };
 
   const acceptPayment = async (payments: PaymentPartDto[]) => {
     setPaymentCloseLocked(true);
@@ -801,6 +842,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               };
               setPayOpen(true);
             }}>{t('op.pos.payment.acceptBtn')}</button>
+            {paymentBlockedKey !== null && <p className="pos-tender-blocked" role="status">{t(paymentBlockedKey)}</p>}
             <button type="button" className="ui-btn pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
           </div>
         </section>
@@ -820,12 +862,16 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
           }}
         >
           <PaymentDialog
+            intro={paymentCloseLocked && feedback.state === 'failed' ? t('op.pos.payment.ambiguous') : undefined}
+            extraAction={paymentCloseLocked && feedback.state === 'failed'
+              ? { label: t('op.pos.payment.checkOutcome'), onSelect: () => void checkPaymentOutcome() }
+              : undefined}
             lines={billLines}
             dueLabel={t('op.pos.cart.total')}
             grandTotalMinorUnits={cartTotalMinorUnits}
             currencyCode={currencyCode}
             walletBalanceMinorUnits={selectedPosPlayer?.balanceMinorUnits ?? null}
-            allowSplit={selectedPosPlayer !== null}
+            allowSplit
             disabled={feedback.state === 'pending'}
             draftDisabled={paymentCloseLocked}
             cancelDisabled={paymentCloseLocked}

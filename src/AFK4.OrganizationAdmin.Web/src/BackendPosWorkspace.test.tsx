@@ -33,6 +33,7 @@ const linkedPlayer = {
 const requestedUrls: string[] = [];
 const requestedBodies: unknown[] = [];
 let settlementFailuresRemaining = 0;
+let openShiftInFixture = true;
 // Каким отказом отвечает сервер на оплату. По умолчанию — конфликт версий; кассовые сценарии
 // подменяют его на свой код.
 let settlementFailureCode = 'version_conflict';
@@ -52,7 +53,9 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
       : [backendProduct]);
   }
   if (url.endsWith('/api/organizations/organization-1/branches/branch-1/shifts/current')) {
-    return jsonResponse({ shiftId: 'shift-1' });
+    // Часть сценариев начинается без открытой смены: оплата тогда недоступна, и касса обязана
+    // сказать, почему именно.
+    return jsonResponse(openShiftInFixture ? { shiftId: 'shift-1' } : null);
   }
   if (url.endsWith('/api/organizations/organization-1/branches/branch-1/pos/categories')) {
     return jsonResponse([{
@@ -130,6 +133,7 @@ afterEach(() => {
   requestedUrls.length = 0;
   requestedBodies.length = 0;
   settlementFailuresRemaining = 0;
+  openShiftInFixture = true;
   settlementFailureCode = 'version_conflict';
   settlementNetworkFailuresRemaining = 0;
   settlementResponseGate = null;
@@ -336,6 +340,34 @@ describe('BackendPosWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
 
     expect(await screen.findByText('Все части оплаты должны быть в одной валюте.')).toBeInTheDocument();
+  });
+
+  // Просьба «часть наличными, часть картой» не зависит от того, есть ли у гостя карта клуба:
+  // клиент нужен только для списания с кошелька, и сервер это принимает. Вкладку «Смешанно»
+  // при этом прятали от всех гостей без карты.
+  it('оплату можно разбить и без карты клуба', async () => {
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+    addColaToCart();
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Смешанно' }));
+    const methods = screen.getAllByRole('combobox', { name: 'Способ оплаты' });
+    const options = [...methods[0]!.querySelectorAll('option')].map((option) => option.textContent);
+
+    // Кошелька у гостя нет — списывать не с чего, и в списке способов его быть не должно.
+    expect(options).toEqual(['Наличные', 'Карта']);
+  });
+
+  // Серая кнопка без объяснения заставляла кассира гадать: нет смены? нет прав? не тот каталог?
+  it('говорит, почему оплата недоступна', async () => {
+    openShiftInFixture = false;
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+    addColaToCart();
+
+    expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeDisabled();
+    expect(screen.getByText('Откройте смену перед оплатой.')).toBeInTheDocument();
   });
 
   it('replays an ambiguous multipart settlement once with the same idempotency key', async () => {
