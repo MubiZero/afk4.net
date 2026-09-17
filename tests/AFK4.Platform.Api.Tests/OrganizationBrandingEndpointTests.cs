@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
@@ -85,6 +85,36 @@ public sealed class OrganizationBrandingEndpointTests
 
         var response = await client.PatchAsJsonAsync(
             Route, new UpdateOrganizationBrandingRequest("https://cdn.example/logo.png", "#c8ff00"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // Прочитать оформление было нечем: форма настроек клуба открывалась бы пустой и затирала
+    // выбранное в мастере установки.
+    [Fact]
+    public async Task GET_branding_ReturnsWhatWasSaved()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        await client.PatchAsJsonAsync(
+            Route, new UpdateOrganizationBrandingRequest("https://cdn.example/logo.png", "#30d158"));
+
+        var branding = await client.GetFromJsonAsync<OrganizationBrandingDto>(Route);
+
+        Assert.NotNull(branding);
+        Assert.Equal("https://cdn.example/logo.png", branding.LogoUrl);
+        Assert.Equal("#30D158", branding.AccentColor);
+    }
+
+    [Fact]
+    public async Task GET_branding_WithoutPermission_IsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+
+        var response = await client.GetAsync(Route);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

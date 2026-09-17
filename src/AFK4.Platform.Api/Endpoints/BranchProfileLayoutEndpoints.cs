@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -141,6 +141,39 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
+
+        // Прочитать оформление было нечем: записать — PATCH ниже, а показать в настройках клуба
+        // то, что сейчас стоит, неоткуда. Половина пары — это форма, которая открывается пустой и
+        // затирает выбранное в мастере установки.
+        app.MapGet("branding", async (
+            StaffAuthorizationService authorizationService,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(
+                OrganizationPermissionNames.ManageBranchSettings);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var organizationId = authorization.StaffContext!.OrganizationId;
+            var branding = await dbContext.Organizations
+                .AsNoTracking()
+                .Where(candidate => candidate.OrganizationId == organizationId)
+                .Select(candidate => new OrganizationBrandingDto(
+                    candidate.OrganizationId, candidate.Name, candidate.LogoUrl, candidate.AccentColor))
+                .SingleOrDefaultAsync(cancellationToken);
+
+            return branding is null ? Results.NotFound() : Results.Ok(branding);
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 

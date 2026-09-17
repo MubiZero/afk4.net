@@ -1,5 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
 import { createFloorMapClient } from './floorMap';
+import { createBrandingClient } from './branding';
 import { createSessionClient } from './sessions';
 import { createPosClient } from './pos';
 import { createPlayerClient } from './players';
@@ -37,6 +38,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
   const organizationApi = withCriticalUpdateActivity(api.forOrganization(organizationId));
   return {
     floorMap: createFloorMapClient(organizationApi),
+    branding: createBrandingClient(organizationApi),
     sessions: createSessionClient(organizationApi),
     pos: createPosClient(organizationApi),
     players: createPlayerClient(organizationApi),
