@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { hasPermission, permissionNames } from '../operatorPermissions';
 import { ArrowRightLeft, Banknote, ChevronRight, Clock3, MoreHorizontal, ReceiptText } from 'lucide-react';
 import {
   cashOperationTypeLabel,
@@ -219,7 +220,14 @@ export function CashShiftWorkspace({
         </>
       ) : (
         <section className="cash-shift-no-open">
-          <span>{t('op.cash.shift.empty')}</span><h2>{t('op.cash.shift.noOpenNow')}</h2><p>{history.length ? t('op.cash.shift.noOpenHint') : t('op.cash.shift.historyEmpty')}</p>
+          {/* Подсказка «откройте смену в панели кассы» звала к кнопке, которой у этого
+              сотрудника нет: кнопка живёт за правом «открыть смену». Без права правильный
+              следующий шаг другой — позвать того, у кого оно есть. */}
+          <span>{t('op.cash.shift.empty')}</span><h2>{t('op.cash.shift.noOpenNow')}</h2><p>{
+            !hasPermission(session, permissionNames.openShift)
+              ? t('op.cash.shift.noOpenAskManager')
+              : history.length ? t('op.cash.shift.noOpenHint') : t('op.cash.shift.historyEmpty')
+          }</p>
           <div className="cash-shift-no-open-actions">{exportMenu}<CashShiftCommandBar backend={backend} session={session} shiftId={null} isOpen={false} expectedCash={null} currencyCode={currencyCode} onShiftChanged={onShiftChanged} /></div>
           {selectedShift ? <div className="cash-shift-last-closed"><span>{t('op.cash.shift.lastClosed')}</span><strong>{new Date(selectedShift.openedAtUtc).toLocaleDateString('ru-RU')}</strong><b><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></b></div> : null}
         </section>

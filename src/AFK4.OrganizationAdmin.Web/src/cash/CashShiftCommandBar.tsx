@@ -13,7 +13,7 @@ import type { OperatorBackendContext, Feedback } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { OpenShiftRequest, RecordCashMovementRequest, CloseShiftRequest, ShiftDto } from '../api/clients/shifts';
 import type { BranchSettingsDto, ShiftRevenueDto, StaffUserDto } from '../operatorApiClients';
-import { signOffCandidates } from './shiftSignOff';
+import { isSignOffRequired, signOffCandidates } from './shiftSignOff';
 import { ShiftReportModal } from './ShiftReportModal';
 import { buildShiftReportData, buildShiftReportText, printShiftReport, type ShiftReportData } from './shiftReport';
 import { OpenShiftModal } from './OpenShiftModal';
@@ -80,7 +80,9 @@ export function CashShiftCommandBar({
   useFeedbackToasts(feedback);
   const [startingCash, setStartingCash] = useState('0.00');
   const [openingNote, setOpeningNote] = useState(t('op.cash.open.defaultNote'));
-  const [movementAmount, setMovementAmount] = useState('10.00');
+  // Пустое поле, а не предзаполненные 10.00: в спешке легко подтвердить чужую сумму, просто
+  // не заметив, что в поле уже что-то стоит.
+  const [movementAmount, setMovementAmount] = useState('');
   const [movementReason, setMovementReason] = useState(t('op.cash.movement.defaultReason'));
   const [countedCash, setCountedCash] = useState('');
   const [closingNote, setClosingNote] = useState(t('op.cash.close.defaultNote'));
@@ -90,6 +92,9 @@ export function CashShiftCommandBar({
   // при каждом показе панели.
   const [toleranceMinorUnits, setToleranceMinorUnits] = useState<number | null>(null);
   const [staff, setStaff] = useState<StaffUserDto[]>([]);
+  // Сервер отказал «нужна подпись старшего»: показываем поле подписи, даже если допуск филиала
+  // не подгрузился и посчитать необходимость подписи заранее было нечем.
+  const [signOffDemanded, setSignOffDemanded] = useState(false);
 
   const getCloseContext = (): CloseShiftContextClient | null => {
     if (injectedCloseContext) return injectedCloseContext;
@@ -105,16 +110,23 @@ export function CashShiftCommandBar({
     }
   };
 
-  const openCloseModal = () => {
-    setActiveModal('close');
+  const loadCloseContext = async () => {
     const context = getCloseContext();
     const branchId = backend?.branchId;
     if (context === null || !branchId) return;
     // Молча: без допуска подпись просто не спрашивается заранее, и решает сервер — как и раньше.
-    void context.getBranchSettings(branchId)
-      .then((settings) => setToleranceMinorUnits(settings.shiftDiscrepancyToleranceMinorUnits ?? null))
-      .catch(() => setToleranceMinorUnits(null));
-    void context.getStaffUsers(branchId).then(setStaff).catch(() => setStaff([]));
+    await Promise.all([
+      context.getBranchSettings(branchId)
+        .then((settings) => setToleranceMinorUnits(settings.shiftDiscrepancyToleranceMinorUnits ?? null))
+        .catch(() => setToleranceMinorUnits(null)),
+      context.getStaffUsers(branchId).then(setStaff).catch(() => setStaff([]))
+    ]);
+  };
+
+  const openCloseModal = () => {
+    setActiveModal('close');
+    setSignOffDemanded(false);
+    void loadCloseContext();
   };
 
   const canOpen = !isOpen && hasPermission(session, permissionNames.openShift);
@@ -143,6 +155,13 @@ export function CashShiftCommandBar({
       setFeedback({ label, state: 'confirmed' });
       onShiftChanged();
     } catch (error) {
+      // Сервер сказал «нужна подпись старшего» — значит поле подписи обязано появиться, даже
+      // если допуск филиала не подгрузился и посчитать это заранее было нечем. Без этого
+      // кассир с реальной недостачей закрыть смену не может вообще.
+      if (isSignOffRequired(error)) {
+        setSignOffDemanded(true);
+        void loadCloseContext();
+      }
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     } finally {
       setBusy(false);
@@ -173,13 +192,14 @@ export function CashShiftCommandBar({
         reason,
         idempotencyKey: createIdempotencyKey('shift-cash-movement')
       });
-      setMovementAmount('10.00');
+      setMovementAmount('');
       setMovementReason(t('op.cash.movement.defaultReason'));
     });
 
   // counted=0 валиден (реально пустая касса), поэтому parseNonNegativeMoneyInputMinorUnits
   const submitClose = () =>
     run(t('op.cash.action.close'), async (actions) => {
+      setSignOffDemanded(false);
       const minor = parseNonNegativeMoneyInputMinorUnits(countedCash);
       if (minor === null || shiftId === null) throw new Error(t('op.cash.close.countedLabel'));
       const closed = await actions.closeShift(shiftId, {
@@ -198,7 +218,11 @@ export function CashShiftCommandBar({
   const printReport = () => {
     if (report === null) return;
     const title = report.variant === 'x' ? t('op.cash.report.xTitle') : t('op.cash.report.zTitle');
-    printShiftReport(title, buildShiftReportText(report.data, report.variant, currencyCode, t));
+    // Окно печати могло не открыться (блокировщик всплывающих окон). Молчать тут нельзя:
+    // кассир жмёт «Печать» при сдаче кассы и не понимает, повторить или звать техподдержку.
+    if (!printShiftReport(title, buildShiftReportText(report.data, report.variant, currencyCode, t))) {
+      setFeedback({ label: title, state: 'failed', detail: t('op.cash.report.printBlocked') });
+    }
   };
 
   return (
@@ -254,6 +278,7 @@ export function CashShiftCommandBar({
       {activeModal === 'close' && (
         <CloseShiftModal
           toleranceMinorUnits={toleranceMinorUnits}
+          signOffDemanded={signOffDemanded}
           signOffCandidates={signOffCandidates(staff, openedByStaffUserId, session?.staffUserId ?? null)}
           signOffStaffUserId={signOffStaffUserId}
           signOffReason={signOffReason}

@@ -30,7 +30,7 @@ export function CashMovementModal({
     <PanelModal
       title={isIn ? t('op.cash.movement.titleIn') : t('op.cash.movement.titleOut')}
       subtitle={t('op.cash.movement.subtitle')}
-      onClose={onClose}
+      onClose={onClose} closeDisabled={busy}
     >
       <form
         className="cash-shift-form"
@@ -42,6 +42,7 @@ export function CashMovementModal({
         <label htmlFor="cash-movement-amount">{t('op.cash.movement.amountLabel')}</label>
         <input
           id="cash-movement-amount"
+          autoFocus
           inputMode="decimal"
           value={amount}
           disabled={busy}

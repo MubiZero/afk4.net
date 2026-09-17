@@ -23,7 +23,7 @@ export function OpenShiftModal({
 }) {
   const { t } = useI18n();
   return (
-    <PanelModal title={t('op.cash.open.title')} subtitle={t('op.cash.open.subtitle')} onClose={onClose}>
+    <PanelModal title={t('op.cash.open.title')} subtitle={t('op.cash.open.subtitle')} onClose={onClose} closeDisabled={busy}>
       <form
         className="cash-shift-form"
         onSubmit={(event) => {
@@ -34,6 +34,7 @@ export function OpenShiftModal({
         <label htmlFor="open-shift-cash">{t('op.cash.open.startingCashLabel')}</label>
         <input
           id="open-shift-cash"
+          autoFocus
           inputMode="decimal"
           value={startingCash}
           disabled={busy}

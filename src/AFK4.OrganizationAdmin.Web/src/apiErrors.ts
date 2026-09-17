@@ -130,6 +130,13 @@ export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProje
     return { title, detail: t(statusMessageKey(error.status)) };
   }
 
+  // Сбой до ответа сервера: fetch бросает TypeError («Failed to fetch», «NetworkError…»).
+  // Это текст браузера, на русском экране он читается как поломка программы.
+  if (error instanceof TypeError) {
+    return { title, detail: t('op.error.status.network') };
+  }
+
+  // Остальные Error приложение бросает само и уже локализованными (throw new Error(t(...))).
   if (error instanceof Error && error.message.trim().length > 0) {
     return { title, detail: error.message };
   }

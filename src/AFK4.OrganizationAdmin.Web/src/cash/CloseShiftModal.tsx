@@ -23,6 +23,7 @@ export function CloseShiftModal({
   signOffCandidates,
   signOffStaffUserId,
   signOffReason,
+  signOffDemanded,
   onChangeCounted,
   onChangeNote,
   onChangeSignOffStaffUserId,
@@ -41,6 +42,8 @@ export function CloseShiftModal({
   signOffCandidates: { staffUserId: string; displayName: string }[];
   signOffStaffUserId: string;
   signOffReason: string;
+  /// Сервер уже отказал «нужна подпись старшего» по этой смене.
+  signOffDemanded: boolean;
   onChangeCounted: (value: string) => void;
   onChangeNote: (value: string) => void;
   onChangeSignOffStaffUserId: (value: string) => void;
@@ -55,12 +58,15 @@ export function CloseShiftModal({
     countedMinor === null || expectedCash === null
       ? null
       : { currencyCode, minorUnits: countedMinor - expectedCash.minorUnits };
-  const needsSignOff =
-    difference !== null && toleranceMinorUnits !== null && Math.abs(difference.minorUnits) > toleranceMinorUnits;
+  // Допуск филиала мог не подгрузиться (сеть моргнула) — тогда заранее подпись не спрашивается.
+  // Но если сервер уже ответил «нужна подпись», поле обязано появиться: иначе кассир крутится
+  // в кольце «отправил — отказ» и не может закрыть смену с реальной недостачей.
+  const needsSignOff = signOffDemanded
+    || (difference !== null && toleranceMinorUnits !== null && Math.abs(difference.minorUnits) > toleranceMinorUnits);
   const blocked = needsSignOff && signOffStaffUserId === '';
 
   return (
-    <PanelModal title={t('op.cash.close.title')} subtitle={t('op.cash.close.subtitle')} onClose={onClose} tone="danger">
+    <PanelModal title={t('op.cash.close.title')} subtitle={t('op.cash.close.subtitle')} onClose={onClose} tone="danger" closeDisabled={busy}>
       <form
         className="cash-shift-form"
         onSubmit={(event) => {
@@ -78,6 +84,7 @@ export function CloseShiftModal({
         <label htmlFor="close-shift-counted">{t('op.cash.close.countedLabel')}</label>
         <input
           id="close-shift-counted"
+          autoFocus
           inputMode="decimal"
           value={counted}
           disabled={busy}
@@ -93,7 +100,9 @@ export function CloseShiftModal({
         {needsSignOff && (
           <section className="cash-close-signoff">
             <p className="ui-alert" role="alert">
-              {t('op.cash.close.signOffRequired', { tolerance: (toleranceMinorUnits ?? 0) / 100 })}
+              {toleranceMinorUnits === null
+                ? t('op.cash.close.signOffDemanded')
+                : t('op.cash.close.signOffRequired', { tolerance: toleranceMinorUnits / 100 })}
             </p>
             <label htmlFor="close-shift-signoff">{t('op.cash.close.signOffLabel')}</label>
             <select

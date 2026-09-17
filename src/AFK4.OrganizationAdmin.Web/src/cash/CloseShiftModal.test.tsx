@@ -18,6 +18,7 @@ function renderModal(overrides: Partial<Parameters<typeof CloseShiftModal>[0]> =
         signOffCandidates={[{ staffUserId: 'staff-2', displayName: 'Мадина К.' }]}
         signOffStaffUserId=""
         signOffReason=""
+        signOffDemanded={false}
         onChangeCounted={() => {}}
         onChangeNote={() => {}}
         onChangeSignOffStaffUserId={() => {}}
@@ -92,5 +93,20 @@ describe('CloseShiftModal', () => {
     renderModal({ counted: '150.00', toleranceMinorUnits: null });
     expect(screen.queryByLabelText('Кто подписывает')).toBeNull();
     expect(screen.getByRole('button', { name: /Закрыть смену/ })).not.toBeDisabled();
+  });
+
+  // Допуск филиала мог не подгрузиться — тогда посчитать необходимость подписи заранее нечем,
+  // поле не появлялось, сервер каждый раз отказывал, и смену с недостачей было не закрыть.
+  it('показывает подпись, когда сервер её потребовал, даже без допуска', () => {
+    renderModal({ toleranceMinorUnits: null, signOffDemanded: true, counted: '10.00' });
+
+    expect(screen.getByText('Сервер требует подпись старшего: расхождение больше допустимого по этому филиалу.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Кто подписывает')).toBeInTheDocument();
+  });
+
+  it('без требования сервера и без допуска подпись не спрашивается', () => {
+    renderModal({ toleranceMinorUnits: null, signOffDemanded: false, counted: '10.00' });
+
+    expect(screen.queryByLabelText('Кто подписывает')).toBeNull();
   });
 });
