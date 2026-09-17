@@ -1590,6 +1590,10 @@ describe('App', () => {
     const bookingItem = await screen.findByRole('menuitem', { name: /Создать бронь/ });
     fireEvent.click(bookingItem);
 
+    // Пункт меню открывает диалог: время, длительность и место выбирает человек, а не код.
+    await screen.findByText('Бронь для клиента');
+    fireEvent.click(screen.getByRole('button', { name: 'Создать бронь' }));
+
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
     const reservationCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
