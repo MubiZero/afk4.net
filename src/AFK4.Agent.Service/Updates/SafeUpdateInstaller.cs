@@ -1,4 +1,4 @@
-using AFK4.Shared.Contracts.Updates;
+﻿using AFK4.Shared.Contracts.Updates;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service.Updates;
@@ -34,6 +34,12 @@ public sealed class SafeUpdateInstaller(
                 .WithStatus(UpdateStatusNames.Installed, installResult.Message, timeProvider.GetUtcNow());
             await stateStore.SaveAsync(installed, cancellationToken);
 
+            // Запоминаем пакет, который реально встал: это единственное, на что можно будет
+            // откатиться, если следующая версия окажется сломанной.
+            await stateStore.SaveLastKnownGoodAsync(
+                new LastKnownGoodUpdate(instruction.Component, instruction.Version, artifact.FilePath, timeProvider.GetUtcNow()),
+                cancellationToken);
+
             if (instruction.Component == UpdateComponentNames.OrganizationAdmin && organizationAdminProcessLauncher is not null)
             {
                 await organizationAdminProcessLauncher.ScheduleAfterRestartAsync(instruction, cancellationToken);
@@ -56,13 +62,31 @@ public sealed class SafeUpdateInstaller(
             timeProvider.GetUtcNow());
         await stateStore.SaveAsync(rollbackStarted, cancellationToken);
 
-        var rollbackResult = await rollbackExecutor.RollbackAsync(rollbackStarted, cancellationToken);
+        var knownGood = await stateStore.LoadLastKnownGoodAsync(instruction.Component, cancellationToken);
+        var rollbackTarget = UpdateRollbackPlan.ToKnownGood(rollbackStarted, knownGood);
+        if (rollbackTarget is null)
+        {
+            // Откатываться некуда. Раньше в этом месте запускался тот же самый пакет, который
+            // только что не установился, и его повторная установка называлась «откатом»: клуб
+            // видел «RolledBack» там, где ничего не откатывалось.
+            var noTarget = rollbackStarted.WithStatus(
+                UpdateStatusNames.Failed,
+                $"{installResult.Message} {UpdateRollbackPlan.NoTargetMessage}",
+                timeProvider.GetUtcNow());
+            await stateStore.SaveAsync(noTarget, cancellationToken);
+
+            return UpdateInstallResult.Failed(noTarget.Message);
+        }
+
+        var rollbackResult = await rollbackExecutor.RollbackAsync(rollbackTarget, cancellationToken);
         var finalStatus = rollbackResult.Succeeded
             ? UpdateStatusNames.RolledBack
             : UpdateStatusNames.Failed;
         var finalMessage = $"{installResult.Message} {rollbackResult.Message}";
         await stateStore.SaveAsync(
-            rollbackStarted.WithStatus(finalStatus, finalMessage, timeProvider.GetUtcNow()),
+            rollbackStarted
+                .WithInstalledVersion(rollbackResult.Succeeded ? rollbackTarget.TargetVersion : rollbackStarted.InstalledVersion)
+                .WithStatus(finalStatus, finalMessage, timeProvider.GetUtcNow()),
             cancellationToken);
 
         return UpdateInstallResult.Failed(finalMessage);

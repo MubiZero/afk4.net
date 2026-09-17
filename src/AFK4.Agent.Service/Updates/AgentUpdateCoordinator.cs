@@ -1,4 +1,4 @@
-using AFK4.Shared.Contracts.Updates;
+﻿using AFK4.Shared.Contracts.Updates;
 
 namespace AFK4.Agent.Service.Updates;
 
@@ -10,11 +10,9 @@ public sealed class AgentUpdateCoordinator(
     IUpdatePackageVerifier packageVerifier,
     IUpdateInstaller installer,
     TimeProvider timeProvider,
+    IUpdateAttemptLedger attemptLedger,
     IOrganizationAdminUpdateReadiness? organizationAdminReadiness = null) : IAgentUpdateCoordinator
 {
-    private readonly Lock attemptedRolloutsLock = new();
-
-    private readonly HashSet<Guid> attemptedRolloutIds = [];
 
     public async Task<AgentUpdateExecutionResult> CheckAndApplyUpdatesAsync(CancellationToken cancellationToken)
     {
@@ -156,20 +154,25 @@ public sealed class AgentUpdateCoordinator(
             failedCount);
     }
 
+    /// <summary>
+    /// Счёт попыток переживает перезапуск службы: иначе сломанный пакет крутился бы по кругу —
+    /// поставили, упало, перезапустились, обнулили память, поставили снова.
+    /// </summary>
     private bool TryMarkAttempted(Guid rolloutId)
     {
-        lock (attemptedRolloutsLock)
+        if (!attemptLedger.ShouldAttempt(rolloutId))
         {
-            return attemptedRolloutIds.Add(rolloutId);
+            return false;
         }
+
+        attemptLedger.RecordAttempt(rolloutId);
+
+        return true;
     }
 
     private void ClearAttempted(Guid rolloutId)
     {
-        lock (attemptedRolloutsLock)
-        {
-            attemptedRolloutIds.Remove(rolloutId);
-        }
+        attemptLedger.ForgetAttempt(rolloutId);
     }
 
     private static bool IsTransientFailure(Exception exception)

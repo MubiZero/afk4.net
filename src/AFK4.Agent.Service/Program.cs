@@ -1,9 +1,10 @@
-using AFK4.Agent.Service;
+﻿using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Logging;
 using AFK4.Agent.Service.Shell;
 using AFK4.Agent.Service.Updates;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -60,7 +61,10 @@ builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IMachinePolicyStore, WindowsMachinePolicyStore>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();
 builder.Services.AddSingleton<ISessionEnforcementCoordinator, SessionEnforcementCoordinator>();
-builder.Services.AddSingleton<IOfflineGraceState, OfflineGraceState>();
+// Явная фабрика, а не сканирование конструкторов: у состояния есть и «в памяти» для тестов, и
+// файловый — службе нужен файловый, иначе льгота не переживёт перезапуск.
+builder.Services.AddSingleton<IOfflineGraceState>(provider =>
+    new OfflineGraceState(provider.GetRequiredService<IOptions<AgentOptions>>()));
 builder.Services.AddSingleton<IOfflineLeaseExtender, OfflineLeaseExtender>();
 builder.Services.AddSingleton<IGraceModeMonitor, GraceModeMonitor>();
 builder.Services.AddSingleton<IProcessLauncher, ProcessLauncher>();
@@ -84,6 +88,7 @@ builder.Services.AddSingleton<IAgentComponentVersionProvider, AgentComponentVers
 builder.Services.AddSingleton<IUpdateArtifactDownloader, HttpUpdateArtifactDownloader>();
 builder.Services.AddSingleton<IUpdatePackageVerifier, Sha256UpdatePackageVerifier>();
 builder.Services.AddSingleton<IUpdateInstallStateStore, FileUpdateInstallStateStore>();
+builder.Services.AddSingleton<IUpdateAttemptLedger, FileUpdateAttemptLedger>();
 builder.Services.AddSingleton<IUpdateInstallExecutor, ExternalProcessUpdateInstaller>();
 builder.Services.AddSingleton<IUpdateRollbackExecutor, ExternalProcessUpdateRollbackExecutor>();
 builder.Services.AddSingleton<IAgentRestartScheduler, ExternalProcessAgentRestartScheduler>();

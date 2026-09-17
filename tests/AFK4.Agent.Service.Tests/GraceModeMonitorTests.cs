@@ -1,4 +1,4 @@
-using AFK4.Agent.Service;
+﻿using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
@@ -117,6 +117,77 @@ public sealed class GraceModeMonitorTests
         {
             Current = AgentRuntimeState.Active(lease, observedAtUtc);
         }
+    }
+
+    // Служба перезапустилась, пока за ПК сидел гость. Просроченную аренду хранилище при загрузке
+    // удаляет, и раньше монитор в этом случае не делал ничего: аренды нет — запирать «нечего».
+    // ПК оставался бесплатным до возвращения связи, а при затяжном обрыве это часы.
+    [Fact]
+    public async Task EnforceAsync_AfterRestartWithoutLeaseButActiveState_LocksTheWorkstation()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(CreateLease(Now.AddMinutes(-40)), Now.AddMinutes(-90));
+        var lockController = new RecordingWorkstationLockController();
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(new OfflineGraceState()),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Equal(PlayerShellStateNames.Locked, runtimeStore.Current.State);
+        Assert.Equal(1, lockController.LockCount);
+    }
+
+    // Гость заплатил, а сеть пропала не по его вине: внутри льготного окна перезапуск службы не
+    // должен выгонять его из-за компьютера. Время последнего контакта теперь переживает рестарт.
+    [Fact]
+    public async Task EnforceAsync_AfterRestartWithinGraceWindow_KeepsTheWorkstationOpen()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(CreateLease(Now.AddMinutes(-2)), Now.AddMinutes(-30));
+        var lockController = new RecordingWorkstationLockController();
+        var grace = new OfflineGraceState();
+        grace.RecordSuccessfulContact(Now.AddMinutes(-3), effectiveGraceMinutes: 15);
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(grace),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Equal(PlayerShellStateNames.Active, runtimeStore.Current.State);
+        Assert.Equal(0, lockController.LockCount);
+    }
+
+    // Запертая машина остаётся запертой, а не запирается заново на каждом обходе.
+    [Fact]
+    public async Task EnforceAsync_AfterRestartWhenAlreadyLocked_DoesNothing()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkLocked(Now.AddMinutes(-5));
+        var lockController = new RecordingWorkstationLockController();
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(new OfflineGraceState()),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Equal(0, lockController.LockCount);
     }
 
     private sealed class RecordingWorkstationLockController : IWorkstationLockController

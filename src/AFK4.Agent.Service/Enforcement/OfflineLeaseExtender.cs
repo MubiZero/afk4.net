@@ -1,4 +1,4 @@
-using AFK4.Shared.Contracts.Sessions;
+﻿using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Agent.Service.Enforcement;
 
@@ -12,6 +12,12 @@ namespace AFK4.Agent.Service.Enforcement;
 public interface IOfflineLeaseExtender
 {
     bool ShouldExtend(SessionLeaseDto lease, DateTimeOffset nowUtc);
+
+    /// <summary>
+    /// Идёт ли ещё льготное окно. Отдельно от <see cref="ShouldExtend"/>: после перезапуска
+    /// подписанной аренды на руках уже нет, а ответить на этот вопрос всё равно надо.
+    /// </summary>
+    bool WithinGraceWindow(DateTimeOffset nowUtc);
 }
 
 public sealed class OfflineLeaseExtender(IOfflineGraceState graceState) : IOfflineLeaseExtender
@@ -23,6 +29,11 @@ public sealed class OfflineLeaseExtender(IOfflineGraceState graceState) : IOffli
             return false;
         }
 
+        return WithinGraceWindow(nowUtc);
+    }
+
+    public bool WithinGraceWindow(DateTimeOffset nowUtc)
+    {
         var lastContact = graceState.LastSuccessfulContactUtc;
         if (lastContact is null)
         {
