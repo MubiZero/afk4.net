@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Identity;
@@ -53,8 +54,16 @@ public sealed class MePinEndpointTests
 
         var body = await client.GetStringAsync("/api/me");
 
+        // Идентификаторы в ответе случайны, и четыре цифры PIN однажды совпадают с куском GUID —
+        // проверка падала на ровном месте и уводила разбираться не туда. Ищем PIN в том, что
+        // идентификатором не является.
+        var withoutIdentifiers = Regex.Replace(
+            body,
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+            "<id>");
+
         Assert.Contains("\"pinSet\":true", body);
-        Assert.DoesNotContain("4321", body);
+        Assert.DoesNotContain("4321", withoutIdentifiers);
         Assert.DoesNotContain("pinHash", body, StringComparison.OrdinalIgnoreCase);
     }
 
