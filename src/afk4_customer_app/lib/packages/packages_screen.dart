@@ -58,6 +58,10 @@ class _PackagesScreenState extends State<PackagesScreen> {
   /// Кошелёк списался — вернуть это главной, чтобы баланс там не остался прежним.
   bool _walletChanged = false;
 
+  /// Ключ попытки: повтор покупки после обрыва обязан прийти с тем же, иначе пакет будет
+  /// куплен и оплачен дважды. Выбор другого пакета — другая попытка со своим ключом.
+  final AttemptKey _attempt = AttemptKey();
+
   @override
   void initState() {
     super.initState();
@@ -97,9 +101,10 @@ class _PackagesScreenState extends State<PackagesScreen> {
       await widget.api.purchasePackage(
         branchId: widget.branchId,
         packageDefinitionId: offer.packageDefinitionId,
-        idempotencyKey: newIdempotencyKey(),
+        idempotencyKey: _attempt.forSubject(offer.packageDefinitionId),
       );
       if (!mounted) return;
+      _attempt.done();
       unawaited(HapticFeedback.lightImpact());
       setState(() {
         _buyingId = null;

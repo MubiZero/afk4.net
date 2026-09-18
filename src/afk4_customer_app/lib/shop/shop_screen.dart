@@ -42,6 +42,16 @@ class _ShopScreenState extends State<ShopScreen> {
   /// Сколько чего в корзине. Товары без строки здесь просто не заказаны.
   final Map<String, int> _cart = {};
 
+  /// Ключ попытки: повтор после обрыва обязан прийти с тем же, иначе бар получит два заказа
+  /// и спишет деньги дважды. Изменённая корзина — другая попытка со своим ключом.
+  final AttemptKey _attempt = AttemptKey();
+
+  /// Слепок корзины, по которому попытка узнаётся: состав и количества, в устойчивом порядке.
+  String get _cartSignature {
+    final lines = _cart.entries.map((item) => '${item.key}:${item.value}').toList()..sort();
+    return lines.join(',');
+  }
+
   ShopOrderDto? _order;
 
   /// Закрытые заказы — принесённые и отменённые, новые сверху.
@@ -140,8 +150,9 @@ class _ShopScreenState extends State<ShopScreen> {
     try {
       final order = await widget.api.placeShopOrder(
         quantitiesByProductId: Map.of(_cart),
-        idempotencyKey: newIdempotencyKey(),
+        idempotencyKey: _attempt.forSubject(_cartSignature),
       );
+      _attempt.done();
       if (!mounted) return;
       unawaited(HapticFeedback.lightImpact());
       setState(() {

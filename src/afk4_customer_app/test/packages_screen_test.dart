@@ -177,6 +177,51 @@ void main() {
     expect(find.text('На кошельке не хватает денег на этот пакет'), findsOneWidget);
   });
 
+  /// Ответ на покупку мог потеряться уже после списания. Повтор обязан нести тот же ключ —
+  /// по нему сервер узнаёт ту же покупку и не берёт деньги второй раз.
+  testWidgets('повтор покупки после сбоя идёт с прежним ключом', (tester) async {
+    final http = _serve(
+      offers: _offersJson(),
+      purchase: ('{"error":"server_down"}', 500),
+    );
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      await tester.tap(find.text('Купить').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Купить').last);
+      await tester.pumpAndSettle();
+    }
+
+    final keys = http.bodies.map((body) => body['idempotencyKey']).toList();
+    expect(keys, hasLength(2));
+    expect(keys.first, isNotNull);
+    expect(keys.first, keys.last);
+  });
+
+  // Другой пакет — другая покупка: с прежним ключом сервер ответил бы конфликтом.
+  testWidgets('покупка другого пакета берёт свой ключ', (tester) async {
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/branches/$_branchId/packages' => (_offersJson(), 200),
+          '/api/me/packages' => ('[]', 200),
+          _ => ('{"error":"server_down"}', 500),
+        });
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    for (final offer in [0, 1]) {
+      await tester.tap(find.text('Купить').at(offer));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Купить').last);
+      await tester.pumpAndSettle();
+    }
+
+    final keys = http.bodies.map((body) => body['idempotencyKey']).toList();
+    expect(keys, hasLength(2));
+    expect(keys.first, isNot(keys.last));
+  });
+
   // Потраченный и просроченный пакеты не исчезают: пропавшая покупка читается как пропажа денег.
   testWidgets('потраченные пакеты остаются в отдельном разделе', (tester) async {
     await tester.pumpWidget(harness(clientWith(_serve(
