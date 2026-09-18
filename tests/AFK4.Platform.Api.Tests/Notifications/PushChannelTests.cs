@@ -117,7 +117,7 @@ public sealed class PushChannelTests
 
         public List<string> Forgotten { get; } = [];
 
-        public Task RegisterAsync(Guid playerAccountId, string pushToken, string platform, string? locale, CancellationToken cancellationToken)
+        public Task RegisterAsync(Guid playerAccountId, string pushToken, string platform, CancellationToken cancellationToken)
         {
             tokens.Add(pushToken);
             return Task.CompletedTask;

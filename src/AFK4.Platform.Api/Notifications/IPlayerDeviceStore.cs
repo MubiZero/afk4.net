@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Notifications;
 public interface IPlayerDeviceStore
 {
     /// <summary>Запомнить устройство. Тот же токен, пришедший снова, обновляет строку, а не заводит вторую.</summary>
-    Task RegisterAsync(Guid playerAccountId, string pushToken, string platform, string? locale, CancellationToken cancellationToken);
+    Task RegisterAsync(Guid playerAccountId, string pushToken, string platform, CancellationToken cancellationToken);
 
     /// <summary>Снять устройство — при выходе из аккаунта. Иначе пуши уйдут прежнему владельцу телефона.</summary>
     Task RemoveAsync(Guid playerAccountId, string pushToken, CancellationToken cancellationToken);

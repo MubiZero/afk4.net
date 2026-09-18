@@ -10,17 +10,15 @@ import 'push_tokens.dart';
 /// Игрок управляет ими из настроек, и выключение здесь настоящее: токен снимается с сервера,
 /// а не просто прячется флажком в приложении. Приложение, которое нельзя заткнуть, удаляют.
 class PushService {
-  PushService({required PlayerApiClient api, required PushTokens tokens, String? locale})
+  PushService({required PlayerApiClient api, required PushTokens tokens})
       : _api = api,
-        _tokens = tokens,
-        _locale = locale;
+        _tokens = tokens;
 
   static const String _enabledKey = 'afk4.player.push.enabled';
   static const String _tokenKey = 'afk4.player.push.token';
 
   final PlayerApiClient _api;
   final PushTokens _tokens;
-  final String? _locale;
 
   StreamSubscription<String>? _refreshSubscription;
 
@@ -78,7 +76,7 @@ class PushService {
     if (token == null) return false;
 
     try {
-      await _api.registerDevice(pushToken: token, platform: _tokens.platform, locale: _locale);
+      await _api.registerDevice(pushToken: token, platform: _tokens.platform);
     } on PlayerApiException {
       // Сервер недоступен или отказал: пуши подождут до следующего входа. Экран, на котором
       // игрок только что вошёл, из-за этого падать не должен.
@@ -108,7 +106,7 @@ class PushService {
     _refreshSubscription?.cancel();
     _refreshSubscription = _tokens.onTokenRefresh.listen((token) async {
       try {
-        await _api.registerDevice(pushToken: token, platform: _tokens.platform, locale: _locale);
+        await _api.registerDevice(pushToken: token, platform: _tokens.platform);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tokenKey, token);
       } on PlayerApiException {

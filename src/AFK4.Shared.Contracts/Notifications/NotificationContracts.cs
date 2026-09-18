@@ -27,7 +27,10 @@ public enum NotificationChannel
 /// Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — <c>android</c> или
 /// <c>ios</c>, локаль — язык приложения на этом устройстве.
 /// </summary>
-public sealed record RegisterPlayerDeviceRequest(string? PushToken, string? Platform, string? Locale = null);
+// Язык здесь не спрашивается: пуш уходит на языке аккаунта (PlayerAccount.PreferredLocale),
+// который человек выбирает сам в профиле. Установленные приложения поле ещё шлют — лишнее поле
+// в теле сервер молча пропускает.
+public sealed record RegisterPlayerDeviceRequest(string? PushToken, string? Platform);
 
 /// <summary>
 /// A resolved delivery target. Locale is BCP-47-ish (ru/en/tg) resolved upstream; address fields are

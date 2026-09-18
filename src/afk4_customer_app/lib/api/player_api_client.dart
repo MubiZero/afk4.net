@@ -689,21 +689,21 @@ class PlayerApiClient {
 
   /// Сообщить серверу, куда слать пуши. Ответ пустой — проверяем только, что он не отказ:
   /// регистрация устройства не должна ронять экран, на котором игрок просто вошёл.
+  /// Язык здесь не называется: пуш уходит на языке аккаунта, который человек выбирает в
+  /// профиле. Язык телефона на это не влияет — иначе один и тот же человек читал бы письмо
+  /// на одном языке, а уведомление о том же событии на другом.
   Future<void> registerDevice({
     required String pushToken,
     required String platform,
-    String? locale,
   }) async {
     var response = await _send('POST', '/api/me/devices', body: {
       'pushToken': pushToken,
       'platform': platform,
-      'locale': locale,
     });
     if (response.statusCode == 401 && await _refreshOnce()) {
       response = await _send('POST', '/api/me/devices', body: {
         'pushToken': pushToken,
         'platform': platform,
-        'locale': locale,
       });
     }
     if (response.statusCode >= 400) {

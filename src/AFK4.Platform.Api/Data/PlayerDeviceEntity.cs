@@ -17,9 +17,6 @@ public sealed class PlayerDeviceEntity
     /// <summary>android / ios. Нужно для диагностики: «не доходит на iOS» — это первый вопрос.</summary>
     public string Platform { get; set; } = string.Empty;
 
-    /// <summary>Язык приложения на этом устройстве. Пуш приходит на языке телефона, а не аккаунта.</summary>
-    public string? Locale { get; set; }
-
     public DateTimeOffset CreatedUtc { get; set; }
 
     /// <summary>Когда приложение последний раз подтвердило токен. По нему чистят мёртвые устройства.</summary>
