@@ -245,6 +245,7 @@ class _AppShellState extends State<AppShell> {
               : null,
           onOpenWallet: () => _open(AppSection.wallet),
           openShopRequest: _openShopRequest,
+          pinSet: widget.me?.person.pinSet,
           clock: widget.clock,
         ),
         NavigationDestination(

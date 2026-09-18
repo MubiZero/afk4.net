@@ -400,6 +400,7 @@ export const en = {
   "customer.play.noTariffs": "The club has not set prices yet",
   "customer.play.noTariffsHint": "You cannot start a session from the app. Ask at the desk — an attendant will seat you.",
   "customer.play.pickTariff": "Pick a rate",
+  "customer.play.pinNeeded": "The PC will ask for your number and PIN — set it now so you don't have to walk back to the desk",
   "customer.play.seatsFree": "Free seats: {count}",
   "customer.play.start": "Take a PC",
   "customer.play.startHint": "Start playing without the operator",

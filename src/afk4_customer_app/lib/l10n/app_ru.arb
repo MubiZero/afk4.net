@@ -544,6 +544,7 @@
   "customerPlayNoTariffs": "Клуб пока не назначил цены",
   "customerPlayNoTariffsHint": "Начать игру из приложения не получится. Подойдите к стойке — администратор посадит вас за ПК.",
   "customerPlayPickTariff": "Выберите тариф",
+  "customerPlayPinNeeded": "На экране ПК спросят ваш номер и ПИН-код — задайте его сейчас, чтобы не возвращаться к стойке",
   "customerPlaySeatsFree": "Свободных мест: {count}",
   "@customerPlaySeatsFree": {
     "placeholders": {

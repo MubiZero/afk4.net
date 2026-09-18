@@ -400,6 +400,7 @@ export const ru = {
   "customer.play.noTariffs": "Клуб пока не назначил цены",
   "customer.play.noTariffsHint": "Начать игру из приложения не получится. Подойдите к стойке — администратор посадит вас за ПК.",
   "customer.play.pickTariff": "Выберите тариф",
+  "customer.play.pinNeeded": "На экране ПК спросят ваш номер и ПИН-код — задайте его сейчас, чтобы не возвращаться к стойке",
   "customer.play.seatsFree": "Свободных мест: {count}",
   "customer.play.start": "Сесть за ПК",
   "customer.play.startHint": "Начните игру без оператора",

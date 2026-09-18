@@ -400,6 +400,7 @@ export const tg = {
   "customer.play.noTariffs": "Клуб ҳанӯз нархҳоро муқаррар накардааст",
   "customer.play.noTariffsHint": "Аз барнома бозиро оғоз кардан мумкин нест. Ба назди мизи корӣ равед — маъмур шуморо шинонда мекунад.",
   "customer.play.pickTariff": "Тарифро интихоб кунед",
+  "customer.play.pinNeeded": "Дар экрани ПК рақам ва ПИН-коди шуморо мепурсанд — онро ҳозир таъин кунед, то ба мизи қабул барнагардед",
   "customer.play.seatsFree": "Ҷойҳои озод: {count}",
   "customer.play.start": "Ба ПК нишастан",
   "customer.play.startHint": "Бе оператор бозиро оғоз кунед",

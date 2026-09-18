@@ -224,6 +224,33 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
+  /// Язык интерфейса. Выбранный применяется сразу, не дожидаясь конца входа: человек называет
+  /// его как раз затем, чтобы читать приложение на нём.
+  Widget _languagePicker(L l) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l.customerSigninLangTitle, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        SegmentedButton<String>(
+          segments: [
+            ButtonSegment(value: 'ru', label: Text(l.customerProfileLangRu)),
+            ButtonSegment(value: 'tg', label: Text(l.customerProfileLangTg)),
+            ButtonSegment(value: 'en', label: Text(l.customerProfileLangEn)),
+          ],
+          selected: {_locale},
+          onSelectionChanged: _busy
+              ? null
+              : (selection) {
+                  setState(() => _locale = selection.first);
+                  widget.onLocaleChanged?.call(Locale(_locale));
+                },
+        ),
+      ],
+    );
+  }
+
   List<Widget> _fields(L l, ThemeData theme) => switch (_step) {
         _Step.phone => [
             TextField(
@@ -239,6 +266,11 @@ class _SignInScreenState extends State<SignInScreen> {
               l.customerSigninIntro,
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
+            const SizedBox(height: 20),
+            // Язык предлагался только на третьем шаге, после кода из SMS: таджикоязычный игрок
+            // с русским телефоном читал первые два экрана не на своём языке — и это первое, что
+            // он видел в приложении.
+            _languagePicker(l),
           ],
         _Step.code => [
             TextField(
@@ -268,18 +300,7 @@ class _SignInScreenState extends State<SignInScreen> {
               onSubmitted: (_) => _submitProfile(),
             ),
             const SizedBox(height: 20),
-            Text(l.customerSigninLangTitle, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(value: 'ru', label: Text(l.customerProfileLangRu)),
-                ButtonSegment(value: 'tg', label: Text(l.customerProfileLangTg)),
-                ButtonSegment(value: 'en', label: Text(l.customerProfileLangEn)),
-              ],
-              selected: {_locale},
-              onSelectionChanged:
-                  _busy ? null : (selection) => setState(() => _locale = selection.first),
-            ),
+            _languagePicker(l),
           ],
       };
 
