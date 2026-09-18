@@ -730,6 +730,14 @@
       }
     }
   },
+  "customerReservationsHeld": "{amount} придержано на кошельке",
+  "@customerReservationsHeld": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerReservationsHoldNote": "Сумма брони удерживается на кошельке и вернётся, если бронь отменить",
   "customerReservationsLoadError": "Не удалось загрузить брони.",
   "customerReservationsMove": "Перенести",
@@ -773,6 +781,7 @@
     }
   },
   "customerReservationsRejectMoneyBack": "Деньги вернулись целиком.",
+  "customerReservationsRejectNoReason": "Клуб не назвал причину — спросите на стойке.",
   "customerReservationsRespondBy": "Клуб ответит до {time}",
   "@customerReservationsRespondBy": {
     "placeholders": {

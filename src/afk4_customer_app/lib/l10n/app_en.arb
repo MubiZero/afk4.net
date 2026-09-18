@@ -730,6 +730,14 @@
       }
     }
   },
+  "customerReservationsHeld": "{amount} is held in your wallet",
+  "@customerReservationsHeld": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerReservationsHoldNote": "The amount is held on your wallet and comes back if you cancel",
   "customerReservationsLoadError": "Failed to load reservations.",
   "customerReservationsMove": "Reschedule",
@@ -773,6 +781,7 @@
     }
   },
   "customerReservationsRejectMoneyBack": "The money came back in full.",
+  "customerReservationsRejectNoReason": "The club gave no reason — ask at the desk.",
   "customerReservationsRespondBy": "The club will answer by {time}",
   "@customerReservationsRespondBy": {
     "placeholders": {

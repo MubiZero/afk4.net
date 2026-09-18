@@ -460,6 +460,12 @@ class ReservationEntry {
   }
 
   String? get currencyCode => live.isNotEmpty ? live.first.currencyCode : first.currencyCode;
+
+  /// Деньги за эту бронь заморожены прямо сейчас: она жива и ещё не началась. У отменённой,
+  /// отклонённой и уже отыгранной держать нечего — там сумма просто цена вечера.
+  bool get holdsMoney =>
+      live.isNotEmpty &&
+      live.every((r) => r.state == 'pending' || r.state == 'confirmed');
 }
 
 /// Собирает брони в строки списка: компании — под своим идентификатором группы, одиночные —
@@ -534,9 +540,13 @@ class _ReservationCard extends StatelessWidget {
       _ => null,
     };
     final note = reservation.rejectReasonNote?.trim();
+    final hasNote = note != null && note.isNotEmpty;
     final lines = [
       ?reason,
-      if (note != null && note.isNotEmpty) note,
+      if (hasNote) note,
+      // Ни кода, ни пояснения: «деньги вернулись» без единого слова о том, почему, выглядит
+      // капризом клуба. Сказать, что причины нет, честнее, чем промолчать.
+      if (reason == null && !hasNote) l.customerReservationsRejectNoReason,
       // Заморозка при отказе возвращается всегда: человеку это важнее самой причины.
       l.customerReservationsRejectMoneyBack,
     ];
@@ -621,9 +631,19 @@ class _ReservationCard extends StatelessWidget {
             ),
             ..._respondBy(l, theme, locale),
             ..._rejection(l, theme),
-            if (entry.isCompany && entry.totalMinorUnits != null)
+            // Сколько денег держит эта бронь. Раньше сумма стояла только у компании, и
+            // человек с тремя бронями видел в кошельке один общий «придержано», а в списке —
+            // три карточки без чисел: какая держит сколько, восстановить было нечем.
+            if (entry.totalMinorUnits case final held? when entry.holdsMoney)
               Text(
-                formatMoney(entry.totalMinorUnits!, entry.currencyCode ?? 'TJS', locale: locale),
+                l.customerReservationsHeld(
+                  formatMoney(held, entry.currencyCode ?? 'TJS', locale: locale),
+                ),
+                style: theme.textTheme.bodyMedium,
+              )
+            else if (entry.totalMinorUnits case final total?)
+              Text(
+                formatMoney(total, entry.currencyCode ?? 'TJS', locale: locale),
                 style: theme.textTheme.bodyMedium,
               ),
             if (entry.isCancellable)

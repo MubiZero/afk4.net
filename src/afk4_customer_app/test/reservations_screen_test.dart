@@ -735,4 +735,38 @@ void main() {
 
     expect(find.text('Перенести'), findsNothing);
   });
+
+  /// В кошельке лежит один общий «придержано», а в списке были карточки без чисел: какая бронь
+  /// держит сколько — восстановить нечем. Сумму видели только компании.
+  testWidgets('живая бронь называет, сколько денег держит', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([
+      _reservation(state: 'confirmed', costMinorUnits: 24000),
+    ]))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('придержано на кошельке'), findsOneWidget);
+    expect(find.textContaining('240,00'), findsOneWidget);
+  });
+
+  // Отыгранная бронь ничего не держит: там сумма — просто цена вечера.
+  testWidgets('у законченной брони сумма не выдаётся за заморозку', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([
+      _reservation(state: 'seated', costMinorUnits: 24000),
+    ]))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('придержано'), findsNothing);
+    expect(find.textContaining('240,00'), findsOneWidget);
+  });
+
+  /// «Деньги вернулись целиком» без единого слова о причине выглядит капризом клуба: код
+  /// «другое» текста не имеет, а примечание администратор пишет не всегда.
+  testWidgets('отказ без причины говорит, что причины нет', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([
+      _reservation(state: 'rejected')..['rejectReasonCode'] = 'other',
+    ]))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Клуб не назвал причину'), findsOneWidget);
+  });
 }
