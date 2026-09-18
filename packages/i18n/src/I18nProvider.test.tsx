@@ -43,5 +43,5 @@ it('returns a plain message unchanged when called without values', () => {
     return <span>{t('auth.field.password')}</span>;
   }
   render(<I18nProvider initialLocale="ru"><Plain /></I18nProvider>);
-  expect(screen.getByText('Пароль')).toBeInTheDocument();
+  expect(screen.getByText('ПИН-код')).toBeInTheDocument();
 });

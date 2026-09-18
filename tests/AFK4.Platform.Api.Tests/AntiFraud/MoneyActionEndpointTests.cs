@@ -413,7 +413,7 @@ public sealed class MoneyActionEndpointTests
                 IsActive = true,
                 CreatedAtUtc = Now
             };
-            user.PasswordHash = hasher.HashPassword(user, "Passw0rd!");
+            user.PasswordHash = hasher.HashPassword(user, "246813");
             db.StaffUsers.Add(user);
             db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
             {
@@ -428,7 +428,7 @@ public sealed class MoneyActionEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
-            new StaffSignInRequest(TestIds.OrganizationId, email, "Passw0rd!"));
+            new StaffSignInRequest(TestIds.OrganizationId, email, "246813"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body!.AccessToken);

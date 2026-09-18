@@ -23,7 +23,7 @@ internal static class StaffAuthTestHelper
     {
         var response = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
-            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
+            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "246813"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
@@ -48,7 +48,7 @@ internal static class StaffAuthTestHelper
             IsActive = true,
             CreatedAtUtc = createdAt
         };
-        user.PasswordHash = hasher.HashPassword(user, "Passw0rd!");
+        user.PasswordHash = hasher.HashPassword(user, "246813");
 
         dbContext.Organizations.Add(new OrganizationEntity
         {

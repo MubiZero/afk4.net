@@ -8,17 +8,22 @@ namespace AFK4.Shared.Contracts.Identity;
 public sealed record SetMyPinRequest(string Pin);
 
 /// <summary>
-/// Форма PIN — 4–8 цифр. Живёт в контрактах, потому что то же правило показывает приложение,
-/// прежде чем звать сервер: два разных представления о длине PIN разъехались бы на первой правке.
+/// Форма PIN — ровно шесть цифр, и это единственное правило входа во всей системе: им садится за
+/// ПК гость, им же входят сотрудник клуба, владелец и администратор платформы. Раньше у каждой
+/// двери было своё представление о длине, и совпадали они только на бумаге.
+///
+/// Цифры именно ASCII: «٦٦٦٦٦٦» — тоже цифры, но набрать их второй раз на чужой раскладке человек
+/// не сможет, а <c>char.IsDigit</c> их пропускает.
+///
+/// Живёт в контрактах, потому что то же правило показывают экраны, прежде чем звать сервер: два
+/// разных представления о длине разъехались бы на первой правке.
 /// </summary>
 public static class PinFormat
 {
-    public const int MinLength = 4;
-
-    public const int MaxLength = 8;
+    public const int Length = 6;
 
     public static bool IsWellFormed(string? pin) =>
         pin is not null
-        && pin.Length is >= MinLength and <= MaxLength
+        && pin.Length == Length
         && pin.All(character => character is >= '0' and <= '9');
 }

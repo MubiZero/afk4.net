@@ -76,7 +76,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
 
         var response = await client.PostAsJsonAsync(
             "/api/platform/auth/sign-in",
-            new PlatformAdminSignInRequest(PlatformAdminTestHelper.DefaultUserName, "WrongPassword!"));
+            new PlatformAdminSignInRequest(PlatformAdminTestHelper.DefaultUserName, "111111"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
 
@@ -97,7 +97,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
 
         var response = await client.PostAsJsonAsync(
             "/api/platform/auth/sign-in",
-            new PlatformAdminSignInRequest("ghost@nowhere", "Passw0rd!"));
+            new PlatformAdminSignInRequest("ghost@nowhere", "246813"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -218,7 +218,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         using var staffClient = factory.CreateClient();
         var staffSignIn = await staffClient.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
-            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
+            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "246813"));
         var staffSignInBody = await staffSignIn.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.NotNull(staffSignInBody);
 

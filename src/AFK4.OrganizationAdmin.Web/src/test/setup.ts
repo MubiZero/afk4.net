@@ -18,7 +18,10 @@ const { cleanup, configure } = await import('@testing-library/react');
 // Сам предел теста поднят до 20 секунд в скрипте test: по умолчанию он тоже пять, и запас,
 // который здесь выдаётся, был недоступен — проверка умирала ровно в тот момент, когда запросу
 // оставалась последняя попытка.
-configure({ asyncUtilTimeout: 5000 });
+// Пятнадцать, а не пять: сам тест бун обрывает на двадцати секундах (--timeout 20000 в
+// package.json), и пятисекундное ожидание внутри просто не давало этому запасу сработать —
+// под нагрузкой параллельного прогона краснели здоровые тесты.
+configure({ asyncUtilTimeout: 15000 });
 
 // App.test.tsx registers a process-wide mock.module('./operatorRealtime', ...) that bun
 // cannot reliably restore for sibling files; worse, mock.module retroactively mutates the

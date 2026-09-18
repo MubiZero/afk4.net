@@ -14,8 +14,8 @@ namespace AFK4.Platform.Api.Tests.Identity;
 public sealed class EfStaffPhonePasswordResetServiceTests
 {
     private const string Phone = "992937380070";
-    private const string OldPassword = "OldPassw0rd!";
-    private const string NewPassword = "NewPassw0rd!";
+    private const string OldPassword = "200100";
+    private const string NewPassword = "300200";
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-06-06T12:00:00Z");
 
     private static PlatformDbContext CreateDb() =>

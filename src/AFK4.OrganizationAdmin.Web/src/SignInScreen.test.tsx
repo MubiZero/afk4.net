@@ -44,7 +44,7 @@ function renderSignIn(config: OperatorConfig, onSignIn = mock(async () => {})) {
 async function submitCredentials(login: string, password: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Вход по логину или почте' }));
   fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: login } });
-  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: password } });
+  fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: password } });
   fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 }
 
@@ -56,16 +56,16 @@ describe('SignInScreen', () => {
   it('submits sign-in in the browser runtime even without organizationId in config', async () => {
     const onSignIn = renderSignIn(browserConfig);
 
-    await submitCredentials('cashier', 'password');
+    await submitCredentials('cashier', '246813');
 
-    await waitFor(() => expect(onSignIn).toHaveBeenCalledWith('cashier', 'password'));
+    await waitFor(() => expect(onSignIn).toHaveBeenCalledWith('cashier', '246813'));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('still blocks sign-in on the WPF/kiosk host when the device has no paired connection', async () => {
     const onSignIn = renderSignIn(webviewConfigWithoutConnection);
 
-    await submitCredentials('cashier', 'password');
+    await submitCredentials('cashier', '246813');
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(onSignIn).not.toHaveBeenCalled();

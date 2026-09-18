@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -107,7 +107,7 @@ internal static class StaffOnboardingEndpoints
                 return Results.BadRequest(new { error = "Code is required." });
             }
 
-            var passwordValidation = ValidateStaffPassword(request.NewPassword);
+            var passwordValidation = ValidateStaffPin(request.NewPassword);
             if (passwordValidation is not null)
             {
                 return Results.BadRequest(new { error = passwordValidation });
@@ -238,7 +238,7 @@ internal static class StaffOnboardingEndpoints
             IStaffInviteService staffInviteService,
             CancellationToken cancellationToken) =>
         {
-            var passwordValidation = ValidateStaffPassword(request.Password);
+            var passwordValidation = ValidateStaffPin(request.Password);
             if (passwordValidation is not null)
             {
                 return Results.BadRequest(new { error = passwordValidation });

@@ -54,12 +54,12 @@ describe('ForgotPasswordScreen', () => {
 
     // Step 2: code + new password appear after the code is sent.
     fireEvent.change(await screen.findByLabelText(/код из sms/i), { target: { value: '123456' } });
-    fireEvent.change(screen.getByLabelText(/новый пароль/i), { target: { value: 'Passw0rd!New' } });
-    fireEvent.click(screen.getByRole('button', { name: /сменить пароль/i }));
+    fireEvent.change(screen.getByLabelText(/новый ПИН-код/i), { target: { value: '121212' } });
+    fireEvent.click(screen.getByRole('button', { name: /сменить ПИН-код/i }));
 
     await waitFor(() => expect(resetPasswordByPhone).toHaveBeenCalledTimes(1));
-    expect(resetPasswordByPhone).toHaveBeenCalledWith('992937380070', '123456', 'Passw0rd!New');
-    expect(await screen.findByText(/пароль изменён/i)).toBeTruthy();
+    expect(resetPasswordByPhone).toHaveBeenCalledWith('992937380070', '123456', '121212');
+    expect(await screen.findByText(/ПИН-код изменён/i)).toBeTruthy();
   });
 
   it('shows the remaining attempts when the SMS code is wrong', async () => {
@@ -71,8 +71,8 @@ describe('ForgotPasswordScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
 
     fireEvent.change(await screen.findByLabelText(/код из sms/i), { target: { value: '000000' } });
-    fireEvent.change(screen.getByLabelText(/новый пароль/i), { target: { value: 'Passw0rd!New' } });
-    fireEvent.click(screen.getByRole('button', { name: /сменить пароль/i }));
+    fireEvent.change(screen.getByLabelText(/новый ПИН-код/i), { target: { value: '121212' } });
+    fireEvent.click(screen.getByRole('button', { name: /сменить ПИН-код/i }));
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Неверный код');
@@ -88,11 +88,11 @@ describe('ForgotPasswordScreen', () => {
     await waitFor(() => expect(forgotPasswordByEmail).toHaveBeenCalledWith('owner@club.tj'));
 
     fireEvent.change(await screen.findByLabelText(/код из письма/i), { target: { value: '123456' } });
-    fireEvent.change(screen.getByLabelText(/новый пароль/i), { target: { value: 'Passw0rd!New' } });
-    fireEvent.click(screen.getByRole('button', { name: /сменить пароль/i }));
+    fireEvent.change(screen.getByLabelText(/новый ПИН-код/i), { target: { value: '121212' } });
+    fireEvent.click(screen.getByRole('button', { name: /сменить ПИН-код/i }));
 
-    await waitFor(() => expect(resetPasswordByEmail).toHaveBeenCalledWith('owner@club.tj', '123456', 'Passw0rd!New'));
-    expect(await screen.findByText(/пароль изменён/i)).toBeTruthy();
+    await waitFor(() => expect(resetPasswordByEmail).toHaveBeenCalledWith('owner@club.tj', '123456', '121212'));
+    expect(await screen.findByText(/ПИН-код изменён/i)).toBeTruthy();
   });
 
   it('returns to sign-in via the back link', () => {
@@ -113,8 +113,8 @@ describe('ForgotPasswordScreen', () => {
     fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '992937380070' } });
     fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
     fireEvent.change(await screen.findByLabelText(/код из sms/i), { target: { value: '123456' } });
-    fireEvent.change(screen.getByLabelText(/новый пароль/i), { target: { value: 'Passw0rd!New' } });
-    fireEvent.click(screen.getByRole('button', { name: /сменить пароль/i }));
+    fireEvent.change(screen.getByLabelText(/новый ПИН-код/i), { target: { value: '121212' } });
+    fireEvent.click(screen.getByRole('button', { name: /сменить ПИН-код/i }));
 
     fireEvent.click(await screen.findByRole('button', { name: /перейти ко входу/i }));
     expect(onBack).toHaveBeenCalledWith({ channel: 'phone', identity: '992937380070' });

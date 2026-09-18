@@ -479,14 +479,28 @@
   "customerPhoneTitle": "Тасдиқи рақам",
   "customerPinChange": "PIN-ро иваз кардан",
   "customerPinDone": "PIN нигоҳ дошта шуд",
-  "customerPinErrFormat": "PIN аз 4 то 8 рақам иборат аст",
+  "customerPinErrFormat": "PIN аз {min} рақам иборат аст",
+  "@customerPinErrFormat": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
   "customerPinErrRepeat": "PIN-ҳо мувофиқат намекунанд",
   "customerPinErrSave": "PIN-ро нигоҳ дошта натавонистем",
   "customerPinField": "PIN-и нав",
   "customerPinForgot": "PIN-ро фаромӯш кардед — нави онро гузоред, кӯҳнаашро намепурсем.",
   "customerPinIntro": "Онро дар экрани ПК ҳамроҳи рақами телефонатон ворид кунед — ва бе маъмур худатон ба ҷой менишинед.",
   "customerPinRepeat": "PIN-ро такрор кунед",
-  "customerPinRule": "Аз 4 то 8 рақам",
+  "customerPinRule": "{min} рақам",
+  "@customerPinRule": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
   "customerPinSave": "Нигоҳ доштан",
   "customerPinSaving": "Нигоҳ дошта мешавад…",
   "customerPinScope": "PIN дар ҳамаи клубҳо кор мекунад. Барои ворид шудан ба барнома лозим нест — ин ҷо шумо бо рамзи SMS медароед.",

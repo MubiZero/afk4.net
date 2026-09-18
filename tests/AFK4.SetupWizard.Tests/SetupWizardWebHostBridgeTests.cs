@@ -78,7 +78,7 @@ public sealed class SetupWizardWebHostBridgeTests
     {
         var picker = new StubLogoPicker("C:\\logo.png");
         var bridge = CreateBridge(out var deps, logoFilePicker: picker);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         var response = await Send(
             bridge, "wizard:uploadLogo", $$"""{"branchId":"{{Guid.NewGuid():D}}"}""");
@@ -93,7 +93,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task UploadLogo_WhenTheDialogIsDismissed_UploadsNothing()
     {
         var bridge = CreateBridge(out var deps, logoFilePicker: new StubLogoPicker(null));
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         var response = await Send(
             bridge, "wizard:uploadLogo", $$"""{"branchId":"{{Guid.NewGuid():D}}"}""");
@@ -118,7 +118,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task CreateSeats_MakesNumberedSeatsInTheChosenZone()
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
         var branchId = Guid.NewGuid();
         var zoneId = Guid.NewGuid();
 
@@ -141,7 +141,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task CreateSeats_WithCountOutsideTheLimit_IsRefused(int count)
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         var response = await Send(
             bridge,
@@ -156,7 +156,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task CreateTariff_PassesNameAndHourlyPrice()
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
         var branchId = Guid.NewGuid();
 
         var response = await Send(
@@ -175,7 +175,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task CreateTariff_WithoutPrice_IsRefused()
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         var response = await Send(
             bridge,
@@ -192,7 +192,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task InviteStaff_SendsTheInviteAndReturnsTheCodeToHandOver()
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
         var branchId = Guid.NewGuid();
 
         var response = await Send(
@@ -231,7 +231,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task InviteStaff_WithMissingFields_IsRefused(string displayName, string phone, string role)
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         var response = await Send(
             bridge,
@@ -248,7 +248,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task SaveBranding_SendsChoiceWithTheOrganizationFromSignIn()
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         var response = await Send(
             bridge,
@@ -277,7 +277,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task SaveBranding_WithBlankValues_ClearsTheLook()
     {
         var bridge = CreateBridge(out var deps);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         await Send(bridge, "wizard:saveBranding", """{"logoUrl":"  ","accentColor":null}""");
 
@@ -307,11 +307,11 @@ public sealed class SetupWizardWebHostBridgeTests
     {
         var bridge = CreateBridge(out var deps);
 
-        var signIn = await Send(bridge, "wizard:phoneSignIn", """{"phone":" +992900000000 ","password":"pass"}""");
+        var signIn = await Send(bridge, "wizard:phoneSignIn", """{"phone":" +992900000000 ","password":"246813"}""");
 
         Assert.True(signIn.GetProperty("ok").GetBoolean());
         Assert.Equal("Оператор Дилшод", signIn.GetProperty("payload").GetProperty("displayName").GetString());
-        Assert.Equal(("+992900000000", "pass"), deps.Api.PhoneSignIn);
+        Assert.Equal(("+992900000000", "246813"), deps.Api.PhoneSignIn);
 
         // Токен не уезжает в веб ни при каком запросе: страница мастера его не видит и не хранит.
         Assert.DoesNotContain(Access, signIn.ToString(), StringComparison.Ordinal);
@@ -648,10 +648,10 @@ public sealed class SetupWizardWebHostBridgeTests
         var response = await Send(
             bridge,
             "wizard:resetByEmail",
-            """{"userNameOrEmail":"owner@club.tj","code":" 123456 ","newPassword":"Passw0rd!"}""");
+            """{"userNameOrEmail":"owner@club.tj","code":" 123456 ","newPassword":"246813"}""");
 
         Assert.True(response.GetProperty("ok").GetBoolean());
-        Assert.Equal([("owner@club.tj", "123456", "Passw0rd!")], deps.Api.ResetByEmail);
+        Assert.Equal([("owner@club.tj", "123456", "246813")], deps.Api.ResetByEmail);
     }
 
     [Fact]
@@ -669,7 +669,7 @@ public sealed class SetupWizardWebHostBridgeTests
     // «не тот логин», хотя человек просто ничего не ввёл.
     [Theory]
     [InlineData("wizard:forgotByEmail", """{"userNameOrEmail":"   "}""")]
-    [InlineData("wizard:resetByEmail", """{"userNameOrEmail":"owner@club.tj","code":"","newPassword":"Passw0rd!"}""")]
+    [InlineData("wizard:resetByEmail", """{"userNameOrEmail":"owner@club.tj","code":"","newPassword":"246813"}""")]
     [InlineData("wizard:forgotByPhone", """{"phoneNumber":""}""")]
     public async Task PasswordRecovery_WithAnEmptyField_IsRefusedBeforeTheNetwork(string type, string payload)
     {
@@ -689,7 +689,7 @@ public sealed class SetupWizardWebHostBridgeTests
     public async Task UploadLogo_WithoutAFilePicker_AnswersWithAnError()
     {
         var bridge = CreateBridge(out var deps, logoFilePicker: null);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
 
         var response = await Send(bridge, "wizard:uploadLogo", $$"""{"branchId":"{{Guid.NewGuid():D}}"}""");
 
@@ -776,7 +776,7 @@ public sealed class SetupWizardWebHostBridgeTests
     private static async Task<(SetupWizardWebHostBridge Bridge, Dependencies Deps)> SignedIn()
     {
         var bridge = CreateBridge(out var dependencies);
-        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"pass"}""");
+        await Send(bridge, "wizard:phoneSignIn", """{"phone":"+992900000000","password":"246813"}""");
         return (bridge, dependencies);
     }
 

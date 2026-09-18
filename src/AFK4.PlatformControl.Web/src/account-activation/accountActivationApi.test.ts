@@ -9,7 +9,7 @@ describe('AccountActivationApi', () => {
     }));
     const client = new AccountActivationApi({ baseUrl: 'https://api.test', fetchImpl });
 
-    await client.accept({ code: 'code-1', userName: 'owner@example.test', displayName: '', password: 'Passw0rd!' }, 'organization-owner');
+    await client.accept({ code: 'code-1', userName: 'owner@example.test', displayName: '', password: '246813' }, 'organization-owner');
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://api.test/api/account-activation/organization-owner');
@@ -22,7 +22,7 @@ describe('AccountActivationApi', () => {
     const fetchImpl = mock(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, { status: 204 }));
     const client = new AccountActivationApi({ baseUrl: 'https://api.test', fetchImpl });
 
-    await client.accept({ code: 'code-1', userName: 'support1', displayName: 'Первая поддержка', password: 'Passw0rd!' }, 'platform-admin');
+    await client.accept({ code: 'code-1', userName: 'support1', displayName: 'Первая поддержка', password: '246813' }, 'platform-admin');
 
     expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://api.test/api/account-activation/platform-admin');
   });

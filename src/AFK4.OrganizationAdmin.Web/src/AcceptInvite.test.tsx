@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
+import { PIN_LENGTH } from '@afk4/contracts';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 
@@ -30,7 +30,7 @@ function renderScreen() {
 function fill(phone: string, code: string, password: string) {
   fireEvent.change(screen.getByPlaceholderText('93 738 00 70'), { target: { value: phone } });
   fireEvent.change(screen.getByLabelText('Код из SMS'), { target: { value: code } });
-  fireEvent.change(screen.getByLabelText('Ваш пароль'), { target: { value: password } });
+  fireEvent.change(screen.getByLabelText('Ваш ПИН-код'), { target: { value: password } });
   fireEvent.click(screen.getByRole('button', { name: 'Принять приглашение' }));
 }
 
@@ -38,10 +38,10 @@ describe('AcceptInvite (operator)', () => {
   it('принимает приглашение номером, кодом и своим паролем', async () => {
     renderScreen();
 
-    fill('937380070', '123456', 'FreshPass123');
+    fill('937380070', '123456', '654321');
 
     await waitFor(() =>
-      expect(acceptStaffInvite).toHaveBeenCalledWith('992937380070', '123456', 'FreshPass123'));
+      expect(acceptStaffInvite).toHaveBeenCalledWith('992937380070', '123456', '654321'));
     expect(await screen.findByText(/Теперь входите по своему номеру/u)).toBeTruthy();
   });
 
@@ -51,7 +51,7 @@ describe('AcceptInvite (operator)', () => {
     renderScreen();
 
     // Короче минимума, каким бы он ни был: правило живёт в @afk4/contracts, а не в этой строке.
-    fill('937380070', '123456', 'x'.repeat(MIN_STAFF_PASSWORD_LENGTH - 1));
+    fill('937380070', '123456', 'x'.repeat(PIN_LENGTH));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(acceptStaffInvite).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ describe('AcceptInvite (operator)', () => {
   it('не отправляет неполный номер', async () => {
     renderScreen();
 
-    fill('9373', '123456', 'FreshPass123');
+    fill('9373', '123456', '654321');
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(acceptStaffInvite).not.toHaveBeenCalled();

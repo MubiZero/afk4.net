@@ -177,20 +177,17 @@ internal static partial class EndpointHelpers
     }
 
     /// <summary>
-    /// Минимальная длина пароля сотрудника.
-    ///
-    /// Шесть, а не восемь: пароль набирают вручную на каждой машине при установке, а короткий
-    /// перебор больше не бесконечен — пять промахов подряд запирают учётную запись на четверть
-    /// часа (PasswordHashingStaffCredentialService). Экраны читают это же число из
-    /// @afk4/contracts, совпадение стережёт passwordPolicy.test.ts.
+    /// Вход сотрудника — тот же ПИН-код из шести цифр, что и у всех остальных
+    /// (<see cref="PinFormat"/>). Не пароль: его набирают вручную на каждой машине при установке,
+    /// а перебор коротких больше не бесконечен — пять промахов подряд запирают учётную запись на
+    /// четверть часа (PasswordHashingStaffCredentialService). Экраны читают то же правило из
+    /// @afk4/contracts, совпадение стережёт pinPolicy.test.ts.
     /// </summary>
-    public const int MinimumStaffPasswordLength = 6;
-
-    public static string? ValidateStaffPassword(string password)
+    public static string? ValidateStaffPin(string pin)
     {
-        return string.IsNullOrWhiteSpace(password) || password.Length < MinimumStaffPasswordLength
-            ? $"Password must contain at least {MinimumStaffPasswordLength} characters."
-            : null;
+        return PinFormat.IsWellFormed(pin)
+            ? null
+            : $"PIN must contain exactly {PinFormat.Length} digits.";
     }
 
     public static string? ValidateOrganizationRoleNames(IReadOnlyList<string> roleNames)

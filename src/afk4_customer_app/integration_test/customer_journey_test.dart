@@ -163,11 +163,11 @@ void main() {
     expect(find.text(FakeBackend.somoniName), findsOneWidget);
     expect(backend.log, contains('GET /api/me/dashboard'));
 
-    // 6. Профиль: здесь и только здесь задаётся PIN, которым игрок садится за ПК.
+    // 6. Профиль: здесь и только здесь задаётся ПИН-код, которым игрок садится за ПК.
     await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle();
-    expect(find.text('PIN для посадки за ПК'), findsOneWidget);
-    expect(find.textContaining('PIN не задан'), findsOneWidget);
+    expect(find.text('ПИН-код для посадки за ПК'), findsOneWidget);
+    expect(find.textContaining('ПИН-код не задан'), findsOneWidget);
 
     final requestsBeforeSignOut = backend.log.length;
 

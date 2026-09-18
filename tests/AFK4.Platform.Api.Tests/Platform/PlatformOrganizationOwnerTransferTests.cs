@@ -71,7 +71,7 @@ public sealed class PlatformOrganizationOwnerTransferTests
                 Code: rotatedInvite.Code,
                 UserName: ownerLogin,
                 DisplayName: "Current Owner",
-                Password: "Passw0rd!Real"));
+                Password: "112233"));
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
 
         await using var scope = factory.Services.CreateAsyncScope();

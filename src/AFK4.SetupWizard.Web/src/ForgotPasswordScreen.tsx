@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
+import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import {
   forgotPasswordByEmail,
   forgotPasswordByPhone,
@@ -24,8 +24,6 @@ interface ForgotPasswordScreenProps {
 
 type Step = 'request' | 'verify' | 'done';
 
-const MIN_PASSWORD_LENGTH = MIN_STAFF_PASSWORD_LENGTH;
-
 // Both channels follow the same shape: request a 6-digit code, then enter it with a new password.
 // Email mails the code; SMS texts it — the verify step is identical from there on.
 export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
@@ -47,7 +45,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
   // Don't accuse the user while they're still typing — only after they leave the field (rule #41).
   const showPhoneHint = channel === 'phone' && phoneTouched && phone.length > 0 && !phoneComplete;
   const canRequest = (channel === 'phone' ? phoneComplete : emailLogin.trim().length > 0) && !isBusy;
-  const canReset = code.trim().length > 0 && newPassword.length >= MIN_PASSWORD_LENGTH && !isBusy;
+  const canReset = code.trim().length > 0 && isWellFormedPin(newPassword) && !isBusy;
 
   function selectChannel(next: ResetChannel) {
     setChannel(next);
@@ -171,7 +169,9 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
             <input
               type="password"
               value={newPassword}
-              onChange={(event) => { setNewPassword(event.target.value); clearError(); }}
+              onChange={(event) => { setNewPassword(keepPinDigits(event.target.value)); clearError(); }}
+              inputMode="numeric"
+              maxLength={PIN_LENGTH}
               autoComplete="new-password"
               disabled={isBusy}
               aria-describedby="reset-password-hint"

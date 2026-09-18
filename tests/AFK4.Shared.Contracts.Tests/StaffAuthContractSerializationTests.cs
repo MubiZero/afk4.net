@@ -11,7 +11,7 @@ public sealed class StaffAuthContractSerializationTests
         var request = new StaffSignInByOrganizationKeyRequest(
             OrganizationKey: "demo-club",
             UserName: "owner@afk4.test",
-            Password: "Passw0rd!");
+            Password: "246813");
 
         var json = JsonSerializer.Serialize(request);
         var copy = JsonSerializer.Deserialize<StaffSignInByOrganizationKeyRequest>(json);
@@ -104,7 +104,7 @@ public sealed class StaffAuthContractSerializationTests
     {
         var request = new ResetStaffUserPasswordRequest(
             OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
-            NewPassword: "ChangeMe456!");
+            NewPassword: "456456");
 
         var json = JsonSerializer.Serialize(request);
         var copy = JsonSerializer.Deserialize<ResetStaffUserPasswordRequest>(json);

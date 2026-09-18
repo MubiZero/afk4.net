@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
+import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByEmail, resetPasswordByPhone, StaffAuthApiError } from './authClient';
 import { AuthFrame } from './AuthFrame';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
@@ -59,8 +59,8 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
 
   async function submitReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!code.trim() || newPassword.length < MIN_STAFF_PASSWORD_LENGTH) {
-      setError(t('auth.forgot.phone.error.fields', { min: MIN_STAFF_PASSWORD_LENGTH }));
+    if (!code.trim() || !isWellFormedPin(newPassword)) {
+      setError(t('auth.forgot.phone.error.fields', { min: PIN_LENGTH }));
       return;
     }
     setIsBusy(true); setError(null);
@@ -108,10 +108,11 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
               <span className="ui-field-label">{channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')}</span>
               <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" autoComplete="one-time-code" disabled={isBusy} />
             </label>
-            <label className="ui-field">
-              <span className="ui-field-label">{t('auth.forgot.phone.newPassword')}</span>
-              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.currentTarget.value)} autoComplete="new-password" disabled={isBusy} />
-            </label>
+            <div className="ui-field">
+              <label className="ui-field-label" htmlFor="reset-pin">{t('auth.forgot.phone.newPassword')}</label>
+              <input id="reset-pin" type="password" value={newPassword} onChange={(e) => setNewPassword(keepPinDigits(e.currentTarget.value))} inputMode="numeric" maxLength={PIN_LENGTH} autoComplete="new-password" disabled={isBusy} aria-describedby="reset-pin-hint" />
+              <span id="reset-pin-hint" className="ui-field-hint">{t('auth.forgot.newPassword.hint', { min: PIN_LENGTH })}</span>
+            </div>
             <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isBusy}>
               {isBusy ? t('auth.forgot.phone.resetting') : t('auth.forgot.phone.reset')}
             </button>

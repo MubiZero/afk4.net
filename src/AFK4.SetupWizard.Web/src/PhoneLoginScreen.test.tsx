@@ -79,12 +79,12 @@ describe('PhoneLoginScreen', () => {
     fireEvent.change(screen.getByLabelText(/номер телефона/i), {
       target: { value: '+992 93 738-00-70' },
     });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
     await waitFor(() => expect(signInByPhone).toHaveBeenCalledTimes(1));
     // The fixed +992 prefix + 9 local digits are sent as the full dialable number.
-    expect(signInByPhone).toHaveBeenCalledWith('992937380070', 'Passw0rd!');
+    expect(signInByPhone).toHaveBeenCalledWith('992937380070', '246813');
     expect(signInByLogin).not.toHaveBeenCalled();
     expect(discoverAuthenticated).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(onDiscovered).toHaveBeenCalledTimes(1));
@@ -94,10 +94,10 @@ describe('PhoneLoginScreen', () => {
     const { onDiscovered } = renderScreen();
     switchToCredentials();
     fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club.tj' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
-    await waitFor(() => expect(signInByLogin).toHaveBeenCalledWith('owner@club.tj', 'Passw0rd!'));
+    await waitFor(() => expect(signInByLogin).toHaveBeenCalledWith('owner@club.tj', '246813'));
     expect(signInByPhone).not.toHaveBeenCalled();
     await waitFor(() => expect(onDiscovered).toHaveBeenCalledTimes(1));
   });
@@ -114,11 +114,11 @@ describe('PhoneLoginScreen', () => {
     const { onDiscovered } = renderScreen();
     switchToCredentials();
     fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club.tj' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Клуб Б' }));
-    await waitFor(() => expect(signInToClub).toHaveBeenCalledWith('org-b', 'owner@club.tj', 'Passw0rd!'));
+    await waitFor(() => expect(signInToClub).toHaveBeenCalledWith('org-b', 'owner@club.tj', '246813'));
     await waitFor(() => expect(onDiscovered).toHaveBeenCalledTimes(1));
   });
 
@@ -151,7 +151,7 @@ describe('PhoneLoginScreen', () => {
     renderScreen();
     switchToCredentials();
     fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
     expect(await screen.findByText(/проверьте адрес/i)).toBeTruthy();
@@ -167,15 +167,15 @@ describe('PhoneLoginScreen', () => {
 
     expect(screen.queryByText(/проверьте адрес/i)).toBeNull();
 
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
-    await waitFor(() => expect(signInByLogin).toHaveBeenCalledWith('ivan', 'Passw0rd!'));
+    await waitFor(() => expect(signInByLogin).toHaveBeenCalledWith('ivan', '246813'));
   });
 
   it('shows "forgot password" up front and routes to it', () => {
     const { onForgotPassword } = renderScreen();
     // Recovery is always offered now — no need to fail a sign-in first.
-    const forgot = screen.getByRole('button', { name: /забыли пароль/i });
+    const forgot = screen.getByRole('button', { name: /забыли ПИН-код/i });
     fireEvent.click(forgot);
     expect(onForgotPassword).toHaveBeenCalledTimes(1);
   });

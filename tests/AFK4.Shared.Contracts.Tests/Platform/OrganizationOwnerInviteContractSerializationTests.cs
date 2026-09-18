@@ -100,7 +100,7 @@ public sealed class OrganizationOwnerInviteContractSerializationTests
             Code: "demo-invite-abc123",
             UserName: "demo.owner",
             DisplayName: "Demo Owner",
-            Password: "Passw0rd!Real");
+            Password: "112233");
 
         var json = JsonSerializer.Serialize(request);
         var copy = JsonSerializer.Deserialize<AcceptOrganizationOwnerInviteRequest>(json);

@@ -63,10 +63,10 @@ void main() {
     final http = FakeHttpClient((_) => ('', 204));
     await tester.pumpWidget(sheetHarness(http));
 
-    await enterPin(tester, '4321', '4321');
+    await enterPin(tester, '432109', '432109');
 
     expect(http.paths, ['/api/me/pin']);
-    expect(http.bodies.single['pin'], '4321');
+    expect(http.bodies.single['pin'], '432109');
   });
 
   // Экран объясняет, зачем PIN нужен, — иначе игрок принимает его за второй пароль от
@@ -74,18 +74,18 @@ void main() {
   testWidgets('лист объясняет назначение PIN человеческими словами', (tester) async {
     await tester.pumpWidget(sheetHarness(FakeHttpClient((_) => ('', 204))));
 
-    expect(find.text('PIN для посадки за ПК'), findsOneWidget);
+    expect(find.text('ПИН-код для посадки за ПК'), findsOneWidget);
     expect(find.textContaining('на экране ПК'), findsOneWidget);
     expect(find.textContaining('входите по коду из SMS'), findsOneWidget);
   });
 
-  testWidgets('короткий PIN отклоняется до сервера', (tester) async {
+  testWidgets('ПИН-код не из шести цифр отклоняется до сервера', (tester) async {
     final http = FakeHttpClient((_) => ('', 204));
     await tester.pumpWidget(sheetHarness(http));
 
     await enterPin(tester, '12', '12');
 
-    expect(find.text('PIN — от 4 до 8 цифр'), findsOneWidget);
+    expect(find.text('ПИН-код — это 6 цифр'), findsOneWidget);
     expect(http.paths, isEmpty);
   });
 
@@ -94,9 +94,9 @@ void main() {
     final http = FakeHttpClient((_) => ('', 204));
     await tester.pumpWidget(sheetHarness(http));
 
-    await enterPin(tester, '4321', '1234');
+    await enterPin(tester, '432109', '123490');
 
-    expect(find.text('PIN не совпадает'), findsOneWidget);
+    expect(find.text('ПИН-коды не совпадают'), findsOneWidget);
     expect(http.paths, isEmpty);
   });
 
@@ -104,9 +104,9 @@ void main() {
     await tester.pumpWidget(
         sheetHarness(FakeHttpClient((_) => (jsonEncode({'error': 'invalid_pin'}), 400))));
 
-    await enterPin(tester, '4321', '4321');
+    await enterPin(tester, '432109', '432109');
 
-    expect(find.text('PIN — от 4 до 8 цифр'), findsOneWidget);
+    expect(find.text('ПИН-код — это 6 цифр'), findsOneWidget);
   });
 
   // Старый PIN не спрашивается: потребовать его значило бы запереть выход тому, кто забыл.
@@ -114,7 +114,7 @@ void main() {
     await tester.pumpWidget(sheetHarness(FakeHttpClient((_) => ('', 204)), pinSet: true));
 
     expect(find.byType(TextField), findsNWidgets(2));
-    expect(find.textContaining('Забыли PIN'), findsOneWidget);
+    expect(find.textContaining('Забыли ПИН-код'), findsOneWidget);
   });
 
   // Профиль — единственная дверь к PIN, и он же говорит, задан тот или нет.
@@ -123,8 +123,8 @@ void main() {
         profileHarness(FakeHttpClient((_) => (_profileJson, 200)), person: _person()));
     await tester.pumpAndSettle();
 
-    expect(find.text('PIN не задан — за ПК вас пока сажает администратор'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Задать PIN'), findsOneWidget);
+    expect(find.text('ПИН-код не задан — за ПК вас пока сажает администратор'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Задать ПИН-код'), findsOneWidget);
   });
 
   testWidgets('заданный PIN профиль предлагает сменить, а не задать заново', (tester) async {
@@ -134,7 +134,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('PIN задан'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Сменить PIN'), findsOneWidget);
+    expect(find.text('ПИН-код задан'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Сменить ПИН-код'), findsOneWidget);
   });
 }

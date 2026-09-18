@@ -46,7 +46,7 @@ public sealed partial class StaffInviteEndpointTests
         Assert.Equal(dto!.Code, code);
 
         var accept = await client.PostAsJsonAsync("/api/staff/invites/accept",
-            new AcceptStaffInviteRequest(InvitePhone, code, "FreshPass123"));
+            new AcceptStaffInviteRequest(InvitePhone, code, "654321"));
         Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
         var accepted = await accept.Content.ReadFromJsonAsync<AcceptStaffInviteResponse>();
         Assert.Equal(TestIds.OrganizationId, accepted!.OrganizationId);
@@ -54,7 +54,7 @@ public sealed partial class StaffInviteEndpointTests
 
         // The invitee can now sign in with the password they chose.
         var signIn = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
-            new StaffSignInRequest(TestIds.OrganizationId, "new.cashier", "FreshPass123"));
+            new StaffSignInRequest(TestIds.OrganizationId, "new.cashier", "654321"));
         Assert.Equal(HttpStatusCode.OK, signIn.StatusCode);
     }
 
@@ -97,7 +97,7 @@ public sealed partial class StaffInviteEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/staff/invites/accept",
-            new AcceptStaffInviteRequest(InvitePhone, "000000", "FreshPass123"));
+            new AcceptStaffInviteRequest(InvitePhone, "000000", "654321"));
 
         Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
         Assert.Contains("code_expired", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);

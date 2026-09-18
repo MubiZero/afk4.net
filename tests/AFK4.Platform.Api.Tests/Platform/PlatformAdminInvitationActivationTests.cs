@@ -24,7 +24,7 @@ public sealed class PlatformAdminInvitationActivationTests
 
         using var anonymous = factory.CreateClient();
         var accepted = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
-            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "S3cret!passphrase"));
+            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "864209"));
 
         Assert.Equal(HttpStatusCode.NoContent, accepted.StatusCode);
         await using var scope = factory.Services.CreateAsyncScope();
@@ -45,10 +45,10 @@ public sealed class PlatformAdminInvitationActivationTests
         var invitation = await created.Content.ReadFromJsonAsync<CreatePlatformAdminInvitationResponse>();
         using var anonymous = factory.CreateClient();
         await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
-            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "S3cret!passphrase"));
+            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "864209"));
 
         var second = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
-            new AcceptPlatformAdminInvitationRequest(invitation.Code, "support2", "Вторая поддержка", "S3cret!passphrase"));
+            new AcceptPlatformAdminInvitationRequest(invitation.Code, "support2", "Вторая поддержка", "864209"));
 
         Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
     }
@@ -71,16 +71,16 @@ public sealed class PlatformAdminInvitationActivationTests
 
         using var anonymous = factory.CreateClient();
         var response = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
-            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "S3cret!passphrase"));
+            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "support1", "Первая поддержка", "864209"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    // The account details are validated before the code is looked up, so a mistyped password must
-    // not consume a one-shot invitation. Before the check existed there was nothing to consume it
+    // The account details are validated before the code is looked up, so a mistyped PIN must not
+    // consume a one-shot invitation. Before the check existed there was nothing to consume it
     // with: the endpoint accepted a one-character password and created a platform administrator.
     [Fact]
-    public async Task WeakPassword_IsRejected_AndLeavesTheInvitationUsable()
+    public async Task MalformedPin_IsRejected_AndLeavesTheInvitationUsable()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -102,7 +102,7 @@ public sealed class PlatformAdminInvitationActivationTests
         }
 
         var accepted = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
-            new AcceptPlatformAdminInvitationRequest(invitation.Code, "support1", "Первая поддержка", "S3cret!passphrase"));
+            new AcceptPlatformAdminInvitationRequest(invitation.Code, "support1", "Первая поддержка", "864209"));
 
         Assert.Equal(HttpStatusCode.NoContent, accepted.StatusCode);
     }
@@ -119,7 +119,7 @@ public sealed class PlatformAdminInvitationActivationTests
 
         using var anonymous = factory.CreateClient();
         var response = await anonymous.PostAsJsonAsync("/api/account-activation/platform-admin",
-            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "   ", "Первая поддержка", "S3cret!passphrase"));
+            new AcceptPlatformAdminInvitationRequest(invitation!.Code, "   ", "Первая поддержка", "864209"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         await using var scope = factory.Services.CreateAsyncScope();
@@ -246,10 +246,10 @@ public sealed class PlatformAdminInvitationActivationTests
 
             var results = await Task.WhenAll(
                 serviceForFirst.AcceptInvitationAsync(
-                    new AcceptPlatformAdminInvitationRequest(codeForFirst, "racer", "Гонщик 1", "S3cret!passphrase"),
+                    new AcceptPlatformAdminInvitationRequest(codeForFirst, "racer", "Гонщик 1", "864209"),
                     CancellationToken.None),
                 serviceForSecond.AcceptInvitationAsync(
-                    new AcceptPlatformAdminInvitationRequest(codeForSecond, "racer", "Гонщик 2", "S3cret!passphrase"),
+                    new AcceptPlatformAdminInvitationRequest(codeForSecond, "racer", "Гонщик 2", "864209"),
                     CancellationToken.None))
                 .WaitAsync(TimeSpan.FromSeconds(30));
 

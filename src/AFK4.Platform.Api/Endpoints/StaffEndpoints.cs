@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -532,7 +532,7 @@ internal static class StaffEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
-            var validation = ValidateStaffPassword(request.NewPassword);
+            var validation = ValidateStaffPin(request.NewPassword);
             if (validation is not null)
             {
                 return Results.BadRequest(new { Error = validation });

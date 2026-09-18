@@ -20,7 +20,7 @@ public sealed class StaffPasswordResetServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static async Task<Guid> SeedStaffAsync(PlatformDbContext db, string userName = "owner", string? email = "owner@club.example", string password = "OldPassw0rd")
+    private static async Task<Guid> SeedStaffAsync(PlatformDbContext db, string userName = "owner", string? email = "owner@club.example", string password = "200100")
     {
         var staffUserId = Guid.NewGuid();
         var staff = new StaffUserEntity
@@ -117,13 +117,13 @@ public sealed class StaffPasswordResetServiceTests
         await service.RequestResetAsync("owner", CancellationToken.None);
         var code = notifications.SentNow.Single().Tokens["code"];
 
-        var result = await service.ResetAsync("owner", code, "BrandNewPass1", CancellationToken.None);
+        var result = await service.ResetAsync("owner", code, "400300", CancellationToken.None);
 
         Assert.Equal(ResetPasswordByEmailStatus.Success, result.Status);
         var token = await db.PasswordResetTokens.SingleAsync();
         Assert.NotNull(token.ConsumedAtUtc);
         var staff = await db.StaffUsers.SingleAsync(user => user.StaffUserId == staffUserId);
-        var verification = new PasswordHasher<StaffUserEntity>().VerifyHashedPassword(staff, staff.PasswordHash, "BrandNewPass1");
+        var verification = new PasswordHasher<StaffUserEntity>().VerifyHashedPassword(staff, staff.PasswordHash, "400300");
         Assert.Equal(PasswordVerificationResult.Success, verification);
     }
 
@@ -148,7 +148,7 @@ public sealed class StaffPasswordResetServiceTests
         await service.RequestResetAsync("owner@club.example", CancellationToken.None);
         var code = notifications.SentNow.Single().Tokens["code"];
 
-        var result = await service.ResetAsync("owner@club.example", code, "BrandNewPass1", CancellationToken.None);
+        var result = await service.ResetAsync("owner@club.example", code, "400300", CancellationToken.None);
 
         Assert.Equal(ResetPasswordByEmailStatus.Success, result.Status);
     }
@@ -163,9 +163,9 @@ public sealed class StaffPasswordResetServiceTests
         var code = notifications.SentNow.Single().Tokens["code"];
 
         Assert.Equal(ResetPasswordByEmailStatus.Success,
-            (await service.ResetAsync("owner", code, "BrandNewPass1", CancellationToken.None)).Status);
+            (await service.ResetAsync("owner", code, "400300", CancellationToken.None)).Status);
         Assert.Equal(ResetPasswordByEmailStatus.NoActiveCode,
-            (await service.ResetAsync("owner", code, "AnotherPass2", CancellationToken.None)).Status);
+            (await service.ResetAsync("owner", code, "500400", CancellationToken.None)).Status);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class StaffPasswordResetServiceTests
         var code = notifications.SentNow.Single().Tokens["code"];
         time.Now = Now.AddMinutes(20);
 
-        var result = await service.ResetAsync("owner", code, "BrandNewPass1", CancellationToken.None);
+        var result = await service.ResetAsync("owner", code, "400300", CancellationToken.None);
         Assert.Equal(ResetPasswordByEmailStatus.Expired, result.Status);
     }
 
@@ -189,7 +189,7 @@ public sealed class StaffPasswordResetServiceTests
         await SeedStaffAsync(db);
         var (service, _, _) = CreateService(db);
 
-        var result = await service.ResetAsync("owner", "000000", "BrandNewPass1", CancellationToken.None);
+        var result = await service.ResetAsync("owner", "000000", "400300", CancellationToken.None);
         Assert.Equal(ResetPasswordByEmailStatus.NoActiveCode, result.Status);
     }
 
@@ -203,16 +203,16 @@ public sealed class StaffPasswordResetServiceTests
         var realCode = notifications.SentNow.Single().Tokens["code"];
         var wrongCode = realCode == "000000" ? "111111" : "000000";
 
-        var first = await service.ResetAsync("owner", wrongCode, "BrandNewPass1", CancellationToken.None);
+        var first = await service.ResetAsync("owner", wrongCode, "400300", CancellationToken.None);
         Assert.Equal(ResetPasswordByEmailStatus.InvalidCode, first.Status);
         Assert.Equal(2, first.RemainingAttempts);
 
-        await service.ResetAsync("owner", wrongCode, "BrandNewPass1", CancellationToken.None);
-        var third = await service.ResetAsync("owner", wrongCode, "BrandNewPass1", CancellationToken.None);
+        await service.ResetAsync("owner", wrongCode, "400300", CancellationToken.None);
+        var third = await service.ResetAsync("owner", wrongCode, "400300", CancellationToken.None);
         Assert.Equal(ResetPasswordByEmailStatus.InvalidCode, third.Status);
         Assert.Equal(0, third.RemainingAttempts);
 
-        var locked = await service.ResetAsync("owner", realCode, "BrandNewPass1", CancellationToken.None);
+        var locked = await service.ResetAsync("owner", realCode, "400300", CancellationToken.None);
         Assert.Equal(ResetPasswordByEmailStatus.TooManyAttempts, locked.Status);
     }
 
@@ -235,7 +235,7 @@ public sealed class StaffPasswordResetServiceTests
         await service.RequestResetAsync("owner", CancellationToken.None);
         var code = notifications.SentNow.Single().Tokens["code"];
 
-        await service.ResetAsync("owner", code, "BrandNewPass1", CancellationToken.None);
+        await service.ResetAsync("owner", code, "400300", CancellationToken.None);
 
         var accessToken = await db.StaffAccessTokens.SingleAsync();
         Assert.NotNull(accessToken.RevokedAtUtc);

@@ -26,7 +26,7 @@ public sealed class SetupWizardApiClientTests
         var handler = new RecordingHandler(_ => JsonResponse(expected));
         var client = CreateClient(handler);
 
-        var result = await client.SignInByPhoneAsync("+992 93 738-00-70", "Passw0rd!", CancellationToken.None);
+        var result = await client.SignInByPhoneAsync("+992 93 738-00-70", "246813", CancellationToken.None);
 
         Assert.Equal("access-123", result.AccessToken);
         var request = Assert.Single(handler.Requests);
@@ -58,7 +58,7 @@ public sealed class SetupWizardApiClientTests
         var handler = new RecordingHandler(_ => JsonResponse(expected));
         var client = CreateClient(handler);
 
-        var result = await client.SignInByLoginAsync("owner@club.tj", "Passw0rd!", CancellationToken.None);
+        var result = await client.SignInByLoginAsync("owner@club.tj", "246813", CancellationToken.None);
 
         Assert.NotNull(result.SignedIn);
         Assert.Equal("access-123", result.SignedIn!.AccessToken);
@@ -82,7 +82,7 @@ public sealed class SetupWizardApiClientTests
         });
         var client = CreateClient(handler);
 
-        var result = await client.SignInByLoginAsync("owner@club.tj", "Passw0rd!", CancellationToken.None);
+        var result = await client.SignInByLoginAsync("owner@club.tj", "246813", CancellationToken.None);
 
         Assert.Null(result.SignedIn);
         Assert.Equal(2, result.Clubs.Count);
@@ -99,7 +99,7 @@ public sealed class SetupWizardApiClientTests
         var handler = new RecordingHandler(_ => JsonResponse(expected));
         var client = CreateClient(handler);
 
-        var result = await client.SignInToClubAsync(OrganizationId, "owner@club.tj", "Passw0rd!", CancellationToken.None);
+        var result = await client.SignInToClubAsync(OrganizationId, "owner@club.tj", "246813", CancellationToken.None);
 
         Assert.Equal("access-123", result.AccessToken);
         var request = Assert.Single(handler.Requests);
@@ -115,7 +115,7 @@ public sealed class SetupWizardApiClientTests
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
         var client = CreateClient(handler);
 
-        await client.ResetPasswordByEmailAsync("owner@club.tj", "123456", "Passw0rd!New", CancellationToken.None);
+        await client.ResetPasswordByEmailAsync("owner@club.tj", "123456", "121212", CancellationToken.None);
 
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Post, request.Method);
@@ -123,7 +123,7 @@ public sealed class SetupWizardApiClientTests
         var body = handler.RequestBodies.Single();
         Assert.Contains("owner@club.tj", body);
         Assert.Contains("123456", body);
-        Assert.Contains("Passw0rd!New", body);
+        Assert.Contains("121212", body);
     }
 
     [Fact]
@@ -146,14 +146,14 @@ public sealed class SetupWizardApiClientTests
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
         var client = CreateClient(handler);
 
-        await client.ResetPasswordByPhoneAsync("+992937380070", "123456", "Passw0rd!New", CancellationToken.None);
+        await client.ResetPasswordByPhoneAsync("+992937380070", "123456", "121212", CancellationToken.None);
 
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Post, request.Method);
         Assert.Equal("/api/auth/staff/reset-password-by-phone", request.RequestUri!.AbsolutePath);
         var body = handler.RequestBodies.Single();
         Assert.Contains("123456", body);
-        Assert.Contains("Passw0rd!New", body);
+        Assert.Contains("121212", body);
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public sealed class SetupWizardApiClientTests
         var client = CreateClient(handler);
 
         var exception = await Assert.ThrowsAsync<SetupWizardApiException>(
-            () => client.ResetPasswordByPhoneAsync("+992937380070", "000000", "Passw0rd!New", CancellationToken.None));
+            () => client.ResetPasswordByPhoneAsync("+992937380070", "000000", "121212", CancellationToken.None));
 
         Assert.Equal("invalid_code", exception.Code);
         Assert.Equal(2, exception.RemainingAttempts);

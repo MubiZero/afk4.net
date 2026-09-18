@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../api/pin_policy.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 
@@ -22,11 +23,6 @@ class PinSheet extends StatefulWidget {
 }
 
 class _PinSheetState extends State<PinSheet> {
-  /// Столько же, сколько разрешает сервер: две проверки одной длины разъехались бы на первой
-  /// правке, поэтому границы взяты из контракта, а не придуманы заново.
-  static const int _minLength = 4;
-  static const int _maxLength = 8;
-
   final _pin = TextEditingController();
   final _repeat = TextEditingController();
 
@@ -44,10 +40,8 @@ class _PinSheetState extends State<PinSheet> {
   /// кодом, а игроку нужно знать, какое из двух полей чинить.
   String? _problem(L l) {
     final pin = _pin.text.trim();
-    if (pin.length < _minLength ||
-        pin.length > _maxLength ||
-        !pin.split('').every((symbol) => '0123456789'.contains(symbol))) {
-      return l.customerPinErrFormat;
+    if (!PinPolicy.isWellFormed(pin)) {
+      return l.customerPinErrFormat('${PinPolicy.length}');
     }
     if (_repeat.text.trim() != pin) return l.customerPinErrRepeat;
     return null;
@@ -72,7 +66,9 @@ class _PinSheetState extends State<PinSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = error.statusCode == 400 ? l.customerPinErrFormat : l.customerPinErrSave;
+        _error = error.statusCode == 400
+            ? l.customerPinErrFormat('${PinPolicy.length}')
+            : l.customerPinErrSave;
       });
     }
   }
@@ -110,11 +106,11 @@ class _PinSheetState extends State<PinSheet> {
               autofocus: true,
               obscureText: true,
               keyboardType: TextInputType.number,
-              maxLength: _maxLength,
+              maxLength: PinPolicy.length,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
                 labelText: l.customerPinField,
-                helperText: l.customerPinRule,
+                helperText: l.customerPinRule('${PinPolicy.length}'),
               ),
             ),
             const SizedBox(height: 4),
@@ -123,7 +119,7 @@ class _PinSheetState extends State<PinSheet> {
               enabled: !_saving,
               obscureText: true,
               keyboardType: TextInputType.number,
-              maxLength: _maxLength,
+              maxLength: PinPolicy.length,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(labelText: l.customerPinRepeat),
               onSubmitted: (_) => _save(),

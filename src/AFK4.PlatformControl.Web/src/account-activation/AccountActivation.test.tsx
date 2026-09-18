@@ -24,15 +24,15 @@ it('activates the owner and directs them to Organization Admin without exposing 
   renderScreen('organization-owner', accept as never);
 
   fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: ' owner@example.test ' } });
-  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
-  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!' } });
+  fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
+  fireEvent.change(screen.getByLabelText('Повторите ПИН-код'), { target: { value: '246813' } });
   fireEvent.click(screen.getByRole('button', { name: 'Активировать владельца' }));
 
   await waitFor(() => expect(accept).toHaveBeenCalledWith({
     code: 'invite-1',
     userName: 'owner@example.test',
     displayName: '',
-    password: 'Passw0rd!'
+    password: '246813'
   }, 'organization-owner'));
   expect(screen.getByRole('heading', { name: 'Владелец активирован' })).toBeInTheDocument();
 });
@@ -45,15 +45,15 @@ it('activates a platform administrator through the platform-admin path', async (
 
   fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'support1' } });
   fireEvent.change(screen.getByLabelText('Имя и фамилия'), { target: { value: ' Первая поддержка ' } });
-  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
-  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!' } });
+  fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
+  fireEvent.change(screen.getByLabelText('Повторите ПИН-код'), { target: { value: '246813' } });
   fireEvent.click(screen.getByRole('button', { name: 'Активировать администратора' }));
 
   await waitFor(() => expect(accept).toHaveBeenCalledWith({
     code: 'invite-1',
     userName: 'support1',
     displayName: 'Первая поддержка',
-    password: 'Passw0rd!'
+    password: '246813'
   }, 'platform-admin'));
   expect(screen.getByRole('heading', { name: 'Администратор активирован' })).toBeInTheDocument();
 });
@@ -69,8 +69,8 @@ it('will not send a platform administrator without a name', async () => {
 
   expect(screen.getByLabelText('Имя и фамилия')).toBeRequired();
   fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'support1' } });
-  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
-  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!' } });
+  fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
+  fireEvent.change(screen.getByLabelText('Повторите ПИН-код'), { target: { value: '246813' } });
   fireEvent.click(screen.getByRole('button', { name: 'Активировать администратора' }));
 
   expect(accept).not.toHaveBeenCalled();
@@ -90,11 +90,11 @@ it('tells a rejected password apart from a rejected code, though both arrive as 
 
   fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'support1' } });
   fireEvent.change(screen.getByLabelText('Имя и фамилия'), { target: { value: 'Первая поддержка' } });
-  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
-  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!' } });
+  fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
+  fireEvent.change(screen.getByLabelText('Повторите ПИН-код'), { target: { value: '246813' } });
   fireEvent.click(screen.getByRole('button', { name: 'Активировать администратора' }));
 
-  await screen.findByText('Сервер не принял логин, имя или пароль. Проверьте их и попробуйте снова.');
+  await screen.findByText('Сервер не принял логин, имя или ПИН-код. Проверьте их и попробуйте снова.');
 });
 
 it('reports an unusable code without claiming which way it is unusable', async () => {
@@ -103,8 +103,8 @@ it('reports an unusable code without claiming which way it is unusable', async (
 
   fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'support1' } });
   fireEvent.change(screen.getByLabelText('Имя и фамилия'), { target: { value: 'Первая поддержка' } });
-  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
-  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!' } });
+  fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
+  fireEvent.change(screen.getByLabelText('Повторите ПИН-код'), { target: { value: '246813' } });
   fireEvent.click(screen.getByRole('button', { name: 'Активировать администратора' }));
 
   await screen.findByText('Код приглашения не подошёл: он мог истечь, быть отозванным или уже использованным.');

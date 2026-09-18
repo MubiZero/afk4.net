@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Reservations;
@@ -29,6 +30,14 @@ if (options.ResetDatabase)
 Console.WriteLine("Applying EF Core migrations...");
 await dbContext.Database.MigrateAsync();
 
+if (!PinFormat.IsWellFormed(options.OperatorPassword))
+{
+    Console.Error.WriteLine(
+        $"PIN must contain exactly {PinFormat.Length} digits: seeding with anything else would "
+        + "create an account the rules forbid.");
+    return 1;
+}
+
 var seed = new LocalDevSeed(dbContext, options.OperatorPassword);
 await seed.SeedAsync();
 
@@ -36,12 +45,16 @@ Console.WriteLine("Local AFK4 dev database is ready.");
 Console.WriteLine($"Organization: {LocalDevSeed.OrganizationId}");
 Console.WriteLine($"Branch:       {LocalDevSeed.BranchId}");
 Console.WriteLine($"Login:        {LocalDevSeed.OwnerUserName}");
-Console.WriteLine($"Password:     {options.OperatorPassword}");
+Console.WriteLine($"PIN:          {options.OperatorPassword}");
+
+return 0;
 
 internal sealed record DevSeedOptions(string ConnectionString, string OperatorPassword, bool ResetDatabase)
 {
     private const string DefaultConnectionString = "Host=localhost;Port=5432;Database=afk4_dev;Username=postgres";
-    private const string DefaultOperatorPassword = "Passw0rd!";
+    // Шесть нулей — очевидно ненастоящий ПИН: локальная база и так не секрет, а принять его за
+    // рабочий нельзя даже по невнимательности.
+    private const string DefaultOperatorPassword = "000000";
 
     public static DevSeedOptions Parse(string[] args)
     {

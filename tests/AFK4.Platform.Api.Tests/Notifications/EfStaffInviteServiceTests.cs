@@ -91,7 +91,7 @@ public sealed class EfStaffInviteServiceTests
         var created = await service.CreateInviteAsync(OrgId, BranchId, "newcashier", "New Cashier", Phone, "cashier@club.example",
             [OrganizationRoleNames.Operator, OrganizationRoleNames.Technician], CancellationToken.None);
 
-        var result = await service.AcceptInviteAsync(Phone, created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(Phone, created.Code, "654321", CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Equal(OrgId, result.OrganizationId);
@@ -101,7 +101,7 @@ public sealed class EfStaffInviteServiceTests
         Assert.True(staff.IsActive);
         Assert.Equal("cashier@club.example", staff.Email);
         Assert.Equal(PasswordVerificationResult.Success,
-            new PasswordHasher<StaffUserEntity>().VerifyHashedPassword(staff, staff.PasswordHash, "FreshPass123"));
+            new PasswordHasher<StaffUserEntity>().VerifyHashedPassword(staff, staff.PasswordHash, "654321"));
 
         var roles = await db.StaffRoleAssignments
             .Where(r => r.StaffUserId == staff.StaffUserId && r.BranchId == BranchId)
@@ -121,7 +121,7 @@ public sealed class EfStaffInviteServiceTests
         var (service, _, _) = CreateService(db);
         var created = await service.CreateInviteAsync(OrgId, BranchId, "newcashier", "New Cashier", Phone, "cashier@club.example", Roles, CancellationToken.None);
 
-        Assert.True((await service.AcceptInviteAsync(Phone, created.Code, "FreshPass123", CancellationToken.None)).Succeeded);
+        Assert.True((await service.AcceptInviteAsync(Phone, created.Code, "654321", CancellationToken.None)).Succeeded);
         Assert.False((await service.AcceptInviteAsync(Phone, created.Code, "Another123", CancellationToken.None)).Succeeded);
         Assert.Equal(1, await db.StaffUsers.CountAsync());
     }
@@ -134,7 +134,7 @@ public sealed class EfStaffInviteServiceTests
         var created = await service.CreateInviteAsync(OrgId, BranchId, "newcashier", "New Cashier", Phone, "cashier@club.example", Roles, CancellationToken.None);
         time.Now = Now.AddDays(2);
 
-        var result = await service.AcceptInviteAsync(Phone, created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(Phone, created.Code, "654321", CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal(0, await db.StaffUsers.CountAsync());
@@ -146,7 +146,7 @@ public sealed class EfStaffInviteServiceTests
         await using var db = CreateDb();
         var (service, _, _) = CreateService(db);
 
-        var result = await service.AcceptInviteAsync(Phone, "000000", "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(Phone, "000000", "654321", CancellationToken.None);
 
         Assert.False(result.Succeeded);
     }
@@ -164,7 +164,7 @@ public sealed class EfStaffInviteServiceTests
         });
         await db.SaveChangesAsync();
 
-        var result = await service.AcceptInviteAsync(Phone, created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(Phone, created.Code, "654321", CancellationToken.None);
 
         Assert.False(result.Succeeded);
     }
