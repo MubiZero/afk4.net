@@ -144,6 +144,32 @@ void main() {
     await unmount(tester);
   });
 
+  /// Ответ мог потеряться уже после списания: повтор того же заказа обязан нести прежний
+  /// ключ, а изменённая корзина — это другой заказ, и ключ ему нужен свой.
+  testWidgets('повтор заказа идёт с прежним ключом, изменённый — со своим', (tester) async {
+    final http = _serve(catalog: _catalogJson(), place: ('{"error":"server_down"}', 500));
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Заказать за'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Заказать за'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Заказать за'));
+    await tester.pumpAndSettle();
+
+    final keys = http.bodies.map((body) => body['idempotencyKey']).toList();
+    expect(keys, hasLength(3));
+    expect(keys[0], keys[1]);
+    expect(keys[2], isNot(keys[1]));
+    await unmount(tester);
+  });
+
   testWidgets('нехватка денег названа своей причиной', (tester) async {
     final http = _serve(
       catalog: _catalogJson(),

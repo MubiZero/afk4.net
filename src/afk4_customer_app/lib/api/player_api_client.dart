@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 
 import '../auth/player_session.dart';
 import 'contracts.dart';
-import 'idempotency.dart';
 
 /// Ошибка запроса к API. Несёт код состояния: 410 на коде — «код устарел», 403 на
 /// действии — «возможность выключена», и на экране это разные тексты.
@@ -498,7 +497,7 @@ class PlayerApiClient {
   }
 
   /// Продлевает идущую сессию. Деньги списываются сразу, поэтому запрос несёт ключ
-  /// идемпотентности — см. `newIdempotencyKey`. Ответ сервера не разбирается: главный экран
+  /// идемпотентности — см. `AttemptKey`. Ответ сервера не разбирается: главный экран
   /// всё равно перечитывает себя, а состояние сессии он берёт оттуда, а не из эха команды.
   ///
   /// 409 — на кошельке не хватает денег, 404 — сессия уже не идёт (или чужая).
@@ -618,10 +617,11 @@ class PlayerApiClient {
   Future<WalletSummaryDto> payDebtFromWallet({
     required int amountMinorUnits,
     required String currencyCode,
+    required String idempotencyKey,
   }) async {
     final body = await sendJson('POST', '/api/me/wallet/debt-payment', {
       'amount': {'currencyCode': currencyCode, 'minorUnits': amountMinorUnits},
-      'idempotencyKey': newIdempotencyKey(),
+      'idempotencyKey': idempotencyKey,
     });
     return _parse(body, WalletSummaryDto.fromJson);
   }
