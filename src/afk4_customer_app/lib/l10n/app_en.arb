@@ -70,6 +70,7 @@
   },
   "customerClubDetailsZones": "Zones",
   "customerClubDetailsZonesUnknown": "The club has not described its zones",
+  "customerClubPickerAllCities": "All cities",
   "customerClubPickerChange": "Change club",
   "customerClubPickerClosedToday": "Closed today",
   "customerClubPickerDetails": "Details",

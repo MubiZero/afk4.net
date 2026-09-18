@@ -193,6 +193,7 @@ export const en = {
   "customer.clubDetails.zoneSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
   "customer.clubDetails.zones": "Zones",
   "customer.clubDetails.zonesUnknown": "The club has not described its zones",
+  "customer.clubPicker.allCities": "All cities",
   "customer.clubPicker.change": "Change club",
   "customer.clubPicker.closedToday": "Closed today",
   "customer.clubPicker.details": "Details",

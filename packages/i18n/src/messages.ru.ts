@@ -193,6 +193,7 @@ export const ru = {
   "customer.clubDetails.zoneSeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
   "customer.clubDetails.zones": "Зоны",
   "customer.clubDetails.zonesUnknown": "Зоны клуб не описал",
+  "customer.clubPicker.allCities": "Все города",
   "customer.clubPicker.change": "Сменить клуб",
   "customer.clubPicker.closedToday": "Сегодня выходной",
   "customer.clubPicker.details": "Подробнее",
