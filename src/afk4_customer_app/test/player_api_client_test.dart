@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -328,6 +329,23 @@ void main() {
     expect(http.requests, isEmpty);
   });
 
+  // Соединение, которое приняли и бросили, — обычное дело в клубной сети: без предела
+  // ожидания экран остаётся в «Покупаем…» навсегда, потому что ошибки не случается вовсе.
+  test('молчащий сервер заканчивается сетевой ошибкой, а не бесконечным ожиданием', () async {
+    final client = PlayerApiClient(
+      baseUrl: 'https://api',
+      httpClient: _SilentClient(),
+      timeout: const Duration(milliseconds: 20),
+    );
+
+    await expectLater(
+      client.getJson('/api/public/thing'),
+      throwsA(isA<PlayerApiException>()
+          .having((e) => e.statusCode, 'statusCode', isNull)
+          .having((e) => e.message, 'message', 'network')),
+    );
+  });
+
   test('запрос без сессии идёт без заголовка авторизации', () async {
     final http = _RecordingClient((_) => makeResponse('{"ok":true}'));
     final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
@@ -336,6 +354,12 @@ void main() {
 
     expect(http.requests.single.headers.containsKey('Authorization'), isFalse);
   });
+}
+
+/// Сервер, который принял запрос и не ответил никогда.
+class _SilentClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) => Completer<http.StreamedResponse>().future;
 }
 
 http.Response makeResponse(String body, {int status = 200}) =>
