@@ -424,4 +424,51 @@ void main() {
 
     expect(find.text('Подтверждение номера'), findsOneWidget);
   });
+
+  /// Сколько времени за списанием, сервер присылал всегда, а строка молчала: две «Списание за
+  /// игру» за один вечер ничем не различались, и сойтись с кошельком было нечем.
+  testWidgets('списание за игру называет, за сколько времени', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve(ledger: _page([
+      {
+        'ledgerEntryId': 'l1',
+        'entryType': 'gameplay_charge',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': -4500},
+        'quantitySeconds': 5400,
+        'createdAtUtc': '2026-09-12T07:00:00Z',
+      },
+    ])))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Деньги'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 ч 30 мин'), findsOneWidget);
+  });
+
+  // Выписка читается игроком, а не бухгалтером: «Сторно» и «Долг (постоплата)» — слова стойки.
+  testWidgets('движения названы словами игрока, а не бухгалтерии', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve(ledger: _page([
+      {
+        'ledgerEntryId': 'l1',
+        'entryType': 'reversal',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': 1500},
+        'quantitySeconds': 0,
+        'createdAtUtc': '2026-09-12T07:00:00Z',
+      },
+      {
+        'ledgerEntryId': 'l2',
+        'entryType': 'postpaid_debt',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': -2000},
+        'quantitySeconds': 0,
+        'createdAtUtc': '2026-09-12T08:00:00Z',
+      },
+    ])))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Деньги'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Отмена операции'), findsOneWidget);
+    expect(find.text('Записано в долг'), findsOneWidget);
+  });
 }
