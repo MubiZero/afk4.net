@@ -71,6 +71,11 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
   Timer? _countdown;
 
+  /// Бронь, с которой прямо сейчас идёт работа: пока ответа нет, её кнопки не нажимаются.
+  /// Отмена и перенос ключа идемпотентности не несут, и второе нажатие уходит на сервер
+  /// отдельной командой — для компании это второй возврат денег в очереди.
+  String? _busyId;
+
   @override
   void initState() {
     super.initState();
@@ -191,7 +196,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted || _busyId != null) return;
+    setState(() => _busyId = reservation.reservationId);
 
     try {
       // Компания отменяется одним запросом: четыре отдельных отмены — это четыре шанса
@@ -213,6 +219,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         _ => l.customerReservationsCancelError,
       });
       await _refresh();
+    } finally {
+      if (mounted) setState(() => _busyId = null);
     }
   }
 
@@ -229,7 +237,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       useSafeArea: true,
       builder: (_) => _MoveSheet(initial: reservation.startsAtUtc.toLocal()),
     );
-    if (chosen == null || !mounted) return;
+    if (chosen == null || !mounted || _busyId != null) return;
+    setState(() => _busyId = reservation.reservationId);
 
     try {
       // Версия не передаётся: приложение её не знает, а сервер без неё просто берёт бронь как
@@ -252,6 +261,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         (404, _) || (400, _) => l.customerReservationsMoveErrGone,
         _ => l.customerReservationsMoveError,
       });
+    } finally {
+      if (mounted) setState(() => _busyId = null);
     }
   }
 
@@ -332,6 +343,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                         child: _ReservationCard(
                           entry: entry,
                           now: widget.clock(),
+                          busy: _busyId == entry.first.reservationId,
                           onCancel: () => _cancel(entry),
                           onMove: entry.isCompany ? null : () => _move(entry),
                         ),
@@ -461,11 +473,15 @@ class _ReservationCard extends StatelessWidget {
     required this.now,
     required this.onCancel,
     required this.onMove,
+    this.busy = false,
   });
 
   final ReservationEntry entry;
   final DateTime now;
   final VoidCallback onCancel;
+
+  /// Запрос по этой брони уже в пути: кнопки выключены, пока не придёт ответ.
+  final bool busy;
 
   /// null — переносить нечего или некуда: компанию отсюда не переносят.
   final VoidCallback? onMove;
@@ -593,9 +609,12 @@ class _ReservationCard extends StatelessWidget {
               Row(
                 children: [
                   if (onMove != null)
-                    TextButton(onPressed: onMove, child: Text(l.customerReservationsMove)),
+                    TextButton(
+                      onPressed: busy ? null : onMove,
+                      child: Text(l.customerReservationsMove),
+                    ),
                   TextButton(
-                    onPressed: onCancel,
+                    onPressed: busy ? null : onCancel,
                     style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
                     child: Text(entry.isCompany
                         ? l.customerReservationsCancelCompany
