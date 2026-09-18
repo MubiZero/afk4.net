@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -207,6 +208,30 @@ void main() {
     expect(observed, isNull);
   });
 
+  // Сломавшийся сервер, заглушка прокси и рейт-лимитер отвечают не 401 — и токен от этого
+  // годным быть не перестал. Стереть сессию значит выбросить человека из аккаунта из-за чужого
+  // сбоя: вернуться он сможет только новым кодом из SMS.
+  test('сбой сервера при продлении не выбрасывает игрока из аккаунта', () async {
+    for (final status in [429, 500, 502, 503]) {
+      var sessionCleared = false;
+      final http = _RecordingClient((request) =>
+          request.url.path == '/api/public/player/refresh'
+              ? makeResponse('', status: status)
+              : makeResponse('{"error":"expired"}', status: 401));
+      final client = PlayerApiClient(
+        baseUrl: 'https://api',
+        httpClient: http,
+        session: theSession(),
+        onSessionChanged: (next) => sessionCleared = next == null,
+      );
+
+      await expectLater(client.getJson('/api/me/dashboard'), throwsA(isA<PlayerApiException>()));
+
+      expect(client.session, isNotNull, reason: 'сессия должна пережить ответ $status');
+      expect(sessionCleared, isFalse, reason: 'об уходе сессии не сообщают на ответ $status');
+    }
+  });
+
   test('продление пробуется ровно один раз — не бесконечный цикл на упорной 401', () async {
     var refreshCalls = 0;
     final http = _RecordingClient((request) {
@@ -355,6 +380,23 @@ void main() {
     expect(const PlayerApiException(null, 'network').isOffline, isTrue);
   });
 
+  // Соединение, которое приняли и бросили, — обычное дело в клубной сети: без предела
+  // ожидания экран остаётся в «Покупаем…» навсегда, потому что ошибки не случается вовсе.
+  test('молчащий сервер заканчивается сетевой ошибкой, а не бесконечным ожиданием', () async {
+    final client = PlayerApiClient(
+      baseUrl: 'https://api',
+      httpClient: _SilentClient(),
+      timeout: const Duration(milliseconds: 20),
+    );
+
+    await expectLater(
+      client.getJson('/api/public/thing'),
+      throwsA(isA<PlayerApiException>()
+          .having((e) => e.statusCode, 'statusCode', isNull)
+          .having((e) => e.message, 'message', 'network')),
+    );
+  });
+
   test('запрос без сессии идёт без заголовка авторизации', () async {
     final http = _RecordingClient((_) => makeResponse('{"ok":true}'));
     final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
@@ -363,6 +405,12 @@ void main() {
 
     expect(http.requests.single.headers.containsKey('Authorization'), isFalse);
   });
+}
+
+/// Сервер, который принял запрос и не ответил никогда.
+class _SilentClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) => Completer<http.StreamedResponse>().future;
 }
 
 http.Response makeResponse(String body, {int status = 200}) =>
