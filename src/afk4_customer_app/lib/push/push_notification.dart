@@ -48,6 +48,10 @@ PushDestination? pushDestinationFor(String? template) => switch (template) {
       // Продлить можно с главной, там же живая сессия с обратным отсчётом.
       'player.session_ending' => PushDestination.home,
       'player.reservation_soon' => PushDestination.reservations,
+      // Ответ клуба на заявку: и подтверждение, и отказ ведут в тот же раздел, где заявка
+      // ждала ответа и где видно, что стало с замороженными деньгами.
+      'player.reservation_confirmed' || 'player.reservation_rejected' =>
+        PushDestination.reservations,
       'player.balance_topped_up' => PushDestination.wallet,
       // Заказ живёт в магазине: там его состояние и отмена.
       'player.order_ready' => PushDestination.shop,

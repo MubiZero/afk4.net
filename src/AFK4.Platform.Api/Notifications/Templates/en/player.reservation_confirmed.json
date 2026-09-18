@@ -1,0 +1,5 @@
+{
+  "subject": "The club confirmed your booking — {{club}}, {{time}}",
+  "bodyText": "{{club}}: your booking for {{time}} is confirmed. See you there.",
+  "bodyHtml": ""
+}

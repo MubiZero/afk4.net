@@ -47,13 +47,14 @@ String _companyJson({int seats = 3, String state = 'confirmed', int perSeat = 15
         ),
     ]);
 
-Widget harness(FakeHttpClient http, {bool phoneVerified = true}) => MaterialApp(
+Widget harness(FakeHttpClient http, {bool phoneVerified = true, bool active = true}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
       home: ReservationsScreen(
         api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
         phoneVerified: phoneVerified,
+        active: active,
         clock: () => _now,
       ),
     );
@@ -666,6 +667,24 @@ void main() {
   });
 
   // У компании несколько мест, и перенос половины разделил бы её на две брони — это другое
+  /// Раздел про ожидание чужого ответа: вернувшись в него, игрок обязан увидеть решение клуба,
+  /// а не список, прочитанный полчаса назад.
+  testWidgets('возвращение в раздел перечитывает ответ клуба', (tester) async {
+    var state = 'pending';
+    final http = FakeHttpClient(
+        (_) => (jsonEncode([_reservation(state: state)]), 200));
+
+    await tester.pumpWidget(harness(http, active: false));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Ожидает подтверждения'), findsOneWidget);
+
+    state = 'confirmed';
+    await tester.pumpWidget(harness(http, active: true));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Подтверждена'), findsOneWidget);
+  });
+
   /// Отмена ключа идемпотентности не несёт: второе нажатие уходит на сервер отдельной
   /// командой, а для компании это второй возврат денег в очереди.
   testWidgets('отмена не уходит на сервер дважды от двойного нажатия', (tester) async {

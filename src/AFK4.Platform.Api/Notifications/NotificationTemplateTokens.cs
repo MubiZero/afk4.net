@@ -30,6 +30,8 @@ public static class NotificationTemplateTokens
             [NotificationTemplateKeys.PlayerBalanceToppedUp] = ["amount", "balance"],
             [NotificationTemplateKeys.PlayerOrderReady] = ["items", "seat"],
             [NotificationTemplateKeys.PlayerPhoneVerification] = ["code", "expiresInMinutes", "displayName"],
+            [NotificationTemplateKeys.PlayerReservationConfirmed] = ["club", "time"],
+            [NotificationTemplateKeys.PlayerReservationRejected] = ["club", "time", "reason"],
             [NotificationTemplateKeys.PlayerReservationSoon] = ["club", "time"],
             [NotificationTemplateKeys.PlayerSessionEnding] = ["minutes", "seat"],
             [NotificationTemplateKeys.PlayerSignInCode] = ["code", "expiresInMinutes"],
