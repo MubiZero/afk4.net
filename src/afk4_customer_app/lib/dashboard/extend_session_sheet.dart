@@ -40,6 +40,10 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
   bool _pending = false;
   String? _error;
 
+  /// Ключ попытки: повтор после обрыва обязан прийти с тем же, иначе сервер спишет деньги
+  /// второй раз. Смена числа минут — уже другая попытка, и ключ ей нужен свой.
+  final AttemptKey _attempt = AttemptKey();
+
   Future<void> _submit() async {
     final l = L.of(context);
     setState(() {
@@ -53,8 +57,9 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
         additionalMinutes: _minutes,
         // Ключ рождается здесь, а не в клиенте API: повтор той же попытки должен нести тот
         // же ключ, иначе идемпотентность не спасёт от двойного списания.
-        idempotencyKey: newIdempotencyKey(),
+        idempotencyKey: _attempt.forSubject('${widget.sessionId}:$_minutes'),
       );
+      _attempt.done();
       if (mounted) Navigator.of(context).pop(_minutes);
     } on PlayerApiException catch (error) {
       if (!mounted) return;

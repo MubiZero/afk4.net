@@ -413,6 +413,75 @@ Two defects in the above were caught by CI, not by local runs: a stale
 (the smoke had been failing those steps unnoticed), and the first, too-broad
 version of the pipe `Flush` change, which hung the agent suite for 37 minutes.
 
+## Player App Audit (2026-09-18)
+
+Two passes over the Flutter player app (`src/afk4_customer_app`), same method as the
+Organization Admin and Agent audits: first defects, then friction in real scenarios.
+Twenty-one PRs (#337–#357), each stacked on the previous one; every check green at each
+step. What the audit found clean: client and server agree on all 60 player routes (no dead
+handlers, no calls to routes that do not exist), the localization catalogue is disciplined
+(one technical literal outside `lib/l10n`), and money always goes through the shared
+formatter.
+
+**Pass one — defects.**
+
+- **Requests had no timeout** (#337). A connection accepted and dropped — routine on club
+  Wi-Fi — left "Покупаем…" on screen forever: the future never completed, so no `catch` ran.
+  Bank-link failures and payment-status polls were fixed in the same PR.
+- **Double-charge protection was a fiction** (#338, #344). The idempotency key was generated
+  fresh on every tap, so it did nothing in the one case it exists for: a retry after a lost
+  answer. `AttemptKey` now lives per attempt. Top-up intents and reservations had no key at
+  all — not even in the contract; they now carry `IdempotencyKeyHash` on the entity itself,
+  with a partial unique index per player (migration `20260918094040_AddPlayerAttemptIdempotency`).
+  A repeated booking used to hold the money a second time.
+- **A server hiccup signed the player out** (#339). Token refresh treated any non-200 — 500,
+  502 from a proxy, 429 from the rate limiter — as a dead token and wiped the session.
+- **Failures now name their reason** (#340, #341). `remainingAttempts` and `resendAfterSeconds`
+  were dropped in the client; `tournament_already_registered` showed as a generic error and
+  invited the player to pay the entry fee twice; extending a session called every 409
+  "not enough money". Offline is now distinguished from a server refusal in eleven places.
+- **Dead ends got a retry** (#342), bookings stopped being cancellable twice by a double tap
+  (#343), and `PlayerDevice.Locale` was removed (#345) — it was written and never read, while
+  its comment claimed push language came from it (it comes from the account).
+- **Reads stopped growing with history** (#346). The club rating averaged every review row in
+  memory on a public route; the bookings list returned every booking ever made and the app
+  built all cards at once; package balances cost two queries per package.
+
+**Pass two — friction.**
+
+- Wallet re-reads its balance when the section is opened again and right after a top-up
+  (#347) — it used to show the number read at app start, so an online payment left two
+  different balances in two tabs. Online payment and a counter request no longer share the
+  text "Заявка отправлена", and extending a session names the sum before the tap.
+- **The club's answer to a booking reaches the player** (#348): `player.reservation_confirmed`
+  and `player.reservation_rejected` did not exist, and the bookings screen was the only one
+  that never re-read itself — the most anxious wait in the product was the only one with
+  nothing to tell the player.
+- First visit leads somewhere (#349), the ledger says what a charge was for and drops the
+  bookkeeping vocabulary (#350, #355), a booking says how much money it holds (#351), the
+  order button sits on the live-session card (#352), a booking takes two dialogs instead of
+  four (#353), language and PIN come before they are needed (#354), and the club picker
+  filters by city (#356) and by distance on request (#357).
+
+**Privacy note on "near me" (#357).** Location is requested only when the player taps the
+chip — never at startup — and only coarse (`ACCESS_COARSE_LOCATION`, `LocationAccuracy.low`).
+The point lives in screen state: it is never stored and never sent to the server.
+
+**Deliberately not done, with reasons:**
+
+- **Running balance in the wallet statement.** Reservation holds are hidden from the statement
+  (correctly — they are a "−15/+15" pair with nothing in between) but they do count towards the
+  wallet balance, so a balance computed from visible rows would not add up. Doing it honestly
+  needs a product decision first: whether holds appear as rows.
+- **`/api/me/achievements` still reads every session of the player's life.** The thresholds
+  ("Veteran — 50 visits", total minutes played) are computed over the whole history, and
+  "night owl" needs the hour in the club's timezone, which cannot be expressed in SQL without
+  risking a query that does not translate on Postgres — and the in-memory test provider would
+  not catch that. Needs aggregates or a stored counter.
+- **`/api/public/organizations`** is still the heaviest response in the product: 50 clubs with
+  all their branches, zones and photos, plus six unbounded helper queries. It grows with the
+  platform, not with the player; reshaping the storefront response is its own task.
+
 ## Latest Verification
 
 - Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
@@ -699,7 +768,11 @@ money pass all wait until the code of every part is finished and satisfies the
 owner. The Player Shell is last of all, and its current implementation is to be
 thrown away rather than polished.
 
-1. **The Player Shell, rewritten.** It is the least finished part of the
+1. **Platform Control** — the last part with no audit of its own. The player app
+   audit closed on 2026-09-18 (#337–#357); Organization Admin, the Agent service
+   and the Setup Wizard were audited earlier. Platform Control has only been
+   touched in passing, and its list pages are the known unpaged ones.
+2. **The Player Shell, rewritten.** It is the least finished part of the
    product: nine screens, ~1100 lines, its own inline styles instead of the kit
    and tokens, and hardcoded Russian in every screen although `@afk4/i18n` is a
    declared dependency and the agent already sends the branch's `Locale` (which
@@ -707,20 +780,23 @@ thrown away rather than polished.
    work that has to live in an interactive process: kiosk input blocking,
    «позвать оператора» (needs a backend route — there is none), «пауза» (needs a
    session endpoint — there is none), empty states in shop/extend.
-2. **Operator entity search** — the palette finds people but still not seats,
+3. **Operator entity search** — the palette finds people but still not seats,
    reservations, orders or receipts.
-3. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
+4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
    checklist.
-4. **Decide whether iOS ships at launch** — no Apple account, no APNs key, no
+5. **Decide whether iOS ships at launch** — no Apple account, no APNs key, no
    `ios` folder.
-5. **Then, and only then, the frozen evidence**: the live revenue-wave pass, per
+6. **Then, and only then, the frozen evidence**: the live revenue-wave pass, per
    environment SMTP (`docs/operations/email-delivery.md`), the clean
    `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
    smoke.
 
 Known smaller debts worth picking up between the big pieces: the `mock.module`
 leak that fails one Organization Admin web test on Windows in a full run (green
-on Linux, so CI never sees it), and the report-plan tail listed in
-`docs/superpowers/plans/README.md`.
+on Linux, so CI never sees it), the report-plan tail listed in
+`docs/superpowers/plans/README.md`, and the three items the player app audit left
+open on purpose — the running balance in the wallet statement (needs the product
+decision on holds), `/api/me/achievements` reading the whole visit history, and the
+weight of `/api/public/organizations`.

@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 
 import '../auth/player_session.dart';
 import 'contracts.dart';
-import 'idempotency.dart';
 
 /// Ошибка запроса к API. Несёт код состояния: 410 на коде — «код устарел», 403 на
 /// действии — «возможность выключена», и на экране это разные тексты.
@@ -49,12 +48,21 @@ class PlayerApiClient {
     http.Client? httpClient,
     PlayerSession? session,
     void Function(PlayerSession?)? onSessionChanged,
+    this.timeout = const Duration(seconds: 20),
   })  : _http = httpClient ?? http.Client(),
         _session = session,
         _onSessionChanged = onSessionChanged;
 
   final String baseUrl;
   final http.Client _http;
+
+  /// Сколько ждать ответ, прежде чем считать запрос несостоявшимся.
+  ///
+  /// Без предела соединение, которое приняли и бросили — обычное дело в клубной сети и в
+  /// мобильном интернете, — держит экран в «Покупаем…» вечно: future не завершается, и ни
+  /// один `catch` не срабатывает. Двадцать секунд — заметно больше самого медленного
+  /// обычного ответа и заметно меньше человеческого терпения.
+  final Duration timeout;
 
   /// Кому сообщать о смене сессии. Задаётся и после создания клиента: оболочка, которая умеет
   /// писать сессию на диск и уводить на экран входа, рождается позже самого клиента.
@@ -498,7 +506,7 @@ class PlayerApiClient {
   }
 
   /// Продлевает идущую сессию. Деньги списываются сразу, поэтому запрос несёт ключ
-  /// идемпотентности — см. `newIdempotencyKey`. Ответ сервера не разбирается: главный экран
+  /// идемпотентности — см. `AttemptKey`. Ответ сервера не разбирается: главный экран
   /// всё равно перечитывает себя, а состояние сессии он берёт оттуда, а не из эха команды.
   ///
   /// 409 — на кошельке не хватает денег, 404 — сессия уже не идёт (или чужая).
@@ -618,10 +626,11 @@ class PlayerApiClient {
   Future<WalletSummaryDto> payDebtFromWallet({
     required int amountMinorUnits,
     required String currencyCode,
+    required String idempotencyKey,
   }) async {
     final body = await sendJson('POST', '/api/me/wallet/debt-payment', {
       'amount': {'currencyCode': currencyCode, 'minorUnits': amountMinorUnits},
-      'idempotencyKey': newIdempotencyKey(),
+      'idempotencyKey': idempotencyKey,
     });
     return _parse(body, WalletSummaryDto.fromJson);
   }
@@ -753,7 +762,9 @@ class PlayerApiClient {
     if (body != null) request.body = jsonEncode(body);
 
     try {
-      return await http.Response.fromStream(await _http.send(request));
+      // Предел накрывает и отправку, и чтение тела: `await` внутри выражения ждал бы ответ
+      // сервера ещё до того, как предел вообще начнёт действовать.
+      return await _http.send(request).then(http.Response.fromStream).timeout(timeout);
     } catch (_) {
       throw const PlayerApiException(null, 'network');
     }
@@ -780,10 +791,17 @@ class PlayerApiClient {
       'refreshToken': current.refreshToken,
     });
 
-    if (response.statusCode != 200) {
-      // Продлить не вышло — сессии больше нет. Оставить мёртвый токен значит показывать
-      // игроку ошибки до конца времён вместо экрана входа.
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      // Токена больше нет: он отозван, истёк или учётную запись закрыли. Оставить его значит
+      // показывать игроку ошибки до конца времён вместо экрана входа.
       updateSession(null);
+      return false;
+    }
+
+    if (response.statusCode != 200) {
+      // Сервер споткнулся, прокси отдал заглушку, рейт-лимитер попросил подождать — токен от
+      // этого годным быть не перестал. Выбрасывать человека из аккаунта из-за чужого сбоя
+      // нельзя: он потеряет сессию, а вернуть её сможет только новым кодом из SMS.
       return false;
     }
 

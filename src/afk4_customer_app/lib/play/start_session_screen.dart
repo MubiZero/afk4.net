@@ -49,6 +49,10 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   bool _starting = false;
   String? _error;
 
+  /// Ключ попытки: повтор после обрыва обязан прийти с тем же, иначе сессия начнётся дважды
+  /// и деньги спишутся дважды. Другое место, тариф или время — другая попытка со своим ключом.
+  final AttemptKey _attempt = AttemptKey();
+
   @override
   void initState() {
     super.initState();
@@ -117,8 +121,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
         seatingCode: code,
         tariffRuleVersionId: tariffId,
         durationMinutes: _minutes,
-        idempotencyKey: newIdempotencyKey(),
+        idempotencyKey: _attempt.forSubject('$code:$tariffId:$_minutes'),
       );
+      _attempt.done();
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
       // Имя места подтверждает, что человек не ошибся монитором: код он набрал с одного экрана,
