@@ -93,13 +93,15 @@ internal static class PlayerCatalogEndpoints
                 .OrderByDescending(package => package.PurchasedAtUtc)
                 .ToListAsync(ct);
 
+            var remainingByPackage = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
+                dbContext,
+                packages.Select(package => package.PlayerPackageId).ToList(),
+                ct);
+
             var response = new List<PlayerPackageDto>(packages.Count);
             foreach (var package in packages)
             {
-                var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
-                    dbContext,
-                    package.PlayerPackageId,
-                    ct);
+                var remaining = remainingByPackage[package.PlayerPackageId];
 
                 response.Add(new PlayerPackageDto(
                     package.PlayerPackageId,

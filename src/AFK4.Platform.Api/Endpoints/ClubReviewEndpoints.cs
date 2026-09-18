@@ -192,14 +192,20 @@ internal static class ClubReviewEndpoints
         Guid organizationId,
         CancellationToken cancellationToken)
     {
-        var ratings = await dbContext.ClubReviews
+        // Считает база, а не мы: у популярного клуба это тысячи оценок, и поднимать их в
+        // память ради одного числа значит платить всей историей клуба за каждое открытие его
+        // карточки — на публичном маршруте, без авторизации.
+        var reviews = dbContext.ClubReviews
             .AsNoTracking()
-            .Where(review => review.OrganizationId == organizationId)
-            .Select(review => review.Rating)
-            .ToListAsync(cancellationToken);
+            .Where(review => review.OrganizationId == organizationId);
 
-        return ratings.Count == 0
-            ? (null, 0)
-            : (Math.Round(ratings.Average(), 1), ratings.Count);
+        var count = await reviews.CountAsync(cancellationToken);
+        if (count == 0)
+        {
+            return (null, 0);
+        }
+
+        var average = await reviews.AverageAsync(review => (double)review.Rating, cancellationToken);
+        return (Math.Round(average, 1), count);
     }
 }

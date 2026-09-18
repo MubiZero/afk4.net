@@ -77,6 +77,50 @@ public static class LedgerBalanceProjector
         return new ClubBalances(wallet, held, debt);
     }
 
+    /// <summary>
+    /// Остатки сразу по нескольким пакетам — одним запросом.
+    ///
+    /// Поштучный опрос стоил двух обращений к базе на каждый купленный пакет: экран «Пакеты»
+    /// открывался за два десятка запросов у того, кто давно ходит в клуб.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<Guid, PackageRemainingSeconds>> GetPackageRemainingSecondsAsync(
+        PlatformDbContext dbContext,
+        IReadOnlyCollection<Guid> playerPackageIds,
+        CancellationToken cancellationToken)
+    {
+        if (playerPackageIds.Count == 0)
+        {
+            return new Dictionary<Guid, PackageRemainingSeconds>();
+        }
+
+        var sums = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.PlayerPackageId != null &&
+                playerPackageIds.Contains(entry.PlayerPackageId.Value))
+            .GroupBy(entry => new { PackageId = entry.PlayerPackageId!.Value, entry.AccountType })
+            .Select(group => new
+            {
+                group.Key.PackageId,
+                group.Key.AccountType,
+                Seconds = group.Sum(entry => (int?)entry.QuantitySeconds) ?? 0
+            })
+            .ToListAsync(cancellationToken);
+
+        var byPackage = sums
+            .GroupBy(row => row.PackageId)
+            .ToDictionary(
+                group => group.Key,
+                group => new PackageRemainingSeconds(
+                    group.Where(row => row.AccountType == LedgerAccountTypeNames.PackageTime)
+                        .Sum(row => row.Seconds),
+                    group.Where(row => row.AccountType == LedgerAccountTypeNames.BonusTime)
+                        .Sum(row => row.Seconds)));
+
+        return playerPackageIds.ToDictionary(
+            id => id,
+            id => byPackage.TryGetValue(id, out var remaining) ? remaining : new PackageRemainingSeconds(0, 0));
+    }
+
     public static async Task<PackageRemainingSeconds> GetPackageRemainingSecondsAsync(
         PlatformDbContext dbContext,
         Guid playerPackageId,

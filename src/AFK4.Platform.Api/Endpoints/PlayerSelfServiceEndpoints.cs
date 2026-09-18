@@ -75,6 +75,12 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class PlayerSelfServiceEndpoints
 {
+    /// Сколько броней раздел показывает вперёд и назад. Вперёд запас с избытком: столько
+    /// активных броней игроку всё равно не даст завести правило клуба. Назад — недавнее;
+    /// полная история визитов живёт в своём разделе и листается курсором.
+    private const int UpcomingReservationsLimit = 50;
+    private const int PastReservationsLimit = 20;
+
     public static void MapPlayerSelfServiceEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/profile", async (
@@ -952,6 +958,7 @@ internal static class PlayerSelfServiceEndpoints
         app.MapGet("/api/me/reservations", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -960,11 +967,28 @@ internal static class PlayerSelfServiceEndpoints
                 return Results.Unauthorized();
             }
 
-            var reservations = await dbContext.Reservations
+            // Раздел броней — про то, что впереди. Впереди берём всё: там свой предел, правило
+            // клуба о числе активных броней. Позади — последние несколько: человеку важно
+            // увидеть недавнее, а архив за все годы он и так никогда не пролистывал, зато
+            // список рос с каждым визитом и однажды перестал бы влезать в ответ.
+            var now = timeProvider.GetUtcNow();
+            var upcoming = await dbContext.Reservations
                 .AsNoTracking()
-                .Where(reservation => reservation.PlayerAccountId == player.PlayerAccountId)
+                .Where(reservation => reservation.PlayerAccountId == player.PlayerAccountId &&
+                    reservation.StartsAtUtc >= now)
                 .OrderByDescending(reservation => reservation.StartsAtUtc)
+                .Take(UpcomingReservationsLimit)
                 .ToListAsync(cancellationToken);
+
+            var past = await dbContext.Reservations
+                .AsNoTracking()
+                .Where(reservation => reservation.PlayerAccountId == player.PlayerAccountId &&
+                    reservation.StartsAtUtc < now)
+                .OrderByDescending(reservation => reservation.StartsAtUtc)
+                .Take(PastReservationsLimit)
+                .ToListAsync(cancellationToken);
+
+            var reservations = upcoming.Concat(past).ToList();
 
             var seatIds = reservations
                 .Where(r => r.SeatId is not null)
