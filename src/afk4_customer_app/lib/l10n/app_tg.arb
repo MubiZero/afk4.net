@@ -564,6 +564,7 @@
   },
   "customerPlayStarting": "Оғоз карда истодаем…",
   "customerPlayTitle": "Оғози бозӣ",
+  "customerPlayUnavailable": "Ҳоло худатон нишастан мумкин нест — ба назди мизи қабул оед, оператор шуморо шинонад",
   "customerProfileChangePhone": "Иваз кардани рақам",
   "customerProfileDeleteBlockedBalance": "Дар ҳамён пул мондааст. Онро дар назди клуб гиред ва ба ин ҷо баргардед.",
   "customerProfileDeleteBlockedDebt": "Шумо қарздоред. Қарзро пӯшонед — аз ҳамён ё дар назди клуб.",

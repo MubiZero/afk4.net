@@ -564,6 +564,7 @@
   },
   "customerPlayStarting": "Запускаем…",
   "customerPlayTitle": "Начать игру",
+  "customerPlayUnavailable": "Сесть самому сейчас нельзя — подойдите к стойке, администратор посадит вас за ПК",
   "customerProfileChangePhone": "Изменить номер",
   "customerProfileDeleteBlockedBalance": "На кошельке остались деньги. Заберите их на стойке клуба — и возвращайтесь сюда.",
   "customerProfileDeleteBlockedDebt": "За вами числится долг. Погасите его — с кошелька или на стойке клуба.",

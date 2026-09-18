@@ -405,6 +405,7 @@
   "customer.play.started": "Session started; take {seat}",
   "customer.play.starting": "Starting…",
   "customer.play.title": "Start playing",
+  "customer.play.unavailable": "Self-service seating is unavailable right now — the desk will seat you",
   "customer.profile.changePhone": "Change the number",
   "customer.profile.delete.blockedBalance": "There is still money in your wallet. Collect it at the club counter, then come back here.",
   "customer.profile.delete.blockedDebt": "You still owe the club. Clear the debt — from your wallet or at the counter.",

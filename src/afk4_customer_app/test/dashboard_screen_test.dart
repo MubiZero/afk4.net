@@ -64,6 +64,8 @@ Widget harness(
   bool phoneVerified = true,
   List<String>? features = const ['online_topup'],
   VoidCallback? onOpenReservations,
+  VoidCallback? onOpenWallet,
+  bool accountOpen = true,
 }) =>
     MaterialApp(
       locale: const Locale('ru'),
@@ -75,7 +77,9 @@ Widget harness(
         organization: _club,
         phoneVerified: phoneVerified,
         features: features,
+        accountOpen: accountOpen,
         onOpenReservations: onOpenReservations,
+        onOpenWallet: onOpenWallet,
         clock: () => _now,
       ),
     );
@@ -201,6 +205,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Сесть за ПК'), findsNothing);
+    // Молча исчезнувшее действие читается как поломка приложения, хотя причина внешняя.
+    expect(find.textContaining('подойдите к стойке'), findsOneWidget);
     await unmount(tester);
   });
 
@@ -503,6 +509,26 @@ void main() {
 
     expect(requests, isNot(contains('POST /api/me/sessions/s1/end')));
 
+    await unmount(tester);
+  });
+
+  /// Главную у новичка видят все, кто впервые открыл приложение в зале. Она объясняла правило
+  /// («счёт откроется с первой брони или пополнения») и молчала о том, как его выполнить:
+  /// нижнюю вкладку «Кошелёк» нужно было угадать.
+  testWidgets('новичку сразу предлагают открыть счёт, а не только объясняют правило',
+      (tester) async {
+    var walletOpened = false;
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(), 200))),
+      accountOpen: false,
+      onOpenWallet: () => walletOpened = true,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Пополнить'));
+    await tester.pumpAndSettle();
+
+    expect(walletOpened, isTrue);
     await unmount(tester);
   });
 }

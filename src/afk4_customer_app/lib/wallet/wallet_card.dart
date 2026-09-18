@@ -5,8 +5,8 @@ import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
-import '../phone/phone_verification_sheet.dart';
 import '../theme/app_theme.dart';
+import '../phone/verify_phone_gate.dart';
 import 'top_up_sheet.dart';
 
 /// Деньги игрока одним блоком: сколько на кошельке, есть ли долг и что с пополнением.
@@ -169,19 +169,6 @@ class _WalletCardState extends State<WalletCard> {
     await _refreshIntents();
   }
 
-  Future<void> _verifyPhone() async {
-    final l = L.of(context);
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => PhoneVerificationSheet(api: widget.api),
-    );
-    if (confirmed != true || !mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerPhoneDone)));
-    widget.onPhoneVerified?.call();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,23 +298,14 @@ class _WalletCardState extends State<WalletCard> {
                     label: Text(l.customerWalletTopUp),
                   ),
                 )
-              else ...[
+              else
                 // Гейт перестал быть тупиком: раньше он отправлял к администратору клуба,
                 // у которого возможности подтвердить номер тоже не было.
-                Text(
-                  l.customerWalletGate,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                VerifyPhoneGate(
+                  api: widget.api,
+                  explanation: l.customerWalletGate,
+                  onVerified: widget.onPhoneVerified,
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton(
-                    onPressed: _verifyPhone,
-                    child: Text(l.customerWalletGateAction),
-                  ),
-                ),
-              ],
             ],
           ],
         ),

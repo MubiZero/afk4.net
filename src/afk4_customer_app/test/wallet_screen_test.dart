@@ -399,4 +399,29 @@ void main() {
 
     expect(find.text('Пополнить кошелёк'), findsOneWidget);
   });
+
+  /// Раньше гейт с подтверждением жил только внутри карточки кошелька — то есть у тех, у кого
+  /// счёт уже открыт. Новичок с неподтверждённым номером упирался в текст без единой кнопки.
+  testWidgets('в новом клубе неподтверждённый номер можно подтвердить отсюда', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: WalletScreen(
+        api: clientWith(_serve()),
+        phoneVerified: false,
+        features: const ['online_topup'],
+        accountOpen: false,
+        clock: () => _now,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(OutlinedButton, 'Подтвердить номер'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Подтвердить номер'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Подтверждение номера'), findsOneWidget);
+  });
 }

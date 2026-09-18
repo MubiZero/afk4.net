@@ -8,7 +8,12 @@ import '../l10n/app_localizations.dart';
 /// каждого клуба свои и заводятся первым действием. Показывать вместо этого нули значило бы
 /// пообещать кошелёк, которого нет, а «не удалось загрузить» — соврать про сбой.
 class NewClubNote extends StatelessWidget {
-  const NewClubNote({super.key});
+  const NewClubNote({super.key, this.onOpenWallet});
+
+  /// Куда идти, чтобы счёт открылся. Без этого карточка объясняла правило и молчала о том,
+  /// как его выполнить: человек стоял в зале и должен был сам догадаться про нижнюю вкладку.
+
+  final VoidCallback? onOpenWallet;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +40,17 @@ class NewClubNote extends StatelessWidget {
               l.customerClubsNoAccountHint,
               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
+            if (onOpenWallet case final openWallet?) ...[
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  onPressed: openWallet,
+                  icon: const Icon(Icons.add, size: 20),
+                  label: Text(l.customerWalletTopUp),
+                ),
+              ),
+            ],
           ],
         ),
       ),

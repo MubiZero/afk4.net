@@ -10,6 +10,7 @@ import '../organization/branch_choice.dart';
 import '../shell/app_scaffold.dart';
 import '../shell/new_club_note.dart';
 import '../shell/skeleton.dart';
+import '../phone/verify_phone_gate.dart';
 import 'top_up_sheet.dart';
 import 'wallet_card.dart';
 
@@ -162,6 +163,17 @@ class _WalletScreenState extends State<WalletScreen> {
                       icon: const Icon(Icons.add, size: 20),
                       label: Text(l.customerWalletTopUp),
                     ),
+                  ),
+                ]
+                // Тупик: в клубе, где счёта ещё нет, гейт с подтверждением жил только внутри
+                // карточки кошелька — то есть у тех, у кого счёт уже открыт. Новичок с
+                // неподтверждённым номером видел два абзаца текста и ни одной кнопки.
+                else if (_topUpEnabled) ...[
+                  const SizedBox(height: 16),
+                  VerifyPhoneGate(
+                    api: widget.api,
+                    explanation: l.customerWalletGate,
+                    onVerified: widget.onPhoneVerified,
                   ),
                 ],
               ]),
