@@ -718,6 +718,11 @@ export interface CreatePlayerAccountRequest {
  * Филиал, в который компания придёт. Нужен только в первом действии в клубе, где счёта ещё нет:
  * у сети с несколькими филиалами сервер не гадает, куда записать счёт.
  * </param>
+ * <param name="IdempotencyKey">
+ * Ключ одной попытки. Необязателен: установленные приложения его не шлют, и без него всё
+ * работает как раньше. С ним повтор после обрыва возвращает уже созданную компанию, а не
+ * бронирует вторую и не замораживает деньги второй раз.
+ * </param>
  *
  * Контракт: Reservations/CreatePlayerReservationGroupRequest.cs
  */
@@ -728,6 +733,7 @@ export interface CreatePlayerReservationGroupRequest {
   note: string | null;
   tariffVersionId?: Guid | null;
   branchId?: Guid | null;
+  idempotencyKey?: string | null;
 }
 
 /**
@@ -742,6 +748,9 @@ export interface CreatePlayerReservationGroupRequest {
  * BranchId — филиал, в который игрок придёт. Нужен только в первом действии в клубе, где счёта
  * ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. У игрока со
  * счётом филиал уже известен, и присланный его не переписывает.
+ * IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+ * без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+ * создаёт второе.
  *
  * Контракт: Reservations/CreatePlayerReservationRequest.cs
  */
@@ -752,6 +761,7 @@ export interface CreatePlayerReservationRequest {
   note: string | null;
   tariffVersionId?: Guid | null;
   branchId?: Guid | null;
+  idempotencyKey?: string | null;
 }
 
 /**
@@ -2958,6 +2968,11 @@ export interface PlayerDebtPaymentRequest {
  * Сколько времени принесла или забрала запись: у пакетов и бонусных часов деньги — не вся правда.
  * Ноль у обычных денежных строк.
  * </param>
+ * <param name="ReceiptSessionId">
+ * Визит, чеком которого объясняется эта строка. Пусто, когда объяснять нечем: у записи нет
+ * сессии или по сессии не выбит чек. Без него «Списание за игру −45 с.» — тупик: сумма есть,
+ * а из чего она сложилась, видно только в другой вкладке и только по времени на глаз.
+ * </param>
  *
  * Контракт: Players/PlayerLedgerEntryDto.cs
  */
@@ -2967,6 +2982,7 @@ export interface PlayerLedgerEntryDto {
   amount: MoneyDto;
   quantitySeconds: number;
   createdAtUtc: IsoDateTime;
+  receiptSessionId?: Guid | null;
 }
 
 /**
@@ -3441,6 +3457,9 @@ export interface PlayerTopUpIntentDto {
  * счёта ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. Поле
  * необязательное — клуб с одним филиалом называть нечего, а у человека со счётом филиал уже
  * известен, и присланный не переписывает его.
+ * IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+ * без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+ * создаёт второе.
  *
  * Контракт: Players/PlayerTopUpIntentRequest.cs
  */
@@ -3449,6 +3468,7 @@ export interface PlayerTopUpIntentRequest {
   currencyCode: string | null;
   method?: string | null;
   branchId?: Guid | null;
+  idempotencyKey?: string | null;
 }
 
 /**
@@ -3781,13 +3801,15 @@ export interface RefundPosSaleRequest {
 /**
  * Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — `android` или
  * `ios`, локаль — язык приложения на этом устройстве.
+ * Язык здесь не спрашивается: пуш уходит на языке аккаунта (PlayerAccount.PreferredLocale),
+ * который человек выбирает сам в профиле. Установленные приложения поле ещё шлют — лишнее поле
+ * в теле сервер молча пропускает.
  *
  * Контракт: Notifications/NotificationContracts.cs
  */
 export interface RegisterPlayerDeviceRequest {
   pushToken: string | null;
   platform: string | null;
-  locale?: string | null;
 }
 
 /** Контракт: Identity/RegistrationContracts.cs */

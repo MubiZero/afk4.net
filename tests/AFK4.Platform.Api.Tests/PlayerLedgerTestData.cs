@@ -64,7 +64,8 @@ internal static class PlayerLedgerTestData
         string entryType,
         long amountMinorUnits,
         DateTimeOffset createdAtUtc,
-        Guid? reverses = null)
+        Guid? reverses = null,
+        Guid? sessionId = null)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -76,6 +77,7 @@ internal static class PlayerLedgerTestData
             BranchId = player.BranchId,
             PlayerAccountId = player.PlayerId,
             EntryType = entryType,
+            SessionId = sessionId,
             AccountType = LedgerAccountTypeNames.Wallet,
             AmountMinorUnits = amountMinorUnits,
             CurrencyCode = "TJS",

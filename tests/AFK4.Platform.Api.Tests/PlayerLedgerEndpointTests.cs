@@ -55,6 +55,68 @@ public sealed class PlayerLedgerEndpointTests
     }
 
     /// <summary>
+    /// Сумма без состава — половина ответа на вопрос «за что». Чек визита у игрока есть и давно
+    /// работает; строке выписки не хватало только ссылки на него.
+    /// </summary>
+    [Fact]
+    public async Task Ledger_PointsAtTheReceiptOfTheVisitItCameFrom()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await PlayerLedgerTestData.SeedPlayerAsync(factory);
+        var sessionId = Guid.NewGuid();
+        await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.GameplayCharge, -4_500, Now.AddHours(-2),
+            sessionId: sessionId);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.Receipts.Add(new ReceiptEntity
+            {
+                ReceiptId = Guid.NewGuid(),
+                OrganizationId = p.OrgId,
+                BranchId = p.BranchId,
+                SessionId = sessionId,
+                ReceiptNumber = "Ч-000777",
+                TotalMinorUnits = 4_500,
+                CurrencyCode = "TJS",
+                CreatedAtUtc = Now.AddHours(-2)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        await PlayerLedgerTestData.AuthenticateAsync(client, p);
+
+        var page = await (await client.GetAsync("/api/me/wallet/ledger"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
+
+        Assert.Equal(sessionId, page!.Items.Single().ReceiptSessionId);
+    }
+
+    /// <summary>
+    /// Ссылка, ведущая в «чека нет», хуже её отсутствия: визит без выбитого чека остаётся без
+    /// ссылки, и строка просто не нажимается.
+    /// </summary>
+    [Fact]
+    public async Task Ledger_LeavesAVisitWithoutAReceiptUnlinked()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await PlayerLedgerTestData.SeedPlayerAsync(factory);
+        await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.GameplayCharge, -4_500, Now.AddHours(-2),
+            sessionId: Guid.NewGuid());
+
+        using var client = factory.CreateClient();
+        await PlayerLedgerTestData.AuthenticateAsync(client, p);
+
+        var page = await (await client.GetAsync("/api/me/wallet/ledger"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
+
+        Assert.Null(page!.Items.Single().ReceiptSessionId);
+    }
+
+    /// <summary>
     /// Заморозка под бронь и её снятие — это одно событие, у которого нет денежного итога.
     /// Показать их значит выдать «−15 c» и «+15 c», между которыми ничего не произошло, и
     /// заставить человека искать пропажу, которой нет. Придержанное объясняет третье число

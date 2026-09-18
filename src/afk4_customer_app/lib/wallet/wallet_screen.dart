@@ -231,7 +231,7 @@ class _WalletScreenState extends State<WalletScreen> {
             children: [
               VisitsTab(api: widget.api, clock: widget.clock),
               PurchasesTab(api: widget.api),
-              LedgerTab(api: widget.api),
+              LedgerTab(api: widget.api, clock: widget.clock),
             ],
           ),
         ),

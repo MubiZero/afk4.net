@@ -136,13 +136,35 @@ public static class PlayerLedgerProjector
             entries.RemoveAt(entries.Count - 1);
         }
 
+        // Строка выписки объясняется чеком того визита, к которому привязана. Спрашиваем только
+        // про сессии этой страницы и только те, по которым чек действительно выбит: ссылка,
+        // ведущая в «чека нет», хуже её отсутствия.
+        var sessionIds = entries
+            .Where(entry => entry.SessionId != null)
+            .Select(entry => entry.SessionId!.Value)
+            .Distinct()
+            .ToList();
+
+        var sessionsWithReceipt = sessionIds.Count == 0
+            ? []
+            : (await dbContext.Receipts
+                .AsNoTracking()
+                .Where(receipt => receipt.SessionId != null && sessionIds.Contains(receipt.SessionId.Value))
+                .Select(receipt => receipt.SessionId!.Value)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+
         var items = entries
             .Select(entry => new PlayerLedgerEntryDto(
                 entry.LedgerEntryId,
                 entry.EntryType,
                 new MoneyDto(entry.CurrencyCode, entry.AmountMinorUnits),
                 entry.QuantitySeconds,
-                entry.CreatedAtUtc))
+                entry.CreatedAtUtc,
+                entry.SessionId is { } sessionId && sessionsWithReceipt.Contains(sessionId)
+                    ? sessionId
+                    : null))
             .ToList();
 
         var nextCursor = hasMore && entries.Count > 0

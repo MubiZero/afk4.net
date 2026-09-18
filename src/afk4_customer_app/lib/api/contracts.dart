@@ -2179,6 +2179,11 @@ class CreatePlayerAccountRequest {
 /// Филиал, в который компания придёт. Нужен только в первом действии в клубе, где счёта ещё нет:
 /// у сети с несколькими филиалами сервер не гадает, куда записать счёт.
 /// </param>
+/// <param name="IdempotencyKey">
+/// Ключ одной попытки. Необязателен: установленные приложения его не шлют, и без него всё
+/// работает как раньше. С ним повтор после обрыва возвращает уже созданную компанию, а не
+/// бронирует вторую и не замораживает деньги второй раз.
+/// </param>
 ///
 /// Контракт: Reservations/CreatePlayerReservationGroupRequest.cs
 class CreatePlayerReservationGroupRequest {
@@ -2189,6 +2194,7 @@ class CreatePlayerReservationGroupRequest {
     this.note,
     this.tariffVersionId,
     this.branchId,
+    this.idempotencyKey,
   });
 
   final int seatCount;
@@ -2197,6 +2203,7 @@ class CreatePlayerReservationGroupRequest {
   final String? note;
   final String? tariffVersionId;
   final String? branchId;
+  final String? idempotencyKey;
 
   factory CreatePlayerReservationGroupRequest.fromJson(Map<String, dynamic> json) => CreatePlayerReservationGroupRequest(
         seatCount: (json['seatCount'] as num).toInt(),
@@ -2205,6 +2212,7 @@ class CreatePlayerReservationGroupRequest {
         note: json['note'] == null ? null : json['note'] as String,
         tariffVersionId: json['tariffVersionId'] == null ? null : json['tariffVersionId'] as String,
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2214,6 +2222,7 @@ class CreatePlayerReservationGroupRequest {
         'note': note,
         'tariffVersionId': tariffVersionId,
         'branchId': branchId,
+        'idempotencyKey': idempotencyKey,
       };
 }
 
@@ -2228,6 +2237,9 @@ class CreatePlayerReservationGroupRequest {
 /// BranchId — филиал, в который игрок придёт. Нужен только в первом действии в клубе, где счёта
 /// ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. У игрока со
 /// счётом филиал уже известен, и присланный его не переписывает.
+/// IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+/// без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+/// создаёт второе.
 ///
 /// Контракт: Reservations/CreatePlayerReservationRequest.cs
 class CreatePlayerReservationRequest {
@@ -2238,6 +2250,7 @@ class CreatePlayerReservationRequest {
     this.note,
     this.tariffVersionId,
     this.branchId,
+    this.idempotencyKey,
   });
 
   final String? seatId;
@@ -2246,6 +2259,7 @@ class CreatePlayerReservationRequest {
   final String? note;
   final String? tariffVersionId;
   final String? branchId;
+  final String? idempotencyKey;
 
   factory CreatePlayerReservationRequest.fromJson(Map<String, dynamic> json) => CreatePlayerReservationRequest(
         seatId: json['seatId'] == null ? null : json['seatId'] as String,
@@ -2254,6 +2268,7 @@ class CreatePlayerReservationRequest {
         note: json['note'] == null ? null : json['note'] as String,
         tariffVersionId: json['tariffVersionId'] == null ? null : json['tariffVersionId'] as String,
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2263,6 +2278,7 @@ class CreatePlayerReservationRequest {
         'note': note,
         'tariffVersionId': tariffVersionId,
         'branchId': branchId,
+        'idempotencyKey': idempotencyKey,
       };
 }
 
@@ -9264,6 +9280,11 @@ class PlayerDebtPaymentRequest {
 /// Сколько времени принесла или забрала запись: у пакетов и бонусных часов деньги — не вся правда.
 /// Ноль у обычных денежных строк.
 /// </param>
+/// <param name="ReceiptSessionId">
+/// Визит, чеком которого объясняется эта строка. Пусто, когда объяснять нечем: у записи нет
+/// сессии или по сессии не выбит чек. Без него «Списание за игру −45 с.» — тупик: сумма есть,
+/// а из чего она сложилась, видно только в другой вкладке и только по времени на глаз.
+/// </param>
 ///
 /// Контракт: Players/PlayerLedgerEntryDto.cs
 class PlayerLedgerEntryDto {
@@ -9273,6 +9294,7 @@ class PlayerLedgerEntryDto {
     required this.amount,
     required this.quantitySeconds,
     required this.createdAtUtc,
+    this.receiptSessionId,
   });
 
   final String ledgerEntryId;
@@ -9280,6 +9302,7 @@ class PlayerLedgerEntryDto {
   final MoneyDto amount;
   final int quantitySeconds;
   final DateTime createdAtUtc;
+  final String? receiptSessionId;
 
   factory PlayerLedgerEntryDto.fromJson(Map<String, dynamic> json) => PlayerLedgerEntryDto(
         ledgerEntryId: json['ledgerEntryId'] as String,
@@ -9287,6 +9310,7 @@ class PlayerLedgerEntryDto {
         amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
         quantitySeconds: (json['quantitySeconds'] as num).toInt(),
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        receiptSessionId: json['receiptSessionId'] == null ? null : json['receiptSessionId'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -9295,6 +9319,7 @@ class PlayerLedgerEntryDto {
         'amount': amount.toJson(),
         'quantitySeconds': quantitySeconds,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+        'receiptSessionId': receiptSessionId,
       };
 }
 
@@ -10516,6 +10541,9 @@ class PlayerTopUpIntentDto {
 /// счёта ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. Поле
 /// необязательное — клуб с одним филиалом называть нечего, а у человека со счётом филиал уже
 /// известен, и присланный не переписывает его.
+/// IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+/// без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+/// создаёт второе.
 ///
 /// Контракт: Players/PlayerTopUpIntentRequest.cs
 class PlayerTopUpIntentRequest {
@@ -10524,18 +10552,21 @@ class PlayerTopUpIntentRequest {
     this.currencyCode,
     this.method,
     this.branchId,
+    this.idempotencyKey,
   });
 
   final int amountMinorUnits;
   final String? currencyCode;
   final String? method;
   final String? branchId;
+  final String? idempotencyKey;
 
   factory PlayerTopUpIntentRequest.fromJson(Map<String, dynamic> json) => PlayerTopUpIntentRequest(
         amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] == null ? null : json['currencyCode'] as String,
         method: json['method'] == null ? null : json['method'] as String,
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -10543,6 +10574,7 @@ class PlayerTopUpIntentRequest {
         'currencyCode': currencyCode,
         'method': method,
         'branchId': branchId,
+        'idempotencyKey': idempotencyKey,
       };
 }
 
@@ -11553,29 +11585,28 @@ class RefundPosSaleRequest {
 
 /// Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — `android` или
 /// `ios`, локаль — язык приложения на этом устройстве.
+/// Язык здесь не спрашивается: пуш уходит на языке аккаунта (PlayerAccount.PreferredLocale),
+/// который человек выбирает сам в профиле. Установленные приложения поле ещё шлют — лишнее поле
+/// в теле сервер молча пропускает.
 ///
 /// Контракт: Notifications/NotificationContracts.cs
 class RegisterPlayerDeviceRequest {
   const RegisterPlayerDeviceRequest({
     this.pushToken,
     this.platform,
-    this.locale,
   });
 
   final String? pushToken;
   final String? platform;
-  final String? locale;
 
   factory RegisterPlayerDeviceRequest.fromJson(Map<String, dynamic> json) => RegisterPlayerDeviceRequest(
         pushToken: json['pushToken'] == null ? null : json['pushToken'] as String,
         platform: json['platform'] == null ? null : json['platform'] as String,
-        locale: json['locale'] == null ? null : json['locale'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'pushToken': pushToken,
         'platform': platform,
-        'locale': locale,
       };
 }
 
