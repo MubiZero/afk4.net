@@ -275,6 +275,27 @@ void main() {
 
     expect(changed, isTrue);
   });
+
+  /// В листе подтверждения номера отсчёт есть с самого начала, а на входе кнопка «прислать
+  /// заново» ловила 429 на ровном месте: сервер называет паузу, экран о ней молчал.
+  testWidgets('повторная отправка кода ждёт с видимым отсчётом', (tester) async {
+    final inner = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/public/register/start' => (_codeSent, 200),
+          _ => (_sessionJson(), 200),
+        });
+    await tester.pumpWidget(harness(clientWith(inner)));
+
+    await askForCode(tester);
+
+    expect(find.textContaining('Прислать заново можно через'), findsOneWidget);
+    final resend = tester.widget<TextButton>(
+      find.ancestor(
+        of: find.textContaining('Прислать заново можно через'),
+        matching: find.byType(TextButton),
+      ),
+    );
+    expect(resend.onPressed, isNull);
+  });
 }
 
 class SocketExceptionStub implements Exception {
