@@ -99,6 +99,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Сколько непрочитанного лежит в уведомлениях. Ноль — значка нет вовсе.
   int _unreadNotifications = 0;
 
+  /// Ключ попытки завершить сессию: повтор после обрыва обязан прийти с тем же, иначе сервер
+  /// примет его за конец следующей сессии и вернёт деньги не за то время.
+  final AttemptKey _endAttempt = AttemptKey();
+
   Future<void> _loadUnreadNotifications() async {
     try {
       final feed = await widget.api.getNotifications();
@@ -426,8 +430,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final ended = await widget.api.endSession(
         sessionId: session.sessionId,
-        idempotencyKey: newIdempotencyKey(),
+        idempotencyKey: _endAttempt.forSubject(session.sessionId),
       );
+      _endAttempt.done();
       if (!mounted) return;
       unawaited(HapticFeedback.lightImpact());
       final locale = Localizations.localeOf(context).languageCode;

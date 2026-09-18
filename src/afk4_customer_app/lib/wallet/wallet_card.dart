@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/contracts.dart';
+import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
@@ -73,6 +74,9 @@ class _WalletCardState extends State<WalletCard> {
   bool _cancellingIntent = false;
   bool _payingDebt = false;
 
+  /// Ключ попытки погасить долг — один на попытку, чтобы повтор не списал сумму дважды.
+  final AttemptKey _debtAttempt = AttemptKey();
+
   /// Сколько можно закрыть прямо сейчас: весь долг, если денег хватает, иначе весь остаток.
   /// Частичное гашение — не поблажка: долг в две тысячи при тысяче на кошельке иначе нельзя
   /// тронуть вовсе.
@@ -88,10 +92,15 @@ class _WalletCardState extends State<WalletCard> {
     final l = L.of(context);
     setState(() => _payingDebt = true);
     try {
+      final amount = _debtPaymentMinorUnits;
       await widget.api.payDebtFromWallet(
-        amountMinorUnits: _debtPaymentMinorUnits,
+        amountMinorUnits: amount,
         currencyCode: widget.debtBalance.currencyCode,
+        // Повтор после обрыва обязан нести тот же ключ: иначе с кошелька спишется вторая
+        // такая же сумма, а долг закроется только на первую.
+        idempotencyKey: _debtAttempt.forSubject('$amount'),
       );
+      _debtAttempt.done();
       if (!mounted) return;
       await widget.onToppedUp?.call();
       if (!mounted) return;
