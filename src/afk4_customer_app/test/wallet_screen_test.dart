@@ -471,4 +471,65 @@ void main() {
     expect(find.text('Отмена операции'), findsOneWidget);
     expect(find.text('Записано в долг'), findsOneWidget);
   });
+
+  /// Сумма без состава — половина ответа на «за что»: чек рядом и давно работает, но добраться
+  /// до него можно было только через другую вкладку и сопоставление по времени на глаз.
+  testWidgets('строка про визит ведёт в его чек', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve(
+      ledger: _page([
+        {
+          'ledgerEntryId': 'l1',
+          'entryType': 'gameplay_charge',
+          'amount': {'currencyCode': 'TJS', 'minorUnits': -4500},
+          'quantitySeconds': 5400,
+          'createdAtUtc': '2026-09-12T07:00:00Z',
+          'receiptSessionId': 's1',
+        },
+      ]),
+      receipt: jsonEncode({
+        'receiptNumber': 'Ч-000777',
+        'createdAtUtc': _now.toIso8601String(),
+        'sessionId': 's1',
+        'seatName': 'PC-07',
+        'startedAtUtc': _now.subtract(const Duration(hours: 2)).toIso8601String(),
+        'endedAtUtc': _now.toIso8601String(),
+        'timeChargeMinorUnits': 4500,
+        'posLines': <Map<String, dynamic>>[],
+        'posTotalMinorUnits': 0,
+        'grandTotalMinorUnits': 4500,
+        'currencyCode': 'TJS',
+      }),
+    ))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Деньги'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Списание за игру'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ч-000777'), findsOneWidget);
+  });
+
+  // Ссылка, ведущая в «чека нет», хуже её отсутствия: сервер и не присылает визит без чека.
+  testWidgets('строка без чека никуда не ведёт', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve(ledger: _page([
+      {
+        'ledgerEntryId': 'l1',
+        'entryType': 'top_up',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': 20000},
+        'quantitySeconds': 0,
+        'createdAtUtc': '2026-09-12T07:00:00Z',
+      },
+    ])))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Деньги'));
+    await tester.pumpAndSettle();
+
+    final row = tester.widget<InkWell>(find.ancestor(
+      of: find.text('Пополнение'),
+      matching: find.byType(InkWell),
+    ).first);
+    expect(row.onTap, isNull);
+  });
 }

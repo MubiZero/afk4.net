@@ -18,9 +18,15 @@ using AFK4.Shared.Contracts.Billing;
 /// Сколько времени принесла или забрала запись: у пакетов и бонусных часов деньги — не вся правда.
 /// Ноль у обычных денежных строк.
 /// </param>
+/// <param name="ReceiptSessionId">
+/// Визит, чеком которого объясняется эта строка. Пусто, когда объяснять нечем: у записи нет
+/// сессии или по сессии не выбит чек. Без него «Списание за игру −45 с.» — тупик: сумма есть,
+/// а из чего она сложилась, видно только в другой вкладке и только по времени на глаз.
+/// </param>
 public sealed record PlayerLedgerEntryDto(
     Guid LedgerEntryId,
     string EntryType,
     MoneyDto Amount,
     int QuantitySeconds,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    Guid? ReceiptSessionId = null);

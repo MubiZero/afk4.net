@@ -9280,6 +9280,11 @@ class PlayerDebtPaymentRequest {
 /// Сколько времени принесла или забрала запись: у пакетов и бонусных часов деньги — не вся правда.
 /// Ноль у обычных денежных строк.
 /// </param>
+/// <param name="ReceiptSessionId">
+/// Визит, чеком которого объясняется эта строка. Пусто, когда объяснять нечем: у записи нет
+/// сессии или по сессии не выбит чек. Без него «Списание за игру −45 с.» — тупик: сумма есть,
+/// а из чего она сложилась, видно только в другой вкладке и только по времени на глаз.
+/// </param>
 ///
 /// Контракт: Players/PlayerLedgerEntryDto.cs
 class PlayerLedgerEntryDto {
@@ -9289,6 +9294,7 @@ class PlayerLedgerEntryDto {
     required this.amount,
     required this.quantitySeconds,
     required this.createdAtUtc,
+    this.receiptSessionId,
   });
 
   final String ledgerEntryId;
@@ -9296,6 +9302,7 @@ class PlayerLedgerEntryDto {
   final MoneyDto amount;
   final int quantitySeconds;
   final DateTime createdAtUtc;
+  final String? receiptSessionId;
 
   factory PlayerLedgerEntryDto.fromJson(Map<String, dynamic> json) => PlayerLedgerEntryDto(
         ledgerEntryId: json['ledgerEntryId'] as String,
@@ -9303,6 +9310,7 @@ class PlayerLedgerEntryDto {
         amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
         quantitySeconds: (json['quantitySeconds'] as num).toInt(),
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        receiptSessionId: json['receiptSessionId'] == null ? null : json['receiptSessionId'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -9311,6 +9319,7 @@ class PlayerLedgerEntryDto {
         'amount': amount.toJson(),
         'quantitySeconds': quantitySeconds,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+        'receiptSessionId': receiptSessionId,
       };
 }
 
