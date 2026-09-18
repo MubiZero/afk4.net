@@ -30,6 +30,7 @@ class WalletScreen extends StatefulWidget {
     this.currencyCode = 'TJS',
     this.onPhoneVerified,
     this.onAccountOpened,
+    this.active = true,
     this.clock = DateTime.now,
   });
 
@@ -50,6 +51,11 @@ class WalletScreen extends StatefulWidget {
 
   final VoidCallback? onPhoneVerified;
   final Future<void> Function()? onAccountOpened;
+
+  /// Раздел открыт прямо сейчас. Разделы живут в одной стопке и не пересоздаются при
+  /// переключении, поэтому о своём возвращении на экран кошелёк узнаёт только отсюда.
+  final bool active;
+
   final DateTime Function() clock;
 
   @override
@@ -73,6 +79,11 @@ class _WalletScreenState extends State<WalletScreen> {
   void didUpdateWidget(WalletScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.accountOpen && !oldWidget.accountOpen) _load();
+    // Разделы живут в одной стопке и не пересоздаются: без этого кошелёк показывал остаток,
+    // прочитанный при запуске приложения. Человек платил онлайн, деньги приходили, а раздел
+    // денег продолжал показывать вчерашнюю цифру — и два экрана приложения расходились между
+    // собой ровно в том числе, ради которого раздел и открывают.
+    if (widget.active && !oldWidget.active) _load();
   }
 
   Future<void> _load() async {
@@ -102,7 +113,7 @@ class _WalletScreenState extends State<WalletScreen> {
   /// не бывает — только сумма и зал, в котором клуб заведёт кошелёк.
   Future<void> _openFirstTopUp() async {
     final l = L.of(context);
-    final sent = await showModalBottomSheet<bool>(
+    final outcome = await showModalBottomSheet<TopUpOutcome>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -113,9 +124,11 @@ class _WalletScreenState extends State<WalletScreen> {
         branch: widget.branch,
       ),
     );
-    if (sent != true || !mounted) return;
+    if (outcome == null || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerWalletSent)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(outcome == TopUpOutcome.paid ? l.customerWalletPaid : l.customerWalletSent),
+    ));
     // Заявкой счёт и открылся — оболочке пора перечитать клубы, иначе раздел останется
     // пустым при уже существующем кошельке.
     await widget.onAccountOpened?.call();
@@ -179,7 +192,12 @@ class _WalletScreenState extends State<WalletScreen> {
                         phoneVerified: widget.phoneVerified,
                         features: widget.features,
                         onPhoneVerified: widget.onPhoneVerified,
-                        onToppedUp: widget.onAccountOpened,
+                        // Деньги пришли — цифра над списком обязана это показать. Прежде
+                        // перечитывался только список клубов, а сам остаток оставался прежним.
+                        onToppedUp: () async {
+                          await widget.onAccountOpened?.call();
+                          await _load();
+                        },
                       ),
               ),
             ),

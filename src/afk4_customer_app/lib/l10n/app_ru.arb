@@ -879,6 +879,14 @@
       }
     }
   },
+  "customerSessionExtendCost": "Спишется примерно {amount} — точную сумму посчитает клуб по тарифу",
+  "@customerSessionExtendCost": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionExtendDone": "Сессия продлена на {duration}",
   "@customerSessionExtendDone": {
     "placeholders": {
@@ -1021,6 +1029,7 @@
   "customerWalletOnlineSlow": "Банк пока не ответил. Если оплата прошла, деньги зачислятся сами — проверьте баланс через пару минут.",
   "customerWalletOnlineUnavailable": "Этот клуб сейчас не принимает оплату онлайн. Внесите на стойке.",
   "customerWalletOnlineWaiting": "Ждём подтверждения банка…",
+  "customerWalletPaid": "Деньги на кошельке",
   "customerWalletPendingCancel": "Отменить заявку",
   "customerWalletPendingCancelError": "Не удалось отменить заявку. Попробуйте ещё раз.",
   "customerWalletPendingCancelled": "Заявка отменена",

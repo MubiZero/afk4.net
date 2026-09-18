@@ -879,6 +879,14 @@
       }
     }
   },
+  "customerSessionExtendCost": "Тақрибан {amount} гирифта мешавад — маблағи дақиқро клуб аз рӯи тариф ҳисоб мекунад",
+  "@customerSessionExtendCost": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionExtendDone": "Сессия ба {duration} дароз карда шуд",
   "@customerSessionExtendDone": {
     "placeholders": {
@@ -1021,6 +1029,7 @@
   "customerWalletOnlineSlow": "Бонк ҳанӯз ҷавоб надод. Агар пардохт гузашта бошад, пул худаш меояд — пас аз ду дақиқа бақияро бинед.",
   "customerWalletOnlineUnavailable": "Ин клуб ҳоло пардохти онлайнро қабул намекунад. Дар пешхон супоред.",
   "customerWalletOnlineWaiting": "Тасдиқи бонкро интизорем…",
+  "customerWalletPaid": "Пул дар ҳамён аст",
   "customerWalletPendingCancel": "Дархостро бекор кардан",
   "customerWalletPendingCancelError": "Дархостро бекор кардан нашуд. Бори дигар кӯшиш кунед.",
   "customerWalletPendingCancelled": "Дархост бекор карда шуд",
