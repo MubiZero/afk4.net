@@ -396,7 +396,9 @@ void main() {
       features: const ['player_shop'],
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Заказать еду'), findsOneWidget);
+    // Во время сессии заказ зовут дважды: кнопкой в карточке — там, где заказ и возможен, —
+    // и плиткой ниже, которая остаётся входом в меню.
+    expect(find.text('Заказать еду'), findsNWidgets(2));
     await unmount(tester);
 
     await tester.pumpWidget(harness(
@@ -436,7 +438,8 @@ void main() {
     await tester.pumpWidget(harness(clientWith(http), features: const ['player_shop']));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Заказать еду'));
+    // Первая — кнопка в карточке идущей сессии; плитка ниже ведёт туда же.
+    await tester.tap(find.text('Заказать еду').first);
     await tester.pumpAndSettle();
     expect(find.text('Заказ к месту'), findsOneWidget);
 
@@ -529,6 +532,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(walletOpened, isTrue);
+    await unmount(tester);
+  });
+
+  /// Значок непрочитанных читался один раз за запуск: уведомление, пришедшее за вечер, оставляло
+  /// колокольчик пустым, а полоса поверх разделов живёт шесть секунд и следа не оставляет.
+  testWidgets('счётчик непрочитанных обновляется вместе с главной', (tester) async {
+    var unread = 0;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (_dashboardJson(), 200),
+          '/api/me/notifications' => ('{"notifications":[],"unreadCount":$unread}', 200),
+          _ => ('[]', 200),
+        });
+
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+    expect(find.text('3'), findsNothing);
+
+    unread = 3;
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3'), findsOneWidget);
     await unmount(tester);
   });
 }

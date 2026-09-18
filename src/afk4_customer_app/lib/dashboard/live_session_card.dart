@@ -17,6 +17,7 @@ class LiveSessionCard extends StatefulWidget {
     required this.fetchedAt,
     this.onExtend,
     this.onEnd,
+    this.onOrder,
     this.clock = DateTime.now,
   });
 
@@ -29,6 +30,11 @@ class LiveSessionCard extends StatefulWidget {
   /// Встать из-за ПК самому. Стоит здесь по той же причине, что и продление: решение «всё,
   /// я пошёл» принимается, глядя на эти же цифры, а не в отдельном разделе.
   final VoidCallback? onEnd;
+
+  /// Позвать бар. Заказ возможен только во время сессии — то есть это единственное действие,
+  /// жёстко привязанное к этой карточке, и единственное, которого на ней не было: за ним
+  /// приходилось листать вниз, к плиткам.
+  final VoidCallback? onOrder;
 
   /// Момент ответа сервера. От него отсчитывается остаток оплаченной сессии.
   final DateTime fetchedAt;
@@ -195,6 +201,14 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
                 onPressed: widget.onExtend,
                 icon: const Icon(Icons.more_time, size: 20),
                 label: Text(l.customerSessionExtendAction),
+              ),
+            ],
+            if (widget.onOrder != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: widget.onOrder,
+                icon: const Icon(Icons.local_cafe_outlined, size: 20),
+                label: Text(l.customerActionsOrder),
               ),
             ],
             // Закончить — рядом с продлением, но тише его: уйти можно в любой момент, а

@@ -272,6 +272,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refresh() async {
+    // Счётчик непрочитанных читался один раз за запуск: уведомление, пришедшее за вечер,
+    // оставляло колокольчик пустым, а полоса поверх разделов живёт шесть секунд и следа не
+    // оставляет. Значок — единственное, что помнит о событии, и он обязан обновляться.
+    unawaited(_loadUnreadNotifications());
     try {
       final data = await widget.api.getDashboard();
       if (!mounted) return;
@@ -587,6 +591,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fetchedAt: _fetchedAt ?? widget.clock(),
                     onExtend: () => _extend(data.activeSession!),
                     onEnd: () => _endSession(data.activeSession!),
+                    // Только там, где бар вообще есть: кнопка, ведущая в пустое меню, хуже
+                    // её отсутствия — и это ровно то же условие, что у плитки ниже.
+                    onOrder: _shopEnabled ? _openShop : null,
                     clock: widget.clock,
                   )
                 else

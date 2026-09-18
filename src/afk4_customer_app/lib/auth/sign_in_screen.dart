@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/player_api_client.dart';
@@ -52,6 +54,22 @@ class _SignInScreenState extends State<SignInScreen> {
   String? _error;
   String? _notice;
 
+  /// Сколько секунд сервер просит подождать до следующего кода. Без отсчёта кнопка «прислать
+  /// заново» ловила 429 на ровном месте — в отличие от такого же листа подтверждения номера,
+  /// где отсчёт есть с самого начала.
+  int _resendIn = 0;
+  Timer? _countdown;
+
+  void _startCountdown(int seconds) {
+    _countdown?.cancel();
+    setState(() => _resendIn = seconds);
+    _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return timer.cancel();
+      setState(() => _resendIn -= 1);
+      if (_resendIn <= 0) timer.cancel();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +79,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   void dispose() {
+    _countdown?.cancel();
     _phone.dispose();
     _code.dispose();
     _name.dispose();
@@ -105,12 +124,13 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _requestCode() => _run(() async {
         final phone = _phone.text.trim();
-        await widget.api.startSignIn(phone);
+        final started = await widget.api.startSignIn(phone);
         if (!mounted) return;
         setState(() {
           _step = _Step.code;
           _notice = L.of(context).customerSigninCodeSentAny(phone);
         });
+        _startCountdown(started.resendAfterSeconds);
       });
 
   Future<void> _submitCode() => _run(() async {
@@ -276,7 +296,12 @@ class _SignInScreenState extends State<SignInScreen> {
               child: Text(_busy ? l.customerSigninSubmitting : l.customerSigninSubmit),
             ),
             const SizedBox(height: 8),
-            TextButton(onPressed: _busy ? null : _requestCode, child: Text(l.customerPhoneResend)),
+            TextButton(
+              onPressed: _busy || _resendIn > 0 ? null : _requestCode,
+              child: Text(
+                _resendIn > 0 ? l.customerPhoneResendIn('$_resendIn') : l.customerPhoneResend,
+              ),
+            ),
           ],
         _Step.profile => [
             FilledButton(
