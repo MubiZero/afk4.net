@@ -121,7 +121,7 @@ class PlayerApiClient {
   /// Задаёт сетевой PIN — тот, которым игрок садится за ПК. Старый не спрашивается: этот
   /// маршрут и есть ответ забывшему его.
   ///
-  /// 400 `invalid_pin` — не 4–8 цифр.
+  /// 400 `invalid_pin` — не шесть цифр.
   Future<void> setPin(String pin) async {
     var response = await _send('PUT', '/api/me/pin', body: {'pin': pin});
     if (response.statusCode == 401 && await _refreshOnce()) {
@@ -694,7 +694,8 @@ class PlayerApiClient {
 
   /// Снять устройство — при выходе из аккаунта и при отключении уведомлений.
   Future<void> unregisterDevice(String pushToken) async {
-    final response = await _send('DELETE', '/api/me/devices/$pushToken');
+    final response =
+        await _send('DELETE', '/api/me/devices/${Uri.encodeComponent(pushToken)}');
     if (response.statusCode >= 400 && response.statusCode != 401) {
       throw _failure(response);
     }
