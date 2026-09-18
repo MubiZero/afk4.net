@@ -117,8 +117,9 @@ Future<void> pickDateTime(WidgetTester tester, String fieldLabel) async {
 }
 
 Future<void> fillTimes(WidgetTester tester) async {
+  // Конец брони больше не выбирается отдельно: он считается из длительности, а она выбрана
+  // чипом по умолчанию — час.
   await pickDateTime(tester, 'Начало');
-  await pickDateTime(tester, 'Конец');
 }
 
 void main() {

@@ -208,7 +208,6 @@ void main() {
 
     await openForm(tester);
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
@@ -234,7 +233,6 @@ void main() {
     // Время выбирается первым: счётчик мест стоит ниже, и после него поля уезжают за край
     // невысокого экрана — как и у настоящего игрока, до них надо прокрутить.
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(find.byTooltip('Больше мест'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Больше мест'));
@@ -259,7 +257,6 @@ void main() {
     await openForm(tester);
     expect(find.text('Бронь на одного'), findsOneWidget);
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
@@ -276,7 +273,6 @@ void main() {
 
     await openForm(tester);
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
     await tester.tap(submitButton);
@@ -314,7 +310,6 @@ void main() {
 
     await openForm(tester);
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(find.byTooltip('Больше мест'));
     await tester.pumpAndSettle();
     await tester.tap(submitButton);
@@ -332,7 +327,6 @@ void main() {
 
     await openForm(tester);
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
@@ -348,7 +342,6 @@ void main() {
 
     await openForm(tester);
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(find.byTooltip('Больше мест'));
     await tester.pumpAndSettle();
     await tester.tap(submitButton);
@@ -364,7 +357,6 @@ void main() {
 
     await openForm(tester);
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
@@ -768,5 +760,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Клуб не назвал причину'), findsOneWidget);
+  });
+
+  /// «Сегодня с 19 до 22» человек держит в голове как «в 19 на три часа». Раньше форма просила
+  /// два полных выбора даты со временем — четыре системных диалога на одну бронь.
+  testWidgets('конец брони считается из длительности, а не выбирается вторым диалогом',
+      (tester) async {
+    final http = _serve('[]', onWrite: (jsonEncode(_reservation()), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+    await pickDateTime(tester, 'Начало');
+    await tester.tap(find.widgetWithText(ChoiceChip, '3 часа'));
+    await tester.pumpAndSettle();
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    final body = http.bodies.last;
+    final starts = DateTime.parse(body['startsAtUtc'] as String);
+    final ends = DateTime.parse(body['endsAtUtc'] as String);
+    expect(ends.difference(starts), const Duration(hours: 3));
   });
 }
