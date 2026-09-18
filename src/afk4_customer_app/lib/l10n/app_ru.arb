@@ -477,23 +477,37 @@
     }
   },
   "customerPhoneTitle": "Подтверждение номера",
-  "customerPinChange": "Сменить PIN",
-  "customerPinDone": "PIN сохранён",
-  "customerPinErrFormat": "PIN — от 4 до 8 цифр",
-  "customerPinErrRepeat": "PIN не совпадает",
-  "customerPinErrSave": "Не удалось сохранить PIN",
-  "customerPinField": "Новый PIN",
-  "customerPinForgot": "Забыли PIN — задайте новый, старый спрашивать не будем.",
+  "customerPinChange": "Сменить ПИН-код",
+  "customerPinDone": "ПИН-код сохранён",
+  "customerPinErrFormat": "ПИН-код — это {min} цифр",
+  "@customerPinErrFormat": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPinErrRepeat": "ПИН-коды не совпадают",
+  "customerPinErrSave": "Не удалось сохранить ПИН-код",
+  "customerPinField": "Новый ПИН-код",
+  "customerPinForgot": "Забыли ПИН-код — задайте новый, старый спрашивать не будем.",
   "customerPinIntro": "Введите его на экране ПК вместе со своим номером — и сядете за место сами, без администратора.",
-  "customerPinRepeat": "Повторите PIN",
-  "customerPinRule": "От 4 до 8 цифр",
+  "customerPinRepeat": "Повторите ПИН-код",
+  "customerPinRule": "{min} цифр",
+  "@customerPinRule": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
   "customerPinSave": "Сохранить",
   "customerPinSaving": "Сохраняем…",
-  "customerPinScope": "PIN работает во всех клубах сети. Для входа в приложение он не нужен — сюда вы входите по коду из SMS.",
-  "customerPinSet": "Задать PIN",
-  "customerPinStateSet": "PIN задан",
-  "customerPinStateUnset": "PIN не задан — за ПК вас пока сажает администратор",
-  "customerPinTitle": "PIN для посадки за ПК",
+  "customerPinScope": "ПИН-код работает во всех клубах сети. Для входа в приложение он не нужен — сюда вы входите по коду из SMS.",
+  "customerPinSet": "Задать ПИН-код",
+  "customerPinStateSet": "ПИН-код задан",
+  "customerPinStateUnset": "ПИН-код не задан — за ПК вас пока сажает администратор",
+  "customerPinTitle": "ПИН-код для посадки за ПК",
   "customerPlayCode": "Код с экрана ПК",
   "customerPlayCodeHint": "Шесть цифр, которые показывает свободный ПК",
   "customerPlayConfirm": "Начать за {amount}",

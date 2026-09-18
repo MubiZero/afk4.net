@@ -479,14 +479,28 @@
   "customerPhoneTitle": "Confirm your number",
   "customerPinChange": "Change PIN",
   "customerPinDone": "PIN saved",
-  "customerPinErrFormat": "A PIN is 4 to 8 digits",
+  "customerPinErrFormat": "A PIN is {min} digits",
+  "@customerPinErrFormat": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
   "customerPinErrRepeat": "The PINs don't match",
   "customerPinErrSave": "Couldn't save the PIN",
   "customerPinField": "New PIN",
   "customerPinForgot": "Forgot your PIN? Just set a new one — we won't ask for the old one.",
   "customerPinIntro": "Type it with your phone number on the PC screen and take a seat yourself, without the staff.",
   "customerPinRepeat": "Repeat the PIN",
-  "customerPinRule": "4 to 8 digits",
+  "customerPinRule": "{min} digits",
+  "@customerPinRule": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
   "customerPinSave": "Save",
   "customerPinSaving": "Saving…",
   "customerPinScope": "The PIN works in every club. You don't need it for the app — you sign in here with an SMS code.",

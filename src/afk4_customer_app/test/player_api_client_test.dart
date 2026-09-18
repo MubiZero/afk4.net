@@ -114,11 +114,11 @@ void main() {
     final http = _RecordingClient((_) => makeResponse('', status: 204));
     final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession());
 
-    await client.setPin('4321');
+    await client.setPin('432109');
 
     expect(http.requests.single.url.path, '/api/me/pin');
     expect(http.requests.single.method, 'PUT');
-    expect(jsonDecode(http.requests.single.body), {'pin': '4321'});
+    expect(jsonDecode(http.requests.single.body), {'pin': '432109'});
   });
 
   test('короткий PIN поднимается ошибкой сервера, а не молча проглатывается', () async {
