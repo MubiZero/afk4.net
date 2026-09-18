@@ -143,10 +143,16 @@ class _EventsScreenState extends State<EventsScreen> {
       setState(() {
         _busyId = null;
         _error = switch (error.message) {
+          _ when error.isOffline => l.customerErrorOffline,
           'insufficient_funds' => l.customerEventsErrFunds,
           'tournament_full' => l.customerEventsErrFull,
           'tournament_already_started' => l.customerEventsErrStarted,
           'tournament_cancelled' => l.customerEventsErrCancelled,
+          // Взнос за это событие уже списан: «попробуйте ещё раз» звало бы заплатить второй раз.
+          'tournament_already_registered' => l.customerEventsErrAlreadyIn,
+          'tournament_not_registered' => l.customerEventsErrNotIn,
+          'tournament_not_published' => l.customerEventsErrUnpublished,
+          'FeatureDisabled' => l.customerErrorFeatureOff,
           _ => l.customerEventsErrGeneric,
         };
       });

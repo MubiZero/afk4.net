@@ -77,6 +77,14 @@ class _PhoneVerificationSheetState extends State<PhoneVerificationSheet> {
         _pending = false;
         _problem = _startProblem(l, error);
       });
+      // Сервер говорит, через сколько секунд примет следующую просьбу. Молчать об этом значит
+      // звать человека жать кнопку наугад: «подождите немного» — это сколько? Раз код уже
+      // отправлен, показываем шаг с полем: ждать нужно не отправки, а самой SMS.
+      final wait = error.detailAsInt('resendAfterSeconds');
+      if (wait != null && wait > 0) {
+        setState(() => _step = _Step.code);
+        _startCountdown(wait);
+      }
     }
   }
 
@@ -111,7 +119,12 @@ class _PhoneVerificationSheetState extends State<PhoneVerificationSheet> {
       };
 
   static String _confirmProblem(L l, PlayerApiException error) => switch (error.statusCode) {
-        400 => l.customerPhoneErrInvalidCode,
+        // Сервер считает попытки и говорит, сколько осталось. Скрывать это значит оставлять
+        // человека гадать, есть ли у него ещё право на ошибку.
+        400 => switch (error.detailAsInt('remainingAttempts')) {
+            final int left when left > 0 => l.customerPhoneErrCodeLeft(left),
+            _ => l.customerPhoneErrInvalidCode,
+          },
         410 => l.customerPhoneErrExpired,
         429 => l.customerPhoneErrTooManyAttempts,
         409 => l.customerPhoneErrInUse,

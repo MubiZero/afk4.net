@@ -180,6 +180,8 @@
   "customerDashboardSessionEnded": "Время вышло",
   "customerDashboardSessionEndingSoon": "Время заканчивается",
   "customerDashboardSessionRemaining": "Осталось",
+  "customerErrorFeatureOff": "Клуб отключил эту возможность",
+  "customerErrorOffline": "Нет связи с сервером. Проверьте интернет.",
   "customerEventsCancel": "Не пойду",
   "customerEventsCancelConfirmFree": "Место освободится для другого игрока.",
   "customerEventsCancelConfirmPaid": "Взнос {price} вернётся на кошелёк.",
@@ -218,11 +220,14 @@
     }
   },
   "customerEventsDismiss": "Отмена",
+  "customerEventsErrAlreadyIn": "Вы уже записаны на это событие",
   "customerEventsErrCancelled": "Клуб отменил это событие",
   "customerEventsErrFull": "Мест больше нет",
   "customerEventsErrFunds": "На кошельке не хватает денег на взнос",
   "customerEventsErrGeneric": "Не получилось. Попробуйте ещё раз",
+  "customerEventsErrNotIn": "Вы не записаны на это событие",
   "customerEventsErrStarted": "Событие уже началось",
+  "customerEventsErrUnpublished": "Запись на это событие ещё не открыта",
   "customerEventsFee": "Взнос {price}",
   "@customerEventsFee": {
     "placeholders": {
@@ -269,6 +274,7 @@
   "customerFriendsDecline": "Отклонить",
   "customerFriendsDismiss": "Отмена",
   "customerFriendsErrGeneric": "Не получилось. Попробуйте ещё раз",
+  "customerFriendsErrRequestGone": "Заявки уже нет — её отозвали или на неё ответили",
   "customerFriendsErrSelf": "Это ваш номер",
   "customerFriendsInHall": "{club}, {hall}",
   "@customerFriendsInHall": {
@@ -447,6 +453,14 @@
   "customerPhoneConfirm": "Подтвердить",
   "customerPhoneConfirming": "Проверяем…",
   "customerPhoneDone": "Номер подтверждён",
+  "customerPhoneErrCodeLeft": "Неверный код. {attempts, plural, one {Осталась {attempts} попытка} few {Осталось {attempts} попытки} many {Осталось {attempts} попыток} other {Осталось {attempts} попытки}}",
+  "@customerPhoneErrCodeLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerPhoneErrCooldown": "Код уже отправлен — подождите немного",
   "customerPhoneErrExpired": "Код устарел — запросите новый",
   "customerPhoneErrGeneric": "Не удалось подтвердить номер",
@@ -519,6 +533,7 @@
     }
   },
   "customerPlayDuration": "Сколько играем",
+  "customerPlayErrDeviceGone": "Этот ПК не подключён к платформе — позовите оператора",
   "customerPlayErrFunds": "На кошельке не хватает денег на это время",
   "customerPlayErrGeneric": "Не удалось начать сессию. Попробуйте ещё раз.",
   "customerPlayErrTaken": "Место только что заняли — выберите другое",
@@ -558,6 +573,8 @@
   "customerProfileDeleteError": "Не удалось удалить учётную запись. Попробуйте ещё раз.",
   "customerProfileDeleteTitle": "Удалить учётную запись?",
   "customerProfileDeleteAccount": "Удалить учётную запись",
+  "customerProfileErrLocale": "Этот язык пока не поддерживается",
+  "customerProfileErrName": "Проверьте имя: пустое или слишком длинное не сохранится",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Таджикский",
@@ -678,6 +695,7 @@
   "customerReservationsCancelAction": "Отменить бронь",
   "customerReservationsCancelCompany": "Отменить всю компанию",
   "customerReservationsCancelConfirm": "Отменить бронь?",
+  "customerReservationsCancelErrGone": "Эту бронь уже не отменить: она отменена или её время началось",
   "customerReservationsCancelError": "Не удалось отменить",
   "customerReservationsCancelKeep": "Оставить",
   "customerReservationsCancelled": "Бронь отменена",
@@ -715,6 +733,7 @@
   "customerReservationsLoadError": "Не удалось загрузить брони.",
   "customerReservationsMove": "Перенести",
   "customerReservationsMoveConfirm": "Перенести",
+  "customerReservationsMoveErrGone": "Эту бронь уже не перенести: она отменена или её время началось",
   "customerReservationsMoveError": "Не удалось перенести бронь. Попробуйте ещё раз.",
   "customerReservationsMoveTaken": "На это время место занято. Выберите другое.",
   "customerReservationsMoveTitle": "Перенести бронь",
@@ -796,14 +815,14 @@
   "customerReservationsStateRejected": "Клуб отказал",
   "customerReservationsStateSeated": "Вы за местом",
   "customerReservationsTariff": "Тариф",
-  "customerReservationsTariffGone": "Этот тариф больше не действует — выберите другой",
   "customerReservationsTariffHint": "Выберите тариф — покажем стоимость до подтверждения",
   "customerReservationsTariffNone": "Клуб не выложил тарифы — стоимость посчитают на стойке",
-  "customerReservationsTariffOutsideHours": "Этот тариф не действует в выбранное время. Возьмите другой тариф или другое время.",
   "customerReservationsTimeError": "Укажите начало и конец",
   "customerReservationsTitle": "Брони",
   "customerReviewDone": "Спасибо, отзыв отправлен",
   "customerReviewDuplicate": "Об этом визите вы уже написали",
+  "customerReviewErrTooLong": "Отзыв слишком длинный — сократите текст",
+  "customerReviewErrVisitGone": "Этого визита нет: отзыв пишется о своём законченном визите",
   "customerReviewError": "Не удалось отправить отзыв",
   "customerReviewInviteAction": "Оценить",
   "customerReviewInviteBody": "{seat} в клубе {branch}",
@@ -850,6 +869,7 @@
     }
   },
   "customerSessionEndTitle": "Закончить сессию?",
+  "customerSessionErrDuration": "Столько времени взять нельзя — выберите другое",
   "customerSessionExtendAction": "Продлить",
   "customerSessionExtendConfirm": "Продлить на {duration}",
   "@customerSessionExtendConfirm": {
@@ -890,6 +910,7 @@
   "customerSessionExtendPending": "Продлеваем…",
   "customerSessionExtendTitle": "Продлить сессию",
   "customerShopCancel": "Отменить заказ",
+  "customerShopCancelErrStarted": "Заказ уже готовят — отменить его нельзя",
   "customerShopCancelError": "Не удалось отменить заказ",
   "customerShopCartEmpty": "Выберите, что принести",
   "customerShopEmpty": "Сейчас заказывать нечего",
@@ -928,6 +949,14 @@
   "customerShopTotal": "Итого",
   "customerSigninBlocked": "Вход в аккаунт закрыт. Обратитесь в клуб.",
   "customerSigninCodeError": "Неверный код",
+  "customerSigninCodeErrorLeft": "Неверный код. {attempts, plural, one {Осталась {attempts} попытка} few {Осталось {attempts} попытки} many {Осталось {attempts} попыток} other {Осталось {attempts} попытки}}",
+  "@customerSigninCodeErrorLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerSigninCodeNone": "Код не запрашивали или он уже использован",
   "customerSigninCodeSentAny": "Код отправлен на {phone}",
   "@customerSigninCodeSentAny": {
@@ -946,7 +975,6 @@
   "customerSigninNameError": "Введите имя",
   "customerSigninNameHint": "Имя увидит администратор клуба, когда вы придёте.",
   "customerSigninNameTitle": "Как вас зовут",
-  "customerSigninNetworkError": "Нет связи с сервером. Проверьте интернет.",
   "customerSigninPhone": "Телефон",
   "customerSigninSaveError": "Не удалось сохранить имя",
   "customerSigninSaving": "Сохраняем…",
@@ -960,6 +988,8 @@
   "customerTariffDayThu": "Чт",
   "customerTariffDayTue": "Вт",
   "customerTariffDayWed": "Ср",
+  "customerTariffGone": "Этот тариф больше не действует — выберите другой",
+  "customerTariffOutsideHours": "Этот тариф не действует в выбранное время. Возьмите другой тариф или другое время.",
   "customerTariffUnavailableNow": "Сейчас недоступен",
   "customerWalletAmount": "Сумма",
   "customerWalletAmountError": "Введите сумму больше нуля",

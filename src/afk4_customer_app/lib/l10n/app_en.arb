@@ -180,6 +180,8 @@
   "customerDashboardSessionEnded": "Time is up",
   "customerDashboardSessionEndingSoon": "Time is running out",
   "customerDashboardSessionRemaining": "Remaining",
+  "customerErrorFeatureOff": "The club turned this off",
+  "customerErrorOffline": "No connection to the server. Check the internet.",
   "customerEventsCancel": "Not going",
   "customerEventsCancelConfirmFree": "Your spot goes back to the others.",
   "customerEventsCancelConfirmPaid": "The {price} entry fee returns to your wallet.",
@@ -218,11 +220,14 @@
     }
   },
   "customerEventsDismiss": "Cancel",
+  "customerEventsErrAlreadyIn": "You are already signed up for this event",
   "customerEventsErrCancelled": "The club cancelled this event",
   "customerEventsErrFull": "No spots left",
   "customerEventsErrFunds": "Your wallet does not cover the entry fee",
   "customerEventsErrGeneric": "That did not work. Try again",
+  "customerEventsErrNotIn": "You are not signed up for this event",
   "customerEventsErrStarted": "The event has already started",
+  "customerEventsErrUnpublished": "Sign-up for this event is not open yet",
   "customerEventsFee": "Entry {price}",
   "@customerEventsFee": {
     "placeholders": {
@@ -269,6 +274,7 @@
   "customerFriendsDecline": "Decline",
   "customerFriendsDismiss": "Cancel",
   "customerFriendsErrGeneric": "That did not work. Try again",
+  "customerFriendsErrRequestGone": "That request is gone — it was withdrawn or already answered",
   "customerFriendsErrSelf": "That is your own number",
   "customerFriendsInHall": "{club}, {hall}",
   "@customerFriendsInHall": {
@@ -447,6 +453,14 @@
   "customerPhoneConfirm": "Confirm",
   "customerPhoneConfirming": "Checking…",
   "customerPhoneDone": "Number confirmed",
+  "customerPhoneErrCodeLeft": "Wrong code. {attempts, plural, one {{attempts} attempt left} other {{attempts} attempts left}}",
+  "@customerPhoneErrCodeLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerPhoneErrCooldown": "A code was just sent — please wait a moment",
   "customerPhoneErrExpired": "The code expired — request a new one",
   "customerPhoneErrGeneric": "Could not confirm the number",
@@ -519,6 +533,7 @@
     }
   },
   "customerPlayDuration": "How long",
+  "customerPlayErrDeviceGone": "This PC is not connected to the platform — ask an operator",
   "customerPlayErrFunds": "Your wallet doesn't cover this time",
   "customerPlayErrGeneric": "Couldn't start the session. Try again.",
   "customerPlayErrTaken": "That seat was just taken; pick another",
@@ -558,6 +573,8 @@
   "customerProfileDeleteError": "The account could not be deleted. Try again.",
   "customerProfileDeleteTitle": "Delete your account?",
   "customerProfileDeleteAccount": "Delete my account",
+  "customerProfileErrLocale": "That language is not supported yet",
+  "customerProfileErrName": "Check the name: empty or too long will not save",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Tajik",
@@ -678,6 +695,7 @@
   "customerReservationsCancelAction": "Cancel booking",
   "customerReservationsCancelCompany": "Cancel the whole group",
   "customerReservationsCancelConfirm": "Cancel this booking?",
+  "customerReservationsCancelErrGone": "This booking can no longer be cancelled: it is cancelled or its time has started",
   "customerReservationsCancelError": "Couldn't cancel",
   "customerReservationsCancelKeep": "Keep booking",
   "customerReservationsCancelled": "Booking cancelled",
@@ -715,6 +733,7 @@
   "customerReservationsLoadError": "Failed to load reservations.",
   "customerReservationsMove": "Reschedule",
   "customerReservationsMoveConfirm": "Reschedule",
+  "customerReservationsMoveErrGone": "This booking can no longer be moved: it is cancelled or its time has started",
   "customerReservationsMoveError": "The booking could not be rescheduled. Try again.",
   "customerReservationsMoveTaken": "The seat is taken at that time. Pick another one.",
   "customerReservationsMoveTitle": "Reschedule the booking",
@@ -796,14 +815,14 @@
   "customerReservationsStateRejected": "The club declined",
   "customerReservationsStateSeated": "Seated",
   "customerReservationsTariff": "Rate",
-  "customerReservationsTariffGone": "That rate is no longer available; pick another",
   "customerReservationsTariffHint": "Pick a rate and we'll show the price before you confirm",
   "customerReservationsTariffNone": "The club hasn't published its rates; the desk will price it",
-  "customerReservationsTariffOutsideHours": "This tariff does not apply at the time you picked. Choose another tariff or another time.",
   "customerReservationsTimeError": "Set a start and end time",
   "customerReservationsTitle": "Bookings",
   "customerReviewDone": "Thanks, your review is in",
   "customerReviewDuplicate": "You have already reviewed this visit",
+  "customerReviewErrTooLong": "The review is too long — shorten it",
+  "customerReviewErrVisitGone": "No such visit: you can review only your own finished visit",
   "customerReviewError": "Could not send the review",
   "customerReviewInviteAction": "Rate it",
   "customerReviewInviteBody": "{seat} at {branch}",
@@ -850,6 +869,7 @@
     }
   },
   "customerSessionEndTitle": "Finish the session?",
+  "customerSessionErrDuration": "That much time is not available — pick another length",
   "customerSessionExtendAction": "Add time",
   "customerSessionExtendConfirm": "Add {duration}",
   "@customerSessionExtendConfirm": {
@@ -890,6 +910,7 @@
   "customerSessionExtendPending": "Adding time…",
   "customerSessionExtendTitle": "Add time to your session",
   "customerShopCancel": "Cancel the order",
+  "customerShopCancelErrStarted": "The order is already being made — it cannot be cancelled",
   "customerShopCancelError": "Couldn't cancel the order",
   "customerShopCartEmpty": "Pick what to bring you",
   "customerShopEmpty": "Nothing to order right now",
@@ -928,6 +949,14 @@
   "customerShopTotal": "Total",
   "customerSigninBlocked": "This account is closed. Ask the club for help.",
   "customerSigninCodeError": "Wrong code",
+  "customerSigninCodeErrorLeft": "Wrong code. {attempts, plural, one {{attempts} attempt left} other {{attempts} attempts left}}",
+  "@customerSigninCodeErrorLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerSigninCodeNone": "No code was requested, or it has already been used",
   "customerSigninCodeSentAny": "Code sent to {phone}",
   "@customerSigninCodeSentAny": {
@@ -946,7 +975,6 @@
   "customerSigninNameError": "Enter your name",
   "customerSigninNameHint": "The club's staff will see this name when you arrive.",
   "customerSigninNameTitle": "What's your name?",
-  "customerSigninNetworkError": "No connection to the server. Check your internet.",
   "customerSigninPhone": "Phone",
   "customerSigninSaveError": "Couldn't save your name",
   "customerSigninSaving": "Saving…",
@@ -960,6 +988,8 @@
   "customerTariffDayThu": "Thu",
   "customerTariffDayTue": "Tue",
   "customerTariffDayWed": "Wed",
+  "customerTariffGone": "That rate is no longer available; pick another",
+  "customerTariffOutsideHours": "This tariff does not apply at the time you picked. Choose another tariff or another time.",
   "customerTariffUnavailableNow": "Not available right now",
   "customerWalletAmount": "Amount",
   "customerWalletAmountError": "Enter an amount greater than zero",

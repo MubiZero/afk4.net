@@ -89,9 +89,13 @@ class _SignInScreenState extends State<SignInScreen> {
   /// Обрыв связи — не «неверный код». В вебе оба случая показывались одинаково, и игрок
   /// при пропавшем интернете шёл искать SMS, которая давно пришла.
   String _message(L l, PlayerApiException error) => switch ((_step, error.statusCode)) {
-        (_, null) => l.customerSigninNetworkError,
+        (_, null) => l.customerErrorOffline,
         (_Step.profile, _) => l.customerSigninSaveError,
-        (_Step.code, 400) => l.customerSigninCodeError,
+        // Сервер считает попытки — сказать, сколько осталось, честнее, чем сухое «неверный код».
+        (_Step.code, 400) => switch (error.detailAsInt('remainingAttempts')) {
+            final int left when left > 0 => l.customerSigninCodeErrorLeft(left),
+            _ => l.customerSigninCodeError,
+          },
         (_, 400) => l.customerPhoneErrInvalidPhone,
         (_, 403) => l.customerSigninBlocked,
         (_, 410) => l.customerSigninCodeNone,

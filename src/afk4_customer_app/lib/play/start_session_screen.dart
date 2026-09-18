@@ -139,9 +139,20 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
         _error = switch ((error.statusCode, error.message)) {
           // Платформа закрыла человеку сеть: «попробуйте ещё раз» звало бы повторять то, что не
           // выйдет ни с какого раза. Подробности — в полосе поверх разделов.
+          (_, _) when error.isOffline => l.customerErrorOffline,
           (_, 'network_banned') => l.customerBanTitle,
           (_, 'seating_code_invalid') => l.customerPlayErrCode,
           (_, 'insufficient_balance') => l.customerPlayErrFunds,
+          // ПК показывает код, но к платформе не привязан: сам игрок этого не исправит, а
+          // «попробуйте ещё раз» отправило бы его набирать те же цифры до бесконечности.
+          (_, 'device_not_assigned') => l.customerPlayErrDeviceGone,
+          (_, 'invalid_tariff') => l.customerTariffGone,
+          (_, 'tariff_outside_its_hours') => l.customerTariffOutsideHours,
+          (_, 'invalid_duration') => l.customerSessionErrDuration,
+          (_, 'club_account_closed') => l.customerClubErrClosed,
+          (_, 'branch_required') => l.customerBranchErrRequired,
+          (_, 'branch_not_found') => l.customerBranchErrGone,
+          (_, 'FeatureDisabled') => l.customerErrorFeatureOff,
           (409, _) => l.customerPlayErrTaken,
           _ => l.customerPlayErrGeneric,
         };

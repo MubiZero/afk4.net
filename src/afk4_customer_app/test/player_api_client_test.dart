@@ -353,6 +353,33 @@ void main() {
     expect(http.requests, isEmpty);
   });
 
+  // Сервер шлёт рядом с кодом то, что экран без этого сказать не может: сколько попыток
+  // осталось, через сколько секунд повторить. Раньше всё, кроме самого кода, терялось в клиенте.
+  test('подробности отказа доезжают до экрана вместе с кодом', () async {
+    final http = _RecordingClient((_) => makeResponse(
+        '{"error":"invalid_code","remainingAttempts":2}',
+        status: 400));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
+
+    await expectLater(
+      client.confirmSignIn(phoneNumber: '+992900000000', code: '000000'),
+      throwsA(isA<PlayerApiException>()
+          .having((e) => e.message, 'message', 'invalid_code')
+          .having((e) => e.detailAsInt('remainingAttempts'), 'remainingAttempts', 2)),
+    );
+  });
+
+  test('обрыв связи отличим от отказа сервера', () async {
+    final http = _RecordingClient((_) => makeResponse('{"error":"invalid_code"}', status: 400));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
+
+    await expectLater(
+      client.confirmSignIn(phoneNumber: '+992900000000', code: '000000'),
+      throwsA(isA<PlayerApiException>().having((e) => e.isOffline, 'isOffline', isFalse)),
+    );
+    expect(const PlayerApiException(null, 'network').isOffline, isTrue);
+  });
+
   // Соединение, которое приняли и бросили, — обычное дело в клубной сети: без предела
   // ожидания экран остаётся в «Покупаем…» навсегда, потому что ошибки не случается вовсе.
   test('молчащий сервер заканчивается сетевой ошибкой, а не бесконечным ожиданием', () async {

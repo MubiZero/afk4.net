@@ -76,7 +76,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = error.message == 'friend_self' ? l.customerFriendsErrSelf : l.customerFriendsErrGeneric;
+        _error = switch (error.message) {
+          _ when error.isOffline => l.customerErrorOffline,
+          'friend_self' => l.customerFriendsErrSelf,
+          // Заявку отозвали или на неё уже ответили с другого экрана — повтор ничего не изменит.
+          'friend_request_unknown' => l.customerFriendsErrRequestGone,
+          _ => l.customerFriendsErrGeneric,
+        };
       });
     } catch (_) {
       if (!mounted) return;
