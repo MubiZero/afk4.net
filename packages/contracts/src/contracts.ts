@@ -3795,13 +3795,15 @@ export interface RefundPosSaleRequest {
 /**
  * Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — `android` или
  * `ios`, локаль — язык приложения на этом устройстве.
+ * Язык здесь не спрашивается: пуш уходит на языке аккаунта (PlayerAccount.PreferredLocale),
+ * который человек выбирает сам в профиле. Установленные приложения поле ещё шлют — лишнее поле
+ * в теле сервер молча пропускает.
  *
  * Контракт: Notifications/NotificationContracts.cs
  */
 export interface RegisterPlayerDeviceRequest {
   pushToken: string | null;
   platform: string | null;
-  locale?: string | null;
 }
 
 /** Контракт: Identity/RegistrationContracts.cs */
