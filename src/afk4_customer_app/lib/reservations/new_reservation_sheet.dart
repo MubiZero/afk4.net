@@ -16,6 +16,10 @@ import 'tariff_picker.dart';
 ///
 /// Место выбирает клуб, поэтому лист об этом прямо говорит — иначе игрок не понимает,
 /// получит ли он вообще машину, а в киберклубе это половина смысла брони.
+/// На сколько бронируют вечер. Те же шаги, что и у посадки за ПК: клуб продаёт часы, и в них
+/// же человек думает о своём вечере.
+const List<int> bookingDurationsMinutes = [60, 120, 180, 240];
+
 class NewReservationSheet extends StatefulWidget {
   const NewReservationSheet({
     super.key,
@@ -42,7 +46,13 @@ class NewReservationSheet extends StatefulWidget {
 
 class _NewReservationSheetState extends State<NewReservationSheet> {
   DateTime? _startsAt;
-  DateTime? _endsAt;
+
+  /// Сколько играем. Конец брони считается отсюда: «сегодня с 19 до 22» человек держит в голове
+  /// как «в 19 на три часа», и второй полный выбор даты со временем — это ещё два системных
+  /// диалога ради числа, которое он уже знает.
+  int _minutes = bookingDurationsMinutes.first;
+
+  DateTime? get _endsAt => _startsAt?.add(Duration(minutes: _minutes));
   bool _pending = false;
 
   /// Что не так со временем. Ошибка живёт под полями, а не в снекбаре внизу экрана:
@@ -336,38 +346,35 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
                 _refreshQuote();
               },
             ),
-            const SizedBox(height: 12),
-            DateTimeField(
-              label: l.customerReservationsEnd,
-              value: _endsAt,
-              firstAllowed: _startsAt ?? widget.clock(),
-              onChanged: (value) {
-                setState(() {
-                  _endsAt = value;
-                  _problem = null;
-                });
-                _refreshQuote();
-              },
+            const SizedBox(height: 16),
+            Text(l.customerPlayDuration, style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final minutes in bookingDurationsMinutes)
+                  ChoiceChip(
+                    label: Text(l.customerSessionExtendHours(minutes ~/ 60)),
+                    selected: minutes == _minutes,
+                    onSelected: (_) {
+                      setState(() {
+                        _minutes = minutes;
+                        _problem = null;
+                      });
+                      _refreshQuote();
+                    },
+                  ),
+              ],
             ),
             if (_problem != null) ...[
               const SizedBox(height: 8),
               Text(_problem!, style: TextStyle(color: theme.colorScheme.error)),
             ],
             const SizedBox(height: 16),
-            // Тариф идёт после времени: цена зависит от длительности, и до выбора времени
-            // показывать её нечем.
-            TariffPicker(
-              tariffs: _tariffs,
-              selectedId: _tariffId,
-              quote: _quote,
-              quoting: _quoting,
-              problem: _priceProblem,
-              onSelected: (id) {
-                setState(() => _tariffId = id);
-                _refreshQuote();
-              },
-            ),
-            const SizedBox(height: 16),
+            // Число мест — выше цены: «К оплате 240 с.» над строкой «Мест: 4» читается как
+            // цена одного места. Глаз идёт сверху вниз, и связь «столько мест — столько денег»
+            // складывается только в этом порядке.
             _SeatCountField(
               seats: _seats,
               maxSeats: _maxSeats,
@@ -376,6 +383,20 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
                   _seats = value;
                   _problem = null;
                 });
+                _refreshQuote();
+              },
+            ),
+            const SizedBox(height: 16),
+            // Тариф идёт после времени и мест: цена зависит от обоих, и до их выбора показывать
+            // её нечем.
+            TariffPicker(
+              tariffs: _tariffs,
+              selectedId: _tariffId,
+              quote: _quote,
+              quoting: _quoting,
+              problem: _priceProblem,
+              onSelected: (id) {
+                setState(() => _tariffId = id);
                 _refreshQuote();
               },
             ),

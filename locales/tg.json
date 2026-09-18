@@ -489,7 +489,6 @@
   "customer.reservations.createError": "Бронро сохтан муяссар нашуд",
   "customer.reservations.created": "Брон сохта шуд",
   "customer.reservations.creating": "Сохта истодаем…",
-  "customer.reservations.end": "Анҷом",
   "customer.reservations.endBeforeStart": "Анҷом бояд пас аз оғоз бошад",
   "customer.reservations.errDisabled": "Клуб ҳоло фармоишро аз барнома қабул намекунад",
   "customer.reservations.errLimit": "Шумо аллакай фармоиши фаъол доред. Онро интизор шавед ё бекор кунед",

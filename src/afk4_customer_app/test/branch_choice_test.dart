@@ -126,7 +126,6 @@ Future<void> _pickDateTime(WidgetTester tester, String label) async {
 
 Future<void> _fillTimes(WidgetTester tester) async {
   await _pickDateTime(tester, 'Начало');
-  await _pickDateTime(tester, 'Конец');
 }
 
 /// Выбор с ответом игрока: лист получает зал так же, как его получил бы от оболочки.

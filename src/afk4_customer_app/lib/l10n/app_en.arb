@@ -713,7 +713,6 @@
   "customerReservationsCreateError": "Couldn't create the booking",
   "customerReservationsCreated": "Booking created",
   "customerReservationsCreating": "Booking…",
-  "customerReservationsEnd": "End",
   "customerReservationsEndBeforeStart": "The end must be later than the start",
   "customerReservationsErrDisabled": "The club isn't taking bookings from the app right now",
   "customerReservationsErrLimit": "You already have an active booking. Wait for it or cancel it",
