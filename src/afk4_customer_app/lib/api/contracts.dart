@@ -2179,6 +2179,11 @@ class CreatePlayerAccountRequest {
 /// Филиал, в который компания придёт. Нужен только в первом действии в клубе, где счёта ещё нет:
 /// у сети с несколькими филиалами сервер не гадает, куда записать счёт.
 /// </param>
+/// <param name="IdempotencyKey">
+/// Ключ одной попытки. Необязателен: установленные приложения его не шлют, и без него всё
+/// работает как раньше. С ним повтор после обрыва возвращает уже созданную компанию, а не
+/// бронирует вторую и не замораживает деньги второй раз.
+/// </param>
 ///
 /// Контракт: Reservations/CreatePlayerReservationGroupRequest.cs
 class CreatePlayerReservationGroupRequest {
@@ -2189,6 +2194,7 @@ class CreatePlayerReservationGroupRequest {
     this.note,
     this.tariffVersionId,
     this.branchId,
+    this.idempotencyKey,
   });
 
   final int seatCount;
@@ -2197,6 +2203,7 @@ class CreatePlayerReservationGroupRequest {
   final String? note;
   final String? tariffVersionId;
   final String? branchId;
+  final String? idempotencyKey;
 
   factory CreatePlayerReservationGroupRequest.fromJson(Map<String, dynamic> json) => CreatePlayerReservationGroupRequest(
         seatCount: (json['seatCount'] as num).toInt(),
@@ -2205,6 +2212,7 @@ class CreatePlayerReservationGroupRequest {
         note: json['note'] == null ? null : json['note'] as String,
         tariffVersionId: json['tariffVersionId'] == null ? null : json['tariffVersionId'] as String,
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2214,6 +2222,7 @@ class CreatePlayerReservationGroupRequest {
         'note': note,
         'tariffVersionId': tariffVersionId,
         'branchId': branchId,
+        'idempotencyKey': idempotencyKey,
       };
 }
 
@@ -2228,6 +2237,9 @@ class CreatePlayerReservationGroupRequest {
 /// BranchId — филиал, в который игрок придёт. Нужен только в первом действии в клубе, где счёта
 /// ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. У игрока со
 /// счётом филиал уже известен, и присланный его не переписывает.
+/// IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+/// без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+/// создаёт второе.
 ///
 /// Контракт: Reservations/CreatePlayerReservationRequest.cs
 class CreatePlayerReservationRequest {
@@ -2238,6 +2250,7 @@ class CreatePlayerReservationRequest {
     this.note,
     this.tariffVersionId,
     this.branchId,
+    this.idempotencyKey,
   });
 
   final String? seatId;
@@ -2246,6 +2259,7 @@ class CreatePlayerReservationRequest {
   final String? note;
   final String? tariffVersionId;
   final String? branchId;
+  final String? idempotencyKey;
 
   factory CreatePlayerReservationRequest.fromJson(Map<String, dynamic> json) => CreatePlayerReservationRequest(
         seatId: json['seatId'] == null ? null : json['seatId'] as String,
@@ -2254,6 +2268,7 @@ class CreatePlayerReservationRequest {
         note: json['note'] == null ? null : json['note'] as String,
         tariffVersionId: json['tariffVersionId'] == null ? null : json['tariffVersionId'] as String,
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2263,6 +2278,7 @@ class CreatePlayerReservationRequest {
         'note': note,
         'tariffVersionId': tariffVersionId,
         'branchId': branchId,
+        'idempotencyKey': idempotencyKey,
       };
 }
 
@@ -10516,6 +10532,9 @@ class PlayerTopUpIntentDto {
 /// счёта ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. Поле
 /// необязательное — клуб с одним филиалом называть нечего, а у человека со счётом филиал уже
 /// известен, и присланный не переписывает его.
+/// IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+/// без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+/// создаёт второе.
 ///
 /// Контракт: Players/PlayerTopUpIntentRequest.cs
 class PlayerTopUpIntentRequest {
@@ -10524,18 +10543,21 @@ class PlayerTopUpIntentRequest {
     this.currencyCode,
     this.method,
     this.branchId,
+    this.idempotencyKey,
   });
 
   final int amountMinorUnits;
   final String? currencyCode;
   final String? method;
   final String? branchId;
+  final String? idempotencyKey;
 
   factory PlayerTopUpIntentRequest.fromJson(Map<String, dynamic> json) => PlayerTopUpIntentRequest(
         amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] == null ? null : json['currencyCode'] as String,
         method: json['method'] == null ? null : json['method'] as String,
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -10543,6 +10565,7 @@ class PlayerTopUpIntentRequest {
         'currencyCode': currencyCode,
         'method': method,
         'branchId': branchId,
+        'idempotencyKey': idempotencyKey,
       };
 }
 
