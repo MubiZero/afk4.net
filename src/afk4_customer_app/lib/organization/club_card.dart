@@ -25,11 +25,16 @@ class ClubCard extends StatelessWidget {
     required this.onTap,
     this.onOpenReviews,
     this.onOpenDetails,
+    this.distanceMeters,
     this.clock = DateTime.now,
   });
 
   final Organization club;
   final VoidCallback onTap;
+
+  /// Сколько отсюда до ближайшего зала клуба. Не пусто только тогда, когда игрок сам попросил
+  /// показать ближние: расстояние без спроса — это сообщение «мы знаем, где вы».
+  final double? distanceMeters;
 
   /// Открыть отзывы. null — читать нечего (или некому показать): тогда оценка остаётся
   /// подписью и не притворяется кнопкой.
@@ -66,7 +71,7 @@ class ClubCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _AddressLine(club: club),
+                  _AddressLine(club: club, distanceMeters: distanceMeters),
                   const SizedBox(height: 10),
                   _OpeningLine(club: club, clock: clock),
                   _DescriptionLine(club: club),
@@ -79,18 +84,24 @@ class ClubCard extends StatelessWidget {
                         icon: Icons.payments_outlined,
                         label: club.pricePerHourFromMinorUnits == null
                             ? l.customerClubPickerPriceUnknown
-                            : l.customerClubPickerPriceFrom(formatMoney(
-                                club.pricePerHourFromMinorUnits!,
-                                club.currencyCode ?? 'TJS',
-                                locale: Localizations.localeOf(context).languageCode,
-                              )),
+                            : l.customerClubPickerPriceFrom(
+                                formatMoney(
+                                  club.pricePerHourFromMinorUnits!,
+                                  club.currencyCode ?? 'TJS',
+                                  locale: Localizations.localeOf(
+                                    context,
+                                  ).languageCode,
+                                ),
+                              ),
                         highlighted: club.pricePerHourFromMinorUnits != null,
                       ),
                       ...?_seatsChip(context, club, clock()),
                       if (club.places.length > 1)
                         _Chip(
                           icon: Icons.apartment_outlined,
-                          label: l.customerClubPickerMorePlaces(club.places.length - 1),
+                          label: l.customerClubPickerMorePlaces(
+                            club.places.length - 1,
+                          ),
                         ),
                     ],
                   ),
@@ -119,7 +130,11 @@ class ClubCard extends StatelessWidget {
 ///
 /// «40 мест» отвечает не на тот вопрос: сорок мест бывает и в забитом зале, а игрок выбирает
 /// клуб, чтобы в него поехать. Пусто — клуб не сказал даже, сколько у него мест.
-List<Widget>? _seatsChip(BuildContext context, Organization club, DateTime now) {
+List<Widget>? _seatsChip(
+  BuildContext context,
+  Organization club,
+  DateTime now,
+) {
   final l = L.of(context);
   final open = club.seatsOpenNow(now);
 
@@ -129,19 +144,25 @@ List<Widget>? _seatsChip(BuildContext context, Organization club, DateTime now) 
             _Chip(
               icon: Icons.desktop_windows_outlined,
               label: l.customerClubPickerSeats(club.seatCount),
-            )
+            ),
           ]
         : null;
   }
 
   return [
     open.free == 0
-        ? _Chip(icon: Icons.do_not_disturb_on_outlined, label: l.customerClubPickerNoFreeSeats)
+        ? _Chip(
+            icon: Icons.do_not_disturb_on_outlined,
+            label: l.customerClubPickerNoFreeSeats,
+          )
         : _Chip(
             icon: Icons.desktop_windows_outlined,
-            label: l.customerClubPickerFreeSeats('${open.free}', '${open.total}'),
+            label: l.customerClubPickerFreeSeats(
+              '${open.free}',
+              '${open.total}',
+            ),
             highlighted: true,
-          )
+          ),
   ];
 }
 
@@ -192,8 +213,9 @@ class _CoverState extends State<_Cover> {
                 photos[index],
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => _CoverFallback(club: widget.club),
-                loadingBuilder: (context, child, progress) =>
-                    progress == null ? child : _CoverFallback(club: widget.club),
+                loadingBuilder: (context, child, progress) => progress == null
+                    ? child
+                    : _CoverFallback(club: widget.club),
               ),
             ),
           // Затемнение и подписи не перехватывают касания: под ними лента фото, и жест
@@ -230,12 +252,17 @@ class _CoverState extends State<_Cover> {
             Positioned(
               right: 14,
               bottom: 14,
-              child: IgnorePointer(child: _PhotoDots(count: photos.length, current: _page)),
+              child: IgnorePointer(
+                child: _PhotoDots(count: photos.length, current: _page),
+              ),
             ),
           Positioned(
             top: 12,
             right: 12,
-            child: _RatingBadge(club: widget.club, onOpenReviews: widget.onOpenReviews),
+            child: _RatingBadge(
+              club: widget.club,
+              onOpenReviews: widget.onOpenReviews,
+            ),
           ),
         ],
       ),
@@ -252,22 +279,22 @@ class _PhotoDots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var index = 0; index < count; index++)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: index == current ? Colors.white : Colors.white38,
-                ),
-              ),
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (var index = 0; index < count; index++)
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: index == current ? Colors.white : Colors.white38,
             ),
-        ],
-      );
+          ),
+        ),
+    ],
+  );
 }
 
 class _CoverFallback extends StatelessWidget {
@@ -286,7 +313,10 @@ class _CoverFallback extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [accent.withValues(alpha: 0.32), AppTheme.violet.withValues(alpha: 0.26)],
+          colors: [
+            accent.withValues(alpha: 0.32),
+            AppTheme.violet.withValues(alpha: 0.26),
+          ],
         ),
       ),
       child: Center(
@@ -363,7 +393,9 @@ class _RatingBadge extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '·  ${club.reviewCount}',
-                style: theme.textTheme.labelSmall?.copyWith(color: Colors.white70),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white70,
+                ),
               ),
             ],
           ],
@@ -382,29 +414,44 @@ class _RatingBadge extends StatelessWidget {
 }
 
 class _AddressLine extends StatelessWidget {
-  const _AddressLine({required this.club});
+  const _AddressLine({required this.club, this.distanceMeters});
 
   final Organization club;
+  final double? distanceMeters;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Один зал — его адрес; сеть — сколько залов и в каких городах. Той же строкой, что и в
     // подробностях: два ответа на «где этот клуб» разъехались бы на первой же правке.
-    final text = hallsLine(L.of(context), club.places);
+    final l = L.of(context);
+    final text = hallsLine(l, club.places);
     if (text.isEmpty) return const SizedBox.shrink();
+
+    // Километры с одним знаком: «3,2 км отсюда» человек примеряет на себя, «3247 м» — нет.
+    final distance = distanceMeters == null
+        ? null
+        : l.customerClubPickerDistanceKm(
+            (distanceMeters! / 1000).toStringAsFixed(1).replaceAll('.', ','),
+          );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.place_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+        Icon(
+          Icons.place_outlined,
+          size: 16,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            text,
+            distance == null ? text : '$text · $distance',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],
@@ -425,7 +472,9 @@ class _DescriptionLine extends StatelessWidget {
     // Описание пишут залу, а не сети: у сети оно бы рассказывало про один зал от лица всех.
     final place = club.places.length == 1 ? club.places.single : null;
     final description = place?.description;
-    if (description == null || description.isEmpty) return const SizedBox.shrink();
+    if (description == null || description.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -467,14 +516,18 @@ class _OpeningLine extends StatelessWidget {
           Icon(
             open ? Icons.schedule : Icons.lock_clock,
             size: 16,
-            color: open ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+            color: open
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               text,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: open ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                color: open
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -485,7 +538,11 @@ class _OpeningLine extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label, this.highlighted = false});
+  const _Chip({
+    required this.icon,
+    required this.label,
+    this.highlighted = false,
+  });
 
   final IconData icon;
   final String label;
@@ -494,7 +551,9 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = highlighted ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
+    final color = highlighted
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -511,7 +570,10 @@ class _Chip extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 6),
-            Text(label, style: theme.textTheme.labelMedium?.copyWith(color: color)),
+            Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(color: color),
+            ),
           ],
         ),
       ),

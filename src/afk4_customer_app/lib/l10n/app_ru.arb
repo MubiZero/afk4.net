@@ -74,6 +74,14 @@
   "customerClubPickerChange": "Сменить клуб",
   "customerClubPickerClosedToday": "Сегодня выходной",
   "customerClubPickerDetails": "Подробнее",
+  "customerClubPickerDistanceKm": "{km} км отсюда",
+  "@customerClubPickerDistanceKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerEmpty": "Клуб не найден",
   "customerClubPickerError": "Не удалось загрузить список клубов",
   "customerClubPickerFreeSeats": "Свободно {free} из {total}",
@@ -97,6 +105,9 @@
       }
     }
   },
+  "customerClubPickerNearby": "Рядом со мной",
+  "customerClubPickerNearbyDenied": "Без доступа к местоположению ближние клубы не показать — выберите город",
+  "customerClubPickerNearbyUnavailable": "Не вышло определить, где вы. Выберите город",
   "customerClubPickerNoFreeSeats": "Свободных мест нет",
   "customerClubPickerNoRating": "Оценок пока нет",
   "customerClubPickerOpenAllDay": "Открыто круглосуточно",

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'package:afk4_customer_app/api/contracts.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
@@ -8,6 +9,7 @@ import 'package:afk4_customer_app/organization/club_details_sheet.dart';
 import 'package:afk4_customer_app/organization/club_map.dart';
 import 'package:afk4_customer_app/organization/club_picker_screen.dart';
 import 'package:afk4_customer_app/organization/opening_hours.dart';
+import 'package:afk4_customer_app/organization/nearby_location.dart';
 import 'package:afk4_customer_app/organization/organization.dart';
 import 'package:afk4_customer_app/organization/organization_directory.dart';
 
@@ -55,11 +57,25 @@ const _arena = Organization(
   logoUrl: null,
 );
 
+class _StubLocation implements NearbyLocation {
+  _StubLocation(this.result);
+
+  final NearbyResult result;
+  int calls = 0;
+
+  @override
+  Future<NearbyResult> current() async {
+    calls++;
+    return result;
+  }
+}
+
 Widget harness(
   OrganizationDirectory directory, {
   ValueChanged<Organization>? onSelected,
   List<MyClubDto> myClubs = const [],
   String? selectedOrganizationId,
+  NearbyLocation? location,
 }) =>
     MaterialApp(
       locale: const Locale('ru'),
@@ -70,6 +86,8 @@ Widget harness(
         onSelected: onSelected ?? (_) {},
         myClubs: myClubs,
         selectedOrganizationId: selectedOrganizationId,
+        location: location ??
+            _StubLocation((outcome: NearbyOutcome.unavailable, point: null)),
       ),
     );
 
@@ -93,6 +111,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('CyberX'), findsOneWidget);
+    // Вторая карточка лежит ниже строки фильтров — список ленивый, до неё надо долистать.
+    await tester.drag(find.byType(ClubCard).first, const Offset(0, -400));
+    await tester.pumpAndSettle();
     expect(find.text('Arena'), findsOneWidget);
   });
 
@@ -620,5 +641,93 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(ChoiceChip, 'Душанбе'), findsNothing);
+  });
+
+  /// Клубы рядом — по нажатию, а не при открытии экрана: доступ к местоположению спрашивают
+  /// тогда, когда человек сам о нём попросил.
+  testWidgets('местоположение спрашивают только по нажатию и раскладывают витрину по близости',
+      (tester) async {
+    const nearby = Organization(
+      organizationId: '77777777-7777-7777-7777-777777777777',
+      slug: 'nearby',
+      name: 'Соседний',
+      places: [
+        ClubPlace(
+          branchId: 'bn',
+          name: 'Рядом',
+          city: 'Душанбе',
+          address: 'ул. Сомони, 2',
+          latitude: 38.5600,
+          longitude: 68.7872,
+        ),
+      ],
+    );
+    const far = Organization(
+      organizationId: '88888888-8888-8888-8888-888888888888',
+      slug: 'far',
+      name: 'Дальний',
+      places: [
+        ClubPlace(
+          branchId: 'bf',
+          name: 'Далеко',
+          city: 'Душанбе',
+          address: 'ул. Дальняя, 90',
+          latitude: 38.6400,
+          longitude: 68.9000,
+        ),
+      ],
+    );
+    final location = _StubLocation((
+      outcome: NearbyOutcome.located,
+      point: const LatLng(38.5598, 68.7870),
+    ));
+
+    await tester.pumpWidget(harness(
+      _StubDirectory(clubs: const [far, nearby]),
+      location: location,
+    ));
+    await tester.pumpAndSettle();
+
+    // Экран открылся — местоположение не спрашивали.
+    expect(location.calls, 0);
+    expect(tester.widget<ClubCard>(find.byType(ClubCard).first).club.name, 'Дальний');
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Рядом со мной'));
+    await tester.pumpAndSettle();
+
+    expect(location.calls, 1);
+    expect(tester.widget<ClubCard>(find.byType(ClubCard).first).club.name, 'Соседний');
+    expect(find.textContaining('км отсюда'), findsWidgets);
+  });
+
+  /// Отказ в доступе — это ответ игрока, а не сбой: говорим об этом один раз и возвращаемся
+  /// к выбору города, а не показываем пустую витрину.
+  testWidgets('отказ в доступе к местоположению объясняется и не ломает витрину', (tester) async {
+    final location = _StubLocation((outcome: NearbyOutcome.denied, point: null));
+    await tester.pumpWidget(harness(
+      _StubDirectory(clubs: const [_cyberx]),
+      location: location,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Рядом со мной'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Без доступа к местоположению'), findsOneWidget);
+    expect(find.text('CyberX'), findsOneWidget);
+  });
+
+  // Ни у кого нет координат — считать близость нечем, и предлагать это незачем.
+  testWidgets('без координат у клубов «рядом со мной» не предлагают', (tester) async {
+    const noPoint = Organization(
+      organizationId: '66666666-6666-6666-6666-666666666666',
+      slug: 'nomap',
+      name: 'Без карты',
+      places: [ClubPlace(branchId: 'b0', name: 'Зал', city: 'Душанбе', address: 'ул. Без карты')],
+    );
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [noPoint])));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ChoiceChip, 'Рядом со мной'), findsNothing);
   });
 }

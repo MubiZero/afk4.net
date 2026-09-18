@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../api/contracts.dart';
 import '../l10n/app_localizations.dart';
@@ -10,6 +11,7 @@ import '../reviews/club_reviews_sheet.dart';
 import 'club_card.dart';
 import 'club_details_sheet.dart';
 import 'club_map.dart';
+import 'nearby_location.dart';
 import 'organization.dart';
 import 'organization_directory.dart';
 
@@ -25,6 +27,7 @@ class ClubPickerScreen extends StatefulWidget {
     required this.onSelected,
     this.myClubs = const [],
     this.selectedOrganizationId,
+    this.location = const DeviceNearbyLocation(),
   });
 
   final OrganizationDirectory directory;
@@ -36,6 +39,10 @@ class ClubPickerScreen extends StatefulWidget {
 
   /// Клуб, открытый прямо сейчас. Нужен, чтобы не звать переходить туда, где игрок уже есть.
   final String? selectedOrganizationId;
+
+  /// Откуда берётся «рядом со мной». Спрашивается только по нажатию игрока — см.
+  /// [NearbyLocation].
+  final NearbyLocation location;
 
   @override
   State<ClubPickerScreen> createState() => _ClubPickerScreenState();
@@ -72,10 +79,12 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
   int _requestSeq = 0;
 
   /// Город, по которому сузили витрину. null — все города.
-  ///
-  /// Геолокацию здесь спрашивать не за чем: свой город человек знает и без разрешения на
-  /// доступ к местоположению, а «клубы рядом» без карты города всё равно ничего не говорят.
   String? _city;
+
+  /// Где игрок, если он сам попросил показать ближние клубы. Ни на диск, ни на сервер это
+  /// не уходит и живёт ровно столько, сколько открыт экран.
+  LatLng? _here;
+  bool _locating = false;
 
   @override
   void initState() {
@@ -151,7 +160,10 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                 children: [
                   const BrandMark(),
                   const SizedBox(height: 18),
-                  Text(l.customerClubPickerTitle, style: theme.textTheme.headlineMedium),
+                  Text(
+                    l.customerClubPickerTitle,
+                    style: theme.textTheme.headlineMedium,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     l.customerClubPickerSubtitle,
@@ -187,7 +199,8 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                     ],
                     selected: {_view},
                     showSelectedIcon: false,
-                    onSelectionChanged: (selection) => setState(() => _view = selection.first),
+                    onSelectionChanged: (selection) =>
+                        setState(() => _view = selection.first),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -210,24 +223,90 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     final cities = <String>[];
     for (final club in clubs) {
       for (final place in club.places) {
-        if (place.city.isNotEmpty && !cities.contains(place.city)) cities.add(place.city);
+        if (place.city.isNotEmpty && !cities.contains(place.city)) {
+          cities.add(place.city);
+        }
       }
     }
     return cities;
   }
 
+  /// Есть ли вообще у кого-то координаты: без них «рядом со мной» нечем считать.
+  bool get _anyClubHasPoint => switch (_load) {
+    _Ready(clubs: final clubs) => clubs.any(
+      (club) => club.places.any((place) => place.hasPoint),
+    ),
+    _ => false,
+  };
+
+  /// Спросить местоположение и разложить витрину по близости. Отказ — это ответ игрока, а не
+  /// сбой: говорим о нём один раз и возвращаемся к городам.
+  Future<void> _findMe(L l) async {
+    setState(() => _locating = true);
+    final result = await widget.location.current();
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      _here = result.point;
+      if (result.point != null) _city = null;
+    });
+
+    if (result.point != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.outcome == NearbyOutcome.denied
+              ? l.customerClubPickerNearbyDenied
+              : l.customerClubPickerNearbyUnavailable,
+        ),
+      ),
+    );
+  }
+
   /// Клубы выбранного города. Сеть считается «в городе», если там есть хотя бы один её зал.
   List<Organization> _inCity(List<Organization> clubs) {
     final city = _city;
-    if (city == null) return clubs;
-    return clubs.where((club) => club.places.any((place) => place.city == city)).toList();
+    if (city == null) return _byDistance(clubs);
+    return clubs
+        .where((club) => club.places.any((place) => place.city == city))
+        .toList();
+  }
+
+  /// Ближние первыми — когда игрок сам попросил. Клубы без координат уходят вниз: выдать их за
+  /// «рядом» нельзя, а прятать вовсе значит потерять заведения, которые просто не нанесли себя
+  /// на карту.
+  List<Organization> _byDistance(List<Organization> clubs) {
+    final here = _here;
+    if (here == null) return clubs;
+
+    final sorted = [...clubs];
+    sorted.sort((a, b) {
+      final left = _distanceMeters(a);
+      final right = _distanceMeters(b);
+      if (left == null && right == null) return 0;
+      if (left == null) return 1;
+      if (right == null) return -1;
+      return left.compareTo(right);
+    });
+    return sorted;
+  }
+
+  double? _distanceMeters(Organization club) {
+    final here = _here;
+    if (here == null) return null;
+    return distanceToClubMeters(
+      here,
+      club.places
+          .where((place) => place.hasPoint)
+          .map((place) => LatLng(place.latitude!, place.longitude!)),
+    );
   }
 
   /// Первый экран приложения спрашивал «в каком клубе вы играете» и ничем не помогал ответить:
   /// список шёл вперемешку по всей стране. Город — то, что человек знает про себя точно.
   List<Widget> _cityFilter(L l) {
     final cities = _cities;
-    if (cities.length < 2) return const [];
+    if (cities.length < 2 && !_anyClubHasPoint) return const [];
 
     return [
       SizedBox(
@@ -239,19 +318,47 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
                 label: Text(l.customerClubPickerAllCities),
-                selected: _city == null,
-                onSelected: (_) => setState(() => _city = null),
+                selected: _city == null && _here == null,
+                onSelected: (_) => setState(() {
+                  _city = null;
+                  _here = null;
+                }),
               ),
             ),
-            for (final city in cities)
+            // «Рядом со мной» — по нажатию, а не при открытии экрана: доступ к местоположению
+            // спрашивают, когда человек сам о нём попросил, и грубый — до района.
+            if (_anyClubHasPoint)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(city),
-                  selected: _city == city,
-                  onSelected: (_) => setState(() => _city = city),
+                  avatar: _locating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.near_me_outlined, size: 18),
+                  label: Text(l.customerClubPickerNearby),
+                  selected: _here != null,
+                  onSelected: _locating ? null : (_) => unawaited(_findMe(l)),
                 ),
               ),
+            // Города — только там, где их больше одного: единственный город выбирать не из чего.
+            if (cities.length > 1)
+              for (final city in cities)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(city),
+                    selected: _city == city,
+                    // Город и «рядом со мной» — два ответа на один вопрос: выбранное вручную
+                    // главнее вычисленного, иначе список менялся бы дважды от одного нажатия.
+                    onSelected: (_) => setState(() {
+                      _city = city;
+                      _here = null;
+                    }),
+                  ),
+                ),
           ],
         ),
       ),
@@ -272,11 +379,13 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
       // Клуба нет в каталоге — он закрылся или снялся с витрины. Строка, ведущая в никуда,
       // хуже её отсутствия.
       if (club == null) continue;
-      rows.add(_MyClubRow(
-        club: mine,
-        here: mine.organizationId == widget.selectedOrganizationId,
-        onOpen: () => widget.onSelected(club),
-      ));
+      rows.add(
+        _MyClubRow(
+          club: mine,
+          here: mine.organizationId == widget.selectedOrganizationId,
+          onOpen: () => widget.onSelected(club),
+        ),
+      );
     }
     if (rows.isEmpty) return const [];
 
@@ -292,39 +401,42 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     return switch (_load) {
       _Loading() => const Center(child: CircularProgressIndicator()),
       _Failed() => _Message(
-          text: l.customerClubPickerError,
-          actionLabel: l.customerCommonRetry,
-          onAction: _fetch,
-        ),
-      _Ready(clubs: final clubs) when clubs.isEmpty => _Message(text: l.customerClubPickerEmpty),
+        text: l.customerClubPickerError,
+        actionLabel: l.customerCommonRetry,
+        onAction: _fetch,
+      ),
+      _Ready(clubs: final clubs) when clubs.isEmpty => _Message(
+        text: l.customerClubPickerEmpty,
+      ),
       _Ready(clubs: final clubs) when _inCity(clubs).isEmpty => _Message(
-          text: l.customerClubPickerEmpty,
-          actionLabel: l.customerClubPickerAllCities,
-          onAction: () => setState(() => _city = null),
-        ),
+        text: l.customerClubPickerEmpty,
+        actionLabel: l.customerClubPickerAllCities,
+        onAction: () => setState(() => _city = null),
+      ),
       _Ready(clubs: final clubs) => switch (_view) {
-          _View.list => ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              children: [
-                ..._myClubsSection(l, clubs),
-                for (final club in _inCity(clubs)) ...[
-                  ClubCard(
-                    club: club,
-                    onTap: () => widget.onSelected(club),
-                    onOpenReviews: () => _openReviews(club),
-                    onOpenDetails: () => _openDetails(club),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-              ],
-            ),
-          // Карта показывает то же, что список: выбранный город сужает оба, иначе переключение
-          // вида молча отменяло бы фильтр.
-          _View.map => Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: ClubMap(clubs: _inCity(clubs), onSelected: widget.onSelected),
-            ),
-        },
+        _View.list => ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: [
+            ..._myClubsSection(l, clubs),
+            for (final club in _inCity(clubs)) ...[
+              ClubCard(
+                club: club,
+                distanceMeters: _distanceMeters(club),
+                onTap: () => widget.onSelected(club),
+                onOpenReviews: () => _openReviews(club),
+                onOpenDetails: () => _openDetails(club),
+              ),
+              const SizedBox(height: 14),
+            ],
+          ],
+        ),
+        // Карта показывает то же, что список: выбранный город сужает оба, иначе переключение
+        // вида молча отменяло бы фильтр.
+        _View.map => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: ClubMap(clubs: _inCity(clubs), onSelected: widget.onSelected),
+        ),
+      },
     };
   }
 }
@@ -337,15 +449,19 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(text, style: Theme.of(context).textTheme.titleSmall),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(text, style: Theme.of(context).textTheme.titleSmall),
+  );
 }
 
 /// Свой клуб строкой: название, остаток кошелька и переход. Придержанное показывается
 /// отдельно — иначе игрок не поймёт, почему остаток меньше, чем он помнит.
 class _MyClubRow extends StatelessWidget {
-  const _MyClubRow({required this.club, required this.here, required this.onOpen});
+  const _MyClubRow({
+    required this.club,
+    required this.here,
+    required this.onOpen,
+  });
 
   final MyClubDto club;
   final bool here;
@@ -365,20 +481,30 @@ class _MyClubRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(formatMoney(club.walletBalanceMinorUnits, club.currencyCode,
-                locale: locale)),
+            Text(
+              formatMoney(
+                club.walletBalanceMinorUnits,
+                club.currencyCode,
+                locale: locale,
+              ),
+            ),
             if (club.heldMinorUnits > 0)
               Text(
                 '${l.customerWalletHeld}: '
                 '${formatMoney(club.heldMinorUnits, club.currencyCode, locale: locale)}',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
           ],
         ),
         trailing: here
-            ? Text(l.customerClubsHere,
-                style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary))
+            ? Text(
+                l.customerClubsHere,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              )
             : TextButton(onPressed: onOpen, child: Text(l.customerClubsOpen)),
         // Нажимается и текущий клуб — это и есть дорога назад для того, кто передумал
         // переходить.

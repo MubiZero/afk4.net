@@ -74,6 +74,14 @@
   "customerClubPickerChange": "Change club",
   "customerClubPickerClosedToday": "Closed today",
   "customerClubPickerDetails": "Details",
+  "customerClubPickerDistanceKm": "{km} km away",
+  "@customerClubPickerDistanceKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerEmpty": "No clubs found",
   "customerClubPickerError": "Could not load the club list",
   "customerClubPickerFreeSeats": "{free} of {total} free",
@@ -97,6 +105,9 @@
       }
     }
   },
+  "customerClubPickerNearby": "Near me",
+  "customerClubPickerNearbyDenied": "Without location access the nearest clubs can't be shown — pick a city",
+  "customerClubPickerNearbyUnavailable": "Couldn't work out where you are. Pick a city",
   "customerClubPickerNoFreeSeats": "No free seats",
   "customerClubPickerNoRating": "No ratings yet",
   "customerClubPickerOpenAllDay": "Open around the clock",
