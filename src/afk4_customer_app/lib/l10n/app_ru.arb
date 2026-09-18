@@ -713,7 +713,6 @@
   "customerReservationsCreateError": "Не удалось создать бронь",
   "customerReservationsCreated": "Бронь создана",
   "customerReservationsCreating": "Создаём…",
-  "customerReservationsEnd": "Конец",
   "customerReservationsEndBeforeStart": "Конец должен быть позже начала",
   "customerReservationsErrDisabled": "Клуб сейчас не принимает брони из приложения",
   "customerReservationsErrLimit": "У вас уже есть активная бронь. Дождитесь её или отмените",

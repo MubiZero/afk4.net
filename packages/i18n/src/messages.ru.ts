@@ -490,7 +490,6 @@ export const ru = {
   "customer.reservations.createError": "Не удалось создать бронь",
   "customer.reservations.created": "Бронь создана",
   "customer.reservations.creating": "Создаём…",
-  "customer.reservations.end": "Конец",
   "customer.reservations.endBeforeStart": "Конец должен быть позже начала",
   "customer.reservations.errDisabled": "Клуб сейчас не принимает брони из приложения",
   "customer.reservations.errLimit": "У вас уже есть активная бронь. Дождитесь её или отмените",
