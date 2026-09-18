@@ -50,7 +50,12 @@ String dateLocale(String locale) =>
 /// нелепо, как «h» и «min» на русском.
 String formatVisitDuration(L l, DateTime start, DateTime? end, {DateTime? now}) {
   final finish = end ?? now ?? DateTime.now();
-  final minutes = finish.difference(start).inMinutes;
+  return formatDurationMinutes(l, finish.difference(start).inMinutes);
+}
+
+/// Длительность словами — часы и минуты. Отдельно от визита: столько же времени бывает и в
+/// движении по кошельку, а «1 ч 30 мин» человек читает одинаково в обоих местах.
+String formatDurationMinutes(L l, int minutes) {
   final total = minutes < 0 ? 0 : minutes;
   final hours = total ~/ 60;
   return hours > 0

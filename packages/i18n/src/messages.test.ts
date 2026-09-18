@@ -39,7 +39,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'platform.health.queue.billing_outbox', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
     'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
-    'ledger.type.reversal', 'op.players.history.reversalBadge', 'op.management.dest.club', 'platform.dynamics.branch.label',
+    'op.players.history.reversalBadge', 'op.management.dest.club', 'platform.dynamics.branch.label',
     'op.eskhata.title', 'op.eskhata.baseUrl', 'op.eskhata.companyId', 'op.eskhata.merchantId',
     'op.eskhata.hashKey', 'op.dc.title', 'op.auth.operator', 'op.booking.source.operator',
     'op.cash.title', 'op.club.field.telegram', 'op.club.field.instagram', 'op.club.ph.city',

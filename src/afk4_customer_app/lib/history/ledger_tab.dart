@@ -95,7 +95,12 @@ class _LedgerRow extends StatelessWidget {
                 children: [
                   Text(ledgerTypeLabel(entry.entryType, l), style: theme.textTheme.bodyLarge),
                   Text(
-                    formatDateTime(l, entry.createdAtUtc, locale),
+                    // Сколько времени за этим движением, если оно про время. Сервер присылал
+                    // это всегда, а строка молчала: две «Списание за игру» за один вечер
+                    // ничем не различались, и сойтись с кошельком было нечем.
+                    entry.quantitySeconds >= 60
+                        ? '${formatDateTime(l, entry.createdAtUtc, locale)} · ${formatDurationMinutes(l, entry.quantitySeconds ~/ 60)}'
+                        : formatDateTime(l, entry.createdAtUtc, locale),
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
