@@ -544,6 +544,7 @@
   "customerPlayNoTariffs": "Клуб пока не назначил цены",
   "customerPlayNoTariffsHint": "Начать игру из приложения не получится. Подойдите к стойке — администратор посадит вас за ПК.",
   "customerPlayPickTariff": "Выберите тариф",
+  "customerPlayPinNeeded": "На экране ПК спросят ваш номер и ПИН-код — задайте его сейчас, чтобы не возвращаться к стойке",
   "customerPlaySeatsFree": "Свободных мест: {count}",
   "@customerPlaySeatsFree": {
     "placeholders": {
@@ -713,7 +714,6 @@
   "customerReservationsCreateError": "Не удалось создать бронь",
   "customerReservationsCreated": "Бронь создана",
   "customerReservationsCreating": "Создаём…",
-  "customerReservationsEnd": "Конец",
   "customerReservationsEndBeforeStart": "Конец должен быть позже начала",
   "customerReservationsErrDisabled": "Клуб сейчас не принимает брони из приложения",
   "customerReservationsErrLimit": "У вас уже есть активная бронь. Дождитесь её или отмените",

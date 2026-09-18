@@ -544,6 +544,7 @@
   "customerPlayNoTariffs": "Клуб ҳанӯз нархҳоро муқаррар накардааст",
   "customerPlayNoTariffsHint": "Аз барнома бозиро оғоз кардан мумкин нест. Ба назди мизи корӣ равед — маъмур шуморо шинонда мекунад.",
   "customerPlayPickTariff": "Тарифро интихоб кунед",
+  "customerPlayPinNeeded": "Дар экрани ПК рақам ва ПИН-коди шуморо мепурсанд — онро ҳозир таъин кунед, то ба мизи қабул барнагардед",
   "customerPlaySeatsFree": "Ҷойҳои озод: {count}",
   "@customerPlaySeatsFree": {
     "placeholders": {
@@ -713,7 +714,6 @@
   "customerReservationsCreateError": "Бронро сохтан муяссар нашуд",
   "customerReservationsCreated": "Брон сохта шуд",
   "customerReservationsCreating": "Сохта истодаем…",
-  "customerReservationsEnd": "Анҷом",
   "customerReservationsEndBeforeStart": "Анҷом бояд пас аз оғоз бошад",
   "customerReservationsErrDisabled": "Клуб ҳоло фармоишро аз барнома қабул намекунад",
   "customerReservationsErrLimit": "Шумо аллакай фармоиши фаъол доред. Онро интизор шавед ё бекор кунед",

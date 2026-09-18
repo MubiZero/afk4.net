@@ -544,6 +544,7 @@
   "customerPlayNoTariffs": "The club has not set prices yet",
   "customerPlayNoTariffsHint": "You cannot start a session from the app. Ask at the desk — an attendant will seat you.",
   "customerPlayPickTariff": "Pick a rate",
+  "customerPlayPinNeeded": "The PC will ask for your number and PIN — set it now so you don't have to walk back to the desk",
   "customerPlaySeatsFree": "Free seats: {count}",
   "@customerPlaySeatsFree": {
     "placeholders": {
@@ -713,7 +714,6 @@
   "customerReservationsCreateError": "Couldn't create the booking",
   "customerReservationsCreated": "Booking created",
   "customerReservationsCreating": "Booking…",
-  "customerReservationsEnd": "End",
   "customerReservationsEndBeforeStart": "The end must be later than the start",
   "customerReservationsErrDisabled": "The club isn't taking bookings from the app right now",
   "customerReservationsErrLimit": "You already have an active booking. Wait for it or cancel it",

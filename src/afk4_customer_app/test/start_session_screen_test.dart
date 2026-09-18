@@ -57,7 +57,7 @@ FakeHttpClient _serve({String seats = '[]', (String, int)? start, String? tariff
           _ => ('[]', 200),
         });
 
-Widget harness(FakeHttpClient http, {void Function(String?)? onClosed}) => MaterialApp(
+Widget harness(FakeHttpClient http, {void Function(String?)? onClosed, bool? pinSet}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -70,6 +70,7 @@ Widget harness(FakeHttpClient http, {void Function(String?)? onClosed}) => Mater
                   builder: (_) => StartSessionScreen(
                     api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
                     branchId: 'branch-1',
+                    pinSet: pinSet,
                   ),
                 ),
               );
@@ -321,5 +322,29 @@ void main() {
 
     expect(find.text('Не удалось загрузить места'), findsOneWidget);
     expect(find.text('Свободных мест нет'), findsNothing);
+  });
+
+  /// Про ПИН человек узнавал, только дойдя до ПК: экран лаунчера просит номер и код, которого
+  /// нет, — и обещание «начните игру без оператора» кончалось дорогой к стойке.
+  testWidgets('без ПИН-кода экран предупреждает и предлагает задать его здесь', (tester) async {
+    final http = _serve(seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]));
+    await tester.pumpWidget(harness(http, pinSet: false));
+    await open(tester);
+
+    expect(find.textContaining('ПИН-код'), findsWidgets);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Задать ПИН-код'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ПИН-код для посадки за ПК'), findsOneWidget);
+  });
+
+  // Профиль ещё не прочитан: пугать предупреждением о том, чего мы не знаем, хуже молчания.
+  testWidgets('пока про ПИН неизвестно, экран о нём молчит', (tester) async {
+    final http = _serve(seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]));
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    expect(find.widgetWithText(FilledButton, 'Задать ПИН-код'), findsNothing);
   });
 }

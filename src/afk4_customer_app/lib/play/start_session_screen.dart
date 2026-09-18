@@ -11,6 +11,7 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../reservations/tariff_picker.dart';
 import '../shell/load_failure.dart';
+import '../profile/pin_sheet.dart';
 
 /// Сколько играть. Три ходовых варианта вместо ввода минут: игрок стоит посреди зала с
 /// телефоном в руке, и лишний выбор здесь стоит ему времени, а клубу — очереди на стойке.
@@ -21,9 +22,18 @@ const List<int> playDurationsMinutes = [60, 120, 180];
 /// Это та операция, ради которой обычно ищут оператора. Пока он занят с другим гостем, игрок
 /// ждёт; здесь он не ждёт вообще.
 class StartSessionScreen extends StatefulWidget {
-  const StartSessionScreen({super.key, required this.api, required this.branchId});
+  const StartSessionScreen({
+    super.key,
+    required this.api,
+    required this.branchId,
+    this.pinSet,
+  });
 
   final PlayerApiClient api;
+
+  /// Задан ли ПИН-код для посадки за ПК. null — неизвестно (профиль не прочитан): тогда молчим,
+  /// потому что пугать человека предупреждением о том, чего мы не знаем, хуже молчания.
+  final bool? pinSet;
 
   /// Филиал игрока — из его профиля. Без него спрашивать нечего: и места, и тарифы у клуба свои.
   final String branchId;
@@ -47,6 +57,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   int _quoteRequest = 0;
 
   bool _starting = false;
+
+  /// ПИН задали прямо здесь: предупреждение уходит, не дожидаясь перечитывания профиля.
+  bool _pinJustSet = false;
   String? _error;
 
   /// Ключ попытки: повтор после обрыва обязан прийти с тем же, иначе сессия начнётся дважды
@@ -183,6 +196,17 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
     );
   }
 
+  Future<void> _setPin() async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => PinSheet(api: widget.api, pinSet: false),
+    );
+    if (saved != true || !mounted) return;
+    setState(() => _pinJustSet = true);
+  }
+
   Widget _body(L l) {
     final theme = Theme.of(context);
     final seats = _seats;
@@ -205,6 +229,33 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Про ПИН человек узнавал, только дойдя до ПК: экран лаунчера просит номер и код,
+          // которого нет, — и обещание «начните игру без оператора» кончалось дорогой к стойке.
+          if (widget.pinSet == false && !_pinJustSet) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l.customerPlayPinNeeded,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton(
+                        onPressed: _setPin,
+                        child: Text(l.customerPinSet),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           // Код набирают, а места показываются справкой: «есть ли вообще куда сесть». Выбирать
           // из списка больше нечего — машину называет тот ПК, перед которым человек стоит.
           Text(l.customerPlayCode, style: theme.textTheme.titleSmall),

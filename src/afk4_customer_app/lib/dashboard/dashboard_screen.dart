@@ -48,6 +48,7 @@ class DashboardScreen extends StatefulWidget {
     this.onOpenWallet,
     this.openShopRequest = 0,
     this.onPhoneVerified,
+    this.pinSet,
     this.clock = DateTime.now,
   });
 
@@ -80,6 +81,9 @@ class DashboardScreen extends StatefulWidget {
 
   /// Номер подтвердили из карточки кошелька — оболочке пора считать игрока подтверждённым.
   final VoidCallback? onPhoneVerified;
+
+  /// Задан ли ПИН для посадки за ПК. null — профиль ещё не прочитан.
+  final bool? pinSet;
 
   final DateTime Function() clock;
 
@@ -309,7 +313,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (branchId == null) return;
 
     final seatName = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => StartSessionScreen(api: widget.api, branchId: branchId)),
+      MaterialPageRoute(
+        builder: (_) =>
+            StartSessionScreen(api: widget.api, branchId: branchId, pinSet: widget.pinSet),
+      ),
     );
     if (seatName == null || !mounted) return;
 

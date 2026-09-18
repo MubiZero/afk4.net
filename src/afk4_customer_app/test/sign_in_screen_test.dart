@@ -276,6 +276,23 @@ void main() {
     expect(changed, isTrue);
   });
 
+  /// Язык предлагался только на третьем шаге, после кода из SMS: таджикоязычный игрок с русским
+  /// телефоном читал первые два экрана не на своём языке — и это первое, что он видит.
+  testWidgets('язык выбирается на первом же экране, а не после кода', (tester) async {
+    Locale? chosen;
+    await tester.pumpWidget(harness(
+      clientWith(FakeHttpClient((_) => (_codeSent, 200))),
+      onLocaleChanged: (locale) => chosen = locale,
+    ));
+
+    expect(find.text('Таджикский'), findsOneWidget);
+
+    await tester.tap(find.text('Таджикский'));
+    await tester.pumpAndSettle();
+
+    expect(chosen?.languageCode, 'tg');
+  });
+
   /// В листе подтверждения номера отсчёт есть с самого начала, а на входе кнопка «прислать
   /// заново» ловила 429 на ровном месте: сервер называет паузу, экран о ней молчал.
   testWidgets('повторная отправка кода ждёт с видимым отсчётом', (tester) async {
