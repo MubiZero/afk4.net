@@ -11576,29 +11576,28 @@ class RefundPosSaleRequest {
 
 /// Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — `android` или
 /// `ios`, локаль — язык приложения на этом устройстве.
+/// Язык здесь не спрашивается: пуш уходит на языке аккаунта (PlayerAccount.PreferredLocale),
+/// который человек выбирает сам в профиле. Установленные приложения поле ещё шлют — лишнее поле
+/// в теле сервер молча пропускает.
 ///
 /// Контракт: Notifications/NotificationContracts.cs
 class RegisterPlayerDeviceRequest {
   const RegisterPlayerDeviceRequest({
     this.pushToken,
     this.platform,
-    this.locale,
   });
 
   final String? pushToken;
   final String? platform;
-  final String? locale;
 
   factory RegisterPlayerDeviceRequest.fromJson(Map<String, dynamic> json) => RegisterPlayerDeviceRequest(
         pushToken: json['pushToken'] == null ? null : json['pushToken'] as String,
         platform: json['platform'] == null ? null : json['platform'] as String,
-        locale: json['locale'] == null ? null : json['locale'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'pushToken': pushToken,
         'platform': platform,
-        'locale': locale,
       };
 }
 
