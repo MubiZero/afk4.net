@@ -8,6 +8,7 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../organization/branch_choice.dart';
+import '../api/idempotency.dart';
 
 /// Потолок одной заявки. Нужен не против богатых, а против ввода вроде `1e308`: он
 /// превращается в бесконечность, а та уезжает на сервер как `null`.
@@ -63,6 +64,9 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
 
   final TextEditingController _amount = TextEditingController();
   bool _pending = false;
+
+  /// Ключ попытки — один на отправку заявки, переживающий неудачу.
+  final AttemptKey _attempt = AttemptKey();
 
   /// Чем клуб принимает деньги. Null — ещё не спросили; до ответа онлайн не предлагаем.
   PlayerTopUpMethodsDto? _methods;
@@ -131,11 +135,15 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
 
     setState(() => _pending = true);
     try {
+      final minorUnits = majorToMinor(major);
       final intent = await widget.api.createTopUpIntent(
-        amountMinorUnits: majorToMinor(major),
+        amountMinorUnits: minorUnits,
         currencyCode: widget.currencyCode,
         branchId: _branchId,
         method: online ? 'eskhata' : 'counter',
+        // Повтор после обрыва несёт тот же ключ: иначе у кассира будет вторая заявка на те же
+        // деньги, а в банке — второй заказ. Другая сумма или другой способ — другая попытка.
+        idempotencyKey: _attempt.forSubject('$minorUnits:${online ? 'eskhata' : 'counter'}'),
       );
       if (!mounted) return;
       if (online) {
@@ -144,6 +152,7 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
       }
       // Лист закрывается сам: заявка отправлена, делать здесь больше нечего, а сводку с
       // ожидающей заявкой игрок увидит на главной.
+      _attempt.done();
       Navigator.of(context).pop(true);
     } on PlayerApiException catch (error) {
       if (mounted) {

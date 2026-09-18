@@ -31,6 +31,10 @@ public sealed class PaymentIntentEntity
 
     public DateTimeOffset? FulfilledAtUtc { get; set; }
 
+    // Hash of the caller's idempotency key. Null for requests that did not carry one
+    // (older installed apps, operator-side paths): those keep the previous behaviour.
+    public string? IdempotencyKeyHash { get; set; }
+
     // --- dcgate (online self-top-up) ---
     // Set only when Method == "dcgate"; null on the counter path.
 

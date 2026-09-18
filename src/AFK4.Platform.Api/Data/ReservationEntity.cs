@@ -71,6 +71,11 @@ public sealed class ReservationEntity
 
     public string? RejectReasonNote { get; set; }
 
+    // Hash of the caller's idempotency key. Null for bookings made without one — the desk
+    // and older installed apps. Set once, on creation; a repeat of the same attempt finds
+    // the booking by it instead of creating a second one and holding the money twice.
+    public string? IdempotencyKeyHash { get; set; }
+
     public int Version { get; set; } = 1;
 
     public Guid? StartedSessionId { get; set; }

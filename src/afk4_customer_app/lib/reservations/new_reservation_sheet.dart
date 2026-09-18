@@ -7,6 +7,7 @@ import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/branch_choice.dart';
+import '../api/idempotency.dart';
 import 'date_time_field.dart';
 import 'reservations_screen.dart';
 import 'tariff_picker.dart';
@@ -51,6 +52,15 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
   /// Сколько мест бронируется. Один — обычная бронь, больше — компания: сервер заведёт их
   /// одной группой и заморозит деньги за всех сразу.
   int _seats = 1;
+
+  /// Ключ попытки: повтор после обрыва обязан прийти с тем же, иначе бронь встанет дважды и
+  /// деньги заморозятся дважды. Другое время, число мест или тариф — другая попытка.
+  final AttemptKey _attempt = AttemptKey();
+
+  /// Из чего состоит попытка: время, число мест и тариф. Изменил что-то — это уже другая бронь,
+  /// и ключ ей нужен свой.
+  String get _attemptSubject =>
+      '${_startsAt?.toUtc().toIso8601String()}:${_endsAt?.toUtc().toIso8601String()}:$_seats:$_tariffId';
 
   /// Столько же, сколько разрешает сервер: больше восьми человек в клубе договариваются
   /// голосом, а не через форму.
@@ -200,6 +210,7 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           seatCount: _seats,
           startsAtUtc: _startsAt!,
           endsAtUtc: _endsAt!,
+          idempotencyKey: _attempt.forSubject(_attemptSubject),
           tariffVersionId: _tariffId,
           branchId: branchId,
         );
@@ -207,10 +218,12 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
         await widget.api.createReservation(
           startsAtUtc: _startsAt!,
           endsAtUtc: _endsAt!,
+          idempotencyKey: _attempt.forSubject(_attemptSubject),
           tariffVersionId: _tariffId,
           branchId: branchId,
         );
       }
+      _attempt.done();
       if (mounted) Navigator.of(context).pop(true);
     } on PlayerApiException catch (error) {
       if (!mounted) return;

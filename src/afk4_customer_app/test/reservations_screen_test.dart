@@ -266,6 +266,27 @@ void main() {
     expect(writes.single.url.path, '/api/me/reservations');
   });
 
+  /// Бронь замораживает деньги. Ответ мог потеряться уже после этого: повтор той же попытки
+  /// обязан нести тот же ключ, иначе на кошельке окажется заморожено вдвое.
+  testWidgets('повтор брони после сбоя идёт с прежним ключом', (tester) async {
+    final http = _serve('[]', onWrite: ('{"error":"server_down"}', 500));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    final keys = http.bodies.map((body) => body['idempotencyKey']).toList();
+    expect(keys, hasLength(2));
+    expect(keys.first, isNotNull);
+    expect(keys.first, keys.last);
+  });
+
   // Границу видно кнопкой, а не отказом после нажатия.
   testWidgets('меньше одного места не выбрать', (tester) async {
     await tester.pumpWidget(harness(_serve('[]')));

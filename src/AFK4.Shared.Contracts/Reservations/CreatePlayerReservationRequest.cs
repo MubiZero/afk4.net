@@ -15,10 +15,15 @@ namespace AFK4.Shared.Contracts.Reservations;
 // BranchId — филиал, в который игрок придёт. Нужен только в первом действии в клубе, где счёта
 // ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. У игрока со
 // счётом филиал уже известен, и присланный его не переписывает.
+//
+// IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+// без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+// создаёт второе.
 public sealed record CreatePlayerReservationRequest(
     Guid? SeatId,
     DateTimeOffset StartsAtUtc,
     DateTimeOffset EndsAtUtc,
     string? Note,
     Guid? TariffVersionId = null,
-    Guid? BranchId = null);
+    Guid? BranchId = null,
+    string? IdempotencyKey = null);

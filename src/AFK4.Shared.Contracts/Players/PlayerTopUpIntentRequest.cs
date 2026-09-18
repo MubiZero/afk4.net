@@ -10,8 +10,13 @@ namespace AFK4.Shared.Contracts.Players;
 // счёта ещё нет: у сети с несколькими филиалами сервер не гадает, куда записать счёт. Поле
 // необязательное — клуб с одним филиалом называть нечего, а у человека со счётом филиал уже
 // известен, и присланный не переписывает его.
+//
+// IdempotencyKey — ключ одной попытки. Необязателен: установленные приложения его не шлют, и
+// без него всё работает как раньше. С ним повтор после обрыва находит уже созданное, а не
+// создаёт второе.
 public sealed record PlayerTopUpIntentRequest(
     long AmountMinorUnits,
     string? CurrencyCode,
     string? Method = null,
-    Guid? BranchId = null);
+    Guid? BranchId = null,
+    string? IdempotencyKey = null);
