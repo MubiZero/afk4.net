@@ -923,6 +923,59 @@ public class PortalWritesEndpointTests
         Assert.Equal("PC-01", list1[0].SeatName);
     }
 
+    /// Брони копятся годами, а раздел — про то, что впереди. Прошлое отдаётся хвостом: иначе
+    /// ответ растёт с каждым визитом, и однажды экран строит сотни карточек за один кадр.
+    [Fact]
+    public async Task ListReservations_KeepsUpcomingAndOnlyATailOfThePast()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var now = DateTimeOffset.UtcNow;
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            for (var i = 1; i <= 30; i++)
+            {
+                db.Reservations.Add(PastReservation(p, now.AddDays(-i)));
+            }
+
+            db.Reservations.Add(PastReservation(p, now.AddHours(5)));
+            await db.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var list = await (await client.GetAsync("/api/me/reservations"))
+            .Content.ReadFromJsonAsync<IReadOnlyList<PlayerReservationDto>>();
+
+        // Одна будущая — целиком, прошлых ровно хвост, а не все тридцать.
+        Assert.Equal(21, list!.Count);
+        Assert.Single(list, reservation => reservation.StartsAtUtc > now);
+        Assert.All(
+            list.Where(reservation => reservation.StartsAtUtc < now),
+            reservation => Assert.True(reservation.StartsAtUtc > now.AddDays(-21)));
+    }
+
+    private static ReservationEntity PastReservation(SeededPlayer player, DateTimeOffset startsAt) =>
+        new()
+        {
+            ReservationId = Guid.NewGuid(),
+            OrganizationId = player.OrgId,
+            BranchId = player.BranchId,
+            PlayerAccountId = player.PlayerId,
+            CustomerName = "Test Player",
+            StartsAtUtc = startsAt,
+            EndsAtUtc = startsAt.AddHours(1),
+            State = ReservationStateNames.Confirmed,
+            Source = ReservationSourceNames.Online,
+            Note = string.Empty,
+            CancelReason = string.Empty,
+            CreatedAtUtc = startsAt,
+            UpdatedAtUtc = startsAt
+        };
+
     [Fact]
     public async Task ListReservations_WithoutToken_Returns401()
     {

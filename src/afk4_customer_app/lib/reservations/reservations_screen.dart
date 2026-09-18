@@ -335,28 +335,39 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                     ],
                   ),
                 ),
-              _Load.ready => Column(
-                  children: [
-                    for (final entry in groupReservations(_reservations))
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ReservationCard(
-                          entry: entry,
-                          now: widget.clock(),
-                          busy: _busyId == entry.first.reservationId,
-                          onCancel: () => _cancel(entry),
-                          onMove: entry.isCompany ? null : () => _move(entry),
-                        ),
-                      ),
-                  ],
-                ),
+              // Карточки живут отдельным списком ниже: строить их разом значит собрать
+              // за один кадр всё, что игрок забронировал за годы.
+              _Load.ready => const SizedBox.shrink(),
             },
-              // Плавающая кнопка «Забронировать» перекрывает последнюю карточку списка —
-              // место под ней освобождается заранее.
-              const SizedBox(height: 72),
             ],
           ),
         ),
+        if (_state == _Load.ready)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: Builder(builder: (context) {
+              final entries = groupReservations(_reservations);
+              return SliverList.builder(
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ReservationCard(
+                      entry: entry,
+                      now: widget.clock(),
+                      busy: _busyId == entry.first.reservationId,
+                      onCancel: () => _cancel(entry),
+                      onMove: entry.isCompany ? null : () => _move(entry),
+                    ),
+                  );
+                },
+              );
+            }),
+          ),
+        // Плавающая кнопка «Забронировать» перекрывает последнюю карточку списка —
+        // место под ней освобождается заранее.
+        const SliverToBoxAdapter(child: SizedBox(height: 72)),
       ],
     );
   }
