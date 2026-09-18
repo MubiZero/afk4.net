@@ -362,9 +362,35 @@ internal static class PlayerSelfServiceEndpoints
                 ? "TJS"
                 : request.CurrencyCode.Trim().ToUpperInvariant();
 
+            // Повтор той же попытки — не вторая заявка. Ответ мог потеряться уже после того, как
+            // заявка встала, а для онлайн-оплаты — после того, как банк завёл заказ: второе
+            // нажатие давало кассиру вторую ожидающую оплату, а игроку второй счёт в банке.
+            var attemptHash = string.IsNullOrWhiteSpace(request.IdempotencyKey)
+                ? null
+                : BillingCommandIdempotencyKeyHasher.Hash(request.IdempotencyKey);
+            if (attemptHash is not null)
+            {
+                var already = await dbContext.PaymentIntents
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(
+                        candidate => candidate.PlayerAccountId == player.PlayerAccountId &&
+                            candidate.IdempotencyKeyHash == attemptHash,
+                        cancellationToken);
+                if (already is not null)
+                {
+                    // Та же заявка и тем же возрастом: сутки спустя повтор попытки видит её
+                    // просроченной ровно так же, как её видит список кошелька.
+                    return Results.Ok(ToPlayerTopUpIntentDto(
+                        already,
+                        isExpired: already.State == "pending" &&
+                            already.CreatedAtUtc < timeProvider.GetUtcNow().AddHours(-24)));
+                }
+            }
+
             var now = timeProvider.GetUtcNow();
             var intent = new PaymentIntentEntity
             {
+                IdempotencyKeyHash = attemptHash,
                 PaymentIntentId = Guid.NewGuid(),
                 PlayerAccountId = player.PlayerAccountId,
                 OrganizationId = player.OrganizationId,
@@ -434,21 +460,7 @@ internal static class PlayerSelfServiceEndpoints
             dbContext.PaymentIntents.Add(intent);
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(new PlayerTopUpIntentDto(
-                intent.PaymentIntentId,
-                intent.AmountMinorUnits,
-                intent.CurrencyCode,
-                intent.State,
-                intent.Purpose,
-                intent.Method,
-                intent.CreatedAtUtc,
-                intent.FulfilledAtUtc,
-                IsExpired: false,
-                PayUrl: intent.GatewayPayUrl,
-                Comment: intent.GatewayComment,
-                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc,
-                Qr: intent.GatewayQrPayload,
-                DeepLink: AFK4.Platform.Api.Payments.Eskhata.EskhataDeepLink.FromInvoiceUrl(intent.GatewayPayUrl)));
+            return Results.Ok(ToPlayerTopUpIntentDto(intent));
         }).RequireRateLimiting("player-me").OpensClubAccount();
 
         // Чем клуб принимает деньги. Спрашивается до того, как человек выбрал способ: кнопка,
@@ -552,19 +564,9 @@ internal static class PlayerSelfServiceEndpoints
                 .OrderByDescending(intent => intent.CreatedAtUtc)
                 .ToListAsync(cancellationToken);
 
-            var dtos = intents.Select(intent => new PlayerTopUpIntentDto(
-                intent.PaymentIntentId,
-                intent.AmountMinorUnits,
-                intent.CurrencyCode,
-                intent.State,
-                intent.Purpose,
-                intent.Method,
-                intent.CreatedAtUtc,
-                intent.FulfilledAtUtc,
-                IsExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff,
-                PayUrl: intent.GatewayPayUrl,
-                Comment: intent.GatewayComment,
-                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc))
+            var dtos = intents.Select(intent => ToPlayerTopUpIntentDto(
+                intent,
+                isExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff))
                 .ToList();
 
             return Results.Ok(dtos);
@@ -618,19 +620,7 @@ internal static class PlayerSelfServiceEndpoints
 
             // Ответ несёт саму заявку, как отмена заказа и брони: экрану нужно новое состояние, а
             // не пустота, за которой пришлось бы идти вторым запросом.
-            return Results.Ok(new PlayerTopUpIntentDto(
-                intent.PaymentIntentId,
-                intent.AmountMinorUnits,
-                intent.CurrencyCode,
-                intent.State,
-                intent.Purpose,
-                intent.Method,
-                intent.CreatedAtUtc,
-                intent.FulfilledAtUtc,
-                IsExpired: false,
-                PayUrl: intent.GatewayPayUrl,
-                Comment: intent.GatewayComment,
-                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc));
+            return Results.Ok(ToPlayerTopUpIntentDto(intent));
         }).RequireRateLimiting("player-me");
 
         // Intentionally no online_topup feature gate on this route. The intent behind it was
@@ -1502,6 +1492,29 @@ internal static class PlayerSelfServiceEndpoints
             homeBranchId,
             branchName);
     }
+
+    /// <summary>
+    /// Заявка на пополнение так, как её видит игрок. Собирается в одном месте: тех же полей
+    /// ждут создание, повтор попытки и отмена, а три копии однажды разъедутся.
+    /// </summary>
+    private static PlayerTopUpIntentDto ToPlayerTopUpIntentDto(
+        PaymentIntentEntity intent,
+        bool isExpired = false) =>
+        new(
+            intent.PaymentIntentId,
+            intent.AmountMinorUnits,
+            intent.CurrencyCode,
+            intent.State,
+            intent.Purpose,
+            intent.Method,
+            intent.CreatedAtUtc,
+            intent.FulfilledAtUtc,
+            IsExpired: isExpired,
+            PayUrl: intent.GatewayPayUrl,
+            Comment: intent.GatewayComment,
+            GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc,
+            Qr: intent.GatewayQrPayload,
+            DeepLink: AFK4.Platform.Api.Payments.Eskhata.EskhataDeepLink.FromInvoiceUrl(intent.GatewayPayUrl));
 
     private static async Task<int?> ResolveEskhataMerchantIdAsync(
         PlatformDbContext db, Guid organizationId, CancellationToken cancellationToken)

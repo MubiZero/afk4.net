@@ -266,12 +266,16 @@ class PlayerApiClient {
   Future<PlayerReservationDto> createReservation({
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
+    required String idempotencyKey,
     String? tariffVersionId,
     String? branchId,
   }) async {
     final body = await sendJson('POST', '/api/me/reservations', {
       'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
       'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+      // Бронь замораживает деньги: повтор после обрыва обязан нести тот же ключ, иначе на
+      // кошельке окажется заморожено вдвое.
+      'idempotencyKey': idempotencyKey,
       // Тариф уходит, только когда игрок его выбрал: у клуба может не быть прайса в системе,
       // и тогда бронь считают на стойке, как раньше.
       'tariffVersionId': ?tariffVersionId,
@@ -450,11 +454,13 @@ class PlayerApiClient {
     required int seatCount,
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
+    required String idempotencyKey,
     String? tariffVersionId,
     String? branchId,
   }) async {
     final body = await sendJson('POST', '/api/me/reservations/group', {
       'seatCount': seatCount,
+      'idempotencyKey': idempotencyKey,
       'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
       'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
       'tariffVersionId': ?tariffVersionId,
@@ -642,11 +648,15 @@ class PlayerApiClient {
   Future<PlayerTopUpIntentDto> createTopUpIntent({
     required int amountMinorUnits,
     required String currencyCode,
+    required String idempotencyKey,
     String? branchId,
     String method = 'counter',
   }) async {
     final body = await sendJson('POST', '/api/me/wallet/top-up-intent', {
       'amountMinorUnits': amountMinorUnits,
+      // Повтор после обрыва обязан нести тот же ключ: иначе у кассира окажется вторая
+      // ожидающая оплата, а в банке — второй заказ.
+      'idempotencyKey': idempotencyKey,
       'currencyCode': currencyCode,
       'branchId': ?branchId,
       'method': method,

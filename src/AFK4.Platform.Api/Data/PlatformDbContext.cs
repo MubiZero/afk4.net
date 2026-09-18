@@ -1021,6 +1021,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(reservation => reservation.RejectReasonCode).HasMaxLength(32);
             entity.Property(reservation => reservation.RejectReasonNote).HasMaxLength(512);
             entity.Property(reservation => reservation.Version).IsConcurrencyToken();
+            entity.Property(reservation => reservation.IdempotencyKeyHash).HasMaxLength(128);
+            // Одна попытка игрока — одна бронь: повтор после обрыва находит её по ключу, а
+            // гонка двух одинаковых запросов упирается в этот индекс, а не морозит деньги дважды.
+            entity.HasIndex(reservation => new
+            {
+                reservation.PlayerAccountId,
+                reservation.IdempotencyKeyHash
+            })
+                .IsUnique()
+                .HasFilter("\"IdempotencyKeyHash\" IS NOT NULL");
             entity.HasIndex(reservation => new
             {
                 reservation.OrganizationId,
@@ -1062,8 +1072,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(intent => intent.GatewayPaymentId).HasMaxLength(128);
             entity.Property(intent => intent.GatewayComment).HasMaxLength(64);
             entity.Property(intent => intent.GatewayPayUrl).HasMaxLength(1024);
+            entity.Property(intent => intent.IdempotencyKeyHash).HasMaxLength(128);
             entity.HasIndex(intent => intent.PlayerAccountId);
             entity.HasIndex(intent => new { intent.BranchId, intent.State });
+            // Одна попытка игрока — одна заявка: повтор после обрыва возвращает ту же, вместе с
+            // тем же заказом в банке, вместо второй ожидающей оплаты в списке кассира.
+            entity.HasIndex(intent => new { intent.PlayerAccountId, intent.IdempotencyKeyHash })
+                .IsUnique()
+                .HasFilter("\"IdempotencyKeyHash\" IS NOT NULL");
         });
 
         modelBuilder.Entity<EskhataMerchantConfigEntity>(entity =>

@@ -125,6 +125,33 @@ public class PlayerGroupReservationEndpointTests
         Assert.Equal(44_000, await AvailableWalletAsync(factory, seeded.PlayerId));
     }
 
+    // Повтор той же попытки — не вторая компания. Ответ мог потеряться уже после того, как все
+    // места заняты и деньги за них заморожены: без ключа второе нажатие морозило сумму дважды.
+    [Fact]
+    public async Task Group_RepeatedAttempt_ReturnsTheSameCompanyAndHoldsMoneyOnce()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var start = Now.AddHours(4);
+        var request = new CreatePlayerReservationGroupRequest(
+            4, start, start.AddHours(1), null, seeded.TariffVersionId, IdempotencyKey: "attempt-1");
+        var first = await client.PostAsJsonAsync("/api/me/reservations/group", request);
+        var second = await client.PostAsJsonAsync("/api/me/reservations/group", request);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var firstGroup = await first.Content.ReadFromJsonAsync<PlayerReservationGroupDto>();
+        var secondGroup = await second.Content.ReadFromJsonAsync<PlayerReservationGroupDto>();
+        Assert.Equal(firstGroup!.ReservationGroupId, secondGroup!.ReservationGroupId);
+        Assert.Equal(4, secondGroup.Reservations.Count);
+
+        // 50 000 минус 6 000 под одну компанию — а не минус 12 000 под две.
+        Assert.Equal(44_000, await AvailableWalletAsync(factory, seeded.PlayerId));
+    }
+
     // Посадить половину компании хуже, чем честно отказать: на четверых денег нет — не бронируется
     // ни одно место.
     [Fact]

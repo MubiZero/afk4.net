@@ -136,6 +136,53 @@ public class PortalWritesEndpointTests
         Assert.Equal(p.BranchId, intent.BranchId);
     }
 
+    // Ответ на заявку мог потеряться в пути. Повтор той же попытки обязан вернуть ту же заявку:
+    // вторая «ожидающая оплата» в списке кассира — это приглашение зачислить деньги дважды.
+    [Fact]
+    public async Task CreateTopUpIntent_RepeatedAttempt_ReturnsTheSameIntent()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var request = new PlayerTopUpIntentRequest(10_000, null, IdempotencyKey: "attempt-1");
+        var first = await client.PostAsJsonAsync("/api/me/wallet/top-up-intent", request);
+        var second = await client.PostAsJsonAsync("/api/me/wallet/top-up-intent", request);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var firstDto = await first.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+        var secondDto = await second.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+        Assert.Equal(firstDto!.PaymentIntentId, secondDto!.PaymentIntentId);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(db.PaymentIntents.Where(intent => intent.PlayerAccountId == p.PlayerId));
+    }
+
+    // Другая сумма — другая попытка, и своя заявка: ключ различает повтор, а не запрещает
+    // пополнять кошелёк второй раз за вечер.
+    [Fact]
+    public async Task CreateTopUpIntent_DifferentAttempt_CreatesItsOwnIntent()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(10_000, null, IdempotencyKey: "attempt-1"));
+        await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(25_000, null, IdempotencyKey: "attempt-2"));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(2, db.PaymentIntents.Count(intent => intent.PlayerAccountId == p.PlayerId));
+    }
+
     [Fact]
     public async Task CreateTopUpIntent_WithExplicitCurrency_UsesThatCurrency()
     {
@@ -729,6 +776,34 @@ public class PortalWritesEndpointTests
         Assert.NotNull(entity);
         Assert.Equal(p.PlayerId, entity!.PlayerAccountId);
         Assert.Equal("Test Player", entity.CustomerName);
+    }
+
+    // Ответ на бронь мог потеряться уже после того, как деньги заморозились. Повтор той же
+    // попытки обязан вернуть ту же бронь, а не занять второе место и не заморозить сумму дважды.
+    [Fact]
+    public async Task BookOnline_RepeatedAttempt_ReturnsTheSameBooking()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var (seatId, _) = await SeedSeatAsync(factory, p.OrgId, p.BranchId);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var request = new CreatePlayerReservationRequest(
+            seatId, startsAt, startsAt.AddHours(1), null, IdempotencyKey: "attempt-1");
+        var first = await client.PostAsJsonAsync("/api/me/reservations", request);
+        var second = await client.PostAsJsonAsync("/api/me/reservations", request);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var firstDto = await first.Content.ReadFromJsonAsync<PlayerReservationDto>();
+        var secondDto = await second.Content.ReadFromJsonAsync<PlayerReservationDto>();
+        Assert.Equal(firstDto!.ReservationId, secondDto!.ReservationId);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(db.Reservations.Where(booking => booking.PlayerAccountId == p.PlayerId));
     }
 
     [Fact]

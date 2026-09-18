@@ -17,13 +17,19 @@ namespace AFK4.Shared.Contracts.Reservations;
 /// Филиал, в который компания придёт. Нужен только в первом действии в клубе, где счёта ещё нет:
 /// у сети с несколькими филиалами сервер не гадает, куда записать счёт.
 /// </param>
+/// <param name="IdempotencyKey">
+/// Ключ одной попытки. Необязателен: установленные приложения его не шлют, и без него всё
+/// работает как раньше. С ним повтор после обрыва возвращает уже созданную компанию, а не
+/// бронирует вторую и не замораживает деньги второй раз.
+/// </param>
 public sealed record CreatePlayerReservationGroupRequest(
     int SeatCount,
     DateTimeOffset StartsAtUtc,
     DateTimeOffset EndsAtUtc,
     string? Note,
     Guid? TariffVersionId = null,
-    Guid? BranchId = null);
+    Guid? BranchId = null,
+    string? IdempotencyKey = null);
 
 /// <summary>
 /// Что получилось из групповой брони: сама группа и её брони. Отдельного состояния у группы нет —

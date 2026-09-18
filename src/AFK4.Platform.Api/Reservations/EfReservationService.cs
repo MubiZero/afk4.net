@@ -1007,6 +1007,25 @@ public sealed class EfReservationService(
         CreatePlayerReservationRequest request,
         CancellationToken cancellationToken)
     {
+        // Повтор той же попытки — не вторая бронь. Ответ мог потеряться уже после того, как
+        // бронь встала и деньги заморозились; без этой проверки второе нажатие занимает ещё одно
+        // место и морозит сумму второй раз.
+        var attemptHash = IdempotencyHash(request.IdempotencyKey);
+        if (attemptHash is not null)
+        {
+            var already = await dbContext.Reservations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    candidate => candidate.PlayerAccountId == playerAccountId &&
+                        candidate.IdempotencyKeyHash == attemptHash,
+                    cancellationToken);
+            if (already is not null)
+            {
+                return ReservationServiceResult<ReservationDto>.Ok(
+                    (await ProjectAsync([already], cancellationToken))[0]);
+            }
+        }
+
         if (request.StartsAtUtc >= request.EndsAtUtc)
         {
             return ReservationServiceResult<ReservationDto>.Invalid(
@@ -1163,7 +1182,8 @@ public sealed class EfReservationService(
             CancelReason = string.Empty,
             TariffVersionId = tariffVersion?.TariffVersionId,
             EstimatedCostMinorUnits = estimate?.AmountMinorUnits,
-            CurrencyCode = estimate?.CurrencyCode
+            CurrencyCode = estimate?.CurrencyCode,
+            IdempotencyKeyHash = attemptHash
         };
 
         dbContext.Reservations.Add(reservation);
@@ -1375,6 +1395,15 @@ public sealed class EfReservationService(
     /// который транзиентен. Исчерпали попытки — отвечаем «мест нет»: раз соперник продолжает
     /// выигрывать гонку, места достались ему.
     /// </summary>
+    /// <summary>
+    /// Хеш ключа попытки. Пустой ключ — это «клиент его не шлёт»: установленные приложения и
+    /// стойка работают как раньше, без защиты от повтора, но и без отказа.
+    /// </summary>
+    private static string? IdempotencyHash(string? idempotencyKey) =>
+        string.IsNullOrWhiteSpace(idempotencyKey)
+            ? null
+            : BillingCommandIdempotencyKeyHasher.Hash(idempotencyKey);
+
     private async Task<T> ExecuteBookingAsync<T>(
         Func<Task<T>> action,
         Func<T> whenSeatsRanOut,
@@ -1503,6 +1532,28 @@ public sealed class EfReservationService(
         CreatePlayerReservationGroupRequest request,
         CancellationToken cancellationToken)
     {
+        // Повтор той же попытки — не вторая компания. Ключ носит первая бронь группы: с ним
+        // находится вся группа, а уникальный индекс не спорит сам с собой на остальных местах.
+        var attemptHash = IdempotencyHash(request.IdempotencyKey);
+        if (attemptHash is not null)
+        {
+            var already = await dbContext.Reservations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    candidate => candidate.PlayerAccountId == playerAccountId &&
+                        candidate.IdempotencyKeyHash == attemptHash,
+                    cancellationToken);
+            if (already?.ReservationGroupId is { } bookedGroupId)
+            {
+                var group = await dbContext.Reservations
+                    .AsNoTracking()
+                    .Where(candidate => candidate.ReservationGroupId == bookedGroupId)
+                    .ToListAsync(cancellationToken);
+                return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Ok(
+                    await ProjectAsync(group, cancellationToken));
+            }
+        }
+
         if (!PlayerReservationGroupLimits.IsAllowedSeatCount(request.SeatCount))
         {
             return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(
@@ -1641,7 +1692,8 @@ public sealed class EfReservationService(
                 CancelReason = string.Empty,
                 TariffVersionId = pricing.TariffVersion?.TariffVersionId,
                 EstimatedCostMinorUnits = pricing.Estimate?.AmountMinorUnits,
-                CurrencyCode = pricing.Estimate?.CurrencyCode
+                CurrencyCode = pricing.Estimate?.CurrencyCode,
+                IdempotencyKeyHash = reservations.Count == 0 ? attemptHash : null
             };
 
             reservations.Add(reservation);
