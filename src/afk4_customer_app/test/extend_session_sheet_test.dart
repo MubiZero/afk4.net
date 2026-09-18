@@ -7,7 +7,7 @@ import 'package:afk4_customer_app/l10n/localization_setup.dart';
 
 import 'support/fake_http.dart';
 
-Widget harness(PlayerApiClient api, {void Function(int?)? onClosed}) => MaterialApp(
+Widget harness(PlayerApiClient api, {void Function(int?)? onClosed, int? pricePerHour}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -17,7 +17,11 @@ Widget harness(PlayerApiClient api, {void Function(int?)? onClosed}) => Material
             onPressed: () async {
               final result = await showModalBottomSheet<int>(
                 context: context,
-                builder: (_) => ExtendSessionSheet(api: api, sessionId: 's1'),
+                builder: (_) => ExtendSessionSheet(
+                  api: api,
+                  sessionId: 's1',
+                  pricePerHourMinorUnits: pricePerHour,
+                ),
               );
               onClosed?.call(result);
             },
@@ -76,6 +80,32 @@ void main() {
     expect((http.bodies.single['idempotencyKey'] as String).isNotEmpty, isTrue);
     // Лист возвращает выбранное время: сообщение об успехе показывает главный экран.
     expect(closedWith, 120);
+  });
+
+  /// Продление было единственной денежной кнопкой, которая списывала вслепую: и посадка,
+  /// и бронь называют сумму до нажатия.
+  testWidgets('лист называет, сколько примерно спишется', (tester) async {
+    await tester.pumpWidget(harness(
+      PlayerApiClient(baseUrl: 'https://api', httpClient: _serve(200)),
+      pricePerHour: 3000,
+    ));
+    await openSheet(tester);
+
+    expect(find.textContaining('30,00'), findsOneWidget);
+
+    await tester.tap(find.text('2 часа'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('60,00'), findsOneWidget);
+  });
+
+  // У сессии, заведённой на стойке руками, тарифа нет вовсе: выдуманная ставка хуже молчания.
+  testWidgets('без цены часа лист о сумме молчит', (tester) async {
+    await tester.pumpWidget(
+        harness(PlayerApiClient(baseUrl: 'https://api', httpClient: _serve(200))));
+    await openSheet(tester);
+
+    expect(find.textContaining('Спишется примерно'), findsNothing);
   });
 
   // Деньги — самая частая причина отказа, и «что-то пошло не так» здесь бесполезно: игрок

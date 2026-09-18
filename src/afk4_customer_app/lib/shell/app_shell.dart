@@ -282,6 +282,7 @@ class _AppShellState extends State<AppShell> {
           currencyCode: widget.organization.currencyCode ?? 'TJS',
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
           onAccountOpened: widget.onAccountOpened,
+          active: _section == AppSection.wallet,
           clock: widget.clock,
         ),
         NavigationDestination(

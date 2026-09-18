@@ -161,6 +161,55 @@ void main() {
     expect(find.text('Оплатить онлайн'), findsOneWidget);
   });
 
+  /// Заплатил онлайн — деньги уже на кошельке, и говорить об этом «заявка отправлена» значит
+  /// послать человека выяснять к стойке то, что уже случилось.
+  testWidgets('оплата онлайн и заявка на стойку различаются в ответе листа', (tester) async {
+    var polls = 0;
+    final http = FakeHttpClient((request) {
+      if (request.url.path == '/api/me/wallet/top-up-methods') return (_methods(online: true), 200);
+      if (request.url.path == '/api/me/wallet/top-up-intent') {
+        return (_intent(deepLink: 'eskhata://pay/abc'), 200);
+      }
+      polls++;
+      return ('{"payment":"paid"}', 200);
+    });
+    TopUpOutcome? outcome;
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () async {
+              outcome = await showModalBottomSheet<TopUpOutcome>(
+                context: context,
+                builder: (_) => TopUpSheet(
+                  api: _client(http),
+                  currencyCode: 'TJS',
+                  intents: const [],
+                  openLink: (_) async => true,
+                ),
+              );
+            },
+            child: const Text('открыть'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('открыть'));
+    await tester.pumpAndSettle();
+
+    await _enterAmount(tester, '100');
+    await tester.tap(find.text('Оплатить онлайн'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    expect(polls, greaterThanOrEqualTo(1));
+    expect(outcome, TopUpOutcome.paid);
+  });
+
   testWidgets('оплаченная заявка закрывает лист', (tester) async {
     var polls = 0;
     final http = FakeHttpClient((request) {

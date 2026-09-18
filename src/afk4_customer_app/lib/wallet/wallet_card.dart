@@ -150,7 +150,7 @@ class _WalletCardState extends State<WalletCard> {
 
   Future<void> _openTopUp() async {
     final l = L.of(context);
-    final sent = await showModalBottomSheet<bool>(
+    final outcome = await showModalBottomSheet<TopUpOutcome>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -160,9 +160,11 @@ class _WalletCardState extends State<WalletCard> {
         intents: _intents,
       ),
     );
-    if (sent != true || !mounted) return;
+    if (outcome == null || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerWalletSent)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(outcome == TopUpOutcome.paid ? l.customerWalletPaid : l.customerWalletSent),
+    ));
     await widget.onToppedUp?.call();
     await _refreshIntents();
   }

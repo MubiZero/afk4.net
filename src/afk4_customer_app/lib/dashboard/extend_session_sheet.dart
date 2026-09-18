@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../money/money.dart';
 
 /// На сколько предлагается продлить. Полчаса — «доиграть катку», час — обычная добавка,
 /// два — «остаёмся». Ввод произвольных минут сюда не просится: игрок нажимает эту кнопку,
@@ -26,10 +27,23 @@ String extendDurationLabel(L l, int minutes) =>
 /// Сам он ничего не рассказывает об успехе: сообщение показывает главный экран, который
 /// после этого перечитывает баланс и остаток.
 class ExtendSessionSheet extends StatefulWidget {
-  const ExtendSessionSheet({super.key, required this.api, required this.sessionId});
+  const ExtendSessionSheet({
+    super.key,
+    required this.api,
+    required this.sessionId,
+    this.pricePerHourMinorUnits,
+    this.currencyCode = 'TJS',
+  });
 
   final PlayerApiClient api;
   final String sessionId;
+
+  /// Цена часа текущей сессии — по ней лист называет, сколько примерно спишется. Пусто у
+  /// сессии без тарифа (её завели на стойке руками): там честнее промолчать, чем подставить
+  /// выдуманную ставку.
+  final int? pricePerHourMinorUnits;
+
+  final String currencyCode;
 
   @override
   State<ExtendSessionSheet> createState() => _ExtendSessionSheetState();
@@ -43,6 +57,15 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
   /// Ключ попытки: повтор после обрыва обязан прийти с тем же, иначе сервер спишет деньги
   /// второй раз. Смена числа минут — уже другая попытка, и ключ ей нужен свой.
   final AttemptKey _attempt = AttemptKey();
+
+  /// Во сколько обойдётся выбранное время. Пусто — цены часа у сессии нет, и выдумывать её
+  /// нельзя.
+  String? get _estimate {
+    final perHour = widget.pricePerHourMinorUnits;
+    if (perHour == null) return null;
+    final locale = Localizations.localeOf(context).languageCode;
+    return formatMoney((perHour * _minutes / 60).round(), widget.currencyCode, locale: locale);
+  }
 
   Future<void> _submit() async {
     final l = L.of(context);
@@ -128,6 +151,16 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
             Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
           ],
           const SizedBox(height: 12),
+          // Сколько именно спишется — сказано до нажатия. Продление было единственной денежной
+          // кнопкой приложения, которая списывала вслепую: и посадка за ПК, и бронь называют
+          // сумму заранее. Слово «примерно» здесь честное: округления тарифа считает клуб.
+          if (_estimate case final estimate?) ...[
+            Text(
+              l.customerSessionExtendCost(estimate),
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+          ],
           // Откуда возьмутся деньги — сказано до нажатия, а не после списания.
           Text(
             l.customerSessionExtendHint,

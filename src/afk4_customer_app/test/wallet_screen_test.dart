@@ -47,7 +47,7 @@ Map<String, dynamic> _purchase({String id = 'p1', int total = 1500}) => {
 String _page(List<Map<String, dynamic>> items, {String? next}) =>
     jsonEncode({'items': items, 'nextCursor': next});
 
-Widget harness(PlayerApiClient api) => MaterialApp(
+Widget harness(PlayerApiClient api, {bool active = true}) => MaterialApp(
   locale: const Locale('ru'),
   localizationsDelegates: appLocalizationsDelegates,
   supportedLocales: appSupportedLocales,
@@ -55,6 +55,7 @@ Widget harness(PlayerApiClient api) => MaterialApp(
     api: api,
     phoneVerified: true,
     features: const ['online_topup'],
+    active: active,
     clock: () => _now,
   ),
 );
@@ -106,6 +107,28 @@ void main() {
 
   // Сбой сети на балансе не должен уносить с собой списки: у них своя загрузка и свои
   // сообщения об ошибке.
+  /// Разделы живут в одной стопке и не пересоздаются. Без этого кошелёк показывал остаток,
+  /// прочитанный при запуске: человек платил онлайн, деньги приходили, а цифра оставалась
+  /// вчерашней — и два экрана одного приложения расходились в главном числе.
+  testWidgets('возвращение в раздел перечитывает остаток', (tester) async {
+    var balance = 120050;
+    final http = FakeHttpClient((request) {
+      if (request.url.path == '/api/me/dashboard') return (_dashboard(wallet: balance), 200);
+      return (_page([]), 200);
+    });
+    final api = clientWith(http);
+
+    await tester.pumpWidget(harness(api, active: false));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('200,50'), findsOneWidget);
+
+    balance = 200000;
+    await tester.pumpWidget(harness(api, active: true));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('000,00'), findsOneWidget);
+  });
+
   testWidgets('не загрузившийся остаток не ломает списки', (tester) async {
     final http = FakeHttpClient(
       (request) => switch (request.url.path) {

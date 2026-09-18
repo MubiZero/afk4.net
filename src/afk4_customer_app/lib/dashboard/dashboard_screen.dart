@@ -391,7 +391,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => ExtendSessionSheet(api: widget.api, sessionId: session.sessionId),
+      builder: (_) => ExtendSessionSheet(
+        api: widget.api,
+        sessionId: session.sessionId,
+        pricePerHourMinorUnits: session.pricePerHourMinorUnits,
+        currencyCode: session.currencyCode,
+      ),
     );
     if (minutes == null || !mounted) return;
 
