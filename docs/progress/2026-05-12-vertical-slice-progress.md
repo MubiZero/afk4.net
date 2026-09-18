@@ -211,7 +211,9 @@ there is no owner-code mechanism.
   operator "Клуб" screen. The player app's club picker renders that as photo
   cards with a list/map toggle (flutter_map over OpenStreetMap tiles, with
   attribution); clubs without coordinates stay in the list and are simply
-  absent from the map. Reviews are tied to a visit — one ended session, one
+  absent from the map. Since 2026-09-18 the picker also filters by city and,
+  on request, sorts by distance — see the privacy note in the Player App Audit
+  section below. Reviews are tied to a visit — one ended session, one
   review — surfaced as a post-visit prompt on the dashboard and readable
   before sign-in from the club card. A player record screen derives level,
   hours played, and achievements from visit history; nothing about it is
@@ -465,7 +467,20 @@ formatter.
 
 **Privacy note on "near me" (#357).** Location is requested only when the player taps the
 chip — never at startup — and only coarse (`ACCESS_COARSE_LOCATION`, `LocationAccuracy.low`).
-The point lives in screen state: it is never stored and never sent to the server.
+The point lives in screen state: it is never stored and never sent to the server. `geolocator`
+is the only new dependency and sits behind a `NearbyLocation` interface, so tests never touch
+real geolocation.
+
+**All of it is on `main` as of 2026-09-18**, merged bottom-up. Two mistakes are worth naming
+because the CI caught both and the next stacked series will hit them again:
+
+- Merging a child PR with `--delete-branch` closes the PRs stacked on top of it (GitHub closes
+  a PR whose base branch disappears). #342 and #344 had to be reopened as #358 and #359. Retarget
+  the whole stack at `main` first (`gh pr edit N --base main`), then merge without deleting.
+- Two gates only exist in CI: `Verify generated contracts are current` (a C# record changed
+  without re-running `bun run gen` in `packages/contracts`) and the Flutter end-to-end journey
+  (`flutter test integration_test -d flutter-tester`, which a plain `flutter test` skips). Both
+  fired on this stack; both are cheap to run locally before pushing.
 
 **Deliberately not done, with reasons:**
 
