@@ -1372,7 +1372,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(device => device.PlayerDeviceId);
             entity.Property(device => device.PushToken).HasMaxLength(512).IsRequired();
             entity.Property(device => device.Platform).HasMaxLength(16).IsRequired();
-            entity.Property(device => device.Locale).HasMaxLength(16);
             // Токен уникален: один телефон — одна строка, даже если на нём сменился игрок.
             entity.HasIndex(device => device.PushToken).IsUnique();
             entity.HasIndex(device => device.PlayerAccountId);

@@ -9,7 +9,6 @@ public sealed class EfPlayerDeviceStore(PlatformDbContext dbContext, TimeProvide
         Guid playerAccountId,
         string pushToken,
         string platform,
-        string? locale,
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
@@ -24,7 +23,6 @@ public sealed class EfPlayerDeviceStore(PlatformDbContext dbContext, TimeProvide
                 PlayerAccountId = playerAccountId,
                 PushToken = pushToken,
                 Platform = platform,
-                Locale = locale,
                 CreatedUtc = now,
                 LastSeenUtc = now,
             });
@@ -35,7 +33,6 @@ public sealed class EfPlayerDeviceStore(PlatformDbContext dbContext, TimeProvide
             // нового игрока ушли бы предыдущему — на том же экране.
             existing.PlayerAccountId = playerAccountId;
             existing.Platform = platform;
-            existing.Locale = locale;
             existing.LastSeenUtc = now;
         }
 

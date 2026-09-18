@@ -75,14 +75,16 @@ void main() {
   test('вход регистрирует устройство на сервере', () async {
     final client = _RecordingClient();
     final tokens = _StubTokens();
-    final push = PushService(api: buildApi(client), tokens: tokens, locale: 'ru');
+    final push = PushService(api: buildApi(client), tokens: tokens);
 
     await push.syncAfterSignIn();
 
     final call = client.calls.single;
     expect(call.method, 'POST');
     expect(call.path, '/api/me/devices');
-    expect(call.body, {'pushToken': 'token-1', 'platform': 'android', 'locale': 'ru'});
+    // Языка в теле нет: пуш уходит на языке аккаунта, выбранном в профиле, и язык телефона
+    // на это не влияет.
+    expect(call.body, {'pushToken': 'token-1', 'platform': 'android'});
   });
 
   /// Отказ системе — это ответ игрока, а не сбой: запоминаем его, чтобы переключатель

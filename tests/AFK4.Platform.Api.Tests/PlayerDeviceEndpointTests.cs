@@ -91,14 +91,13 @@ public sealed class PlayerDeviceEndpointTests
         await AuthenticateAsync(client, context);
 
         var response = await client.PostAsJsonAsync(
-            "/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android", "ru"));
+            "/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android"));
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         var device = Assert.Single(await DevicesAsync(factory));
         Assert.Equal(context.PlayerId, device.PlayerAccountId);
         Assert.Equal("token-1", device.PushToken);
         Assert.Equal("android", device.Platform);
-        Assert.Equal("ru", device.Locale);
     }
 
     /// Приложение подтверждает токен при каждом входе — это не повод плодить строки.
@@ -110,11 +109,10 @@ public sealed class PlayerDeviceEndpointTests
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, context);
 
-        await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android", "ru"));
-        await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android", "en"));
+        await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android"));
+        await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android"));
 
-        var device = Assert.Single(await DevicesAsync(factory));
-        Assert.Equal("en", device.Locale);
+        Assert.Single(await DevicesAsync(factory));
     }
 
     /// Один телефон, двое игроков: уведомления про сессию нового не должны идти прежнему.
@@ -128,13 +126,13 @@ public sealed class PlayerDeviceEndpointTests
         using (var client = factory.CreateClient())
         {
             await AuthenticateAsync(client, first);
-            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("shared-phone", "android", "ru"));
+            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("shared-phone", "android"));
         }
 
         using (var client = factory.CreateClient())
         {
             await AuthenticateAsync(client, second);
-            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("shared-phone", "android", "ru"));
+            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("shared-phone", "android"));
         }
 
         var device = Assert.Single(await DevicesAsync(factory));
@@ -150,7 +148,7 @@ public sealed class PlayerDeviceEndpointTests
         await AuthenticateAsync(client, context);
 
         var response = await client.PostAsJsonAsync(
-            "/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "symbian", "ru"));
+            "/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "symbian"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(await DevicesAsync(factory));
@@ -165,7 +163,7 @@ public sealed class PlayerDeviceEndpointTests
         await AuthenticateAsync(client, context);
 
         var response = await client.PostAsJsonAsync(
-            "/api/me/devices", new RegisterPlayerDeviceRequest("   ", "android", "ru"));
+            "/api/me/devices", new RegisterPlayerDeviceRequest("   ", "android"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -178,7 +176,7 @@ public sealed class PlayerDeviceEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android", "ru"));
+            "/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -190,7 +188,7 @@ public sealed class PlayerDeviceEndpointTests
         var context = await SeedPlayerAsync(factory);
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, context);
-        await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android", "ru"));
+        await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("token-1", "android"));
 
         var response = await client.DeleteAsync("/api/me/devices/token-1");
 
@@ -209,7 +207,7 @@ public sealed class PlayerDeviceEndpointTests
         using (var client = factory.CreateClient())
         {
             await AuthenticateAsync(client, owner);
-            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("owner-token", "android", "ru"));
+            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("owner-token", "android"));
         }
 
         using (var client = factory.CreateClient())

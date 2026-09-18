@@ -38,7 +38,7 @@ internal static class PlayerDeviceEndpoints
                 return Results.BadRequest(new { error = "platform_invalid" });
             }
 
-            await devices.RegisterAsync(player.PlayerAccountId, token, platform, Trimmed(request.Locale), cancellationToken);
+            await devices.RegisterAsync(player.PlayerAccountId, token, platform, cancellationToken);
             return Results.NoContent();
         }).RequireRateLimiting("player-me");
 
