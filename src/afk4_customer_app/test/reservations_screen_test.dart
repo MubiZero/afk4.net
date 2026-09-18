@@ -645,6 +645,32 @@ void main() {
   });
 
   // У компании несколько мест, и перенос половины разделил бы её на две брони — это другое
+  /// Отмена ключа идемпотентности не несёт: второе нажатие уходит на сервер отдельной
+  /// командой, а для компании это второй возврат денег в очереди.
+  testWidgets('отмена не уходит на сервер дважды от двойного нажатия', (tester) async {
+    var cancels = 0;
+    final http = FakeHttpClient((request) {
+      if (request.method == 'DELETE') {
+        cancels++;
+        return ('{}', 204);
+      }
+      return (jsonEncode([_reservation()]), 200);
+    }, delay: const Duration(milliseconds: 80));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Отменить бронь'));
+    await tester.pump();
+
+    // Ответа ещё нет — кнопка не нажимается, и повторного запроса не случается.
+    await tester.tap(find.text('Отменить'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(cancels, 1);
+  });
+
   /// Бронь, которую уже отменили или чьё время началось, перенести нельзя — «попробуйте ещё
   /// раз» звало бы жать кнопку, которая не сработает никогда.
   testWidgets('бронь, которую уже не перенести, названа своими словами', (tester) async {

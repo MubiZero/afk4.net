@@ -7,6 +7,7 @@ import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../shell/load_failure.dart';
 
 /// Друзья и «кто сейчас в зале».
 ///
@@ -140,12 +141,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
     if (view == null) {
       return _failed
-          ? ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(l.customerFriendsLoadError, style: TextStyle(color: theme.colorScheme.error)),
-              ],
-            )
+          ? LoadFailure(message: l.customerFriendsLoadError, onRetry: _load)
           : const Center(child: CircularProgressIndicator());
     }
 

@@ -26,6 +26,7 @@ import '../shell/pressable.dart';
 import '../shell/skeleton.dart';
 import '../shop/shop_screen.dart';
 import '../theme/app_theme.dart';
+import '../shell/load_failure.dart';
 import 'extend_session_sheet.dart';
 import 'live_session_card.dart';
 import 'quick_actions.dart';
@@ -510,7 +511,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final theme = Theme.of(context);
     final data = _data;
 
     return AppScaffold(
@@ -552,7 +552,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (!widget.accountOpen)
                 const NewClubNote()
               else if (data == null && _failed)
-                Text(l.customerDashboardLoadError, style: TextStyle(color: theme.colorScheme.error))
+                LoadFailure(message: l.customerDashboardLoadError, onRetry: _refresh)
               else if (data == null)
                 Semantics(label: l.a11yLoadingDashboard, child: const _DashboardSkeleton())
               else ...[

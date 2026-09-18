@@ -11,6 +11,7 @@ import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
+import '../shell/load_failure.dart';
 
 /// Часы пакета для показа. Секунды — единица сервера, человек считает часами, и «5 ч»
 /// читается там, где «18000 с» не значит ничего. Неполный час показывается с минутами,
@@ -159,13 +160,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
 
     if (offers == null || mine == null) {
       return _failed
-          ? ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(l.customerPackagesLoadError,
-                    style: TextStyle(color: theme.colorScheme.error)),
-              ],
-            )
+          ? LoadFailure(message: l.customerPackagesLoadError, onRetry: _load)
           : const Center(child: CircularProgressIndicator());
     }
 

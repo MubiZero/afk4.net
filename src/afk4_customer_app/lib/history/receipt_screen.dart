@@ -5,6 +5,7 @@ import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../shell/load_failure.dart';
 
 /// Чек одного визита: время, покупки и итог.
 class ReceiptScreen extends StatefulWidget {
@@ -69,9 +70,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
-        _Load.failed => Center(
-            child: Text(l.customerReceiptLoadError, style: TextStyle(color: theme.colorScheme.error)),
-          ),
+        _Load.failed => LoadFailure(message: l.customerReceiptLoadError, onRetry: _fetch),
         _Load.ready => _ReceiptBody(receipt: _receipt!, now: widget.clock()),
       },
     );

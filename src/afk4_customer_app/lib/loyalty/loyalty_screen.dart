@@ -7,6 +7,7 @@ import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
+import '../shell/load_failure.dart';
 
 /// Проценты приходят в базисных пунктах: 500 — это 5%. Дробную часть показываем, только
 /// когда она есть, иначе «5,0%» выглядит как ошибка расчёта.
@@ -71,13 +72,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
 
     if (data == null) {
       return _failed
-          ? ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(l.customerLoyaltyLoadError,
-                    style: TextStyle(color: theme.colorScheme.error)),
-              ],
-            )
+          ? LoadFailure(message: l.customerLoyaltyLoadError, onRetry: _load)
           : const Center(child: CircularProgressIndicator());
     }
 

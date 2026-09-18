@@ -102,6 +102,26 @@ void main() {
     expect(find.text('Клуб не продаёт пакеты часов'), findsOneWidget);
   });
 
+  /// Упавшая загрузка без кнопки — тупик: человек видит, что сломалось, и не видит, что с этим
+  /// делать, хотя достаточно повторить. Жест «потянуть вниз» этого не заменяет: он невидим.
+  testWidgets('упавшая загрузка предлагает повторить, и повтор грузит', (tester) async {
+    var fail = true;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/branches/$_branchId/packages' => fail ? ('{}', 500) : (_offersJson(), 200),
+          _ => ('[]', 200),
+        });
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Повторить'), findsOneWidget);
+
+    fail = false;
+    await tester.tap(find.text('Повторить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ночной 5ч'), findsOneWidget);
+  });
+
   // Деньги списываются молча только у мошенников: сумма и время стоят в вопросе.
   testWidgets('покупка спрашивает подтверждение с суммой и временем', (tester) async {
     await tester.pumpWidget(harness(clientWith(_serve(offers: _offersJson()))));

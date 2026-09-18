@@ -10,6 +10,7 @@ import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
+import '../shell/load_failure.dart';
 
 /// События клуба: турнир по пятницам, ночь игры, чемпионат зала.
 ///
@@ -189,12 +190,7 @@ class _EventsScreenState extends State<EventsScreen> {
 
     if (events == null) {
       return _failed
-          ? ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(l.customerEventsLoadError, style: TextStyle(color: theme.colorScheme.error)),
-              ],
-            )
+          ? LoadFailure(message: l.customerEventsLoadError, onRetry: _load)
           : const Center(child: CircularProgressIndicator());
     }
 
