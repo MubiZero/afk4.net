@@ -208,6 +208,30 @@ void main() {
     expect(observed, isNull);
   });
 
+  // Сломавшийся сервер, заглушка прокси и рейт-лимитер отвечают не 401 — и токен от этого
+  // годным быть не перестал. Стереть сессию значит выбросить человека из аккаунта из-за чужого
+  // сбоя: вернуться он сможет только новым кодом из SMS.
+  test('сбой сервера при продлении не выбрасывает игрока из аккаунта', () async {
+    for (final status in [429, 500, 502, 503]) {
+      var sessionCleared = false;
+      final http = _RecordingClient((request) =>
+          request.url.path == '/api/public/player/refresh'
+              ? makeResponse('', status: status)
+              : makeResponse('{"error":"expired"}', status: 401));
+      final client = PlayerApiClient(
+        baseUrl: 'https://api',
+        httpClient: http,
+        session: theSession(),
+        onSessionChanged: (next) => sessionCleared = next == null,
+      );
+
+      await expectLater(client.getJson('/api/me/dashboard'), throwsA(isA<PlayerApiException>()));
+
+      expect(client.session, isNotNull, reason: 'сессия должна пережить ответ $status');
+      expect(sessionCleared, isFalse, reason: 'об уходе сессии не сообщают на ответ $status');
+    }
+  });
+
   test('продление пробуется ровно один раз — не бесконечный цикл на упорной 401', () async {
     var refreshCalls = 0;
     final http = _RecordingClient((request) {
