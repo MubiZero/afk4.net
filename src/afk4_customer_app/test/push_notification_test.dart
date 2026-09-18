@@ -39,6 +39,9 @@ void main() {
     test('каждое событие игрока ведёт туда, где с ним можно что-то сделать', () {
       expect(pushDestinationFor('player.session_ending'), PushDestination.home);
       expect(pushDestinationFor('player.reservation_soon'), PushDestination.reservations);
+      // Ответ клуба ведёт туда, где заявка ждала его и где видно судьбу замороженных денег.
+      expect(pushDestinationFor('player.reservation_confirmed'), PushDestination.reservations);
+      expect(pushDestinationFor('player.reservation_rejected'), PushDestination.reservations);
       expect(pushDestinationFor('player.balance_topped_up'), PushDestination.wallet);
       expect(pushDestinationFor('player.order_ready'), PushDestination.shop);
       expect(pushDestinationFor('platform.announcement'), PushDestination.home);

@@ -130,7 +130,7 @@ public sealed class PlayerReminderRunner(
                     new Dictionary<string, string>
                     {
                         ["club"] = branch?.Name ?? string.Empty,
-                        ["time"] = LocalTime(reservation.StartsAtUtc, branch?.TimeZone),
+                        ["time"] = ClubLocalTime.At(reservation.StartsAtUtc, branch?.TimeZone),
                     },
                     IdempotencyKey: $"player.reservation_soon:{reservation.ReservationId}",
                     PreferredChannels: [NotificationChannel.Push],
@@ -152,25 +152,5 @@ public sealed class PlayerReminderRunner(
             .FirstOrDefaultAsync(cancellationToken);
 
         return new NotificationRecipient(locale ?? string.Empty, PlayerAccountId: playerAccountId);
-    }
-
-    /// <summary>Время брони — по часам клуба, а не по UTC: игрок собирается выходить из дома.</summary>
-    private static string LocalTime(DateTimeOffset startsAtUtc, string? timeZoneId)
-    {
-        if (string.IsNullOrWhiteSpace(timeZoneId))
-        {
-            return startsAtUtc.ToString("HH:mm");
-        }
-
-        try
-        {
-            var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            return TimeZoneInfo.ConvertTime(startsAtUtc, zone).ToString("HH:mm");
-        }
-        catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            // Неизвестная зона в профиле клуба — не повод не напомнить о брони вовсе.
-            return startsAtUtc.ToString("HH:mm");
-        }
     }
 }

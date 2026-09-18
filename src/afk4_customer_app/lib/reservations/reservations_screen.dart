@@ -34,6 +34,7 @@ class ReservationsScreen extends StatefulWidget {
     this.branch = const BranchChoice(),
     this.onPhoneVerified,
     this.onAccountOpened,
+    this.active = true,
     this.clock = DateTime.now,
   });
 
@@ -53,6 +54,12 @@ class ReservationsScreen extends StatefulWidget {
 
   /// Бронь состоялась в клубе, где счёта не было, — оболочке пора перечитать клубы.
   final Future<void> Function()? onAccountOpened;
+
+  /// Раздел открыт прямо сейчас. Разделы живут в одной стопке и не пересоздаются, а этот —
+  /// про ожидание чужого ответа: вернувшись в него, игрок должен увидеть решение клуба, а не
+  /// список, прочитанный полчаса назад.
+  final bool active;
+
   final DateTime Function() clock;
 
   @override
@@ -92,6 +99,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   void didUpdateWidget(ReservationsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.accountOpen && !oldWidget.accountOpen) _refresh();
+    // Раздел про ожидание чужого ответа: вернувшись в него, игрок обязан увидеть решение
+    // клуба, а не список, прочитанный полчаса назад. Раньше его перечитывал только жест.
+    if (widget.active && !oldWidget.active) _refresh();
   }
 
   @override

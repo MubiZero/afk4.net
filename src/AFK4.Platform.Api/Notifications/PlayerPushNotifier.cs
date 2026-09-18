@@ -62,6 +62,52 @@ public sealed class PlayerPushNotifier(
             $"player.order_ready:{idempotencyKey}",
             cancellationToken);
 
+    /// <summary>
+    /// Клуб ответил на заявку. Ожидание ответа — самое тревожное место продукта: деньги
+    /// заморожены с момента отправки, а узнать решение раньше можно было только открыв
+    /// приложение и потянув список вниз.
+    /// </summary>
+    public async Task ReservationAnsweredAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        DateTimeOffset startsAtUtc,
+        bool confirmed,
+        string? rejectReasonNote,
+        CancellationToken cancellationToken)
+    {
+        var branch = await dbContext.Branches
+            .AsNoTracking()
+            .Where(candidate => candidate.BranchId == branchId)
+            .Select(candidate => new { candidate.Name, candidate.PreferredTimeZone })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var tokens = new Dictionary<string, string>
+        {
+            ["club"] = branch?.Name ?? string.Empty,
+            ["time"] = ClubLocalTime.At(startsAtUtc, branch?.PreferredTimeZone),
+        };
+
+        if (!confirmed)
+        {
+            // Причина — словами администратора, если он их написал. Кода отказа здесь нет
+            // намеренно: он служебный, и переводить его в текст пришлось бы вторым словарём
+            // рядом с тем, который уже живёт в приложении.
+            tokens["reason"] = (rejectReasonNote ?? string.Empty).Trim();
+        }
+
+        await SendAsync(
+            confirmed
+                ? NotificationTemplateKeys.PlayerReservationConfirmed
+                : NotificationTemplateKeys.PlayerReservationRejected,
+            playerAccountId,
+            organizationId,
+            branchId,
+            tokens,
+            $"player.reservation_answered:{playerAccountId}:{startsAtUtc:O}:{confirmed}",
+            cancellationToken);
+    }
+
     private async Task<string> LocaleAsync(Guid playerAccountId, CancellationToken cancellationToken) =>
         await dbContext.PlayerAccounts
             .AsNoTracking()

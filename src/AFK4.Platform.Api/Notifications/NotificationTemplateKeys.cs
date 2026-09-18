@@ -74,6 +74,12 @@ public static class NotificationTemplateKeys
     /// <summary>Пуш игроку: заказ из бара собран и его несут за место.</summary>
     public const string PlayerOrderReady = "player.order_ready";
 
+    /// <summary>Пуш игроку: клуб подтвердил заявку на бронь.</summary>
+    public const string PlayerReservationConfirmed = "player.reservation_confirmed";
+
+    /// <summary>Пуш игроку: клуб отказал в брони, деньги разморожены.</summary>
+    public const string PlayerReservationRejected = "player.reservation_rejected";
+
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected];
 }

@@ -1,0 +1,5 @@
+{
+  "subject": "The club declined your booking — {{club}}, {{time}}",
+  "bodyText": "{{club}}: the booking for {{time}} will not happen. The money is back in your wallet. {{reason}}",
+  "bodyHtml": ""
+}

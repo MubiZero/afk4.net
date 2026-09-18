@@ -356,6 +356,7 @@ internal static class ReservationEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IReservationService reservationService,
+            PlayerPushNotifier playerPush,
             CancellationToken cancellationToken) =>
         {
             var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
@@ -416,6 +417,8 @@ internal static class ReservationEndpoints
                 AuditOutcome.Succeeded,
                 new { result.Response.State },
                 cancellationToken);
+
+            await NotifyReservationAnsweredAsync(playerPush, result.Response, confirmed: true, cancellationToken);
 
             return Results.Ok(result.Response);
         });
@@ -500,6 +503,7 @@ internal static class ReservationEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IReservationService reservationService,
+            PlayerPushNotifier playerPush,
             CancellationToken cancellationToken) =>
         {
             var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
@@ -562,6 +566,8 @@ internal static class ReservationEndpoints
                 AuditOutcome.Succeeded,
                 new { result.Response.RejectReasonCode, result.Response.RejectReasonNote },
                 cancellationToken);
+
+            await NotifyReservationAnsweredAsync(playerPush, result.Response, confirmed: false, cancellationToken);
 
             return Results.Ok(result.Response);
         });
@@ -804,5 +810,30 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
+    }
+
+    /// <summary>
+    /// Сказать игроку, что клуб ответил. Заявку могли завести и на стойке — тогда адресата нет,
+    /// и писать некому. Сбой доставки ответ клуба не отменяет: решение уже записано.
+    /// </summary>
+    private static async Task NotifyReservationAnsweredAsync(
+        PlayerPushNotifier playerPush,
+        ReservationDto reservation,
+        bool confirmed,
+        CancellationToken cancellationToken)
+    {
+        if (reservation.PlayerAccountId is not { } playerAccountId)
+        {
+            return;
+        }
+
+        await playerPush.ReservationAnsweredAsync(
+            playerAccountId,
+            reservation.OrganizationId,
+            reservation.BranchId,
+            reservation.StartsAtUtc,
+            confirmed,
+            reservation.RejectReasonNote,
+            cancellationToken);
     }
 }
