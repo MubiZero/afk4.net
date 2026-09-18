@@ -405,6 +405,7 @@
   "customer.play.started": "Сессия началась — садитесь за {seat}",
   "customer.play.starting": "Запускаем…",
   "customer.play.title": "Начать игру",
+  "customer.play.unavailable": "Сесть самому сейчас нельзя — подойдите к стойке, администратор посадит вас за ПК",
   "customer.profile.changePhone": "Изменить номер",
   "customer.profile.delete.blockedBalance": "На кошельке остались деньги. Заберите их на стойке клуба — и возвращайтесь сюда.",
   "customer.profile.delete.blockedDebt": "За вами числится долг. Погасите его — с кошелька или на стойке клуба.",

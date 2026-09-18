@@ -564,6 +564,7 @@
   },
   "customerPlayStarting": "Starting…",
   "customerPlayTitle": "Start playing",
+  "customerPlayUnavailable": "Self-service seating is unavailable right now — the desk will seat you",
   "customerProfileChangePhone": "Change the number",
   "customerProfileDeleteBlockedBalance": "There is still money in your wallet. Collect it at the club counter, then come back here.",
   "customerProfileDeleteBlockedDebt": "You still owe the club. Clear the debt — from your wallet or at the counter.",

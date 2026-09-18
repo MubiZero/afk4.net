@@ -405,6 +405,7 @@
   "customer.play.started": "Сессия оғоз шуд — ба {seat} нишинед",
   "customer.play.starting": "Оғоз карда истодаем…",
   "customer.play.title": "Оғози бозӣ",
+  "customer.play.unavailable": "Ҳоло худатон нишастан мумкин нест — ба назди мизи қабул оед, оператор шуморо шинонад",
   "customer.profile.changePhone": "Иваз кардани рақам",
   "customer.profile.delete.blockedBalance": "Дар ҳамён пул мондааст. Онро дар назди клуб гиред ва ба ин ҷо баргардед.",
   "customer.profile.delete.blockedDebt": "Шумо қарздоред. Қарзро пӯшонед — аз ҳамён ё дар назди клуб.",

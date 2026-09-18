@@ -555,7 +555,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // В клубе, где счёта ещё нет, спрашивать нечего: ни денег, ни сессии, ни
               // новостей — сервер отвечает на них только своим игрокам.
               if (!widget.accountOpen)
-                const NewClubNote()
+                NewClubNote(onOpenWallet: widget.onOpenWallet)
               else if (data == null && _failed)
                 LoadFailure(message: l.customerDashboardLoadError, onRetry: _refresh)
               else if (data == null)
@@ -779,6 +779,17 @@ class _StartPlayingCard extends StatelessWidget {
               style:
                   theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
+            // Кнопки нет — сказать, почему. Молча исчезнувшее действие читается как поломка
+            // приложения, хотя причина внешняя: клуб не назвал зал или места ещё не заведены.
+            if (onPlay == null) ...[
+              const SizedBox(height: 8),
+              Text(
+                l.customerPlayUnavailable,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
             if (onPlay != null) ...[
               const SizedBox(height: 16),
               SizedBox(
