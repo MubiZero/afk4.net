@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Только грубое местоположение и только ради «клубов рядом»: точность до квартала для
+         сортировки витрины избыточна, а точного адреса игрока продукту не нужно нигде. Спрашивают
+         его по нажатию на «Рядом со мной», не при запуске. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="AFK4.NET"
         android:name="${applicationName}"

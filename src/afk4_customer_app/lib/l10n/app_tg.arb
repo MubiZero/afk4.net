@@ -74,6 +74,14 @@
   "customerClubPickerChange": "Иваз кардани клуб",
   "customerClubPickerClosedToday": "Имрӯз рӯзи истироҳат",
   "customerClubPickerDetails": "Муфассал",
+  "customerClubPickerDistanceKm": "{km} км аз ин ҷо",
+  "@customerClubPickerDistanceKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerEmpty": "Клуб ёфт нашуд",
   "customerClubPickerError": "Рӯйхати клубҳоро бор кардан нашуд",
   "customerClubPickerFreeSeats": "{free} аз {total} ҷой озод",
@@ -97,6 +105,9 @@
       }
     }
   },
+  "customerClubPickerNearby": "Дар наздикии ман",
+  "customerClubPickerNearbyDenied": "Бе дастрасӣ ба ҷойгиршавӣ клубҳои наздикро нишон дода намешавад — шаҳрро интихоб кунед",
+  "customerClubPickerNearbyUnavailable": "Муайян карда натавонистем, ки шумо куҷоед. Шаҳрро интихоб кунед",
   "customerClubPickerNoFreeSeats": "Ҷойи озод нест",
   "customerClubPickerNoRating": "Ҳанӯз баҳо нест",
   "customerClubPickerOpenAllDay": "Шабонарӯзӣ кушода",
