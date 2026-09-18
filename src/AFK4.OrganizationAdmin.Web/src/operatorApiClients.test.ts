@@ -292,7 +292,7 @@ describe('operator API clients', () => {
     });
     await clients.settings.resetStaffUserPassword(branchId, '77777777-7777-7777-7777-777777777777', {
       organizationId,
-      newPassword: 'ChangeMe456!'
+      newPassword: '456456'
     });
     await clients.settings.getBranchProfile(branchId);
     await clients.settings.updateBranchProfile(branchId, {
@@ -479,7 +479,7 @@ describe('operator API clients', () => {
     expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/profile`)).toEqual({ organizationId, userName: 'cashier2', displayName: 'Cashier Two' });
     expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/roles`)).toEqual({ organizationId, roleNames: ['technician'] });
     expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/state`)).toEqual({ organizationId, isActive: false });
-    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/password-reset`)).toEqual({ organizationId, newPassword: 'ChangeMe456!' });
+    expect(bodyOf(calls, `POST /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/password-reset`)).toEqual({ organizationId, newPassword: '456456' });
     expect(bodyOf(calls, `PATCH /api/organizations/organization-id/branches/${branchId}/profile`)).toEqual({
       organizationId,
       name: 'AFK4 Pilot',

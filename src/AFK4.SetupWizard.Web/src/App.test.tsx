@@ -70,7 +70,7 @@ async function signIn() {
     </I18nProvider>,
   );
   fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '+992 93 738-00-70' } });
-  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
+  fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
   fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
   await waitFor(() => expect(discoverAuthenticated).toHaveBeenCalled());
 }

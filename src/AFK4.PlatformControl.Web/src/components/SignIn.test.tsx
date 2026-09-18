@@ -40,7 +40,7 @@ describe('SignIn — истечение окна подтверждения (Н�
     render(<ThemeProvider><I18nProvider><SignIn client={client} onSignedIn={() => {}} /></I18nProvider></ThemeProvider>);
 
     await userEvent.type(screen.getByLabelText('Логин или email'), 'admin');
-    await userEvent.type(screen.getByLabelText('Пароль'), 'password');
+    await userEvent.type(screen.getByLabelText('ПИН-код'), 'password');
     await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(await screen.findByLabelText(/код/i)).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe('SignIn — истечение окна подтверждения (Н�
     render(<ThemeProvider><I18nProvider><SignIn client={client} onSignedIn={() => {}} /></I18nProvider></ThemeProvider>);
 
     await userEvent.type(screen.getByLabelText('Логин или email'), 'admin');
-    await userEvent.type(screen.getByLabelText('Пароль'), 'password');
+    await userEvent.type(screen.getByLabelText('ПИН-код'), 'password');
     await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     await screen.findByLabelText(/код/i);
@@ -95,7 +95,7 @@ describe('SignIn — отказы', () => {
     );
 
     await userEvent.type(screen.getByLabelText('Логин или email'), 'owner@platform.test');
-    await userEvent.type(screen.getByLabelText('Пароль'), 'wrong');
+    await userEvent.type(screen.getByLabelText('ПИН-код'), '111111');
     await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Слишком много попыток'));
@@ -114,7 +114,7 @@ describe('SignIn — отказы', () => {
     );
 
     await userEvent.type(screen.getByLabelText('Логин или email'), 'owner@platform.test');
-    await userEvent.type(screen.getByLabelText('Пароль'), 'wrong');
+    await userEvent.type(screen.getByLabelText('ПИН-код'), '111111');
     await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());

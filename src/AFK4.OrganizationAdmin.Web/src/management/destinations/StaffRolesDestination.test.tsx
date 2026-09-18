@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
+import { PIN_LENGTH } from '@afk4/contracts';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -303,11 +303,11 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    fireEvent.change(screen.getByLabelText('Новый пароль для входа'), {
+    fireEvent.change(screen.getByLabelText('Новый ПИН-код для входа'), {
       // Короче минимума, каким бы он ни был: правило живёт в @afk4/contracts.
-      target: { value: 'x'.repeat(MIN_STAFF_PASSWORD_LENGTH - 1) },
+      target: { value: 'x'.repeat(PIN_LENGTH) },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Сбросить пароль' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить ПИН-код' }));
 
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(resetStaffUserPassword).not.toHaveBeenCalled();
@@ -324,16 +324,16 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    fireEvent.change(screen.getByLabelText('Новый пароль для входа'), { target: { value: 'longenoughpwd' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Сбросить пароль' }));
+    fireEvent.change(screen.getByLabelText('Новый ПИН-код для входа'), { target: { value: '246813' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить ПИН-код' }));
 
     expect(resetStaffUserPassword).not.toHaveBeenCalled();
     expect(screen.getByRole('alertdialog')).toBeTruthy();
 
-    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Сбросить пароль' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Сбросить ПИН-код' }));
     await waitFor(() => expect(resetStaffUserPassword).toHaveBeenCalledWith('b1', staffUserId, {
       organizationId: 'org',
-      newPassword: 'longenoughpwd'
+      newPassword: '246813'
     }));
   });
 });

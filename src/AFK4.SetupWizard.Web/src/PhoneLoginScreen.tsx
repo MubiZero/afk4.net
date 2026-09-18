@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import {
   discoverAuthenticated,
   signInByLogin,
@@ -66,7 +67,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
   const showPhoneHint = mode === 'phone' && touched && trimmed.length > 0 && !phoneComplete;
   const showEmailHint = mode === 'credentials' && emailLike && touched && !EMAIL_RE.test(trimmed);
   const identityReady = mode === 'phone' ? phoneComplete : trimmed.length > 0;
-  const canSubmit = identityReady && password.length > 0 && request.kind !== 'loading';
+  const canSubmit = identityReady && isWellFormedPin(password) && request.kind !== 'loading';
 
   function clearError() {
     if (request.kind === 'error') setRequest({ kind: 'idle' });
@@ -96,7 +97,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setTouched(true);
-      if (!identityReady || password.length === 0 || request.kind === 'loading') {
+      if (!identityReady || !isWellFormedPin(password) || request.kind === 'loading') {
         return;
       }
       // Не дёргаем сеть на заведомо неверной почте — показываем подсказку.
@@ -237,8 +238,10 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
               id="wizard-password-input"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
+              inputMode="numeric"
+              maxLength={PIN_LENGTH}
               value={password}
-              onChange={(event) => { setPassword(event.target.value); clearError(); }}
+              onChange={(event) => { setPassword(keepPinDigits(event.target.value)); clearError(); }}
             />
             <button
               type="button"

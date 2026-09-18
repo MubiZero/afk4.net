@@ -173,11 +173,11 @@ describe('forgot/reset password', () => {
 
   it('resetPasswordByPhone posts to the phone reset endpoint', async () => {
     fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
-    await resetPasswordByPhone('+992937380070', '123456', 'Passw0rd!New');
+    await resetPasswordByPhone('+992937380070', '123456', '121212');
 
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/auth/staff/reset-password-by-phone');
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
-      phoneNumber: '+992937380070', code: '123456', newPassword: 'Passw0rd!New'
+      phoneNumber: '+992937380070', code: '123456', newPassword: '121212'
     });
   });
 });

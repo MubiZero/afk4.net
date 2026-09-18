@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { AccountActivationApi, AccountActivationKind } from './accountActivationApi';
-import { MIN_PLATFORM_ADMIN_PASSWORD_LENGTH, MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
+import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import { describeApiError } from '../api/describeApiError';
 import { PlatformApiError } from '../api/platformApi';
 import { useI18n } from '../i18n/I18nProvider';
@@ -48,11 +48,6 @@ const COPY: Record<AccountActivationKind, {
 export function AccountActivation({ client, initialCode, kind }: AccountActivationProps) {
   const { t } = useI18n();
   const copy = COPY[kind];
-  // Экран один на две роли, а правила у них разные: за учётной записью администратора платформы
-  // вся сеть клубов, за учётной записью владельца — его клуб.
-  const minPasswordLength = kind === 'platform-admin'
-    ? MIN_PLATFORM_ADMIN_PASSWORD_LENGTH
-    : MIN_STAFF_PASSWORD_LENGTH;
   const [code, setCode] = useState(initialCode ?? '');
   const [userName, setUserName] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -72,8 +67,8 @@ export function AccountActivation({ client, initialCode, kind }: AccountActivati
     if (normalizedCode.length === 0) return setError(t('auth.accept.error.codeRequired'));
     if (normalizedUserName.length === 0) return setError(t('auth.accept.error.loginRequired'));
     if (copy.needsDisplayName && normalizedDisplayName.length === 0) return setError(t('auth.accept.error.displayNameRequired'));
-    if (password.length < minPasswordLength) {
-      return setError(t('auth.accept.error.passwordLength', { min: minPasswordLength }));
+    if (!isWellFormedPin(password)) {
+      return setError(t('auth.accept.error.passwordLength', { min: PIN_LENGTH }));
     }
     if (password !== confirmPassword) return setError(t('auth.accept.error.passwordMismatch'));
 
@@ -109,10 +104,10 @@ export function AccountActivation({ client, initialCode, kind }: AccountActivati
           </Field>
         )}
         <Field label={t('auth.field.password')} htmlFor="accept-password">
-          <Input id="accept-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} disabled={isSubmitting} required />
+          <Input id="accept-password" type="password" autoComplete="new-password" inputMode="numeric" maxLength={PIN_LENGTH} value={password} onChange={event => setPassword(keepPinDigits(event.target.value))} disabled={isSubmitting} required />
         </Field>
         <Field label={t('auth.accept.field.confirmPassword')} htmlFor="accept-confirm-password">
-          <Input id="accept-confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} disabled={isSubmitting} required />
+          <Input id="accept-confirm-password" type="password" autoComplete="new-password" inputMode="numeric" maxLength={PIN_LENGTH} value={confirmPassword} onChange={event => setConfirmPassword(keepPinDigits(event.target.value))} disabled={isSubmitting} required />
         </Field>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? t('auth.accept.action.submitting') : t(copy.submit)}

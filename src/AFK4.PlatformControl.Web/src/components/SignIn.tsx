@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { PIN_LENGTH, keepPinDigits } from '@afk4/contracts';
 import { PlatformApiClient } from '../api/platformApi';
 import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
@@ -157,8 +158,10 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  inputMode="numeric"
+                  maxLength={PIN_LENGTH}
                   value={password}
-                  onChange={event => setPassword(event.target.value)}
+                  onChange={event => setPassword(keepPinDigits(event.target.value))}
                   disabled={isSubmitting}
                   required
                 />

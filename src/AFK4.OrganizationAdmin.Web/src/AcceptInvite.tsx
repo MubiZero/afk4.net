@@ -1,14 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
+import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import { acceptStaffInvite, StaffAuthApiError } from './authClient';
 import { AuthFrame } from './AuthFrame';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
 import { isRecord } from './operatorHelpers';
 
 /**
- * Приём приглашения: человека позвали работать, ему пришёл код, он придумывает себе пароль.
+ * Приём приглашения: человека позвали работать, ему пришёл код, он придумывает себе ПИН-код.
  *
  * До этого экрана приглашение было тупиком: код выдавался, а принять его было негде, и клуб
  * заводил сотрудников скриптом с паролем, который знал не только их владелец.
@@ -28,8 +28,8 @@ export function AcceptInvite({ onBackToSignIn }: { onBackToSignIn: () => void })
     event.preventDefault();
     setError(null);
     if (localPhoneDigits(phone).length !== 9) { setError(t('op.auth.hint.phone')); return; }
-    if (!code.trim() || password.length < MIN_STAFF_PASSWORD_LENGTH) {
-      setError(t('auth.invite.error.fields', { min: MIN_STAFF_PASSWORD_LENGTH }));
+    if (!code.trim() || !isWellFormedPin(password)) {
+      setError(t('auth.invite.error.fields', { min: PIN_LENGTH }));
       return;
     }
 
@@ -89,16 +89,21 @@ export function AcceptInvite({ onBackToSignIn }: { onBackToSignIn: () => void })
                 disabled={isBusy}
               />
             </label>
-            <label className="ui-field">
-              <span className="ui-field-label">{t('auth.invite.field.password')}</span>
+            <div className="ui-field">
+              <label className="ui-field-label" htmlFor="invite-pin">{t('auth.invite.field.password')}</label>
               <input
+                id="invite-pin"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.currentTarget.value)}
+                onChange={(e) => setPassword(keepPinDigits(e.currentTarget.value))}
+                inputMode="numeric"
+                maxLength={PIN_LENGTH}
                 autoComplete="new-password"
                 disabled={isBusy}
+                aria-describedby="invite-pin-hint"
               />
-            </label>
+              <span id="invite-pin-hint" className="ui-field-hint">{t('auth.forgot.newPassword.hint', { min: PIN_LENGTH })}</span>
+            </div>
             <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={isBusy}>
               {isBusy ? t('auth.invite.submitting') : t('auth.invite.submit')}
             </button>

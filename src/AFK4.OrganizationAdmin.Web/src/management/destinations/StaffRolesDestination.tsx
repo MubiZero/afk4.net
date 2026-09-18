@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { MIN_STAFF_PASSWORD_LENGTH } from '@afk4/contracts';
+import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import { KeyRound, Pencil, Power, PowerOff, Users } from 'lucide-react';
 import { ManagementScreen } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
@@ -269,13 +269,13 @@ export function StaffRolesDestination({
     }
   };
 
-  // Валидация длины — сразу, без диалога подтверждения (тот же текст ошибки, что и в
-  // оригинале); подтверждение открывается только для валидного пароля.
+  // Проверка формы — сразу, без диалога подтверждения; подтверждение открывается только для
+  // ПИН-кода, который сервер точно примет.
   const requestResetPassword = () => {
     if (!selectedStaffUser) return;
     const staffUserId = readString(selectedStaffUser, 'staffUserId');
     const trimmedPassword = newPassword.trim();
-    if (!isGuid(staffUserId) || trimmedPassword.length < MIN_STAFF_PASSWORD_LENGTH) {
+    if (!isGuid(staffUserId) || !isWellFormedPin(trimmedPassword)) {
       onFeedback?.({ label: t('op.settings.action.resetPassword'), state: 'failed', detail: t('op.settings.staff.error.passwordTooShort') });
       return;
     }
@@ -477,7 +477,9 @@ export function StaffRolesDestination({
                       type="password"
                       value={newPassword}
                       disabled={!canResetStaffPassword || busy}
-                      onChange={(event) => setNewPassword(event.currentTarget.value)}
+                      inputMode="numeric"
+                      maxLength={PIN_LENGTH}
+                      onChange={(event) => setNewPassword(keepPinDigits(event.currentTarget.value))}
                     />
                   </label>
                 </div>

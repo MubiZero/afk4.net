@@ -1,6 +1,7 @@
 import { AlertTriangle, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import type { ClubChoice } from './authClient';
 import { getOperatorConfig } from './operatorConfig';
 import type { AuthStatus } from './operatorTypes';
@@ -105,7 +106,7 @@ export function SignInScreen({
       userName = trimmed;
     }
 
-    if (!password) {
+    if (!isWellFormedPin(password)) {
       setError(t('auth.error.required'));
       return;
     }
@@ -236,7 +237,9 @@ export function SignInScreen({
                 id="operator-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(event) => setPassword(event.currentTarget.value)}
+                onChange={(event) => setPassword(keepPinDigits(event.currentTarget.value))}
+                inputMode="numeric"
+                maxLength={PIN_LENGTH}
                 autoComplete="current-password"
               />
               <button

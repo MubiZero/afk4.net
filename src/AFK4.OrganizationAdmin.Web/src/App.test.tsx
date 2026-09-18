@@ -270,7 +270,7 @@ describe('App', () => {
     expect(screen.getByText('Войдите, чтобы открыть смену и управлять залом.')).toBeInTheDocument();
     // Phone-first by default: the primary field is the phone number (local part after +992).
     fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '937380070' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
@@ -335,7 +335,7 @@ describe('App', () => {
 
     render(<App />);
     fireEvent.change(await screen.findByLabelText(/номер телефона/i), { target: { value: '937380070' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(await screen.findByRole('heading', { name: 'Откройте смену' })).toBeInTheDocument();
@@ -375,7 +375,7 @@ describe('App', () => {
     expect(screen.queryByLabelText(/логин или email/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Вход по логину или почте' }));
     fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'cashier' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
+    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
@@ -394,7 +394,7 @@ describe('App', () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Забыли пароль?' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Забыли ПИН-код?' }));
     expect(await screen.findByRole('button', { name: 'По SMS' })).toBeInTheDocument();
   });
 

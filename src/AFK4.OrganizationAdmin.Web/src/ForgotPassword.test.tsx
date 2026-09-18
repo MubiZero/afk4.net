@@ -52,10 +52,10 @@ describe('ForgotPassword (operator)', () => {
     await waitFor(() => expect(forgotPasswordByEmail).toHaveBeenCalledWith('owner@demo.test'));
 
     fireEvent.change(await screen.findByLabelText('Код из письма'), { target: { value: '123456' } });
-    fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'Passw0rd!New' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Сменить пароль' }));
-    await waitFor(() => expect(resetPasswordByEmail).toHaveBeenCalledWith('owner@demo.test', '123456', 'Passw0rd!New'));
-    expect(await screen.findByText(/пароль изменён/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Новый ПИН-код'), { target: { value: '121212' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить ПИН-код' }));
+    await waitFor(() => expect(resetPasswordByEmail).toHaveBeenCalledWith('owner@demo.test', '123456', '121212'));
+    expect(await screen.findByText(/ПИН-код изменён/i)).toBeInTheDocument();
   });
 
   it('runs the SMS flow and shows remaining attempts on a bad code', async () => {
@@ -69,8 +69,8 @@ describe('ForgotPassword (operator)', () => {
     fireEvent.change(screen.getByLabelText(/Номер телефона/i), { target: { value: '+992937380070' } });
     fireEvent.click(screen.getByRole('button', { name: 'Получить код' }));
     fireEvent.change(await screen.findByLabelText('Код из SMS'), { target: { value: '000000' } });
-    fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'Passw0rd!New' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Сменить пароль' }));
+    fireEvent.change(screen.getByLabelText('Новый ПИН-код'), { target: { value: '121212' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить ПИН-код' }));
     expect(await screen.findByText(/осталось попыток: 2/i)).toBeInTheDocument();
   });
 });
