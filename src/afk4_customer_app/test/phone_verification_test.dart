@@ -108,6 +108,39 @@ void main() {
     expect(find.text('Неверный код'), findsOneWidget);
   });
 
+  // Сервер считает попытки. Скрыть остаток значит оставить человека гадать, есть ли у него
+  // ещё право на ошибку — и не знать, что следующая закроет ввод до нового кода.
+  testWidgets('оставшиеся попытки названы числом', (tester) async {
+    final http = FakeHttpClient((request) =>
+        request.url.path == '/api/me/phone/start-verification'
+            ? (_started(), 200)
+            : ('{"error":"invalid_code","remainingAttempts":2}', 400));
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    await tester.tap(find.text('Прислать код'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '000000');
+    await tester.tap(find.text('Подтвердить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Неверный код. Осталось 2 попытки'), findsOneWidget);
+  });
+
+  /// Код уже отправлен, и сервер называет, сколько ждать. Экран обязан показать ввод и отсчёт,
+  /// а не оставить человека на шаге номера с расплывчатым «подождите немного».
+  testWidgets('действующий запрет на повтор показывает отсчёт, а не общую фразу', (tester) async {
+    final http = FakeHttpClient((_) => ('{"error":"cooldown_active","resendAfterSeconds":45}', 429));
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    await tester.tap(find.text('Прислать код'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Прислать заново можно через 45 с'), findsOneWidget);
+    expect(find.text('Подтвердить'), findsOneWidget);
+  });
+
   // Устаревший код нельзя починить повторным вводом — только новым кодом.
   testWidgets('устаревший код возвращает к запросу нового', (tester) async {
     final http = FakeHttpClient((request) =>

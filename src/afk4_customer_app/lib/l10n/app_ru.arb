@@ -180,6 +180,7 @@
   "customerDashboardSessionEnded": "Время вышло",
   "customerDashboardSessionEndingSoon": "Время заканчивается",
   "customerDashboardSessionRemaining": "Осталось",
+  "customerErrorFeatureOff": "Клуб отключил эту возможность",
   "customerEventsCancel": "Не пойду",
   "customerEventsCancelConfirmFree": "Место освободится для другого игрока.",
   "customerEventsCancelConfirmPaid": "Взнос {price} вернётся на кошелёк.",
@@ -218,11 +219,14 @@
     }
   },
   "customerEventsDismiss": "Отмена",
+  "customerEventsErrAlreadyIn": "Вы уже записаны на это событие",
   "customerEventsErrCancelled": "Клуб отменил это событие",
   "customerEventsErrFull": "Мест больше нет",
   "customerEventsErrFunds": "На кошельке не хватает денег на взнос",
   "customerEventsErrGeneric": "Не получилось. Попробуйте ещё раз",
+  "customerEventsErrNotIn": "Вы не записаны на это событие",
   "customerEventsErrStarted": "Событие уже началось",
+  "customerEventsErrUnpublished": "Запись на это событие ещё не открыта",
   "customerEventsFee": "Взнос {price}",
   "@customerEventsFee": {
     "placeholders": {
@@ -269,6 +273,7 @@
   "customerFriendsDecline": "Отклонить",
   "customerFriendsDismiss": "Отмена",
   "customerFriendsErrGeneric": "Не получилось. Попробуйте ещё раз",
+  "customerFriendsErrRequestGone": "Заявки уже нет — её отозвали или на неё ответили",
   "customerFriendsErrSelf": "Это ваш номер",
   "customerFriendsInHall": "{club}, {hall}",
   "@customerFriendsInHall": {
@@ -447,6 +452,14 @@
   "customerPhoneConfirm": "Подтвердить",
   "customerPhoneConfirming": "Проверяем…",
   "customerPhoneDone": "Номер подтверждён",
+  "customerPhoneErrCodeLeft": "Неверный код. {attempts, plural, one {Осталась {attempts} попытка} few {Осталось {attempts} попытки} many {Осталось {attempts} попыток} other {Осталось {attempts} попытки}}",
+  "@customerPhoneErrCodeLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerPhoneErrCooldown": "Код уже отправлен — подождите немного",
   "customerPhoneErrExpired": "Код устарел — запросите новый",
   "customerPhoneErrGeneric": "Не удалось подтвердить номер",
@@ -558,6 +571,8 @@
   "customerProfileDeleteError": "Не удалось удалить учётную запись. Попробуйте ещё раз.",
   "customerProfileDeleteTitle": "Удалить учётную запись?",
   "customerProfileDeleteAccount": "Удалить учётную запись",
+  "customerProfileErrLocale": "Этот язык пока не поддерживается",
+  "customerProfileErrName": "Проверьте имя: пустое или слишком длинное не сохранится",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Таджикский",
@@ -804,6 +819,8 @@
   "customerReservationsTitle": "Брони",
   "customerReviewDone": "Спасибо, отзыв отправлен",
   "customerReviewDuplicate": "Об этом визите вы уже написали",
+  "customerReviewErrTooLong": "Отзыв слишком длинный — сократите текст",
+  "customerReviewErrVisitGone": "Этого визита нет: отзыв пишется о своём законченном визите",
   "customerReviewError": "Не удалось отправить отзыв",
   "customerReviewInviteAction": "Оценить",
   "customerReviewInviteBody": "{seat} в клубе {branch}",
@@ -890,6 +907,7 @@
   "customerSessionExtendPending": "Продлеваем…",
   "customerSessionExtendTitle": "Продлить сессию",
   "customerShopCancel": "Отменить заказ",
+  "customerShopCancelErrStarted": "Заказ уже готовят — отменить его нельзя",
   "customerShopCancelError": "Не удалось отменить заказ",
   "customerShopCartEmpty": "Выберите, что принести",
   "customerShopEmpty": "Сейчас заказывать нечего",
@@ -928,6 +946,14 @@
   "customerShopTotal": "Итого",
   "customerSigninBlocked": "Вход в аккаунт закрыт. Обратитесь в клуб.",
   "customerSigninCodeError": "Неверный код",
+  "customerSigninCodeErrorLeft": "Неверный код. {attempts, plural, one {Осталась {attempts} попытка} few {Осталось {attempts} попытки} many {Осталось {attempts} попыток} other {Осталось {attempts} попытки}}",
+  "@customerSigninCodeErrorLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerSigninCodeNone": "Код не запрашивали или он уже использован",
   "customerSigninCodeSentAny": "Код отправлен на {phone}",
   "@customerSigninCodeSentAny": {

@@ -180,6 +180,7 @@
   "customerDashboardSessionEnded": "Time is up",
   "customerDashboardSessionEndingSoon": "Time is running out",
   "customerDashboardSessionRemaining": "Remaining",
+  "customerErrorFeatureOff": "The club turned this off",
   "customerEventsCancel": "Not going",
   "customerEventsCancelConfirmFree": "Your spot goes back to the others.",
   "customerEventsCancelConfirmPaid": "The {price} entry fee returns to your wallet.",
@@ -218,11 +219,14 @@
     }
   },
   "customerEventsDismiss": "Cancel",
+  "customerEventsErrAlreadyIn": "You are already signed up for this event",
   "customerEventsErrCancelled": "The club cancelled this event",
   "customerEventsErrFull": "No spots left",
   "customerEventsErrFunds": "Your wallet does not cover the entry fee",
   "customerEventsErrGeneric": "That did not work. Try again",
+  "customerEventsErrNotIn": "You are not signed up for this event",
   "customerEventsErrStarted": "The event has already started",
+  "customerEventsErrUnpublished": "Sign-up for this event is not open yet",
   "customerEventsFee": "Entry {price}",
   "@customerEventsFee": {
     "placeholders": {
@@ -269,6 +273,7 @@
   "customerFriendsDecline": "Decline",
   "customerFriendsDismiss": "Cancel",
   "customerFriendsErrGeneric": "That did not work. Try again",
+  "customerFriendsErrRequestGone": "That request is gone — it was withdrawn or already answered",
   "customerFriendsErrSelf": "That is your own number",
   "customerFriendsInHall": "{club}, {hall}",
   "@customerFriendsInHall": {
@@ -447,6 +452,14 @@
   "customerPhoneConfirm": "Confirm",
   "customerPhoneConfirming": "Checking…",
   "customerPhoneDone": "Number confirmed",
+  "customerPhoneErrCodeLeft": "Wrong code. {attempts, plural, one {{attempts} attempt left} other {{attempts} attempts left}}",
+  "@customerPhoneErrCodeLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerPhoneErrCooldown": "A code was just sent — please wait a moment",
   "customerPhoneErrExpired": "The code expired — request a new one",
   "customerPhoneErrGeneric": "Could not confirm the number",
@@ -558,6 +571,8 @@
   "customerProfileDeleteError": "The account could not be deleted. Try again.",
   "customerProfileDeleteTitle": "Delete your account?",
   "customerProfileDeleteAccount": "Delete my account",
+  "customerProfileErrLocale": "That language is not supported yet",
+  "customerProfileErrName": "Check the name: empty or too long will not save",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Tajik",
@@ -804,6 +819,8 @@
   "customerReservationsTitle": "Bookings",
   "customerReviewDone": "Thanks, your review is in",
   "customerReviewDuplicate": "You have already reviewed this visit",
+  "customerReviewErrTooLong": "The review is too long — shorten it",
+  "customerReviewErrVisitGone": "No such visit: you can review only your own finished visit",
   "customerReviewError": "Could not send the review",
   "customerReviewInviteAction": "Rate it",
   "customerReviewInviteBody": "{seat} at {branch}",
@@ -890,6 +907,7 @@
   "customerSessionExtendPending": "Adding time…",
   "customerSessionExtendTitle": "Add time to your session",
   "customerShopCancel": "Cancel the order",
+  "customerShopCancelErrStarted": "The order is already being made — it cannot be cancelled",
   "customerShopCancelError": "Couldn't cancel the order",
   "customerShopCartEmpty": "Pick what to bring you",
   "customerShopEmpty": "Nothing to order right now",
@@ -928,6 +946,14 @@
   "customerShopTotal": "Total",
   "customerSigninBlocked": "This account is closed. Ask the club for help.",
   "customerSigninCodeError": "Wrong code",
+  "customerSigninCodeErrorLeft": "Wrong code. {attempts, plural, one {{attempts} attempt left} other {{attempts} attempts left}}",
+  "@customerSigninCodeErrorLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerSigninCodeNone": "No code was requested, or it has already been used",
   "customerSigninCodeSentAny": "Code sent to {phone}",
   "@customerSigninCodeSentAny": {

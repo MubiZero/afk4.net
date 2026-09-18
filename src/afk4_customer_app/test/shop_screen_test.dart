@@ -177,6 +177,24 @@ void main() {
     await unmount(tester);
   });
 
+  /// Принятый на кухне заказ отменить уже нельзя. «Не удалось отменить, попробуйте ещё раз»
+  /// звало бы жать кнопку, которая не сработает никогда.
+  testWidgets('принятый заказ объясняет, почему отмена невозможна', (tester) async {
+    final http = _serve(
+      catalog: _catalogJson(),
+      orders: jsonEncode([_order(status: 'placed')]),
+      cancel: ('{"error":"invalid_transition"}', 409),
+    );
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить заказ'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Заказ уже готовят — отменить его нельзя'), findsOneWidget);
+    await unmount(tester);
+  });
+
   // Заказ мог быть оформлен раньше — с этого телефона или из лаунчера за ПК.
   testWidgets('незакрытый заказ показывается вместо меню при открытии', (tester) async {
     final http = _serve(catalog: _catalogJson(), orders: jsonEncode([_order(status: 'accepted')]));

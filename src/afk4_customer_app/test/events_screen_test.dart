@@ -172,6 +172,24 @@ void main() {
     expect(find.text('Записаться'), findsNothing);
   });
 
+  /// Взнос за это событие уже списан. «Не получилось, попробуйте ещё раз» звало бы человека
+  /// заплатить второй раз за то, на что он и так записан.
+  testWidgets('уже записанному говорят об этом, а не зовут повторить', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve(
+      events: [_event()],
+      register: ('{"error":"tournament_already_registered"}', 409),
+    ))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Записаться').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Записаться').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Вы уже записаны на это событие'), findsOneWidget);
+    expect(find.text('Не получилось. Попробуйте ещё раз'), findsNothing);
+  });
+
   testWidgets('нехватка денег объясняется, а не выглядит общим сбоем', (tester) async {
     await tester.pumpWidget(harness(clientWith(_serve(
       events: [_event()],

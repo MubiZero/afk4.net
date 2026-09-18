@@ -205,8 +205,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await widget.api.updateMe(displayName: person.displayName, preferredLocale: code);
       await widget.onPersonChanged?.call();
       if (mounted) _say(l.customerProfileSaved);
-    } on PlayerApiException {
-      if (mounted) _say(l.customerProfileSaveError);
+    } on PlayerApiException catch (error) {
+      if (mounted) _say(_saveProblem(l, error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -223,12 +223,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() => _profile = updated);
       _say(l.customerProfileSaved);
-    } on PlayerApiException {
-      if (mounted) _say(l.customerProfileSaveError);
+    } on PlayerApiException catch (error) {
+      if (mounted) _say(_saveProblem(l, error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  /// Причина отказа словами: сервер отличает негодное имя от неподдержанного языка, и человеку
+  /// от этого сразу видно, что именно поправить.
+  static String _saveProblem(L l, PlayerApiException error) => switch (error.message) {
+        'invalid_display_name' => l.customerProfileErrName,
+        'unsupported_locale' => l.customerProfileErrLocale,
+        _ => l.customerProfileSaveError,
+      };
 
   /// Смена номера — та же процедура, что и первое подтверждение: код приходит на НОВЫЙ номер,
   /// и владение им доказывается прежде, чем он станет основным.

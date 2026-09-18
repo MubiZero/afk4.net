@@ -158,7 +158,9 @@ class _ShopScreenState extends State<ShopScreen> {
           'insufficient_funds' => l.customerShopErrFunds,
           'out_of_stock' => l.customerShopErrStock,
           'product_unavailable' => l.customerShopErrUnavailable,
-          'placement_context_invalid' => l.customerShopErrNoSession,
+          // Оба кода про одно: сессии нет, нести заказ некуда.
+          'placement_context_invalid' || 'no_active_session' => l.customerShopErrNoSession,
+          'FeatureDisabled' => l.customerErrorFeatureOff,
           _ => l.customerShopErrGeneric,
         };
       });
@@ -182,11 +184,18 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
       setState(() => _order = cancelled);
       _poll?.cancel();
-    } on PlayerApiException {
+    } on PlayerApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.customerShopCancelError)),
-      );
+      // Заказ уже приняли на кухне — это не сбой отмены, а её невозможность: «не удалось
+      // отменить, попробуйте ещё раз» звало бы жать кнопку, которая не сработает никогда.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(switch (error.message) {
+          'invalid_transition' => l.customerShopCancelErrStarted,
+          _ => l.customerShopCancelError,
+        }),
+      ));
+      // Состояние заказа на экране устарело — потому отмена и не прошла.
+      await _refreshOrder();
     }
   }
 

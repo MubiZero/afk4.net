@@ -180,6 +180,7 @@
   "customerDashboardSessionEnded": "Вақт тамом шуд",
   "customerDashboardSessionEndingSoon": "Вақт ба охир мерасад",
   "customerDashboardSessionRemaining": "Боқӣ мондааст",
+  "customerErrorFeatureOff": "Клуб ин имкониятро хомӯш кардааст",
   "customerEventsCancel": "Намеравам",
   "customerEventsCancelConfirmFree": "Ҷой ба бозигари дигар мемонад.",
   "customerEventsCancelConfirmPaid": "Пардохти {price} ба ҳамён бармегардад.",
@@ -218,11 +219,14 @@
     }
   },
   "customerEventsDismiss": "Бекор",
+  "customerEventsErrAlreadyIn": "Шумо аллакай ба ин чорабинӣ сабти ном шудаед",
   "customerEventsErrCancelled": "Клуб ин чорабиниро бекор кард",
   "customerEventsErrFull": "Ҷойи холӣ намондааст",
   "customerEventsErrFunds": "Дар ҳамён барои пардохт маблағ намерасад",
   "customerEventsErrGeneric": "Нашуд. Боз кӯшиш кунед",
+  "customerEventsErrNotIn": "Шумо ба ин чорабинӣ сабти ном нашудаед",
   "customerEventsErrStarted": "Чорабинӣ аллакай оғоз шуд",
+  "customerEventsErrUnpublished": "Сабти ном ба ин чорабинӣ ҳанӯз кушода нашудааст",
   "customerEventsFee": "Пардохт {price}",
   "@customerEventsFee": {
     "placeholders": {
@@ -269,6 +273,7 @@
   "customerFriendsDecline": "Рад",
   "customerFriendsDismiss": "Бекор",
   "customerFriendsErrGeneric": "Нашуд. Боз кӯшиш кунед",
+  "customerFriendsErrRequestGone": "Ин дархост дигар нест — онро бозхонданд ё ба он ҷавоб доданд",
   "customerFriendsErrSelf": "Ин рақами шумост",
   "customerFriendsInHall": "{club}, {hall}",
   "@customerFriendsInHall": {
@@ -447,6 +452,14 @@
   "customerPhoneConfirm": "Тасдиқ кардан",
   "customerPhoneConfirming": "Санҷида истодаем…",
   "customerPhoneDone": "Рақам тасдиқ шуд",
+  "customerPhoneErrCodeLeft": "Рамз нодуруст аст. {attempts, plural, one {{attempts} кӯшиш мондааст} other {{attempts} кӯшиш мондааст}}",
+  "@customerPhoneErrCodeLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerPhoneErrCooldown": "Рамз ҳозир фиристода шуд — каме интизор шавед",
   "customerPhoneErrExpired": "Рамз кӯҳна шуд — нави онро дархост кунед",
   "customerPhoneErrGeneric": "Рақамро тасдиқ карда натавонистем",
@@ -558,6 +571,8 @@
   "customerProfileDeleteError": "Ҳисоби корбариро нест кардан нашуд. Бори дигар кӯшиш кунед.",
   "customerProfileDeleteTitle": "Ҳисоби корбариро нест мекунед?",
   "customerProfileDeleteAccount": "Ҳисоби корбариро нест кардан",
+  "customerProfileErrLocale": "Ин забон ҳанӯз дастгирӣ намешавад",
+  "customerProfileErrName": "Номро санҷед: номи холӣ ё хеле дароз нигоҳ дошта намешавад",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русӣ",
   "customerProfileLangTg": "Тоҷикӣ",
@@ -804,6 +819,8 @@
   "customerReservationsTitle": "Бронҳо",
   "customerReviewDone": "Ташаккур, тақриз фиристода шуд",
   "customerReviewDuplicate": "Дар бораи ин ташриф шумо аллакай навиштаед",
+  "customerReviewErrTooLong": "Тақриз хеле дароз аст — онро кӯтоҳтар кунед",
+  "customerReviewErrVisitGone": "Чунин ташриф нест: тақриз танҳо дар бораи ташрифи анҷомёфтаи худ навишта мешавад",
   "customerReviewError": "Тақризро фиристода натавонистем",
   "customerReviewInviteAction": "Баҳо додан",
   "customerReviewInviteBody": "{seat} дар клуби {branch}",
@@ -890,6 +907,7 @@
   "customerSessionExtendPending": "Дароз карда истодаем…",
   "customerSessionExtendTitle": "Сессияро дароз кардан",
   "customerShopCancel": "Фармоишро бекор кардан",
+  "customerShopCancelErrStarted": "Фармоиш аллакай омода шуда истодааст — бекор кардан мумкин нест",
   "customerShopCancelError": "Фармоишро бекор кардан муяссар нашуд",
   "customerShopCartEmpty": "Интихоб кунед, ки чӣ оваранд",
   "customerShopEmpty": "Ҳоло чизе барои фармоиш нест",
@@ -928,6 +946,14 @@
   "customerShopTotal": "Ҳамагӣ",
   "customerSigninBlocked": "Ворид шудан ба ҳисоб баста аст. Ба клуб муроҷиат кунед.",
   "customerSigninCodeError": "Рамз нодуруст аст",
+  "customerSigninCodeErrorLeft": "Рамз нодуруст аст. {attempts, plural, one {{attempts} кӯшиш мондааст} other {{attempts} кӯшиш мондааст}}",
+  "@customerSigninCodeErrorLeft": {
+    "placeholders": {
+      "attempts": {
+        "type": "num"
+      }
+    }
+  },
   "customerSigninCodeNone": "Рамз дархост нашудааст ё аллакай истифода шудааст",
   "customerSigninCodeSentAny": "Рамз ба {phone} фиристода шуд",
   "@customerSigninCodeSentAny": {

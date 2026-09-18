@@ -9,14 +9,30 @@ import 'idempotency.dart';
 /// Ошибка запроса к API. Несёт код состояния: 410 на коде — «код устарел», 403 на
 /// действии — «возможность выключена», и на экране это разные тексты.
 class PlayerApiException implements Exception {
-  const PlayerApiException(this.statusCode, this.message);
+  const PlayerApiException(this.statusCode, this.message, {this.details = const {}});
 
   final int? statusCode;
   final String message;
 
+  /// Что сервер прислал рядом с кодом: сколько попыток осталось, через сколько секунд можно
+  /// повторить, какая сейчас версия заказа. Экран без этого говорит общими словами о том, что
+  /// сервер уже объяснил точно.
+  final Map<String, dynamic> details;
+
+  /// Целое число из тела отказа. null — поля нет или оно не число.
+  int? detailAsInt(String field) => switch (details[field]) {
+        final int value => value,
+        final double value => value.toInt(),
+        _ => null,
+      };
+
   /// Клуб выбран, а счёта в нём у человека ещё нет. Это не сбой: счёт открывается первым
   /// действием — бронью или пополнением, — и до него в клубе просто нечего показывать.
   bool get isNoAccountInClub => statusCode == 409 && message == 'club_not_selected';
+
+  /// Запрос не дошёл до сервера: связи нет, она оборвалась или ответа не дождались. Отличать
+  /// это от отказа обязательно — «попробуйте ещё раз» уместно только здесь.
+  bool get isOffline => statusCode == null && message == 'network';
 
   @override
   String toString() => 'PlayerApiException($statusCode, $message)';
@@ -112,7 +128,7 @@ class PlayerApiClient {
       response = await _send('PUT', '/api/me/pin', body: {'pin': pin});
     }
     if (response.statusCode >= 400) {
-      throw PlayerApiException(response.statusCode, _errorMessage(response));
+      throw _failure(response);
     }
   }
 
@@ -567,7 +583,7 @@ class PlayerApiClient {
   Future<void> markNotificationsRead() async {
     final response = await _send('POST', '/api/me/notifications/read');
     if (response.statusCode != 204) {
-      throw PlayerApiException(response.statusCode, _errorMessage(response));
+      throw _failure(response);
     }
   }
 
@@ -593,7 +609,7 @@ class PlayerApiClient {
   Future<void> deleteAccount() async {
     final response = await _send('DELETE', '/api/me');
     if (response.statusCode != 204) {
-      throw PlayerApiException(response.statusCode, _errorMessage(response));
+      throw _failure(response);
     }
   }
 
@@ -672,7 +688,7 @@ class PlayerApiClient {
       });
     }
     if (response.statusCode >= 400) {
-      throw PlayerApiException(response.statusCode, _errorMessage(response));
+      throw _failure(response);
     }
   }
 
@@ -680,7 +696,7 @@ class PlayerApiClient {
   Future<void> unregisterDevice(String pushToken) async {
     final response = await _send('DELETE', '/api/me/devices/$pushToken');
     if (response.statusCode >= 400 && response.statusCode != 401) {
-      throw PlayerApiException(response.statusCode, _errorMessage(response));
+      throw _failure(response);
     }
   }
 
@@ -792,7 +808,7 @@ class PlayerApiClient {
   /// прокси-заглушка не должны прилетать в экран необработанной ошибкой типа.
   Object? _body(http.Response response) {
     if (response.statusCode != 200) {
-      throw PlayerApiException(response.statusCode, _errorMessage(response));
+      throw _failure(response);
     }
     try {
       return jsonDecode(utf8.decode(response.bodyBytes));
@@ -801,13 +817,22 @@ class PlayerApiClient {
     }
   }
 
-  static String _errorMessage(http.Response response) {
+  /// Отказ сервера целиком: код, причина и то, что сервер сказал сверх неё. Подробности
+  /// разбираются здесь один раз — иначе каждый экран, которому нужно «осталось две попытки»,
+  /// разбирал бы тело сам.
+  static PlayerApiException _failure(http.Response response) {
     try {
       final parsed = jsonDecode(utf8.decode(response.bodyBytes));
-      if (parsed is Map<String, dynamic> && parsed['error'] is String) return parsed['error'] as String;
+      if (parsed is Map<String, dynamic> && parsed['error'] is String) {
+        return PlayerApiException(
+          response.statusCode,
+          parsed['error'] as String,
+          details: parsed,
+        );
+      }
     } catch (_) {
       // Тело не JSON — пусть будет код состояния.
     }
-    return 'HTTP ${response.statusCode}';
+    return PlayerApiException(response.statusCode, 'HTTP ${response.statusCode}');
   }
 }

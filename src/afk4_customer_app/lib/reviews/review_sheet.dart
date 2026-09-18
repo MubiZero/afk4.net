@@ -51,9 +51,14 @@ class _ReviewSheetState extends State<ReviewSheet> {
     } on PlayerApiException catch (error) {
       if (!mounted) return;
       setState(() {
-        // 409 — про этот вечер уже написано. Это не сбой отправки, и звать «повторить»
-        // здесь было бы приглашением к тому, что снова не получится.
-        _error = error.statusCode == 409 ? l.customerReviewDuplicate : l.customerReviewError;
+        // Ни один из этих отказов не лечится повтором: про вечер уже написано, текст длиннее
+        // разрешённого, визита нет. Общее «не удалось отправить» звало бы жать кнопку зря.
+        _error = switch ((error.statusCode, error.message)) {
+          (409, _) => l.customerReviewDuplicate,
+          (400, 'comment_too_long') => l.customerReviewErrTooLong,
+          (404, _) => l.customerReviewErrVisitGone,
+          _ => l.customerReviewError,
+        };
         _sending = false;
       });
     }
