@@ -60,9 +60,15 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
       if (!mounted) return;
       setState(() {
         _pending = false;
-        _error = switch (error.statusCode) {
-          409 => l.customerSessionExtendErrBalance,
-          404 => l.customerSessionExtendErrGone,
+        _error = switch ((error.statusCode, error.message)) {
+          // Раньше любой 409 объявлялся нехваткой денег, хотя сервер кладёт в тело свою причину:
+          // тариф кончился, столько времени взять нельзя, сессию уже нельзя продлить.
+          (_, _) when error.isOffline => l.customerErrorOffline,
+          (_, 'insufficient_balance') => l.customerSessionExtendErrBalance,
+          (_, 'invalid_tariff') => l.customerTariffGone,
+          (_, 'tariff_outside_its_hours') => l.customerTariffOutsideHours,
+          (_, 'invalid_duration') => l.customerSessionErrDuration,
+          (404, _) => l.customerSessionExtendErrGone,
           _ => l.customerSessionExtendErrGeneric,
         };
       });

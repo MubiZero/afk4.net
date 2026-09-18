@@ -645,6 +645,23 @@ void main() {
   });
 
   // У компании несколько мест, и перенос половины разделил бы её на две брони — это другое
+  /// Бронь, которую уже отменили или чьё время началось, перенести нельзя — «попробуйте ещё
+  /// раз» звало бы жать кнопку, которая не сработает никогда.
+  testWidgets('бронь, которую уже не перенести, названа своими словами', (tester) async {
+    final http = FakeHttpClient((request) => request.method == 'PATCH'
+        ? ('{}', 404)
+        : (jsonEncode([_reservation()]), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Перенести'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Перенести'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('уже не перенести'), findsOneWidget);
+  });
+
   // решение, а не та же кнопка.
   testWidgets('у брони на компанию кнопки переноса нет', (tester) async {
     await tester.pumpWidget(harness(_serve(_companyJson())));

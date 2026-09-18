@@ -114,7 +114,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
       setState(() {
         _buyingId = null;
         _error = switch (error.message) {
+          _ when error.isOffline => l.customerErrorOffline,
           'insufficient_funds' => l.customerPackagesErrFunds,
+          'FeatureDisabled' => l.customerErrorFeatureOff,
           _ => l.customerPackagesErrGeneric,
         };
       });

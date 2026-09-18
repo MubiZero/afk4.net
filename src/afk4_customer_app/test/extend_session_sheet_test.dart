@@ -106,6 +106,21 @@ void main() {
     expect(find.text('Сессия уже завершилась'), findsOneWidget);
   });
 
+  /// 409 бывает не только про деньги: тариф кончился, столько времени взять нельзя. Раньше
+  /// любой конфликт объявлялся нехваткой денег, и человек шёл пополнять кошелёк зря.
+  testWidgets('конфликт не про деньги не выдаётся за нехватку денег', (tester) async {
+    await tester.pumpWidget(harness(PlayerApiClient(
+      baseUrl: 'https://api',
+      httpClient: _serve(409, body: '{"error":"invalid_tariff"}'),
+    )));
+    await openSheet(tester);
+    await tester.tap(find.text('Продлить на 1 час'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Этот тариф больше не действует — выберите другой'), findsOneWidget);
+    expect(find.textContaining('не хватает денег'), findsNothing);
+  });
+
   testWidgets('прочий отказ сервера не выдаёт себя за успех', (tester) async {
     await tester.pumpWidget(harness(PlayerApiClient(
       baseUrl: 'https://api',

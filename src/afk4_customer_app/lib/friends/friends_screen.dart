@@ -77,6 +77,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       setState(() {
         _busy = false;
         _error = switch (error.message) {
+          _ when error.isOffline => l.customerErrorOffline,
           'friend_self' => l.customerFriendsErrSelf,
           // Заявку отозвали или на неё уже ответили с другого экрана — повтор ничего не изменит.
           'friend_request_unknown' => l.customerFriendsErrRequestGone,
