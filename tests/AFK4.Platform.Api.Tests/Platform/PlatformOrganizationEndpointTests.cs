@@ -17,9 +17,9 @@ namespace AFK4.Platform.Api.Tests.Platform;
 
 public sealed class PlatformOrganizationEndpointTests
 {
-    // Короче минимума, каким бы он ни был: правило живёт в EndpointHelpers, а не в этой строке.
-    private static readonly string TooShortPassword =
-        new('x', EndpointHelpers.MinimumStaffPasswordLength - 1);
+    // Неправильный по любому из двух: не шесть символов и не только цифры. Правило живёт в
+    // PinFormat, а не в этой строке.
+    private static readonly string MalformedPin = new('x', PinFormat.Length);
 
     private static CreateOrganizationRequest BuildCreateOrganizationRequest(
         string orgSlug = "demo-club",
@@ -349,7 +349,7 @@ public sealed class PlatformOrganizationEndpointTests
                 Code: created.OrganizationOwnerInvite.Code,
                 UserName: "demo.owner",
                 DisplayName: "Demo Owner",
-                Password: "Passw0rd!Real"));
+                Password: "112233"));
         var json = await acceptResponse.Content.ReadFromJsonAsync<JsonElement>();
 
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
@@ -384,7 +384,7 @@ public sealed class PlatformOrganizationEndpointTests
 
         var response = await client.PostAsJsonAsync(
             "/api/account-activation/organization-owner",
-            new AcceptOrganizationOwnerInviteRequest("ghost-code", "owner", "Owner", "Passw0rd!"));
+            new AcceptOrganizationOwnerInviteRequest("ghost-code", "owner", "Owner", "246813"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -411,7 +411,7 @@ public sealed class PlatformOrganizationEndpointTests
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
             "/api/account-activation/organization-owner",
-            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "Passw0rd!"));
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "246813"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
@@ -441,7 +441,7 @@ public sealed class PlatformOrganizationEndpointTests
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
             "/api/account-activation/organization-owner",
-            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "Passw0rd!"));
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "246813"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -478,7 +478,7 @@ public sealed class PlatformOrganizationEndpointTests
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
             "/api/account-activation/organization-owner",
-            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "demo.owner", "Demo Owner", "Passw0rd!Real"));
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "demo.owner", "Demo Owner", "112233"));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -497,7 +497,7 @@ public sealed class PlatformOrganizationEndpointTests
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
             "/api/account-activation/organization-owner",
-            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", TooShortPassword));
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", MalformedPin));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -520,7 +520,7 @@ public sealed class PlatformOrganizationEndpointTests
                 Code: created.OrganizationOwnerInvite.Code,
                 UserName: "owner@club.test",
                 DisplayName: "",
-                Password: "Passw0rd!Real"));
+                Password: "112233"));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -810,7 +810,7 @@ public sealed class PlatformOrganizationEndpointTests
         using var staffClient = factory.CreateClient();
         var signIn = await staffClient.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
-            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
+            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "246813"));
         var signInBody = await signIn.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.NotNull(signInBody);
         staffClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", signInBody.AccessToken);

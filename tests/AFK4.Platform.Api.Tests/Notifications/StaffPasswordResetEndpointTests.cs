@@ -13,9 +13,9 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed partial class StaffPasswordResetEndpointTests
 {
-    // Короче минимума, каким бы он ни был: правило живёт в EndpointHelpers, а не в этой строке.
-    private static readonly string TooShortPassword =
-        new('x', EndpointHelpers.MinimumStaffPasswordLength - 1);
+    // Неправильный по любому из двух: не шесть символов и не только цифры. Правило живёт в
+    // PinFormat, а не в этой строке.
+    private static readonly string MalformedPin = new('x', PinFormat.Length);
 
     [GeneratedRegex(@"\b[0-9]{6}\b")]
     private static partial Regex CodePattern();
@@ -45,7 +45,7 @@ public sealed partial class StaffPasswordResetEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        var staffUserId = await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "OldPassw0rd");
+        var staffUserId = await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "200100");
 
         var forgot = await client.PostAsJsonAsync("/api/auth/staff/forgot-password",
             new StaffForgotPasswordRequest("reset.owner@club.example"));
@@ -62,14 +62,14 @@ public sealed partial class StaffPasswordResetEndpointTests
         }
 
         var reset = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest("reset.owner@club.example", code, "BrandNewPass1"));
+            new StaffResetPasswordRequest("reset.owner@club.example", code, "400300"));
         Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
 
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var staff = await db.StaffUsers.SingleAsync(u => u.StaffUserId == staffUserId);
-            var verification = new PasswordHasher<StaffUserEntity>().VerifyHashedPassword(staff, staff.PasswordHash, "BrandNewPass1");
+            var verification = new PasswordHasher<StaffUserEntity>().VerifyHashedPassword(staff, staff.PasswordHash, "400300");
             Assert.Equal(PasswordVerificationResult.Success, verification);
             var resetToken = await db.PasswordResetTokens.SingleAsync();
             Assert.NotNull(resetToken.ConsumedAtUtc);
@@ -96,12 +96,12 @@ public sealed partial class StaffPasswordResetEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "OldPassw0rd");
+        await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "200100");
         await client.PostAsJsonAsync("/api/auth/staff/forgot-password",
             new StaffForgotPasswordRequest("reset.owner@club.example"));
 
         var response = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest("reset.owner@club.example", "000001", "BrandNewPass1"));
+            new StaffResetPasswordRequest("reset.owner@club.example", "000001", "400300"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ResetErrorBody>();
@@ -114,10 +114,10 @@ public sealed partial class StaffPasswordResetEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "OldPassw0rd");
+        await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "200100");
 
         var response = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest("reset.owner@club.example", "123456", "BrandNewPass1"));
+            new StaffResetPasswordRequest("reset.owner@club.example", "123456", "400300"));
 
         Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
     }
@@ -129,7 +129,7 @@ public sealed partial class StaffPasswordResetEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest("reset.owner@club.example", "123456", TooShortPassword));
+            new StaffResetPasswordRequest("reset.owner@club.example", "123456", MalformedPin));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

@@ -15,7 +15,7 @@ internal static class PlatformAdminTestHelper
 {
     public const string DefaultUserName = "owner@platform.test";
     public const string DefaultDisplayName = "Platform Owner";
-    public const string DefaultPassword = "Passw0rd!";
+    public const string DefaultPassword = "246813";
 
     // Fixed test-only TOTP secret. Admins seeded without an explicit `totpSecret` come out "already
     // configured" with this secret, so most tests never have to walk the setup screen — they just

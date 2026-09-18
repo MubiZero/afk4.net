@@ -145,7 +145,7 @@ public sealed class StaffInvitePlanLimitTests
         organization.LimitsJson = OrganizationLimitsJson.Serialize(new OrganizationLimitsDto(null, null, null, 1));
         await db.SaveChangesAsync();
 
-        var result = await service.AcceptInviteAsync(phone, created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(phone, created.Code, "654321", CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.NotNull(result.PlanLimit);
@@ -170,7 +170,7 @@ public sealed class StaffInvitePlanLimitTests
             organizationId, branchId, "newcashier", "New Cashier", phone, "cashier@club.example", Roles, CancellationToken.None);
         Assert.True(created.Succeeded);
 
-        var result = await service.AcceptInviteAsync(phone, created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(phone, created.Code, "654321", CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Null(result.PlanLimit);
@@ -197,7 +197,7 @@ public sealed class StaffInvitePlanLimitTests
             organizationId, branchId, "newcashier", "New Cashier", phone, "cashier@club.example", Roles, CancellationToken.None);
         Assert.True(created.Succeeded);
 
-        var result = await service.AcceptInviteAsync(phone, created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(phone, created.Code, "654321", CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Null(result.PlanLimit);

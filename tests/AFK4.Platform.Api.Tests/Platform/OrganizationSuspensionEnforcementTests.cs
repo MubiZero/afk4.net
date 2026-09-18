@@ -64,7 +64,7 @@ public sealed class OrganizationSuspensionEnforcementTests
         using var freshClient = factory.CreateClient();
         var signInResponse = await freshClient.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
-            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
+            new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "246813"));
 
         Assert.Equal(HttpStatusCode.OK, signInResponse.StatusCode);
     }

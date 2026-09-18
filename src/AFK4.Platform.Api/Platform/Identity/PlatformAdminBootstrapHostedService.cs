@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,17 @@ public sealed class PlatformAdminBootstrapHostedService(
         {
             logger.LogInformation(
                 "Platform admin bootstrap configuration is empty; skipping initial admin seed.");
+            return;
+        }
+
+        // Конфигурация — не обход правила: заведённый отсюда администратор входит той же дверью,
+        // что и все, и молча пустить сюда «пароль» значило бы получить учётную запись, которую
+        // потом никто не сможет воспроизвести.
+        if (!PinFormat.IsWellFormed(bootstrap.Password))
+        {
+            logger.LogError(
+                "Platform admin bootstrap PIN must contain exactly {Length} digits; skipping initial admin seed.",
+                PinFormat.Length);
             return;
         }
 

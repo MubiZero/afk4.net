@@ -2,6 +2,7 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -23,10 +24,6 @@ public sealed class PlatformAdminDirectoryService(
     public const int MinInvitationLifetimeHours = 1;
     public const int MaxInvitationLifetimeHours = 30 * 24;
 
-    // Same limits the organization-owner activation enforces (EfPlatformOrganizationService).
-    // This endpoint creates a PLATFORM administrator from an anonymous request, so it cannot be
-    // the laxer of the two.
-    public const int MinPasswordLength = 8;
     public const int MaxUserNameLength = 256;
     public const int MaxDisplayNameLength = 160;
 
@@ -263,9 +260,12 @@ public sealed class PlatformAdminDirectoryService(
             return $"DisplayName must contain {MaxDisplayNameLength} characters or fewer.";
         }
 
-        return string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < MinPasswordLength
-            ? $"Password must contain at least {MinPasswordLength} characters."
-            : null;
+        // Дверь тут самая дорогая — за ней вся сеть клубов, — но правило входа общее (PinFormat):
+        // администратора платформы держит не длина, а второй фактор, обязательный именно здесь,
+        // и блокировка после пяти промахов.
+        return PinFormat.IsWellFormed(request.Password)
+            ? null
+            : $"PIN must contain exactly {PinFormat.Length} digits.";
     }
 
     public async Task<(PlatformAdminUserEntity? User, PlatformAdminDirectoryError Error)> AcceptInvitationAsync(

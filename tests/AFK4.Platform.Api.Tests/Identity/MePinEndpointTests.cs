@@ -28,12 +28,12 @@ public sealed class MePinEndpointTests
         using var client = factory.CreateClient();
         await AuthorizeAsync(factory, client, person.PlatformPersonId, club.PlayerAccountId);
 
-        var response = await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("1234"));
+        var response = await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("135790"));
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         var stored = await ReadPersonAsync(factory, person.PlatformPersonId);
         Assert.NotNull(stored.PinHash);
-        Assert.NotEqual("1234", stored.PinHash);
+        Assert.NotEqual("135790", stored.PinHash);
         Assert.NotNull(stored.PinSetAtUtc);
 
         var me = await client.GetFromJsonAsync<MeDto>("/api/me");
@@ -50,7 +50,7 @@ public sealed class MePinEndpointTests
 
         using var client = factory.CreateClient();
         await AuthorizeAsync(factory, client, person.PlatformPersonId, club.PlayerAccountId);
-        await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("4321"));
+        await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("097531"));
 
         var body = await client.GetStringAsync("/api/me");
 
@@ -63,7 +63,7 @@ public sealed class MePinEndpointTests
             "<id>");
 
         Assert.Contains("\"pinSet\":true", body);
-        Assert.DoesNotContain("4321", withoutIdentifiers);
+        Assert.DoesNotContain("097531", withoutIdentifiers);
         Assert.DoesNotContain("pinHash", body, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -79,7 +79,7 @@ public sealed class MePinEndpointTests
         using var client = factory.CreateClient();
         await AuthorizeAsync(factory, client, person.PlatformPersonId, club.PlayerAccountId);
 
-        await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("1234"));
+        await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("135790"));
         var firstHash = (await ReadPersonAsync(factory, person.PlatformPersonId)).PinHash;
 
         var changed = await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("567890"));
@@ -102,7 +102,7 @@ public sealed class MePinEndpointTests
         using var client = factory.CreateClient();
         await AuthorizeAsync(factory, client, person.PlatformPersonId, club.PlayerAccountId);
 
-        await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("1234"));
+        await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("135790"));
 
         var stored = await ReadPersonAsync(factory, person.PlatformPersonId);
         Assert.Equal(0, stored.PinFailedCount);
@@ -120,7 +120,7 @@ public sealed class MePinEndpointTests
         using var client = factory.CreateClient();
         await AuthorizeAsync(factory, client, person.PlatformPersonId, playerAccountId: null);
 
-        var response = await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("1234"));
+        var response = await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("135790"));
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.NotNull((await ReadPersonAsync(factory, person.PlatformPersonId)).PinHash);
@@ -129,11 +129,13 @@ public sealed class MePinEndpointTests
     [Theory]
     [InlineData("")]
     [InlineData("123")]
+    [InlineData("12345")]
+    [InlineData("1234567")]
     [InlineData("123456789")]
-    [InlineData("12a4")]
-    [InlineData("12 34")]
+    [InlineData("12a456")]
+    [InlineData("12 456")]
     [InlineData("пароль")]
-    public async Task SetPin_RefusesAnythingButFourToEightDigits(string pin)
+    public async Task SetPin_RefusesAnythingButSixDigits(string pin)
     {
         await using var factory = new PlatformApiFactory();
         var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000506");
@@ -155,7 +157,7 @@ public sealed class MePinEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("1234"));
+        var response = await client.PutAsJsonAsync("/api/me/pin", new SetMyPinRequest("135790"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

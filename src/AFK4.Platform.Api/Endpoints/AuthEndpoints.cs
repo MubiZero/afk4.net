@@ -598,7 +598,7 @@ internal static class AuthEndpoints
             IStaffPhonePasswordResetService resetService,
             CancellationToken cancellationToken) =>
         {
-            var passwordValidation = ValidateStaffPassword(request.NewPassword);
+            var passwordValidation = ValidateStaffPin(request.NewPassword);
             if (passwordValidation is not null)
             {
                 return Results.BadRequest(new { error = passwordValidation });

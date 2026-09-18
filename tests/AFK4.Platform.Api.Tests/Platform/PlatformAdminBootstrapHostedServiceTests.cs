@@ -21,7 +21,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         {
             UserName = "boot-admin@afk4.local",
             DisplayName = "Boot Admin",
-            Password = "BootPassw0rd!",
+            Password = "778899",
             Roles = [PlatformAdminRoleNames.PlatformAdmin]
         });
         var timeProvider = TimeProvider.System;
@@ -44,7 +44,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         var hasher = new PasswordHasher<PlatformAdminUserEntity>();
         Assert.Equal(
             PasswordVerificationResult.Success,
-            hasher.VerifyHashedPassword(admin, admin.PasswordHash, "BootPassw0rd!"));
+            hasher.VerifyHashedPassword(admin, admin.PasswordHash, "778899"));
 
         var audit = await dbContext.AuditRecords.SingleAsync(record => record.Action == "identity.platform_admin.bootstrap");
         Assert.Equal("Succeeded", audit.Outcome);
@@ -77,7 +77,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         {
             UserName = "boot-admin@afk4.local",
             DisplayName = "Boot Admin",
-            Password = "BootPassw0rd!",
+            Password = "778899",
             Roles = [PlatformAdminRoleNames.PlatformAdmin]
         });
         var hostedService = new PlatformAdminBootstrapHostedService(
@@ -122,7 +122,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         {
             UserName = "boot-admin@afk4.local",
             DisplayName = "Boot Admin",
-            Password = "BootPassw0rd!",
+            Password = "778899",
             Roles = ["ghost_role", "another_ghost_role"]
         });
         var hostedService = new PlatformAdminBootstrapHostedService(
@@ -156,7 +156,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         {
             UserName = "boot-support@afk4.local",
             DisplayName = "Boot Support",
-            Password = "BootPassw0rd!",
+            Password = "778899",
             Roles = [PlatformAdminRoleNames.PlatformSupport]
         });
         var hostedService = new PlatformAdminBootstrapHostedService(

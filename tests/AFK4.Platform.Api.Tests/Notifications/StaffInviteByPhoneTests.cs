@@ -23,7 +23,7 @@ namespace AFK4.Platform.Api.Tests;
 public sealed class StaffInviteByPhoneTests
 {
     private const string Phone = "+992937380070";
-    private const string Password = "FreshPass123";
+    private const string Password = "654321";
 
     [Fact]
     public async Task Invite_SendsAShortCodeToThePhone()

@@ -25,10 +25,6 @@ public sealed class EfPlatformOrganizationService(
     IOptions<PlatformOrganizationOptions> organizationOptions,
     IPlanLimitGuard planLimitGuard) : IPlatformOrganizationService
 {
-    // Владелец клуба — сотрудник: он входит в приложение клуба и в мастер установки теми же
-    // дверями. Правило у него одно с остальными сотрудниками, иначе при регистрации от него
-    // требовали бы восемь символов, а сменить пароль на короткий он мог бы через минуту.
-    private const int MinPasswordLength = EndpointHelpers.MinimumStaffPasswordLength;
     private const int MaxUserNameLength = 256;
     private const int MaxDisplayNameLength = 160;
     private const int MaxBranchCityLength = 120;
@@ -427,10 +423,12 @@ public sealed class EfPlatformOrganizationService(
                 $"DisplayName must contain {MaxDisplayNameLength} characters or fewer.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < MinPasswordLength)
+        // Владелец клуба — сотрудник: он входит в приложение клуба и в мастер установки теми же
+        // дверями, поэтому и правило у него общее (PinFormat), а не своё.
+        if (!PinFormat.IsWellFormed(request.Password))
         {
             return PlatformOrganizationOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest(
-                $"Password must contain at least {MinPasswordLength} characters.");
+                $"PIN must contain exactly {PinFormat.Length} digits.");
         }
 
         var normalizedCode = NormalizeInviteCode(request.Code);

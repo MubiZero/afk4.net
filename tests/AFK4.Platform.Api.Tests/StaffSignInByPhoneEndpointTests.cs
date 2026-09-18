@@ -14,7 +14,7 @@ public sealed class StaffSignInByPhoneEndpointTests
         PlatformApiFactory factory,
         string normalizedPhone,
         bool verified,
-        string password = "Passw0rd!")
+        string password = "246813")
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -47,7 +47,7 @@ public sealed class StaffSignInByPhoneEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
-            new StaffSignInByPhoneRequest("+992 93 738-00-70", "Passw0rd!"));
+            new StaffSignInByPhoneRequest("+992 93 738-00-70", "246813"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
@@ -79,7 +79,7 @@ public sealed class StaffSignInByPhoneEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
-            new StaffSignInByPhoneRequest("992937380070", "Passw0rd!"));
+            new StaffSignInByPhoneRequest("992937380070", "246813"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -92,7 +92,7 @@ public sealed class StaffSignInByPhoneEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
-            new StaffSignInByPhoneRequest("992000000000", "Passw0rd!"));
+            new StaffSignInByPhoneRequest("992000000000", "246813"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

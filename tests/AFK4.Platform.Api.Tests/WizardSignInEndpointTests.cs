@@ -14,7 +14,7 @@ namespace AFK4.Platform.Api.Tests;
 /// </summary>
 public sealed class WizardSignInEndpointTests
 {
-    private const string Password = "Passw0rd!";
+    private const string Password = "246813";
 
     private static readonly Guid SecondOrganizationId = Guid.Parse("7b1c9f24-3e58-4a6d-8c07-51f2a9d3b604");
 

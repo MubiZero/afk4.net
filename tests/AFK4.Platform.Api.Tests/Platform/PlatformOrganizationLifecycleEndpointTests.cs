@@ -254,7 +254,7 @@ public sealed class PlatformOrganizationLifecycleEndpointTests
                 Code: created.OrganizationOwnerInvite.Code,
                 UserName: "demo.owner",
                 DisplayName: "Demo Owner",
-                Password: "Passw0rd!Real"));
+                Password: "112233"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

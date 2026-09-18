@@ -18,7 +18,7 @@ namespace AFK4.Platform.Api.Tests.Identity;
 /// </summary>
 public sealed class StaffPasswordLockoutTests
 {
-    private const string CorrectPassword = "Passw0rd!";
+    private const string CorrectPassword = "246813";
 
     [Fact]
     public async Task SignIn_AfterFiveWrongPasswords_LocksTheAccount()

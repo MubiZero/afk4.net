@@ -14,13 +14,13 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed class StaffPasswordResetByPhoneEndpointTests
 {
-    // Короче минимума, каким бы он ни был: правило живёт в EndpointHelpers, а не в этой строке.
-    private static readonly string TooShortPassword =
-        new('x', EndpointHelpers.MinimumStaffPasswordLength - 1);
+    // Неправильный по любому из двух: не шесть символов и не только цифры. Правило живёт в
+    // PinFormat, а не в этой строке.
+    private static readonly string MalformedPin = new('x', PinFormat.Length);
 
     private const string Phone = "992937380070";
-    private const string OldPassword = "OldPassw0rd!";
-    private const string NewPassword = "NewPassw0rd!";
+    private const string OldPassword = "200100";
+    private const string NewPassword = "300200";
 
     private sealed class RecordingSmsTransport : ISmsTransport
     {
@@ -144,7 +144,7 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
 
         var response = await client.PostAsJsonAsync(
             "/api/auth/staff/reset-password-by-phone",
-            new StaffResetPasswordByPhoneRequest(Phone, code, TooShortPassword));
+            new StaffResetPasswordByPhoneRequest(Phone, code, MalformedPin));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
