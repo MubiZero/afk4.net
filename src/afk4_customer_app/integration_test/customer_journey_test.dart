@@ -133,7 +133,6 @@ void main() {
     expect(find.textContaining('Заявку смотрит администратор'), findsOneWidget);
 
     await pickDateTime(tester, 'Начало');
-    await pickDateTime(tester, 'Конец');
     await tester.tap(find.widgetWithText(FilledButton, 'Забронировать'));
     await tester.pumpAndSettle();
 
