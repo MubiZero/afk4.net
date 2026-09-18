@@ -117,6 +117,50 @@ void main() {
         ['eskhata://pay/abc', 'https://bank.test/invoices/abc']);
   });
 
+  /// Телефон без приложения банка отвечает на `eskhata://` не «false», а отказом системы.
+  /// Незаметная ошибка оставляла лист в «Отправляем…» навсегда — при созданной заявке.
+  testWidgets('отказ системы на ссылку банка не оставляет лист висеть', (tester) async {
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/wallet/top-up-methods' => (_methods(online: true), 200),
+          '/api/me/wallet/top-up-intent' => (_intent(deepLink: 'eskhata://pay/abc'), 200),
+          _ => ('{"payment":"pending"}', 200),
+        });
+    await tester.pumpWidget(
+      _harness(_client(http), open: (_) async => throw Exception('нет приложения банка')),
+    );
+    await tester.pumpAndSettle();
+
+    await _enterAmount(tester, '100');
+    await tester.tap(find.text('Оплатить онлайн'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.textContaining('Не удалось открыть оплату'), findsOneWidget);
+    expect(find.text('Оплатить онлайн'), findsOneWidget);
+  });
+
+  /// Отказ с кодом повторами не лечится: заявки нет или она чужая. Ждать до самого предела
+  /// значит держать человека перед спиннером ни за чем.
+  testWidgets('банк не знает заявку — ожидание прекращается и говорит проверить баланс',
+      (tester) async {
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/wallet/top-up-methods' => (_methods(online: true), 200),
+          '/api/me/wallet/top-up-intent' => (_intent(deepLink: 'eskhata://pay/abc'), 200),
+          _ => ('{"error":"intent_not_found"}', 404),
+        });
+    await tester.pumpWidget(_harness(_client(http), open: (_) async => true));
+    await tester.pumpAndSettle();
+
+    await _enterAmount(tester, '100');
+    await tester.tap(find.text('Оплатить онлайн'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('деньги зачислятся сами'), findsOneWidget);
+    expect(find.text('Оплатить онлайн'), findsOneWidget);
+  });
+
   /// Заплатил онлайн — деньги уже на кошельке, и говорить об этом «заявка отправлена» значит
   /// послать человека выяснять к стойке то, что уже случилось.
   testWidgets('оплата онлайн и заявка на стойку различаются в ответе листа', (tester) async {
