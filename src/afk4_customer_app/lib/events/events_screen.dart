@@ -143,6 +143,7 @@ class _EventsScreenState extends State<EventsScreen> {
       setState(() {
         _busyId = null;
         _error = switch (error.message) {
+          _ when error.isOffline => l.customerErrorOffline,
           'insufficient_funds' => l.customerEventsErrFunds,
           'tournament_full' => l.customerEventsErrFull,
           'tournament_already_started' => l.customerEventsErrStarted,

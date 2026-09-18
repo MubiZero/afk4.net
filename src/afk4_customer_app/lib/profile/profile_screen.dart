@@ -233,6 +233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Причина отказа словами: сервер отличает негодное имя от неподдержанного языка, и человеку
   /// от этого сразу видно, что именно поправить.
   static String _saveProblem(L l, PlayerApiException error) => switch (error.message) {
+        _ when error.isOffline => l.customerErrorOffline,
         'invalid_display_name' => l.customerProfileErrName,
         'unsupported_locale' => l.customerProfileErrLocale,
         _ => l.customerProfileSaveError,

@@ -155,6 +155,7 @@ class _ShopScreenState extends State<ShopScreen> {
       setState(() {
         _placing = false;
         _error = switch (error.message) {
+          _ when error.isOffline => l.customerErrorOffline,
           'insufficient_funds' => l.customerShopErrFunds,
           'out_of_stock' => l.customerShopErrStock,
           'product_unavailable' => l.customerShopErrUnavailable,

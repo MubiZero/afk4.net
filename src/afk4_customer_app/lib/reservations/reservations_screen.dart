@@ -204,8 +204,15 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       if (!mounted) return;
       _say(l.customerReservationsCancelled);
       await _refresh();
-    } on PlayerApiException {
-      if (mounted) _say(l.customerReservationsCancelError);
+    } on PlayerApiException catch (error) {
+      if (!mounted) return;
+      // Бронь, которую уже отменили или чьё время началось, отменить нельзя — повторять нечего.
+      _say(switch (error.statusCode) {
+        _ when error.isOffline => l.customerErrorOffline,
+        404 || 400 => l.customerReservationsCancelErrGone,
+        _ => l.customerReservationsCancelError,
+      });
+      await _refresh();
     }
   }
 
@@ -234,10 +241,17 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       await _refresh();
     } on PlayerApiException catch (error) {
       if (!mounted) return;
-      // Занятый слот — не поломка, а «выберите другое время»: это разные надписи.
-      _say(error.statusCode == 409
-          ? l.customerReservationsMoveTaken
-          : l.customerReservationsMoveError);
+      // Занятый слот — не поломка, а «выберите другое время»: это разные надписи. Остальные
+      // причины сервер тоже называет, и каждая требует своего: пополнить, взять другое время,
+      // перестать переносить то, что уже нельзя.
+      _say(switch ((error.statusCode, error.message)) {
+        (_, _) when error.isOffline => l.customerErrorOffline,
+        (_, 'insufficient_funds') => l.customerReservationsNoFunds,
+        (_, 'tariff_outside_its_hours') => l.customerTariffOutsideHours,
+        (409, _) => l.customerReservationsMoveTaken,
+        (404, _) || (400, _) => l.customerReservationsMoveErrGone,
+        _ => l.customerReservationsMoveError,
+      });
     }
   }
 

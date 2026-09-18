@@ -98,11 +98,12 @@ class _WalletCardState extends State<WalletCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l.customerWalletDebtPaid)),
       );
-    } on PlayerApiException {
+    } on PlayerApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.customerWalletDebtPayError)),
-      );
+      // Обрыв связи — не отказ в списании: повторить стоит, а искать деньги на кошельке не надо.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error.isOffline ? l.customerErrorOffline : l.customerWalletDebtPayError),
+      ));
     } finally {
       if (mounted) setState(() => _payingDebt = false);
     }

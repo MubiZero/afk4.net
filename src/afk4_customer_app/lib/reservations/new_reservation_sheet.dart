@@ -173,7 +173,7 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
         _quoting = false;
         _quote = null;
         _priceProblem = error.statusCode == 404
-            ? l.customerReservationsTariffGone
+            ? l.customerTariffGone
             : l.customerReservationsPriceFailed;
       });
     }
@@ -220,6 +220,8 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
         // они должны каждый по-своему: из первого выход — другое время, из второго — пополнить
         // кошелёк.
         _problem = switch ((error.statusCode, error.message)) {
+          (_, _) when error.isOffline => l.customerErrorOffline,
+          (_, 'FeatureDisabled') => l.customerErrorFeatureOff,
           // Причина важнее кода: «нет денег на всю компанию» — это другой ответ, чем «время занято».
           (_, 'insufficient_funds') => _seats > 1
               ? l.customerReservationsGroupNoFunds
@@ -232,7 +234,7 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
               : l.customerReservationsNoSeats,
           // Тариф с расписанием на выбранный час не действует. Выход отсюда — другой тариф или
           // другое время, и общая «не удалось» не подсказывает ни того, ни другого.
-          (_, 'tariff_outside_its_hours') => l.customerReservationsTariffOutsideHours,
+          (_, 'tariff_outside_its_hours') => l.customerTariffOutsideHours,
           // Решения клуба, а не сбои: у каждого свой выход — позвонить, пополнить,
           // дождаться своей брони.
           (_, 'booking_disabled') => l.customerReservationsErrDisabled,

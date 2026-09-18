@@ -54,6 +54,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
         // Ни один из этих отказов не лечится повтором: про вечер уже написано, текст длиннее
         // разрешённого, визита нет. Общее «не удалось отправить» звало бы жать кнопку зря.
         _error = switch ((error.statusCode, error.message)) {
+          (_, _) when error.isOffline => l.customerErrorOffline,
           (409, _) => l.customerReviewDuplicate,
           (400, 'comment_too_long') => l.customerReviewErrTooLong,
           (404, _) => l.customerReviewErrVisitGone,

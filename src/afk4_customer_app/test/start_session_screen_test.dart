@@ -207,6 +207,25 @@ void main() {
     expect(find.textContaining('Код не подошёл'), findsOneWidget);
   });
 
+  /// ПК показывает код, но к платформе не привязан — сам игрок этого не исправит. Общее
+  /// «попробуйте ещё раз» отправляло его набирать те же цифры до бесконечности.
+  testWidgets('непривязанный ПК зовёт оператора, а не повтор', (tester) async {
+    final http = _serve(
+      seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]),
+      start: ('{"error":"device_not_assigned"}', 404),
+    );
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Начать за'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('позовите оператора'), findsOneWidget);
+    expect(find.textContaining('Попробуйте ещё раз'), findsNothing);
+  });
+
   testWidgets('нехватка денег названа своей причиной', (tester) async {
     final http = _serve(
       seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]),
