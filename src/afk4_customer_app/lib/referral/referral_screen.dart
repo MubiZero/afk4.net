@@ -8,6 +8,7 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
+import '../shell/load_failure.dart';
 
 /// «Приведи друга».
 ///
@@ -126,12 +127,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
     if (data == null) {
       return _failed
-          ? ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(l.customerReferralLoadError, style: TextStyle(color: theme.colorScheme.error)),
-              ],
-            )
+          ? LoadFailure(message: l.customerReferralLoadError, onRetry: _load)
           : const Center(child: CircularProgressIndicator());
     }
 

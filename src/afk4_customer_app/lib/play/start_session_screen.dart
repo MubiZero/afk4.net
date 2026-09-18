@@ -10,6 +10,7 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../reservations/tariff_picker.dart';
+import '../shell/load_failure.dart';
 
 /// Сколько играть. Три ходовых варианта вместо ввода минут: игрок стоит посреди зала с
 /// телефоном в руке, и лишний выбор здесь стоит ему времени, а клубу — очереди на стойке.
@@ -183,12 +184,7 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
 
     if (seats == null) {
       return _loadFailed
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(l.customerPlayLoadError, style: TextStyle(color: theme.colorScheme.error)),
-              ),
-            )
+          ? LoadFailure(message: l.customerPlayLoadError, onRetry: _load)
           : const Center(child: CircularProgressIndicator());
     }
 

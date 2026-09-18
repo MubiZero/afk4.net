@@ -11,6 +11,7 @@ import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
+import '../shell/load_failure.dart';
 
 /// Заказ еды и напитков за игровое место.
 ///
@@ -260,7 +261,6 @@ class _ShopScreenState extends State<ShopScreen> {
       };
 
   Widget _body(L l) {
-    final theme = Theme.of(context);
     final order = _order;
     if (order != null) {
       return SingleChildScrollView(
@@ -272,13 +272,7 @@ class _ShopScreenState extends State<ShopScreen> {
     final catalog = _catalog;
     if (catalog == null) {
       return _loadFailed
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(l.customerShopLoadError,
-                    style: TextStyle(color: theme.colorScheme.error)),
-              ),
-            )
+          ? LoadFailure(message: l.customerShopLoadError, onRetry: _load)
           : const Center(child: CircularProgressIndicator());
     }
 
