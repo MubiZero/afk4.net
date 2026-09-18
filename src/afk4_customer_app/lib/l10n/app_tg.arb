@@ -730,6 +730,14 @@
       }
     }
   },
+  "customerReservationsHeld": "{amount} дар ҳамён нигоҳ дошта шудааст",
+  "@customerReservationsHeld": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerReservationsHoldNote": "Маблағи брон дар ҳамён нигоҳ дошта мешавад ва ҳангоми бекоркунӣ бармегардад",
   "customerReservationsLoadError": "Брониҳоро бор кардан нашуд.",
   "customerReservationsMove": "Кӯчонидан",
@@ -773,6 +781,7 @@
     }
   },
   "customerReservationsRejectMoneyBack": "Пул пурра баргашт.",
+  "customerReservationsRejectNoReason": "Клуб сабабро нагуфт — дар мизи қабул пурсед.",
   "customerReservationsRespondBy": "Клуб то {time} ҷавоб медиҳад",
   "@customerReservationsRespondBy": {
     "placeholders": {
