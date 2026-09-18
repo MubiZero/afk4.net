@@ -170,6 +170,13 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
           _ => l.customerWalletSendError,
         });
       }
+    } catch (_) {
+      // Любой другой сбой тоже обязан вернуть кнопки: незакрытое «Отправляем…» человек читает
+      // как ушедшие деньги и либо ждёт зря, либо отправляет заявку второй раз.
+      if (mounted) {
+        setState(() => _pending = false);
+        _say(l.customerWalletSendError);
+      }
     }
   }
 
@@ -178,12 +185,9 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
   /// упереться в тишину человек не должен.
   Future<void> _payInBank(PlayerTopUpIntentDto intent) async {
     final open = widget.openLink ?? (uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
-    var opened = false;
-    if (intent.deepLink != null) {
-      opened = await open(Uri.parse(intent.deepLink!));
-    }
-    if (!opened && intent.payUrl != null) {
-      opened = await open(Uri.parse(intent.payUrl!));
+    var opened = await _open(open, intent.deepLink);
+    if (!opened) {
+      opened = await _open(open, intent.payUrl);
     }
 
     if (!mounted) return;
@@ -200,6 +204,18 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
     _poll = Timer.periodic(_pollEvery, (_) => unawaited(_checkPayment()));
   }
 
+  /// Одна попытка открыть ссылку. Телефон без приложения банка отвечает на `eskhata://` не
+  /// «false», а отказом системы, и незаметная ошибка оставила бы лист в «Отправляем…»
+  /// навсегда — при уже созданной заявке.
+  Future<bool> _open(Future<bool> Function(Uri) open, String? link) async {
+    if (link == null) return false;
+    try {
+      return await open(Uri.parse(link));
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Спрашивает банк об одной заявке. «Оплачено» приходит только после того, как деньги
   /// зачислены в кошелёк, — поэтому по нему можно закрывать лист.
   Future<void> _checkPayment() async {
@@ -209,8 +225,16 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
     String payment;
     try {
       payment = await widget.api.eskhataPaymentStatus(intent.paymentIntentId);
-    } on PlayerApiException {
-      payment = 'pending';
+    } on PlayerApiException catch (error) {
+      // Обрыв связи и занятый сервер — это «пока не знаем»: следующий опрос через несколько
+      // секунд. А отказ с кодом (заявки нет, она чужая, срок вышел) повторами не лечится, и
+      // держать человека перед спиннером до самого предела ожидания незачем.
+      if (error.statusCode == null || error.statusCode! >= 500) return;
+      if (!mounted) return;
+      _stopWaiting();
+      setState(() => _pending = false);
+      _say(L.of(context).customerWalletOnlineSlow);
+      return;
     }
     if (!mounted) return;
 
