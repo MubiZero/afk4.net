@@ -193,6 +193,7 @@ export const tg = {
   "customer.clubDetails.zoneSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
   "customer.clubDetails.zones": "Минтақаҳо",
   "customer.clubDetails.zonesUnknown": "Клуб минтақаҳоро тавсиф накардааст",
+  "customer.clubPicker.allCities": "Ҳамаи шаҳрҳо",
   "customer.clubPicker.change": "Иваз кардани клуб",
   "customer.clubPicker.closedToday": "Имрӯз рӯзи истироҳат",
   "customer.clubPicker.details": "Муфассал",

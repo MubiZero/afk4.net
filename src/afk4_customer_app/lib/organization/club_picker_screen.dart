@@ -71,6 +71,12 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
   String _query = '';
   int _requestSeq = 0;
 
+  /// Город, по которому сузили витрину. null — все города.
+  ///
+  /// Геолокацию здесь спрашивать не за чем: свой город человек знает и без разрешения на
+  /// доступ к местоположению, а «клубы рядом» без карты города всё равно ничего не говорят.
+  String? _city;
+
   @override
   void initState() {
     super.initState();
@@ -163,6 +169,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                     onChanged: _onQueryChanged,
                   ),
                   const SizedBox(height: 12),
+                  ..._cityFilter(l),
                   // Список и карта — два взгляда на один и тот же каталог: поиск сверху
                   // относится к обоим, поэтому переключатель стоит под ним, а не над.
                   SegmentedButton<_View>(
@@ -191,6 +198,65 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
         ),
       ),
     );
+  }
+
+  /// Города каталога — как они пришли с сервера, в порядке появления. Их обычно единицы, и
+  /// строка чипов честнее выпадающего списка: видно сразу, где вообще есть клубы.
+  List<String> get _cities {
+    final clubs = switch (_load) {
+      _Ready(clubs: final list) => list,
+      _ => const <Organization>[],
+    };
+    final cities = <String>[];
+    for (final club in clubs) {
+      for (final place in club.places) {
+        if (place.city.isNotEmpty && !cities.contains(place.city)) cities.add(place.city);
+      }
+    }
+    return cities;
+  }
+
+  /// Клубы выбранного города. Сеть считается «в городе», если там есть хотя бы один её зал.
+  List<Organization> _inCity(List<Organization> clubs) {
+    final city = _city;
+    if (city == null) return clubs;
+    return clubs.where((club) => club.places.any((place) => place.city == city)).toList();
+  }
+
+  /// Первый экран приложения спрашивал «в каком клубе вы играете» и ничем не помогал ответить:
+  /// список шёл вперемешку по всей стране. Город — то, что человек знает про себя точно.
+  List<Widget> _cityFilter(L l) {
+    final cities = _cities;
+    if (cities.length < 2) return const [];
+
+    return [
+      SizedBox(
+        height: 40,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(l.customerClubPickerAllCities),
+                selected: _city == null,
+                onSelected: (_) => setState(() => _city = null),
+              ),
+            ),
+            for (final city in cities)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(city),
+                  selected: _city == city,
+                  onSelected: (_) => setState(() => _city = city),
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+    ];
   }
 
   /// «Ваши клубы» — свои заведения первыми и с деньгами каждого. Показывается только когда
@@ -231,12 +297,17 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           onAction: _fetch,
         ),
       _Ready(clubs: final clubs) when clubs.isEmpty => _Message(text: l.customerClubPickerEmpty),
+      _Ready(clubs: final clubs) when _inCity(clubs).isEmpty => _Message(
+          text: l.customerClubPickerEmpty,
+          actionLabel: l.customerClubPickerAllCities,
+          onAction: () => setState(() => _city = null),
+        ),
       _Ready(clubs: final clubs) => switch (_view) {
           _View.list => ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               children: [
                 ..._myClubsSection(l, clubs),
-                for (final club in clubs) ...[
+                for (final club in _inCity(clubs)) ...[
                   ClubCard(
                     club: club,
                     onTap: () => widget.onSelected(club),
@@ -247,9 +318,11 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                 ],
               ],
             ),
+          // Карта показывает то же, что список: выбранный город сужает оба, иначе переключение
+          // вида молча отменяло бы фильтр.
           _View.map => Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: ClubMap(clubs: clubs, onSelected: widget.onSelected),
+              child: ClubMap(clubs: _inCity(clubs), onSelected: widget.onSelected),
             ),
         },
     };

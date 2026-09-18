@@ -588,4 +588,37 @@ void main() {
 
     expect(find.text('Ваши клубы'), findsNothing);
   });
+
+  /// Первый экран приложения спрашивал «в каком клубе вы играете» и ничем не помогал ответить:
+  /// список шёл вперемешку по всей стране. Город — то, что человек про себя знает точно.
+  testWidgets('города сужают витрину, и карта слушается того же выбора', (tester) async {
+    const inKhujand = Organization(
+      organizationId: '99999999-9999-9999-9999-999999999999',
+      slug: 'arena',
+      name: 'Арена',
+      places: [
+        ClubPlace(branchId: 'b9', name: 'Центр', city: 'Худжанд', address: 'ул. Ленина, 5'),
+      ],
+    );
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx, inKhujand])));
+    await tester.pumpAndSettle();
+
+    // До фильтра CyberX первый в списке; вторая карточка может лежать за краем экрана, и
+    // проверять её там нечестно — список ленивый.
+    expect(find.text('CyberX'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Худжанд'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CyberX'), findsNothing);
+    expect(find.text('Арена'), findsOneWidget);
+  });
+
+  // Один город на всю витрину — выбирать не из чего, и строка чипов только занимала бы место.
+  testWidgets('в одном городе фильтра городов нет', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx])));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ChoiceChip, 'Душанбе'), findsNothing);
+  });
 }
