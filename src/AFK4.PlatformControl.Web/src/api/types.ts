@@ -240,6 +240,8 @@ export interface OrganizationHealth {
 export interface AuditRecord {
   auditRecordId: string;
   organizationId: string;
+  /// Имя клуба-клиента; null, если организацию уже удалили, а записи о ней остались.
+  organizationName: string | null;
   branchId: string | null;
   actorStaffUserId: string | null;
   actorPlatformAdminUserId: string | null;

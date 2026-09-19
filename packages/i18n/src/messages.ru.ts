@@ -2835,6 +2835,7 @@ export const ru = {
   "platform.audit.error": "Не удалось загрузить аудит.",
   "platform.audit.from": "С даты",
   "platform.audit.organization": "ID организации",
+  "platform.audit.organization.all": "Все клубы",
   "platform.audit.outcome": "Результат",
   "platform.audit.source": "Источник",
   "platform.audit.source.Agent": "Служба клуба",

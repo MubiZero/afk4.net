@@ -2834,6 +2834,7 @@
   "platform.audit.error": "Сабтҳои аудит бор нашуданд.",
   "platform.audit.from": "Аз сана",
   "platform.audit.organization": "ID-и ташкилот",
+  "platform.audit.organization.all": "Ҳамаи клубҳо",
   "platform.audit.outcome": "Натиҷа",
   "platform.audit.source": "Манбаъ",
   "platform.audit.source.Agent": "Хидмати клуб",
