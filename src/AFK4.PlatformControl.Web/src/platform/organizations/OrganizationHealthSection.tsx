@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useLoadable } from '../useLoadable';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
-import type { OrganizationHealth } from '@/api/types';
 
 type Client = Pick<OrganizationsApi, 'getHealth'>;
 
@@ -22,42 +21,31 @@ interface Props {
 // бизнес-экране они читаются как случайный мусор и подрывают доверие ко всему остальному.
 export function OrganizationHealthSection({ client, organizationId }: Props) {
   const { t, formatNumber, formatDate } = useI18n();
-  const [tick, setTick] = useState(0);
-  const [health, setHealth] = useState<OrganizationHealth | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setHealth(null); setError(false);
-    client.getHealth(organizationId)
-      .then(data => { if (!cancelled) setHealth(data); })
-      .catch(() => { if (!cancelled) setError(true); });
-    return () => { cancelled = true; };
-  }, [client, organizationId, tick]);
+  const state = useLoadable(() => client.getHealth(organizationId), [organizationId]);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('platform.organization.section.health')}</CardTitle>
-        <Button variant="ghost" size="icon-sm" aria-label={t('platform.organization.health.refresh')} onClick={() => setTick(value => value + 1)}>
+        <Button variant="ghost" size="icon-sm" aria-label={t('platform.organization.health.refresh')} onClick={state.retry}>
           <RefreshCw size={14} aria-hidden="true" />
         </Button>
       </CardHeader>
       <CardContent>
-        {error ? (
-          <ErrorState message={t('platform.organization.health.error')} retryLabel={t('state.retry')} onRetry={() => setTick(value => value + 1)} />
-        ) : health === null ? (
+        {state.status === 'error' ? (
+          <ErrorState title={t('platform.organization.health.error')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+        ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
         ) : (
           <>
             <dl className="pc-facts">
-              <Fact label={t('platform.organization.health.branches')} value={formatNumber(health.branchCount)} />
-              <Fact label={t('platform.organization.health.devices')} value={formatNumber(health.deviceCount)} />
-              <Fact label={t('platform.organization.health.activeStaff')} value={formatNumber(health.activeStaffUserCount)} />
-              <Fact label={t('platform.organization.health.lastSignIn')} value={health.latestStaffSignInAtUtc !== null ? formatDate(health.latestStaffSignInAtUtc) : '—'} />
+              <Fact label={t('platform.organization.health.branches')} value={formatNumber(state.data.branchCount)} />
+              <Fact label={t('platform.organization.health.devices')} value={formatNumber(state.data.deviceCount)} />
+              <Fact label={t('platform.organization.health.activeStaff')} value={formatNumber(state.data.activeStaffUserCount)} />
+              <Fact label={t('platform.organization.health.lastSignIn')} value={state.data.latestStaffSignInAtUtc !== null ? formatDate(state.data.latestStaffSignInAtUtc) : '—'} />
             </dl>
 
-            {health.recentErrors.length === 0 ? (
+            {state.data.recentErrors.length === 0 ? (
               <EmptyState message={t('platform.organization.health.recentErrorsEmpty')} />
             ) : (
               <Table>
@@ -71,7 +59,7 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {health.recentErrors.map((entry, index) => (
+                  {state.data.recentErrors.map((entry, index) => (
                     <TableRow key={`${entry.createdAtUtc}-${index}`}>
                       <TableCell className="pc-num">{formatDate(entry.createdAtUtc)}</TableCell>
                       <TableCell>{entry.source}</TableCell>

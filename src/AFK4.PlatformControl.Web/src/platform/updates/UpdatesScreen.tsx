@@ -334,7 +334,7 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
           <NativeField label={t('platform.updates.field.size')} name="sizeBytes"><Input name="sizeBytes" type="number" min="1" required /></NativeField>
         </div>
         <NativeField label={t('platform.updates.field.artifact')} name="artifactUri"><Input name="artifactUri" type="url" required /></NativeField>
-        <NativeField label="SHA-256" name="sha256"><Input name="sha256" minLength={64} maxLength={64} required /></NativeField>
+        <NativeField label={t('platform.updates.field.sha256')} name="sha256"><Input name="sha256" minLength={64} maxLength={64} required /></NativeField>
         <NativeField label={t('platform.updates.field.signature')} name="signature"><Textarea name="signature" required /></NativeField>
         <NativeField label={t('platform.updates.field.notes')} name="releaseNotes"><Textarea name="releaseNotes" required /></NativeField>
         <div className="mgmt-form-actions">

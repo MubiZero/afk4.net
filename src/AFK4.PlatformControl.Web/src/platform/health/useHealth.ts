@@ -1,31 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type { HealthApi } from '@/api/platformClients/health';
 import type { HealthOverview } from '@/api/types';
+import { useLoadable, type Loadable } from '../useLoadable';
 
-export type HealthState =
-  | { status: 'loading'; retry: () => void }
-  | { status: 'error'; message: string; retry: () => void }
-  | { status: 'ready'; data: HealthOverview; retry: () => void };
+export type HealthState = Loadable<HealthOverview>;
 
-type Loadable = Pick<HealthApi, 'getOverview'>;
+type Client = Pick<HealthApi, 'getOverview'>;
 
-export function useHealth(client: Loadable): HealthState {
-  const [tick, setTick] = useState(0);
-  const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: HealthOverview; message?: string }>({ status: 'loading' });
-  const retry = useCallback(() => setTick(t => t + 1), []);
-  const clientRef = useRef(client);
-  clientRef.current = client;
+/// Здоровье платформы смотрят так же, как обзор сети: открыл и оставил. Инциденты и очереди
+/// меняются медленнее клубов, поэтому реже.
+const HEALTH_REFRESH_MS = 120_000;
 
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: 'loading' });
-    clientRef.current.getOverview()
-      .then(overview => { if (!cancelled) setState({ status: 'ready', data: overview }); })
-      .catch((err: unknown) => { if (!cancelled) setState({ status: 'error', message: err instanceof Error ? err.message : 'error' }); });
-    return () => { cancelled = true; };
-  }, [tick]);
-
-  if (state.status === 'ready') return { status: 'ready', data: state.data!, retry };
-  if (state.status === 'error') return { status: 'error', message: state.message ?? 'error', retry };
-  return { status: 'loading', retry };
+export function useHealth(client: Client): HealthState {
+  return useLoadable(() => client.getOverview(), [], { refreshMs: HEALTH_REFRESH_MS });
 }

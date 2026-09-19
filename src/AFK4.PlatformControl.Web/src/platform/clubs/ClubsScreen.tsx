@@ -39,7 +39,7 @@ interface ClubsScreenProps {
 }
 
 export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, onCreateOrganization }: ClubsScreenProps) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const state = usePulse(client.pulse);
 
   return (
@@ -54,6 +54,12 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
         </Button>
       ) : undefined}
     >
+      {/* На какой момент то, что на экране. Раздел называется «Сейчас», держат его открытым весь
+          день, и без этой строки снимок часовой давности читается как положение дел сию минуту. */}
+      {state.status === 'ready' ? (
+        <p className="mgmt-drawer-hint">{t('platform.clubs.snapshotAt', { time: formatDate(state.data.generatedAtUtc) })}</p>
+      ) : null}
+
       <Tabs
         label={t('platform.clubs.view.label')}
         value={view}
@@ -64,7 +70,7 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
       {state.status === 'loading' ? (
         <LoadingCards count={3} />
       ) : state.status === 'error' ? (
-        <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />
+        <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
       ) : (
         <ClubsList organizations={state.data.organizations ?? []} view={view} emptyMessage={t(EMPTY_KEY[view])} onOpenOrganization={onOpenOrganization} />
       )}

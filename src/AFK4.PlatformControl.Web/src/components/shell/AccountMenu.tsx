@@ -3,6 +3,7 @@ import { LogOut, Moon, Sun, Languages } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { Locale } from '@/i18n/messages';
 import { useTheme } from '@/theme/ThemeProvider';
+import { describePermission } from '@/platform/settings/rolesModel';
 
 const LOCALE_ORDER: Locale[] = ['ru', 'en', 'tg'];
 const LOCALE_LABEL: Record<Locale, string> = { ru: 'Русский', en: 'English', tg: 'Тоҷикӣ' };
@@ -18,6 +19,7 @@ export function AccountMenu({ displayName, roleLabel, permissions, onSignOut }: 
   const { t, locale, setLocale } = useI18n();
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,10 +79,21 @@ export function AccountMenu({ displayName, roleLabel, permissions, onSignOut }: 
               когда кнопка не появилась, но ради этого не нужен отдельный раздел навигации. */}
           <details className="pc-account-perms">
             <summary>{t('profile.permissions.title')}</summary>
-            <ul>{permissions.map(permission => <li key={permission}>{permission}</li>)}</ul>
+            {/* Машинный ключ права — адрес проверки в коде; тому, кто смотрит, доступно ли ему
+                действие, нужно название. Перевод тот же, что в разделе ролей. */}
+            <ul>{permissions.map(permission => <li key={permission}>{describePermission(permission, t)}</li>)}</ul>
           </details>
 
-          <button type="button" role="menuitem" className="rail-account-item danger" onClick={onSignOut}>
+          {/* Выход — изменяющий запрос: второй клик отправлял второй POST с уже погашенным
+              токеном, и его отказ никто не ловил. Флаг обратно не снимается намеренно: удачный
+              выход уносит всю оболочку вместе с этим меню, и снимать его некому и незачем. */}
+          <button
+            type="button"
+            role="menuitem"
+            className="rail-account-item danger"
+            disabled={signingOut}
+            onClick={() => { setSigningOut(true); onSignOut(); }}
+          >
             <LogOut size={15} aria-hidden="true" />
             {t('auth.action.signOut')}
           </button>

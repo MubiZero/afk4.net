@@ -53,7 +53,7 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
   }
 
   if (state.status === 'loading') return <LoadingCards count={2} />;
-  if (state.status === 'error') return <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
 
   const rows = filterInvoices(state.data, { query, status });
   const actionable = (value: string) => value === 'issued' || value === 'overdue';

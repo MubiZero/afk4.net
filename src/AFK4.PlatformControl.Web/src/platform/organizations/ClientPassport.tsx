@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PartialFailure } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
@@ -14,7 +15,8 @@ import type { PlansApi } from '@/api/platformClients/plans';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
-import type { DebtRow, OrganizationDetail, OrganizationSubscription } from '@/api/types';
+import type { OrganizationDetail } from '@/api/types';
+import { channelLabelKey } from '@/platform/updates/updatesModel';
 import { PLAN_LABEL, STATUS_LABEL, STATUS_VARIANT } from './organizationsModel';
 import type { OrganizationPageAccess } from './OrganizationPage';
 import { OrganizationDebtBlock } from './OrganizationDebtBlock';
@@ -52,10 +54,6 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
 
-  const [subscription, setSubscription] = useState<OrganizationSubscription | null>(null);
-  const [owner, setOwner] = useState<string | null>(null);
-  const [debtRow, setDebtRow] = useState<DebtRow | null>(null);
-  const [debtStatus, setDebtStatus] = useState<'unknown' | 'ready'>('unknown');
   const [openDialog, setOpenDialog] = useState<DialogKind>(null);
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
   const [statusPending, setStatusPending] = useState(false);
@@ -63,49 +61,45 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   const attempt = useAttemptKey();
   const [tick, setTick] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    setSubscription(null);
-    client.subscriptions.getSubscription(organization.organizationId)
-      .then(value => { if (!cancelled) setSubscription(value); })
-      .catch(() => { /* паспорт остаётся полезным и без цены со сроком счёта */ });
-    return () => { cancelled = true; };
-  }, [client, organization.organizationId, tick]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!access.canManageAccess) { setOwner(null); return; }
-    setOwner(null);
-    client.organizationOwnerInvites.listOrganizationOwnerInvites(organization.organizationId)
-      .then(invites => {
-        if (cancelled) return;
+  // Три запроса паспорта независимы, и падение одного не должно стирать остальные: цена со
+  // сроком счёта, владелец и долг приходят из разных мест и требуют разных прав.
+  //
+  // Раньше каждый сбой гасился пустым catch. Цена и дата оставались вечным скелетоном — человек
+  // ждал данных, которых уже не будет; владелец молча превращался в «—», неотличимо от «владельца
+  // нет»; а кнопка «Изменить условия обслуживания» просто не открывала диалог, потому что подписки
+  // в руках не было. Теперь каждая часть знает, спросили её или нет, и неудачу видно словами.
+  const subscriptionPart = usePassportPart(
+    () => client.subscriptions.getSubscription(organization.organizationId),
+    [client, organization.organizationId, tick]);
+  const ownerPart = usePassportPart(
+    access.canManageAccess
+      ? async () => {
+        const invites = await client.organizationOwnerInvites.listOrganizationOwnerInvites(organization.organizationId);
         const accepted = invites
           .filter(invite => invite.status === 'accepted')
           .sort((left, right) => right.createdAtUtc.localeCompare(left.createdAtUtc))[0];
-        setOwner(accepted !== undefined ? (accepted.ownerDisplayName ?? accepted.ownerUserName ?? null) : null);
-      })
-      .catch(() => { /* паспорт остаётся полезным и без строки владельца */ });
-    return () => { cancelled = true; };
-  }, [client, organization.organizationId, access.canManageAccess, tick]);
+        return accepted !== undefined ? (accepted.ownerDisplayName ?? accepted.ownerUserName ?? null) : null;
+      }
+      : null,
+    [client, organization.organizationId, access.canManageAccess, tick]);
+  // `/api/platform/debt` требует platform.billing.view — сотрудник без этого права получит 403,
+  // а гасить ошибку и рисовать «Долгов нет» нельзя: это выглядит как утверждение, что долга
+  // нет, хотя на деле мы просто не спрашивали.
+  const debtPart = usePassportPart(
+    access.canViewBilling
+      ? async () => {
+        const rows = await client.debt.listDebt();
+        return rows.find(row => row.organizationId === organization.organizationId) ?? null;
+      }
+      : null,
+    [client, organization.organizationId, access.canViewBilling, tick]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setDebtRow(null);
-    setDebtStatus('unknown');
-    // `/api/platform/debt` требует platform.billing.view — сотрудник без этого права получит 403,
-    // а гасить ошибку и рисовать «Долгов нет» нельзя: это выглядит как утверждение, что долга
-    // нет, хотя на деле мы просто не спрашивали. Без права запрос не уходит вовсе, и блок остаётся
-    // в состоянии «неизвестно» — так же, как при сетевом сбое ниже.
-    if (!access.canViewBilling) return;
-    client.debt.listDebt()
-      .then(rows => {
-        if (cancelled) return;
-        setDebtRow(rows.find(row => row.organizationId === organization.organizationId) ?? null);
-        setDebtStatus('ready');
-      })
-      .catch(() => { /* паспорт остаётся полезным без суммы долга; статус остаётся «неизвестно» */ });
-    return () => { cancelled = true; };
-  }, [client, organization.organizationId, access.canViewBilling, tick]);
+  const subscription = subscriptionPart.status === 'ready' ? subscriptionPart.value : null;
+  const owner = ownerPart.status === 'ready' ? ownerPart.value : null;
+  const debtRow = debtPart.status === 'ready' ? debtPart.value : null;
+  const debtStatus = debtPart.status === 'ready' ? 'ready' : 'unknown';
+  const somethingFailed = [subscriptionPart, ownerPart, debtPart].some(part => part.status === 'failed');
+  const reloadParts = () => setTick(value => value + 1);
 
   const cities = Array.from(new Set(organization.branches.map(branch => branch.city)));
   const nextStatus = organization.status === 'active' ? 'suspended' : 'active';
@@ -159,24 +153,40 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
         {isPastDue && !isUnderActiveGrace ? <Badge variant="destructive">{t('platform.organization.passport.debtChip')}</Badge> : null}
       </div>
 
+      {somethingFailed ? (
+        <PartialFailure
+          title={t('platform.organization.passport.partialError')}
+          retryLabel={t('state.retry')}
+          onRetry={reloadParts}
+        />
+      ) : null}
+
       <dl className="pc-passport-facts">
         <Row label={t('platform.organization.subscriptionForm.plan')}>
           {PLAN_LABEL[organization.planCode] !== undefined ? t(PLAN_LABEL[organization.planCode]) : organization.planCode}
         </Row>
         <Row label={t('platform.organization.passport.price')}>
-          {subscription === null ? <Skeleton className="pc-skel-value" /> : formatCurrency(minorToMajor(subscription.amountMinorUnits), subscription.currencyCode)}
+          {subscriptionPart.status === 'loading' ? <Skeleton className="pc-skel-value" />
+            : subscription === null ? t('platform.organization.passport.unknownValue')
+            : formatCurrency(minorToMajor(subscription.amountMinorUnits), subscription.currencyCode)}
         </Row>
         <Row label={t('platform.organization.passport.nextInvoice')}>
-          {subscription === null ? <Skeleton className="pc-skel-value" /> : subscription.nextInvoiceUtc !== null ? formatDate(subscription.nextInvoiceUtc) : '—'}
+          {subscriptionPart.status === 'loading' ? <Skeleton className="pc-skel-value" />
+            : subscription === null ? t('platform.organization.passport.unknownValue')
+            : subscription.nextInvoiceUtc !== null ? formatDate(subscription.nextInvoiceUtc) : '—'}
         </Row>
         <Row label={t('platform.organization.passport.debt.label')}>
           <OrganizationDebtBlock row={debtRow} status={debtStatus} />
         </Row>
         <Row label={t('platform.organization.invites.colOwner')}>
-          {access.canManageAccess ? (owner ?? '—') : '—'}
+          {/* «—» здесь значит «владельца нет», и подменять им несостоявшийся запрос нельзя:
+              отсутствие владельца — повод завести код доступа, а неудача — повод повторить. */}
+          {ownerPart.status === 'failed' ? t('platform.organization.passport.unknownValue') : (owner ?? '—')}
         </Row>
         <Row label={t('platform.organization.passport.updateChannel')}>
-          {organization.updateChannel}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
+          {/* Соседняя секция канала обновлений давно называет его словами; паспорт печатал сырое
+              stable/beta/internal, и один и тот же канал на одном экране читался двумя способами. */}
+          {t(channelLabelKey(organization.updateChannel))}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
         </Row>
       </dl>
 
@@ -184,7 +194,10 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           приостановка отдельно и красным. Прошлая версия давала шесть одинаковых серых кнопок. */}
       <div className="pc-passport-actions">
         {access.canManageBilling ? (
-          <Button size="sm" onClick={() => setOpenDialog('subscription')}>
+          // Диалог условий строится вокруг текущей подписки: пока её нет в руках, открывать
+          // нечего. Мёртвая на вид кнопка без объяснения хуже погашенной — рядом стоит полоса,
+          // которая говорит, что сведения не загрузились, и предлагает повторить.
+          <Button size="sm" disabled={subscription === null} onClick={() => setOpenDialog('subscription')}>
             {t('platform.organization.passport.action.editSubscription')}
           </Button>
         ) : null}
@@ -247,7 +260,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           organizationId={organization.organizationId}
           subscription={subscription}
           onClose={() => setOpenDialog(null)}
-          onUpdated={next => { setSubscription(next); setOpenDialog(null); setTick(value => value + 1); }}
+          onUpdated={() => { setOpenDialog(null); reloadParts(); }}
         />
       ) : null}
       {openDialog === 'grace' ? (
@@ -256,7 +269,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           organizationId={organization.organizationId}
           currentGraceUntilUtc={subscription?.paymentGraceUntilUtc ?? null}
           onClose={() => setOpenDialog(null)}
-          onUpdated={next => { setSubscription(next); setOpenDialog(null); }}
+          onUpdated={() => { setOpenDialog(null); reloadParts(); }}
         />
       ) : null}
       {openDialog === 'ownerTransfer' ? (
@@ -278,4 +291,33 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
       <dd>{children}</dd>
     </div>
   );
+}
+
+/// Одна графа паспорта: её могли не спрашивать (нет права), ещё ждать, получить или не получить.
+/// Разница между «не спрашивали» и «не смогли» важна на экране: первое — нормальное состояние
+/// сотрудника с узкими правами, второе — повод нажать «Повторить».
+type PassportPart<T> =
+  | { status: 'skipped'; value: null }
+  | { status: 'loading'; value: null }
+  | { status: 'failed'; value: null }
+  | { status: 'ready'; value: T };
+
+function usePassportPart<T>(load: (() => Promise<T>) | null, deps: readonly unknown[]): PassportPart<T> {
+  const [part, setPart] = useState<PassportPart<T>>(load === null ? { status: 'skipped', value: null } : { status: 'loading', value: null });
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
+  useEffect(() => {
+    const current = loadRef.current;
+    if (current === null) { setPart({ status: 'skipped', value: null }); return; }
+    let cancelled = false;
+    setPart({ status: 'loading', value: null });
+    current()
+      .then(value => { if (!cancelled) setPart({ status: 'ready', value }); })
+      .catch(() => { if (!cancelled) setPart({ status: 'failed', value: null }); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  return part;
 }

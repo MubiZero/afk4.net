@@ -59,7 +59,7 @@ describe('AdminInviteDialog', () => {
 
     await createInvite(client);
 
-    await screen.findByText('Код показан только сейчас. Сохраните его — второй раз получить его будет неоткуда.');
+    await screen.findByText(/Код показан только сейчас/u);
     expect(screen.getByLabelText('Ссылка для активации')).toHaveValue(
       `${window.location.origin}/account-activation?kind=platform-admin&code=INV-123`
     );

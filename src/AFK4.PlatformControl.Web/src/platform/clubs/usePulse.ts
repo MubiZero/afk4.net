@@ -1,31 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PulseApi } from '@/api/platformClients/pulse';
 import type { PlatformPulse } from '@/api/types';
+import { useLoadable, type Loadable } from '../useLoadable';
 
-export type PulseState =
-  | { status: 'loading'; retry: () => void }
-  | { status: 'error'; message: string; retry: () => void }
-  | { status: 'ready'; data: PlatformPulse; retry: () => void };
+export type PulseState = Loadable<PlatformPulse>;
 
-type Loadable = Pick<PulseApi, 'getPulse'>;
+type Client = Pick<PulseApi, 'getPulse'>;
 
-export function usePulse(client: Loadable): PulseState {
-  const [tick, setTick] = useState(0);
-  const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: PlatformPulse; message?: string }>({ status: 'loading' });
-  const retry = useCallback(() => setTick(t => t + 1), []);
-  const clientRef = useRef(client);
-  clientRef.current = client;
+/// Обзор сети — дежурный экран: его держат открытым и по нему решают, куда бежать. Минута —
+/// компромисс между свежестью и нагрузкой: тревоги пульса (молчащий агент, застрявшая смена)
+/// живут десятками минут, и чаще смотреть незачем.
+const PULSE_REFRESH_MS = 60_000;
 
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: 'loading' });
-    clientRef.current.getPulse()
-      .then(pulse => { if (!cancelled) setState({ status: 'ready', data: pulse }); })
-      .catch((err: unknown) => { if (!cancelled) setState({ status: 'error', message: err instanceof Error ? err.message : 'error' }); });
-    return () => { cancelled = true; };
-  }, [tick]);
-
-  if (state.status === 'ready') return { status: 'ready', data: state.data!, retry };
-  if (state.status === 'error') return { status: 'error', message: state.message ?? 'error', retry };
-  return { status: 'loading', retry };
+export function usePulse(client: Client): PulseState {
+  return useLoadable(() => client.getPulse(), [], { refreshMs: PULSE_REFRESH_MS });
 }

@@ -18,7 +18,7 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
         var records = dbContext.AuditRecords
             .AsNoTracking()
             .Where(record => record.OrganizationId == organizationId && record.BranchId == branchId);
-        return ExecuteAsync(records, query, cancellationToken);
+        return ExecuteAsync(records, dbContext.Organizations.AsNoTracking(), query, cancellationToken);
     }
 
     public Task<AuditSearchResultDto> SearchOrganizationAsync(
@@ -29,7 +29,7 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
         var records = dbContext.AuditRecords
             .AsNoTracking()
             .Where(record => record.OrganizationId == organizationId);
-        return ExecuteAsync(records, query, cancellationToken);
+        return ExecuteAsync(records, dbContext.Organizations.AsNoTracking(), query, cancellationToken);
     }
 
     public Task<AuditSearchResultDto> SearchPlatformAsync(
@@ -42,11 +42,12 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
         {
             records = records.Where(record => record.OrganizationId == organizationId.Value);
         }
-        return ExecuteAsync(records, query, cancellationToken);
+        return ExecuteAsync(records, dbContext.Organizations.AsNoTracking(), query, cancellationToken);
     }
 
     private static async Task<AuditSearchResultDto> ExecuteAsync(
         IQueryable<AuditRecordEntity> records,
+        IQueryable<OrganizationEntity> organizations,
         AuditSearchQuery query,
         CancellationToken cancellationToken)
     {
@@ -99,6 +100,8 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
                 record.AmountMinorUnits != null && record.AmountMinorUnits <= query.MaxAmountMinorUnits.Value);
         }
 
+        // Имя клуба приезжает вместе с записью: без него журнал платформы читается как столбец
+        // идентификаторов, и опознать клуб можно, только сходив за ним в другой раздел.
         var result = await records
             .OrderByDescending(record => record.CreatedAtUtc)
             .ThenByDescending(record => record.AuditRecordId)
@@ -117,7 +120,11 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
                 record.CreatedAtUtc)
             {
                 ActorPlatformAdminUserId = record.ActorPlatformAdminUserId,
-                AmountMinorUnits = record.AmountMinorUnits
+                AmountMinorUnits = record.AmountMinorUnits,
+                OrganizationName = organizations
+                    .Where(organization => organization.OrganizationId == record.OrganizationId)
+                    .Select(organization => organization.Name)
+                    .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
 

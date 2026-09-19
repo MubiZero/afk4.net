@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { PartialFailure } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { PlansApi } from '@/api/platformClients/plans';
@@ -43,18 +44,23 @@ export function SubscriptionDialog({ client, plansClient, organizationId, subscr
   const { toast } = useToast();
   const [form, setForm] = useState(() => subscriptionToForm(subscription));
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [plansFailed, setPlansFailed] = useState(false);
+  const [plansTick, setPlansTick] = useState(0);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setPlansFailed(false);
     plansClient
       .listPlans(false)
       .then(result => { if (!cancelled) setPlans(result); })
       // Каталог не доехал — остальные поля подписки правятся как прежде, а список планов
-      // покажет только текущий: молча подставлять чужой план нельзя.
-      .catch(() => { if (!cancelled) setPlans([]); });
+      // покажет только текущий: молча подставлять чужой план нельзя. Но и молчать нельзя:
+      // диалог с одним пунктом в списке выглядит рабочим, и человек решает, что тариф сменить
+      // не даёт правило платформы, а не потерянный запрос.
+      .catch(() => { if (!cancelled) { setPlans([]); setPlansFailed(true); } });
     return () => { cancelled = true; };
-  }, [plansClient]);
+  }, [plansClient, plansTick]);
 
   const problem = validateSubscriptionForm(form);
   const planOptions = plans.some(plan => plan.planCode === form.planCode)
@@ -99,6 +105,15 @@ export function SubscriptionDialog({ client, plansClient, organizationId, subscr
             ))}
           </Select>
         </Field>
+        {/* Полоса вне поля намеренно: внутри <label> её текст стал бы частью подписи «Тариф», а
+            кнопка «Повторить» — кликом по самому полю. */}
+        {plansFailed ? (
+          <PartialFailure
+            title={t('platform.organization.subscriptionDialog.plansError')}
+            retryLabel={t('state.retry')}
+            onRetry={() => setPlansTick(value => value + 1)}
+          />
+        ) : null}
 
         <Field label={t('platform.organization.subscriptionForm.interval')} htmlFor="subscription-interval">
           <Select

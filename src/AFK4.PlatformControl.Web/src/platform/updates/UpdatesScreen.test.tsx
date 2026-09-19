@@ -139,7 +139,7 @@ describe('UpdatesScreen', () => {
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '1.5.0' } });
     fireEvent.change(screen.getByLabelText('Размер файла, байт'), { target: { value: '2048' } });
     fireEvent.change(screen.getByLabelText('URL installer'), { target: { value: 'https://updates.afk4.net/admin.msi' } });
-    fireEvent.change(screen.getByLabelText('SHA-256'), { target: { value: 'b'.repeat(64) } });
+    fireEvent.change(screen.getByLabelText('Отпечаток SHA-256'), { target: { value: 'b'.repeat(64) } });
     fireEvent.change(screen.getByLabelText('Подпись'), { target: { value: 'sig' } });
     fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Ничего страшного.' } });
     fireEvent.submit(screen.getByLabelText('Версия').closest('form')!);

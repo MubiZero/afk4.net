@@ -33,7 +33,7 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
   const state = useAnalytics(client);
 
   if (state.status === 'loading') return <LoadingCards count={3} />;
-  if (state.status === 'error') return <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
 
   const overview = state.data;
   const monthLabel = (month: number) => t(MONTH_LABEL_KEY[month - 1] ?? MONTH_LABEL_KEY[0]);
@@ -93,11 +93,9 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
                       formatter={value => formatCurrency(Number(value), overview.currencyCode)}
                       contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }}
                     />
-                    <Legend
-                      formatter={(value: string) => value === 'recurring' ? t('platform.analytics.revenue.recurring') : t('platform.analytics.revenue.oneOff')}
-                    />
-                    <Bar dataKey="recurring" stackId="revenue" fill="var(--accent)" name="recurring" />
-                    <Bar dataKey="oneOff" stackId="revenue" fill="var(--text-tertiary)" name="oneOff" />
+                    <Legend />
+                    <Bar dataKey="recurring" stackId="revenue" fill="var(--accent)" name={t('platform.analytics.revenue.recurring')} />
+                    <Bar dataKey="oneOff" stackId="revenue" fill="var(--text-tertiary)" name={t('platform.analytics.revenue.oneOff')} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -116,15 +114,10 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
                     <XAxis dataKey="label" stroke="var(--text-tertiary)" fontSize={12} />
                     <YAxis stroke="var(--text-tertiary)" fontSize={12} allowDecimals={false} />
                     <Tooltip contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }} />
-                    <Legend
-                      formatter={(value: string) =>
-                        value === 'joined' ? t('platform.analytics.movement.joined')
-                          : value === 'left' ? t('platform.analytics.movement.left')
-                            : t('platform.analytics.movement.paying')}
-                    />
-                    <Line type="monotone" dataKey="joined" stroke="var(--success)" name="joined" />
-                    <Line type="monotone" dataKey="left" stroke="var(--danger)" name="left" />
-                    <Line type="monotone" dataKey="paying" stroke="var(--accent)" name="paying" />
+                    <Legend />
+                    <Line type="monotone" dataKey="joined" stroke="var(--success)" name={t('platform.analytics.movement.joined')} />
+                    <Line type="monotone" dataKey="left" stroke="var(--danger)" name={t('platform.analytics.movement.left')} />
+                    <Line type="monotone" dataKey="paying" stroke="var(--accent)" name={t('platform.analytics.movement.paying')} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

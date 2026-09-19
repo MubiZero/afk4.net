@@ -20,7 +20,7 @@ export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
   const [status, setStatus] = useState('all');
 
   if (state.status === 'loading') return <LoadingCards count={2} />;
-  if (state.status === 'error') return <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
 
   const rows = filterSubscriptions(state.data, { query, status });
 

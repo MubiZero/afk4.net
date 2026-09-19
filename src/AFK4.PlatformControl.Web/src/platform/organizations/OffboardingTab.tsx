@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,9 +7,9 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OffboardingApi } from '@/api/platformClients/offboarding';
-import type { OrganizationOffboarding } from '@/api/types';
 import { purgeBlockReasonKey } from './offboardingModel';
 import { describeApiError } from '@/api/describeApiError';
+import { useLoadable } from '../useLoadable';
 
 type Client = Pick<OffboardingApi, 'getOffboarding' | 'purge' | 'downloadExport'>;
 
@@ -24,20 +24,10 @@ export function OffboardingTab({
 }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
-  const [state, setState] = useState<OrganizationOffboarding | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [tick, setTick] = useState(0);
+  const state = useLoadable(() => client.getOffboarding(organizationId), [organizationId]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setFailed(false);
-    client.getOffboarding(organizationId)
-      .then(loaded => { if (!cancelled) setState(loaded); })
-      .catch(() => { if (!cancelled) setFailed(true); });
-    return () => { cancelled = true; };
-  }, [client, organizationId, tick]);
+  const offboarding = state.status === 'ready' ? state.data : null;
 
   async function download() {
     if (pending) return;
@@ -47,7 +37,7 @@ export function OffboardingTab({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${state?.slug ?? organizationId}-export.zip`;
+      link.download = `${offboarding?.slug ?? organizationId}-export.zip`;
       link.click();
       URL.revokeObjectURL(url);
       toast({ title: t('platform.offboarding.exported'), variant: 'success' });
@@ -59,13 +49,13 @@ export function OffboardingTab({
   }
 
   async function purge(typedSlug: string) {
-    if (state === null || pending) return;
+    if (offboarding === null || pending) return;
     setPending(true);
     try {
       await client.purge(organizationId, typedSlug.trim());
       toast({ title: t('platform.offboarding.purged'), variant: 'success' });
       setConfirmOpen(false);
-      setTick(value => value + 1);
+      state.retry();
       onPurged?.();
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
@@ -74,18 +64,18 @@ export function OffboardingTab({
     }
   }
 
-  if (failed) {
-    return <ErrorState message={t('platform.offboarding.error.load')} retryLabel={t('state.retry')} onRetry={() => setTick(value => value + 1)} />;
+  if (state.status === 'error') {
+    return <ErrorState title={t('platform.offboarding.error.load')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
   }
-  if (state === null) return <LoadingCards count={1} />;
+  if (offboarding === null) return <LoadingCards count={1} />;
 
-  const blockReason = purgeBlockReasonKey(state);
+  const blockReason = purgeBlockReasonKey(offboarding);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('platform.offboarding.title')}</CardTitle>
-        {state.status === 'purged'
+        {offboarding.status === 'purged'
           ? <Badge variant="outline">{t('platform.offboarding.status.purged')}</Badge>
           : null}
       </CardHeader>
@@ -95,26 +85,26 @@ export function OffboardingTab({
         <dl className="pc-kv-list">
           <div className="pc-kv">
             <dt>{t('platform.offboarding.field.slug')}</dt>
-            <dd><code>{state.slug}</code></dd>
+            <dd><code>{offboarding.slug}</code></dd>
           </div>
-          {state.purgedAtUtc !== null ? (
+          {offboarding.purgedAtUtc !== null ? (
             <div className="pc-kv">
               <dt>{t('platform.offboarding.field.purgedAt')}</dt>
-              <dd>{formatDate(state.purgedAtUtc)}</dd>
+              <dd>{formatDate(offboarding.purgedAtUtc)}</dd>
             </div>
           ) : (
             <div className="pc-kv">
               <dt>{t('platform.offboarding.field.eligibleAt')}</dt>
               <dd>
-                {state.purgeEligibleAtUtc === null
+                {offboarding.purgeEligibleAtUtc === null
                   ? t('platform.offboarding.field.eligibleAt.none')
-                  : formatDate(state.purgeEligibleAtUtc)}
+                  : formatDate(offboarding.purgeEligibleAtUtc)}
               </dd>
             </div>
           )}
         </dl>
 
-        {state.status === 'purged' ? (
+        {offboarding.status === 'purged' ? (
           // У стёртого клуба предлагать нечего: данных за ним нет, осталась только архивная строка.
           <p className="mgmt-drawer-hint">{t('platform.offboarding.purgedHint')}</p>
         ) : (
@@ -135,14 +125,14 @@ export function OffboardingTab({
 
         {/* Причина недоступности показывается текстом, а не только подсказкой курсора: рычаг,
             который заведомо ответит отказом, обязан объяснить себя без наведения мыши. */}
-        {blockReason !== null && state.status !== 'purged'
+        {blockReason !== null && offboarding.status !== 'purged'
           ? <p className="mgmt-drawer-hint">{t(blockReason)}</p>
           : null}
 
         <ConfirmDialog
           open={confirmOpen}
           title={t('platform.offboarding.purgeConfirm.title')}
-          description={t('platform.offboarding.purgeConfirm.body', { slug: state.slug })}
+          description={t('platform.offboarding.purgeConfirm.body', { slug: offboarding.slug })}
           confirmLabel={t('platform.offboarding.purge')}
           cancelLabel={t('common.cancel')}
           reasonLabel={t('platform.offboarding.purgeConfirm.slugLabel')}

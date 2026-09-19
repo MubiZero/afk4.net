@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,12 @@ import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { organizationOwnerActivationUrl } from './organizationsModel';
+import { AccessCodeHandoff } from '@/components/shared/AccessCodeHandoff';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
-import type { OrganizationOwnerInvite, OrganizationOwnerInviteSummary, OrganizationBranch } from '@/api/types';
+import type { OrganizationOwnerInvite, OrganizationBranch } from '@/api/types';
+import { useLoadable } from '../useLoadable';
 import { INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL } from './organizationsModel';
 
 type Client = Pick<OrganizationOwnerInvitesApi, 'listOrganizationOwnerInvites' | 'createOrganizationOwnerInvite' | 'revokeOrganizationOwnerInvite'>;
@@ -26,9 +29,7 @@ interface Props {
 export function OrganizationOwnerInvitesSection({ client, organizationId, branches, initialInvite }: Props) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
-  const [tick, setTick] = useState(0);
-  const [invites, setInvites] = useState<OrganizationOwnerInviteSummary[] | null>(null);
-  const [error, setError] = useState(false);
+  const state = useLoadable(() => client.listOrganizationOwnerInvites(organizationId), [organizationId]);
   const [revealed, setRevealed] = useState<Map<string, string>>(() => {
     const seed = new Map<string, string>();
     if (initialInvite) seed.set(initialInvite.organizationOwnerInviteId, initialInvite.code);
@@ -39,17 +40,12 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
   const [ownerDisplayName, setOwnerDisplayName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [creating, setCreating] = useState(false);
+  // Выданный код надо передать владельцу целиком и без опечаток. Раньше он появлялся строкой в
+  // таблице, и единственным способом было выделить его мышью из ячейки; ошибся — код не показать
+  // второй раз, надо отзывать и выдавать новый.
+  const [handoff, setHandoff] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setInvites(null); setError(false);
-    client.listOrganizationOwnerInvites(organizationId)
-      .then(rows => { if (!cancelled) setInvites(rows); })
-      .catch(() => { if (!cancelled) setError(true); });
-    return () => { cancelled = true; };
-  }, [client, organizationId, tick]);
 
   async function create() {
     if (branchId === '') return;
@@ -64,9 +60,10 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
         ownerEmail.trim() === '' ? null : ownerEmail.trim()
       );
       setRevealed(cur => new Map(cur).set(made.organizationOwnerInviteId, made.code));
+      setHandoff(made.code);
       setOwnerUserName(''); setOwnerDisplayName(''); setOwnerEmail('');
       toast({ title: t('platform.organization.invites.created'), variant: 'success' });
-      setTick(n => n + 1);
+      state.retry();
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
@@ -82,7 +79,7 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
       setRevealed(cur => { const next = new Map(cur); next.delete(revokeId); return next; });
       setRevokeId(null);
       toast({ title: t('platform.organization.invites.revoked'), variant: 'success' });
-      setTick(n => n + 1);
+      state.retry();
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
@@ -124,11 +121,21 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
           </div>
         </div>
 
-        {error ? (
-          <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={() => setTick(n => n + 1)} />
-        ) : invites === null ? (
+        {handoff !== null ? (
+          <div className="mgmt-form">
+            <AccessCodeHandoff
+              code={handoff}
+              activationUrl={organizationOwnerActivationUrl(window.location.origin, handoff)}
+              idPrefix="owner-invite"
+            />
+          </div>
+        ) : null}
+
+        {state.status === 'error' ? (
+          <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+        ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
-        ) : invites.length === 0 ? (
+        ) : state.data.length === 0 ? (
           <EmptyState message={t('platform.organization.invites.empty')} />
         ) : (
           <Table>
@@ -142,7 +149,7 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invites.map(inv => {
+              {state.data.map(inv => {
                 const code = revealed.get(inv.organizationOwnerInviteId);
                 return (
                   <TableRow key={inv.organizationOwnerInviteId}>

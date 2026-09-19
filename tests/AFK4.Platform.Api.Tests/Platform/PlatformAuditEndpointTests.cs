@@ -47,6 +47,60 @@ public sealed class PlatformAuditEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/platform/audit")).StatusCode);
     }
 
+    /// Журнал платформы смотрят поверх всей сети, и опознать клуб по идентификатору нельзя —
+    /// наизусть их не знает никто, а строк на экране сотня.
+    [Fact]
+    public async Task Search_NamesTheClubTheRecordBelongsTo()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var organizationId = Guid.NewGuid();
+        await SeedOrganizationAsync(factory, organizationId, "Клуб на Рудаки");
+        await SeedAsync(factory, organizationId, "organizations.status.update");
+
+        var response = await client.GetAsync($"/api/platform/audit?organizationId={organizationId:D}");
+        var body = await response.Content.ReadFromJsonAsync<AuditSearchResultDto>();
+
+        var record = Assert.Single(body!.Records);
+        Assert.Equal("Клуб на Рудаки", record.OrganizationName);
+    }
+
+    /// Организацию могли удалить, а её записи в журнале остаются: имени нет, но запись должна
+    /// читаться и без него.
+    [Fact]
+    public async Task Search_WithoutTheOrganization_StillReturnsTheRecord()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var organizationId = Guid.NewGuid();
+        await SeedAsync(factory, organizationId, "organizations.status.update");
+
+        var response = await client.GetAsync($"/api/platform/audit?organizationId={organizationId:D}");
+        var body = await response.Content.ReadFromJsonAsync<AuditSearchResultDto>();
+
+        var record = Assert.Single(body!.Records);
+        Assert.Null(record.OrganizationName);
+    }
+
+    private static async Task SeedOrganizationAsync(PlatformApiFactory factory, Guid organizationId, string name)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = organizationId,
+            Slug = $"club-{organizationId:N}"[..12],
+            Name = name,
+            Status = "active",
+            PlanCode = "starter",
+            SubscriptionStatus = "trial",
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+    }
+
     private static async Task SeedAsync(PlatformApiFactory factory, Guid organizationId, string action)
     {
         await using var scope = factory.Services.CreateAsyncScope();

@@ -32,3 +32,13 @@ export const INVITE_STATUS_LABEL: Record<string, MessageKey> = {
 };
 
 export const STATUS_OPTIONS = ['active', 'suspended', 'deletion_pending'] as const;
+
+/**
+ * Ссылка, по которой владелец клуба заводит себе вход.
+ *
+ * Вид активации в адресе не указан: владелец — значение по умолчанию, и ссылки без этого
+ * параметра уже разосланы (см. App.readCurrentRoute).
+ */
+export function organizationOwnerActivationUrl(origin: string, code: string): string {
+  return `${origin.replace(/\/+$/u, '')}/account-activation?code=${encodeURIComponent(code)}`;
+}

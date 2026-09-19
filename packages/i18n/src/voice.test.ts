@@ -10,6 +10,10 @@ const LOCALES: Locale[] = ['ru', 'en', 'tg'];
 const SHOUT = /[А-ЯЁ]{4,}/;
 // The gaming machine is «ПК», never «компьютер».
 const FORBIDDEN_COMPUTER = /компьютер/i;
+// «Код доступа» is reserved: the glossary gives that meaning to the six-digit PIN, so a
+// one-time invitation code must not borrow the phrase — the two are entered in different
+// places and confusing them is a support call.
+const FORBIDDEN_ACCESS_CODE = /код[а-я]*\s+доступа/i;
 
 const offenders = (match: RegExp): string[] => {
   const hits: string[] = [];
@@ -27,4 +31,8 @@ it('has no Cyrillic ALL-CAPS shouting in catalog values (brand tone: no caps)', 
 
 it('uses «ПК», never «компьютер» (terminology glossary)', () => {
   expect(offenders(FORBIDDEN_COMPUTER)).toEqual([]);
+});
+
+it('keeps «код доступа» for the PIN alone (terminology glossary)', () => {
+  expect(offenders(FORBIDDEN_ACCESS_CODE)).toEqual([]);
 });

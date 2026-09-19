@@ -50,7 +50,7 @@ it('renders the canonical organization heading with the passport and selected UR
 
 it('keeps the passport visible on every tab', async () => {
   setup('history');
-  await waitFor(() => expect(screen.getByText('stable')).toBeVisible());
+  await waitFor(() => expect(screen.getByText('Стабильный')).toBeVisible());
 });
 
 it('reports tab changes to the route owner', async () => {

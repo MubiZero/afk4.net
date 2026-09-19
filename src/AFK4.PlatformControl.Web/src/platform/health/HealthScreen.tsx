@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ErrorState, LoadingCards } from '@/components/ui/states';
 import { Page } from '@/components/layout/Page';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import type { HealthApi } from '@/api/platformClients/health';
 import type { HealthOverview, IncidentSeverity, JobHealth, QueueFailure, QueueHealth } from '@/api/types';
@@ -58,7 +59,7 @@ export function HealthScreen({ client, canSendTestEmail }: HealthScreenProps) {
       {state.status === 'loading' ? (
         <LoadingCards count={3} />
       ) : state.status === 'error' ? (
-        <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />
+        <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
       ) : (
         <>
           <HealthOverviewView overview={state.data} />
@@ -75,7 +76,12 @@ function TestEmailCard({ client }: { client: Pick<HealthApi, 'sendTestEmail'> })
   const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; error: string | null } | null>(null);
+  // «Не доставлено» и «проверка не состоялась» — разные ответы. Раньше сорвавшийся запрос
+  // рисовал красное «не доставлено» без единого слова о причине, то есть утверждал про почту то,
+  // чего никто не проверял: письмо до сервера даже не дошло.
+  const [result, setResult] = useState<
+    { kind: 'delivered' } | { kind: 'failed'; error: string | null } | { kind: 'notChecked'; reason: string } | null
+  >(null);
 
   async function send() {
     if (email.trim() === '') return;
@@ -83,9 +89,9 @@ function TestEmailCard({ client }: { client: Pick<HealthApi, 'sendTestEmail'> })
     setResult(null);
     try {
       const outcome = await client.sendTestEmail(email.trim());
-      setResult({ ok: outcome.delivered, error: outcome.error });
-    } catch {
-      setResult({ ok: false, error: null });
+      setResult(outcome.delivered ? { kind: 'delivered' } : { kind: 'failed', error: outcome.error });
+    } catch (cause) {
+      setResult({ kind: 'notChecked', reason: describeApiError(cause, t) });
     } finally {
       setSending(false);
     }
@@ -110,8 +116,12 @@ function TestEmailCard({ client }: { client: Pick<HealthApi, 'sendTestEmail'> })
         <Button onClick={() => void send()} disabled={sending || email.trim() === ''}>
           {t('platform.health.testEmail.send')}
         </Button>
-        {result === null ? null : result.ok ? (
+        {result === null ? null : result.kind === 'delivered' ? (
           <Badge variant="success">{t('platform.health.testEmail.sent')}</Badge>
+        ) : result.kind === 'notChecked' ? (
+          <span className="pc-queue-id">
+            <Badge variant="outline">{t('platform.health.testEmail.notChecked', { reason: result.reason })}</Badge>
+          </span>
         ) : (
           <span className="pc-queue-id">
             <Badge variant="destructive">{t('platform.health.testEmail.failed')}</Badge>
