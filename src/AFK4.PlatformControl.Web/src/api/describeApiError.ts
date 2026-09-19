@@ -1,4 +1,5 @@
 import { PlatformApiError, PlatformStaleClientError } from './platformApi';
+import { TransportErrorCodes } from './platformTransport';
 import type { MessageKey } from '@/i18n/messages';
 
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -65,8 +66,11 @@ export function describeApiError(
     const byCode = cause.errorCode !== null ? CODE_KEYS[cause.errorCode] : undefined;
     if (byCode !== undefined) return t(byCode);
     if (cause.status === 401 || cause.status === 403) return t('state.error.forbidden');
-    // Статус 0 транспорт ставит, когда ответа не было вовсе: сеть, выключенный сервер, CORS.
-    if (cause.status === 0) return t('state.error.network');
+    // Статус 0 транспорт ставит, когда ответа не было вовсе. «Не дождались» и «не дозвонились» —
+    // разные беды: в первом случае запрос ушёл и мог выполниться, во втором точно нет.
+    if (cause.status === 0) {
+      return cause.errorCode === TransportErrorCodes.Timeout ? t('state.error.timeout') : t('state.error.network');
+    }
     return t('state.error.server');
   }
   // Сетевой сбой до ответа — fetch бросает TypeError без статуса.

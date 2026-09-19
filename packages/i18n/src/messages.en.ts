@@ -3715,6 +3715,7 @@ export const en = {
   "state.error.forbidden": "You do not have the rights for this action.",
   "state.error.network": "No connection to the platform server. Check the connection and try again.",
   "state.error.server": "The platform server returned an error. Try again later.",
+  "state.error.timeout": "The platform server did not answer in time. Try again.",
   "state.forbidden.message": "This page is not available to your platform role.",
   "state.forbidden.title": "Access denied",
   "state.loading": "Loading…",

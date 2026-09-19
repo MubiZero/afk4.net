@@ -23,6 +23,15 @@ export type SignInOutcome = {
   expiresAtUtc: string;
 };
 
+/**
+ * Причины, по которым ответа не было вовсе. Статус в таких случаях 0 — сервер ничего не сказал, и
+ * различить «не дождались» и «не дозвонились» можно только здесь.
+ */
+export const TransportErrorCodes = {
+  Timeout: 'transport_timeout',
+  Network: 'transport_network'
+} as const;
+
 export class PlatformApiError extends Error {
   public readonly status: number;
   public readonly errorCode: string | null;
@@ -46,6 +55,16 @@ export class PlatformApiError extends Error {
     this.body = body;
   }
 }
+
+/**
+ * Сколько ждём ответ, прежде чем считать запрос потерянным.
+ *
+ * Без предела вкладка висела на «Сохраняю…» до тех пор, пока браузер сам не оборвёт соединение —
+ * а он ждёт минутами. Для человека за панелью это неотличимо от зависшего приложения: кнопка
+ * заблокирована, отменить нечем, остаётся перезагрузить страницу и гадать, прошла операция или нет.
+ * Двадцати секунд хватает любому запросу панели с большим запасом.
+ */
+const REQUEST_TIMEOUT_MS = 20_000;
 
 // Thrown when a 200 sign-in response doesn't match the shape the current bundle expects. Deploys
 // of the Platform API and the panel bundle are two independent Coolify apps with no shared release
@@ -84,6 +103,8 @@ export interface PlatformTransportOptions {
   fetchImpl?: FetchLike;
   session: PlatformAdminSession | null;
   onSessionChanged: (session: PlatformAdminSession | null) => void;
+  /// Предел ожидания ответа. Задаётся только в тестах — ждать в них настоящие двадцать секунд нечем.
+  timeoutMs?: number;
 }
 
 /**
@@ -96,6 +117,7 @@ export class PlatformTransport {
   private readonly baseUrl: string;
   private readonly fetchImpl: FetchLike;
   private readonly onSessionChanged: (session: PlatformAdminSession | null) => void;
+  private readonly timeoutMs: number;
   private inflightRefresh: Promise<PlatformAdminSession | null> | null = null;
 
   public constructor(options: PlatformTransportOptions) {
@@ -103,6 +125,7 @@ export class PlatformTransport {
     this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
     this.session = options.session;
     this.onSessionChanged = options.onSessionChanged;
+    this.timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
   }
 
   public getSession(): PlatformAdminSession | null {
@@ -113,7 +136,7 @@ export class PlatformTransport {
   // caller decides where to go next from `twoFactorConfigured`: an already-configured admin goes
   // to completeTwoFactor (verify), a first-timer goes to beginTwoFactorSetup.
   public async signIn(userName: string, password: string): Promise<SignInOutcome> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/sign-in`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/api/platform/auth/sign-in`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userName, password })
@@ -136,7 +159,7 @@ export class PlatformTransport {
   // Step 2a (first-time setup): returns the TOTP secret/QR link for a challenge that hasn't
   // configured 2FA yet. No session change — the admin hasn't proven a code yet.
   public async beginTwoFactorSetup(challengeToken: string): Promise<TwoFactorSetupResponse> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/setup`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/api/platform/auth/2fa/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ challengeToken })
@@ -150,7 +173,7 @@ export class PlatformTransport {
   // Step 2a confirm: proves the first TOTP code and issues the real session plus one-time
   // recovery codes. This is the only place a first-time setup applies a session.
   public async completeTwoFactorSetup(challengeToken: string, code: string): Promise<TwoFactorSetupConfirmResponse> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/setup/confirm`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/api/platform/auth/2fa/setup/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ challengeToken, code })
@@ -169,7 +192,7 @@ export class PlatformTransport {
   // Step 2b: for an already-configured admin, verifies either a TOTP code or a recovery code and
   // issues the working session.
   public async completeTwoFactor(challengeToken: string, code: string): Promise<PlatformAdminSession> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/verify`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/api/platform/auth/2fa/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ challengeToken, code })
@@ -191,7 +214,7 @@ export class PlatformTransport {
       return;
     }
     try {
-      await this.fetchImpl(`${this.baseUrl}/api/platform/auth/sign-out`, {
+      await this.fetchWithTimeout(`${this.baseUrl}/api/platform/auth/sign-out`, {
         method: 'POST',
         headers: this.buildHeaders(),
         body: JSON.stringify({ refreshToken: this.session.refreshToken })
@@ -233,8 +256,20 @@ export class PlatformTransport {
     return response.blob();
   }
 
-  public async sendIdempotent<T>(method: string, path: string, body: unknown | undefined): Promise<T> {
-    const idempotencyKey = crypto.randomUUID();
+  /**
+   * Запрос, который сервер не выполнит дважды по одному ключу.
+   *
+   * Ключ можно передать снаружи и это главное: повтор после «не дождались ответа» обязан нести
+   * ТОТ ЖЕ ключ, иначе повторная попытка человека — это второй счёт, вторая организация, второе
+   * списание. Свой ключ на каждый вызов защищает только от двойного клика по одной кнопке.
+   */
+  public async sendIdempotent<T>(
+    method: string,
+    path: string,
+    body: unknown | undefined,
+    key?: string
+  ): Promise<T> {
+    const idempotencyKey = key ?? crypto.randomUUID();
     let response = await this.dispatch(method, path, body, { 'Idempotency-Key': idempotencyKey });
     if (response.status === 401 && this.session !== null) {
       const refreshed = await this.refreshTokenOnce();
@@ -269,11 +304,35 @@ export class PlatformTransport {
         headers[k] = v;
       }
     }
-    const init: RequestInit = { method, headers, signal };
+    const init: RequestInit = { method, headers };
     if (body !== undefined) {
       init.body = JSON.stringify(body);
     }
-    return this.fetchImpl(`${this.baseUrl}${path}`, init);
+    return this.fetchWithTimeout(`${this.baseUrl}${path}`, init, signal);
+  }
+
+  /**
+   * Запрос с пределом ожидания и с понятным исходом вместо сырого сбоя fetch.
+   *
+   * Отмена вызывающим (устаревший поиск, ушедший экран) пробрасывается как есть — это не ошибка, и
+   * показывать по ней ничего не надо. Всё остальное — молчащий сервер, оборванная сеть, CORS —
+   * превращается в PlatformApiError со статусом 0: у экранов уже есть разбор по статусу, и один
+   * язык ошибок лучше двух.
+   */
+  private async fetchWithTimeout(url: string, init: RequestInit, callerSignal?: AbortSignal): Promise<Response> {
+    const timeout = AbortSignal.timeout(this.timeoutMs);
+    const signal = callerSignal === undefined ? timeout : AbortSignal.any([callerSignal, timeout]);
+    try {
+      return await this.fetchImpl(url, { ...init, signal });
+    } catch (cause) {
+      if (callerSignal?.aborted === true) {
+        throw cause;
+      }
+      if (timeout.aborted) {
+        throw new PlatformApiError(0, 'Platform API did not answer in time.', TransportErrorCodes.Timeout);
+      }
+      throw new PlatformApiError(0, 'Platform API is unreachable.', TransportErrorCodes.Network);
+    }
   }
 
   private buildHeaders(): Record<string, string> {
@@ -293,16 +352,26 @@ export class PlatformTransport {
         return null;
       }
       try {
-        const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/refresh`, {
+        const response = await this.fetchWithTimeout(`${this.baseUrl}/api/platform/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: this.session.refreshToken })
         });
-        if (!response.ok) {
+        // Токен отвергнут — сессии больше нет, и держать её значит водить человека по пустым
+        // экранам. Всё остальное (500, 502, молчащий сервер, оборванная сеть) — беда на той
+        // стороне: продлить не вышло сейчас, но выкидывать за это из панели нельзя, иначе
+        // короткий сбой стоит администратору повторного входа с кодом из телефона.
+        if (response.status === 401 || response.status === 403) {
           this.applySession(null);
           return null;
         }
+        if (!response.ok) {
+          return null;
+        }
         const body = (await response.json()) as PlatformAdminSignInResponse;
+        if (!isValidSessionResponse(body)) {
+          throw new PlatformStaleClientError();
+        }
         const refreshed = sessionFromSignInResponse(body);
         this.applySession(refreshed);
         return refreshed;

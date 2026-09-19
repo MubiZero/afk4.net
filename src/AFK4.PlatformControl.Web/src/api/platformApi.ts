@@ -23,7 +23,7 @@ import { NetworkPeopleApi } from './platformClients/people';
 import { OffboardingApi } from './platformClients/offboarding';
 import { HealthApi } from './platformClients/health';
 
-export { PlatformApiError, PlatformStaleClientError } from './platformTransport';
+export { PlatformApiError, PlatformStaleClientError, TransportErrorCodes } from './platformTransport';
 export type { SignInOutcome } from './platformTransport';
 
 export type PlatformApiClientOptions = PlatformTransportOptions;

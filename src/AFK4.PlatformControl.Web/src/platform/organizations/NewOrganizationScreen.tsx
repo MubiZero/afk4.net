@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import { OrganizationPlanCode, SubscriptionStatus, type CreateOrganizationResponse, type OrganizationLimits } from '@/api/types';
@@ -57,6 +58,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
+  const attempt = useAttemptKey();
 
   function update(field: keyof FormState, value: string) {
     setForm(current => ({ ...current, [field]: value }));
@@ -67,7 +69,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
     setSubmitting(true);
     setError(null);
     try {
-      const response = await client.createOrganization({
+      const request = {
         organizationSlug: form.organizationSlug.trim(),
         organizationName: form.organizationName.trim(),
         branchSlug: form.branchSlug.trim(),
@@ -79,7 +81,9 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         ownerUserName: form.ownerUserName.trim() === '' ? null : form.ownerUserName.trim(),
         ownerDisplayName: form.ownerDisplayName.trim() === '' ? null : form.ownerDisplayName.trim(),
         organizationOwnerInviteLifetime: null
-      });
+      };
+      const response = await client.createOrganization(request, attempt.forSubject(request));
+      attempt.done();
       toast({ title: t('platform.newOrganization.created'), variant: 'success' });
       onCreated(response);
     } catch (cause) {
