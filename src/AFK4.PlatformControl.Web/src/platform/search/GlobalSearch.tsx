@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import { Search } from 'lucide-react';
 import type { SearchApi, PlatformSearchResult } from '@/api/platformClients/search';
+import { Button } from '@/components/ui/button';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import { nextSearchIndex, SEARCH_KIND_LABEL } from './searchModel';
 
@@ -14,6 +16,8 @@ export function GlobalSearch({ client, onNavigate }: {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlatformSearchResult[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
   const open = query.trim().length >= 2 && status !== 'idle';
 
@@ -27,13 +31,14 @@ export function GlobalSearch({ client, onNavigate }: {
       client.search(normalized, controller.signal).then(value => {
         if (currentRequest !== requestId.current) return;
         setResults(value); setStatus('ready'); setActiveIndex(-1);
-      }).catch(() => {
+      }).catch((cause: unknown) => {
         if (controller.signal.aborted || currentRequest !== requestId.current) return;
-        setResults([]); setStatus('error'); setActiveIndex(-1);
+        setResults([]); setError(describeApiError(cause, t)); setStatus('error'); setActiveIndex(-1);
       });
     }, 180);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [client, query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, query, attempt]);
 
   function choose(result: PlatformSearchResult) {
     setQuery(''); setStatus('idle'); onNavigate(result.href);
@@ -52,7 +57,7 @@ export function GlobalSearch({ client, onNavigate }: {
           type="search"
           role="combobox"
           aria-label={t('platform.search.label')}
-          aria-expanded={open}
+          aria-expanded={open && status !== 'error'}
           aria-controls={listboxId}
           aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
           placeholder={t('platform.search.placeholder')}
@@ -76,10 +81,17 @@ export function GlobalSearch({ client, onNavigate }: {
         {status === 'ready' ? t('platform.search.resultCount', { count: formatNumber(results.length) }) : ''}
       </span>
 
-      {open ? (
+      {/* Поиск, который сорвался, раньше показывал одну фразу без выхода: повторить тот же запрос
+          было нечем — приходилось стирать строку и набирать её заново. Отдельная ветка, а не пункт
+          в списке результатов: кнопке не место среди option, читалка её там не назовёт. */}
+      {open && status === 'error' ? (
+        <div role="status" className="pc-search-results">
+          <p className="pc-search-empty">{error ?? t('platform.search.error')}</p>
+          <Button variant="outline" size="sm" onClick={() => setAttempt(value => value + 1)}>{t('state.retry')}</Button>
+        </div>
+      ) : open ? (
         <div id={listboxId} role="listbox" className="pc-search-results">
           {status === 'loading' ? <p className="pc-search-empty">{t('platform.search.loading')}</p>
-            : status === 'error' ? <p className="pc-search-empty">{t('platform.search.error')}</p>
             : results.length === 0 ? <p className="pc-search-empty">{t('platform.search.empty')}</p>
             : results.map((result, index) => (
               <a

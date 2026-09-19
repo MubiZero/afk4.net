@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { HealthScreen } from './HealthScreen';
 import type { HealthOverview, Incident, JobHealth, QueueHealth } from '@/api/types';
+import { PlatformApiError, TransportErrorCodes } from '@/api/platformApi';
 
 function job(overrides: Partial<JobHealth> = {}): JobHealth {
   return {
@@ -165,4 +166,21 @@ it('hides the test email card without the permission', async () => {
 
   expect(await screen.findByText('Здоровье платформы')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Отправить проверочное письмо' })).toBeNull();
+});
+
+// Сорвавшийся запрос — это не отказ почты: письмо до сервера даже не дошло. Красное «не
+// доставлено» здесь утверждало бы про почту то, чего никто не проверял, и ради этой проверки
+// кто-то полез бы чинить исправный канал.
+it('не выдаёт сорвавшуюся проверку за недоставленное письмо', async () => {
+  const client = {
+    getOverview: mock().mockResolvedValue(overview({})),
+    sendTestEmail: mock().mockRejectedValue(new PlatformApiError(0, 'unreachable', TransportErrorCodes.Network))
+  };
+  render(<I18nProvider><HealthScreen client={client} canSendTestEmail /></I18nProvider>);
+
+  fireEvent.change(await screen.findByLabelText('Куда отправить'), { target: { value: 'me@mubi.dev' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить проверочное письмо' }));
+
+  expect(await screen.findByText(/Проверить не вышло/u)).toBeTruthy();
+  expect(screen.queryByText('Письмо не ушло')).toBeNull();
 });

@@ -33,8 +33,15 @@ it('supports keyboard selection and Escape', async () => {
   expect(input).toHaveValue('');
 });
 
+// Сорвавшийся поиск называет причину и даёт выход: раньше здесь была одна фраза без кнопки, и
+// повторить тот же запрос можно было только стерев строку и набрав её заново.
 it('shows transport failure without stale results', async () => {
-  render(<I18nProvider><GlobalSearch client={{ search: mock().mockRejectedValue(new Error('offline')) }} onNavigate={() => {}} /></I18nProvider>);
+  const search = mock().mockRejectedValueOnce(new Error('offline')).mockResolvedValue([]);
+  render(<I18nProvider><GlobalSearch client={{ search }} onNavigate={() => {}} /></I18nProvider>);
   fireEvent.change(screen.getByRole('combobox'), { target: { value: 'orion' } });
-  expect(await screen.findByText('Поиск временно недоступен.')).toBeVisible();
+
+  expect(await screen.findByText('Сервер платформы вернул ошибку. Повторите позже.')).toBeVisible();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
 });
