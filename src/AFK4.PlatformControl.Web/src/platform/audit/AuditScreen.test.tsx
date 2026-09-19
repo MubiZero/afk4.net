@@ -39,7 +39,7 @@ it('объект, исход и источник записи названы с�
   render(<I18nProvider><AuditScreen client={{ search }} organizationsClient={{ listOrganizations: mock().mockResolvedValue([{ organizationId: 'o1', name: 'Orion Gaming' }]) }} filters={{ organizationId: '', action: '', outcome: '', from: '', to: '' }} onFiltersChange={mock()} /></I18nProvider>);
 
   const table = within(await screen.findByRole('table'));
-  expect(table.getByText('Код доступа владельца · inv-1')).toBeVisible();
+  expect(table.getByText('Код приглашения владельца · inv-1')).toBeVisible();
   expect(table.getByText('Отказано')).toBeVisible();
   expect(table.getByText('Сервер платформы')).toBeVisible();
   // Клуб назван именем: идентификатор в этой колонке опознать нечем.

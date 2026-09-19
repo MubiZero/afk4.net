@@ -133,7 +133,7 @@ it('выданный код можно передать ссылкой, а не 
 
   fireEvent.click(await screen.findByRole('button', { name: 'Создать код' }));
 
-  expect(await screen.findByLabelText('Код доступа')).toHaveValue('OWN-98765');
+  expect(await screen.findByLabelText('Код приглашения')).toHaveValue('OWN-98765');
   expect(screen.getByLabelText('Ссылка для активации')).toHaveValue(
     `${window.location.origin}/account-activation?code=OWN-98765`
   );

@@ -69,12 +69,17 @@ it('фоновое обновление не стирает то, что уже 
   const load = mock()
     .mockResolvedValueOnce(['было'])
     .mockResolvedValue(['стало']);
-  const { result } = renderHook(() => useLoadable(load, [], { refreshMs: 30 }), { wrapper });
+  const seen: string[] = [];
+  const { result } = renderHook(() => {
+    const state = useLoadable(load, [], { refreshMs: 50 });
+    seen.push(state.status);
+    return state;
+  }, { wrapper });
 
-  await waitFor(() => expect(result.current.status).toBe('ready'));
-  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
-
-  // Между двумя ответами статус остаётся ready — ожидание не показывается.
-  expect(result.current.status).toBe('ready');
   await waitFor(() => expect(result.current.status === 'ready' && result.current.data).toEqual(['стало']));
+
+  // Ожидание бывает только до первого ответа: как только на экране что-то есть, фоновое
+  // обновление его не подменяет.
+  const afterFirstAnswer = seen.slice(seen.indexOf('ready'));
+  expect(afterFirstAnswer).not.toContain('loading');
 });

@@ -63,7 +63,7 @@ describe('AdminInviteDialog', () => {
     expect(screen.getByLabelText('Ссылка для активации')).toHaveValue(
       `${window.location.origin}/account-activation?kind=platform-admin&code=INV-123`
     );
-    expect(screen.getByLabelText('Код доступа')).toHaveValue('INV-123');
+    expect(screen.getByLabelText('Код приглашения')).toHaveValue('INV-123');
   });
 
   it('обновляет список только после того, как код показали', async () => {
