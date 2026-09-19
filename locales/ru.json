@@ -2951,6 +2951,7 @@
   "platform.clubs.row.expand": "Показать клубы сети {name}",
   "platform.clubs.row.noClubs": "У этой сети пока нет клубов.",
   "platform.clubs.row.seatsOccupied": "{occupied} из {total} мест занято",
+  "platform.clubs.snapshotAt": "Данные на {time}",
   "platform.clubs.subtitle": "Состояние сетей и клубов прямо сейчас.",
   "platform.clubs.title": "Клубы",
   "platform.clubs.view.all": "Все",

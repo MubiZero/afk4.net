@@ -62,3 +62,19 @@ describe('useLoadable', () => {
     expect(load.mock.calls.map(call => call[0])).toEqual(['org-1', 'org-2']);
   });
 });
+
+// Дежурный экран держат открытым весь день. Фоновое обновление не должно подменять содержимое
+// ожиданием: мигающий раз в минуту скелетон сделал бы такой экран нечитаемым.
+it('фоновое обновление не стирает то, что уже на экране', async () => {
+  const load = mock()
+    .mockResolvedValueOnce(['было'])
+    .mockResolvedValue(['стало']);
+  const { result } = renderHook(() => useLoadable(load, [], { refreshMs: 30 }), { wrapper });
+
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+
+  // Между двумя ответами статус остаётся ready — ожидание не показывается.
+  expect(result.current.status).toBe('ready');
+  await waitFor(() => expect(result.current.status === 'ready' && result.current.data).toEqual(['стало']));
+});
