@@ -21,5 +21,5 @@ it('renders the authoritative organization audit history', async () => {
 
   await waitFor(() => expect(screen.getByText('tenancy.organization.status.update')).toBeVisible());
   expect(client.listOrganizationHistory).toHaveBeenCalledWith('o1');
-  expect(screen.getByText('Клуб-клиент · o1')).toBeVisible();
+  expect(screen.getByText('Организация · o1')).toBeVisible();
 });

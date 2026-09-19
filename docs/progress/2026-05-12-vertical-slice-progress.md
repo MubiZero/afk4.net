@@ -497,6 +497,84 @@ because the CI caught both and the next stacked series will hit them again:
   all their branches, zones and photos, plus six unbounded helper queries. It grows with the
   platform, not with the player; reshaping the storefront response is its own task.
 
+## Platform Control Audit (2026-09-19)
+
+Two passes over the platform panel (`src/AFK4.PlatformControl.Web`), the last part of the
+product without an audit of its own, same method as before: first classes of defect, then
+friction in real scenarios. Eight PRs (#361–#368), stacked; every check green at each step.
+What the audit found clean: almost every mutating button was already guarded against a
+double click (one exception, "Sign out"), error text for *actions* already went through
+`describeApiError` with server error codes parsed by name, and money everywhere goes
+through the shared formatter.
+
+**Pass one — defects.**
+
+- **No request had a deadline** (#361). Not one route. A silent server left the tab on
+  "Saving…" until the browser gave up on its own, which takes minutes. Twenty seconds now,
+  and a timeout is told apart from an unreachable server: the first means the request left
+  and may have been carried out.
+- **A retry created a second one** (#361). `sendIdempotent` minted a fresh key per call, so
+  it only ever protected against a double click — not against the case it exists for, a
+  retry after a lost answer. `useAttemptKey` keeps the key for the attempt and ties it to
+  the request body, so a corrected amount is a new attempt (the server rejects the same key
+  with a different body). Creating a club went through `send` entirely, although the server
+  has held `platform.organizations.create` idempotency all along.
+- **A refresh hiccup signed the admin out** (#361). Any non-OK answer to `/auth/refresh` —
+  500, 502, a dropped connection — wiped the session; the admin paid for someone else's
+  outage with a fresh sign-in and a code from their phone.
+- **"Не удалось загрузить данные" stood on twenty-odd screens** (#362) and meant anything:
+  no permission, no network, server down. Ten near-identical loader hooks put the
+  transport's English technical string into state, and the screens did not even read it.
+  One `useLoadable` now owns loading, and the reason reaches the eye; the specific "what did
+  not load" stays as the heading next to it.
+- **Five places swallowed failures silently** (#363). The client passport's price and next
+  invoice stayed a skeleton forever, its owner row quietly became "—" (which means "no
+  owner"), and its main button opened nothing because the subscription was never in hand.
+  The subscription dialog left one plan in the list without a word. The mail check painted a
+  red "не ушло" on a request that never reached the server — a claim about mail nobody had
+  tested. Global search had no way back from an error.
+- **Server codes were on screen where words belonged** (#364): the journal showed
+  `OrganizationOwnerInvite`, `Denied`, `PlatformApi`; the passport printed raw `stable`; the
+  account menu listed machine permission keys that already have translations in the roles
+  section; chart tooltips were labelled `recurring`/`oneOff`. The *action* in the journal
+  stays machine-readable on purpose — about two hundred of them, they match what goes to the
+  logs, and half-translating is worse than an honest code.
+- **The fleet pulse read whole tables to produce a few dozen numbers** (#365): every device,
+  every seat, every open session of the network came into memory to be counted. The database
+  counts now; the number of queries is unchanged.
+
+**Pass two — friction.**
+
+- **The journal answered "who touched this club" with a column of GUIDs** (#366), and
+  filtering by club meant fetching the id from the club's URL. The record now carries the
+  club's name, the club filter is a list, and the outcome filter is three words instead of
+  free-typed English.
+- **Duty screens showed a snapshot without saying so** (#367). The fleet overview is called
+  "Now", is kept open all day, and never refreshed. It re-reads itself every minute now
+  (health every two), both say what moment they show, and a background refresh neither
+  shows a spinner nor blanks the screen. A hidden tab polls nothing.
+- **The owner's access code could only be retyped** (#368). Inviting a platform teammate was
+  done properly — warning, activation link, copy buttons — while the club owner's code, the
+  same act performed more often, was a bare string in a table cell. Both now share one
+  block; a failed clipboard write no longer passes silently.
+
+**Deliberately not done, with reasons.**
+
+- **Rollouts still go to every club at once.** Publishing a package creates a 100% rollout
+  across the whole network, and the code says this was chosen on purpose ("ceremony costs
+  more than it buys at this scale"), guarded by a test that spells out the reason. The
+  server supports waves (`BatchPercent` with stable per-device bucketing) and the panel
+  could offer them, but reversing a deliberate product decision is the owner's call — and a
+  wave that nobody widens leaves half the fleet on an old version silently, because there is
+  no rollout progress view at all. Waves and progress belong together, as one decision.
+- **Action names in the audit journal stay machine-readable** (see above).
+- **The health screen still shows raw template keys** for failed deliveries. That screen is
+  read by a technical role, and the key is how the template file is found; translating it
+  would cost the link to the artefact.
+- **Platform lists remain unpaged** — the known debt: organizations, invoices, subscriptions
+  and the audit search all load in one go (audit caps at 100 rows). It holds at tens of
+  clubs and needs revisiting at hundreds.
+
 ## Latest Verification
 
 - Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
@@ -777,17 +855,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Recommended Next Work
 
-The order is the owner's, set on 2026-09-16: **every live run is frozen** — the
+Platform Control was audited on 2026-09-19 (#361–#368), which closes the last
+part that had none. The order is the owner's, set on 2026-09-16: **every live run
+is frozen** — the
 clean `manager_workstation` pass, the physical gaming-PC smoke and the staging
 money pass all wait until the code of every part is finished and satisfies the
 owner. The Player Shell is last of all, and its current implementation is to be
 thrown away rather than polished.
 
-1. **Platform Control** — the last part with no audit of its own. The player app
-   audit closed on 2026-09-18 (#337–#357); Organization Admin, the Agent service
-   and the Setup Wizard were audited earlier. Platform Control has only been
-   touched in passing, and its list pages are the known unpaged ones.
-2. **The Player Shell, rewritten.** It is the least finished part of the
+1. **The Player Shell, rewritten.** It is the least finished part of the
    product: nine screens, ~1100 lines, its own inline styles instead of the kit
    and tokens, and hardcoded Russian in every screen although `@afk4/i18n` is a
    declared dependency and the agent already sends the branch's `Locale` (which
@@ -795,6 +871,14 @@ thrown away rather than polished.
    work that has to live in an interactive process: kiosk input blocking,
    «позвать оператора» (needs a backend route — there is none), «пауза» (needs a
    session endpoint — there is none), empty states in shop/extend.
+2. **Rollouts in waves, with a progress view — an owner's decision, not ours.**
+   Publishing a package still reaches every club at once, which is a deliberate
+   choice recorded in the code and guarded by a test. The server already supports
+   waves; what is missing on both paths is any view of how a rollout is going
+   (device-level install/failure counts exist in `DeviceUpdateStatuses` and feed
+   the pulse alert, but no endpoint exposes them). Waves without that view trade
+   one risk for another: a wave nobody widens leaves part of the fleet on an old
+   version silently. Decide the pair together.
 3. **Operator entity search** — the palette finds people but still not seats,
    reservations, orders or receipts.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:

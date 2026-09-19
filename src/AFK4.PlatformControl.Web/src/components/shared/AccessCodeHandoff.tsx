@@ -37,20 +37,20 @@ export function AccessCodeHandoff({ code, activationUrl, idPrefix }: {
 
   return (
     <>
-      <p role="alert">{t('platform.accessCode.warning')}</p>
-      <Field label={t('platform.accessCode.link')} htmlFor={`${idPrefix}-link`}>
+      <p role="alert">{t('platform.inviteCode.warning')}</p>
+      <Field label={t('platform.inviteCode.link')} htmlFor={`${idPrefix}-link`}>
         <Input id={`${idPrefix}-link`} readOnly value={activationUrl} onFocus={event => event.currentTarget.select()} />
       </Field>
       <Button onClick={() => void copy('link', activationUrl)}>
-        {copied === 'link' ? t('platform.accessCode.copied') : t('platform.accessCode.copyLink')}
+        {copied === 'link' ? t('platform.inviteCode.copied') : t('platform.inviteCode.copyLink')}
       </Button>
-      <Field label={t('platform.accessCode.code')} htmlFor={`${idPrefix}-code`}>
+      <Field label={t('platform.inviteCode.code')} htmlFor={`${idPrefix}-code`}>
         <Input id={`${idPrefix}-code`} readOnly value={code} onFocus={event => event.currentTarget.select()} />
       </Field>
       <Button variant="outline" onClick={() => void copy('code', code)}>
-        {copied === 'code' ? t('platform.accessCode.copied') : t('platform.accessCode.copyCode')}
+        {copied === 'code' ? t('platform.inviteCode.copied') : t('platform.inviteCode.copyCode')}
       </Button>
-      {failed ? <p role="alert" className="mgmt-drawer-hint">{t('platform.accessCode.copyFailed')}</p> : null}
+      {failed ? <p role="alert" className="mgmt-drawer-hint">{t('platform.inviteCode.copyFailed')}</p> : null}
     </>
   );
 }
