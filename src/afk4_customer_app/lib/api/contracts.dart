@@ -335,6 +335,7 @@ class AuditRecordDto {
     required this.detailsJson,
     required this.createdAtUtc,
     this.actorPlatformAdminUserId,
+    this.organizationName,
     this.amountMinorUnits,
   });
 
@@ -350,6 +351,11 @@ class AuditRecordDto {
   final String detailsJson;
   final DateTime createdAtUtc;
   final String? actorPlatformAdminUserId;
+
+  /// Имя клуба-клиента, к которому относится запись. Панель платформы смотрит журнал
+  /// поверх всей сети, и опознавательный знак «кто» там — имя, а не идентификатор: наизусть их
+  /// не знает никто. Пусто, если организация к моменту чтения журнала уже удалена.
+  final String? organizationName;
   final int? amountMinorUnits;
 
   factory AuditRecordDto.fromJson(Map<String, dynamic> json) => AuditRecordDto(
@@ -365,6 +371,7 @@ class AuditRecordDto {
         detailsJson: json['detailsJson'] as String,
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         actorPlatformAdminUserId: json['actorPlatformAdminUserId'] == null ? null : json['actorPlatformAdminUserId'] as String,
+        organizationName: json['organizationName'] == null ? null : json['organizationName'] as String,
         amountMinorUnits: json['amountMinorUnits'] == null ? null : (json['amountMinorUnits'] as num).toInt(),
       );
 
@@ -381,6 +388,7 @@ class AuditRecordDto {
         'detailsJson': detailsJson,
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'actorPlatformAdminUserId': actorPlatformAdminUserId,
+        'organizationName': organizationName,
         'amountMinorUnits': amountMinorUnits,
       };
 }

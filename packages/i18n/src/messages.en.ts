@@ -2835,6 +2835,7 @@ export const en = {
   "platform.audit.error": "Failed to load audit records.",
   "platform.audit.from": "From date",
   "platform.audit.organization": "Organization ID",
+  "platform.audit.organization.all": "All clubs",
   "platform.audit.outcome": "Outcome",
   "platform.audit.source": "Source",
   "platform.audit.source.Agent": "Club agent",
