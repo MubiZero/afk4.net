@@ -17,10 +17,16 @@ export function LoadingCards({ count = 4 }: { count?: number }) {
   );
 }
 
-export function ErrorState({ message, retryLabel, onRetry }: { message: string; retryLabel: string; onRetry: () => void }) {
+/// `title` — что именно не загрузилось, `message` — почему. Порознь они неполны: «не удалось
+/// загрузить фичи клуба» не подсказывает, чинить ли права или подождать сервер, а голое
+/// «недостаточно прав» на странице с семью разделами не говорит, к какому из них это относится.
+export function ErrorState({ title, message, retryLabel, onRetry }: {
+  title?: string; message: string; retryLabel: string; onRetry: () => void;
+}) {
   return (
     <div className="empty-state" role="alert">
       <AlertTriangle className="empty-state-icon" size={22} aria-hidden="true" />
+      {title !== undefined ? <h2>{title}</h2> : null}
       <p>{message}</p>
       <Button onClick={onRetry}>{retryLabel}</Button>
     </div>

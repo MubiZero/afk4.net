@@ -1,0 +1,47 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { describeApiError } from '@/api/describeApiError';
+import { useI18n } from '@/i18n/I18nProvider';
+
+export type Loadable<T> =
+  | { status: 'loading'; retry: () => void }
+  | { status: 'error'; message: string; retry: () => void }
+  | { status: 'ready'; data: T; apply: (next: T) => void; retry: () => void };
+
+/**
+ * Загрузка данных раздела: ожидание, причина отказа, повтор.
+ *
+ * Причина — главное, ради чего это одно место вместо десяти похожих. Раньше каждый раздел ловил
+ * ошибку сам и клал в состояние техническую английскую строку транспорта, а на экран выводил
+ * общее «Не удалось загрузить данные»: сотрудник без права на биллинг, отключённый интернет и
+ * упавший сервер выглядели одинаково, хотя первое чинится начальником, второе — проводом, а
+ * третье не чинится вовсе и надо просто подождать. Сервер присылает код, `describeApiError` знает
+ * все коды — здесь они наконец доезжают до глаз.
+ *
+ * `deps` — то, от чего зависит сам запрос (идентификатор организации, выбранный период): их смена
+ * загружает заново, как и `retry()`.
+ */
+export function useLoadable<T>(load: () => Promise<T>, deps: readonly unknown[] = []): Loadable<T> {
+  const { t } = useI18n();
+  const [tick, setTick] = useState(0);
+  const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: T; message?: string }>({ status: 'loading' });
+  const retry = useCallback(() => setTick(value => value + 1), []);
+  const apply = useCallback((next: T) => setState({ status: 'ready', data: next }), []);
+  // Запрос пересобирается на каждой отрисовке вместе с замыканием на клиента и параметры, но
+  // перезапускать его из-за этого нельзя — иначе раздел грузился бы бесконечно.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: 'loading' });
+    loadRef.current()
+      .then(data => { if (!cancelled) setState({ status: 'ready', data }); })
+      .catch((cause: unknown) => { if (!cancelled) setState({ status: 'error', message: describeApiError(cause, t) }); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick, ...deps]);
+
+  if (state.status === 'ready') return { status: 'ready', data: state.data as T, apply, retry };
+  if (state.status === 'error') return { status: 'error', message: state.message ?? '', retry };
+  return { status: 'loading', retry };
+}

@@ -1,36 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AdminsApi } from '@/api/platformClients/admins';
 import type { PlatformAdminInvitation, PlatformAdminListItem } from '@/api/types';
+import { useLoadable, type Loadable } from '../useLoadable';
 
-export type AdminsState =
-  | { status: 'loading'; retry: () => void }
-  | { status: 'error'; message: string; retry: () => void }
-  | { status: 'ready'; admins: PlatformAdminListItem[]; invitations: PlatformAdminInvitation[]; retry: () => void };
+/// Люди платформы и приглашения, которые ещё не приняты: раздел показывает их вместе, и порознь
+/// они бессмысленны — приглашение без списка не с чем сравнить.
+export interface AdminsData {
+  admins: PlatformAdminListItem[];
+  invitations: PlatformAdminInvitation[];
+}
 
-type Loadable = Pick<AdminsApi, 'listAdmins' | 'listInvitations'>;
+export type AdminsState = Loadable<AdminsData>;
 
-export function useAdmins(client: Loadable): AdminsState {
-  const [tick, setTick] = useState(0);
-  const [state, setState] = useState<{
-    status: 'loading' | 'error' | 'ready';
-    admins?: PlatformAdminListItem[];
-    invitations?: PlatformAdminInvitation[];
-    message?: string;
-  }>({ status: 'loading' });
-  const retry = useCallback(() => setTick(t => t + 1), []);
-  const clientRef = useRef(client);
-  clientRef.current = client;
+type Client = Pick<AdminsApi, 'listAdmins' | 'listInvitations'>;
 
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: 'loading' });
-    Promise.all([clientRef.current.listAdmins(), clientRef.current.listInvitations()])
-      .then(([admins, invitations]) => { if (!cancelled) setState({ status: 'ready', admins, invitations }); })
-      .catch((err: unknown) => { if (!cancelled) setState({ status: 'error', message: err instanceof Error ? err.message : 'error' }); });
-    return () => { cancelled = true; };
-  }, [tick]);
-
-  if (state.status === 'ready') return { status: 'ready', admins: state.admins!, invitations: state.invitations!, retry };
-  if (state.status === 'error') return { status: 'error', message: state.message ?? 'error', retry };
-  return { status: 'loading', retry };
+export function useAdmins(client: Client): AdminsState {
+  return useLoadable(async () => {
+    const [admins, invitations] = await Promise.all([client.listAdmins(), client.listInvitations()]);
+    return { admins, invitations };
+  });
 }

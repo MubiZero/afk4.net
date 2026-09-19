@@ -108,9 +108,9 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
   }
 
   if (state.status === 'loading') return <LoadingCards count={2} />;
-  if (state.status === 'error') return <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
 
-  const { admins, invitations } = state;
+  const { admins, invitations } = state.data;
   const pendingInvitations = invitations.filter(invitation => invitation.status === 'pending');
   const isEmpty = admins.length === 0 && pendingInvitations.length === 0;
 

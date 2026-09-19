@@ -3,6 +3,15 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useOrganizationDetail } from './useOrganizationDetail';
 import type { OrganizationDetail } from '@/api/types';
 
+import type { ReactNode } from 'react';
+import { I18nProvider } from '@/i18n/I18nProvider';
+
+// Причина отказа теперь приходит из каталога строк (см. useLoadable), поэтому хук живёт внутри
+// провайдера — как и в самом приложении.
+function wrapper({ children }: { children: ReactNode }) {
+  return <I18nProvider>{children}</I18nProvider>;
+}
+
 function detail(over: Partial<OrganizationDetail>): OrganizationDetail {
   return {
     organizationId: 'o1', slug: 'acme', name: 'Acme', status: 'active', statusReason: null,
@@ -18,7 +27,7 @@ function fakeClient(over: Partial<Record<'getOrganization', unknown>> = {}) {
 
 describe('useOrganizationDetail', () => {
   it('reaches ready and apply swaps the detail in place', async () => {
-    const { result } = renderHook(() => useOrganizationDetail(fakeClient(), 'o1'));
+    const { result } = renderHook(() => useOrganizationDetail(fakeClient(), 'o1'), { wrapper });
     await waitFor(() => expect(result.current.status).toBe('ready'));
     act(() => { if (result.current.status === 'ready') result.current.apply(detail({ name: 'Renamed' })); });
     if (result.current.status === 'ready') expect(result.current.data.name).toBe('Renamed');
@@ -26,7 +35,7 @@ describe('useOrganizationDetail', () => {
 
   it('reaches error and retry reloads', async () => {
     const client = fakeClient({ getOrganization: mock().mockRejectedValueOnce(new Error('boom')).mockResolvedValue(detail({})) });
-    const { result } = renderHook(() => useOrganizationDetail(client, 'o1'));
+    const { result } = renderHook(() => useOrganizationDetail(client, 'o1'), { wrapper });
     await waitFor(() => expect(result.current.status).toBe('error'));
     act(() => result.current.retry());
     await waitFor(() => expect(result.current.status).toBe('ready'));

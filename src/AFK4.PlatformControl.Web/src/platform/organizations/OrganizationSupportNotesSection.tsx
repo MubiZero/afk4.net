@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,29 +8,19 @@ import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { SupportNotesApi } from '@/api/platformClients/supportNotes';
 import type { OrganizationSupportNote } from '@/api/types';
+import { useLoadable } from '../useLoadable';
 
 type Client = Pick<SupportNotesApi, 'listSupportNotes' | 'createSupportNote' | 'updateSupportNote'>;
 
 export function OrganizationSupportNotesSection({ client, organizationId }: { client: Client; organizationId: string }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
-  const [tick, setTick] = useState(0);
-  const [notes, setNotes] = useState<OrganizationSupportNote[] | null>(null);
-  const [error, setError] = useState(false);
+  const state = useLoadable(() => client.listSupportNotes(organizationId), [organizationId]);
   const [draft, setDraft] = useState('');
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setNotes(null); setError(false);
-    client.listSupportNotes(organizationId)
-      .then(rows => { if (!cancelled) setNotes(rows); })
-      .catch(() => { if (!cancelled) setError(true); });
-    return () => { cancelled = true; };
-  }, [client, organizationId, tick]);
 
   async function create() {
     if (draft.trim().length === 0) return;
@@ -39,7 +29,7 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
       await client.createSupportNote(organizationId, draft.trim());
       setDraft('');
       toast({ title: t('platform.organization.notes.created'), variant: 'success' });
-      setTick(n => n + 1);
+      state.retry();
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
@@ -59,7 +49,7 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
       await client.updateSupportNote(organizationId, editingId, editingBody.trim());
       setEditingId(null); setEditingBody('');
       toast({ title: t('platform.organization.notes.updated'), variant: 'success' });
-      setTick(n => n + 1);
+      state.retry();
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
@@ -82,15 +72,15 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
           </div>
         </div>
 
-        {error ? (
-          <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={() => setTick(n => n + 1)} />
-        ) : notes === null ? (
+        {state.status === 'error' ? (
+          <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+        ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
-        ) : notes.length === 0 ? (
+        ) : state.data.length === 0 ? (
           <EmptyState message={t('platform.organization.notes.empty')} />
         ) : (
           <ul>
-            {notes.map(n => (
+            {state.data.map(n => (
               <li key={n.organizationSupportNoteId} className="pc-note">
                 <div className="pc-note-head">
                   <span>{n.authorDisplayName.length === 0 ? n.authorPlatformAdminId : n.authorDisplayName}</span>

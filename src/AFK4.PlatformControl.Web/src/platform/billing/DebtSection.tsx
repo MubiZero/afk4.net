@@ -86,7 +86,7 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
   }
 
   if (state.status === 'loading') return <LoadingCards count={2} />;
-  if (state.status === 'error') return <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
 
   const rows = sortDebtRows(state.data);
   const totals = debtTotals(rows);

@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { LoadingCards, ErrorState } from '@/components/ui/states';
+import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { RolesApi } from '@/api/platformClients/roles';
 import type { PlatformRole } from '@/api/types';
+import { useLoadable } from '../useLoadable';
 import {
   describePermission,
   describePermissionGroup,
@@ -37,36 +38,22 @@ function draftFrom(role: PlatformRole): Draft {
 export function RolesSection({ client }: { client: Client }) {
   const { t } = useI18n();
   const { toast } = useToast();
-  const [roles, setRoles] = useState<PlatformRole[] | null>(null);
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const [failed, setFailed] = useState(false);
-  const [tick, setTick] = useState(0);
+  // Список ролей и полный перечень прав нужны экрану вместе: без второго нечего показать в
+  // редакторе состава, поэтому и грузятся они одним ожиданием.
+  const state = useLoadable(() => Promise.all([client.listRoles(), client.listPermissions()]));
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PlatformRole | null>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setFailed(false);
-    Promise.all([client.listRoles(), client.listPermissions()])
-      .then(([loadedRoles, loadedPermissions]) => {
-        if (cancelled) return;
-        setRoles(loadedRoles);
-        setPermissions(loadedPermissions);
-      })
-      .catch(() => { if (!cancelled) setFailed(true); });
-    return () => { cancelled = true; };
-  }, [client, tick]);
-
   function reload() {
     setDraft(null);
     setDeleteTarget(null);
-    setTick(value => value + 1);
+    state.retry();
   }
 
   async function save() {
     if (draft === null || pending) return;
-    const existing = roles?.some(role => role.roleName === draft.roleName) ?? false;
+    const existing = state.status === 'ready' && state.data[0].some(role => role.roleName === draft.roleName);
     setPending(true);
     try {
       const payload = {
@@ -102,9 +89,10 @@ export function RolesSection({ client }: { client: Client }) {
     }
   }
 
-  if (failed) return <ErrorState message={t('platform.settings.roles.error.load')} retryLabel={t('state.retry')} onRetry={reload} />;
-  if (roles === null) return <LoadingCards count={1} />;
+  if (state.status === 'error') return <ErrorState title={t('platform.settings.roles.error.load')} message={state.message} retryLabel={t('state.retry')} onRetry={reload} />;
+  if (state.status === 'loading') return <LoadingCards count={1} />;
 
+  const [roles, permissions] = state.data;
   const nameIsValid = draft !== null
     && draft.roleName.trim().length > 0
     && draft.displayName.trim().length > 0;
@@ -123,6 +111,8 @@ export function RolesSection({ client }: { client: Client }) {
       </CardHeader>
       <CardContent>
         <p className="mgmt-drawer-hint">{t('platform.settings.roles.description')}</p>
+
+        {roles.length === 0 ? <EmptyState message={t('platform.settings.roles.empty')} /> : null}
 
         {roles.map(role => (
           <div key={role.roleName} className="pc-kv">

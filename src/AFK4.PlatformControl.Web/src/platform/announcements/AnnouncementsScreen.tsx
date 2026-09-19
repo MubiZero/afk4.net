@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ import {
   statusLabelKey,
   toLocalInput
 } from './announcementsModel';
+import { useLoadable } from '../useLoadable';
 
 type Client = Pick<AnnouncementsApi,
   'listAnnouncements' | 'createAnnouncement' | 'updateAnnouncement' | 'publishAnnouncement' | 'withdrawAnnouncement'>;
@@ -67,30 +68,23 @@ function draftFrom(announcement: PlatformAnnouncement): Draft {
 export function AnnouncementsScreen({ client }: { client: Client }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
-  const [announcements, setAnnouncements] = useState<PlatformAnnouncement[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [tick, setTick] = useState(0);
+  const state = useLoadable(async () => {
+    const loaded = await client.listAnnouncements();
+    return Array.isArray(loaded) ? loaded : [];
+  });
   const [draft, setDraft] = useState<Draft | null>(null);
   const [publishTarget, setPublishTarget] = useState<PlatformAnnouncement | null>(null);
   const [withdrawTarget, setWithdrawTarget] = useState<PlatformAnnouncement | null>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setFailed(false);
-    client.listAnnouncements()
-      .then(loaded => { if (!cancelled) setAnnouncements(Array.isArray(loaded) ? loaded : []); })
-      .catch(() => { if (!cancelled) setFailed(true); });
-    return () => { cancelled = true; };
-  }, [client, tick]);
-
   function reload() {
     setDraft(null);
     setPublishTarget(null);
     setWithdrawTarget(null);
-    setTick(value => value + 1);
+    state.retry();
   }
 
+  const announcements = state.status === 'ready' ? state.data : null;
   const editing = draft?.announcementId === null || draft === null
     ? null
     : announcements?.find(item => item.announcementId === draft.announcementId) ?? null;
@@ -147,8 +141,8 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
     }
   }
 
-  if (failed) {
-    return <ErrorState message={t('platform.announcements.error.load')} retryLabel={t('state.retry')} onRetry={reload} />;
+  if (state.status === 'error') {
+    return <ErrorState title={t('platform.announcements.error.load')} message={state.message} retryLabel={t('state.retry')} onRetry={reload} />;
   }
   if (announcements === null) return <LoadingCards count={2} />;
 
