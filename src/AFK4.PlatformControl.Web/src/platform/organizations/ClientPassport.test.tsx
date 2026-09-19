@@ -1,5 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { expect, it, mock } from 'bun:test';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, expect, it, mock } from 'bun:test';
+
+// Без уборки паспорта предыдущего теста в документе оказывается несколько карточек сразу, и
+// поиск по роли находит кнопку дважды.
+afterEach(cleanup);
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { OrganizationDetail } from '@/api/types';
@@ -210,4 +214,38 @@ it('shows billing and organization-management levers with the matching rights', 
   expect(screen.getByRole('button', { name: 'Править профиль' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Приостановить' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Передать' })).toBeVisible();
+});
+
+// Раньше сбой любого из трёх фоновых запросов гасился пустым catch: цена и дата счёта висели
+// вечным скелетоном, владелец молча становился «—» (неотличимо от «владельца нет»), а главная
+// кнопка карточки — «Изменить подписку» — выглядела живой, но диалог не открывала.
+it('несостоявшуюся загрузку сведений видно словами, а не вечным ожиданием', async () => {
+  const c = client();
+  c.subscriptions.getSubscription = mock().mockRejectedValue(new Error('network')) as never;
+  render(
+    <I18nProvider>
+      <ToastProvider>
+        <ClientPassport client={c} organization={organization()} access={fullAccess} onUpdated={() => {}} />
+      </ToastProvider>
+    </I18nProvider>
+  );
+
+  await waitFor(() => expect(screen.getAllByText('Не удалось узнать').length).toBeGreaterThan(0));
+  expect(screen.getByText('Часть сведений о клиенте не загрузилась.')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Изменить подписку' })).toBeDisabled();
+});
+
+it('владелец, которого не удалось узнать, не выдаётся за отсутствующего', async () => {
+  const c = client();
+  c.organizationOwnerInvites.listOrganizationOwnerInvites = mock().mockRejectedValue(new Error('network')) as never;
+  render(
+    <I18nProvider>
+      <ToastProvider>
+        <ClientPassport client={c} organization={organization()} access={fullAccess} onUpdated={() => {}} />
+      </ToastProvider>
+    </I18nProvider>
+  );
+
+  await waitFor(() => expect(screen.getByText('Не удалось узнать')).toBeVisible());
+  expect(screen.queryByText('Alice Owner')).toBeNull();
 });

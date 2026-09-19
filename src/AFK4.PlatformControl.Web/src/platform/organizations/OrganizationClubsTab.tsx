@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PartialFailure } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import { alertDetailText, alertLabel } from '@/platform/clubs/pulseModel';
@@ -73,6 +74,10 @@ export function OrganizationClubsTab({ client, organizationsClient, organization
     );
   }
 
+  // Пока пульс в пути, карточка клуба без устройств, мест и последней связи читается как факт:
+  // «клуб ни разу не вышел на связь». Скелетон на месте этих строк говорит правду — мы ещё не знаем.
+  const pulsePending = pulseByBranch === null && !error;
+
   return (
     <div>
       {header}
@@ -92,6 +97,9 @@ export function OrganizationClubsTab({ client, organizationsClient, organization
               </CardHeader>
               <CardContent>
                 <div className="pc-kv"><span>{branch.city}</span><code>{branch.slug}</code></div>
+                {club === undefined && pulsePending ? (
+                  <div className="pc-kv"><Skeleton className="pc-skel-value" /></div>
+                ) : null}
                 {club !== undefined ? (
                   <>
                     <div className="pc-kv"><span>{t('platform.organization.clubsTab.devices')}</span><span className="pc-num">{club.devicesOnline}/{club.devicesTotal}</span></div>
