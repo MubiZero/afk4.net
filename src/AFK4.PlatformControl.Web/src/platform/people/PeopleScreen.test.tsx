@@ -54,7 +54,7 @@ describe('PeopleScreen', () => {
 
     await findAsync(user);
 
-    await waitFor(() => expect(screen.getByText('+992900000801')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('+992 90 000 08 01')).toBeTruthy());
     expect(screen.getByText('Фаррух')).toBeTruthy();
     expect(client.lookupPerson).toHaveBeenCalledWith('+992900000801');
   });
@@ -78,7 +78,7 @@ describe('PeopleScreen', () => {
     const user = userEvent.setup();
     renderScreen(client);
     await findAsync(user);
-    await waitFor(() => expect(screen.getByText('+992900000801')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('+992 90 000 08 01')).toBeTruthy());
 
     await user.click(screen.getByRole('button', { name: 'Закрыть вход в сеть' }));
     const confirm = await screen.findByRole('button', { name: 'Закрыть вход' });

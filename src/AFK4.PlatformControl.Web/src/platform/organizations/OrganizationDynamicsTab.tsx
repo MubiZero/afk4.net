@@ -119,7 +119,7 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
                   formatter={value => formatCurrency(Number(value), data.totalRevenue.currencyCode)}
                   contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }}
                 />
-                <Line type="monotone" dataKey="revenue" stroke="var(--accent)" name="revenue" />
+                <Line type="monotone" dataKey="revenue" stroke="var(--accent)" name={t('platform.dynamics.series.revenue')} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -138,7 +138,7 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
                 <XAxis dataKey="date" stroke="var(--text-tertiary)" fontSize={12} />
                 <YAxis stroke="var(--text-tertiary)" fontSize={12} allowDecimals={false} />
                 <Tooltip contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }} />
-                <Line type="monotone" dataKey="sessions" stroke="var(--success)" name="sessions" />
+                <Line type="monotone" dataKey="sessions" stroke="var(--success)" name={t('platform.dynamics.series.sessions')} />
               </LineChart>
             </ResponsiveContainer>
           </div>

@@ -188,11 +188,18 @@
   color: var(--text-tertiary);
 }
 
-.rail-account-item:hover,
+.rail-account-item:hover:not(:disabled),
 .rail-account-item:focus-visible {
   outline: none;
   background: var(--surface-hover);
   color: var(--text-primary);
+}
+
+/* Занятый пункт меню (выход уже пошёл) должен выглядеть занятым: подсветка под курсором на
+   неработающей кнопке — обещание, которого интерфейс не выполняет. */
+.rail-account-item:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .rail-account-item.danger:hover,

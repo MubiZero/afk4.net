@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useLoadable } from '../useLoadable';
+import { auditOutcomeLabel, auditOutcomeVariant, auditSourceLabel, auditTargetLabel } from '@/platform/audit/auditModel';
 
 export function OrganizationHistoryTab({ client, organizationId }: {
   client: Pick<AuditApi, 'listOrganizationHistory'>;
@@ -27,9 +28,9 @@ export function OrganizationHistoryTab({ client, organizationId }: {
     <TableBody>{state.data.records.map(record => <TableRow key={record.auditRecordId}>
       <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell>
       <TableCell><code>{record.action}</code></TableCell>
-      <TableCell>{record.targetType}{record.targetId !== null ? ` · ${record.targetId}` : ''}</TableCell>
-      <TableCell><Badge variant="secondary">{record.outcome}</Badge></TableCell>
-      <TableCell>{record.sourceApp}</TableCell>
+      <TableCell>{auditTargetLabel(record.targetType, t)}{record.targetId !== null ? ` · ${record.targetId}` : ''}</TableCell>
+      <TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell>
+      <TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
     </TableRow>)}</TableBody>
   </Table></div>;
 }

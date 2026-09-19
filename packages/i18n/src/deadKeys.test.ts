@@ -23,7 +23,13 @@ const COMPOSED_PREFIXES: { prefix: string; builtAt: string }[] = [
   // Роль сотрудника — тоже строка с сервера: `roles.${roleName}`.
   { prefix: 'roles.', builtAt: 'OrganizationAdmin.Web/staffModel.ts' },
   // Глагол действия над заказом: `op.shopOrders.toast.${verb}`.
-  { prefix: 'op.shopOrders.toast.', builtAt: 'OrganizationAdmin.Web/PosOrdersTicker.tsx' }
+  { prefix: 'op.shopOrders.toast.', builtAt: 'OrganizationAdmin.Web/PosOrdersTicker.tsx' },
+  // Объект, источник и исход записи журнала платформы приходят строками с сервера:
+  // `platform.audit.target.${targetType}`, `platform.audit.source.${sourceApp}`,
+  // `journal.outcome.${outcome}`.
+  { prefix: 'platform.audit.target.', builtAt: 'PlatformControl.Web/platform/audit/auditModel.ts' },
+  { prefix: 'platform.audit.source.', builtAt: 'PlatformControl.Web/platform/audit/auditModel.ts' },
+  { prefix: 'journal.outcome.', builtAt: 'PlatformControl.Web/platform/audit/auditModel.ts' }
 ];
 
 const SOURCE_DIRS = ['src', 'packages', 'brand'];

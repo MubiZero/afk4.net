@@ -88,7 +88,7 @@ it('shows the name, plan, price, next invoice, owner and update channel', async 
   // Заголовок h1 принадлежит экрану, паспорт повторяет имя как якорь личности, а не как второй заголовок.
   expect(screen.getByText('Orion Gaming')).toBeVisible();
   expect(screen.getByText('Growth')).toBeVisible();
-  expect(screen.getByText('stable')).toBeVisible();
+  expect(screen.getByText('Стабильный')).toBeVisible();
   await waitFor(() => expect(screen.getByText(/1.?500/u)).toBeVisible());
   await waitFor(() => expect(screen.getByText('Alice Owner')).toBeVisible());
 });
