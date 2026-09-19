@@ -31,28 +31,50 @@ public sealed class EfPlatformPulseService(
         var branches = await dbContext.Branches
             .AsNoTracking()
             .ToListAsync(cancellationToken);
-        var devices = await dbContext.Devices
+        // Считает база, а не мы: пульсу нужны числа по клубу, а не сами строки. Раньше сюда
+        // приезжали все места, все устройства и все открытые сессии сети целиком — при сотне
+        // клубов по полсотни мест это тысячи строк ради нескольких десятков чисел, и растёт это
+        // вместе с сетью, а не вместе с экраном.
+        var deviceStats = await dbContext.Devices
             .AsNoTracking()
-            .Select(device => new { device.BranchId, device.LastHeartbeatAtUtc })
+            .GroupBy(device => device.BranchId)
+            .Select(group => new
+            {
+                BranchId = group.Key,
+                Total = group.Count(),
+                Online = group.Count(device => device.LastHeartbeatAtUtc != null && device.LastHeartbeatAtUtc >= onlineThreshold),
+                LastHeartbeatAtUtc = group.Max(device => device.LastHeartbeatAtUtc)
+            })
             .ToListAsync(cancellationToken);
-        var activeSessions = await dbContext.Sessions
+        var activeSessionCounts = await dbContext.Sessions
             .AsNoTracking()
             .Where(session => session.StartedAtUtc != null && session.EndedAtUtc == null)
-            .Select(session => session.BranchId)
+            .GroupBy(session => session.BranchId)
+            .Select(group => new { BranchId = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken);
-        var seats = await dbContext.Seats
+        var seatCounts = await dbContext.Seats
             .AsNoTracking()
-            .Select(seat => seat.BranchId)
+            .GroupBy(seat => seat.BranchId)
+            .Select(group => new { BranchId = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken);
+        // Смена нужна целиком: экран показывает, когда её открыли, а не сколько их.
         var openShifts = await dbContext.Shifts
             .AsNoTracking()
             .Where(shift => shift.ClosedAtUtc == null)
             .Select(shift => new { shift.BranchId, shift.OpenedAtUtc })
             .ToListAsync(cancellationToken);
-        var overdueInvoices = await dbContext.Invoices
+        var overdueByOrganizationRows = await dbContext.Invoices
             .AsNoTracking()
             .Where(invoice => invoice.Status == InvoiceStatusNames.Overdue)
-            .Select(invoice => new { invoice.OrganizationId, invoice.AmountMinorUnits, invoice.CurrencyCode })
+            .GroupBy(invoice => invoice.OrganizationId)
+            .Select(group => new
+            {
+                OrganizationId = group.Key,
+                OutstandingMinorUnits = group.Sum(invoice => invoice.AmountMinorUnits),
+                // Валюта у долгов одного клуба одна; берём первую попавшуюся, чтобы не тянуть
+                // строки счетов ради поля, которое у них совпадает.
+                CurrencyCode = group.Min(invoice => invoice.CurrencyCode)
+            })
             .ToListAsync(cancellationToken);
 
         // The real signal that a rollout is failing is the agent reporting a failed
@@ -132,22 +154,15 @@ public sealed class EfPlatformPulseService(
             }
         }
 
-        var devicesByBranch = devices.GroupBy(device => device.BranchId)
-            .ToDictionary(group => group.Key, group => group.ToList());
-        var activeSessionCountByBranch = activeSessions
-            .GroupBy(branchId => branchId)
-            .ToDictionary(group => group.Key, group => group.Count());
-        var seatCountByBranch = seats
-            .GroupBy(branchId => branchId)
-            .ToDictionary(group => group.Key, group => group.Count());
+        var deviceStatsByBranch = deviceStats.ToDictionary(stats => stats.BranchId);
+        var activeSessionCountByBranch = activeSessionCounts.ToDictionary(row => row.BranchId, row => row.Count);
+        var seatCountByBranch = seatCounts.ToDictionary(row => row.BranchId, row => row.Count);
         var openShiftByBranch = openShifts
             .GroupBy(shift => shift.BranchId)
             .ToDictionary(group => group.Key, group => group.OrderBy(shift => shift.OpenedAtUtc).First());
-        var overdueByOrganization = overdueInvoices
-            .GroupBy(invoice => invoice.OrganizationId)
-            .ToDictionary(
-                group => group.Key,
-                group => (OutstandingMinorUnits: group.Sum(invoice => invoice.AmountMinorUnits), CurrencyCode: group.First().CurrencyCode));
+        var overdueByOrganization = overdueByOrganizationRows.ToDictionary(
+            row => row.OrganizationId,
+            row => (row.OutstandingMinorUnits, row.CurrencyCode));
         var branchesByOrganization = branches
             .GroupBy(branch => branch.OrganizationId)
             .ToDictionary(group => group.Key, group => group.OrderBy(branch => branch.Name, StringComparer.Ordinal).ToList());
@@ -159,16 +174,10 @@ public sealed class EfPlatformPulseService(
             branchesByOrganization.TryGetValue(organization.OrganizationId, out var organizationBranches);
             foreach (var branch in organizationBranches ?? [])
             {
-                devicesByBranch.TryGetValue(branch.BranchId, out var branchDevices);
-                branchDevices ??= [];
-                var devicesTotal = branchDevices.Count;
-                var devicesOnline = branchDevices.Count(device =>
-                    device.LastHeartbeatAtUtc is not null && device.LastHeartbeatAtUtc >= onlineThreshold);
-                var lastHeartbeatAtUtc = branchDevices
-                    .Select(device => device.LastHeartbeatAtUtc)
-                    .Where(heartbeat => heartbeat is not null)
-                    .DefaultIfEmpty()
-                    .Max();
+                deviceStatsByBranch.TryGetValue(branch.BranchId, out var branchDevices);
+                var devicesTotal = branchDevices?.Total ?? 0;
+                var devicesOnline = branchDevices?.Online ?? 0;
+                var lastHeartbeatAtUtc = branchDevices?.LastHeartbeatAtUtc;
 
                 seatCountByBranch.TryGetValue(branch.BranchId, out var seatsTotal);
                 activeSessionCountByBranch.TryGetValue(branch.BranchId, out var seatsOccupied);
