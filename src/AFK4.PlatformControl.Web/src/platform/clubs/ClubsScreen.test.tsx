@@ -148,3 +148,20 @@ it('отказ в правах на экране назван своими сл�
 
   expect(await screen.findByText('Недостаточно прав для этого действия.')).toBeTruthy();
 });
+
+// Экран называется «Сейчас», и его держат открытым: без отметки времени снимок часовой давности
+// читается как положение дел сию минуту.
+it('говорит, на какой момент данные', async () => {
+  render(
+    <I18nProvider>
+      <ClubsScreen
+        client={{ pulse: { getPulse: mock().mockResolvedValue({ generatedAtUtc: '2026-09-18T09:30:00Z', organizations: [] }) } } as never}
+        view="now"
+        onViewChange={mock()}
+        onOpenOrganization={mock()}
+      />
+    </I18nProvider>
+  );
+
+  expect(await screen.findByText(/Данные на /u)).toBeTruthy();
+});

@@ -2952,6 +2952,7 @@ export const en = {
   "platform.clubs.row.expand": "Show clubs of {name}",
   "platform.clubs.row.noClubs": "This network has no clubs yet.",
   "platform.clubs.row.seatsOccupied": "{occupied} of {total} seats occupied",
+  "platform.clubs.snapshotAt": "As of {time}",
   "platform.clubs.subtitle": "How every network and club is doing right now.",
   "platform.clubs.title": "Clubs",
   "platform.clubs.view.all": "All",

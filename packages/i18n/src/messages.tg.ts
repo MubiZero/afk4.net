@@ -2952,6 +2952,7 @@ export const tg = {
   "platform.clubs.row.expand": "Намоиши клубҳои шабакаи {name}",
   "platform.clubs.row.noClubs": "Ин шабака ҳанӯз клуб надорад.",
   "platform.clubs.row.seatsOccupied": "{occupied} аз {total} ҷой банд",
+  "platform.clubs.snapshotAt": "Маълумот ба ҳолати {time}",
   "platform.clubs.subtitle": "Ҳолати шабакаҳо ва клубҳо дар айни замон.",
   "platform.clubs.title": "Клубҳо",
   "platform.clubs.view.all": "Ҳама",

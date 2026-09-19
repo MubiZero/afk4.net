@@ -20,9 +20,26 @@ export type Loadable<T> =
  * `deps` — то, от чего зависит сам запрос (идентификатор организации, выбранный период): их смена
  * загружает заново, как и `retry()`.
  */
-export function useLoadable<T>(load: () => Promise<T>, deps: readonly unknown[] = []): Loadable<T> {
+export interface LoadableOptions {
+  /**
+   * Как часто перечитывать данные самому, в миллисекундах. Для дежурных экранов вроде обзора
+   * сети: их держат открытыми, и снимок часовой давности там опаснее пустого экрана — по нему
+   * принимают решения, считая, что видят «сейчас».
+   *
+   * Фоновое обновление не показывает ожидания и не стирает то, что уже на экране: подмена
+   * скелетоном раз в минуту сделала бы экран непригодным для чтения.
+   */
+  refreshMs?: number;
+}
+
+export function useLoadable<T>(
+  load: () => Promise<T>,
+  deps: readonly unknown[] = [],
+  options: LoadableOptions = {}
+): Loadable<T> {
   const { t } = useI18n();
   const [tick, setTick] = useState(0);
+  const quiet = useRef(false);
   const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: T; message?: string }>({ status: 'loading' });
   const retry = useCallback(() => setTick(value => value + 1), []);
   const apply = useCallback((next: T) => setState({ status: 'ready', data: next }), []);
@@ -31,9 +48,26 @@ export function useLoadable<T>(load: () => Promise<T>, deps: readonly unknown[] 
   const loadRef = useRef(load);
   loadRef.current = load;
 
+  const { refreshMs } = options;
+  useEffect(() => {
+    if (refreshMs === undefined) return;
+    const timer = setInterval(() => {
+      // Скрытая вкладка ничего не показывает, а запросы шлёт: браузер оставляет её открытой
+      // сутками, и все эти сутки панель опрашивала бы сервер впустую.
+      if (typeof document !== 'undefined' && document.hidden) return;
+      quiet.current = true;
+      setTick(value => value + 1);
+    }, refreshMs);
+    return () => clearInterval(timer);
+  }, [refreshMs]);
+
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading' });
+    if (quiet.current) {
+      quiet.current = false;
+    } else {
+      setState({ status: 'loading' });
+    }
     loadRef.current()
       .then(data => { if (!cancelled) setState({ status: 'ready', data }); })
       .catch((cause: unknown) => { if (!cancelled) setState({ status: 'error', message: describeApiError(cause, t) }); });
