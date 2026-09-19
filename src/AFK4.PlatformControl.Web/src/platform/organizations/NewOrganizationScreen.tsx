@@ -39,7 +39,7 @@ const defaultState: FormState = {
   organizationSlug: '',
   organizationName: '',
   branchSlug: 'main',
-  branchName: 'Main Branch',
+  branchName: '',
   branchCity: '',
   planCode: OrganizationPlanCode.Starter,
   subscriptionStatus: SubscriptionStatus.Trial,
@@ -51,6 +51,10 @@ const defaultState: FormState = {
   maxStaffUsersPerBranch: ''
 };
 
+const REQUIRED_FIELDS: readonly (keyof FormState)[] = [
+  'organizationSlug', 'organizationName', 'branchSlug', 'branchName', 'branchCity'
+];
+
 export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrganizationScreenProps) {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -59,6 +63,11 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
   const [submitting, setSubmitting] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const attempt = useAttemptKey();
+
+  // Атрибут required ловит пустое поле только при нативной отправке формы, а сервер на пустое
+  // имя филиала отвечает ошибкой уже после запроса. Кнопка, погашенная заранее, честнее:
+  // видно, что заполнено не всё, до того как что-то произошло.
+  const canSubmit = REQUIRED_FIELDS.every(field => form[field].trim() !== '');
 
   function update(field: keyof FormState, value: string) {
     setForm(current => ({ ...current, [field]: value }));
@@ -121,7 +130,8 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         <CardHeader><CardTitle>{t('platform.newOrganization.section.branch')}</CardTitle></CardHeader>
         <CardContent>
           <LabeledInput label={t('platform.newOrganization.field.branchSlug')} value={form.branchSlug} onChange={v => update('branchSlug', v)} required />
-          <LabeledInput label={t('platform.newOrganization.field.branchName')} value={form.branchName} onChange={v => update('branchName', v)} required />
+          <LabeledInput label={t('platform.newOrganization.field.branchName')} placeholder={t('platform.newOrganization.field.branchNamePlaceholder')}
+            value={form.branchName} onChange={v => update('branchName', v)} required />
           <LabeledInput label={t('platform.newOrganization.field.branchCity')} value={form.branchCity} onChange={v => update('branchCity', v)} required />
         </CardContent>
       </Card>
@@ -168,7 +178,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
       </Card>
 
       <div className="pc-cell-actions">
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" disabled={submitting || !canSubmit}>
           {submitting ? t('platform.newOrganization.submitting') : t('platform.newOrganization.submit')}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
@@ -179,9 +189,10 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
   );
 }
 
-function LabeledInput({ label, hint, value, onChange, type, required }: {
+function LabeledInput({ label, hint, placeholder, value, onChange, type, required }: {
   label: string;
   hint?: string;
+  placeholder?: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
@@ -190,7 +201,7 @@ function LabeledInput({ label, hint, value, onChange, type, required }: {
   return (
     <label className="ui-field">
       <span>{label}</span>
-      <Input aria-label={label} type={type} value={value} required={required} onChange={e => onChange(e.target.value)} />
+      <Input aria-label={label} type={type} placeholder={placeholder} value={value} required={required} onChange={e => onChange(e.target.value)} />
       {hint !== undefined && <span className="mgmt-drawer-hint">{hint}</span>}
     </label>
   );

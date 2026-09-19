@@ -16,6 +16,7 @@ import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organiza
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import type { OrganizationDetail } from '@/api/types';
+import { channelLabelKey } from '@/platform/updates/updatesModel';
 import { PLAN_LABEL, STATUS_LABEL, STATUS_VARIANT } from './organizationsModel';
 import type { OrganizationPageAccess } from './OrganizationPage';
 import { OrganizationDebtBlock } from './OrganizationDebtBlock';
@@ -183,7 +184,9 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           {ownerPart.status === 'failed' ? t('platform.organization.passport.unknownValue') : (owner ?? '—')}
         </Row>
         <Row label={t('platform.organization.passport.updateChannel')}>
-          {organization.updateChannel}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
+          {/* Соседняя секция канала обновлений давно называет его словами; паспорт печатал сырое
+              stable/beta/internal, и один и тот же канал на одном экране читался двумя способами. */}
+          {t(channelLabelKey(organization.updateChannel))}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
         </Row>
       </dl>
 

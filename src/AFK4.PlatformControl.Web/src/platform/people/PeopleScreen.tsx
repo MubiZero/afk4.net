@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
+import { formatLocal } from '@afk4/formatting';
 import type { MessageKey } from '@afk4/i18n';
 import { PlatformApiError } from '@/api/platformTransport';
 import type { NetworkPeopleApi } from '@/api/platformClients/people';
@@ -92,7 +93,7 @@ export function PeopleScreen({ client }: { client: Client }) {
           ? (searched ? <EmptyState message={t('platform.people.notFound')} /> : null)
           : (
             <div className="mgmt-form">
-              <p className="pc-num">{person.phoneNumber}</p>
+              <p className="pc-num">+992 {formatLocal(person.phoneNumber)}</p>
               <p>{person.displayName}</p>
               <p className="mgmt-drawer-hint">
                 {t('platform.people.registeredAt', { date: formatDate(person.registeredAtUtc) })}
