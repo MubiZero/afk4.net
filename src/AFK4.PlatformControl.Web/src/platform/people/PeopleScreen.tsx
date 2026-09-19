@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@afk4/i18n';
 import { PlatformApiError } from '@/api/platformTransport';
@@ -150,10 +151,14 @@ export function PeopleScreen({ client }: { client: Client }) {
   );
 }
 
+/// Неверный номер — единственная беда, которую человек за панелью исправит прямо здесь, потому
+/// она и названа своими словами. Остальное разбирает общий разбор ошибок: «нет прав», «нет
+/// связи» и «сервер не ответил» чинятся по-разному, а одно «не получилось, повторите» звало
+/// нажимать кнопку там, где повтор заведомо бесполезен.
 function describeError(cause: unknown, t: (key: MessageKey) => string): string {
   if (cause instanceof PlatformApiError && cause.status === 400) {
     return t('platform.people.error.invalid');
   }
 
-  return t('platform.people.error.failed');
+  return describeApiError(cause, t);
 }

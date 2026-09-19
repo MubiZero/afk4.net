@@ -64,7 +64,7 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
       {state.status === 'loading' ? (
         <LoadingCards count={3} />
       ) : state.status === 'error' ? (
-        <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />
+        <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
       ) : (
         <ClubsList organizations={state.data.organizations ?? []} view={view} emptyMessage={t(EMPTY_KEY[view])} onOpenOrganization={onOpenOrganization} />
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { Invoice } from '@/api/types';
 import { INVOICE_STATUS_VARIANT, INVOICE_STATUS_LABEL } from '@/platform/billing/billingModel';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { useLoadable } from '../useLoadable';
 import { ManualInvoiceDialog } from './ManualInvoiceDialog';
 
 type Client = Pick<
@@ -34,22 +35,11 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
 }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
-  const [tick, setTick] = useState(0);
-  const [invoices, setInvoices] = useState<Invoice[] | null>(null);
-  const [error, setError] = useState(false);
+  const state = useLoadable(() => client.listOrganizationInvoices(organizationId), [organizationId]);
   const [pending, setPending] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [action, setAction] = useState<InvoiceAction | null>(null);
   const attempt = useAttemptKey();
-
-  useEffect(() => {
-    let cancelled = false;
-    setInvoices(null); setError(false);
-    client.listOrganizationInvoices(organizationId)
-      .then(rows => { if (!cancelled) setInvoices(rows); })
-      .catch(() => { if (!cancelled) setError(true); });
-    return () => { cancelled = true; };
-  }, [client, organizationId, tick]);
 
   async function generate() {
     setPending(true);
@@ -57,7 +47,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
       await client.generateInvoice(organizationId, attempt.forSubject({ action: 'generate', organizationId }));
       attempt.done();
       toast({ title: t('platform.billing.generate.done'), variant: 'success' });
-      setTick(n => n + 1);
+      state.retry();
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
@@ -79,7 +69,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
       }
       attempt.done();
       setAction(null);
-      setTick(n => n + 1);
+      state.retry();
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
@@ -103,14 +93,14 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
         ) : null}
       </CardHeader>
       <CardContent>
-        {error ? (
-          <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={() => setTick(n => n + 1)} />
-        ) : invoices === null ? (
+        {state.status === 'error' ? (
+          <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+        ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
-        ) : invoices.length === 0 ? (
+        ) : state.data.length === 0 ? (
           <EmptyState message={t('platform.organization.invoices.empty')} />
         ) : (
-          invoices.map(inv => (
+          state.data.map(inv => (
             <div key={inv.invoiceId} className="pc-list-row">
               <span className="pc-num">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
               <span className="pc-cell-actions">
@@ -149,9 +139,9 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
         <ManualInvoiceDialog
           client={client}
           organizationId={organizationId}
-          currencyCode={invoices?.[0]?.currencyCode ?? null}
+          currencyCode={state.status === 'ready' ? state.data[0]?.currencyCode ?? null : null}
           onClose={() => setManualOpen(false)}
-          onCreated={() => { setManualOpen(false); setTick(n => n + 1); }}
+          onCreated={() => { setManualOpen(false); state.retry(); }}
         />
       ) : null}
     </Card>

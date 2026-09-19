@@ -4,6 +4,7 @@ import { I18nProvider } from '@/i18n/I18nProvider';
 import { ClubsScreen } from './ClubsScreen';
 import type { PulseOrganization } from '@/api/types';
 import type { PulseApi } from '@/api/platformClients/pulse';
+import { PlatformApiError } from '@/api/platformApi';
 
 afterEach(() => localStorage.removeItem('afk4.locale'));
 
@@ -128,4 +129,22 @@ it('без права заводить клубы кнопки не показы
   setup();
 
   expect(screen.queryByRole('button', { name: 'Новый клуб' })).toBeNull();
+});
+
+// Сотрудник без права на обзор должен прочитать, что дело в правах, а не жать «Повторить» до
+// бесконечности: раньше и отказ в правах, и упавший сервер, и оборванная сеть выглядели одним
+// «Не удалось загрузить данные».
+it('отказ в правах на экране назван своими словами', async () => {
+  render(
+    <I18nProvider>
+      <ClubsScreen
+        client={{ pulse: { getPulse: mock().mockRejectedValue(new PlatformApiError(403, 'Forbidden')) } } as never}
+        view="now"
+        onViewChange={mock()}
+        onOpenOrganization={mock()}
+      />
+    </I18nProvider>
+  );
+
+  expect(await screen.findByText('Недостаточно прав для этого действия.')).toBeTruthy();
 });

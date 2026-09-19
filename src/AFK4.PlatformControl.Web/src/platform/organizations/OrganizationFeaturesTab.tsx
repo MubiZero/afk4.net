@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { describeApiError } from '@/api/describeApiError';
 import type { FeaturesApi } from '@/api/platformClients/features';
 import type { OrganizationFeatureState } from '@/api/types';
+import { useLoadable } from '../useLoadable';
 
 type Client = Pick<FeaturesApi, 'listFeatures' | 'setOverride' | 'clearOverride'>;
 
@@ -24,32 +25,22 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode, canM
 }) {
   const { t } = useI18n();
   const { toast } = useToast();
-  const [revision, setRevision] = useState(0);
-  const [features, setFeatures] = useState<OrganizationFeatureState[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const state = useLoadable(() => client.listFeatures(organizationId), [organizationId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setFeatures(null);
-    setFailed(false);
-    client.listFeatures(organizationId)
-      .then(data => { if (!cancelled) setFeatures(data); })
-      .catch(() => { if (!cancelled) setFailed(true); });
-    return () => { cancelled = true; };
-  }, [client, organizationId, revision]);
-
-  if (failed) {
-    return <ErrorState message={t('platform.organization.features.error')} retryLabel={t('state.retry')} onRetry={() => setRevision(value => value + 1)} />;
+  if (state.status === 'error') {
+    return <ErrorState title={t('platform.organization.features.error')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
   }
-  if (features === null) return <LoadingCards count={3} />;
-  if (features.length === 0) return <EmptyState message={t('platform.organization.features.empty')} />;
+  if (state.status === 'loading') return <LoadingCards count={3} />;
+  if (state.data.length === 0) return <EmptyState message={t('platform.organization.features.empty')} />;
+
+  const { data: features, apply } = state;
 
   // Оба мутирующих метода отдают свежий полный список — экран просто подменяет состояние
   // ответом сервера, а не пересчитывает decisionLevel/planValue/defaultValue на клиенте.
   async function applyOverride(featureKey: string, request: { isEnabled: boolean; reason: string }) {
     try {
       const next = await client.setOverride(organizationId, featureKey, request);
-      setFeatures(next);
+      apply(next);
       toast({ title: t('platform.organization.features.updated'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
@@ -60,7 +51,7 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode, canM
   async function clearOverride(featureKey: string) {
     try {
       const next = await client.clearOverride(organizationId, featureKey);
-      setFeatures(next);
+      apply(next);
       toast({ title: t('platform.organization.features.updated'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
