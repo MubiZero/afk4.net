@@ -98,3 +98,43 @@ it('sends the invite to the owner email typed in the form', async () => {
   await waitFor(() => expect(client.createOrganizationOwnerInvite)
     .toHaveBeenCalledWith('o1', 'b1', null, null, null, 'owner@club.tj'));
 });
+
+// Код владельца показывается ровно один раз, и его надо передать человеку целиком. Раньше он
+// появлялся строкой в ячейке таблицы: выделить мышью, не промахнуться, никакой ссылки.
+it('выданный код можно передать ссылкой, а не перепечатывать из таблицы', async () => {
+  const client = {
+    listOrganizationOwnerInvites: mock().mockResolvedValue([]),
+    createOrganizationOwnerInvite: mock().mockResolvedValue({
+      organizationOwnerInviteId: 'i1',
+      organizationId: 'o1',
+      branchId: 'b1',
+      code: 'OWN-98765',
+      codeSuffix: '8765',
+      status: 'pending',
+      ownerUserName: null,
+      ownerDisplayName: null,
+      expiresAtUtc: '2026-10-01T00:00:00Z',
+      acceptedAtUtc: null,
+      revokedAtUtc: null,
+      revokedReason: null,
+      createdAtUtc: '2026-09-18T00:00:00Z'
+    }),
+    revokeOrganizationOwnerInvite: mock()
+  };
+  render(
+    <I18nProvider><ToastProvider>
+      <OrganizationOwnerInvitesSection
+        client={client as never}
+        organizationId="o1"
+        branches={[{ branchId: 'b1', slug: 'main', name: 'На Рудаки', city: 'Душанбе', createdAtUtc: '2026-01-01T00:00:00Z' }]}
+      />
+    </ToastProvider></I18nProvider>
+  );
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Создать код' }));
+
+  expect(await screen.findByLabelText('Код доступа')).toHaveValue('OWN-98765');
+  expect(screen.getByLabelText('Ссылка для активации')).toHaveValue(
+    `${window.location.origin}/account-activation?code=OWN-98765`
+  );
+});

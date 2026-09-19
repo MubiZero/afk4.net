@@ -4,6 +4,7 @@ import { ErrorBanner, Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { AccessCodeHandoff } from '@/components/shared/AccessCodeHandoff';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdminsApi } from '@/api/platformClients/admins';
 import type { CreateInvitationResponse } from '@/api/types';
@@ -29,14 +30,12 @@ export function AdminInviteDialog({ open, client, onOpenChange, onCreated }: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreateInvitationResponse | null>(null);
-  const [copied, setCopied] = useState<'link' | 'code' | null>(null);
 
   function reset() {
     setRole(ROLE_PLATFORM_SUPPORT);
     setLifetimeHours(DEFAULT_LIFETIME_HOURS);
     setError(null);
     setCreated(null);
-    setCopied(null);
   }
 
   function closeForm() {
@@ -63,12 +62,6 @@ export function AdminInviteDialog({ open, client, onOpenChange, onCreated }: {
     }
   }
 
-  function copy(what: 'link' | 'code', value: string) {
-    void navigator.clipboard?.writeText(value);
-    setCopied(what);
-    setTimeout(() => setCopied(null), 1500);
-  }
-
   if (created !== null) {
     const activationUrl = platformAdminActivationUrl(window.location.origin, created.code);
     return (
@@ -79,22 +72,7 @@ export function AdminInviteDialog({ open, client, onOpenChange, onCreated }: {
         footer={<Button onClick={closeAfterCreated}>{t('platform.settings.invite.done')}</Button>}
       >
         <div className="mgmt-form">
-          <p role="alert">{t('platform.settings.invite.created.warning')}</p>
-          {/* Ссылка идёт первой и копируется одной кнопкой: приглашённому нужно попасть на экран
-              активации, а не запомнить строку. Код оставлен ниже для случая, когда ссылку в
-              переписке ломает или человек вводит код руками. */}
-          <Field label={t('platform.settings.invite.linkLabel')} htmlFor="invite-link">
-            <Input id="invite-link" readOnly value={activationUrl} onFocus={event => event.currentTarget.select()} />
-          </Field>
-          <Button onClick={() => copy('link', activationUrl)}>
-            {copied === 'link' ? t('platform.settings.invite.copied') : t('platform.settings.invite.copyLink')}
-          </Button>
-          <Field label={t('platform.settings.invite.codeLabel')} htmlFor="invite-code">
-            <Input id="invite-code" readOnly value={created.code} onFocus={event => event.currentTarget.select()} />
-          </Field>
-          <Button variant="outline" onClick={() => copy('code', created.code)}>
-            {copied === 'code' ? t('platform.settings.invite.copied') : t('platform.settings.invite.copy')}
-          </Button>
+          <AccessCodeHandoff code={created.code} activationUrl={activationUrl} idPrefix="invite" />
         </div>
       </Dialog>
     );
