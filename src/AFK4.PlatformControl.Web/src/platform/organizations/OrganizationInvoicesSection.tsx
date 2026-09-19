@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
@@ -39,6 +40,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
   const [pending, setPending] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [action, setAction] = useState<InvoiceAction | null>(null);
+  const attempt = useAttemptKey();
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +54,8 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
   async function generate() {
     setPending(true);
     try {
-      await client.generateInvoice(organizationId);
+      await client.generateInvoice(organizationId, attempt.forSubject({ action: 'generate', organizationId }));
+      attempt.done();
       toast({ title: t('platform.billing.generate.done'), variant: 'success' });
       setTick(n => n + 1);
     } catch (cause) {
@@ -66,13 +69,15 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
     if (action === null) return;
     setPending(true);
     try {
+      const key = attempt.forSubject({ action: action.kind, invoiceId: action.invoice.invoiceId, reason });
       if (action.kind === 'markPaid') {
-        await client.markInvoicePaid(action.invoice.invoiceId, reason.length > 0 ? reason : null);
+        await client.markInvoicePaid(action.invoice.invoiceId, reason.length > 0 ? reason : null, key);
         toast({ title: t('platform.billing.markPaid.done'), variant: 'success' });
       } else {
-        await client.voidInvoice(action.invoice.invoiceId, reason);
+        await client.voidInvoice(action.invoice.invoiceId, reason, key);
         toast({ title: t('platform.billing.void.done'), variant: 'success' });
       }
+      attempt.done();
       setAction(null);
       setTick(n => n + 1);
     } catch (cause) {

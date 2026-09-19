@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ErrorState, LoadingCards } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
@@ -53,6 +54,7 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
   const [action, setAction] = useState<Action | null>(null);
   const [pending, setPending] = useState(false);
   const [graceRow, setGraceRow] = useState<DebtRow | null>(null);
+  const attempt = useAttemptKey();
 
   async function confirm(reason: string) {
     if (action === null) return;
@@ -60,7 +62,11 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
     try {
       if (action.kind === 'markPaid') {
         if (action.row.oldestOverdueInvoiceId === null) return;
-        await client.invoices.markInvoicePaid(action.row.oldestOverdueInvoiceId, reason.length > 0 ? reason : null);
+        await client.invoices.markInvoicePaid(
+          action.row.oldestOverdueInvoiceId,
+          reason.length > 0 ? reason : null,
+          attempt.forSubject({ invoiceId: action.row.oldestOverdueInvoiceId, reason }));
+        attempt.done();
         toast({ title: t('platform.billing.markPaid.done'), variant: 'success' });
       } else if (action.kind === 'toggleStatus') {
         const nextStatus = action.row.organizationStatus === 'active' ? 'suspended' : 'active';

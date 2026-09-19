@@ -20,20 +20,21 @@ export class InvoicesApi {
    */
   public createInvoice(
     organizationId: string,
-    request: { kind: string; amountMinorUnits: number; description: string; dueAtUtc: string | null }
+    request: { kind: string; amountMinorUnits: number; description: string; dueAtUtc: string | null },
+    attemptKey?: string
   ): Promise<Invoice> {
-    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/organizations/${organizationId}/invoices`, request);
+    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/organizations/${organizationId}/invoices`, request, attemptKey);
   }
 
-  public generateInvoice(organizationId: string): Promise<Invoice> {
-    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/organizations/${organizationId}/invoices/generate`, undefined);
+  public generateInvoice(organizationId: string, attemptKey?: string): Promise<Invoice> {
+    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/organizations/${organizationId}/invoices/generate`, undefined, attemptKey);
   }
 
-  public markInvoicePaid(invoiceId: string, reference: string | null): Promise<Invoice> {
-    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/mark-paid`, { reference });
+  public markInvoicePaid(invoiceId: string, reference: string | null, attemptKey?: string): Promise<Invoice> {
+    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/mark-paid`, { reference }, attemptKey);
   }
 
-  public voidInvoice(invoiceId: string, reason: string): Promise<Invoice> {
-    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/void`, { reason });
+  public voidInvoice(invoiceId: string, reason: string, attemptKey?: string): Promise<Invoice> {
+    return this.transport.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/void`, { reason }, attemptKey);
   }
 }

@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ErrorState, LoadingCards } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
@@ -23,18 +24,21 @@ export function PayableQueue({ client, canManage }: { client: InvoicesApi; canMa
   const state = useInvoices(client);
   const [action, setAction] = useState<Action | null>(null);
   const [pending, setPending] = useState(false);
+  const attempt = useAttemptKey();
 
   async function confirm(reason: string) {
     if (action === null) return;
     setPending(true);
     try {
+      const key = attempt.forSubject({ action: action.kind, invoiceId: action.invoice.invoiceId, reason });
       if (action.kind === 'markPaid') {
-        await client.markInvoicePaid(action.invoice.invoiceId, reason.length > 0 ? reason : null);
+        await client.markInvoicePaid(action.invoice.invoiceId, reason.length > 0 ? reason : null, key);
         toast({ title: t('platform.billing.markPaid.done'), variant: 'success' });
       } else {
-        await client.voidInvoice(action.invoice.invoiceId, reason);
+        await client.voidInvoice(action.invoice.invoiceId, reason, key);
         toast({ title: t('platform.billing.void.done'), variant: 'success' });
       }
+      attempt.done();
       setAction(null);
       if (state.status === 'ready') state.retry();
     } catch (cause) {

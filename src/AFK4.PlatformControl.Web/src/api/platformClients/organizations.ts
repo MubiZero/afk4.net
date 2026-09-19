@@ -21,8 +21,13 @@ export class OrganizationsApi {
     return this.transport.send<OrganizationDetail>('GET', `/api/platform/organizations/${organizationId}`);
   }
 
-  public createOrganization(request: CreateOrganizationRequest): Promise<CreateOrganizationResponse> {
-    return this.transport.send<CreateOrganizationResponse>('POST', '/api/platform/organizations', request);
+  /**
+   * Завести клуб на платформе. Сервер держит ключ попытки (`platform.organizations.create`) и по
+   * повтору возвращает уже созданную организацию вместо второй такой же — панель этим не
+   * пользовалась, и повтор после потерянного ответа заводил клуб дважды.
+   */
+  public createOrganization(request: CreateOrganizationRequest, attemptKey?: string): Promise<CreateOrganizationResponse> {
+    return this.transport.sendIdempotent<CreateOrganizationResponse>('POST', '/api/platform/organizations', request, attemptKey);
   }
 
   public updateStatus(organizationId: string, status: string, reason: string): Promise<OrganizationDetail> {

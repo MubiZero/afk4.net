@@ -37,6 +37,32 @@ function setup(rows: unknown[], canManage = true) {
 }
 
 describe('PayableQueue', () => {
+  // Ответ потерялся по дороге — человек нажимает «Отметить оплаченным» второй раз. Если бы ключ
+  // попытки был новым, платёж отметился бы дважды: первый запрос до сервера дошёл.
+  it('повтор после неудачи несёт тот же ключ попытки', async () => {
+    const client = {
+      listInvoices: mock().mockResolvedValue([invoice()]),
+      markInvoicePaid: mock()
+        .mockRejectedValueOnce(new Error('network'))
+        .mockResolvedValue({}),
+      voidInvoice: mock().mockResolvedValue({})
+    };
+    render(
+      <I18nProvider><ToastProvider>
+        <PayableQueue client={client as never} canManage />
+      </ToastProvider></I18nProvider>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Отметить оплаченным' }));
+    const confirm = screen.getAllByRole('button', { name: 'Отметить оплаченным' }).at(-1)!;
+    fireEvent.click(confirm);
+    await waitFor(() => expect(client.markInvoicePaid).toHaveBeenCalledTimes(1));
+    fireEvent.click(confirm);
+    await waitFor(() => expect(client.markInvoicePaid).toHaveBeenCalledTimes(2));
+
+    expect(client.markInvoicePaid.mock.calls[1][2]).toBe(client.markInvoicePaid.mock.calls[0][2]);
+  });
+
   // Референс платежа подписан «необязательно»: неактивная кнопка рядом с таким полем — обещание,
   // которого интерфейс не выполняет, и человек ищет несуществующее обязательное поле.
   it('отмечает оплаченным без референса', async () => {
@@ -48,7 +74,7 @@ describe('PayableQueue', () => {
     fireEvent.click(confirm);
 
     await waitFor(() => expect(client.markInvoicePaid).toHaveBeenCalledTimes(1));
-    expect(client.markInvoicePaid.mock.calls[0]).toEqual(['inv-1', null]);
+    expect(client.markInvoicePaid.mock.calls[0]).toEqual(['inv-1', null, expect.any(String)]);
   });
 
   // Аннулирование уходит в журнал: без причины подтверждать нечего.
@@ -63,7 +89,7 @@ describe('PayableQueue', () => {
     fireEvent.click(confirm);
 
     await waitFor(() => expect(client.voidInvoice).toHaveBeenCalledTimes(1));
-    expect(client.voidInvoice.mock.calls[0]).toEqual(['inv-1', 'дубль']);
+    expect(client.voidInvoice.mock.calls[0]).toEqual(['inv-1', 'дубль', expect.any(String)]);
   });
 
   // Очередь отвечает на вопрос «кто не заплатил»: просроченные сверху, оплаченным здесь не место.

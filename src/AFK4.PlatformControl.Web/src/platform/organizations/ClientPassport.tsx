@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { DebtApi } from '@/api/platformClients/debt';
@@ -59,6 +60,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
   const [statusPending, setStatusPending] = useState(false);
   const [invoicePending, setInvoicePending] = useState(false);
+  const attempt = useAttemptKey();
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -131,7 +133,10 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   async function generateInvoice() {
     setInvoicePending(true);
     try {
-      await client.invoices.generateInvoice(organization.organizationId);
+      await client.invoices.generateInvoice(
+        organization.organizationId,
+        attempt.forSubject({ action: 'generate', organizationId: organization.organizationId }));
+      attempt.done();
       toast({ title: t('platform.organization.passport.invoiceGenerated'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
+import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
 import { majorToMinor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
@@ -34,6 +35,7 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
   const [description, setDescription] = useState('');
   const [dueAt, setDueAt] = useState('');
   const [pending, setPending] = useState(false);
+  const attempt = useAttemptKey();
 
   const amountValue = Number.parseFloat(amount.replace(',', '.'));
   const amountValid = Number.isFinite(amountValue) && amountValue > 0;
@@ -51,12 +53,14 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
       // Сумму всегда вводят положительной, а знак ставит вид счёта: минус в поле — верный способ
       // однажды стереть настоящий долг опечаткой.
       const minorUnits = majorToMinor(amountValue) * (isCredit ? -1 : 1);
-      const invoice = await client.createInvoice(organizationId, {
+      const request = {
         kind,
         amountMinorUnits: minorUnits,
         description: description.trim(),
         dueAtUtc: dueAt.length > 0 ? new Date(`${dueAt}T00:00:00Z`).toISOString() : null
-      });
+      };
+      const invoice = await client.createInvoice(organizationId, request, attempt.forSubject({ organizationId, ...request }));
+      attempt.done();
       onCreated(invoice);
       toast({ title: t('platform.organization.invoiceDialog.created'), variant: 'success' });
     } catch (cause) {
