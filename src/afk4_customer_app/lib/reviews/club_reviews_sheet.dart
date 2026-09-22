@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../organization/organization.dart';
 import '../organization/organization_directory.dart';
 import '../shell/load_failure.dart';
+import '../theme/app_palette.dart';
 
 /// Отзывы о клубе — то, что читают до входа. Открывается из карточки клуба по оценке:
 /// цифра «4,6» отвечает «насколько хорошо», а на «почему» отвечают только слова игроков.
@@ -121,7 +122,7 @@ class _ReviewTile extends StatelessWidget {
                 star <= review.rating ? Icons.star_rounded : Icons.star_outline_rounded,
                 size: 16,
                 color: star <= review.rating
-                    ? const Color(0xFFFFC53D)
+                    ? AppPalette.of(context).rating
                     : theme.colorScheme.onSurfaceVariant,
               ),
           ],

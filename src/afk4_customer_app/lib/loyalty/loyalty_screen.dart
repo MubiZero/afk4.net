@@ -6,6 +6,7 @@ import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
 
@@ -143,6 +144,10 @@ class _EarnedCard extends StatelessWidget {
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
     final dark = theme.brightness == Brightness.dark;
+    // Накопленный кешбэк — деньги, которые уже пришли игроку, поэтому карточка светится цветом
+    // прихода, а не акцентом клуба: у клуба с красным логотипом она иначе читалась бы долгом.
+    final income = AppPalette.of(context).income;
+    final surface = theme.colorScheme.surface;
 
     return Container(
       decoration: BoxDecoration(
@@ -151,11 +156,12 @@ class _EarnedCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: dark
-              ? [const Color(0xFF17322A), const Color(0xFF121B19)]
-              : [const Color(0xFFE7F6EF), Colors.white],
+          colors: [
+            Color.alphaBlend(income.withValues(alpha: dark ? 0.13 : 0.10), surface),
+            surface,
+          ],
         ),
-        boxShadow: dark ? AppTheme.accentGlow(AppTheme.emerald.withValues(alpha: 0.28)) : null,
+        boxShadow: dark ? AppTheme.accentGlow(income.withValues(alpha: 0.28)) : null,
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
