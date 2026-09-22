@@ -8,12 +8,21 @@ import 'organization.dart';
 /// Сбой при загрузке каталога. Отдельный тип, а не пустой список: «клубов не нашлось» и
 /// «не смогли спросить» — разные вещи, и на экране они выглядят по-разному.
 class OrganizationDirectoryException implements Exception {
-  const OrganizationDirectoryException(this.statusCode);
+  const OrganizationDirectoryException(this.statusCode) : isOffline = false;
+
+  /// Запрос не дошёл до сервера. Отдельно от прочих отказов: «не удалось загрузить» игрок
+  /// читает как поломку клуба и звонит в поддержку, а причина — его собственный интернет.
+  /// Пустой statusCode сам по себе этого не говорит: его же получает ответ, который пришёл,
+  /// но не разобрался.
+  const OrganizationDirectoryException.offline()
+      : statusCode = null,
+        isOffline = true;
 
   final int? statusCode;
+  final bool isOffline;
 
   @override
-  String toString() => 'OrganizationDirectoryException(statusCode: $statusCode)';
+  String toString() => 'OrganizationDirectoryException(statusCode: $statusCode, offline: $isOffline)';
 }
 
 /// Публичный каталог клубов. Читается до входа: у мобильного приложения нет поддомена, из
@@ -37,17 +46,24 @@ class OrganizationDirectory {
     try {
       response = await _http.get(uri);
     } catch (_) {
-      throw const OrganizationDirectoryException(null);
+      throw const OrganizationDirectoryException.offline();
     }
 
     if (response.statusCode != 200) {
       throw OrganizationDirectoryException(response.statusCode);
     }
 
-    final decoded = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
-    return decoded
-        .map((entry) => Organization.fromJson(entry as Map<String, dynamic>))
-        .toList(growable: false);
+    // Разбор — тоже отказ каталога, а не поломка приложения: без этой обёртки битый ответ летел
+    // наружу сырым FormatException, экран его не ловил (он ждёт OrganizationDirectoryException)
+    // и витрина падала вместо того, чтобы предложить повтор. В reviews() обёртка была, здесь нет.
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+      return decoded
+          .map((entry) => Organization.fromJson(entry as Map<String, dynamic>))
+          .toList(growable: false);
+    } catch (_) {
+      throw const OrganizationDirectoryException(null);
+    }
   }
 
   /// Отзывы о клубе. Читаются до входа — за этим их и пишут: игрок решает, идти ли сюда,
@@ -59,7 +75,7 @@ class OrganizationDirectory {
     try {
       response = await _http.get(uri);
     } catch (_) {
-      throw const OrganizationDirectoryException(null);
+      throw const OrganizationDirectoryException.offline();
     }
 
     if (response.statusCode != 200) {

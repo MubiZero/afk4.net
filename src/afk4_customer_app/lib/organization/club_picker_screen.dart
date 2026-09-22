@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../api/contracts.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../shell/load_failure.dart';
 import '../theme/brand_mark.dart';
 import '../reviews/club_reviews_sheet.dart';
 import 'club_card.dart';
@@ -57,7 +58,9 @@ class _Loading extends _Load {
 }
 
 class _Failed extends _Load {
-  const _Failed();
+  const _Failed({this.offline = false});
+
+  final bool offline;
 }
 
 class _Ready extends _Load {
@@ -107,9 +110,9 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
       final clubs = await widget.directory.search(query: _query);
       if (!mounted || seq != _requestSeq) return;
       setState(() => _load = _Ready(clubs));
-    } on OrganizationDirectoryException {
+    } on OrganizationDirectoryException catch (error) {
       if (!mounted || seq != _requestSeq) return;
-      setState(() => _load = const _Failed());
+      setState(() => _load = _Failed(offline: error.isOffline));
     }
   }
 
@@ -400,11 +403,9 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
   Widget _buildBody(L l) {
     return switch (_load) {
       _Loading() => const Center(child: CircularProgressIndicator()),
-      _Failed() => _Message(
-        text: l.customerClubPickerError,
-        actionLabel: l.customerCommonRetry,
-        onAction: _fetch,
-      ),
+      _Failed(offline: final offline) => offline
+          ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _fetch)
+          : LoadFailure(message: l.customerClubPickerError, onRetry: _fetch),
       _Ready(clubs: final clubs) when clubs.isEmpty => _Message(
         text: l.customerClubPickerEmpty,
       ),

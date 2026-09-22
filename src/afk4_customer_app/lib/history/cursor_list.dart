@@ -23,6 +23,7 @@ class CursorListController<T> extends ChangeNotifier {
   String? _cursor;
   bool _loadingMore = false;
   bool _moreFailed = false;
+  bool _offline = false;
   bool _disposed = false;
 
   /// Отсекает ответы отменённых запросов: повтор после ошибки не должен получить страницу
@@ -38,10 +39,15 @@ class CursorListController<T> extends ChangeNotifier {
   /// иначе прокрутка у края повторяла бы запрос без остановки.
   bool get moreFailed => _moreFailed;
 
+  /// Первая страница не загрузилась из-за связи. Причина живёт рядом со статусом: экран
+  /// видит только статус, а «нет интернета» и «сломалось» — разные надписи.
+  bool get offline => _offline;
+
   Future<void> load() async {
     final seq = ++_requestSeq;
     _status = CursorListStatus.loading;
     _moreFailed = false;
+    _offline = false;
     _notify();
     try {
       final page = await _fetch(null);
@@ -49,8 +55,9 @@ class CursorListController<T> extends ChangeNotifier {
       _items = page.items;
       _cursor = page.nextCursor;
       _status = CursorListStatus.ready;
-    } on PlayerApiException {
+    } on PlayerApiException catch (error) {
       if (seq != _requestSeq) return;
+      _offline = error.isOffline;
       _status = CursorListStatus.failed;
     }
     _notify();

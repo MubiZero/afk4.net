@@ -12,6 +12,7 @@ import '../money/money.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
 import '../shell/app_scaffold.dart';
+import '../shell/load_failure.dart';
 import 'date_time_field.dart';
 import 'new_reservation_sheet.dart';
 
@@ -70,6 +71,7 @@ enum _Load { loading, failed, ready }
 
 class _ReservationsScreenState extends State<ReservationsScreen> {
   _Load _state = _Load.loading;
+  bool _offline = false;
   List<PlayerReservationDto> _reservations = const [];
 
   /// Как часто перерисовывается обратный отсчёт у заявки, ждущей ответа. Минута — шаг, в
@@ -147,7 +149,10 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       if (!mounted) return;
       // Пустой список вместо ошибки — враньё: «броней нет» и «мы их не увидели» это разные
       // вещи, и на первом игрок спокойно уйдёт мимо своей брони.
-      setState(() => _state = _Load.failed);
+      setState(() {
+        _offline = error.isOffline;
+        _state = _Load.failed;
+      });
     }
   }
 
@@ -315,16 +320,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                     child: CircularProgressIndicator(),
                   )),
                 ),
-              _Load.failed => Center(
-                  child: Column(
-                    children: [
-                      Text(l.customerReservationsLoadError,
-                          style: TextStyle(color: theme.colorScheme.error)),
-                      const SizedBox(height: 8),
-                      TextButton(onPressed: _refresh, child: Text(l.customerCommonRetry)),
-                    ],
-                  ),
-                ),
+              _Load.failed => _offline
+                  ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _refresh)
+                  : LoadFailure(message: l.customerReservationsLoadError, onRetry: _refresh),
               // Пустой раздел объясняет, зачем он нужен, а не сообщает о пустоте: серая
               // строка «броней пока нет» не отвечает на вопрос, что здесь делать.
               _Load.ready when _reservations.isEmpty => Padding(

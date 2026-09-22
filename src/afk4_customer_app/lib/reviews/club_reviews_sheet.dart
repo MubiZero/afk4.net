@@ -5,6 +5,7 @@ import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/organization.dart';
 import '../organization/organization_directory.dart';
+import '../shell/load_failure.dart';
 
 /// Отзывы о клубе — то, что читают до входа. Открывается из карточки клуба по оценке:
 /// цифра «4,6» отвечает «насколько хорошо», а на «почему» отвечают только слова игроков.
@@ -21,6 +22,7 @@ class ClubReviewsSheet extends StatefulWidget {
 class _ClubReviewsSheetState extends State<ClubReviewsSheet> {
   ClubReviewsPageDto? _reviews;
   bool _failed = false;
+  bool _offline = false;
 
   @override
   void initState() {
@@ -29,14 +31,20 @@ class _ClubReviewsSheetState extends State<ClubReviewsSheet> {
   }
 
   Future<void> _load() async {
-    setState(() => _failed = false);
+    setState(() {
+      _failed = false;
+      _offline = false;
+    });
     try {
       final reviews = await widget.directory.reviews(widget.club.organizationId);
       if (!mounted) return;
       setState(() => _reviews = reviews);
-    } on OrganizationDirectoryException {
+    } on OrganizationDirectoryException catch (error) {
       if (!mounted) return;
-      setState(() => _failed = true);
+      setState(() {
+        _offline = error.isOffline;
+        _failed = true;
+      });
     }
   }
 
@@ -61,15 +69,9 @@ class _ClubReviewsSheetState extends State<ClubReviewsSheet> {
             ),
             const SizedBox(height: 16),
             if (_failed)
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(l.customerReviewsError,
-                        style: TextStyle(color: theme.colorScheme.error)),
-                  ),
-                  TextButton(onPressed: _load, child: Text(l.customerCommonRetry)),
-                ],
-              )
+              _offline
+                  ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _load)
+                  : LoadFailure(message: l.customerReviewsError, onRetry: _load)
             else if (reviews == null)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),

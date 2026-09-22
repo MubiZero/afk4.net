@@ -6,6 +6,7 @@ import '../push/push_service.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
 import '../shell/app_scaffold.dart';
+import '../shell/load_failure.dart';
 import '../theme/brand_mark.dart';
 import 'pin_sheet.dart';
 
@@ -57,6 +58,7 @@ enum _Load { loading, failed, ready }
 
 class _ProfileScreenState extends State<ProfileScreen> {
   _Load _state = _Load.loading;
+  bool _offline = false;
   PlayerProfileDto? _profile;
   bool _saving = false;
   bool _pushEnabled = false;
@@ -180,7 +182,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
       // Веб оставлял на экране вечный скелет: непонятно, грузится или сломалось.
-      setState(() => _state = _Load.failed);
+      setState(() {
+        _offline = error.isOffline;
+        _state = _Load.failed;
+      });
     }
   }
 
@@ -298,17 +303,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               _Load.failed => [
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(l.customerProfileLoadError,
-                            style: TextStyle(color: theme.colorScheme.error)),
-                        const SizedBox(height: 8),
-                        TextButton(onPressed: _load, child: Text(l.customerCommonRetry)),
-                      ],
-                    ),
-                  ),
+                  if (_offline)
+                    LoadFailure.offline(message: l.customerErrorOffline, onRetry: _load)
+                  else
+                    LoadFailure(message: l.customerProfileLoadError, onRetry: _load),
                 ],
               _Load.ready => _body(l, theme, _profile),
             },

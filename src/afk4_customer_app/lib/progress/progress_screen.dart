@@ -5,6 +5,7 @@ import '../api/dto_rules.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../shell/app_scaffold.dart';
+import '../shell/load_failure.dart';
 import '../theme/app_theme.dart';
 
 /// Стаж игрока: уровень, часы за ПК и достижения.
@@ -23,6 +24,7 @@ class ProgressScreen extends StatefulWidget {
 class _ProgressScreenState extends State<ProgressScreen> {
   PlayerAchievementsDto? _data;
   bool _failed = false;
+  bool _offline = false;
 
   @override
   void initState() {
@@ -36,9 +38,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
       final data = await widget.api.getAchievements();
       if (!mounted) return;
       setState(() => _data = data);
-    } on PlayerApiException {
+    } on PlayerApiException catch (error) {
       if (!mounted) return;
-      setState(() => _failed = true);
+      setState(() {
+        _offline = error.isOffline;
+        _failed = true;
+      });
     }
   }
 
@@ -56,14 +61,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
           padding: sectionPadding,
           sliver: SliverList.list(
             children: [
-              if (_failed && data == null) ...[
-                Text(l.customerProgressError, style: TextStyle(color: theme.colorScheme.error)),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(onPressed: _load, child: Text(l.customerCommonRetry)),
-                ),
-              ] else if (data == null)
+              if (_failed && data == null)
+                _offline
+                    ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _load)
+                    : LoadFailure(message: l.customerProgressError, onRetry: _load)
+              else if (data == null)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
                   child: Center(child: CircularProgressIndicator()),

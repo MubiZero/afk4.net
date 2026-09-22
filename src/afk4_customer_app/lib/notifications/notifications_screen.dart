@@ -5,6 +5,7 @@ import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../shell/app_scaffold.dart';
+import '../shell/load_failure.dart';
 
 /// Что клуб присылал этому человеку.
 ///
@@ -29,6 +30,7 @@ enum _Load { loading, ready, failed }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   _Load _state = _Load.loading;
+  bool _offline = false;
   List<PlayerNotificationDto> _items = const [];
 
   @override
@@ -55,8 +57,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         // Не отметилось — значит в следующий раз откроется с тем же непрочитанным. Это лучше,
         // чем ошибка поверх прочитанного списка.
       }
-    } on PlayerApiException {
-      if (mounted) setState(() => _state = _Load.failed);
+    } on PlayerApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _offline = error.isOffline;
+          _state = _Load.failed;
+        });
+      }
     }
   }
 
@@ -86,20 +93,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           else if (_state == _Load.failed)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(l.customerNotificationsError,
-                          style: TextStyle(color: theme.colorScheme.error)),
-                      const SizedBox(height: 12),
-                      OutlinedButton(onPressed: _load, child: Text(l.customerCommonRetry)),
-                    ],
-                  ),
-                ),
-              ),
+              child: _offline
+                  ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _load)
+                  : LoadFailure(message: l.customerNotificationsError, onRetry: _load),
             )
           else if (_items.isEmpty)
             SliverFillRemaining(
