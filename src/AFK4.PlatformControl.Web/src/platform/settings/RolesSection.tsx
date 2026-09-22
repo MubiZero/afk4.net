@@ -89,7 +89,7 @@ export function RolesSection({ client }: { client: Client }) {
     }
   }
 
-  if (state.status === 'error') return <ErrorState title={t('platform.settings.roles.error.load')} message={state.message} retryLabel={t('state.retry')} onRetry={reload} />;
+  if (state.status === 'error') return <ErrorState title={t('platform.settings.roles.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? reload : undefined} />;
   if (state.status === 'loading') return <LoadingCards count={1} />;
 
   const [roles, permissions] = state.data;

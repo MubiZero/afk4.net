@@ -68,7 +68,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
 
   if (state.status === 'loading') return <Page back={back}><LoadingCards count={3} /></Page>;
   if (state.status === 'error') {
-    return <Page back={back}><ErrorState title={t('platform.organization.drawer.error')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} /></Page>;
+    return <Page back={back}><ErrorState title={t('platform.organization.drawer.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} /></Page>;
   }
 
   const organization = state.data;

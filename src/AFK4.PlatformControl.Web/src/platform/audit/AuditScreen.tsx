@@ -68,7 +68,7 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
       <Filter label={t('platform.audit.to')}><Input type="date" value={draft.to} onChange={e => setDraft({ ...draft, to: e.target.value })} /></Filter>
       <div><Button type="submit">{t('platform.audit.apply')}</Button></div>
     </form>
-    {state.status === 'error' ? <ErrorState title={t('platform.audit.error')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+    {state.status === 'error' ? <ErrorState title={t('platform.audit.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       : state.status === 'loading' ? <LoadingCards count={3} />
       : (state.data.records ?? []).length === 0 ? <EmptyState message={t('platform.audit.empty')} />
       : <div className="table-panel"><Table><TableHeader><TableRow>

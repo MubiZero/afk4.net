@@ -20,15 +20,18 @@ export function LoadingCards({ count = 4 }: { count?: number }) {
 /// `title` — что именно не загрузилось, `message` — почему. Порознь они неполны: «не удалось
 /// загрузить фичи клуба» не подсказывает, чинить ли права или подождать сервер, а голое
 /// «недостаточно прав» на странице с семью разделами не говорит, к какому из них это относится.
+/// Кнопки повтора нет, когда повтор не поможет: нехватка прав не чинится нажатием, и кнопка,
+/// которая обещает обратное, уводит человека от единственного настоящего действия — попросить
+/// доступ. `onRetry` не передан — блок просто называет причину.
 export function ErrorState({ title, message, retryLabel, onRetry }: {
-  title?: string; message: string; retryLabel: string; onRetry: () => void;
+  title?: string; message: string; retryLabel?: string; onRetry?: () => void;
 }) {
   return (
     <div className="empty-state" role="alert">
       <AlertTriangle className="empty-state-icon" size={22} aria-hidden="true" />
       {title !== undefined ? <h2>{title}</h2> : null}
       <p>{message}</p>
-      <Button onClick={onRetry}>{retryLabel}</Button>
+      {onRetry !== undefined && retryLabel !== undefined ? <Button onClick={onRetry}>{retryLabel}</Button> : null}
     </div>
   );
 }

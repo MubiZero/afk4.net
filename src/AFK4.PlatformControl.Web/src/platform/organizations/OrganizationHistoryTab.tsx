@@ -13,7 +13,7 @@ export function OrganizationHistoryTab({ client, organizationId }: {
   const { t, formatDate } = useI18n();
   const state = useLoadable(() => client.listOrganizationHistory(organizationId), [organizationId]);
 
-  if (state.status === 'error') return <ErrorState title={t('platform.organization.history.error')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState title={t('platform.organization.history.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   if (state.status === 'loading') return <LoadingCards count={3} />;
   if (state.data.records.length === 0) return <EmptyState message={t('platform.organization.history.empty')} />;
 

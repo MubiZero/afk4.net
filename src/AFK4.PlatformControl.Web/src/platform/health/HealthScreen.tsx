@@ -59,7 +59,7 @@ export function HealthScreen({ client, canSendTestEmail }: HealthScreenProps) {
       {state.status === 'loading' ? (
         <LoadingCards count={3} />
       ) : state.status === 'error' ? (
-        <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+        <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       ) : (
         <>
           <HealthOverviewView overview={state.data} />

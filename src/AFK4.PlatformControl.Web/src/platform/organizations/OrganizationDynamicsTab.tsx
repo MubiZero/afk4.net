@@ -54,7 +54,7 @@ export function OrganizationDynamicsTab({ client, organizationId, branches }: {
 
       {state.status === 'loading' ? <LoadingCards count={3} /> : null}
       {state.status === 'error' ? (
-        <ErrorState title={i18n.t('platform.dynamics.error')} message={state.message} retryLabel={i18n.t('platform.dynamics.retry')} onRetry={state.retry} />
+        <ErrorState title={i18n.t('platform.dynamics.error')} message={state.message} retryLabel={state.canRetry ? i18n.t('platform.dynamics.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       ) : null}
       {state.status === 'ready' ? <DynamicsContent i18n={i18n} data={state.data} /> : null}
     </div>

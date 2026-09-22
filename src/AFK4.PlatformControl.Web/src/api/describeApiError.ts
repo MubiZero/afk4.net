@@ -49,6 +49,15 @@ const CODE_KEYS: Record<string, MessageKey> = {
  * Поэтому текст выбирается по КОДУ ответа, а вызывающий экран может уточнить отдельные коды
  * своей формулировкой (`overrides`) — например, 404 «код приглашения не найден».
  */
+/**
+ * Поможет ли повтор. Нехватка прав не чинится кнопкой «Повторить»: сколько ни жми, ответ будет
+ * тот же, а кнопка обещает обратное — человек жмёт её вместо того, чтобы пойти к начальнику.
+ */
+export function retryCanHelp(cause: unknown): boolean {
+  if (cause instanceof PlatformApiError) return cause.status !== 401 && cause.status !== 403;
+  return true;
+}
+
 export function describeApiError(
   cause: unknown,
   t: Translate,

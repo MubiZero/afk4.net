@@ -132,7 +132,7 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
         ) : null}
 
         {state.status === 'error' ? (
-          <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+          <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
         ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
         ) : state.data.length === 0 ? (

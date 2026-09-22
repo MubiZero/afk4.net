@@ -33,7 +33,7 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
   const state = useAnalytics(client);
 
   if (state.status === 'loading') return <LoadingCards count={3} />;
-  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
 
   const overview = state.data;
   const monthLabel = (month: number) => t(MONTH_LABEL_KEY[month - 1] ?? MONTH_LABEL_KEY[0]);
