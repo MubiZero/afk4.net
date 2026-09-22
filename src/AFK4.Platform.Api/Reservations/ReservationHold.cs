@@ -30,6 +30,23 @@ internal static class ReservationHold
     public static string ReleaseReason(Guid reservationId, string cause) =>
         $"reservation_hold_release:{reservationId:D}:{cause}";
 
+    /// <summary>
+    /// Повод снятия, прочитанный из причины записи, — или null, если это не снятие удержания или
+    /// повод незнакомый. Наружу уходит только известный повод: причина — служебная строка, и
+    /// показывать её игроку как есть нельзя.
+    /// </summary>
+    public static string? TryReadReleaseCause(string? reason)
+    {
+        const string prefix = "reservation_hold_release:";
+        if (reason is null || !reason.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var cause = reason[(reason.LastIndexOf(':') + 1)..];
+        return ReservationHoldCauses.All.Contains(cause) ? cause : null;
+    }
+
     public static LedgerEntryEntity Create(ReservationEntity reservation, long amountMinorUnits, string currencyCode, DateTimeOffset now) =>
         BillingEntryFactory.Create(
             reservation.OrganizationId,
@@ -159,4 +176,9 @@ internal static class ReservationHoldCauses
     /// ПК, за который заморожено меньше, чем он стоит.
     /// </summary>
     public const string Moved = "moved";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
+    {
+        Cancelled, Seated, NoShow, RequestExpired, Rejected, Moved
+    };
 }

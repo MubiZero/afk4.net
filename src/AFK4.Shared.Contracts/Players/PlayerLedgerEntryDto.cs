@@ -23,10 +23,24 @@ using AFK4.Shared.Contracts.Billing;
 /// сессии или по сессии не выбит чек. Без него «Списание за игру −45 с.» — тупик: сумма есть,
 /// а из чего она сложилась, видно только в другой вкладке и только по времени на глаз.
 /// </param>
+/// <param name="HoldReleaseCause">
+/// Почему вернулись деньги, придержанные под бронь, — только у строки, которая снимает такое
+/// удержание: <c>seated</c> (бронь началась, дальше считает сессия), <c>cancelled</c>,
+/// <c>rejected</c>, <c>request_expired</c>, <c>no_show</c>, <c>moved</c>. Без повода строка
+/// читалась бы «Отмена операции +15 с.» — и человек не знал бы, что именно отменили.
+/// </param>
+/// <param name="WalletBalanceAfter">
+/// Сколько осталось на кошельке сразу после этой строки. Пусто у строк не про кошелёк — пакетное
+/// и бонусное время, долг: они остаток не двигают. Сходится с балансом наверху экрана, потому что
+/// удержание под бронь в выписке тоже есть — прятать его значило бы получить остаток, который не
+/// складывается из видимых строк.
+/// </param>
 public sealed record PlayerLedgerEntryDto(
     Guid LedgerEntryId,
     string EntryType,
     MoneyDto Amount,
     int QuantitySeconds,
     DateTimeOffset CreatedAtUtc,
-    Guid? ReceiptSessionId = null);
+    Guid? ReceiptSessionId = null,
+    string? HoldReleaseCause = null,
+    MoneyDto? WalletBalanceAfter = null);

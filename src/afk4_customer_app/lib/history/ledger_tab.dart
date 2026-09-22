@@ -86,6 +86,7 @@ String ledgerTypeLabel(String entryType, L l) => switch (entryType) {
   'reversal' => l.ledgerTypeReversal,
   'cashback' => l.ledgerTypeCashback,
   'referral_bonus' => l.ledgerTypeReferralBonus,
+  'reservation_hold' => l.ledgerTypeReservationHold,
   'reservation_no_show_fee' => l.ledgerTypeReservationNoShowFee,
   'tournament_entry_fee' => l.ledgerTypeTournamentEntryFee,
   'tournament_entry_refund' => l.ledgerTypeTournamentEntryRefund,
@@ -93,6 +94,19 @@ String ledgerTypeLabel(String entryType, L l) => switch (entryType) {
   // он может только у клиента старше сервера.
   _ => entryType,
 };
+
+/// Название строки выписки. У снятия удержания вместо «Отмена операции» — почему вернулись
+/// деньги: иначе человек видел бы «+15» и не знал, что именно отменили.
+String ledgerEntryLabel(PlayerLedgerEntryDto entry, L l) =>
+    switch (entry.holdReleaseCause) {
+      'seated' => l.ledgerHoldReleaseSeated,
+      'cancelled' => l.ledgerHoldReleaseCancelled,
+      'rejected' => l.ledgerHoldReleaseRejected,
+      'request_expired' => l.ledgerHoldReleaseRequestExpired,
+      'no_show' => l.ledgerHoldReleaseNoShow,
+      'moved' => l.ledgerHoldReleaseMoved,
+      _ => ledgerTypeLabel(entry.entryType, l),
+    };
 
 class _LedgerRow extends StatelessWidget {
   const _LedgerRow({required this.entry, this.onOpenReceipt});
@@ -124,7 +138,7 @@ class _LedgerRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      ledgerTypeLabel(entry.entryType, l),
+                      ledgerEntryLabel(entry, l),
                       style: theme.textTheme.bodyLarge,
                     ),
                     Text(
@@ -144,11 +158,27 @@ class _LedgerRow extends StatelessWidget {
               const SizedBox(width: 12),
               // Знак перед суммой — главное в строке: человек листает выписку, чтобы понять, где
               // прибыло, а где убыло, и цвет тут помогает, но решает именно знак.
-              Text(
-                '${income ? '+' : '−'}${formatMoney(entry.amount.minorUnits.abs(), entry.amount.currencyCode, locale: locale)}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: income ? theme.colorScheme.primary : null,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${income ? '+' : '−'}${formatMoney(entry.amount.minorUnits.abs(), entry.amount.currencyCode, locale: locale)}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: income ? theme.colorScheme.primary : null,
+                    ),
+                  ),
+                  // Остаток после строки — чтобы выписка сходилась с балансом наверху без
+                  // подсчёта в уме. У строк про время остатка нет: кошелёк они не двигают.
+                  if (entry.walletBalanceAfter case final balance?)
+                    Text(
+                      l.ledgerBalanceAfter(
+                        formatMoney(balance.minorUnits, balance.currencyCode, locale: locale),
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
               if (onOpenReceipt != null) ...[
                 const SizedBox(width: 4),

@@ -46,7 +46,14 @@ const LEDGER_TYPE_KEYS: Record<string, MessageKey> = {
   debt_payment: 'ledger.type.debt_payment',
   wallet_payment: 'ledger.type.wallet_payment',
   reversal: 'ledger.type.reversal',
-  cashback: 'ledger.type.cashback'
+  cashback: 'ledger.type.cashback',
+  // Эти строки стойка называла «Операция», хотя в общем каталоге они давно есть: кассир видел в
+  // истории клиента безымянные движения денег там, где игрок в приложении читал их по имени.
+  referral_bonus: 'ledger.type.referral_bonus',
+  reservation_hold: 'ledger.type.reservation_hold',
+  reservation_no_show_fee: 'ledger.type.reservation_no_show_fee',
+  tournament_entry_fee: 'ledger.type.tournament_entry_fee',
+  tournament_entry_refund: 'ledger.type.tournament_entry_refund'
 };
 
 export function ledgerTypeLabel(entryType: string, t: TFunc): string {

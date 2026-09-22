@@ -2979,6 +2979,18 @@ export interface PlayerDebtPaymentRequest {
  * сессии или по сессии не выбит чек. Без него «Списание за игру −45 с.» — тупик: сумма есть,
  * а из чего она сложилась, видно только в другой вкладке и только по времени на глаз.
  * </param>
+ * <param name="HoldReleaseCause">
+ * Почему вернулись деньги, придержанные под бронь, — только у строки, которая снимает такое
+ * удержание: `seated` (бронь началась, дальше считает сессия), `cancelled`,
+ * `rejected`, `request_expired`, `no_show`, `moved`. Без повода строка
+ * читалась бы «Отмена операции +15 с.» — и человек не знал бы, что именно отменили.
+ * </param>
+ * <param name="WalletBalanceAfter">
+ * Сколько осталось на кошельке сразу после этой строки. Пусто у строк не про кошелёк — пакетное
+ * и бонусное время, долг: они остаток не двигают. Сходится с балансом наверху экрана, потому что
+ * удержание под бронь в выписке тоже есть — прятать его значило бы получить остаток, который не
+ * складывается из видимых строк.
+ * </param>
  *
  * Контракт: Players/PlayerLedgerEntryDto.cs
  */
@@ -2989,6 +3001,8 @@ export interface PlayerLedgerEntryDto {
   quantitySeconds: number;
   createdAtUtc: IsoDateTime;
   receiptSessionId?: Guid | null;
+  holdReleaseCause?: string | null;
+  walletBalanceAfter?: MoneyDto | null;
 }
 
 /**

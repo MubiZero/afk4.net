@@ -32,42 +32,8 @@ public static class PlayerHistoryProjector
                 session.State == SessionStateNames.Ended &&
                 session.EndedAtUtc != null);
 
-        // EF Core InMemory does not translate Guid.CompareTo inside LINQ Where.
-        // Filter by timestamp boundary only in SQL/InMemory, then apply the precise
-        // (EndedAtUtc, SessionId) tie-break in memory after materializing.
-        DateTimeOffset afterTs = default;
-        Guid afterId = default;
-        bool hasCursor = CursorToken.TryDecode(cursor, out afterTs, out afterId);
-
-        if (hasCursor)
-        {
-            query = query.Where(session => session.EndedAtUtc <= afterTs);
-        }
-
-        // Fetch a larger window so we can apply the in-memory tie-break and still
-        // have PageSize+1 candidates to determine hasMore.
-        var windowSize = hasCursor ? (PageSize + 1) * 2 : PageSize + 1;
-        var candidates = await query
-            .OrderByDescending(session => session.EndedAtUtc)
-            .ThenByDescending(session => session.SessionId)
-            .Take(windowSize)
-            .ToListAsync(cancellationToken);
-
-        // Apply the (EndedAtUtc DESC, SessionId DESC) keyset tie-break in memory.
-        List<SessionEntity> sessions;
-        if (hasCursor)
-        {
-            sessions = candidates
-                .Where(session =>
-                    session.EndedAtUtc < afterTs ||
-                    (session.EndedAtUtc == afterTs && session.SessionId.CompareTo(afterId) < 0))
-                .Take(PageSize + 1)
-                .ToList();
-        }
-        else
-        {
-            sessions = candidates.Take(PageSize + 1).ToList();
-        }
+        var sessions = await KeysetPage.TakeAsync(
+            query, session => session.EndedAtUtc, session => session.SessionId, cursor, PageSize + 1, cancellationToken);
 
         var hasMore = sessions.Count > PageSize;
         if (hasMore)
@@ -139,39 +105,8 @@ public static class PlayerHistoryProjector
                 sale.PlayerAccountId == playerAccountId &&
                 sale.SessionId == null);
 
-        // EF Core InMemory does not translate Guid.CompareTo inside LINQ Where.
-        // Filter by timestamp boundary only, then apply the (CreatedAtUtc, PosSaleId)
-        // tie-break in memory — same strategy as GetVisitsAsync.
-        DateTimeOffset afterTs = default;
-        Guid afterId = default;
-        bool hasCursor = CursorToken.TryDecode(cursor, out afterTs, out afterId);
-
-        if (hasCursor)
-        {
-            query = query.Where(sale => sale.CreatedAtUtc <= afterTs);
-        }
-
-        var windowSize = hasCursor ? (PageSize + 1) * 2 : PageSize + 1;
-        var candidates = await query
-            .OrderByDescending(sale => sale.CreatedAtUtc)
-            .ThenByDescending(sale => sale.PosSaleId)
-            .Take(windowSize)
-            .ToListAsync(cancellationToken);
-
-        List<PosSaleEntity> sales;
-        if (hasCursor)
-        {
-            sales = candidates
-                .Where(sale =>
-                    sale.CreatedAtUtc < afterTs ||
-                    (sale.CreatedAtUtc == afterTs && sale.PosSaleId.CompareTo(afterId) < 0))
-                .Take(PageSize + 1)
-                .ToList();
-        }
-        else
-        {
-            sales = candidates.Take(PageSize + 1).ToList();
-        }
+        var sales = await KeysetPage.TakeAsync(
+            query, sale => sale.CreatedAtUtc, sale => sale.PosSaleId, cursor, PageSize + 1, cancellationToken);
 
         var hasMore = sales.Count > PageSize;
         if (hasMore)
