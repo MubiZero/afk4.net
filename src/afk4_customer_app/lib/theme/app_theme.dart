@@ -41,8 +41,10 @@ class AppTheme {
   static const Color _lightOnAccent = Color(0xFFFFFFFF);
   static const Color _lightDanger = Color(0xFFDC2626);
 
-  /// Минимальная сторона зоны касания: 44 — общий минимум Apple и WCAG.
-  static const double minTouchTarget = 44;
+  /// Минимальная сторона зоны касания: 48 — минимум Material, он же с запасом покрывает 44 у
+  /// Apple. Приложение держат одной рукой, между катками, в тёмном зале — прицеливаться там
+  /// некогда.
+  static const double minTouchTarget = 48;
 
   /// Высота основной кнопки. Крупнее минимума: главное действие экрана не должно требовать
   /// прицеливания.
@@ -237,7 +239,7 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, minTouchTarget + 4),
+          minimumSize: const Size(0, minTouchTarget),
           foregroundColor: text,
           backgroundColor: brightness == Brightness.dark
               ? Colors.white.withValues(alpha: 0.04)

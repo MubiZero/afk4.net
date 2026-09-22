@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
 import 'organization.dart';
 
 /// Карта клубов. Список отвечает «какие клубы есть», карта — «какой из них рядом», и второй
@@ -90,8 +91,8 @@ class ClubMap extends StatelessWidget {
                     for (final (club, place) in points)
                       Marker(
                         point: LatLng(place.latitude!, place.longitude!),
-                        width: 44,
-                        height: 44,
+                        width: AppTheme.minTouchTarget,
+                        height: AppTheme.minTouchTarget,
                         child: _Pin(club: club, place: place, onTap: () => onSelected(club)),
                       ),
                   ],
@@ -127,7 +128,10 @@ class _Pin extends StatelessWidget {
 
     return Tooltip(
       message: place.address == null ? club.name : '${club.name} · ${place.address}',
+      // Нажимается вся ячейка, а не только нарисованный кружок: без этого касание у края
+      // точки проходило насквозь и двигало карту.
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Center(
           child: Container(
