@@ -62,6 +62,22 @@ describe('ForgotPasswordScreen', () => {
     expect(await screen.findByText(/ПИН-код изменён/i)).toBeTruthy();
   });
 
+  // Подсказка под полем звалась без параметров, а строка каталога — «{min} цифр.»: ICU падал,
+  // и человек видел на экране фигурные скобки. Это не опечатка в переводе, это дыра в вызове.
+  it('подсказки про длину ПИН-кода показывают число, а не плейсхолдер', async () => {
+    renderScreen();
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '992937380070' } });
+    fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
+
+    await screen.findByLabelText(/код из sms/i);
+    const hints = screen.getAllByText(/цифр/);
+    expect(hints.length).toBeGreaterThan(0);
+    for (const hint of hints) {
+      expect(hint.textContent).not.toContain('{min}');
+      expect(hint.textContent).toContain('6');
+    }
+  });
+
   it('shows the remaining attempts when the SMS code is wrong', async () => {
     resetPasswordByPhone.mockImplementationOnce(async () => {
       throw new HostBridgeRequestError('bad code', 'invalid_code', 2);
