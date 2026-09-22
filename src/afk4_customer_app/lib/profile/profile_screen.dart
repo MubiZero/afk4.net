@@ -164,7 +164,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    setState(() => _state = _Load.loading);
+    // Ожидание показываем только когда показывать больше нечего. Экран перечитывает себя при
+    // возврате на вкладку, и подмена готового профиля спиннером читается как сбой — человек
+    // видел свои данные секунду назад.
+    if (_profile == null) setState(() => _state = _Load.loading);
     try {
       final profile = await widget.api.getProfile();
       if (!mounted) return;
