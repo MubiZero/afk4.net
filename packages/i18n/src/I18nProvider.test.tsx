@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { it, expect } from 'bun:test';
 import { I18nProvider, useI18n } from './I18nProvider';
 import type { Locale, MessageKey } from './messages';
@@ -44,4 +44,17 @@ it('returns a plain message unchanged when called without values', () => {
   }
   render(<I18nProvider initialLocale="ru"><Plain /></I18nProvider>);
   expect(screen.getByText('ПИН-код')).toBeInTheDocument();
+});
+
+// Читалка берёт язык из атрибута lang, а не из текста: пока в разметке панели стояло lang="en",
+// русский интерфейс зачитывался английским голосом. Атрибут должен идти за выбором человека.
+it('keeps <html lang> in step with the chosen locale', () => {
+  function Switcher() {
+    const { locale, setLocale } = useI18n();
+    return <button type="button" onClick={() => setLocale(locale === 'ru' ? 'tg' : 'ru')}>{locale}</button>;
+  }
+  render(<I18nProvider initialLocale="ru"><Switcher /></I18nProvider>);
+  expect(document.documentElement.lang).toBe('ru');
+  fireEvent.click(screen.getByRole('button', { name: 'ru' }));
+  expect(document.documentElement.lang).toBe('tg');
 });
