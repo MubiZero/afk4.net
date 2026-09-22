@@ -129,10 +129,12 @@ function ShellStatusRow({ initial, role, provisionShell }: {
   const [retryFailure, setRetryFailure] = useState<string | null>(null);
 
   // На игровом ПК ставится оболочка игрока, на рабочем месте управляющего — панель. Одна строка
-  // на обе роли обещала управляющему «оболочку игрока», которой у него не будет.
+  // на обе роли обещала управляющему «оболочку игрока», которой у него не будет. Имена свои, а не
+  // из списка компонентов обновлений: там «Organization Admin», а строкой ниже этот же экран
+  // говорит «откройте панель клуба» — и падеж там именительный, а здесь нужен винительный.
   const appName = role === 'gaming_pc'
-    ? t('op.helper.update.component.playerShell')
-    : t('op.helper.update.component.organizationAdmin');
+    ? t('setup.wizard.finished.app.playerShell')
+    : t('setup.wizard.finished.app.organizationAdmin');
 
   // Успех (или уже было установлено) не показываем — зелёная плашка только шумит.
   // Показываем строку лишь когда что-то сорвалось: это actionable (есть «Повторить»).

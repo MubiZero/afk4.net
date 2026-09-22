@@ -30,7 +30,16 @@ const GLOSSARY: { name: string; forbidden: RegExp; instead: string }[] = [
   { name: 'компьютерный клуб', forbidden: /компьютерн[а-я]*\s+клуб/i, instead: 'киберклуб' },
   // Пароля в системе нет вовсе — вход везде шестизначный ПИН. Слово на экране заставляет
   // человека искать поле, которого не существует.
-  { name: 'пароль', forbidden: /парол[ья]/i, instead: 'ПИН-код' }
+  { name: 'пароль', forbidden: /парол[ья]/i, instead: 'ПИН-код' },
+  // Панель клуба у человека одна, и имя у неё одно. Мастер звал её четырьмя: «панель клуба»,
+  // «приложение клуба», «панель управляющего» и просто «панель» — а по-английски ещё
+  // «dashboard», «admin panel», «club app» и «Organization Admin». Человек читал «создайте зал
+  // в приложении клуба» и открывал приложение игрока. Эти слова в каталоге не нужны нигде.
+  { name: 'приложение клуба', forbidden: /приложени[а-я]*\s+клуба/i, instead: 'панель клуба' },
+  { name: 'панель управляющего', forbidden: /панел[а-я]*\s+управляющ/i, instead: 'панель клуба' },
+  { name: 'админка', forbidden: /админк/i, instead: 'панель клуба' },
+  { name: 'барномаи клуб', forbidden: /барномаи\s+клуб/i, instead: 'панели клуб' },
+  { name: 'панели идора', forbidden: /панели\s+идора/i, instead: 'панели клуб' }
 ];
 
 const offenders = (match: RegExp): string[] => {
@@ -57,4 +66,21 @@ it('keeps «код доступа» for the PIN alone (terminology glossary)', (
 
 it.each(GLOSSARY)('keeps «$name» out of the catalog (use «$instead»)', ({ forbidden }) => {
   expect(offenders(forbidden)).toEqual([]);
+});
+
+// В мастере «панель» — всегда панель клуба, и названа она полностью. Голое «в панели» рядом со
+// строкой «в панели клуба» читается как второе место: какой панели? В других поверхностях
+// бывают «панель платформы» и «панель кассы», поэтому правило держится только за мастер.
+it('мастер зовёт панель клуба одним полным именем', () => {
+  const wizard = (loc: Locale) =>
+    Object.entries(messages[loc]).filter(([key]) => key.startsWith('setup.wizard.'));
+  const hits: string[] = [];
+  const check = (loc: Locale, bad: RegExp) => {
+    for (const [key, value] of wizard(loc)) if (bad.test(value)) hits.push(`${loc}:${key} = "${value}"`);
+  };
+  check('ru', /панел[а-я]*(?!\s+клуба)(?![а-я])/i);
+  check('tg', /панел[а-яӣӯҳқғҷ]*(?!\s+клуб)(?![а-яӣӯҳқғҷ])/i);
+  check('en', /(?<!club )panel|dashboard|club app|Organization Admin/i);
+
+  expect(hits).toEqual([]);
 });
