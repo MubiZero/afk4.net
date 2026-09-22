@@ -28,7 +28,7 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode, canM
   const state = useLoadable(() => client.listFeatures(organizationId), [organizationId]);
 
   if (state.status === 'error') {
-    return <ErrorState title={t('platform.organization.features.error')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
+    return <ErrorState title={t('platform.organization.features.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   }
   if (state.status === 'loading') return <LoadingCards count={3} />;
   if (state.data.length === 0) return <EmptyState message={t('platform.organization.features.empty')} />;

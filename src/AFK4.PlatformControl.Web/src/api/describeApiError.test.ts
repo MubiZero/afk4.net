@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { describeApiError } from './describeApiError';
+import { describeApiError, retryCanHelp } from './describeApiError';
 import { PlatformApiError, PlatformStaleClientError } from './platformTransport';
 import { messages } from '@/i18n/messages';
 
@@ -95,5 +95,20 @@ describe('user-facing error copy', () => {
 
     walk(root);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('retryCanHelp', () => {
+  // Кнопка «Повторить» под отказом по правам обманывает: сколько ни жми, ответ тот же, а
+  // настоящее действие — попросить доступ — на экране не названо.
+  it('says no when the answer will not change', () => {
+    expect(retryCanHelp(new PlatformApiError(403, 'Forbidden'))).toBe(false);
+    expect(retryCanHelp(new PlatformApiError(401, 'Unauthorized'))).toBe(false);
+  });
+
+  it('says yes for failures that pass', () => {
+    expect(retryCanHelp(new PlatformApiError(500, 'Server error'))).toBe(true);
+    expect(retryCanHelp(new PlatformApiError(0, 'Timed out'))).toBe(true);
+    expect(retryCanHelp(new TypeError('network'))).toBe(true);
   });
 });

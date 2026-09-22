@@ -83,3 +83,15 @@ it('фоновое обновление не стирает то, что уже 
   const afterFirstAnswer = seen.slice(seen.indexOf('ready'));
   expect(afterFirstAnswer).not.toContain('loading');
 });
+
+// Отказ по правам не чинится повтором: раздел обязан сказать это экрану, иначе тот рисует
+// кнопку, которая заведомо не поможет, и человек жмёт её вместо того, чтобы просить доступ.
+it('отличает отказ по правам от того, что стоит повторить', async () => {
+  const forbidden = renderHook(() => useLoadable(() => Promise.reject(new PlatformApiError(403, 'Forbidden')), []), { wrapper });
+  await waitFor(() => expect(forbidden.result.current.status).toBe('error'));
+  expect(forbidden.result.current.status === 'error' && forbidden.result.current.canRetry).toBe(false);
+
+  const serverDown = renderHook(() => useLoadable(() => Promise.reject(new PlatformApiError(500, 'Server error')), []), { wrapper });
+  await waitFor(() => expect(serverDown.result.current.status).toBe('error'));
+  expect(serverDown.result.current.status === 'error' && serverDown.result.current.canRetry).toBe(true);
+});

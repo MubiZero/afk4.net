@@ -33,7 +33,7 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
       </CardHeader>
       <CardContent>
         {state.status === 'error' ? (
-          <ErrorState title={t('platform.organization.health.error')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />
+          <ErrorState title={t('platform.organization.health.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
         ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
         ) : (

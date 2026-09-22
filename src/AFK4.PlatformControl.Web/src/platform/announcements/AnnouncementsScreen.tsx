@@ -142,7 +142,7 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
   }
 
   if (state.status === 'error') {
-    return <ErrorState title={t('platform.announcements.error.load')} message={state.message} retryLabel={t('state.retry')} onRetry={reload} />;
+    return <ErrorState title={t('platform.announcements.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? reload : undefined} />;
   }
   if (announcements === null) return <LoadingCards count={2} />;
 

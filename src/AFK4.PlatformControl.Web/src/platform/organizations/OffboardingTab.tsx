@@ -65,7 +65,7 @@ export function OffboardingTab({
   }
 
   if (state.status === 'error') {
-    return <ErrorState title={t('platform.offboarding.error.load')} message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
+    return <ErrorState title={t('platform.offboarding.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   }
   if (offboarding === null) return <LoadingCards count={1} />;
 

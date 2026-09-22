@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { describeApiError } from '@/api/describeApiError';
+import { describeApiError, retryCanHelp } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 
 export type Loadable<T> =
   | { status: 'loading'; retry: () => void }
-  | { status: 'error'; message: string; retry: () => void }
+  | { status: 'error'; message: string; canRetry: boolean; retry: () => void }
   | { status: 'ready'; data: T; apply: (next: T) => void; retry: () => void };
 
 /**
@@ -40,7 +40,7 @@ export function useLoadable<T>(
   const { t } = useI18n();
   const [tick, setTick] = useState(0);
   const quiet = useRef(false);
-  const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: T; message?: string }>({ status: 'loading' });
+  const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: T; message?: string; canRetry?: boolean }>({ status: 'loading' });
   const retry = useCallback(() => setTick(value => value + 1), []);
   const apply = useCallback((next: T) => setState({ status: 'ready', data: next }), []);
   // Запрос пересобирается на каждой отрисовке вместе с замыканием на клиента и параметры, но
@@ -70,12 +70,12 @@ export function useLoadable<T>(
     }
     loadRef.current()
       .then(data => { if (!cancelled) setState({ status: 'ready', data }); })
-      .catch((cause: unknown) => { if (!cancelled) setState({ status: 'error', message: describeApiError(cause, t) }); });
+      .catch((cause: unknown) => { if (!cancelled) setState({ status: 'error', message: describeApiError(cause, t), canRetry: retryCanHelp(cause) }); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, ...deps]);
 
   if (state.status === 'ready') return { status: 'ready', data: state.data as T, apply, retry };
-  if (state.status === 'error') return { status: 'error', message: state.message ?? '', retry };
+  if (state.status === 'error') return { status: 'error', message: state.message ?? '', canRetry: state.canRetry !== false, retry };
   return { status: 'loading', retry };
 }

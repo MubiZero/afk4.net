@@ -49,7 +49,7 @@ export function PayableQueue({ client, canManage }: { client: InvoicesApi; canMa
   }
 
   if (state.status === 'loading') return <LoadingCards count={2} />;
-  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
 
   const queue = selectPayableQueue(state.data);
   const totals = queueTotals(queue);
