@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
-import type { TimelineAxis, ZoneRowGroup } from './bookingModel';
+import type { BookingItem, TimelineAxis, ZoneRowGroup } from './bookingModel';
 import { BookingTimeline } from './BookingTimeline';
 
 afterEach(cleanup);
@@ -218,5 +218,55 @@ describe('BookingTimeline drag-to-create', () => {
     );
     // Призрак-preview на каждой из двух строк группы (раньше показывался только на одной).
     expect(result.container.querySelectorAll('.booking-ghost.preview').length).toBe(2);
+  });
+});
+
+// Состояние брони в ленте несло цвет — и только цвет: в блоке помещается имя гостя и больше
+// ничего. «Ждёт подтверждения» и «подтверждена» неотличимы дальтонику, на плохом мониторе и
+// беглым взглядом, а читалке не сказано вовсе.
+describe('BookingTimeline: состояние читается не только цветом', () => {
+  const booking = (over: Partial<BookingItem> = {}): BookingItem => ({
+    reservationId: 'r1', reservationGroupId: '', version: 1, state: 'pending', source: 'desk',
+    startMs: 3_600_000, endMs: 7_200_000, durationMinutes: 60, customerName: 'Алиев',
+    phoneNumber: '', note: '', playerAccountId: '', platformPersonId: '', seatId: 'a3',
+    seatName: 'PC-03', zoneName: 'Зал A', tone: 'pending', startedSessionId: '', respondByMs: null,
+    ...over
+  });
+
+  function renderWith(item: BookingItem) {
+    const rows: ZoneRowGroup[] = [{
+      zone: 'Зал A',
+      rows: [{ seat: seat(), blocks: [{ item, leftPct: 10, widthPct: 20 }], sessions: [] }]
+    }];
+    return render(
+      <I18nProvider>
+        <BookingTimeline
+          groups={rows} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
+          selectedReservationId="" previewBlock={null} dateLabel="Сегодня" dateValue="2026-06-19"
+          isToday onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}}
+          onSelectBlock={() => {}} onCellCreate={() => {}} onSeatsCreate={() => {}} onSeatToggle={() => {}}
+        />
+      </I18nProvider>
+    );
+  }
+
+  it('называет состояние словом в подписи блока', () => {
+    const { container } = renderWith(booking());
+    const block = container.querySelector<HTMLElement>('.booking-block')!;
+    expect(block.getAttribute('aria-label')).toContain('Ожидает');
+    expect(block.getAttribute('aria-label')).toContain('Алиев');
+  });
+
+  it('отличает онлайн-заявку от обычной подтверждённой', () => {
+    const { container } = renderWith(booking({ state: 'confirmed', source: 'online', tone: 'online' }));
+    expect(container.querySelector('.booking-block')!.getAttribute('aria-label')).toContain('Онлайн');
+  });
+
+  it('объясняет цвета легендой, а не заставляет их угадывать', () => {
+    const { container } = renderWith(booking());
+    const legend = container.querySelector('.booking-legend')!;
+    expect(legend.textContent).toContain('Ожидает');
+    expect(legend.textContent).toContain('Подтверждена');
+    expect(legend.textContent).toContain('Посажен');
   });
 });

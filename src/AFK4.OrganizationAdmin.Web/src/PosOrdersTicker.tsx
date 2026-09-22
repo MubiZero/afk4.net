@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Check, ChevronRight, HandPlatter } from 'lucide-react';
+import { Check, ChevronRight, Clock, HandPlatter } from 'lucide-react';
 import { createAuthenticatedOperatorClients, formatMinorUnits } from './operatorHelpers';
 import { createOperatorRealtimeClient, createPreviewOperatorRealtimeClient } from './operatorRealtime';
 import { projectOperatorError } from './apiErrors';
@@ -187,8 +187,13 @@ export function PosOrdersTicker({ backend, canCancel }: {
                 aria-haspopup="dialog"
                 aria-expanded={popover?.id === order.id}
                 onClick={(event) => togglePopover(order, event.currentTarget)}
+                aria-label={`${order.seatId} · ${statusLabel(order.status)} · ${chipSummary(order)}`}
               >
-                <span className="pos-order-dot" aria-hidden="true" />
+                {/* Раньше «новый» и «принят» отличались только цветом точки, а сама точка была
+                    спрятана от читалки: за стойкой в час пик это различие теряется первым. */}
+                <span className="pos-order-dot" aria-hidden="true">
+                  {order.status === 'accepted' ? <Check size={10} /> : <Clock size={10} />}
+                </span>
                 <span className="pos-order-seat">{order.seatId}</span>
                 <span className="pos-order-items">{chipSummary(order)}</span>
                 <ChevronRight
