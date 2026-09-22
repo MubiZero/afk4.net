@@ -1191,9 +1191,13 @@ public sealed class WorkerTests
                 return Task.FromResult(response);
             }
 
+            // Секунда, а не десять: проверка ждёт ВТОРОГО сердцебиения — того, что приходит уже
+            // после смены ключа. С десятисекундной паузой прогон упирался в WorkerStopTimeout
+            // (20 с) на занятой машине, и здоровая проверка краснела в чужом PR. Длительность
+            // паузы здесь не проверяется — за неё отвечает HeartbeatCadenceTests.
             var heartbeat = new DeviceHeartbeatResponse(
                 ServerTimeUtc: DateTimeOffset.Parse("2026-08-26T10:00:00Z"),
-                HeartbeatIntervalSeconds: 10,
+                HeartbeatIntervalSeconds: 1,
                 Commands: [],
                 RotateCredential: rotateCredential && !rotationServed);
 
