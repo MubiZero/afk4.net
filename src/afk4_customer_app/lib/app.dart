@@ -19,6 +19,7 @@ import 'push/push_service.dart';
 import 'push/push_tokens.dart';
 import 'theme/ambient_background.dart';
 import 'theme/app_theme.dart';
+import 'theme/theme_preference_store.dart';
 
 /// Название продукта. Регистр и точка — часть знака, см. бренд-гайд; не переводится и не
 /// склоняется. Название конкретного клуба приходит с сервера и живёт отдельно от него.
@@ -26,9 +27,10 @@ const String brandName = 'AFK4.NET';
 
 /// Корень клиентского приложения.
 ///
-/// Тема следует системной настройке телефона: у клуба ночная аудитория, и навязывать светлую
-/// тему тому, кто держит телефон в тёмном зале, — плохая идея. Явный выбор языка появится
-/// в профиле; до этого берётся язык устройства с откатом на русский.
+/// Оформление по умолчанию тёмное: у клуба ночная аудитория, и светлая системная тема телефона
+/// не повод слепить того, кто держит его в тёмном зале. Светлое и «как в системе» игрок
+/// выбирает сам, в профиле. Язык — выбранный в профиле, иначе язык устройства с откатом на
+/// русский.
 class CustomerApp extends StatefulWidget {
   const CustomerApp({
     super.key,
@@ -38,6 +40,7 @@ class CustomerApp extends StatefulWidget {
     this.selectedOrganizationStore = const SelectedOrganizationStore(),
     this.sessionStore = const PlayerSessionStore(),
     this.localeStore = const LocalePreferenceStore(),
+    this.themeStore = const ThemePreferenceStore(),
     this.pushTokens,
     this.pushMessages,
   });
@@ -49,6 +52,7 @@ class CustomerApp extends StatefulWidget {
   final SelectedOrganizationStore selectedOrganizationStore;
   final PlayerSessionStore sessionStore;
   final LocalePreferenceStore localeStore;
+  final ThemePreferenceStore themeStore;
 
   /// Откуда берётся адрес телефона для пушей. Тесты подставляют свой — настоящий Firebase
   /// в проверке того, что при выходе токен снимается, участвовать не должен.
@@ -65,6 +69,9 @@ class _CustomerAppState extends State<CustomerApp> {
   /// Язык, выбранный игроком в профиле. null — выбора не было, берётся язык устройства.
   Locale? _chosen;
 
+  /// Оформление, выбранное игроком. Пока он не выбирал — тёмное.
+  ThemeMode _themeMode = ThemePreferenceStore.fallback;
+
   /// Цвет выбранного клуба. Приложение носит его, пока игрок в этом клубе: заведение он
   /// узнаёт по цвету раньше, чем прочитает название. null — клуб не выбран или цвет не задан,
   /// тогда остаётся фирменный emerald.
@@ -74,6 +81,19 @@ class _CustomerAppState extends State<CustomerApp> {
   void initState() {
     super.initState();
     _restoreLocale();
+    _restoreThemeMode();
+  }
+
+  Future<void> _restoreThemeMode() async {
+    final saved = await widget.themeStore.read();
+    if (mounted && saved != null) setState(() => _themeMode = saved);
+  }
+
+  /// Оформление применяется сразу и пишется на устройство: это настройка этого телефона,
+  /// а не человека, и серверу о ней знать незачем.
+  Future<void> _chooseThemeMode(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+    await widget.themeStore.write(mode);
   }
 
   Future<void> _restoreLocale() async {
@@ -102,12 +122,12 @@ class _CustomerAppState extends State<CustomerApp> {
       // Бренд не локализуется — см. docs/product/copy-voice-and-terminology.md.
       title: brandName,
       debugShowCheckedModeBanner: false,
-      // Приложение всегда тёмное, а не «следует системе»: это игровая витрина, её смотрят
-      // в зале и ночью, и весь визуальный строй — свет, свечение акцента, контраст цифр —
-      // построен на тёмном. Светлый вариант тех же экранов был бы вторым продуктом.
-      theme: AppTheme.dark(clubColor: _clubColor),
+      // Какое из двух показать, решает выбор игрока в профиле, а без выбора — тёмное: это
+      // игровая витрина, её смотрят в зале и ночью, и весь визуальный строй — свет, свечение
+      // акцента, контраст цифр — построен на тёмном.
+      theme: AppTheme.light(clubColor: _clubColor),
       darkTheme: AppTheme.dark(clubColor: _clubColor),
-      themeMode: ThemeMode.dark,
+      themeMode: _themeMode,
       // Свет зала живёт под навигатором: один фон на все экраны, без шва при переходах.
       builder: (context, child) => AmbientBackground(child: child ?? const SizedBox.shrink()),
       locale: widget.locale ?? _chosen,
@@ -125,6 +145,8 @@ class _CustomerAppState extends State<CustomerApp> {
         organizationStore: widget.selectedOrganizationStore,
         sessionStore: widget.sessionStore,
         onLocaleChanged: _chooseLocale,
+        themeMode: _themeMode,
+        onThemeModeChanged: _chooseThemeMode,
         onOrganizationChanged: _useClubColor,
       ),
     );
@@ -141,6 +163,8 @@ class _Root extends StatefulWidget {
     required this.organizationStore,
     required this.sessionStore,
     required this.onLocaleChanged,
+    required this.themeMode,
+    required this.onThemeModeChanged,
     required this.onOrganizationChanged,
   });
 
@@ -151,6 +175,8 @@ class _Root extends StatefulWidget {
   final SelectedOrganizationStore organizationStore;
   final PlayerSessionStore sessionStore;
   final ValueChanged<Locale> onLocaleChanged;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   /// Клуб выбран, восстановлен или сброшен — теме пора перекраситься.
   final ValueChanged<Organization?> onOrganizationChanged;
@@ -314,6 +340,8 @@ class _RootState extends State<_Root> {
       onSignOut: _signOut,
       onChangeClub: _changeClub,
       onLocaleChanged: widget.onLocaleChanged,
+      themeMode: widget.themeMode,
+      onThemeModeChanged: widget.onThemeModeChanged,
       onAccountOpened: _loadMe,
     );
   }
