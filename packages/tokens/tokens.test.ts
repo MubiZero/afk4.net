@@ -1,14 +1,31 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dir, '..', '..');
 const tokensCss = readFileSync(join(import.meta.dir, 'tokens.css'), 'utf8');
 
-const APP_STYLES = [
-  'src/AFK4.OrganizationAdmin.Web/src/styles.css',
-  'src/AFK4.SetupWizard.Web/src/styles.css',
+// Барелл `styles.css` состоит из одних @import, поэтому раньше гвард читал пустоту и
+// пропустил 53 обращения к токенам, которых нет (весь раздел «Отчёты» остался без границ
+// и без фона: невалидный var() выбрасывает свойство целиком, молча). Читаем сами стили.
+const APP_STYLE_DIRS = [
+  'src/AFK4.OrganizationAdmin.Web/src',
+  'src/AFK4.PlatformControl.Web/src',
+  'src/AFK4.SetupWizard.Web/src',
 ];
+
+function appFiles(appDir: string, ext: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(rel);
+      else if (entry.name.endsWith(ext)) out.push(rel);
+    }
+  };
+  walk(appDir);
+  return out;
+}
 
 function definedVars(css: string): Set<string> {
   const out = new Set<string>();
@@ -26,10 +43,24 @@ function usedVars(css: string): Set<string> {
 // or locally in that app's own stylesheet (covers app-local aliases like --panel / --chart-*).
 describe('used vars are defined', () => {
   const pkgDefs = definedVars(tokensCss);
-  for (const rel of APP_STYLES) {
-    test(rel, () => {
-      const css = readFileSync(join(ROOT, rel), 'utf8');
-      const localDefs = definedVars(css);
+  const kitCss = readdirSync(join(ROOT, 'packages/ui'))
+    .filter((name) => name.endsWith('.css'))
+    .map((name) => readFileSync(join(ROOT, 'packages/ui', name), 'utf8'))
+    .join('\n');
+  for (const appDir of APP_STYLE_DIRS) {
+    test(appDir, () => {
+      const sheets = appFiles(appDir, '.css');
+      // Переменная может объявляться в одном файле приложения, а использоваться в другом —
+      // поэтому локальные определения собираем по всему приложению разом.
+      const css = sheets.map((rel) => readFileSync(join(ROOT, rel), 'utf8')).join('\n');
+      // Часть переменных приложение задаёт из кода (ширина колонки оболочки, высота полосы
+      // вкладок, число метрик кассы) — они существуют, просто не в таблице стилей.
+      const fromCode = appFiles(appDir, '.tsx')
+        .map((rel) => readFileSync(join(ROOT, rel), 'utf8'))
+        .join('\n');
+      const setFromCode = [...fromCode.matchAll(/['"](--[a-z0-9-]+)['"]\s*:/gi)].map((m) => m[1]);
+      const localDefs = new Set([...definedVars(`${css}
+${kitCss}`), ...setFromCode]);
       const missing = [...usedVars(css)].filter(
         (v) => !pkgDefs.has(v) && !localDefs.has(v) && !v.startsWith('--chart-'),
       );

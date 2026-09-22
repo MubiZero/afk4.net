@@ -14,7 +14,7 @@
 }
 
 .network-total-label {
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -46,7 +46,7 @@
 }
 
 .network-branch-city {
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -70,7 +70,7 @@
 }
 
 .network-stat dt {
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 
@@ -88,7 +88,7 @@
 
 .network-branches-add-note {
   margin: 20px 0 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -116,7 +116,7 @@
 
 .network-billing-empty {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -133,7 +133,7 @@
 
 .network-install-get p {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -144,7 +144,7 @@
 
 .network-install-nolink {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -160,7 +160,7 @@
 
 .network-install-branches-empty {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -200,13 +200,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
 .network-journal-limit-note {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -221,7 +221,7 @@
 }
 
 .network-updates-facts dt {
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 
@@ -234,13 +234,13 @@
 
 .network-updates-detail {
   margin: 12px 0 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
 .network-updates-lead {
   margin: 0 0 12px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -263,7 +263,7 @@
 
 .network-updates-hint {
   margin: 12px 0 0;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
