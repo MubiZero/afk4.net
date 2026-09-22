@@ -575,6 +575,97 @@ through the shared formatter.
   and the audit search all load in one go (audit caps at 100 rows). It holds at tens of
   clubs and needs revisiting at hundreds.
 
+## Third Pass — Design (2026-09-22)
+
+The audit method grew a third pass: after defects (pass 1) and friction in real scenarios
+(pass 2), a pass that asks whether the part *reads* as a considered thing. It ran over every
+part that has an interface, plus the shared layer underneath them. Twelve PRs (#371–#382);
+every one green on CI before it was offered for review.
+
+Deliberately skipped: the **Player Shell** (owner's decision — it is rewritten from scratch
+last, polishing it now is paid-for twice), and the **agent service / Platform API**, which
+have no interface for this pass to look at beyond words that reach a human.
+
+**Shared layer first**, because a class fixed there is fixed everywhere:
+- #371 — micro-states existed on loud controls and were missing on quiet ones: a field in the
+  console did not react to the cursor although the same field on the sign-in screen did, tabs
+  did not confirm a press, the empty-state button was drawn around the kit entirely. A guard
+  now fails the build when an element has a hover state but no focus state.
+- #372 — sixty-one rules referenced tokens that do not exist (`--text-muted`, `--border-subtle`,
+  `--surface-panel` and eight more). An invalid `var()` drops the whole declaration silently,
+  so the Reports section had been rendering with no table borders and no panel backgrounds.
+  The guard that should have caught it was reading `styles.css`, a barrel of `@import` lines —
+  it checked nothing and was always green. It now walks every stylesheet of all three web apps.
+- #373 — both dialog wrappers (29 modals in Organization Admin, 33 in Platform Control)
+  announced themselves correctly to a screen reader but never managed focus: Tab kept walking
+  the page underneath the modal, and closing threw focus back to the top of the document.
+- #374 — `<html lang>` never followed the chosen locale; the platform panel carried `lang="en"`
+  while its interface was Russian, so a screen reader read Russian text in an English voice.
+
+**Platform Control:**
+- #375 — a permission refusal arrived in the same red block as a crashed server, with the same
+  Retry button. The button promises what will not happen; the only real action (ask for access)
+  was not on screen. `retryCanHelp` now travels next to the reason through `useLoadable`.
+- #377 — the screen blinked a skeleton after its own successful action ("Mark as paid", "Lift
+  suspension"): the content a person was reading vanished for half a second. A refresh on top
+  of shown data is quiet now, and the skeleton waits 180 ms before appearing at all — almost
+  every answer arrives faster, and every one of those used to flash.
+
+**Organization Admin:**
+- #379 — four booking states in the timeline differed by fill colour only, with nothing but the
+  guest's name inside the block: no word, no glyph, no legend, and nothing at all for a screen
+  reader. Same class in the POS order ticker.
+- #380 — the copy glossary lists sixteen rules and the guard test enforced three. The rest
+  lived in the memory of whoever wrote the string, and did not survive: the ledger badge said
+  «сторно» while the player's own statement calls the same event «Отмена операции». The guard
+  now enforces nine rules and immediately found a tenth violation (a «Дашборд» menu item).
+
+**Player app:**
+- #378 — eight screens drew their own "error text plus Retry": different buttons, different
+  padding, different alignment for one and the same state. Seven are now the shared
+  `LoadFailure`; the eighth is a deliberate partial failure and stayed. Loss of connection is
+  now told apart from a real failure — a player reads "could not load" as the club being broken
+  and calls support, when the cause is their own internet. Writing that test exposed a real
+  hole: `search()` never wrapped its parsing, so malformed JSON escaped as a raw
+  `FormatException` that no screen catches, and the club storefront — the only way into the
+  app — crashed instead of offering a retry.
+- #381 — the profile screen replaced itself with a spinner while re-reading data it already had.
+
+**Setup wizard:**
+- #382 — the hint under the new-PIN field was called without parameters while the catalog
+  string is `«{min} цифр.»`: ICU fails and returns the raw text, so a person installing a club
+  literally saw `{min} цифр.` on screen. The neighbouring "6 digits" hint was typed by hand
+  past `PIN_LENGTH`. The sign-in button went dead below six digits without saying so. The hall
+  screen refused to create seats when the branch had no hall and never said why — the very same
+  case is explained in words on the device screen.
+
+**Along the way:** #376 — `WorkerTests.RotationRequest_...` waited for a ten-second heartbeat
+inside a twenty-second budget and fell over on a loaded runner; it painted the CSS-token PR red.
+The fake server now announces a one-second interval — this test never checked the pause itself.
+
+### Named, not done
+
+These are classes the pass found and did not close. Each needs its own PR, and the reason is
+stated so the next person does not rediscover them:
+
+- **Empty states do not name the next step** — 23 of 25 lists in Platform Control (not one
+  passes an action to `EmptyState`), 33 of 47 places in Organization Admin. Cheap per place,
+  but it is new copy in three languages for every list.
+- **A disabled control does not say what is missing** — 365 places in Organization Admin (four
+  explain), ~35 in Platform Control. The fix is not mechanical: each needs the real reason.
+- **The skeleton does not repeat the final geometry** — one shape (four 56px rows) stands in for
+  card grids, forms, tiles and charts, so the layout jumps when content replaces it.
+- **Partial failure swallowed silently** — 8 places in Organization Admin, 2 in Platform Control
+  (`Promise.all` pairs where one refusal wipes a screen that has half its data).
+- **Setup wizard**: inverted weight of actions on two more screens, input lost when stepping
+  back (four screens), Enter does not submit on six fields, and one destination called four
+  different names.
+- **Player app**: 30 raw colours outside the theme, three touch targets under 48dp, the light
+  theme written and unreachable, and no clamp on the system font scale.
+- **Looking with eyes** — this pass read markup, styles and states rather than running the
+  product: the live stand is frozen by decision. That catches half-presence, missing states,
+  semantics, colour-only meaning, density and words, but not fine visual harmony.
+
 ## Latest Verification
 
 - Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
