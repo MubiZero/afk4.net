@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { EmptyState } from '../../operatorPrimitives';
+import { projectOperatorError } from '../../apiErrors';
 import { createAuthenticatedOperatorClients, downloadTextFile } from '../../operatorHelpers';
 import { toAuditCsv } from './orgAuditCsv';
 import type { OperatorBackendContext } from '../../operatorTypes';
@@ -69,6 +70,7 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
       subtitle={t('op.network.dest.journal.subtitle')}
       contentWidth="full"
       state={screenState}
+      failure={state.status === 'error' ? projectOperatorError(state.error, t) : undefined}
       onRetry={state.status === 'error' ? state.retry : undefined}
     >
       <div className="network-journal">

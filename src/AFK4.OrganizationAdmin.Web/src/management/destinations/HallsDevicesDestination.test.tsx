@@ -117,7 +117,7 @@ describe('HallsDevicesDestination', () => {
         zones={zones}
         deviceInventory={[]}
         loadStatus="failed"
-        errorDetail="boom"
+        failure={{ title: '', detail: 'boom', retryCanHelp: true }}
         onRetry={onRetry}
       />
     );

@@ -147,4 +147,23 @@ describe('OperatorActionsReport', () => {
 
     await waitFor(() => expect(requestedUrls.some((url) => url.includes('/reports/operator-actions/export.csv'))).toBe(true));
   });
+
+  // Без права на отчёт «Повторить» только крутит тот же отказ. Экран называет причину и того,
+  // к кому идти за доступом, а кнопки не показывает.
+  it('на отказ по правам не предлагает повтор и говорит, к кому идти', async () => {
+    globalThis.fetch = (async () => new Response('{}', { status: 403, statusText: 'Forbidden', headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch;
+    render(<I18nProvider initialLocale="ru"><OperatorActionsReport backend={backend} /></I18nProvider>);
+
+    expect(await screen.findByText('Недостаточно прав для этого действия.')).toBeInTheDocument();
+    expect(screen.getByText('Попросите доступ у управляющего или владельца организации.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull();
+  });
+
+  it('на сбой сервера предлагает повтор', async () => {
+    globalThis.fetch = (async () => new Response('{}', { status: 503, statusText: 'Service Unavailable', headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch;
+    render(<I18nProvider initialLocale="ru"><OperatorActionsReport backend={backend} /></I18nProvider>);
+
+    expect(await screen.findByText('Сервер вернул ошибку. Повторите позже.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
+  });
 });

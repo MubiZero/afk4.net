@@ -102,7 +102,7 @@ describe('StaffRolesDestination', () => {
         currencyCode="TJS"
         staffUsers={staffUsers}
         loadStatus="failed"
-        errorDetail="boom"
+        failure={{ title: '', detail: 'boom', retryCanHelp: true }}
         onRetry={onRetry}
       />
     );

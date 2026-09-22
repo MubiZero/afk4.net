@@ -147,7 +147,7 @@ describe('GoodsDestination', () => {
   it('shows the concrete error detail and retries via onRetry when loadStatus is failed', () => {
     const onRetry = mock(() => {});
     wrap(
-      <GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} loadStatus="failed" errorDetail="boom" onRetry={onRetry} />
+      <GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} loadStatus="failed" failure={{ title: '', detail: 'boom', retryCanHelp: true }} onRetry={onRetry} />
     );
     expect(screen.getByText('boom')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));

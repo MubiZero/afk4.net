@@ -129,7 +129,7 @@ export function UpdatesDestination({
       subtitle={t('op.network.dest.updates.subtitle')}
       contentWidth="form"
       state={screenState}
-      errorDetail={rollouts.status === 'error' ? projectOperatorError(rollouts.error, t).detail : undefined}
+      failure={rollouts.status === 'error' ? projectOperatorError(rollouts.error, t) : undefined}
       onRetry={retryAll}
     >
       {screenState === 'ready' && (

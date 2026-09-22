@@ -97,7 +97,7 @@ export function ManagementWorkspace({
       const rows = await fetchRows(shared ?? createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session), nextBackend.branchId);
       setState({ status: 'backend', data: Array.isArray(rows) ? rows as T[] : [] });
     } catch (error) {
-      setState((state) => ({ status: 'failed', data: state.data, errorDetail: projectOperatorError(error, t).detail }));
+      setState((state) => ({ status: 'failed', data: state.data, failure: projectOperatorError(error, t) }));
     }
   };
 
@@ -178,7 +178,7 @@ export function ManagementWorkspace({
           onReload={reloadHalls}
           onFeedback={setSettingsFeedback}
           loadStatus={zones.status}
-          errorDetail={zones.errorDetail}
+          failure={zones.failure}
           onRetry={() => void loadZones()}
           onRetryDevices={() => void loadDevices()}
         />
@@ -197,7 +197,7 @@ export function ManagementWorkspace({
           onReload={reloadTariffsAndPackages}
           onFeedback={setSettingsFeedback}
           loadStatus={tariffs.status}
-          errorDetail={tariffs.errorDetail}
+          failure={tariffs.failure}
           onRetry={() => void loadTariffs()}
           onRetryPackages={() => void loadPackageOptions()}
         />
@@ -215,7 +215,7 @@ export function ManagementWorkspace({
           onStaffUsersChange={(rows) => setStaffUsers((state) => ({ ...state, data: rows }))}
           onFeedback={setSettingsFeedback}
           loadStatus={staffUsers.status}
-          errorDetail={staffUsers.errorDetail}
+          failure={staffUsers.failure}
           onRetry={() => void loadStaff()}
         />
       );
@@ -233,7 +233,7 @@ export function ManagementWorkspace({
           onReload={loadCatalog}
           onFeedback={setSettingsFeedback}
           loadStatus={catalog.status}
-          errorDetail={catalog.errorDetail}
+          failure={catalog.failure}
           onRetry={() => void loadCatalog()}
         />
       );

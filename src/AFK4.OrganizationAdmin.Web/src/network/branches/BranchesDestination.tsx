@@ -3,6 +3,7 @@ import type { JSX, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { EmptyState, Money } from '../../operatorPrimitives';
+import { projectOperatorError } from '../../apiErrors';
 import { createAuthenticatedOperatorClients, dashboardRangeQuery, toDateInputValue } from '../../operatorHelpers';
 import { mapProfileToForm, buildUpdateBranchProfileRequest } from '../../settings/club/branchProfileRequest';
 import type { ClubProfileForm } from '../../settings/club/ClubProfileFields';
@@ -45,6 +46,7 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
       subtitle={t('op.network.dest.branches.subtitle')}
       contentWidth="full"
       state={screenState}
+      failure={state.status === 'error' ? projectOperatorError(state.error, t) : undefined}
       onRetry={state.status === 'error' ? state.retry : undefined}
     >
       {state.status === 'ready' && (

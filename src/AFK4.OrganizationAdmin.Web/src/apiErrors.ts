@@ -6,6 +6,24 @@ type TFn = (key: MessageKey, values?: Record<string, string | number>) => string
 export interface OperatorErrorProjection {
   title: string;
   detail: string;
+  // Поможет ли «Повторить». Экран, который рисует отказ загрузки, показывает кнопку только по
+  // этому признаку: под отказом, который повтор не исправит, она обещает то, чего не будет.
+  retryCanHelp: boolean;
+  // К кому идти, когда не хватает прав: единственное настоящее действие в этом случае.
+  accessHint?: string;
+}
+
+/**
+ * Отказ по правам, который приложение проверило само, не дойдя до сервера.
+ *
+ * Отдельный класс, а не голый Error: проекция отличает его от прочих сообщений приложения так же,
+ * как 403 сервера, — без «Повторить» и с подсказкой, к кому идти за доступом.
+ */
+export class PermissionRefusal extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermissionRefusal';
+  }
 }
 
 const codeMessageKeys = {
@@ -131,37 +149,73 @@ export function knownErrorMessage(error: unknown, t: TFn): string | null {
   return t(codeMessageKeys[code], planLimit ?? undefined);
 }
 
+// Коды, которые сами просят обновить и повторить: данные изменились у соседа, и свежий запрос
+// получит свежий ответ. Остальные известные коды — правила бизнеса, их повтор не меняет.
+const codesRetryResolves: ReadonlySet<keyof typeof codeMessageKeys> = new Set([
+  'version_conflict',
+  'stale_version',
+  'idempotency_key_required'
+]);
+
+/**
+ * Поможет ли повтор того же запроса.
+ *
+ * Проходят сбои, которые зависят от момента: нет связи, сервер упал или не успел (5xx, 408),
+ * попросил подождать (429), данные успели измениться (409 без кода). Не проходят отказы, ответ
+ * на которые повтор не изменит: вход истёк (401), не хватает прав (403), того уже нет (404),
+ * сервер не принял данные (400, 422), отказ по правилу бизнеса. Неизвестный отказ повтор не
+ * запрещает: спрятать кнопку там, где она помогла бы, хуже, чем показать лишнюю.
+ */
+export function retryCanHelp(error: unknown): boolean {
+  if (error instanceof PermissionRefusal) return false;
+  if (!(error instanceof PlatformApiError)) return true;
+  if (requiresManagerApproval(error)) return false;
+  const code = readKnownErrorCode(error.body);
+  if (code !== null) return codesRetryResolves.has(code);
+  const { status } = error;
+  return status === 0 || status === 408 || status === 409 || status === 412 || status === 429 || status >= 500;
+}
+
+// 401 — истёкший вход, а не нехватка прав: к управляющему с ним идти незачем.
+function isAccessRefusal(error: unknown): boolean {
+  return error instanceof PermissionRefusal || (error instanceof PlatformApiError && error.status === 403);
+}
+
 export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProjection {
   const title = t('op.error.actionFailed.title');
+  const next = {
+    retryCanHelp: retryCanHelp(error),
+    accessHint: isAccessRefusal(error) ? t('op.error.accessHint') : undefined
+  };
 
   if (error instanceof PlatformApiError) {
     const known = knownErrorMessage(error, t);
     if (known !== null) {
-      return { title, detail: known };
+      return { title, detail: known, ...next };
     }
 
     // Текст самой PlatformApiError — диагностика для журнала: «Platform API returned 400 Bad
     // Request: {"Error":"An open shift already exists for this branch."}». До сих пор он ехал
     // прямо на экран кассы: английская фраза и сырой JSON вместо причины.
-    return { title, detail: t(statusMessageKey(error.status)) };
+    return { title, detail: t(statusMessageKey(error.status)), ...next };
   }
 
   // Сбой до ответа сервера: fetch бросает TypeError («Failed to fetch», «NetworkError…»).
   // Это текст браузера, на русском экране он читается как поломка программы.
   if (error instanceof TypeError) {
-    return { title, detail: t('op.error.status.network') };
+    return { title, detail: t('op.error.status.network'), ...next };
   }
 
   // Остальные Error приложение бросает само и уже локализованными (throw new Error(t(...))).
   if (error instanceof Error && error.message.trim().length > 0) {
-    return { title, detail: error.message };
+    return { title, detail: error.message, ...next };
   }
 
   if (typeof error === 'string' && error.trim().length > 0) {
-    return { title, detail: error };
+    return { title, detail: error, ...next };
   }
 
-  return { title, detail: t('op.error.actionFailed.noDetail') };
+  return { title, detail: t('op.error.actionFailed.noDetail'), ...next };
 }
 
 // Код отказа сервер называет двумя именами. Старт брони отвечает `code` и кладёт рядом

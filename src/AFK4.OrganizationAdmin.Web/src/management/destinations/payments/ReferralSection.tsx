@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { EmptyState } from '../../../operatorPrimitives';
+import { LoadFailureState } from '../../../operatorPrimitives';
 import type { ReferralSettingsController } from './useReferralSettings';
 
 interface Props {
@@ -15,11 +15,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
 
   if (c.loadError) {
     return (
-      <EmptyState
-        title={t('op.management.state.errorTitle')}
-        description={c.loadError}
-        action={{ label: t('op.management.state.retry'), onClick: c.retry }}
-      />
+      <LoadFailureState title={t('op.management.state.errorTitle')} failure={c.loadError} onRetry={c.retry} />
     );
   }
 

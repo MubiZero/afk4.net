@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
+import type { OperatorErrorProjection } from './apiErrors';
 import type { CriticalConfirmationTone, Feedback } from './operatorTypes';
 import { feedbackText } from './operatorHelpers';
 import { formatMinorUnits } from './currencyFormat';
@@ -91,16 +92,39 @@ export function Skeleton({
 
 // Часть экрана не загрузилась, а остальное уже на виду: что не пришло и почему — одной строкой,
 // и «Повторить», который перезапрашивает только эту часть. Панель, которую отказ заменяет целиком,
-// рисуется через EmptyState с действием; эта строка — для подписи рядом с тем, что показано.
-export function PartialLoadFailure({ text, onRetry }: { text: string; onRetry: () => void }) {
+// рисуется через LoadFailureState; эта строка — для подписи рядом с тем, что показано.
+//
+// Кнопка есть, только когда повтор может помочь (`failure.retryCanHelp`): под отказом по правам
+// она обещала бы то, чего не будет. Вместо неё там названо, к кому идти за доступом.
+export function PartialLoadFailure({ text, failure, onRetry }: { text: string; failure: OperatorErrorProjection; onRetry: () => void }) {
   const { t } = useI18n();
   return (
     <p className="ui-alert ui-alert--spaced" role="alert">
-      {text}{' '}
-      <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={onRetry}>
-        {t('op.management.state.retry')}
-      </button>
+      {text}
+      {failure.accessHint ? ` ${failure.accessHint}` : null}
+      {failure.retryCanHelp ? (
+        <>
+          {' '}
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={onRetry}>
+            {t('op.management.state.retry')}
+          </button>
+        </>
+      ) : null}
     </p>
+  );
+}
+
+// Панель или весь экран, которые отказ загрузки заменяет целиком: что не загрузилось, почему и
+// что делать дальше. «Повторить» — по тому же признаку, что и у строки выше.
+export function LoadFailureState({ title, failure, onRetry }: { title: string; failure: OperatorErrorProjection; onRetry?: () => void }) {
+  const { t } = useI18n();
+  return (
+    <EmptyState
+      title={title}
+      description={failure.detail}
+      hint={failure.accessHint}
+      action={failure.retryCanHelp && onRetry ? { label: t('op.management.state.retry'), onClick: onRetry } : undefined}
+    />
   );
 }
 
@@ -108,12 +132,14 @@ export function EmptyState({
   icon,
   title,
   description,
+  hint,
   action,
   className
 }: {
   icon?: ReactNode;
   title: string;
   description?: string;
+  hint?: string;
   action?: { label: string; onClick: () => void };
   className?: string;
 }) {
@@ -122,6 +148,7 @@ export function EmptyState({
       {icon ? <div className="empty-state-icon" aria-hidden="true">{icon}</div> : null}
       <strong>{title}</strong>
       {description ? <span>{description}</span> : null}
+      {hint ? <span>{hint}</span> : null}
       {action ? (
         <button type="button" className="ui-btn ui-btn--primary ui-btn--sm empty-state-action" onClick={action.onClick}>{action.label}</button>
       ) : null}

@@ -5,7 +5,7 @@ import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { PosProductCategoryDto, PosProductDto } from '../operatorApiClients';
@@ -53,7 +53,7 @@ export function StockLevelsWorkspace({
   const items = useMemo<StockItem[]>(() => mapCatalogToStock(catalog, readCategoryDirectory(categories)), [catalog, categories]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoriesError, setCategoriesError] = useState<OperatorErrorProjection | null>(null);
   const [filter, setFilter] = useState<FilterMode>('all');
   const [search, setSearch] = useState('');
   const [writeOffItem, setWriteOffItem] = useState<StockItem | null>(null);
@@ -79,7 +79,7 @@ export function StockLevelsWorkspace({
         if (loadedCatalog.status === 'fulfilled') setCatalog(loadedCatalog.value);
         else setLoadError(projectOperatorError(loadedCatalog.reason, t).detail);
         if (loadedCategories.status === 'fulfilled') setCategories(loadedCategories.value);
-        else setCategoriesError(projectOperatorError(loadedCategories.reason, t).detail);
+        else setCategoriesError(projectOperatorError(loadedCategories.reason, t));
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -93,7 +93,7 @@ export function StockLevelsWorkspace({
     setCategoriesError(null);
     clients.settings.listProductCategories(backend.branchId)
       .then(setCategories)
-      .catch((error) => setCategoriesError(projectOperatorError(error, t).detail));
+      .catch((error) => setCategoriesError(projectOperatorError(error, t)));
   };
 
   const showSkeleton = useDeferredFlag(loading);
@@ -180,7 +180,7 @@ export function StockLevelsWorkspace({
         </div>
 
         {categoriesError !== null && (
-          <PartialLoadFailure text={t('op.stock.levels.categoriesFailed', { reason: categoriesError })} onRetry={retryCategories} />
+          <PartialLoadFailure text={t('op.stock.levels.categoriesFailed', { reason: categoriesError.detail })} failure={categoriesError} onRetry={retryCategories} />
         )}
 
         {/* Заголовки колонок */}
