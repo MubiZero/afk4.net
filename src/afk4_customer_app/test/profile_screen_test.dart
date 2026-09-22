@@ -252,4 +252,73 @@ void main() {
       await tester.pumpAndSettle();
     }
   });
+
+
+  // Профиль перечитывает себя после подтверждения номера и при возврате на вкладку. Раньше он
+  // на это время подменял содержимое спиннером: человек видел свои данные секунду назад, а
+  // теперь видит пустой экран — это читается как сбой, хотя всё в порядке.
+  testWidgets('перечитывание не подменяет уже показанный профиль ожиданием', (tester) async {
+    var calls = 0;
+    final http = FakeHttpClient((_) {
+      calls++;
+      return (_profileJson(name: calls == 1 ? 'Иван' : 'Иван Петров'), 200);
+    });
+    await tester.pumpWidget(_Reopenable(http: http));
+    await tester.pumpAndSettle();
+    expect(find.text('Иван'), findsOneWidget);
+
+    // Вкладку закрыли и открыли заново — экран идёт за свежими данными.
+    await tester.tap(find.text('Закрыть/открыть'));
+    await tester.pump();
+    await tester.tap(find.text('Закрыть/открыть'));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Иван'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.text('Иван Петров'), findsOneWidget);
+  });
+
+}
+
+/// Родитель, который закрывает и снова открывает вкладку профиля: именно так экран получает
+/// повторную загрузку (didUpdateWidget по accountOpen).
+class _Reopenable extends StatefulWidget {
+  const _Reopenable({required this.http});
+
+  final FakeHttpClient http;
+
+  @override
+  State<_Reopenable> createState() => _ReopenableState();
+}
+
+class _ReopenableState extends State<_Reopenable> {
+  bool _open = true;
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        locale: const Locale('ru'),
+        localizationsDelegates: appLocalizationsDelegates,
+        supportedLocales: appSupportedLocales,
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextButton(
+                onPressed: () => setState(() => _open = !_open),
+                child: const Text('Закрыть/открыть'),
+              ),
+              Expanded(
+                child: ProfileScreen(
+                  api: PlayerApiClient(baseUrl: 'https://api', httpClient: widget.http),
+                  accountOpen: _open,
+                  onSignOut: () {},
+                  onChangeClub: () {},
+                  onLocaleChanged: (_) {},
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
