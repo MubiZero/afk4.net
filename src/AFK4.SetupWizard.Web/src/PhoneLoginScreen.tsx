@@ -255,6 +255,9 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
               {showPassword ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
             </button>
           </div>
+          {/* Кнопка входа не нажимается, пока в поле меньше шести цифр, и раньше про это нигде
+              не было сказано: человек видел мёртвую кнопку и не знал, чего ей не хватает. */}
+          <span className="ui-field-hint">{t('setup.wizard.phoneLogin.hint.pin', { min: PIN_LENGTH })}</span>
         </div>
 
         {showSlowSkeleton && (

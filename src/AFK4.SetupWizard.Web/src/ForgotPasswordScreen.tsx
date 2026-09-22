@@ -162,7 +162,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
               disabled={isBusy}
               aria-describedby="reset-code-hint"
             />
-            <span id="reset-code-hint" className="ui-field-hint">{t('auth.forgot.code.hint')}</span>
+            <span id="reset-code-hint" className="ui-field-hint">{t('auth.forgot.code.hint', { min: PIN_LENGTH })}</span>
           </label>
           <label className="ui-field">
             <span className="ui-field-label">{t('auth.forgot.phone.newPassword')}</span>
@@ -176,7 +176,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
               disabled={isBusy}
               aria-describedby="reset-password-hint"
             />
-            <span id="reset-password-hint" className="ui-field-hint">{t('auth.forgot.newPassword.hint')}</span>
+            <span id="reset-password-hint" className="ui-field-hint">{t('auth.forgot.newPassword.hint', { min: PIN_LENGTH })}</span>
           </label>
           <button type="submit" className="ui-btn ui-btn--primary" disabled={!canReset}>
             {isBusy ? (

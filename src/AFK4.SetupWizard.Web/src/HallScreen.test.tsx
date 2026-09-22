@@ -9,13 +9,13 @@ const ZONES = [
   { zoneId: 'z-2', name: 'VIP', sortOrder: 1 },
 ];
 
-function renderScreen(client: HallClient, onContinue = mock()) {
+function renderScreen(client: HallClient, onContinue = mock(), zones = ZONES) {
   render(
     <I18nProvider>
       <HallScreen
       stepNumber={1}
         client={client}
-        zones={ZONES}
+        zones={zones}
         ownerName="Владелец"
         branchName="Главный"
         onContinue={onContinue}
@@ -108,4 +108,24 @@ describe('HallScreen', () => {
     await waitFor(() => expect(screen.getByText(/Локальный агент не ответил вовремя/)).toBeTruthy());
   });
 
+  // Места заводятся в зале. Если зала нет, кнопка не нажимается — и раньше причину человек не
+  // узнавал ниоткуда: та же ситуация на экране устройства объяснена словами, а здесь молчала.
+  it('называет причину, когда заводить места негде, и оставляет выход', () => {
+    renderScreen({ createSeat: mock() } as unknown as HallClient, mock(), []);
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('ещё нет ни одного зала');
+    expect(alert.textContent).toContain('пропустите шаг');
+  });
+
+  // Работа этого экрана — завести места, а не уйти с него. Пока не заведено ни одного, вес
+  // главного действия принадлежит «Завести места»; после — кнопке «Дальше».
+  it('держит главное действие на работе экрана, а не на пропуске', async () => {
+    const created: unknown[] = [];
+    const client = { createSeat: mock(async (...args: unknown[]) => { created.push(args); return { seatId: 's-1' }; }) };
+    renderScreen(client as unknown as HallClient);
+
+    expect(screen.getByRole('button', { name: /Завести места/ }).className).toContain('ui-btn--primary');
+    expect(screen.getByRole('button', { name: /Пропустить/ }).className).not.toContain('ui-btn--primary');
+  });
 });

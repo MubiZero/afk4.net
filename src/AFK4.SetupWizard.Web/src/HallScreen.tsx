@@ -73,6 +73,12 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         <p>{t('setup.wizard.hall.subtitle')}</p>
       </div>
 
+      {zones.length === 0 && (
+        /* Без зала заводить места негде: кнопка не нажимается, и раньше причину человек не
+           узнавал ниоткуда — тот же случай уже объяснён на экране устройства. */
+        <div role="alert" className="ui-alert">{t('setup.wizard.hall.noZone')}</div>
+      )}
+
       <div className="ui-field">
         <label className="ui-field-label" htmlFor="hall-zone">{t('setup.wizard.hall.zone')}</label>
         <select
@@ -113,7 +119,12 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
         </small>
       </div>
 
-      <button type="button" className="ui-btn" onClick={() => void create()} disabled={!canCreate}>
+      <button
+        type="button"
+        className={createdNames.length > 0 ? 'ui-btn' : 'ui-btn ui-btn--primary'}
+        onClick={() => void create()}
+        disabled={!canCreate}
+      >
         {creating ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
         {t('setup.wizard.hall.create')}
       </button>
@@ -144,7 +155,12 @@ export function HallScreen({ stepNumber, client, zones, ownerName, branchName, o
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="ui-btn ui-btn--primary" onClick={onContinue} disabled={creating}>
+        <button
+          type="button"
+          className={createdNames.length > 0 ? 'ui-btn ui-btn--primary' : 'ui-btn'}
+          onClick={onContinue}
+          disabled={creating}
+        >
           <ArrowRight size={16} aria-hidden />
           {createdNames.length > 0 ? t('setup.wizard.hall.next') : t('setup.wizard.hall.skip')}
         </button>
