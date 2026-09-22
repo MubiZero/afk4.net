@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { formatNumber as fmtNumber, formatCurrency as fmtCurrency, formatDateParts } from '@afk4/formatting';
 import { IntlMessageFormat } from 'intl-messageformat';
 import { messages, type Locale, type MessageKey } from './messages';
@@ -88,6 +88,14 @@ export function I18nProvider({ children, initialLocale }: { children: ReactNode;
     setLocaleState(l);
     writeStoredLocale(l);
   }, []);
+
+  // Читалка выбирает голос и правила чтения по атрибуту lang, а не по тексту на экране: без
+  // этого русский интерфейс панели зачитывался английским голосом (в разметке стояло lang="en"),
+  // а таджикский — русским. Переключатель языка есть во всех трёх приложениях, поэтому атрибут
+  // держит провайдер, а не разметка.
+  useEffect(() => {
+    if (typeof document !== 'undefined') document.documentElement.lang = locale;
+  }, [locale]);
 
   const t = useMemo(() => createTranslator(locale), [locale]);
 
