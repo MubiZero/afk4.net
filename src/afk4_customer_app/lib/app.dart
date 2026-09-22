@@ -24,6 +24,14 @@ import 'theme/app_theme.dart';
 /// склоняется. Название конкретного клуба приходит с сервера и живёт отдельно от него.
 const String brandName = 'AFK4.NET';
 
+/// Потолок системного масштаба шрифта.
+///
+/// Крупный шрифт в системе — настройка доступности, и приложение её слышит: умеренное
+/// увеличение и уменьшение доходят до экранов как есть. Но суммы, таймеры сессии и подписи
+/// кнопок рассчитаны на строку, и на двукратном шрифте экран переполняется раньше, чем
+/// становится удобнее. Выше потолка текст дальше не растёт.
+const double maxTextScale = 1.3;
+
 /// Корень клиентского приложения.
 ///
 /// Тема следует системной настройке телефона: у клуба ночная аудитория, и навязывать светлую
@@ -109,7 +117,12 @@ class _CustomerAppState extends State<CustomerApp> {
       darkTheme: AppTheme.dark(clubColor: _clubColor),
       themeMode: ThemeMode.dark,
       // Свет зала живёт под навигатором: один фон на все экраны, без шва при переходах.
-      builder: (context, child) => AmbientBackground(child: child ?? const SizedBox.shrink()),
+      // Потолок шрифта ставится здесь же, в корне: так он действует и на листы, и на диалоги,
+      // которые открываются поверх навигатора.
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: maxTextScale,
+        child: AmbientBackground(child: child ?? const SizedBox.shrink()),
+      ),
       locale: widget.locale ?? _chosen,
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
