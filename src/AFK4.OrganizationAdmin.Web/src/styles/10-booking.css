@@ -1471,13 +1471,13 @@
   gap: 12px;
   min-height: 38px;
   padding: 8px 10px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-soft);
   border-radius: 9px;
-  background: var(--surface-raised);
+  background: var(--surface-elevated);
 }
 
 .start-fixed-client span {
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-size: 11px;
 }
 
