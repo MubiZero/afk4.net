@@ -167,7 +167,10 @@ describe('OrganizationFeaturesTab', () => {
     fireEvent.click(applyButton);
 
     resolveSetOverride([feature({ isEnabled: true, decisionLevel: 'override', overrideValue: true, overrideReason: 'Пилот' })]);
-    await waitFor(() => expect(applyButton).not.toBeDisabled());
+    // Ждём КОНЕЧНОГО состояния — форма приняла ответ и очистила причину, — а не мгновения,
+    // когда кнопка успела побыть доступной между двумя обновлениями. React их батчит, и под
+    // нагрузкой промежуточного кадра может не случиться вовсе: тест краснел на здоровом коде.
+    await waitFor(() => expect((screen.getByLabelText('Причина') as HTMLTextAreaElement).value).toBe(''));
 
     expect(setOverride).toHaveBeenCalledTimes(1);
   });
