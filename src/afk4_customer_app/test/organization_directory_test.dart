@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -83,6 +84,29 @@ void main() {
     );
 
     expect(() => directory.search(), throwsA(isA<OrganizationDirectoryException>()));
+  });
+
+  // «Не дозвонились» и «ответ пришёл, но не разобрался» раньше оба приходили с пустым
+  // statusCode, и экран не мог сказать игроку, что дело в его интернете. Игрок читал «не
+  // удалось загрузить» как поломку клуба и шёл звонить.
+  test('потеря связи отличается от прочих отказов', () async {
+    final offline = OrganizationDirectory(
+      baseUrl: 'https://api.example',
+      httpClient: _FakeClient((_) => throw const SocketException('нет сети')),
+    );
+    await expectLater(
+      offline.search(),
+      throwsA(isA<OrganizationDirectoryException>().having((e) => e.isOffline, 'isOffline', true)),
+    );
+
+    final broken = OrganizationDirectory(
+      baseUrl: 'https://api.example',
+      httpClient: clientReturning('not json at all'),
+    );
+    await expectLater(
+      broken.search(),
+      throwsA(isA<OrganizationDirectoryException>().having((e) => e.isOffline, 'isOffline', false)),
+    );
   });
 
   test('модель переживает круг через JSON — её кладут в хранилище устройства', () {

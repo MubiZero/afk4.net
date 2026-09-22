@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../shell/load_failure.dart';
 import 'cursor_list.dart';
 
 /// Список с подгрузкой: одинаково ведёт себя у визитов и покупок — загрузка, ошибка с
@@ -42,19 +43,9 @@ class CursorListView<T> extends StatelessWidget {
         }
 
         if (controller.status == CursorListStatus.failed) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(errorText, style: TextStyle(color: theme.colorScheme.error)),
-                  const SizedBox(height: 8),
-                  TextButton(onPressed: controller.load, child: Text(l.customerCommonRetry)),
-                ],
-              ),
-            ),
-          );
+          return controller.offline
+              ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: controller.load)
+              : LoadFailure(message: errorText, onRetry: controller.load);
         }
 
         // Потянуть вниз обновляет список: жест, выученный на главной, должен работать и
