@@ -140,7 +140,12 @@ export function StaffScreen({
           </select>
         </div>
 
-        <button type="submit" className="ui-btn" disabled={!canSend}>
+        {/* Работа экрана — пригласить, а не уйти с него: пока никого нет, главное действие здесь. */}
+        <button
+          type="submit"
+          className={invited.length > 0 ? 'ui-btn' : 'ui-btn ui-btn--primary'}
+          disabled={!canSend}
+        >
           {sending ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <UserPlus size={16} aria-hidden />}
           {t('setup.wizard.staff.add')}
         </button>
@@ -170,7 +175,12 @@ export function StaffScreen({
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="ui-btn ui-btn--primary" onClick={() => onContinue(draft)} disabled={sending}>
+        <button
+          type="button"
+          className={invited.length > 0 ? 'ui-btn ui-btn--primary' : 'ui-btn'}
+          onClick={() => onContinue(draft)}
+          disabled={sending}
+        >
           <ArrowRight size={16} aria-hidden />
           {invited.length > 0 ? t('setup.wizard.staff.next') : t('setup.wizard.staff.skip')}
         </button>
