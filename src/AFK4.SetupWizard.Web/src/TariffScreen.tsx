@@ -45,7 +45,12 @@ export function TariffScreen({
   const [failure, setFailure] = useState<string | null>(null);
 
   const parsedPrice = Number.parseFloat(pricePerHour.replace(',', '.'));
-  const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving;
+  // Шаг заводит первый тариф клуба, и только его: он показывается, пока тарифов нет, а поправить
+  // созданный мастер не умеет — только создать ещё один. Повторное нажатие получало отказ сервера
+  // на то же имя, а смена одной цены — тот же отказ, хотя человек хотел поправить опечатку.
+  // Остальные тарифы и расписание живут в панели клуба, и это сказано рядом с кнопкой.
+  const done = created !== null;
+  const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving && !done;
   const draft: TariffDraft = { name, pricePerHour, created };
 
   async function create(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -87,6 +92,7 @@ export function TariffScreen({
           <input
             id="tariff-name"
             value={name}
+            disabled={done}
             onChange={(event) => setName(event.target.value)}
           />
         </div>
@@ -99,6 +105,7 @@ export function TariffScreen({
             min={1}
             step="0.5"
             value={pricePerHour}
+            disabled={done}
             onChange={(event) => setPricePerHour(event.target.value)}
           />
         </div>

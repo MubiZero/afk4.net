@@ -3719,7 +3719,7 @@ export const tg = {
   "setup.wizard.stepper.staff": "Кормандон",
   "setup.wizard.stepper.tariff": "Таъриф",
   "setup.wizard.tariff.create": "Таъриф сохтан",
-  "setup.wizard.tariff.created": "Таърифи «{name}» сохта шуд",
+  "setup.wizard.tariff.created": "Таърифи «{name}» сохта шуд. Таърифҳои дигар ва ҷадвал аз рӯи рӯзҳо дар панели клуб танзим мешаванд.",
   "setup.wizard.tariff.defaultName": "Муқаррарӣ",
   "setup.wizard.tariff.failed": "Таъриф сохта нашуд. Нархро санҷед ва бори дигар кӯшиш кунед.",
   "setup.wizard.tariff.name": "Номи таъриф",

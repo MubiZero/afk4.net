@@ -3719,7 +3719,7 @@ export const en = {
   "setup.wizard.stepper.staff": "Staff",
   "setup.wizard.stepper.tariff": "Tariff",
   "setup.wizard.tariff.create": "Create tariff",
-  "setup.wizard.tariff.created": "Tariff \\u201c{name}\\u201d created",
+  "setup.wizard.tariff.created": "Tariff “{name}” created. Other tariffs and day-of-week schedules are set up in the club panel.",
   "setup.wizard.tariff.defaultName": "Standard",
   "setup.wizard.tariff.failed": "Could not create the tariff. Check the price and try again.",
   "setup.wizard.tariff.name": "Tariff name",
