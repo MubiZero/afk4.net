@@ -111,7 +111,7 @@ export const navSections: NavSection[] = [
     labelKey: 'op.shell.navGroup.reports',
     icon: LayoutDashboard,
     items: [
-      { id: 'dashboard', labelKey: 'op.shell.nav.dashboard' }
+      { id: 'dashboard', labelKey: 'op.shell.navGroup.reports' }
     ]
   },
   {
