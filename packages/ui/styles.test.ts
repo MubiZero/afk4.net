@@ -42,6 +42,30 @@ describe('@afk4/ui shared layer', () => {
     }
   });
 
+  // Мышь и клавиатура должны видеть одно и то же. Если у элемента описано наведение, а фокус —
+  // нет, то человек, идущий по экрану табом, теряет место: подсветка есть только под курсором.
+  // Исключение одно и оно осознанное — пункт палитры команд: фокус остаётся в поле ввода,
+  // а активный пункт помечается aria-activedescendant, поэтому :focus-visible на нём не сработает.
+  it('gives every hovered element a focus state too', () => {
+    const FOCUS_LIVES_ELSEWHERE = ['.command-palette-option'];
+    const HOVER = /([.#][^{},:]*?):hover/g;
+    const FOCUS = /([.#][^{},:]*?):focus(-visible|-within)?/g;
+    const hovered = new Map<string, string>();
+    const focused = new Set<string>();
+    for (const layer of readdirSync(import.meta.dir).filter(name => name.endsWith('.css'))) {
+      // :not(...) вырезаем до разбора — иначе селектор рвётся по двоеточию внутри скобок.
+      const css = read(layer).replace(/\/\*[\s\S]*?\*\//g, '').replace(/:not\([^)]*\)/g, '');
+      for (const [, sel] of css.matchAll(HOVER)) if (!hovered.has(sel.trim())) hovered.set(sel.trim(), layer);
+      for (const [, sel] of css.matchAll(FOCUS)) focused.add(sel.trim());
+    }
+    // Модификатор наследует фокус базы: .ui-btn--primary опирается на .ui-btn, .mgmt-menu-item.is-danger — на .mgmt-menu-item.
+    const roots = (sel: string) => [sel, sel.replace(/--[\w-]+$/, ''), sel.replace(/\.[\w-]+$/, '')];
+    const blind = [...hovered]
+      .filter(([sel]) => !FOCUS_LIVES_ELSEWHERE.includes(sel) && !roots(sel).some(root => focused.has(root)))
+      .map(([sel, layer]) => `${layer}: ${sel}`);
+    expect(blind).toEqual([]);
+  });
+
   // Оконные контролы, resize-хендлы и сетка оболочки принадлежат десктопному хосту. Если они
   // просочатся в общий слой, браузерная панель получит стили несуществующего у неё окна.
   it('carries no desktop-host chrome', () => {

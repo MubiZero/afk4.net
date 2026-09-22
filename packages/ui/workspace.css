@@ -41,6 +41,7 @@
 
 .workspace-tabs button {
   position: relative;
+  cursor: pointer;
   padding: 0 14px;
   border: 0;
   background: transparent;
@@ -68,6 +69,8 @@
   background: var(--accent);
   border-radius: 2px 2px 0 0;
 }
+
+.workspace-tabs button:active:not(.active) { color: var(--text-primary); }
 
 .workspace-tabs button:focus-visible {
   outline: none;

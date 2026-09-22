@@ -118,6 +118,8 @@
   box-shadow: var(--shadow-card);
 }
 
+.mgmt-tab:active:not(.is-active) { background: var(--surface-hover); }
+
 .mgmt-tab:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);

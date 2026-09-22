@@ -95,6 +95,7 @@
 
 .ui-chip--filter { cursor: pointer; }
 .ui-chip--filter:hover { border-color: var(--border-accent); }
+.ui-chip--filter:active { transform: scale(0.98); }
 .ui-chip--filter:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .ui-chip--filter.is-active {
   border-color: var(--accent);
@@ -244,6 +245,10 @@
     box-shadow var(--duration-fast) var(--ease-out);
 }
 .ui-field > input::placeholder { color: var(--text-placeholder); }
+/* Наведение у поля было только на экране входа, а в консоли — нет: курсор над полем ничем не
+   отличался от курсора над подписью, и поле читалось как текст, а не как то, что можно править. */
+.ui-field > input:hover:not(:disabled),
+.ui-field > select:hover:not(:disabled) { border-color: var(--border-accent); }
 .ui-field > input:focus,
 .ui-field > select:focus {
   border-color: var(--accent);
@@ -387,6 +392,8 @@
   color: var(--text-tertiary);
 }
 
+.ui-search-field:hover { border-color: var(--border-accent); }
+
 .ui-search-field:focus-within {
   border-color: var(--accent);
   box-shadow: var(--focus-ring);
@@ -505,6 +512,7 @@
     transition-duration: 0.01ms;
   }
   .ui-btn:active:not(:disabled),
+  .ui-chip--filter:active,
   .ui-card--interactive:hover,
   .ui-card--interactive:focus-visible {
     transform: none;
@@ -547,6 +555,10 @@
 .ui-textarea::placeholder {
   color: var(--text-placeholder);
 }
+
+.ui-input:hover:not(:disabled),
+.ui-select:hover:not(:disabled),
+.ui-textarea:hover:not(:disabled) { border-color: var(--border-accent); }
 
 .ui-input:focus-visible,
 .ui-select:focus-visible,
@@ -606,6 +618,8 @@
   transform: translateY(-50%);
   transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
+
+.ui-switch:hover:not(:disabled) { border-color: var(--border-accent); }
 
 .ui-switch:checked {
   border-color: var(--accent);
