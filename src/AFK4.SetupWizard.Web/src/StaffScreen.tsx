@@ -115,6 +115,7 @@ export function StaffScreen({
             <span className="ui-phone-prefix" aria-hidden>+992</span>
             <input
               id="staff-phone"
+              className="ui-phone-input"
               type="tel"
               inputMode="tel"
               placeholder="90 000 00 00"
