@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { projectOperatorError } from '../apiErrors';
@@ -13,7 +13,7 @@ import type {
   TariffOptionDto,
   ZoneDto
 } from '../operatorApiClients';
-import type { Feedback, LoadStatus, OperatorBackendContext } from '../operatorTypes';
+import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { ResourceState } from './destinations/types';
 import { CriticalActionConfirmation, EmptyState } from '../operatorPrimitives';
 import { allowedManagementDestinations, type ManagementDestinationId } from './managementNav';
@@ -27,6 +27,8 @@ import { EventsDestination } from './destinations/EventsDestination';
 import { PaymentsLoyaltyDestination } from './destinations/PaymentsLoyaltyDestination';
 import { StaffRolesDestination } from './destinations/StaffRolesDestination';
 import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestination';
+
+type Clients = ReturnType<typeof createAuthenticatedOperatorClients>;
 
 // Управление: левый рейл разделов, доступных сессии, + активный экран раздела справа. Все
 // разделы (Клуб, Приём броней, Залы, Тарифы, Сотрудники, Товары, Оплата и лояльность, Новости) маршрутизируют
@@ -63,66 +65,67 @@ export function ManagementWorkspace({
     onDiscard: () => setDirty(false)
   });
 
-  const [settingsLoadStatus, setSettingsLoadStatus] = useState<LoadStatus>('fixture');
   const [settingsFeedback, setSettingsFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(settingsFeedback);
-  const [zones, setZones] = useState<ZoneDto[]>([]);
-  const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
-  const [catalog, setCatalog] = useState<PosProductDto[]>([]);
-  const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
+  // Каждый список — своя загрузка со своей причиной отказа. Раньше все пять грузились одним
+  // ожиданием, и отказ любого (например, у менеджера тарифов нет права видеть сотрудников) гасил
+  // сразу «Залы», «Тарифы», «Сотрудников» и «Товары», хотя их данные уже пришли.
+  const [zones, setZones] = useState<ResourceState<ZoneDto[]>>({ status: 'fixture', data: [] });
+  const [staffUsers, setStaffUsers] = useState<ResourceState<StaffUserDto[]>>({ status: 'fixture', data: [] });
+  const [catalog, setCatalog] = useState<ResourceState<PosProductDto[]>>({ status: 'fixture', data: [] });
+  const [tariffs, setTariffs] = useState<ResourceState<TariffOptionDto[]>>({ status: 'fixture', data: [] });
   const [packageState, setPackageState] = useState<ResourceState<PackageOptionDto[]>>({ status: 'fixture', data: [] });
-  const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
+  const [devices, setDevices] = useState<ResourceState<DeviceInventoryItemDto[]>>({ status: 'fixture', data: [] });
 
-  const loadPackageOptions = async (nextBackend = backend) => {
+  // Списки, которые грузятся вместе, делят один набор клиентов: у каждого набора свой продлеватель
+  // сессии, и шесть наборов на истёкшем токене ушли бы продлевать его шесть раз наперегонки.
+  const clientsFor = (nextBackend: OperatorBackendContext | null): Clients | undefined =>
+    nextBackend === null ? undefined : createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+
+  const loadResource = async <T,>(
+    setState: Dispatch<SetStateAction<ResourceState<T[]>>>,
+    fetchRows: (clients: Clients, branchId: string) => Promise<unknown>,
+    nextBackend: OperatorBackendContext | null,
+    shared?: Clients
+  ) => {
     if (nextBackend === null) {
-      setPackageState((state) => ({ status: 'fixture', data: state.data }));
+      setState((state) => ({ status: 'fixture', data: state.data }));
       return;
     }
-    setPackageState((state) => ({ status: 'loading', data: state.data }));
+    setState((state) => ({ status: 'loading', data: state.data }));
     try {
-      const rows = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).settings.getPackageOptions(nextBackend.branchId);
-      setPackageState({ status: 'backend', data: Array.isArray(rows) ? rows : [] });
+      const rows = await fetchRows(shared ?? createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session), nextBackend.branchId);
+      setState({ status: 'backend', data: Array.isArray(rows) ? rows as T[] : [] });
     } catch (error) {
-      setPackageState((state) => ({ status: 'failed', data: state.data, errorDetail: projectOperatorError(error, t).detail }));
+      setState((state) => ({ status: 'failed', data: state.data, errorDetail: projectOperatorError(error, t).detail }));
     }
   };
 
-  const loadSettings = async (nextBackend = backend) => {
-    if (nextBackend === null) {
-      setSettingsLoadStatus('fixture');
+  // Профиль филиала здесь НЕ грузим: им владеет ClubDestination (свой load/save). Тянуть его
+  // сюда — лишний дубль-запрос на getBranchProfile при заходе на «Клуб». Грузим ровно то, что
+  // нужно потребителям слайса 2 (Залы/Тарифы/Сотрудники/Товары).
+  const loadZones = (nextBackend = backend, shared?: Clients) => loadResource(setZones, (clients, branchId) => clients.settings.getLayoutZones(branchId), nextBackend, shared);
+  const loadStaff = (nextBackend = backend, shared?: Clients) => loadResource(setStaffUsers, (clients, branchId) => clients.settings.getStaffUsers(branchId), nextBackend, shared);
+  const loadCatalog = (nextBackend = backend, shared?: Clients) => loadResource(setCatalog, (clients, branchId) => clients.pos.getCatalog(branchId), nextBackend, shared);
+  const loadTariffs = (nextBackend = backend, shared?: Clients) => loadResource(setTariffs, (clients, branchId) => clients.settings.getTariffOptions(branchId), nextBackend, shared);
+  const loadPackageOptions = (nextBackend = backend, shared?: Clients) => loadResource(setPackageState, (clients, branchId) => clients.settings.getPackageOptions(branchId), nextBackend, shared);
+  const loadDevices = async (nextBackend = backend, shared?: Clients) => {
+    // Без права на карточку устройства список не спрашиваем вовсе: это не отказ, а «не положено».
+    if (nextBackend !== null && !hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+      setDevices({ status: 'backend', data: [] });
       return;
     }
-
-    setSettingsLoadStatus('loading');
-    try {
-      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      // Профиль филиала здесь НЕ грузим: им владеет ClubDestination (свой load/save). Тянуть его
-      // сюда — лишний дубль-запрос на getBranchProfile при заходе на «Клуб». Грузим ровно то,
-      // что нужно потребителям слайса 2 (Залы/Тарифы/Сотрудники/Товары).
-      const [staff, layoutZones, products, tariffOptions, deviceRows] = await Promise.all([
-        apiClients.settings.getStaffUsers(nextBackend.branchId),
-        apiClients.settings.getLayoutZones(nextBackend.branchId),
-        apiClients.pos.getCatalog(nextBackend.branchId),
-        apiClients.settings.getTariffOptions(nextBackend.branchId),
-        hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)
-          ? apiClients.devices.listDevices(nextBackend.branchId).catch(() => [])
-          : Promise.resolve([])
-      ]);
-      setStaffUsers(Array.isArray(staff) ? staff : []);
-      setZones(Array.isArray(layoutZones) ? layoutZones : []);
-      setCatalog(Array.isArray(products) ? products : []);
-      setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
-      setDeviceInventory(Array.isArray(deviceRows) ? deviceRows : []);
-      setSettingsLoadStatus('backend');
-    } catch (error) {
-      setSettingsLoadStatus('failed');
-      setSettingsFeedback({ label: t('op.settings.profile.loadFeedbackLabel'), state: 'failed', detail: projectOperatorError(error, t).detail });
-    }
+    await loadResource(setDevices, (clients, branchId) => clients.devices.listDevices(branchId), nextBackend, shared);
   };
 
   useEffect(() => {
-    void loadSettings();
-    void loadPackageOptions();
+    const shared = clientsFor(backend);
+    void loadZones(backend, shared);
+    void loadStaff(backend, shared);
+    void loadCatalog(backend, shared);
+    void loadTariffs(backend, shared);
+    void loadDevices(backend, shared);
+    void loadPackageOptions(backend, shared);
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
 
   if (destinations.length === 0) {
@@ -137,11 +140,15 @@ export function ManagementWorkspace({
   // мог перестать быть доступным. Падаем на первый разрешённый вместо пустого экрана.
   const currentId = destinations.some((destination) => destination.id === active) ? (active as ManagementDestinationId) : destinations[0].id;
 
-  const settingsErrorDetail = settingsFeedback.state === 'failed' ? settingsFeedback.detail : undefined;
-  const retrySettings = () => void loadSettings();
-  const retryPackages = () => void loadPackageOptions();
+  // Загрузчики выше не бросают — отказ оседает в состоянии своего списка, — поэтому общее
+  // ожидание здесь не гасит один список отказом другого.
+  const reloadHalls = async (nextBackend = backend) => {
+    const shared = clientsFor(nextBackend);
+    await Promise.all([loadZones(nextBackend, shared), loadDevices(nextBackend, shared)]);
+  };
   const reloadTariffsAndPackages = async (nextBackend = backend) => {
-    await Promise.all([loadSettings(nextBackend), loadPackageOptions(nextBackend)]);
+    const shared = clientsFor(nextBackend);
+    await Promise.all([loadTariffs(nextBackend, shared), loadPackageOptions(nextBackend, shared)]);
   };
 
   const renderActiveDestination = () => {
@@ -164,14 +171,16 @@ export function ManagementWorkspace({
           session={session}
           currencyCode={currencyCode}
           onDirtyChange={setDirty}
-          zones={zones}
-          deviceInventory={deviceInventory}
-          onDeviceInventoryChange={setDeviceInventory}
-          onReload={loadSettings}
+          zones={zones.data}
+          deviceInventory={devices.data}
+          deviceState={devices}
+          onDeviceInventoryChange={(rows) => setDevices((state) => ({ ...state, data: rows }))}
+          onReload={reloadHalls}
           onFeedback={setSettingsFeedback}
-          loadStatus={settingsLoadStatus}
-          errorDetail={settingsErrorDetail}
-          onRetry={retrySettings}
+          loadStatus={zones.status}
+          errorDetail={zones.errorDetail}
+          onRetry={() => void loadZones()}
+          onRetryDevices={() => void loadDevices()}
         />
       );
     }
@@ -182,15 +191,15 @@ export function ManagementWorkspace({
           session={session}
           currencyCode={currencyCode}
           onDirtyChange={setDirty}
-          tariffs={tariffs}
+          tariffs={tariffs.data}
           packageOptions={packageState.data}
           packageState={packageState}
           onReload={reloadTariffsAndPackages}
           onFeedback={setSettingsFeedback}
-          loadStatus={settingsLoadStatus}
-          errorDetail={settingsErrorDetail}
-          onRetry={retrySettings}
-          onRetryPackages={retryPackages}
+          loadStatus={tariffs.status}
+          errorDetail={tariffs.errorDetail}
+          onRetry={() => void loadTariffs()}
+          onRetryPackages={() => void loadPackageOptions()}
         />
       );
     }
@@ -202,12 +211,12 @@ export function ManagementWorkspace({
           session={session}
           currencyCode={currencyCode}
           onDirtyChange={setDirty}
-          staffUsers={staffUsers}
-          onStaffUsersChange={setStaffUsers}
+          staffUsers={staffUsers.data}
+          onStaffUsersChange={(rows) => setStaffUsers((state) => ({ ...state, data: rows }))}
           onFeedback={setSettingsFeedback}
-          loadStatus={settingsLoadStatus}
-          errorDetail={settingsErrorDetail}
-          onRetry={retrySettings}
+          loadStatus={staffUsers.status}
+          errorDetail={staffUsers.errorDetail}
+          onRetry={() => void loadStaff()}
         />
       );
     }
@@ -219,13 +228,13 @@ export function ManagementWorkspace({
           session={session}
           currencyCode={currencyCode}
           onDirtyChange={setDirty}
-          catalog={catalog}
-          onCatalogChange={setCatalog}
-          onReload={loadSettings}
+          catalog={catalog.data}
+          onCatalogChange={(rows) => setCatalog((state) => ({ ...state, data: rows }))}
+          onReload={loadCatalog}
           onFeedback={setSettingsFeedback}
-          loadStatus={settingsLoadStatus}
-          errorDetail={settingsErrorDetail}
-          onRetry={retrySettings}
+          loadStatus={catalog.status}
+          errorDetail={catalog.errorDetail}
+          onRetry={() => void loadCatalog()}
         />
       );
     }

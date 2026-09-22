@@ -9,6 +9,7 @@ import { projectOperatorError } from '../../apiErrors';
 import { isHostBridgeAvailable, postHostRequest } from '../../hostBridge';
 import type { Feedback, OperatorBackendContext } from '../../operatorTypes';
 import type { OrganizationAdminUpdatePreferenceDto } from '../../api/clients/updates';
+import { SectionState } from '../SectionState';
 import { useUpdateStatus, type UpdateStatusClient } from './useUpdateStatus';
 import {
   canRestartNow,
@@ -56,9 +57,9 @@ export function UpdatesDestination({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injectedClient, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
-  const state = useUpdateStatus(resolvedClient, backend?.branchId ?? '');
-  const preference = state.status === 'ready' ? state.preference : null;
-  const rollout = state.status === 'ready' ? findAdminRollout(state.rollouts) : null;
+  const { rollouts, preference: preferenceSection } = useUpdateStatus(resolvedClient, backend?.branchId ?? '');
+  const preference = preferenceSection.status === 'ready' ? preferenceSection.data : null;
+  const rollout = rollouts.status === 'ready' ? findAdminRollout(rollouts.data) : null;
   const deviceStatus = latestDeviceStatus(rollout);
 
   // Черновик правки, а не копия сохранённого: пока его нет, поля показывают то, что на сервере.
@@ -71,10 +72,20 @@ export function UpdatesDestination({
   const setStart = (value: string) => setDraft({ start: value, end });
   const setEnd = (value: string) => setDraft({ start, end: value });
 
-  const screenState = backend === null || state.status === 'loading' ? 'loading' : state.status === 'error' ? 'error' : 'ready';
+  // Весь экран меняется на ожидание или ошибку, только пока показать нечего: как только пришла
+  // хотя бы одна панель, она остаётся, а соседняя говорит за себя сама.
+  const nothingShown = rollouts.status !== 'ready' && preferenceSection.status !== 'ready';
+  const screenState = backend === null ? 'loading'
+    : !nothingShown ? 'ready'
+    : rollouts.status === 'loading' || preferenceSection.status === 'loading' ? 'loading'
+    : 'error';
+  const retryAll = () => {
+    if (rollouts.status === 'error') rollouts.retry();
+    if (preferenceSection.status === 'error') preferenceSection.retry();
+  };
 
   async function saveWindow(): Promise<void> {
-    if (backend === null || state.status !== 'ready') return;
+    if (backend === null || preferenceSection.status !== 'ready') return;
     setSaving(true);
     setFeedback({ label: t('op.network.updates.window.save'), state: 'pending' });
     try {
@@ -83,7 +94,7 @@ export function UpdatesDestination({
         maintenanceWindowStart: toTimeRequest(start),
         maintenanceWindowEnd: toTimeRequest(end)
       });
-      state.applyPreference(next);
+      preferenceSection.apply(next);
       setDraft(null);
       triggerFeedback(setFeedback, t('op.network.updates.window.saved'), 'confirmed');
     } catch (error) {
@@ -118,13 +129,15 @@ export function UpdatesDestination({
       subtitle={t('op.network.dest.updates.subtitle')}
       contentWidth="form"
       state={screenState}
-      onRetry={state.status === 'error' ? state.retry : undefined}
+      errorDetail={rollouts.status === 'error' ? projectOperatorError(rollouts.error, t).detail : undefined}
+      onRetry={retryAll}
     >
-      {state.status === 'ready' && (
+      {screenState === 'ready' && (
         <>
           <section className="management-panel network-updates-state">
             <div className="mgmt-section-title"><span>{t('op.network.updates.app.title')}</span></div>
-            {rollout === null ? (
+            <SectionState section={rollouts} failedTitle={t('op.network.updates.app.loadFailed')} />
+            {rollouts.status !== 'ready' ? null : rollout === null ? (
               <EmptyState title={t('op.network.updates.app.upToDate')} description={t('op.network.updates.app.upToDateHint')} />
             ) : (
               <>
@@ -170,44 +183,49 @@ export function UpdatesDestination({
           <section className="management-panel network-updates-window">
             <div className="mgmt-form">
               <div className="mgmt-section-title"><span>{t('op.network.updates.window.title')}</span></div>
-              <p className="network-updates-lead">{t('op.network.updates.window.lead')}</p>
-              <div className="network-updates-window-grid">
-                <label>
-                  {t('op.network.updates.window.from')}
-                  <input
-                    type="time"
-                    value={start}
-                    disabled={saving}
-                    onChange={(event) => setStart(event.currentTarget.value)}
-                  />
-                </label>
-                <label>
-                  {t('op.network.updates.window.to')}
-                  <input
-                    type="time"
-                    value={end}
-                    disabled={saving}
-                    onChange={(event) => setEnd(event.currentTarget.value)}
-                  />
-                </label>
-                <div className="mgmt-meta-row">
-                  <span className="mgmt-meta-label">{t('op.network.updates.window.timeZone')}</span>
-                  <span className="mgmt-meta-value">{state.preference.timeZone || '—'}</span>
-                </div>
-              </div>
-              <div className="network-updates-actions">
-                <button
-                  type="button"
-                  className="ui-btn ui-btn--primary"
-                  disabled={!windowDirty || !isWindowValid(start, end) || saving}
-                  onClick={() => void saveWindow()}
-                >
-                  {t('op.network.updates.window.save')}
-                </button>
-                {!isWindowValid(start, end) && (
-                  <span className="network-updates-hint">{t('op.network.updates.window.invalid')}</span>
-                )}
-              </div>
+              <SectionState section={preferenceSection} failedTitle={t('op.network.updates.window.loadFailed')} />
+              {preferenceSection.status === 'ready' && (
+                <>
+                  <p className="network-updates-lead">{t('op.network.updates.window.lead')}</p>
+                  <div className="network-updates-window-grid">
+                    <label>
+                      {t('op.network.updates.window.from')}
+                      <input
+                        type="time"
+                        value={start}
+                        disabled={saving}
+                        onChange={(event) => setStart(event.currentTarget.value)}
+                      />
+                    </label>
+                    <label>
+                      {t('op.network.updates.window.to')}
+                      <input
+                        type="time"
+                        value={end}
+                        disabled={saving}
+                        onChange={(event) => setEnd(event.currentTarget.value)}
+                      />
+                    </label>
+                    <div className="mgmt-meta-row">
+                      <span className="mgmt-meta-label">{t('op.network.updates.window.timeZone')}</span>
+                      <span className="mgmt-meta-value">{preferenceSection.data.timeZone || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="network-updates-actions">
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn--primary"
+                      disabled={!windowDirty || !isWindowValid(start, end) || saving}
+                      onClick={() => void saveWindow()}
+                    >
+                      {t('op.network.updates.window.save')}
+                    </button>
+                    {!isWindowValid(start, end) && (
+                      <span className="network-updates-hint">{t('op.network.updates.window.invalid')}</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </section>
         </>

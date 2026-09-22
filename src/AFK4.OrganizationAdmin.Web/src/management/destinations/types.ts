@@ -41,8 +41,9 @@ export interface DestinationProps {
   packageOptions?: PackageOptionDto[];
   packageState?: ResourceState<PackageOptionDto[]>;
   deviceInventory?: DeviceInventoryItemDto[];
+  deviceState?: ResourceState<DeviceInventoryItemDto[]>;
   loadStatus?: LoadStatus;
-  errorDetail?: string; // concrete failure text when loadStatus === 'failed' (settingsFeedback.detail)
+  errorDetail?: string; // concrete failure text when loadStatus === 'failed' (projectOperatorError of that list's load)
 
   onStaffUsersChange?: (staffUsers: StaffUserDto[]) => void;
   onCatalogChange?: (catalog: PosProductDto[]) => void;
@@ -51,4 +52,5 @@ export interface DestinationProps {
   onFeedback?: (feedback: Feedback) => void;
   onRetry?: () => void;
   onRetryPackages?: () => void;
+  onRetryDevices?: () => void;
 }

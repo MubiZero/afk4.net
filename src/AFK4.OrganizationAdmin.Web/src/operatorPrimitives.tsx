@@ -89,6 +89,21 @@ export function Skeleton({
   return <div className={`skeleton-block${shape}${className ? ` ${className}` : ''}`} aria-hidden="true" />;
 }
 
+// Часть экрана не загрузилась, а остальное уже на виду: что не пришло и почему — одной строкой,
+// и «Повторить», который перезапрашивает только эту часть. Панель, которую отказ заменяет целиком,
+// рисуется через EmptyState с действием; эта строка — для подписи рядом с тем, что показано.
+export function PartialLoadFailure({ text, onRetry }: { text: string; onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <p className="ui-alert ui-alert--spaced" role="alert">
+      {text}{' '}
+      <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={onRetry}>
+        {t('op.management.state.retry')}
+      </button>
+    </p>
+  );
+}
+
 export function EmptyState({
   icon,
   title,
