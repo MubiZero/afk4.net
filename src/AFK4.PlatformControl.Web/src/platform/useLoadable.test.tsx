@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { PlatformApiError, TransportErrorCodes } from '@/api/platformApi';
@@ -94,4 +94,43 @@ it('отличает отказ по правам от того, что стои
   const serverDown = renderHook(() => useLoadable(() => Promise.reject(new PlatformApiError(500, 'Server error')), []), { wrapper });
   await waitFor(() => expect(serverDown.result.current.status).toBe('error'));
   expect(serverDown.result.current.status === 'error' && serverDown.result.current.canRetry).toBe(true);
+});
+
+// Раздел зовёт retry() не только после ошибки, но и после собственного успешного действия
+// («Отметить оплаченным»). Подмена содержимого скелетоном на полсекунды читается как сбой:
+// человек нажал — и всё, что он читал, исчезло.
+it('не стирает экран, когда повтор идёт поверх показанных данных', async () => {
+  const load = mock().mockResolvedValueOnce(['было']).mockResolvedValue(['стало']);
+  const seen: string[] = [];
+  const { result } = renderHook(() => {
+    const state = useLoadable(load, []);
+    seen.push(state.status);
+    return state;
+  }, { wrapper });
+
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  const fromFirstAnswer = seen.length;
+  act(() => result.current.retry());
+  await waitFor(() => expect(result.current.status === 'ready' && result.current.data).toEqual(['стало']));
+
+  expect(seen.slice(fromFirstAnswer)).not.toContain('loading');
+});
+
+// А вот повтор после ошибки показывать нечем: там скелетон — единственный признак, что нажатие
+// сработало.
+it('показывает ожидание, когда повторяют после отказа', async () => {
+  const load = mock().mockRejectedValueOnce(new PlatformApiError(500, 'Server error')).mockResolvedValue(['данные']);
+  const seen: string[] = [];
+  const { result } = renderHook(() => {
+    const state = useLoadable(load, []);
+    seen.push(state.status);
+    return state;
+  }, { wrapper });
+
+  await waitFor(() => expect(result.current.status).toBe('error'));
+  const fromError = seen.length;
+  act(() => result.current.retry());
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+
+  expect(seen.slice(fromError)).toContain('loading');
 });

@@ -1,11 +1,24 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AlertTriangle, Inbox } from 'lucide-react';
 import { Button } from './button';
 import { Skeleton } from './skeleton';
 
 // Скелетон повторяет финальную геометрию списка (строка 56px в приподнятой панели), чтобы
 // содержимое подменялось без прыжка раскладки.
+//
+// И показывается не сразу: почти все ответы панели приходят быстрее, чем человек успевает
+// прочитать хоть что-то, и скелетон в этом случае только мигает — экран дёргается там, где он
+// на самом деле мгновенный. Задержка ничего не замедляет: медленный ответ покажет ожидание всё
+// так же, просто на пятую долю секунды позже.
+const SKELETON_DELAY_MS = 180;
+
 export function LoadingCards({ count = 4 }: { count?: number }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(true), SKELETON_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  if (!shown) return null;
   return (
     <div className="table-panel">
       <div className="ctable-skeleton">
