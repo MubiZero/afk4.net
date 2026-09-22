@@ -4,14 +4,14 @@ import { useI18n, type Locale, type MessageKey } from '@afk4/i18n';
 import { CloseIcon, MaximizeIcon, MinimizeIcon, RestoreIcon } from './WindowIcons';
 import { BrandMark } from './BrandMark';
 import { BranchSelectionScreen } from './BranchSelectionScreen';
-import { DeviceScreen } from './DeviceScreen';
+import { DeviceScreen, type DeviceDraft } from './DeviceScreen';
 import { FinishedScreen } from './FinishedScreen';
 import { ForgotPasswordScreen, type SignInPrefill } from './ForgotPasswordScreen';
 import { PhoneLoginScreen } from './PhoneLoginScreen';
-import { BrandingScreen } from './BrandingScreen';
-import { HallScreen } from './HallScreen';
-import { StaffScreen } from './StaffScreen';
-import { TariffScreen } from './TariffScreen';
+import { BrandingScreen, type BrandingDraft } from './BrandingScreen';
+import { HallScreen, type HallDraft } from './HallScreen';
+import { StaffScreen, type StaffDraft } from './StaffScreen';
+import { TariffScreen, type TariffDraft } from './TariffScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
 import { WizardErrorBoundary } from './WizardErrorBoundary';
@@ -36,6 +36,15 @@ import {
   type WizardSeat,
 } from './wizardApi';
 
+/// Введённое на шагах, которые принадлежат филиалу: приглашённые, заведённые места и тариф есть
+/// у одного филиала, и на другом показывать их значило бы соврать, что там уже всё настроено.
+interface BranchDrafts {
+  staff?: StaffDraft;
+  hall?: HallDraft;
+  tariff?: TariffDraft;
+  device?: DeviceDraft;
+}
+
 interface WizardState {
   step: WizardStep;
   ownerName: string;
@@ -46,6 +55,13 @@ interface WizardState {
   enrollResult: WizardEnrollResult | null;
   selectedSeat: WizardSeat | null;
   signInPrefill: SignInPrefill | null;
+  // Введённое на экранах шагов. Экран монтируется заново на каждом шаге, и держать введённое
+  // ему негде, кроме как здесь: иначе «Назад» встречает пустыми полями. Только в памяти — ни в
+  // localStorage, ни на диск: закрыли мастер — начали заново. Секретов здесь нет по построению:
+  // ПИН-код остаётся внутри экрана входа и при возврате набирается заново.
+  /// Оформление — одно на весь клуб, поэтому переживает смену филиала.
+  brandingDraft: BrandingDraft | null;
+  branchDrafts: Record<string, BranchDrafts>;
 }
 
 const initialState: WizardState = {
@@ -58,7 +74,28 @@ const initialState: WizardState = {
   enrollResult: null,
   selectedSeat: null,
   signInPrefill: null,
+  brandingDraft: null,
+  branchDrafts: {},
 };
+
+/// Сброс к чистому входу. Номер, под которым вошли, остаётся в поле: человек вернулся к входу,
+/// а не ушёл от мастера, и набирать его заново незачем.
+function resetToSignIn(prev: WizardState): WizardState {
+  return { ...initialState, signInPrefill: prev.signInPrefill };
+}
+
+function keepBranchDraft<K extends keyof BranchDrafts>(
+  prev: WizardState,
+  key: K,
+  draft: BranchDrafts[K],
+): WizardState {
+  const branchId = prev.branch?.branchId;
+  if (!branchId) return prev;
+  return {
+    ...prev,
+    branchDrafts: { ...prev.branchDrafts, [branchId]: { ...prev.branchDrafts[branchId], [key]: draft } },
+  };
+}
 
 type Theme = 'light' | 'dark';
 
@@ -125,10 +162,13 @@ export function App() {
   // Номер шага для крупной цифры у заголовка. Раньше он был зашит в каждом экране и с
   // степпером расходился: 'branding' и 'device' оба объявляли себя четвёртым.
   const stepNumber = steps.indexOf(state.step) + 1;
+  const branchDrafts = state.branch ? state.branchDrafts[state.branch.branchId] : undefined;
 
+  // `keep` сохраняет введённое на экране, с которого уходят, в том же обновлении, что и сам шаг.
   const goBack = useCallback(
-    (from: WizardStep) => {
-      setState((prev) => {
+    (from: WizardStep, keep: (prev: WizardState) => WizardState = (prev) => prev) => {
+      setState((current) => {
+        const prev = keep(current);
         const shape = {
           role: STEP_POSITION[from] > STEP_POSITION.role ? prev.role : null,
           branchCount: prev.branches.length,
@@ -136,7 +176,7 @@ export function App() {
         };
         const target = previousVisibleStep(from, shape);
         // Назад с первого шага — это сброс к чистому входу, а не «шаг минус один».
-        return target === null ? initialState : { ...prev, step: target };
+        return target === null ? resetToSignIn(prev) : { ...prev, step: target };
       });
     },
     [],
@@ -208,11 +248,12 @@ export function App() {
     if (!installing) setConfirmClose(false);
   }, [installing]);
 
-  const handlePhoneDiscovered = useCallback((response: WizardDiscoverResponse) => {
+  const handlePhoneDiscovered = useCallback((response: WizardDiscoverResponse, signedInAs: SignInPrefill) => {
     const base = {
       ownerName: response.ownerName,
       branches: response.branches,
       brandingConfigured: response.brandingConfigured,
+      signInPrefill: signedInAs,
     } as const;
     if (response.branches.length === 1) {
       setState((prev) => ({ ...prev, ...base, branch: response.branches[0], step: 'role' }));
@@ -243,30 +284,34 @@ export function App() {
     }));
   }, []);
 
-  const handleBrandingContinue = useCallback(() => {
+  // Признаки «уже настроено» из discover здесь не трогаются, хотя шаг только что отправил данные:
+  // иначе шаг пропал бы из степпера посреди прогона, и «Назад» перескакивал бы через него. Что
+  // шаг сделан, человек видит на самом экране — по введённому, которое возвращается вместе с ним.
+  const handleBrandingContinue = useCallback((draft: BrandingDraft) => {
     setState((prev) => ({
       ...prev,
+      brandingDraft: draft,
       step: nextSetupStep('branding', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
     }));
   }, []);
 
-  const handleStaffContinue = useCallback(() => {
+  const handleStaffContinue = useCallback((draft: StaffDraft) => {
     setState((prev) => ({
-      ...prev,
+      ...keepBranchDraft(prev, 'staff', draft),
       step: nextSetupStep('staff', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
     }));
   }, []);
 
-  const handleHallContinue = useCallback(() => {
+  const handleHallContinue = useCallback((draft: HallDraft) => {
     setState((prev) => ({
-      ...prev,
+      ...keepBranchDraft(prev, 'hall', draft),
       step: nextSetupStep('hall', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
     }));
   }, []);
 
-  const handleTariffContinue = useCallback(() => {
+  const handleTariffContinue = useCallback((draft: TariffDraft) => {
     setState((prev) => ({
-      ...prev,
+      ...keepBranchDraft(prev, 'tariff', draft),
       step: nextSetupStep('tariff', prev.role, { brandingConfigured: prev.brandingConfigured, branch: prev.branch }),
     }));
   }, []);
@@ -279,7 +324,7 @@ export function App() {
   );
 
   const backToReset = useCallback(() => {
-    setState(initialState);
+    setState(resetToSignIn);
   }, []);
 
   const backFromRole = useCallback(() => {
@@ -511,7 +556,8 @@ export function App() {
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleBrandingContinue}
-            onBack={() => goBack('branding')}
+            initialDraft={state.brandingDraft}
+            onBack={(draft) => goBack('branding', (prev) => ({ ...prev, brandingDraft: draft }))}
           />
         )}
 
@@ -522,7 +568,8 @@ export function App() {
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleStaffContinue}
-            onBack={() => goBack('staff')}
+            initialDraft={branchDrafts?.staff}
+            onBack={(draft) => goBack('staff', (prev) => keepBranchDraft(prev, 'staff', draft))}
           />
         )}
 
@@ -534,7 +581,8 @@ export function App() {
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleHallContinue}
-            onBack={() => goBack('hall')}
+            initialDraft={branchDrafts?.hall}
+            onBack={(draft) => goBack('hall', (prev) => keepBranchDraft(prev, 'hall', draft))}
           />
         )}
 
@@ -545,7 +593,8 @@ export function App() {
             ownerName={state.ownerName}
             branchName={state.branch.branchName}
             onContinue={handleTariffContinue}
-            onBack={() => goBack('tariff')}
+            initialDraft={branchDrafts?.tariff}
+            onBack={(draft) => goBack('tariff', (prev) => keepBranchDraft(prev, 'tariff', draft))}
           />
         )}
 
@@ -559,7 +608,8 @@ export function App() {
             defaultDisplayName={defaultDisplayName}
             onEnrolled={handleEnrolled}
             onBusyChange={setInstalling}
-            onBack={() => goBack('device')}
+            initialDraft={branchDrafts?.device}
+            onBack={(draft) => goBack('device', (prev) => keepBranchDraft(prev, 'device', draft))}
           />
         )}
 

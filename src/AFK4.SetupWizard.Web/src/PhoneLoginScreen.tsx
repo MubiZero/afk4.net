@@ -11,10 +11,13 @@ import {
   type WizardDiscoverResponse,
 } from './wizardApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
+import type { SignInPrefill } from './ForgotPasswordScreen';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
 
 interface PhoneLoginScreenProps {
-  onDiscovered(response: WizardDiscoverResponse): void;
+  /// `signedInAs` — под каким номером или логином вошли: при «Назад» к входу поле встречает им,
+  /// а не пустотой. ПИН-код не возвращается никуда — его набирают заново.
+  onDiscovered(response: WizardDiscoverResponse, signedInAs: SignInPrefill): void;
   onForgotPassword(): void;
   initialIdentity?: string;
 }
@@ -90,8 +93,13 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
       setRequest({ kind: 'error', message: t('setup.wizard.phoneLogin.error.noBranches') });
       return;
     }
-    onDiscovered(response);
-  }, [onDiscovered, t]);
+    onDiscovered(
+      response,
+      mode === 'phone'
+        ? { channel: 'phone', identity: fullPhoneDigits(identity) }
+        : { channel: 'email', identity: trimmed },
+    );
+  }, [identity, mode, onDiscovered, t, trimmed]);
 
   const submit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {

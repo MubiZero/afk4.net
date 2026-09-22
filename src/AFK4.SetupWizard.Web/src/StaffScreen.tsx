@@ -18,22 +18,42 @@ export interface StaffClient {
   invite(displayName: string, phoneNumber: string, roleName: string): Promise<WizardStaffInvited>;
 }
 
+/// Введённое на экране. Живёт в App: экран монтируется заново на каждом шаге, и при «Назад»
+/// пропадал список приглашённых вместе с их кодами — а код здесь единственная копия на случай,
+/// если SMS не дойдёт.
+export interface StaffDraft {
+  displayName: string;
+  phoneNumber: string;
+  roleName: string;
+  invited: WizardStaffInvited[];
+}
+
 interface StaffScreenProps {
   /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
   stepNumber: number;
   client: StaffClient;
   ownerName: string;
   branchName: string;
-  onContinue(): void;
-  onBack(): void;
+  /// Что было введено при прошлом заходе на шаг; null — заход первый.
+  initialDraft?: StaffDraft | null;
+  onContinue(draft: StaffDraft): void;
+  onBack(draft: StaffDraft): void;
 }
 
-export function StaffScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: StaffScreenProps) {
+export function StaffScreen({
+  stepNumber,
+  client,
+  ownerName,
+  branchName,
+  initialDraft = null,
+  onContinue,
+  onBack,
+}: StaffScreenProps) {
   const { t, formatDate } = useI18n();
-  const [displayName, setDisplayName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [roleName, setRoleName] = useState(ROLES[2].name);
-  const [invited, setInvited] = useState<WizardStaffInvited[]>([]);
+  const [displayName, setDisplayName] = useState(initialDraft?.displayName ?? '');
+  const [phoneNumber, setPhoneNumber] = useState(initialDraft?.phoneNumber ?? '');
+  const [roleName, setRoleName] = useState(initialDraft?.roleName ?? ROLES[2].name);
+  const [invited, setInvited] = useState<WizardStaffInvited[]>(initialDraft?.invited ?? []);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [phoneTouched, setPhoneTouched] = useState(false);
@@ -45,6 +65,7 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
   const phoneComplete = localPhoneDigits(phoneNumber).length === 9;
   const showPhoneHint = phoneTouched && phoneNumber.trim().length > 0 && !phoneComplete;
   const canSend = displayName.trim() !== '' && phoneComplete && !sending;
+  const draft: StaffDraft = { displayName, phoneNumber, roleName, invited };
 
   async function invite(): Promise<void> {
     if (!canSend) return;
@@ -139,11 +160,11 @@ export function StaffScreen({ stepNumber, client, ownerName, branchName, onConti
       ) : null}
 
       <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="ui-btn ui-btn--primary" onClick={onContinue} disabled={sending}>
+        <button type="button" className="ui-btn ui-btn--primary" onClick={() => onContinue(draft)} disabled={sending}>
           <ArrowRight size={16} aria-hidden />
           {invited.length > 0 ? t('setup.wizard.staff.next') : t('setup.wizard.staff.skip')}
         </button>
