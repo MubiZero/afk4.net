@@ -108,7 +108,7 @@ export function EmptyState({
       <strong>{title}</strong>
       {description ? <span>{description}</span> : null}
       {action ? (
-        <button type="button" className="empty-state-action" onClick={action.onClick}>{action.label}</button>
+        <button type="button" className="ui-btn ui-btn--primary ui-btn--sm empty-state-action" onClick={action.onClick}>{action.label}</button>
       ) : null}
     </div>
   );

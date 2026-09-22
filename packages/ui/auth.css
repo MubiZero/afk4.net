@@ -143,6 +143,8 @@
   font-weight: 700;
 }.auth-link-inline:hover {
   text-decoration: underline;
+}.auth-link-inline:active {
+  color: var(--accent-text);
 }.auth-link-inline:focus-visible {
   outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
@@ -231,6 +233,8 @@
   text-align: left;
 }.auth-link:hover {
   text-decoration: underline;
+}.auth-link:active {
+  color: var(--accent-bright);
 }.auth-link:focus-visible {
   outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
