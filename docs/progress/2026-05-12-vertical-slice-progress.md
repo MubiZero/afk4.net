@@ -969,9 +969,8 @@ thrown away rather than polished.
    the pulse alert, but no endpoint exposes them). Waves without that view trade
    one risk for another: a wave nobody widens leaves part of the fleet on an old
    version silently. Decide the pair together.
-3. **The third pass's "named, not done" list** (section above) — the cheapest
-   classes first: partial failure that wipes a half-loaded screen, and wizard
-   input lost on stepping back.
+3. **The third pass's "named, not done" list** (section above) — one PR per
+   class, cheapest and most visible first.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
