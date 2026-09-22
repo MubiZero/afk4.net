@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import { useDialogFocus } from './dialogFocus';
 
 // Центрированное модальное окно поверх всего приложения (через портал в body) — формы вроде
 // старта сессии или расчёта слишком тесны в узкой боковой панели, им нужна полноценная ширина.
@@ -21,6 +22,8 @@ export function PanelModal({
   closeDisabled?: boolean;
 }) {
   const { t } = useI18n();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, true);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -43,7 +46,7 @@ export function PanelModal({
         }
       }}
     >
-      <div className={`panel-modal${tone ? ` ${tone}` : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div ref={dialogRef} tabIndex={-1} className={`panel-modal${tone ? ` ${tone}` : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <header className="panel-modal-head">
           <div className="panel-modal-title">
             <strong>{title}</strong>

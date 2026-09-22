@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useDialogFocus } from './dialogFocus';
 
 // Модальное окно панели — та же .panel-modal из @afk4/ui, что и в Organization Admin: портал в
 // body, закрытие по Escape и по клику вне окна.
@@ -19,6 +20,8 @@ export function Dialog({ open, title, description, tone, onClose, children, foot
   footer?: ReactNode;
 }) {
   const { t } = useI18n();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +41,7 @@ export function Dialog({ open, title, description, tone, onClose, children, foot
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className={tone === undefined ? 'panel-modal' : `panel-modal ${tone}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div ref={dialogRef} tabIndex={-1} className={tone === undefined ? 'panel-modal' : `panel-modal ${tone}`} role="dialog" aria-modal="true" aria-label={title}>
         <header className="panel-modal-head">
           <div className="panel-modal-title">
             <strong>{title}</strong>
