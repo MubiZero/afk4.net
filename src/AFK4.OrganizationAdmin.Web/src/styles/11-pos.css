@@ -80,15 +80,17 @@
   background: var(--surface-card);
 }
 
+/* Метка состояния заказа: значок, а не крашеная точка. Цвет остался, но смысл несёт форма —
+   за стойкой в час пик цветовое различие теряется первым. */
 .pos-order-dot {
+  display: inline-flex;
   flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-pill);
-  background: var(--text-quaternary);
+  align-items: center;
+  justify-content: center;
+  color: var(--text-quaternary);
 }
-.pos-order-chip.placed .pos-order-dot { background: var(--warning); }
-.pos-order-chip.accepted .pos-order-dot { background: var(--accent); }
+.pos-order-chip.placed .pos-order-dot { color: var(--warning); }
+.pos-order-chip.accepted .pos-order-dot { color: var(--accent); }
 
 .pos-order-seat {
   flex: none;

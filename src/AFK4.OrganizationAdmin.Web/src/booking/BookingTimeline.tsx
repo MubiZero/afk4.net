@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { Check, Clock, Globe, RotateCcw, User, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
-import { zoneLabel } from '../operatorHelpers';
+import { formatTime, zoneLabel } from '../operatorHelpers';
 import { EmptyState, Skeleton } from '../operatorPrimitives';
-import type { BookingItem, SessionItem, TimelineAxis, ZoneRowGroup } from './bookingModel';
+import { bookingStateLabelKey, type BookingItem, type BookingTone, type SessionItem, type TimelineAxis, type ZoneRowGroup } from './bookingModel';
 
 // Протягивание по дорожке выставляет интервал брони: снап по 15 мин, короткое
 // нажатие без движения трактуем как клик (бронь по умолчанию на 60 мин в родителе).
@@ -150,6 +150,33 @@ export function BookingTimeline({
   };
 
   const moved = drag !== null && Math.abs(drag.currentMs - drag.anchorMs) >= CLICK_THRESHOLD_MS;
+
+  // Состояние брони в ленте несёт цвет — и только он: в блоке помещается имя гостя и больше
+  // ничего. Дальтонику, на плохом мониторе и беглым взглядом «ждёт подтверждения» неотличимо
+  // от «подтверждена», а читалке не сказано вовсе. Значок повторяет смысл цвета, подпись
+  // проговаривает его словами.
+  const toneIcon = (tone: BookingTone): ReactNode => {
+    const size = 11;
+    switch (tone) {
+      case 'confirmed': return <Check size={size} aria-hidden="true" />;
+      case 'online': return <Globe size={size} aria-hidden="true" />;
+      case 'pending': return <Clock size={size} aria-hidden="true" />;
+      case 'seated': return <User size={size} aria-hidden="true" />;
+      case 'cancelled': return <X size={size} aria-hidden="true" />;
+    }
+  };
+
+  // Онлайн-заявка отличается от обычной подтверждённой источником, а не состоянием, поэтому
+  // словом её называет отдельный ключ, а не op.booking.state.*.
+  const toneLabel = (item: BookingItem): string =>
+    item.tone === 'online' ? t('op.booking.tone.online') : t(bookingStateLabelKey(item.state));
+
+  const blockLabel = (item: BookingItem): string => t('op.booking.block.a11y', {
+    who: item.customerName,
+    state: toneLabel(item),
+    from: formatTime(new Date(item.startMs).toISOString()),
+    to: formatTime(new Date(item.endMs).toISOString())
+  });
 
   // Подпись-тултип сессии: кто играет + признак открытой (без конца).
   const sessionTitle = (s: SessionItem): string => {
@@ -350,7 +377,10 @@ export function BookingTimeline({
                       onMouseEnter={() => setHoveredGroupId(block.item.reservationGroupId)}
                       onMouseLeave={() => setHoveredGroupId('')}
                       onClick={(event) => { event.stopPropagation(); onSelectBlock(block.item); }}
+                      aria-label={blockLabel(block.item)}
+                      title={blockLabel(block.item)}
                     >
+                      <span className="booking-block-icon">{toneIcon(block.item.tone)}</span>
                       <b>{block.item.customerName}</b>
                     </button>
                   ))}
@@ -373,10 +403,25 @@ export function BookingTimeline({
     );
   }
 
+  // Легенда: значок и цвет без объяснения — это ребус. Строка внизу дешевле, чем догадки и
+  // звонок сменщику «а жёлтые это какие».
+  const legend = (
+    <div className="booking-legend">
+      <span className="booking-legend-title">{t('op.booking.legend.title')}</span>
+      {(['confirmed', 'online', 'pending', 'seated'] as const).map((tone) => (
+        <span className={`booking-legend-item ${tone}`} key={tone}>
+          {toneIcon(tone)}
+          {tone === 'online' ? t('op.booking.tone.online') : t(bookingStateLabelKey(tone))}
+        </span>
+      ))}
+    </div>
+  );
+
   return (
     <div className={`booking-grid${moved ? ' dragging' : ''}`} aria-label={t('op.booking.timeline.aria')}>
       {axisHeader}
       {body}
+      {legend}
     </div>
   );
 }

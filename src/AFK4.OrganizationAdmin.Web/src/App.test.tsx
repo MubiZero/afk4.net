@@ -1547,11 +1547,13 @@ describe('App', () => {
     // Отмена: клик по блоку брони открывает drawer детали → кнопка «Отменить» → бэкенд-вызов.
     // После создания drawer закрывается (afterSuccess: setDrawerMode(null)), и бронь обновляется.
     // Ждём появления блока (данные могут перезагружаться после создания).
-    await screen.findByRole('button', { name: 'Aziz P.' });
+    // Блок брони называет себя читалке целиком: «имя, состояние, время» — раньше состояние
+    // несло только цвет. Поэтому ищем по вхождению имени, а не по точной подписи.
+    await screen.findByRole('button', { name: /Aziz P\./ });
     // act() гарантирует, что клик + все React-обновления (setSelectedReservationId, setDrawerMode)
     // зафиксированы до того, как мы ищем кнопки внутри drawer.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Aziz P.' }));
+      fireEvent.click(screen.getByRole('button', { name: /Aziz P\./ }));
     });
     // Ждём drawer детали — содержит заголовок «Бронь».
     const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });

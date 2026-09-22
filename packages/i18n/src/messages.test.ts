@@ -71,7 +71,10 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'customer.common.dayAtTime',
     // «ПК» — канон термина, и таджикский каталог уже пользуется им как есть («Номи ПК»).
     // В английском это 'PC', то есть совпадение с ru здесь — перевод, а не копия ради паритета.
-    'setup.wizard.hall.prefixDefault'
+    'setup.wizard.hall.prefixDefault',
+    // Чистая склейка «{who}, {state}, {from}–{to}» для читалки: слова подставляются из уже
+    // переведённых ключей, в самом шаблоне переводить нечего.
+    'op.booking.block.a11y'
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {

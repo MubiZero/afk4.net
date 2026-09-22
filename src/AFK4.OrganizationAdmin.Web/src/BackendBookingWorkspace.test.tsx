@@ -56,6 +56,9 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+// Блок брони в ленте теперь называет себя читалке целиком: «имя, состояние, время» —
+// раньше состояние несло только цвет. Поэтому блоки ищутся по вхождению имени гостя,
+// а не по точному совпадению подписи.
 describe('BackendBookingWorkspace modifier draft transitions', () => {
   it('classifies transport and retryable HTTP failures as ambiguous, but domain 4xx as determined', () => {
     expect(isReservationStartOutcomeAmbiguous(new TypeError('network lost'))).toBe(true);
@@ -260,7 +263,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
       </I18nProvider>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Guest stale' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Guest stale/ }));
     const details = await screen.findByRole('dialog', { name: 'Бронь' });
     fireEvent.click(within(details).getByRole('button', { name: 'Принять' }));
 
@@ -322,7 +325,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={backend} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
     const startDialog = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
     fireEvent.click(within(startDialog).getByRole('button', { name: 'Начать сессию' }));
@@ -353,7 +356,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
     let modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
     fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
@@ -397,7 +400,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     }) as typeof fetch;
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
-    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
     await waitFor(() => expect(bodies).toHaveLength(1));
@@ -427,7 +430,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     }) as typeof fetch;
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
-    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
@@ -455,7 +458,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     }) as typeof fetch;
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
-    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
     await waitFor(() => expect(reads).toBeGreaterThan(1));
@@ -507,7 +510,7 @@ describe('BackendBookingWorkspace no-show', () => {
       reservationId: 'reservation-no-show', version: 4, state: 'no_show', retainedAmountMinorUnits: 15000
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Не приехавший гость' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Не приехавший гость/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Не приехал' }));
     fireEvent.click(screen.getByRole('button', { name: 'Отметить неявку' }));
 
@@ -537,7 +540,7 @@ describe('BackendBookingWorkspace no-show', () => {
       </ToastProvider></I18nProvider>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Не приехавший гость' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Не приехавший гость/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Пришёл' }));
 
     await waitFor(() => expect(calls).toHaveLength(1));
@@ -552,7 +555,7 @@ describe('BackendBookingWorkspace no-show', () => {
       reservationId: 'reservation-no-show', version: 4, state: 'no_show', retainedAmountMinorUnits: null
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Не приехавший гость' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Не приехавший гость/ }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Не приехал' }));
     fireEvent.click(screen.getByRole('button', { name: 'Отметить неявку' }));
 

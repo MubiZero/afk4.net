@@ -1930,3 +1930,37 @@
 .booking-reject .booking-action-grid {
   padding: 0;
 }
+
+/* Легенда ленты: значок + слово для каждого тона. Цвет остаётся, но больше не единственный
+   носитель смысла — иначе состояние брони теряют дальтоник, плохой монитор и беглый взгляд. */
+.booking-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.booking-legend-title { font-weight: 700; }
+
+.booking-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.booking-legend-item.confirmed { color: var(--success-text); }
+.booking-legend-item.online { color: var(--accent-bright); }
+.booking-legend-item.pending { color: var(--warning-text); }
+.booking-legend-item.seated { color: var(--text-secondary); }
+
+/* Значок состояния внутри блока: не сжимается, чтобы у узкой брони первым обрезалось имя,
+   а не признак состояния. */
+.booking-block-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
