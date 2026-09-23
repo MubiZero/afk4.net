@@ -1677,6 +1677,7 @@
   "op.management.tariffs.schedule.from": "Аз",
   "op.management.tariffs.schedule.legend": "Кай амал мекунад",
   "op.management.tariffs.schedule.overnightNote": "Тиреза аз нимишабӣ мегузарад: он ба рӯзе тааллуқ дорад, ки дар он оғоз шудааст.",
+  "op.management.tariffs.schedule.startRuleHint": "Сессия ё броне, ки дар ин соатҳо оғоз шудааст, то охир бо ҳамин тариф ҳисоб карда мешавад — ҳатто агар аз охири вақт гузарад. Онро дароз кардан ҳам мумкин аст.",
   "op.management.tariffs.schedule.to": "То",
   "op.management.tariffs.tab.packages": "Пакетҳо",
   "op.management.tariffs.tab.tariffs": "Тарифҳо",

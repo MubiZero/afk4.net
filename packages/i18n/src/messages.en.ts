@@ -1678,6 +1678,7 @@ export const en = {
   "op.management.tariffs.schedule.from": "From",
   "op.management.tariffs.schedule.legend": "When it applies",
   "op.management.tariffs.schedule.overnightNote": "The window runs past midnight: it belongs to the day it started on.",
+  "op.management.tariffs.schedule.startRuleHint": "A session or booking that starts within these hours is billed at this tariff to the end, even past the window. It can be extended too.",
   "op.management.tariffs.schedule.to": "To",
   "op.management.tariffs.tab.packages": "Packages",
   "op.management.tariffs.tab.tariffs": "Tariffs",
