@@ -139,6 +139,20 @@ export function applyDeviceStatusToSeats(
   return applied ? nextSeats : currentSeats;
 }
 
+/**
+ * Можно ли прямо сейчас посадить гостя на это место — то же правило, что у «Посадить гостя» на
+ * карте (тон «готово» и нет сессии). Состояние с сервера приходит как есть: «Free», «Locked»,
+ * «Offline», — а свободным считается и «Locked» (ПК ждёт гостя на экране блокировки). Сравнение
+ * сырой строки с 'free' на живом сервере не совпадало ни разу: «Посадить за ПК» из карточки
+ * клиента предлагал пустой список.
+ */
+export function isSeatReadyForGuest(dto: SeatStatusDto): boolean {
+  const hasActiveSession = dto.activeSessionId !== null && dto.activeSessionId !== undefined;
+  const hasDevice = dto.deviceId !== null && dto.deviceId !== undefined;
+  return !hasActiveSession
+    && resolveTone(normalizeState(dto.state), hasDevice, dto.isDeviceOnline ?? false, false) === 'ready';
+}
+
 function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSummary {
   const normalizedState = normalizeState(dto.state);
   const hasActiveSession = dto.activeSessionId !== null && dto.activeSessionId !== undefined;

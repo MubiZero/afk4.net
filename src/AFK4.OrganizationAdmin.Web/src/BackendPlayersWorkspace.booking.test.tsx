@@ -35,8 +35,13 @@ const getFloorMap = mock(async () => ({
   branchName: 'Главный',
   zones: [],
   seats: [
-    { seatId: 'seat-1', seatName: 'PC-01', zoneId: 'z', zoneName: 'Зал', sortOrder: 1, state: 'free', deviceId: null, deviceName: null, isDeviceOnline: null, isDeviceLocked: null, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: null, remainingSeconds: null },
-    { seatId: 'seat-2', seatName: 'PC-02', zoneId: 'z', zoneName: 'Зал', sortOrder: 2, state: 'active', deviceId: null, deviceName: null, isDeviceOnline: null, isDeviceLocked: null, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: 's1', remainingSeconds: 600 }
+    // Состояния — ровно те, что отдаёт сервер (EfFloorMapReadService.GetSeatState): с заглавной
+    // буквы, а свободный ПК ждёт гостя на экране блокировки — «Locked». Строчное 'free' здесь
+    // когда-то и прятало, что на живом сервере список мест был пуст.
+    { seatId: 'seat-1', seatName: 'PC-01', zoneId: 'z', zoneName: 'Зал', sortOrder: 1, state: 'Locked', deviceId: 'd1', deviceName: 'PC-01', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: null, remainingSeconds: null },
+    { seatId: 'seat-2', seatName: 'PC-02', zoneId: 'z', zoneName: 'Зал', sortOrder: 2, state: 'Active', deviceId: 'd2', deviceName: 'PC-02', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: 's1', remainingSeconds: 600 },
+    { seatId: 'seat-3', seatName: 'PC-03', zoneId: 'z', zoneName: 'Зал', sortOrder: 3, state: 'Offline', deviceId: 'd3', deviceName: 'PC-03', isDeviceOnline: false, isDeviceLocked: null, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: null, remainingSeconds: null },
+    { seatId: 'seat-4', seatName: 'PC-04', zoneId: 'z', zoneName: 'Зал', sortOrder: 4, state: 'Free', deviceId: 'd4', deviceName: 'PC-04', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: null, remainingSeconds: null }
   ]
 }));
 
@@ -138,13 +143,15 @@ describe('BackendPlayersWorkspace · бронь из карточки клиен
 
   // Занятые места в списке не предлагаем: бронь на занятый ПК сервер отклонит, а оператор
   // узнает об этом только после отправки.
-  it('предлагает только свободные места', async () => {
+  // Бронь бывает и на завтра: место, занятое или выключенное сейчас, к её времени может быть
+  // свободно. Пересечение по времени проверяет сервер — как у создания брони на экране «Брони».
+  it('предлагает все места зала, а не только свободные сейчас', async () => {
     await openBookingDialog();
     await waitFor(() => expect(getFloorMap).toHaveBeenCalled());
 
     const seat = await screen.findByLabelText('Место');
     const options = [...seat.querySelectorAll('option')].map((option) => option.textContent);
-    expect(options).toEqual(['Место выберем позже', 'PC-01']);
+    expect(options).toEqual(['Место выберем позже', 'PC-01', 'PC-02', 'PC-03', 'PC-04']);
   });
 });
 
@@ -191,7 +198,8 @@ describe('BackendPlayersWorkspace · посадить за ПК из карто�
 
     await waitFor(() => expect(getFloorMap).toHaveBeenCalled());
     const seat = await screen.findByLabelText('Место');
-    expect([...seat.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Зал · PC-01']);
+    // Свободен ПК на экране блокировки («Locked») и открытый («Free»); занятый и без связи — нет.
+    expect([...seat.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Зал · PC-01', 'Зал · PC-04']);
 
     // Кнопка оживает не сразу: форма ждёт список тарифов. Ждём именно его, а не отмеренную
     // секунду — на загруженном раннере секунды не хватало, и проверка падала на ровном месте.

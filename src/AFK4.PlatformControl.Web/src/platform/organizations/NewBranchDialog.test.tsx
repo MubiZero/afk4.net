@@ -87,7 +87,7 @@ it('показывает занятый короткий адрес отдель
   fillForm();
   fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
-  await waitFor(() => expect(screen.getByText('Такой короткий адрес в этом клубе уже занят.')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText('Такой короткий адрес в этой организации уже занят.')).toBeInTheDocument());
   expect(screen.queryByText(/Повысьте тариф/)).not.toBeInTheDocument();
   expect(onCreated).not.toHaveBeenCalled();
 });

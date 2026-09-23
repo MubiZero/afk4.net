@@ -84,32 +84,66 @@ class AppTheme {
     return parsed == null ? null : Color(0xFF000000 | parsed);
   }
 
-  /// Цвет клуба, приведённый к яркости, на которой он вообще работает акцентом.
+  /// Порог WCAG для текста. Акцентом набраны ссылки, текстовые кнопки и подписи выбранных
+  /// чипов, поэтому цвет клуба держит его, а не порог 3:1 для значков.
+  static const double _textContrast = 4.5;
+
+  /// Цвет клуба, приведённый к яркости, на которой им можно писать.
   ///
   /// Тёмно-синий логотип на почти чёрном фоне даст кнопку, которую не видно, а бледно-жёлтый
-  /// на белом — то же самое в светлой теме. Оттенок клуба сохраняется, меняется только
-  /// светлота: это его цвет, просто различимый.
+  /// на белом — то же самое в светлой теме. Одной светлоты для этого мало: насыщенный синий
+  /// и жёлтый при одинаковой светлоте различаются по яркости в разы, и синий со светлотой 0,5
+  /// на тёмном холсте давал 2:1. Поэтому цвет светлеет (в тёмной теме) или темнеет (в
+  /// светлой), пока не прочитается на каждом фоне, где им пишут. Оттенок клуба сохраняется,
+  /// меняется только светлота: это его цвет, просто читаемый.
   static Color _fitAccent(Color color, Brightness brightness) {
-    final hsl = HSLColor.fromColor(color);
-    if (brightness == Brightness.dark) {
-      return hsl.withLightness(hsl.lightness.clamp(0.42, 1.0)).toColor();
-    }
-    // На светлом листе светлоты мало: жёлтый и бирюзовый при светлоте 0,58 всё ещё ярче, чем
-    // нужно для текста на белом. Цвет темнеет, пока ссылка им не станет читаться (4,5:1), —
-    // тогда и белая надпись на кнопке этого цвета читается так же.
-    var fitted = hsl.withLightness(hsl.lightness.clamp(0.0, 0.58));
-    while (_contrastWithWhite(fitted.toColor()) < 4.5 && fitted.lightness > 0) {
-      fitted = fitted.withLightness((fitted.lightness - 0.02).clamp(0.0, 1.0));
+    final dark = brightness == Brightness.dark;
+    final sheets = dark ? const [_darkSurface, _darkCard] : const [_lightSurface, _lightCard];
+    return _readable(
+      HSLColor.fromColor(color),
+      lighten: dark,
+      // Подсветка выбранного чипа на карточке клуба и строки филиала на листе — тот же акцент
+      // на 12 %, и подпись на ней набрана им же, поэтому фон пересчитывается вместе с цветом.
+      backgroundsFor: (accent) => [
+        dark ? _darkCanvas : _lightCanvas,
+        ...sheets,
+        for (final sheet in sheets) Color.alphaBlend(accent.withValues(alpha: 0.12), sheet),
+      ],
+    );
+  }
+
+  /// Сдвигает светлоту [color], пока он не даст [_textContrast] с каждым из фонов. Дальше
+  /// всего сдвиг доводит до белого или чёрного, а они читаются на любом фоне своей темы.
+  static Color _readable(
+    HSLColor color, {
+    required bool lighten,
+    required List<Color> Function(Color candidate) backgroundsFor,
+  }) {
+    var fitted = color;
+    bool readable(Color candidate) => backgroundsFor(candidate)
+        .every((background) => _contrast(candidate, background) >= _textContrast);
+    bool canMove() => lighten ? fitted.lightness < 1 : fitted.lightness > 0;
+    while (!readable(fitted.toColor()) && canMove()) {
+      fitted = fitted.withLightness((fitted.lightness + (lighten ? 0.01 : -0.01)).clamp(0.0, 1.0));
     }
     return fitted.toColor();
   }
 
-  static double _contrastWithWhite(Color color) => 1.05 / (color.computeLuminance() + 0.05);
+  /// Контраст по WCAG 2: отношение относительных яркостей, каждая с поправкой 0,05.
+  static double _contrast(Color a, Color b) {
+    final la = a.computeLuminance();
+    final lb = b.computeLuminance();
+    return la > lb ? (la + 0.05) / (lb + 0.05) : (lb + 0.05) / (la + 0.05);
+  }
 
-  /// Что писать на цвете клуба. Порог по яркости, а не «всегда белое»: белые буквы на жёлтом
-  /// не читаются, а чёрные на тёмно-синем — тем более.
+  /// Что писать на цвете клуба: из тёмной и белой надписи — ту, что контрастнее с ним. Не
+  /// «всегда белое»: белые буквы на жёлтом не читаются, а чёрные на тёмно-синем — тем более.
+  /// И не порог по яркости: равный контраст у этой пары при яркости около 0,19, и на чистом
+  /// красном (0,21) порог 0,42 выбирал белую надпись с 4:1 вместо тёмной с 4,7:1.
   static Color onAccentFor(Color accent) =>
-      accent.computeLuminance() > 0.42 ? _darkOnAccent : Colors.white;
+      _contrast(_darkOnAccent, accent) >= _contrast(Colors.white, accent)
+          ? _darkOnAccent
+          : Colors.white;
 
   /// [clubColor] — акцент из брендинга клуба; `null` оставляет фирменный emerald.
   static ThemeData dark({Color? clubColor}) {
@@ -159,23 +193,32 @@ class AppTheme {
     required Color danger,
     required AppPalette palette,
   }) {
+    final dark = brightness == Brightness.dark;
+    // Material красит этим всё «второстепенное подсвеченное»: тональные кнопки, выбранные
+    // чипы, подложки подсказок. Без явного значения он выводит его из secondary и заливает
+    // экран фиолетовым — чужим на фирменном зелёном. Задаётся здесь, а не в каждом виджете:
+    // иначе фиолетовый вылезает в следующем же месте, где Material решит его применить.
+    final secondaryContainer = Color.alphaBlend(
+      accent.withValues(alpha: dark ? 0.20 : 0.22),
+      dark ? _darkCard : _lightSurface,
+    );
+    // Текст полосы уведомления и приглашения к отзыву. Светлота 0,26 на светлой подложке
+    // давала 3,8:1 даже фирменному зелёному, а жёлтому клубу — 3,4:1, поэтому она только
+    // отправная точка, а дальше цвет темнеет (светлеет), пока не прочитается.
+    final onSecondaryContainer = _readable(
+      HSLColor.fromColor(accent).withLightness(dark ? 0.72 : 0.26),
+      lighten: dark,
+      backgroundsFor: (_) => [secondaryContainer],
+    );
+
     final scheme = ColorScheme(
       brightness: brightness,
       primary: accent,
       onPrimary: onAccent,
       secondary: violet,
       onSecondary: Colors.white,
-      // Material красит этим всё «второстепенное подсвеченное»: тональные кнопки, выбранные
-      // чипы, подложки подсказок. Без явного значения он выводит его из secondary и заливает
-      // экран фиолетовым — чужим на фирменном зелёном. Задаётся здесь, а не в каждом виджете:
-      // иначе фиолетовый вылезает в следующем же месте, где Material решит его применить.
-      secondaryContainer: Color.alphaBlend(
-        accent.withValues(alpha: brightness == Brightness.dark ? 0.20 : 0.22),
-        brightness == Brightness.dark ? _darkCard : _lightSurface,
-      ),
-      onSecondaryContainer: HSLColor.fromColor(accent)
-          .withLightness(brightness == Brightness.dark ? 0.72 : 0.26)
-          .toColor(),
+      secondaryContainer: secondaryContainer,
+      onSecondaryContainer: onSecondaryContainer,
       error: danger,
       onError: brightness == Brightness.dark ? _darkOnAccent : Colors.white,
       surface: surface,

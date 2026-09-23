@@ -10,6 +10,14 @@ describe('dev preview session', () => {
       roleNames: ['operator']
     });
   });
+
+  // `?nobranch` в адресе превью: сотрудник без единого назначения. Сервер строит филиалы и права
+  // из назначений ролей, поэтому пустыми приходят и те, и другие.
+  it('models a staff member without any branch assignment', () => {
+    const session = createMockSession({ withoutBranch: true });
+    expect(session).toMatchObject({ branchIds: [], roleNames: [], permissions: [] });
+    expect(session).not.toHaveProperty('activeBranchId');
+  });
 });
 
 // Preview sign-in is HTTP now (authClient.ts → StaffAuthApi), mocked here instead of over the

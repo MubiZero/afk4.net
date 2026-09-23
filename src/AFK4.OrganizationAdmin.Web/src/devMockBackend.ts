@@ -11,7 +11,17 @@ const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const BRANCH = 'acfc0212-967f-4d84-94be-9003387b09c2';
 const FAR_FUTURE = '2099-01-01T00:00:00Z';
 
-export function createMockSession(): Record<string, unknown> {
+// `?nobranch` в адресе превью — вход сотрудника без единого назначения в филиал, чтобы глазами
+// посмотреть экран «Нет активного филиала». «Проверить снова» тоже вернёт такую сессию.
+const PREVIEW_WITHOUT_BRANCH = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nobranch');
+
+export function createMockSession({ withoutBranch = false }: { withoutBranch?: boolean } = {}): Record<string, unknown> {
+  if (withoutBranch) {
+    // Сервер строит и филиалы, и права из назначений ролей (OpaqueStaffTokenService): нет
+    // назначений — пусто и то, и другое.
+    const { activeBranchId: _, ...session } = createMockSession();
+    return { ...session, branchIds: [], roleNames: [], permissions: [] };
+  }
   return {
     staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     organizationId: ORG,
@@ -537,9 +547,9 @@ function eskhataConfig(): Record<string, unknown> {
 function route(pathname: string, method: string): unknown | undefined {
   // Preview sign-in: any credentials succeed (no real backend behind the mock), mirroring what the
   // dev host-bridge stub used to fake over the WebView2 auth bridge before auth moved to plain HTTP.
-  if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession();
-  if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession();
-  if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession();
+  if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
+  if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
+  if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();

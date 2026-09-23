@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
-import { EmptyState } from '../../operatorPrimitives';
 import { useOrganizationFeatures } from '../../useOrganizationFeatures';
 import { PaymentMethodsSection } from './payments/PaymentMethodsSection';
 import { LoyaltySection } from './payments/LoyaltySection';
@@ -45,20 +44,16 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
       {/* Две половины одного экрана: приём слева, возврат справа. auto-fit сам сводит в одну
           колонку, если видна лишь одна зона (по правам) или окно узкое. */}
       <div className="payset-columns">
-        {canGateways && (
+        {/* Без backend здесь не бывает связи с сервером — бывает, что нет активного филиала,
+            и это называет оболочка своим экраном (NoActiveBranchScreen) до Управления. Своя
+            заглушка тут писала «Нет подключения к серверу», то есть неправду. */}
+        {canGateways && backend !== null && (
           <PaymentsSetupSection
             direction="in"
             title={t('op.payments.zone.income')}
             lead={t('op.payments.zone.income.lead')}
           >
-            {backend !== null ? (
-              <PaymentMethodsSection backend={backend} />
-            ) : (
-              <EmptyState
-                title={t('op.management.dest.payment.noBackendTitle')}
-                next={{ kind: 'elsewhere', hint: t('op.management.dest.payment.noBackendHint') }}
-              />
-            )}
+            <PaymentMethodsSection backend={backend} />
           </PaymentsSetupSection>
         )}
 

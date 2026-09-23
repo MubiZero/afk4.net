@@ -151,6 +151,16 @@ it('без филиала говорит, почему код не создат�
   expect(create.getAttribute('aria-describedby')).toBe(reason.id);
 });
 
+// Пустой список под серой кнопкой звал «Создайте код формой выше» — той самой формой, которая без
+// филиала кода не создаст. Человек нажимал, ничего не происходило, и он шёл в поддержку.
+it('без филиала пустой список не зовёт к форме, а говорит, что сначала нужен филиал', async () => {
+  const client = { listOrganizationOwnerInvites: mock().mockResolvedValue([]), createOrganizationOwnerInvite: mock(), revokeOrganizationOwnerInvite: mock() };
+  renderSection(client, []);
+
+  await screen.findByText('Кодов пока нет. Сначала добавьте филиал на вкладке «Клубы» — после этого код создаётся формой выше.');
+  expect(screen.queryByText(/Создайте код формой выше/)).toBeNull();
+});
+
 it('с филиалом причину не пишет', async () => {
   const client = { listOrganizationOwnerInvites: mock().mockResolvedValue([]), createOrganizationOwnerInvite: mock(), revokeOrganizationOwnerInvite: mock() };
   renderSection(client);

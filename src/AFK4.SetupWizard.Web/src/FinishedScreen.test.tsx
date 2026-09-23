@@ -107,7 +107,7 @@ describe('FinishedScreen', () => {
     expect(screen.getByRole('button', { name: 'Повторить установку' })).toBeEnabled();
   });
 
-  // Место без связи с хостом — не «повтор не удался», а «мастер не достучался до агента».
+  // Место без связи с хостом — не «повтор не удался», а «экран мастера потерял связь с программой».
   it('обрыв моста называет своими словами', async () => {
     renderFinished('gaming_pc', failedShell, mock(async (_role: WizardRole) => {
       throw new HostBridgeUnavailableError();
@@ -115,7 +115,7 @@ describe('FinishedScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить установку' }));
 
-    expect(await screen.findByText(/Не удаётся связаться с локальным агентом/)).toBeInTheDocument();
+    expect(await screen.findByText(/Экран мастера потерял связь с программой/)).toBeInTheDocument();
   });
 
   // Не запустившаяся служба — не то же, что не установившееся приложение: приложение как раз
