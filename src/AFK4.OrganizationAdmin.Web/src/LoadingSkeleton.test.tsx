@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, jest } from 'bun:test';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from './operatorToast';
@@ -42,13 +42,20 @@ describe('gridColumnCount', () => {
 
 describe('DeferredSkeleton', () => {
   // Почти все ответы приходят быстрее пятой доли секунды, и заглушка тогда только мигала бы.
-  it('shows nothing for the first 180 ms, then the shape', async () => {
-    const { container } = render(<DeferredSkeleton><div data-skeleton="table" /></DeferredSkeleton>);
-    expect(container.querySelector('[data-skeleton]')).toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, 120));
-    expect(container.querySelector('[data-skeleton]')).toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, 120));
-    expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy();
+  // Часы поддельные: на настоящих таймер «через 120 мс» под нагрузкой срабатывал через секунды,
+  // когда заглушка уже честно стояла, и тест падал на исправном коде.
+  it('shows nothing for the first 180 ms, then the shape', () => {
+    jest.useFakeTimers();
+    try {
+      const { container } = render(<DeferredSkeleton><div data-skeleton="table" /></DeferredSkeleton>);
+      expect(container.querySelector('[data-skeleton]')).toBeNull();
+      act(() => { jest.advanceTimersByTime(179); });
+      expect(container.querySelector('[data-skeleton]')).toBeNull();
+      act(() => { jest.advanceTimersByTime(1); });
+      expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

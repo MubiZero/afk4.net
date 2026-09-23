@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, jest } from 'bun:test';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
@@ -27,14 +27,21 @@ const shape = (root: ParentNode, kind: string) => root.querySelector(`[data-skel
 describe('Loading', () => {
   // Быстрый ответ не должен мигать ожиданием: пятая доля секунды — граница, за которой человек
   // замечает паузу, а до неё заглушка только дёргает экран. Число то же, что в Панели AFK4.net.
-  it('holds the shape back for 180 ms so quick answers do not flash', async () => {
+  // Часы поддельные: на настоящих таймер «через 120 мс» под нагрузкой срабатывал через секунды,
+  // когда заглушка уже честно стояла, и тест падал на исправном коде.
+  it('holds the shape back for 180 ms so quick answers do not flash', () => {
     expect(SKELETON_DELAY_MS).toBe(180);
-    const { container } = render(<Loading><div data-skeleton="table" /></Loading>);
-    expect(shape(container, 'table')).toBeNull();
-    await new Promise(resolve => setTimeout(resolve, 120));
-    expect(shape(container, 'table')).toBeNull();
-    await new Promise(resolve => setTimeout(resolve, 120));
-    expect(shape(container, 'table')).not.toBeNull();
+    jest.useFakeTimers();
+    try {
+      const { container } = render(<Loading><div data-skeleton="table" /></Loading>);
+      expect(shape(container, 'table')).toBeNull();
+      act(() => { jest.advanceTimersByTime(179); });
+      expect(shape(container, 'table')).toBeNull();
+      act(() => { jest.advanceTimersByTime(1); });
+      expect(shape(container, 'table')).not.toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
