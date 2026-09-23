@@ -56,7 +56,7 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
             ) : (
               <EmptyState
                 title={t('op.management.dest.payment.noBackendTitle')}
-                description={t('op.management.dest.payment.noBackendHint')}
+                next={{ kind: 'elsewhere', hint: t('op.management.dest.payment.noBackendHint') }}
               />
             )}
           </PaymentsSetupSection>

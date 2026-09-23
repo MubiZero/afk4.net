@@ -59,7 +59,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.management.tariffs.col.bonus', 'op.management.staff.col.login', 'op.management.goods.col.sku', 'op.map.panel.packageLabel',
     'op.map.panel.tariffLabel', 'op.news.col.branch', 'op.news.fieldBranch', 'op.players.editProfile.phoneLabel',
     'op.players.profile.packageFallback', 'op.pos.catalog.categoryFallback', 'op.pos.catalog.title', 'op.pos.fixture.cola',
-    'op.pos.fixture.hotdog', 'op.pos.receipts.emptyPlatform', 'op.pos.receipts.receiptFallback', 'op.settings.devices.detail.agent',
+    'op.pos.fixture.hotdog', 'op.pos.receipts.receiptFallback', 'op.settings.devices.detail.agent',
     'op.settings.devices.detail.shell', 'op.settings.devices.offline', 'op.settings.devices.online',
     'op.settings.layout.seatCount', 'op.settings.layout.seatFallback', 'op.settings.packages.packageFallback', 'op.settings.pos.category',
     'op.settings.pos.sku', 'op.settings.tariffs.tariffFallback',

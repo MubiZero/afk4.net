@@ -20,7 +20,7 @@ const zones: Zone[] = [
 
 describe('MgmtTable', () => {
   it('renders headers and a row per item', () => {
-    wrap(<MgmtTable columns={columns} rows={zones} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Пусто' }} />);
+    wrap(<MgmtTable columns={columns} rows={zones} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Пусто', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
     expect(screen.getByText('Зал')).toBeTruthy();
     expect(screen.getByText('Зал А')).toBeTruthy();
     expect(screen.getByText('VIP')).toBeTruthy();
@@ -28,19 +28,19 @@ describe('MgmtTable', () => {
 
   it('calls onSelectRow when a row is clicked', () => {
     const onSelectRow = mock((_z: Zone) => {});
-    wrap(<MgmtTable columns={columns} rows={zones} rowKey={(z) => z.id} gridTemplate="1fr 80px" onSelectRow={onSelectRow} empty={{ title: 'Пусто' }} />);
+    wrap(<MgmtTable columns={columns} rows={zones} rowKey={(z) => z.id} gridTemplate="1fr 80px" onSelectRow={onSelectRow} empty={{ title: 'Пусто', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
     fireEvent.click(screen.getByText('Зал А'));
     expect(onSelectRow).toHaveBeenCalledTimes(1);
     expect(onSelectRow.mock.calls[0][0].id).toBe('z1');
   });
 
   it('shows the empty state when there are no rows and not loading', () => {
-    wrap(<MgmtTable columns={columns} rows={[]} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Залов нет' }} />);
+    wrap(<MgmtTable columns={columns} rows={[]} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Залов нет', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
     expect(screen.getByText('Залов нет')).toBeTruthy();
   });
 
   it('renders a skeleton and no rows while loading', () => {
-    const { container } = wrap(<MgmtTable columns={columns} rows={zones} rowKey={(z) => z.id} gridTemplate="1fr 80px" isLoading empty={{ title: 'Пусто' }} />);
+    const { container } = wrap(<MgmtTable columns={columns} rows={zones} rowKey={(z) => z.id} gridTemplate="1fr 80px" isLoading empty={{ title: 'Пусто', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
     expect(container.querySelector('.ctable-skeleton')).toBeTruthy();
     expect(screen.queryByText('Зал А')).toBeNull();
   });
@@ -54,7 +54,7 @@ describe('MgmtTable', () => {
         rowKey={(z) => z.id}
         gridTemplate="1fr 80px"
         toolbar={{ title: 'Залы', primary: { label: '+ Зал', onClick } }}
-        empty={{ title: 'Пусто' }}
+        empty={{ title: 'Пусто', next: { kind: 'calm', hint: 'Появится здесь.' } }}
       />
     );
     fireEvent.click(screen.getByRole('button', { name: '+ Зал' }));
@@ -69,7 +69,7 @@ describe('MgmtTable', () => {
         rowKey={(z) => z.id}
         gridTemplate="1fr 80px"
         rowActions={(z) => [{ id: 'del', label: `Удалить ${z.name}`, onSelect: () => {}, danger: true }]}
-        empty={{ title: 'Пусто' }}
+        empty={{ title: 'Пусто', next: { kind: 'calm', hint: 'Появится здесь.' } }}
       />
     );
     // одно ⋯-меню на строку

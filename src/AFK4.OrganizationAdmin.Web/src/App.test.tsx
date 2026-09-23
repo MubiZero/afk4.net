@@ -1372,8 +1372,8 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
 
-    expect(await screen.findByText('Клиенты не найдены')).toBeInTheDocument();
-    expect(await screen.findByText('По текущему поиску клиентов нет.')).toBeInTheDocument();
+    // Поиска нет, база пуста — это «клиентов пока нет», а не «никто не подошёл под поиск».
+    expect(await screen.findByText('Клиентов пока нет')).toBeInTheDocument();
     // Клиент не выбран → drawer не рендерится, таблица занимает всю ширину. Демо-клиент не подставляется.
     expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
   });

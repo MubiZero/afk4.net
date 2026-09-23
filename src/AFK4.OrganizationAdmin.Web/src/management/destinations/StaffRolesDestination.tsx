@@ -402,7 +402,9 @@ export function StaffRolesDestination({
             icon: <Users size={22} aria-hidden="true" />,
             title: t('op.management.staff.staffEmpty.title'),
             description: t('op.management.staff.staffEmpty.description'),
-            action: canInviteStaff ? { label: t('op.management.staff.addStaffCta'), onClick: openInvite } : undefined
+            next: canInviteStaff
+              ? { kind: 'action', label: t('op.management.staff.addStaffCta'), onClick: openInvite }
+              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
 

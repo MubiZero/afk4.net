@@ -179,7 +179,7 @@ export function NewsWorkspace({
       <EmptyState
         title={t('op.management.state.errorTitle')}
         description={listError}
-        action={{ label: t('op.management.state.retry'), onClick: retryList }}
+        next={{ kind: 'action', label: t('op.management.state.retry'), onClick: retryList }}
       />
     );
   }
@@ -227,7 +227,9 @@ export function NewsWorkspace({
           icon: <Newspaper size={22} aria-hidden="true" />,
           title: t('op.news.empty'),
           description: t('op.news.emptyDescription'),
-          action: canManage ? { label: t('op.news.addCta'), onClick: openCreate } : undefined
+          next: canManage
+            ? { kind: 'action', label: t('op.news.addCta'), onClick: openCreate }
+            : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
         }}
       />
 

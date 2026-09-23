@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Search } from 'lucide-react';
-import { EmptyState, Skeleton } from '../../operatorPrimitives';
+import { EmptyState, Skeleton, type EmptyStateNext } from '../../operatorPrimitives';
 import { RowActionsMenu } from './RowActionsMenu';
 import type { MgmtColumn, RowAction } from './types';
 
@@ -18,7 +18,7 @@ interface MgmtTableProps<T> {
     primary?: { label: string; icon?: ReactNode; onClick: () => void; disabled?: boolean };
   };
   isLoading?: boolean;
-  empty: { icon?: ReactNode; title: string; description?: string; action?: { label: string; onClick: () => void } };
+  empty: { icon?: ReactNode; title: string; description?: string; next: EmptyStateNext };
 }
 
 // Универсальный список-панель для CRUD-разделов «Управления»: тулбар (заголовок + опц. поиск +
@@ -126,7 +126,7 @@ export function MgmtTable<T>({
             icon={empty.icon}
             title={empty.title}
             description={empty.description}
-            action={empty.action}
+            next={empty.next}
           />
         )}
       </div>

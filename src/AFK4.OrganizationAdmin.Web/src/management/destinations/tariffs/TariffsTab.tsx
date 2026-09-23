@@ -358,7 +358,9 @@ export function TariffsTab({
             icon: <Tag size={22} aria-hidden="true" />,
             title: t('op.management.tariffs.tariffsEmpty.title'),
             description: t('op.management.tariffs.tariffsEmpty.description'),
-            action: canManageTariffs ? { label: t('op.management.tariffs.addTariffCta'), onClick: openCreate } : undefined
+            next: canManageTariffs
+              ? { kind: 'action', label: t('op.management.tariffs.addTariffCta'), onClick: openCreate }
+              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
 

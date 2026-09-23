@@ -270,3 +270,37 @@ describe('BookingTimeline: состояние читается не только
     expect(legend.textContent).toContain('Посажен');
   });
 });
+
+// Строк на ленте нет только тогда, когда в филиале нет ни одного ПК: пустой день рисуется пустыми
+// дорожками. Раньше здесь звали «Создайте бронь» — ставить её было некуда.
+describe('BookingTimeline without PCs', () => {
+  it('says bookings need PCs and where seats are set up, and offers no button', () => {
+    const { getByText, container } = render(
+      <I18nProvider initialLocale="ru">
+        <BookingTimeline
+          groups={[]}
+          axis={axis}
+          nowMs={-1}
+          loading={false}
+          showSkeleton={false}
+          selectedReservationId=""
+          previewBlock={null}
+          dateLabel="Сегодня"
+          dateValue="2026-06-19"
+          isToday={true}
+          onPrevDay={() => {}}
+          onNextDay={() => {}}
+          onToday={() => {}}
+          onPickDate={() => {}}
+          onSelectBlock={() => {}}
+          onCellCreate={() => {}}
+          onSeatsCreate={() => {}}
+          onSeatToggle={() => {}}
+        />
+      </I18nProvider>
+    );
+    expect(getByText('В филиале пока нет ПК')).not.toBeNull();
+    expect(getByText('Бронь ставится на ПК, а места заводятся в Управлении → Залы и ПК.')).not.toBeNull();
+    expect(container.querySelector('.empty-state button')).toBeNull();
+  });
+});

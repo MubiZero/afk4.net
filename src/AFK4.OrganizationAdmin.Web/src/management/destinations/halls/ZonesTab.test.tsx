@@ -85,6 +85,15 @@ describe('ZonesTab', () => {
     expect(screen.getByText('Создайте первый зал')).toBeTruthy();
   });
 
+  // Раздел «Залы и ПК» открыт и технику — ради устройств. Залы он не заводит: «Создайте первый
+  // зал» ему не выполнить, поэтому кнопки нет, а сказано, кто это делает.
+  it('without the layout right: no create button, and it says who creates zones', () => {
+    const { container } = wrap(<ZonesTab zones={[]} backend={null} canManageLayout={false} onReload={onReload} onFeedback={onFeedback} />);
+    expect(screen.queryByText('Создайте первый зал')).toBeNull();
+    expect(container.querySelector('.empty-state button')).toBeNull();
+    expect(screen.getAllByText('Это делает управляющий или владелец организации.').length).toBeGreaterThan(0);
+  });
+
   it('switches the right panel to another zone on click', () => {
     wrap(<ZonesTab zones={twoZones} backend={null} canManageLayout={false} onReload={onReload} onFeedback={onFeedback} />);
     expect(screen.getByText('PC-01')).toBeTruthy(); // first zone auto-selected

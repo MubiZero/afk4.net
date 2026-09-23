@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, mock } from 'bun:test';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { HistorySection } from './HistorySection';
 import type { LedgerEntryDto } from '../operatorApiClients';
@@ -81,6 +81,20 @@ describe('HistorySection', () => {
   it('renders the EmptyState when there are no entries and not loading', () => {
     renderSection({ entries: [], loading: false });
     expect(screen.getByText('Операций нет')).toBeInTheDocument();
+  });
+
+  // Пустая выборка по типу операции — не «у клиента ничего не было»: снимается одной кнопкой.
+  it('an empty filtered history offers to clear the filter', () => {
+    const { onFilterChange, container } = renderSection({ entries: [], activeFilter: 'refund' });
+    const empty = container.querySelector('.empty-state') as HTMLElement;
+    fireEvent.click(within(empty).getByRole('button', { name: 'Сбросить фильтр' }));
+    expect(onFilterChange).toHaveBeenCalledWith(null);
+  });
+
+  it('an empty unfiltered history says what will appear, with no button', () => {
+    const { container } = renderSection({ entries: [] });
+    expect(screen.getByText('Пополнения, сессии и покупки клиента появятся здесь.')).toBeInTheDocument();
+    expect(container.querySelector('.empty-state button')).toBeNull();
   });
 
   it('renders skeleton rows (not empty state) during the first load', () => {

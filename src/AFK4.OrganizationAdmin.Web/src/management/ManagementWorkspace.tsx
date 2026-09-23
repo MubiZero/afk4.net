@@ -131,7 +131,7 @@ export function ManagementWorkspace({
   if (destinations.length === 0) {
     return (
       <main className="workspace-screen">
-        <EmptyState title={t('op.management.noAccess')} />
+        <EmptyState title={t('op.management.noAccess')} next={{ kind: 'denied', hint: t('op.error.accessHint') }} />
       </main>
     );
   }

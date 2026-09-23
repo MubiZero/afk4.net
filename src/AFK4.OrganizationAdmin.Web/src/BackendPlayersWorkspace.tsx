@@ -710,7 +710,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   // Скелетон — только на холодном входе (данных ещё нет). Тёплый возврат/поиск держит текущий список,
   // поэтому отложенный анти-флэш здесь не нужен: показываем скелетон сразу, без пустого экрана.
   const showSkeleton = loadStatus === 'loading' && clients.length === 0;
-  const emptyDescription = loadStatus === 'backend' ? t('op.players.list.emptyBackend') : t('op.players.list.emptyConnect');
 
   // Ближайшая четверть часа через 15 минут — тот же старт по умолчанию, что и в «Бронях»:
   // один и тот же смысл не должен считаться по-разному на двух экранах.
@@ -846,7 +845,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           search={clientSearch}
           showSkeleton={showSkeleton}
           isLoading={loadStatus === 'loading'}
-          emptyDescription={emptyDescription}
+          connected={loadStatus === 'backend'}
           currencyCode={currencyCode}
           canCreatePlayer={canCreatePlayer}
           liveContextByClient={liveContextByClient}

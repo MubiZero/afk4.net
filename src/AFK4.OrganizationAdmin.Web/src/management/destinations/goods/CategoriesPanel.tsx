@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from '../../../apiErrors';
 import { createAuthenticatedOperatorClients, requireBackend } from '../../../operatorHelpers';
+import { EmptyState } from '../../../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 import type { CategoryOption } from './categoryModel';
 import { moveCategory } from './categoryOrder';
@@ -99,7 +100,12 @@ export function CategoriesPanel({ backend, categories, canManage, onChanged, onF
     <section className="mgmt-drawer-section">
       <div className="mgmt-section-title"><span>{t('op.management.goods.category.title')}</span></div>
       {categories.length === 0 ? (
-        <p className="mgmt-drawer-hint">{t('op.management.goods.category.empty')}</p>
+        <EmptyState
+          inline
+          className="mgmt-drawer-hint"
+          title={t('op.management.goods.category.empty')}
+          next={{ kind: 'elsewhere', hint: t('op.management.goods.category.emptyHint') }}
+        />
       ) : (
         <ul>
           {categories.map((category, index) => (

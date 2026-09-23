@@ -217,7 +217,13 @@ export function ClientDrawer({
 
         <div className="wallet-sep" />
 
-        <PackagesSection packages={packages} loading={packagesLoading} errorDetail={packagesErrorDetail} />
+        <PackagesSection
+          packages={packages}
+          loading={packagesLoading}
+          errorDetail={packagesErrorDetail}
+          canSellPackage={canSellPackage}
+          onSellPackage={onSellPackage}
+        />
 
         <div className="wallet-sep" />
 

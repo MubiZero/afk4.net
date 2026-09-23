@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, mock } from 'bun:test';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ClientsTable } from './ClientsTable';
 import type { PlayerClientItem } from '../operatorHelpers';
@@ -39,7 +39,7 @@ const renderTable = (over: Partial<Parameters<typeof ClientsTable>[0]> = {}) => 
         search=""
         showSkeleton={false}
         isLoading={false}
-        emptyDescription="По текущему поиску клиентов нет."
+        connected
         currencyCode="TJS"
         canCreatePlayer
         liveContextByClient={new Map<string, ClientLiveContext>()}
@@ -148,12 +148,44 @@ describe('ClientsTable', () => {
 
   it('shows the EmptyState when there are no clients and loading has finished', () => {
     renderTable({ clients: [], isLoading: false });
-    expect(screen.getByText('Клиенты не найдены')).toBeInTheDocument();
+    expect(screen.getByText('Клиентов пока нет')).toBeInTheDocument();
   });
 
   it('does not flash the EmptyState while the list is still loading', () => {
     renderTable({ clients: [], isLoading: true });
-    expect(screen.queryByText('Клиенты не найдены')).toBeNull();
+    expect(screen.queryByText('Клиентов пока нет')).toBeNull();
+  });
+
+  // Пустой список клиентов бывает двух сортов, и следующий шаг у них разный: базы ещё нет —
+  // завести клиента; поиск или отбор ничего не нашёл — снять их. Путать их значит звать
+  // кассира заводить клиента, который уже есть.
+  describe('empty list names the next step', () => {
+    it('no clients at all: the empty state opens the new-client dialog', () => {
+      const { onNewClient, container } = renderTable({ clients: [] });
+      const empty = container.querySelector('.empty-state') as HTMLElement;
+      fireEvent.click(within(empty).getByRole('button', { name: /Новый клиент/ }));
+      expect(onNewClient).toHaveBeenCalledTimes(1);
+    });
+
+    it('no right to add clients: no button, and it says who adds them', () => {
+      const { container } = renderTable({ clients: [], canCreatePlayer: false });
+      expect(container.querySelector('.empty-state button')).toBeNull();
+      expect(screen.getByText('Клиентов заводят на стойке: администратор, старший смены или управляющий.')).toBeInTheDocument();
+    });
+
+    it('search or segment found nobody: «Сбросить фильтр» clears both', () => {
+      const { onSearchChange, onSelectSegment } = renderTable({ clients: [], search: 'Зафар', activeSegment: 'debt' });
+      expect(screen.getByText('Клиенты не найдены')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+      expect(onSearchChange).toHaveBeenCalledWith('');
+      expect(onSelectSegment).toHaveBeenCalledWith('all');
+    });
+
+    it('not connected yet: says to connect, offers no create button', () => {
+      const { container } = renderTable({ clients: [], connected: false });
+      expect(screen.getByText('Подключитесь к серверу, чтобы загрузить клиентов.')).toBeInTheDocument();
+      expect(container.querySelector('.empty-state button')).toBeNull();
+    });
   });
 
   it('hides the "Новый клиент" button when canCreatePlayer is false', () => {

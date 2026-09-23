@@ -20,7 +20,7 @@ import {
 import { PermissionRefusal, projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { canSelfVoidSale } from './selfVoid';
 import { hasPermission, permissionNames } from '../operatorPermissions';
-import { CriticalActionConfirmation, LoadFailureState, Money } from '../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, LoadFailureState, Money } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { PosSaleDto, ReceiptDto, SalesReportResultDto } from '../operatorApiClients';
@@ -303,7 +303,7 @@ export function CashReceiptsLedger({
         inspectorOpen={selectedSaleId.length > 0 || detailState.status !== 'idle'}
         closeLabel={t('common.close')}
         onCloseInspector={() => { detailRequest.current += 1; setSelectedSaleId(''); setDetailState({ status: 'idle', saleId: '', receiptId: '', error: null }); }}
-        register={rows.length === 0 ? <p className="cash-shift-empty-note cash-ledger-empty">{t('op.pos.receipts.emptyPlatform')}</p> : <CashRegisterRows rows={rows.slice(0, 30)} selectedId={selectedSaleId} getId={(row) => row.posSaleId} ariaLabel={t('op.cash.receipts.registerAria')} onSelect={(id) => { if (canView) void loadSaleDetail(id); }} renderRow={(row) => <div className="cash-receipt-row">
+        register={rows.length === 0 ? <EmptyState inline className="cash-shift-empty-note cash-ledger-empty" title={t('op.cash.receipts.empty')} next={{ kind: 'calm', hint: t('op.cash.receipts.emptyHint') }} /> : <CashRegisterRows rows={rows.slice(0, 30)} selectedId={selectedSaleId} getId={(row) => row.posSaleId} ariaLabel={t('op.cash.receipts.registerAria')} onSelect={(id) => { if (canView) void loadSaleDetail(id); }} renderRow={(row) => <div className="cash-receipt-row">
           <span>{formatTime(row.createdAtUtc)}</span>
           <strong>{posSaleStateLabel(row.state || 'sale', t)}</strong>
           <em>{posSaleLineSummary(row, t)}</em>

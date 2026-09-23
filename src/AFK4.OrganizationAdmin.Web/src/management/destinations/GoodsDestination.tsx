@@ -401,7 +401,11 @@ export function GoodsDestination({
             icon: <Package size={22} aria-hidden="true" />,
             title: t('op.management.goods.productsEmpty.title'),
             description: t('op.management.goods.productsEmpty.description'),
-            action: canManagePosCatalog ? { label: t('op.management.goods.addProductCta'), onClick: openCreate } : undefined
+            // Раздел открыт и тому, у кого есть только склад (старший смены): ему кнопки нет, но
+            // сказано, кто заводит товары.
+            next: canManagePosCatalog
+              ? { kind: 'action', label: t('op.management.goods.addProductCta'), onClick: openCreate }
+              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
 

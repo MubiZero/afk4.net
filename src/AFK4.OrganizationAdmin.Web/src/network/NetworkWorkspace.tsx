@@ -24,7 +24,7 @@ export function NetworkWorkspace({ backend }: { backend: OperatorBackendContext 
   if (destinations.length === 0) {
     return (
       <main className="workspace-screen">
-        <EmptyState title={t('op.network.noAccess')} />
+        <EmptyState title={t('op.network.noAccess')} next={{ kind: 'denied', hint: t('op.error.accessHint') }} />
       </main>
     );
   }

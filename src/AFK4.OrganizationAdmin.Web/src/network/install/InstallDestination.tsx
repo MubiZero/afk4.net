@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { createAuthenticatedOperatorClients } from '../../operatorHelpers';
+import { EmptyState } from '../../operatorPrimitives';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import { getInstallerUrl } from './installModel';
 
@@ -71,7 +72,12 @@ export function InstallDestination({ backend }: { backend: OperatorBackendContex
       <section className="management-panel network-install-branches">
         <h3>{t('op.network.install.branches.title')}</h3>
         {branches.length === 0 ? (
-          <p className="network-install-branches-empty">{t('op.network.install.branches.empty')}</p>
+          <EmptyState
+            inline
+            className="network-install-branches-empty"
+            title={t('op.network.install.branches.empty')}
+            next={{ kind: 'elsewhere', hint: t('op.network.branches.add.viaPlatform') }}
+          />
         ) : (
           <ul className="network-install-branch-list">
             {branches.map((b) => (

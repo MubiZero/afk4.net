@@ -5,7 +5,7 @@ import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
-import { CriticalActionConfirmation, EmptyState } from '../../../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, type EmptyStateNext } from '../../../operatorPrimitives';
 import { projectOperatorError } from '../../../apiErrors';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import {
@@ -271,6 +271,12 @@ export function ZonesTab({
     ]
     : undefined;
 
+  // Залы и места заводит тот, у кого право на планировку; раздел открыт и технику (ради устройств),
+  // и ему пустой список говорит, у кого это право, а не показывает кнопку.
+  const layoutNext = (label: string, onClick: () => void): EmptyStateNext => canManageLayout
+    ? { kind: 'action', label, onClick }
+    : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') };
+
   const drawerActions: RowAction[] = selectedZone && canManageLayout
     ? [
       {
@@ -324,7 +330,7 @@ export function ZonesTab({
             icon: <Layers size={22} aria-hidden="true" />,
             title: t('op.management.halls.zonesEmpty.title'),
             description: t('op.management.halls.zonesEmpty.description'),
-            action: canManageLayout ? { label: t('op.management.halls.addZoneCta'), onClick: openCreateZone } : undefined
+            next: layoutNext(t('op.management.halls.addZoneCta'), openCreateZone)
           }}
         />
 
@@ -353,20 +359,20 @@ export function ZonesTab({
                 empty={{
                   title: t('op.management.halls.seatsEmpty.title'),
                   description: t('op.management.halls.seatsEmpty.description'),
-                  action: canManageLayout
-                    ? { label: t('op.management.halls.addSeatCta'), onClick: () => openCreateSeat(readString(selectedZone, 'zoneId')) }
-                    : undefined
+                  next: layoutNext(t('op.management.halls.addSeatCta'), () => openCreateSeat(readString(selectedZone, 'zoneId')))
                 }}
               />
             </div>
           </MgmtDrawer>
         ) : (
           <div className="mgmt-detail-empty">
+            {/* «Создайте первый зал» — просьба к тому, кто может; технику, которому раздел открыт ради
+                устройств, говорим, что залов нет и кто их заводит. */}
             <EmptyState
               icon={<Layers size={22} aria-hidden="true" />}
-              title={t('op.management.halls.noZones.title')}
-              description={t('op.management.halls.noZones.description')}
-              action={canManageLayout ? { label: t('op.management.halls.addZoneCta'), onClick: openCreateZone } : undefined}
+              title={canManageLayout ? t('op.management.halls.noZones.title') : t('op.management.halls.zonesEmpty.title')}
+              description={canManageLayout ? t('op.management.halls.noZones.description') : t('op.management.halls.zonesEmpty.description')}
+              next={layoutNext(t('op.management.halls.addZoneCta'), openCreateZone)}
             />
           </div>
         )}
