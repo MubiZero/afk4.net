@@ -10,7 +10,8 @@ public sealed record ShopPlacementContext(
     Guid PlayerAccountId,
     Guid SessionId,
     Guid SeatId,
-    string PlayerDisplayName);
+    string PlayerDisplayName,
+    string? SeatName);
 
 public sealed record ShopPlacementContextResult(
     bool Succeeded,
@@ -67,6 +68,8 @@ public interface IShopOrderWorkflow
     Task<IReadOnlyList<ShopOrderDto>> ListForPlayerAsync(Guid playerAccountId, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ShopOrderDto>> ListQueueAsync(Guid branchId, CancellationToken cancellationToken);
+
+    Task<ShopOrderDto?> GetForBranchAsync(Guid branchId, Guid orderId, CancellationToken cancellationToken);
 
     Task<ShopOrderActionResult> AcceptAsync(
         Guid branchId, Guid orderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken);

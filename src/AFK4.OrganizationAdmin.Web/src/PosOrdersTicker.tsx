@@ -25,23 +25,32 @@ const POPOVER_CLOSE_MS = 140;
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
+// Место так, как его зовут вслух. Место могли убрать с карты зала — тогда заказ узнают по гостю.
+const seatLabel = (order: ShopOrderDto): string => order.seatName ?? order.playerDisplayName;
+
 // Лента входящих заказов из Player Shell поверх POS: всегда на виду, обновляется realtime (SignalR).
 // Чип компактен (место + «N поз · сумма»), клик по нему раскрывает поповер со ВСЕМ составом.
 // На пике лента — FIFO-очередь: старые слева (sortByPlacedAt), счётчик в лейбле, горизонтальный
 // скролл с видимым скроллбаром и правой тенью-подсказкой «есть ещё».
-export function PosOrdersTicker({ backend, canCancel }: {
+export function PosOrdersTicker({ backend, canCancel, openOrder }: {
   backend: OperatorBackendContext | null;
   /// Отмена возвращает деньги, поэтому спрашивает право сильнее, чем вся остальная лента.
   /// Принять и выдать заказ может кассир, вернуть за него деньги — нет.
   canCancel: boolean;
+  /// Заказ из командной палитры: поповер открывается сразу на нём. Грузится по идентификатору —
+  /// лента держит только заказы в работе, а приходят и с выданным.
+  openOrder?: { orderId: string } | null;
 }) {
   const { t } = useI18n();
   const toast = useToast();
   const [orders, setOrders] = useState<ShopOrderDto[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [popover, setPopover] = useState<{ id: string; x: number; y: number } | null>(null);
+  // Заказ, открытый из палитры: его может не быть в ленте (выдан, отменён), и поповер держится на нём.
+  const [pinned, setPinned] = useState<ShopOrderDto | null>(null);
   const [closing, setClosing] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const tickerRef = useRef<HTMLElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clients = useMemo(
@@ -70,7 +79,10 @@ export function PosOrdersTicker({ backend, canCancel }: {
       getAccessToken: () => backend.session.accessToken,
       onDeviceStatusChanged: () => {},
       onShopOrderCreated: (order) => setOrders((current) => reconcile(current, order, branchId)),
-      onShopOrderUpdated: (order) => setOrders((current) => reconcile(current, order, branchId))
+      onShopOrderUpdated: (order) => {
+        setOrders((current) => reconcile(current, order, branchId));
+        setPinned((current) => (current?.id === order.id ? order : current));
+      }
     });
     void realtime.start();
 
@@ -91,17 +103,40 @@ export function PosOrdersTicker({ backend, canCancel }: {
     cancelCloseTimer();
     closeTimer.current = setTimeout(() => {
       setPopover(null);
+      setPinned(null);
       setClosing(false);
       closeTimer.current = null;
     }, prefersReducedMotion() ? 0 : POPOVER_CLOSE_MS);
   };
   useEffect(() => () => cancelCloseTimer(), []);
 
+  // Заказ из палитры. Поповер встаёт под его чипом, если заказ в ленте, иначе — под самой лентой.
+  useEffect(() => {
+    if (!openOrder || backend === null || clients === null) return undefined;
+    let disposed = false;
+    clients.shopOrders.get(backend.branchId, openOrder.orderId)
+      .then((order) => {
+        if (disposed) return;
+        const chip = Array.from(tickerRef.current?.querySelectorAll<HTMLElement>('[data-order-id]') ?? [])
+          .find((candidate) => candidate.dataset.orderId === order.id);
+        const anchor = (chip ?? tickerRef.current)?.getBoundingClientRect();
+        cancelCloseTimer();
+        setClosing(false);
+        setPinned(order);
+        setPopover({ id: order.id, x: anchor?.left ?? POPOVER_MARGIN, y: (anchor?.bottom ?? POPOVER_MARGIN) + 4 });
+      })
+      .catch((error) => { if (!disposed) toast.error(projectOperatorError(error, t).detail); });
+    return () => { disposed = true; };
+    // Новый выбор в палитре — новый объект, даже если заказ тот же: открываем заново.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOrder, clients, backend?.branchId]);
+
   const runAction = (order: ShopOrderDto, verb: 'accept' | 'deliver' | 'cancel') => async () => {
     if (backend === null || clients === null) return;
     try {
       const updated = await clients.shopOrders[verb](backend.branchId, order.id, order.version);
       setOrders((current) => reconcile(current, { ...order, ...updated }, backend.branchId));
+      setPinned((current) => (current?.id === order.id ? { ...order, ...updated } : current));
       toast.success(t(`op.shopOrders.toast.${verb}`));
     } catch (error) {
       // 409 = другой оператор уже обработал; realtime сверит очередь, тост лишь объясняет почему.
@@ -110,7 +145,10 @@ export function PosOrdersTicker({ backend, canCancel }: {
   };
 
   // Живой заказ под открытым поповером (берём из текущей очереди, чтобы поповер отражал realtime).
-  const popoverOrder = popover ? orders.find((order) => order.id === popover.id) ?? null : null;
+  // Заказ из палитры держится и вне очереди: с выданным и приходят.
+  const popoverOrder = popover
+    ? orders.find((order) => order.id === popover.id) ?? (pinned?.id === popover.id ? pinned : null)
+    : null;
 
   // Если заказ ушёл из очереди (выдан/отменён, в т.ч. другим оператором) — закрываем поповер.
   useEffect(() => {
@@ -165,11 +203,17 @@ export function PosOrdersTicker({ backend, canCancel }: {
   const chipSummary = (order: ShopOrderDto): string =>
     `${t('op.pos.order.positions', { count: order.lines.length })} · ${formatMinorUnits(order.total.minorUnits, order.total.currencyCode)}`;
 
-  const statusLabel = (status: string) =>
-    status === 'accepted' ? t('op.shopOrders.status.accepted') : t('op.shopOrders.status.placed');
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case 'accepted': return t('op.shopOrders.status.accepted');
+      case 'delivered': return t('op.shopOrders.status.delivered');
+      case 'cancelled': return t('op.shopOrders.status.cancelled');
+      default: return t('op.shopOrders.status.placed');
+    }
+  };
 
   return (
-    <section className="pos-orders-ticker" aria-label={t('op.cash.sales.segOrders')}>
+    <section ref={tickerRef} className="pos-orders-ticker" aria-label={t('op.cash.sales.segOrders')}>
       <span className="pos-orders-ticker-label">
         {t('op.cash.sales.segOrders')}{orders.length > 0 ? ` · ${orders.length}` : ''}
       </span>
@@ -180,21 +224,21 @@ export function PosOrdersTicker({ backend, canCancel }: {
       ) : (
         <ul className="pos-orders-ticker-list">
           {orders.map((order) => (
-            <li key={order.id} className={`pos-order-chip ${order.status}`}>
+            <li key={order.id} className={`pos-order-chip ${order.status}`} data-order-id={order.id}>
               <button
                 type="button"
                 className="pos-order-open"
                 aria-haspopup="dialog"
                 aria-expanded={popover?.id === order.id}
                 onClick={(event) => togglePopover(order, event.currentTarget)}
-                aria-label={`${order.seatId} · ${statusLabel(order.status)} · ${chipSummary(order)}`}
+                aria-label={`${seatLabel(order)} · ${statusLabel(order.status)} · ${chipSummary(order)}`}
               >
                 {/* Раньше «новый» и «принят» отличались только цветом точки, а сама точка была
                     спрятана от читалки: за стойкой в час пик это различие теряется первым. */}
                 <span className="pos-order-dot" aria-hidden="true">
                   {order.status === 'accepted' ? <Check size={10} /> : <Clock size={10} />}
                 </span>
-                <span className="pos-order-seat">{order.seatId}</span>
+                <span className="pos-order-seat">{seatLabel(order)}</span>
                 <span className="pos-order-items">{chipSummary(order)}</span>
                 <ChevronRight
                   className={`pos-order-chevron${popover?.id === order.id ? ' is-expanded' : ''}`}
@@ -212,11 +256,11 @@ export function PosOrdersTicker({ backend, canCancel }: {
           ref={popoverRef}
           className={`pos-order-detail${closing ? ' pos-order-detail--closing' : ''}`}
           role="dialog"
-          aria-label={`${popoverOrder.seatId} · ${statusLabel(popoverOrder.status)}`}
+          aria-label={`${seatLabel(popoverOrder)} · ${statusLabel(popoverOrder.status)}`}
           style={{ left: popover.x, top: popover.y }}
         >
           <header className="pos-order-detail-head">
-            <strong>{popoverOrder.seatId}</strong>
+            <strong>{seatLabel(popoverOrder)}</strong>
             <span className={`pos-order-detail-status ${popoverOrder.status}`}>{statusLabel(popoverOrder.status)}</span>
           </header>
           <ul className="pos-order-detail-lines">
@@ -242,7 +286,8 @@ export function PosOrdersTicker({ backend, canCancel }: {
                 <HandPlatter size={14} aria-hidden="true" />{t('op.shopOrders.deliver')}
               </button>
             )}
-            {canCancel && (
+            {/* Выданный и отменённый заказ открывается посмотреть: выдавать и отменять в нём нечего. */}
+            {canCancel && isOpenStatus(popoverOrder.status) && (
               <button type="button" className="pos-order-detail-cancel" onClick={closeAfter(() => void runAction(popoverOrder, 'cancel')())}>
                 {t('op.shopOrders.cancel')}
               </button>

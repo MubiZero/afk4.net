@@ -630,6 +630,10 @@ public sealed class EfShopCommerceCoordinatorTests
             Guid branchId, CancellationToken cancellationToken) =>
             inner.ListQueueAsync(branchId, cancellationToken);
 
+        public Task<ShopOrderDto?> GetForBranchAsync(
+            Guid branchId, Guid orderId, CancellationToken cancellationToken) =>
+            inner.GetForBranchAsync(branchId, orderId, cancellationToken);
+
         public Task<ShopOrderActionResult> AcceptAsync(
             Guid branchId, Guid orderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
             inner.AcceptAsync(branchId, orderId, staffUserId, expectedVersion, cancellationToken);

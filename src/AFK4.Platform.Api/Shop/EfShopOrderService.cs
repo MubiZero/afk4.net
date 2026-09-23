@@ -17,6 +17,9 @@ public sealed class EfShopOrderService(
     public Task<IReadOnlyList<ShopOrderDto>> ListQueueAsync(Guid branchId, CancellationToken cancellationToken) =>
         workflow.ListQueueAsync(branchId, cancellationToken);
 
+    public Task<ShopOrderDto?> GetForBranchAsync(Guid branchId, Guid shopOrderId, CancellationToken cancellationToken) =>
+        workflow.GetForBranchAsync(branchId, shopOrderId, cancellationToken);
+
     public Task<ShopOrderActionResult> AcceptAsync(
         Guid branchId, Guid shopOrderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
         workflow.AcceptAsync(branchId, shopOrderId, staffUserId, expectedVersion, cancellationToken);

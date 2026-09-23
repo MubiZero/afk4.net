@@ -6,6 +6,7 @@ using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Shop;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -26,6 +27,9 @@ public sealed class BranchSearchEndpointTests
     private static readonly Guid PastReservationId = Guid.Parse("3f2b2a41-1f74-4a2a-9a27-59d6d4a2b007");
     private static readonly Guid ReceiptId = Guid.Parse("3f2b2a41-1f74-4a2a-9a27-59d6d4a2b008");
     private static readonly Guid OtherBranchSeatId = Guid.Parse("3f2b2a41-1f74-4a2a-9a27-59d6d4a2b009");
+    private static readonly Guid OpenOrderId = Guid.Parse("3f2b2a41-1f74-4a2a-9a27-59d6d4a2b010");
+    private static readonly Guid DeliveredOrderId = Guid.Parse("3f2b2a41-1f74-4a2a-9a27-59d6d4a2b011");
+    private static readonly Guid OtherBranchOrderId = Guid.Parse("3f2b2a41-1f74-4a2a-9a27-59d6d4a2b012");
 
     private static readonly DateTimeOffset Seeded = DateTimeOffset.Parse("2026-05-25T09:00:00Z");
 
@@ -120,6 +124,62 @@ public sealed class BranchSearchEndpointTests
         var results = await SearchAsAsync(OrganizationRoleNames.Operator, "PC-12");
 
         Assert.DoesNotContain(results, result => result.Kind == BranchSearchKindNames.Player);
+    }
+
+    // Заказ называют вслух по номеру чека, по гостю или по месту — и каждое из трёх находит его.
+    [Fact]
+    public async Task Search_FindsTheOrderByItsNumber()
+    {
+        var results = await SearchAsAsync(OrganizationRoleNames.Operator, "POS-20260525-0011");
+
+        var order = Assert.Single(results, result => result.Kind == BranchSearchKindNames.Order);
+        Assert.Equal(OpenOrderId, order.Id);
+        Assert.Equal("PC-12", order.Title);
+        Assert.Equal("Карим Рахимов", order.Subtitle);
+        Assert.Equal("POS-20260525-0011", order.Number);
+        Assert.Equal(ShopOrderStatusNames.Accepted, order.Status);
+        Assert.Equal(3200, order.AmountMinorUnits);
+        Assert.Equal("TJS", order.CurrencyCode);
+        Assert.NotNull(order.OccursAtUtc);
+    }
+
+    // Заказ, который ещё несут, важнее вчерашнего: с ним и подходят к стойке прямо сейчас.
+    [Fact]
+    public async Task Search_FindsTheOrdersByTheGuest_TheOpenOneFirst()
+    {
+        var results = await SearchAsAsync(OrganizationRoleNames.Operator, "Карим");
+
+        var orders = results.Where(result => result.Kind == BranchSearchKindNames.Order).ToList();
+        Assert.Equal([OpenOrderId, DeliveredOrderId], orders.Select(order => order.Id));
+        Assert.Equal(ShopOrderStatusNames.Delivered, orders[1].Status);
+    }
+
+    [Fact]
+    public async Task Search_FindsTheOrderByTheSeat()
+    {
+        var results = await SearchAsAsync(OrganizationRoleNames.Operator, "PC-13");
+
+        var order = Assert.Single(results, result => result.Kind == BranchSearchKindNames.Order);
+        Assert.Equal(DeliveredOrderId, order.Id);
+    }
+
+    // Заказы видит тот, кто их выдаёт: у бухгалтера и техника ленты заказов нет — нет и поиска.
+    [Fact]
+    public async Task Search_WithoutTheOrderFeed_FindsNoOrders()
+    {
+        var accountant = await SearchAsAsync(OrganizationRoleNames.Accountant, "Карим");
+        var technician = await SearchAsAsync(OrganizationRoleNames.Technician, "PC-12");
+
+        Assert.DoesNotContain(accountant, result => result.Kind == BranchSearchKindNames.Order);
+        Assert.DoesNotContain(technician, result => result.Kind == BranchSearchKindNames.Order);
+    }
+
+    [Fact]
+    public async Task Search_DoesNotFindAnOrderOfAnotherBranch()
+    {
+        var results = await SearchAsAsync(OrganizationRoleNames.Operator, "POS-20260525-0099");
+
+        Assert.DoesNotContain(results, result => result.Kind == BranchSearchKindNames.Order);
     }
 
     // Одна буква совпала бы с половиной клубной базы на каждом нажатии.
@@ -286,7 +346,66 @@ public sealed class BranchSearchEndpointTests
             TotalMinorUnits = 4500,
             CreatedAtUtc = Seeded
         });
+        SeedOrder(dbContext, OpenOrderId, TestIds.BranchId, SeatAId, ShopOrderStatusNames.Accepted, now.AddMinutes(-10), "POS-20260525-0011");
+        SeedOrder(dbContext, DeliveredOrderId, TestIds.BranchId, SeatBId, ShopOrderStatusNames.Delivered, now.AddDays(-2), "POS-20260523-0003");
+        SeedOrder(dbContext, OtherBranchOrderId, TestIds.OtherBranchId, OtherBranchSeatId, ShopOrderStatusNames.Placed, now.AddMinutes(-5), "POS-20260525-0099");
 
         await dbContext.SaveChangesAsync();
+    }
+
+    // Заказ из приложения игрока оплачен кошельком сразу при оформлении — у него всегда есть
+    // продажа и чек продажи, а номер этого чека и есть номер заказа.
+    private static void SeedOrder(
+        PlatformDbContext dbContext,
+        Guid orderId,
+        Guid branchId,
+        Guid seatId,
+        string status,
+        DateTimeOffset placedAtUtc,
+        string receiptNumber)
+    {
+        var saleId = Guid.NewGuid();
+        dbContext.PosSales.Add(new PosSaleEntity
+        {
+            PosSaleId = saleId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = branchId,
+            ShiftId = Guid.NewGuid(),
+            PlayerAccountId = PlayerId,
+            State = "paid",
+            CurrencyCode = "TJS",
+            TotalMinorUnits = 3200,
+            CreatedAtUtc = placedAtUtc,
+            PaidAtUtc = placedAtUtc
+        });
+        dbContext.Receipts.Add(new ReceiptEntity
+        {
+            ReceiptId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = branchId,
+            PosSaleId = saleId,
+            ReceiptNumber = receiptNumber,
+            ReceiptType = "sale",
+            CurrencyCode = "TJS",
+            TotalMinorUnits = 3200,
+            CreatedAtUtc = placedAtUtc
+        });
+        dbContext.ShopOrders.Add(new ShopOrderEntity
+        {
+            ShopOrderId = orderId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = branchId,
+            PlayerAccountId = PlayerId,
+            SessionId = Guid.NewGuid(),
+            SeatId = seatId,
+            Status = status,
+            TotalMinorUnits = 3200,
+            CurrencyCode = "TJS",
+            WalletLedgerEntryId = Guid.NewGuid(),
+            PosSaleId = saleId,
+            PlacedAtUtc = placedAtUtc,
+            DeliveredAtUtc = status == ShopOrderStatusNames.Delivered ? placedAtUtc.AddMinutes(15) : null,
+            Version = 1
+        });
     }
 }

@@ -36,7 +36,8 @@ export function WorkspaceRouter({
   onOpenSeat,
   openClient,
   openReservation,
-  openReceipt
+  openReceipt,
+  openOrder
 }: {
   workspace: WorkspaceId;
   session: OperatorAuthSession | null;
@@ -59,6 +60,7 @@ export function WorkspaceRouter({
   openClient?: { playerAccountId: string; search: string } | null;
   openReservation?: { reservationId: string; startsAtUtc: string | null } | null;
   openReceipt?: { receiptId: string } | null;
+  openOrder?: { orderId: string } | null;
 }) {
   const { t } = useI18n();
   return (
@@ -102,6 +104,7 @@ export function WorkspaceRouter({
           backend={backend}
           session={session}
           openReceipt={openReceipt}
+          openOrder={openOrder}
         />
       )}
       {workspace === 'stock' && <StockWorkspace currencyCode={currencyCode} backend={backend} session={session} />}

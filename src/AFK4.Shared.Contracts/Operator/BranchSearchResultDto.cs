@@ -13,6 +13,8 @@ public static class BranchSearchKindNames
     public const string Reservation = "reservation";
 
     public const string Receipt = "receipt";
+
+    public const string Order = "order";
 }
 
 /// <summary>
@@ -27,6 +29,14 @@ public static class BranchSearchKindNames
 /// К какому моменту относится находка: начало брони, дата чека. Сырое время, а не готовая
 /// подпись, — язык и часовой пояс знает клиент, а не сервер.
 /// </param>
+/// <param name="Status">
+/// Где находка сейчас, если у неё есть ход жизни: у заказа — новый, готовится, выдан или отменён.
+/// Код, а не подпись: подпись на своём языке ставит клиент.
+/// </param>
+/// <param name="Number">
+/// Номер, по которому её называют, когда он не в заголовке: у заказа — номер его чека. По нему
+/// человек и узнаёт, что нашлось именно то, что он набирал.
+/// </param>
 public sealed record BranchSearchResultDto(
     string Kind,
     Guid Id,
@@ -34,4 +44,6 @@ public sealed record BranchSearchResultDto(
     string? Subtitle,
     DateTimeOffset? OccursAtUtc = null,
     long? AmountMinorUnits = null,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    string? Status = null,
+    string? Number = null);
