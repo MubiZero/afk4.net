@@ -371,6 +371,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     && Boolean(selectedClient.playerAccountId)
     && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.topUpWallet);
+  // Неактивному клиенту кошелёк не показывается вовсе, поэтому остаётся одна причина — право.
+  const topUpBlockedReason = backend !== null && !hasPermission(backend.session, permissionNames.topUpWallet)
+    ? t('op.players.wallet.topUpNoPermission')
+    : null;
   const canPayDebt = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
@@ -870,6 +874,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             packagesErrorDetail={packagesErrorDetail}
             topUpAmount={walletTopUpAmount}
             canTopUp={canTopUpWallet}
+            topUpBlockedReason={topUpBlockedReason}
             onChangeTopUpAmount={setWalletTopUpAmount}
             onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
             onOpenDcTopUp={() => setDcTopUpOpen(true)}

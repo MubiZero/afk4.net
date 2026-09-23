@@ -22,6 +22,7 @@ import {
 } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
 import type { StaffUserDto } from '../../operatorApiClients';
+import { useBlockedReason } from '../../components/BlockedReason';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type StaffUser = StaffUserDto;
@@ -111,6 +112,15 @@ export function StaffRolesDestination({
   // buttons that always 403 are worse than ones that are disabled outright.
   const canInviteStaff = canManageBranchStaff && !session?.isSupportSession;
   const canResetStaffPassword = canManageBranchStaff && !session?.isSupportSession;
+  // Поле ПИН-кода и кнопка гасли без объяснения — ни у сотрудника без права, ни у поддержки
+  // платформы, которой менять чужие ПИН-коды нельзя по построению.
+  const resetBlocked = useBlockedReason(
+    session?.isSupportSession
+      ? t('op.settings.staff.resetBlockedSupport')
+      : !canManageBranchStaff
+        ? t('op.settings.staff.resetNoPermission')
+        : null
+  );
 
   const mergeStaffUser = (staffUser: StaffUser) => {
     const staffUserId = readString(staffUser, 'staffUserId');
@@ -486,10 +496,11 @@ export function StaffRolesDestination({
                   </label>
                 </div>
                 <div className="mgmt-form-actions">
-                  <button type="button" className="ui-btn" disabled={!canResetStaffPassword || busy} onClick={requestResetPassword}>
+                  <button type="button" className="ui-btn" disabled={!canResetStaffPassword || busy} aria-describedby={resetBlocked.describedBy} onClick={requestResetPassword}>
                     {t('op.settings.action.resetPassword')}
                   </button>
                 </div>
+                {resetBlocked.hint}
               </div>
             </div>
           </MgmtDrawer>

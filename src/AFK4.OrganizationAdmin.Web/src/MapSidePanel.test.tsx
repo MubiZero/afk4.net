@@ -387,3 +387,51 @@ describe('MapSidePanel new session client picker', () => {
     }
   });
 });
+
+// Серая кнопка без объяснения заставляла кассира гадать. Причина — текстом рядом, и кнопка
+// ссылается на неё, чтобы её прочитал и экранный диктор.
+describe('MapSidePanel: почему действие недоступно', () => {
+  function renderWith(s: SeatSummary, permissions: string[], canUsePcControl = false) {
+    const context = backend();
+    context.session.permissions = permissions;
+    return render(
+      <I18nProvider>
+        <MapSidePanel seat={s} seats={[s]} currencyCode="TJS" backend={context} actionsEnabled canUsePcControl={canUsePcControl} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
+      </I18nProvider>
+    );
+  }
+
+  it('говорит, почему нельзя продлить и завершить, когда у сотрудника нет этих прав', () => {
+    renderWith(seat({}), ['organization.sessions.start', 'organization.sessions.transfer']);
+
+    const extend = screen.getByRole('button', { name: /15 мин/ });
+    expect(extend).toBeDisabled();
+    const reason = screen.getByText(/Продлевать сессию может сотрудник с правом на продление/);
+    expect(extend.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(screen.getByText(/Завершать сессию может сотрудник с правом на завершение/)).toBeInTheDocument();
+    expect(screen.queryByText(/Переносить сессию/)).toBeNull();
+  });
+
+  it('молчит, когда права есть', () => {
+    renderWith(seat({}), ['organization.sessions.extend', 'organization.sessions.end', 'organization.sessions.transfer']);
+
+    expect(screen.queryByText(/может сотрудник с правом/)).toBeNull();
+    expect(screen.getByRole('button', { name: /15 мин/ }).getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('объясняет, почему нельзя посадить гостя за ПК без связи', () => {
+    renderWith(
+      seat({ tone: 'offline', activeSessionId: null, hasActiveSession: false, isDeviceOnline: false }),
+      ['organization.sessions.start']
+    );
+
+    expect(screen.getByRole('button', { name: 'Посадить гостя' })).toBeDisabled();
+    expect(screen.getByText(/ПК не на связи — запустить на нём сессию сейчас нельзя/)).toBeInTheDocument();
+  });
+
+  it('говорит, что разблокировать можно только ПК с сессией', () => {
+    renderWith(seat({ tone: 'ready', activeSessionId: null, hasActiveSession: false }), ['organization.sessions.start'], true);
+
+    expect(screen.getByText(/Разблокировать можно ПК, на котором идёт сессия/)).toBeInTheDocument();
+  });
+});

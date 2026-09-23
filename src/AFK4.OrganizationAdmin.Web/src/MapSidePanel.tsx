@@ -29,6 +29,7 @@ import {
   zoneLabel
 } from './operatorHelpers';
 import { CriticalActionConfirmation } from './operatorPrimitives';
+import { useBlockedReason } from './components/BlockedReason';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PanelSelect } from './PanelSelect';
@@ -290,6 +291,27 @@ export function MapSidePanel({
   const canExtendSession = actionsEnabled && canExtendPermission && hasActionableSession;
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
   const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
+  // Почему кнопка действия неактивна. Строка готовности ниже говорит только «нет прав вообще»; у
+  // кассира, которому можно запускать, но нельзя продлевать, «+15» гасло молча. Пока панель
+  // недоступна целиком (нет связи с сервером), объясняет строка готовности, а не каждая кнопка.
+  const sessionActionsReady = actionsEnabled && hasActionableSession;
+  const extendBlocked = useBlockedReason(sessionActionsReady && !canExtendPermission ? t('op.map.panel.extendNoPermission') : null);
+  const endBlocked = useBlockedReason(sessionActionsReady && !canEndPermission ? t('op.map.panel.endNoPermission') : null);
+  const transferBlocked = useBlockedReason(sessionActionsReady && !canTransferPermission ? t('op.map.panel.transferNoPermission') : null);
+  const startBlocked = useBlockedReason(
+    !actionsEnabled || hasActionableSession
+      ? null
+      : !canStartPermission
+        ? t('op.map.panel.startNoPermission')
+        : seat.tone === 'offline'
+          ? t('op.map.panel.startBlockedOffline')
+          : seat.tone === 'service'
+            ? t('op.map.panel.startBlockedService')
+            : seat.tone === 'pending'
+              ? t('op.map.panel.startBlockedPending')
+              : null
+  );
+  const unlockBlocked = useBlockedReason(hasActiveSession ? null : t('op.map.unlockNoSessionTitle'));
   // Строка отражает только готовность (можно ли действовать и почему нет), а не результат
   // последнего действия — результат теперь показывает визуальный ActionFeedback (галочка/спиннер).
   const confirmationText = !actionsEnabled
@@ -463,14 +485,16 @@ export function MapSidePanel({
             {/* Время вышло: спокойная подсказка, что у оператора два пути — продлить или завершить. */}
             {isExpired && <p className="panel-expired-hint">{t('op.map.panel.expiredHint')}</p>}
             <div className="quick-extend">
-              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend15Action'), <Plus size={14} />)}{t('op.map.panel.extend15Action')}</button>
-              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend30Action'), <Plus size={14} />)}{t('op.map.panel.extend30Action')}</button>
+              <button type="button" disabled={!canExtendSession || isBusy} aria-describedby={extendBlocked.describedBy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend15Action'), <Plus size={14} />)}{t('op.map.panel.extend15Action')}</button>
+              <button type="button" disabled={!canExtendSession || isBusy} aria-describedby={extendBlocked.describedBy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend30Action'), <Plus size={14} />)}{t('op.map.panel.extend30Action')}</button>
             </div>
+            {extendBlocked.hint}
             {/* Одна кнопка «Завершить»: онлайн ведёт в расчёт (с опцией «без оплаты»),
                 офлайн — в простое подтверждение завершения. Отдельный «Стоп» убран. */}
-            <button type="button" className="cta-primary" disabled={!canEndSession || isBusy} onClick={() => setCriticalAction(backend !== null ? 'checkout' : 'end-session')}>
+            <button type="button" className="cta-primary" disabled={!canEndSession || isBusy} aria-describedby={endBlocked.describedBy} onClick={() => setCriticalAction(backend !== null ? 'checkout' : 'end-session')}>
               <ReceiptText size={16} />{t('op.map.panel.finishLabel')}
             </button>
+            {endBlocked.hint}
             <div className="transfer-row">
               <span className="transfer-row-label"><ArrowRightLeft size={13} aria-hidden="true" />{t('op.map.panel.transferTo')}</span>
               <div className="transfer-row-controls">
@@ -483,14 +507,18 @@ export function MapSidePanel({
                   options={transferCandidates.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
                   onChange={setTargetSeatId}
                 />
-                <button type="button" className="transfer-go" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}>{actionGlyph(t('op.map.panel.transferAction'), null)}{t('op.map.panel.transferAction')}</button>
+                <button type="button" className="transfer-go" disabled={!canTransferSession || isBusy} aria-describedby={transferBlocked.describedBy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}>{actionGlyph(t('op.map.panel.transferAction'), null)}{t('op.map.panel.transferAction')}</button>
               </div>
+              {transferBlocked.hint}
             </div>
           </>
         ) : (
-          <button type="button" className="cta-primary start-action" disabled={!actionsEnabled || !canStartPermission || isBusy || seat.tone !== 'ready'} onClick={() => setStartDialogOpen(true)}>
-            <Plus size={16} />{t('op.map.seatInvite')}
-          </button>
+          <>
+            <button type="button" className="cta-primary start-action" disabled={!actionsEnabled || !canStartPermission || isBusy || seat.tone !== 'ready'} aria-describedby={startBlocked.describedBy} onClick={() => setStartDialogOpen(true)}>
+              <Plus size={16} />{t('op.map.seatInvite')}
+            </button>
+            {startBlocked.hint}
+          </>
         )}
       </section>
 
@@ -566,12 +594,14 @@ export function MapSidePanel({
             <button
               type="button"
               disabled={pcBusy || !seat.deviceId || !hasActiveSession}
-              title={hasActiveSession ? t('op.map.unlockActiveTitle') : t('op.map.unlockNoSessionTitle')}
+              title={hasActiveSession ? t('op.map.unlockActiveTitle') : undefined}
+              aria-describedby={unlockBlocked.describedBy}
               onClick={() => void runPcControl(t('op.map.actionUnlock'), 'unlock')}
             >
               {pcGlyph(t('op.map.actionUnlock'), <Unlock size={14} />)}<span>{t('op.map.actionUnlockBtn')}</span>
             </button>
           </div>
+          {unlockBlocked.hint}
           {pcFeedback.state === 'failed' && pcFeedback.detail && (
             <p className="pc-control-result failed" role="alert">{pcFeedback.detail}</p>
           )}

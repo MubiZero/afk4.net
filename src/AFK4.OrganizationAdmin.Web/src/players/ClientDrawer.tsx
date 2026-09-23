@@ -33,6 +33,7 @@ export function ClientDrawer({
   packagesErrorDetail,
   topUpAmount,
   canTopUp,
+  topUpBlockedReason = null,
   onChangeTopUpAmount,
   onTopUp,
   onOpenDcTopUp,
@@ -67,6 +68,7 @@ export function ClientDrawer({
   packagesErrorDetail?: string;
   topUpAmount: string;
   canTopUp: boolean;
+  topUpBlockedReason?: string | null;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
   onOpenDcTopUp: () => void;
@@ -200,6 +202,7 @@ export function ClientDrawer({
               debtMinorUnits={debtMinorUnits}
               topUpAmount={topUpAmount}
               canTopUp={canTopUp}
+              topUpBlockedReason={topUpBlockedReason}
               onChangeTopUpAmount={onChangeTopUpAmount}
               onTopUp={onTopUp}
               onOpenDcTopUp={onOpenDcTopUp}
