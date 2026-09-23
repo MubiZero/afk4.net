@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LoadingCards, ErrorState } from '@/components/ui/states';
+import { ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonControl, SkeletonLine } from '@/components/ui/skeletons';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -67,7 +68,19 @@ export function OffboardingTab({
   if (state.status === 'error') {
     return <ErrorState title={t('platform.offboarding.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   }
-  if (offboarding === null) return <LoadingCards count={1} />;
+  if (offboarding === null) {
+    return (
+      <Loading>
+        <SkeletonCard>
+          <p className="mgmt-drawer-hint">{t('platform.offboarding.description')}</p>
+          <dl className="pc-kv-list" data-skeleton="list" aria-hidden="true">
+            {[0, 1].map(row => <div key={row} className="pc-kv"><dt><SkeletonLine width="8em" /></dt><dd><SkeletonLine width="10em" /></dd></div>)}
+          </dl>
+          <div className="pc-cell-actions"><SkeletonControl width="10rem" /><SkeletonControl width="10rem" /></div>
+        </SkeletonCard>
+      </Loading>
+    );
+  }
 
   const blockReason = purgeBlockReasonKey(offboarding);
 

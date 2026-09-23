@@ -5,7 +5,8 @@ import { formatMinorUnits } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import type { OrganizationAdminSummaryReportDto } from '../api/clients/reports';
 import type { OperatorBackendContext, WorkspaceId } from '../operatorTypes';
-import { ReportRangeControls } from './ReportRangeControls';
+import { ReportFiguresSkeleton, ReportRangeControls, ReportRangeSkeleton } from './ReportRangeControls';
+import { SkeletonLine } from '../LoadingSkeleton';
 import { todayReportRange, toReportQuery, type ReportDateRange } from './reportRange';
 import { createReportClients } from './reportClient';
 
@@ -34,7 +35,7 @@ export function SummaryReport({ backend, onNavigate }: { backend: OperatorBacken
 
   useEffect(() => { void load(); }, [load]);
   return (
-    <ManagementScreen title={t('op.reports.summary.title')} subtitle={t('op.reports.summary.subtitle')} contentWidth="full" state={state} failure={error} onRetry={() => void load()}>
+    <ManagementScreen title={t('op.reports.summary.title')} subtitle={t('op.reports.summary.subtitle')} contentWidth="full" state={state} skeleton={<SummarySkeleton />} failure={error} onRetry={() => void load()}>
       <ReportRangeControls range={range} onChange={setRange} onRefresh={() => void load()} />
       {data ? <div className="reports-summary">
         <section className={`reports-day-state ${data.attentionTotalCount ? 'warning' : 'ok'}`}>
@@ -51,5 +52,26 @@ export function SummaryReport({ backend, onNavigate }: { backend: OperatorBacken
         {data.activeShift ? <section className="reports-active-shift"><div><span>{t('op.reports.summary.provisional')}</span><strong>{t('op.reports.summary.activeShift')}</strong><small>{formatDate(data.activeShift.openedAtUtc)}</small></div><button type="button" className="ui-btn" onClick={() => onNavigate('cash')}>{t('op.reports.summary.openShift')}</button></section> : null}
       </div> : null}
     </ManagementScreen>
+  );
+}
+
+// Итог дня, три цифры и неделя по дням — в тех же блоках, что и настоящая сводка.
+function SummarySkeleton(): JSX.Element {
+  return (
+    <>
+      <ReportRangeSkeleton exportable={false} />
+      <div className="reports-summary" aria-hidden="true">
+        <section className="reports-day-state"><h2><SkeletonLine width="14em" /></h2></section>
+        <ReportFiguresSkeleton count={3} />
+        <section className="reports-trend">
+          <div><strong><SkeletonLine width="8em" /></strong></div>
+          <div className="reports-trend-points">
+            {Array.from({ length: 7 }, (_, day) => (
+              <div key={day}><span><SkeletonLine width="70%" /></span><strong><SkeletonLine width="50%" /></strong></div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </>
   );
 }

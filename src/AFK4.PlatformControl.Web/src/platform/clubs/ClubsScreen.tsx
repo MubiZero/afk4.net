@@ -3,7 +3,8 @@ import { Plus } from 'lucide-react';
 import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
-import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonLine } from '@/components/ui/skeletons';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { PulseOrganization } from '@/api/types';
@@ -62,13 +63,32 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
       />
 
       {state.status === 'loading' ? (
-        <LoadingCards count={3} />
+        <Loading><ClubsListSkeleton /></Loading>
       ) : state.status === 'error' ? (
         <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       ) : (
         <ClubsList organizations={state.data.organizations ?? []} view={view} onOpenOrganization={onOpenOrganization} onCreateOrganization={onCreateOrganization} />
       )}
     </Page>
+  );
+}
+
+// Сети списком (.pulse-list): строка сети — та же .ctable-row, что у настоящей, со стрелкой слева.
+function ClubsListSkeleton() {
+  return (
+    <ul className="pulse-list" data-skeleton="list" aria-hidden="true">
+      {[0, 1, 2, 3, 4].map(row => (
+        <li key={row} className="pulse-net">
+          <div className="pulse-net-head">
+            <span className="pulse-chevron" />
+            <div className="ctable-row pulse-row">
+              <SkeletonLine width="12em" />
+              <SkeletonLine width="18em" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 

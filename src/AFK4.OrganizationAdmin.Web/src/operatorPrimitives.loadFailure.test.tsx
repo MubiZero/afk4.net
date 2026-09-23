@@ -69,7 +69,7 @@ describe('PartialLoadFailure', () => {
 describe('ManagementScreen', () => {
   it('на 403 вместо тела показывает причину и подсказку, без повтора', () => {
     renderRu(
-      <ManagementScreen title="Отчёт" subtitle="s" state="error" failure={failure(403)} onRetry={() => {}}>
+      <ManagementScreen title="Отчёт" subtitle="s" state="error" skeleton={null} failure={failure(403)} onRetry={() => {}}>
         <p>тело</p>
       </ManagementScreen>
     );
@@ -82,7 +82,7 @@ describe('ManagementScreen', () => {
   it('на 503 показывает повтор', () => {
     const onRetry = mock(() => {});
     renderRu(
-      <ManagementScreen title="Отчёт" subtitle="s" state="error" failure={failure(503)} onRetry={onRetry}>
+      <ManagementScreen title="Отчёт" subtitle="s" state="error" skeleton={null} failure={failure(503)} onRetry={onRetry}>
         <p>тело</p>
       </ManagementScreen>
     );
@@ -94,7 +94,7 @@ describe('ManagementScreen', () => {
 
 describe('SectionState', () => {
   it('на 403 не предлагает повтор и говорит, к кому идти за доступом', () => {
-    renderRu(<SectionState section={{ status: 'error', error: refusal(403), retry: () => {} }} failedTitle="Не удалось загрузить счета" />);
+    renderRu(<SectionState section={{ status: 'error', error: refusal(403), retry: () => {} }} failedTitle="Не удалось загрузить счета" skeleton={null} />);
 
     expect(screen.getByText(accessHint)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull();
@@ -102,7 +102,7 @@ describe('SectionState', () => {
 
   it('на 503 предлагает повтор', () => {
     const retry = mock(() => {});
-    renderRu(<SectionState section={{ status: 'error', error: refusal(503), retry }} failedTitle="Не удалось загрузить счета" />);
+    renderRu(<SectionState section={{ status: 'error', error: refusal(503), retry }} failedTitle="Не удалось загрузить счета" skeleton={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
     expect(retry).toHaveBeenCalledTimes(1);

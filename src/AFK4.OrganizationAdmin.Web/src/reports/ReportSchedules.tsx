@@ -7,6 +7,7 @@ import { EmptyState } from '../operatorPrimitives';
 import type { ReportScheduleDto } from '../api/clients/reports';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { createReportClients } from './reportClient';
+import { SkeletonForm, SkeletonRows } from '../LoadingSkeleton';
 
 /**
  * Регулярные отчёты на почту владельца клуба.
@@ -130,6 +131,12 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
       subtitle={t('op.reports.schedule.subtitle')}
       contentWidth="form"
       state={state}
+      skeleton={
+        <>
+          <SkeletonForm fields={2} submit />
+          <SkeletonRows rows={2} rowClassName="mgmt-zone-row" trailing />
+        </>
+      }
       failure={error}
       onRetry={() => void load()}
     >

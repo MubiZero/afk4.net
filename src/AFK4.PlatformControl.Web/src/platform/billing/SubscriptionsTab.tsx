@@ -3,7 +3,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
@@ -19,28 +20,34 @@ export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
 
-  if (state.status === 'loading') return <LoadingCards count={2} />;
+  // Фильтры не зависят от ответа и стоят на своём месте и во время загрузки: под ними ждёт
+  // таблица, а не пустота, и поиск можно набрать, пока она идёт.
+  const filters = (
+    <div className="pc-filters">
+      <Input
+        placeholder={t('platform.billing.search.placeholder')}
+        aria-label={t('platform.billing.search.placeholder')}
+        value={query}
+        onChange={event => setQuery(event.target.value)}
+      />
+      <Select aria-label={t('platform.billing.column.status')} value={status} onChange={event => setStatus(event.target.value)}>
+        {SUBSCRIPTION_STATUS_FILTERS.map(value => (
+          <option key={value} value={value}>
+            {value === 'all' ? t('platform.billing.filter.allStatuses') : t(SUBSCRIPTION_STATUS_LABEL[value])}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+
+  if (state.status === 'loading') return <>{filters}<Loading><SkeletonTable columns={6} /></Loading></>;
   if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
 
   const rows = filterSubscriptions(state.data, { query, status });
 
   return (
     <>
-      <div className="pc-filters">
-        <Input
-          placeholder={t('platform.billing.search.placeholder')}
-          aria-label={t('platform.billing.search.placeholder')}
-          value={query}
-          onChange={event => setQuery(event.target.value)}
-        />
-        <Select aria-label={t('platform.billing.column.status')} value={status} onChange={event => setStatus(event.target.value)}>
-          {SUBSCRIPTION_STATUS_FILTERS.map(value => (
-            <option key={value} value={value}>
-              {value === 'all' ? t('platform.billing.filter.allStatuses') : t(SUBSCRIPTION_STATUS_LABEL[value])}
-            </option>
-          ))}
-        </Select>
-      </div>
+      {filters}
 
       {state.data.length === 0 ? (
         <EmptyState message={t('platform.billing.empty.subscriptions')} next="elsewhere" />

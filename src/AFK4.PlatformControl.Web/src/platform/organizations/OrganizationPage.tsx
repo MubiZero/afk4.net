@@ -3,7 +3,8 @@ import type { OrganizationOwnerInvite } from '@/api/types';
 import { Page } from '@/components/layout/Page';
 import { TabBoundary } from '@/components/shared/TabBoundary';
 import { Tabs } from '@/components/ui/tabs';
-import { ErrorState, ForbiddenState, LoadingCards } from '@/components/ui/states';
+import { ErrorState, ForbiddenState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonControl, SkeletonLine, SkeletonRows, SkeletonTabs } from '@/components/ui/skeletons';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import type { OrganizationTab } from '@/routing/platformRoute';
 import { useOrganizationDetail } from './useOrganizationDetail';
@@ -76,14 +77,22 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   // из карточки можно было только уходом в другой раздел рейла.
   const back = { label: t('platform.organization.backToClubs'), onBack };
 
-  if (state.status === 'loading') return <Page back={back}><LoadingCards count={3} /></Page>;
+  const visibleTabs = TABS.filter(item => item.allowed(access));
+
+  if (state.status === 'loading') {
+    return (
+      // Название и короткое имя клиента ждут так же, как тело: 180 мс тишины, потом заглушка.
+      <Page back={back} width="full" title={<Loading><SkeletonLine width="12em" /></Loading>} description={<Loading><SkeletonLine width="8em" /></Loading>}>
+        <Loading><OrganizationPageSkeleton tabCount={visibleTabs.length} /></Loading>
+      </Page>
+    );
+  }
   if (state.status === 'error') {
     return <Page back={back}><ErrorState title={t('platform.organization.drawer.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} /></Page>;
   }
 
   const organization = state.data;
   const apply = (next: typeof organization) => { state.apply(next); onChanged(); };
-  const visibleTabs = TABS.filter(item => item.allowed(access));
   if (!visibleTabs.some(item => item.value === tab)) {
     return (
       <Page back={back} width="form">
@@ -170,5 +179,27 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
         </TabBoundary>
       </div>
     </Page>
+  );
+}
+
+// Карточка клиента, пока она грузится: вкладки (их число известно по правам), панель вкладки и
+// паспорт справа — та же двухколоночная раскладка .pc-client, что у настоящей.
+function OrganizationPageSkeleton({ tabCount }: { tabCount: number }) {
+  return (
+    <div className="pc-client" aria-hidden="true">
+      <div className="pc-client-main">
+        <SkeletonTabs count={tabCount} />
+        <div className="pc-client-panel">
+          <SkeletonCard><SkeletonRows rows={3} rowClassName="pc-list-row" /></SkeletonCard>
+        </div>
+      </div>
+      <aside className="pc-passport" data-skeleton="list">
+        <div className="pc-passport-id"><strong><SkeletonLine width="9em" /></strong><span><SkeletonLine width="12em" /></span></div>
+        <div className="pc-passport-chips"><SkeletonControl width="6rem" size="sm" /></div>
+        <dl className="pc-passport-facts">
+          {[0, 1, 2, 3].map(row => <div key={row} className="pc-passport-row"><dt><SkeletonLine width="7em" /></dt><dd><SkeletonLine width="5em" /></dd></div>)}
+        </dl>
+      </aside>
+    </div>
   );
 }

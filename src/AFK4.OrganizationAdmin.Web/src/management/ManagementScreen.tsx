@@ -2,11 +2,12 @@ import type { JSX, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { LoadFailureState } from '../operatorPrimitives';
+import { DeferredSkeleton } from '../LoadingSkeleton';
 import { ViewOnlyNotice } from './ViewOnlyNotice';
 
 export type SaveState = 'clean' | 'dirty' | 'saving' | 'saved';
 
-export interface ManagementScreenProps {
+interface ManagementScreenBaseProps {
   title: string;
   subtitle: string;
   children: ReactNode; // destination body (panels/forms)
@@ -16,9 +17,6 @@ export interface ManagementScreenProps {
   // for screens whose content IS a two-pane grid (halls/devices master-detail) that should use
   // the whole workspace width. Defaults to 'form'.
   contentWidth?: 'form' | 'wide' | 'full';
-  // Loading/error swap the body for a skeleton/error affordance instead of children — save bar
-  // is suppressed in both. Defaults to 'ready' (renders children as before).
-  state?: 'loading' | 'error' | 'ready';
   // What failed and whether «Повторить» can help (projectOperatorError of the load) — the detail
   // is shown as-is, never replaced by generic copy; the retry button appears only when a retry can
   // change the answer (not under a permission refusal, where the access hint takes its place).
@@ -36,12 +34,26 @@ export interface ManagementScreenProps {
   };
 }
 
+// Loading/error swap the body for a skeleton/error affordance instead of children — save bar
+// is suppressed in both. Defaults to 'ready' (renders children as before).
+//
+// Экран, который грузится, обязан сказать, какой формы будет его содержимое: `skeleton` собирается
+// из LoadingSkeleton по тем же классам, что и настоящее тело (таблица, форма, плитки, карточки).
+// Пока заглушка была одна на всех, четыре строки в карточке стояли на месте таблиц, сеток и
+// плиток, и раскладка прыгала при подмене; теперь `tsc` не пропустит `state` без решения о форме.
+type ManagementScreenLoadProps =
+  | { state?: undefined; skeleton?: undefined }
+  | { state: 'loading' | 'error' | 'ready'; skeleton: ReactNode };
+
+export type ManagementScreenProps = ManagementScreenBaseProps & ManagementScreenLoadProps;
+
 export function ManagementScreen({
   title,
   subtitle,
   children,
   contentWidth = 'form',
   state = 'ready',
+  skeleton,
   failure,
   onRetry,
   viewOnly,
@@ -59,12 +71,12 @@ export function ManagementScreen({
       <div className="management-screen-body">
         <div className={`management-content management-content--${contentWidth}`}>
           {state === 'loading' ? (
-            <div className="management-skeleton" data-testid="management-skeleton" aria-hidden="true">
-              <div className="management-skeleton-line" />
-              <div className="management-skeleton-line" />
-              <div className="management-skeleton-line" />
-              <div className="management-skeleton-line" />
-            </div>
+            <>
+              {/* Право известно до ответа, и строка «только просмотр» стоит над заглушкой так же,
+                  как встанет над содержимым, — иначе она вдвигалась бы сверху в момент подмены. */}
+              <ViewOnlyNotice reason={viewOnly} />
+              <DeferredSkeleton>{skeleton}</DeferredSkeleton>
+            </>
           ) : state === 'error' ? (
             <div className="management-error-state">
               <LoadFailureState title={t('op.management.state.errorTitle')} failure={failure ?? projectOperatorError(undefined, t)} onRetry={onRetry} />

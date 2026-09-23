@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -92,7 +92,8 @@ describe('HallsDevicesDestination', () => {
     expect(onDirtyChange).toHaveBeenCalledWith(false);
   });
 
-  it('shows a loading skeleton instead of the tabs while loadStatus is loading', () => {
+  // Заглушка повторяет экран: вкладки и список залов в одну колонку рядом с карточкой зала.
+  it('shows the tabs and the halls list as its loading shape while loadStatus is loading', async () => {
     const { container } = wrap(
       <HallsDevicesDestination
         backend={null}
@@ -103,7 +104,11 @@ describe('HallsDevicesDestination', () => {
         loadStatus="loading"
       />
     );
-    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
+    expect(container.querySelector('.mgmt-tabs')).toBeTruthy();
+    // Список залов — одна колонка; справа карточка первого зала с таблицей мест.
+    expect(container.querySelector('[data-skeleton="table"]')!.querySelectorAll('.ctable-head > span')).toHaveLength(1);
+    expect(container.querySelector('.mgmt-master-detail--nav .mgmt-drawer')).toBeTruthy();
     expect(screen.queryByText('Зал VIP')).toBeNull();
   });
 

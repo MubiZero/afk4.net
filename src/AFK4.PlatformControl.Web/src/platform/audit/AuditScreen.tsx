@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useLoadable } from '../useLoadable';
@@ -77,7 +78,7 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
       <div><Button type="submit">{t('platform.audit.apply')}</Button></div>
     </form>
     {state.status === 'error' ? <ErrorState title={t('platform.audit.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
-      : state.status === 'loading' ? <LoadingCards count={3} />
+      : state.status === 'loading' ? <Loading><SkeletonTable columns={6} rows={6} /></Loading>
       // Пустой журнал и фильтр, под который ничего не подошло, — разные ответы: у второго есть выход.
       : (state.data.records ?? []).length === 0 ? (hasFilters(filters)
         ? <EmptyState message={t('state.empty.filtered')} next={{ label: t('state.empty.resetFilter'), onClick: () => onFiltersChange(NO_FILTERS) }} />

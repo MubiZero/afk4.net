@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Layers, Pencil, Trash2 } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
+import { SkeletonControl, SkeletonLine, SkeletonTable } from '../../../LoadingSkeleton';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
@@ -20,6 +21,35 @@ import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type Zone = ZoneDto;
+
+const ZONES_GRID = '1fr';
+
+const SEATS_GRID = '1fr 90px';
+
+// Форма вкладки, пока залы грузятся: список залов слева и карточка первого из них справа — вкладка
+// сама выбирает первый зал, так что справа почти всегда будет карточка с местами.
+export function ZonesTabSkeleton({ canManageLayout }: { canManageLayout: boolean }) {
+  return (
+    <div className="mgmt-master-detail mgmt-master-detail--nav">
+      <SkeletonTable gridTemplate={ZONES_GRID} rowActions={canManageLayout} toolbar={{ action: canManageLayout }} />
+      <aside className="mgmt-drawer" aria-hidden="true">
+        <div className="mgmt-drawer-head">
+          <div className="mgmt-drawer-id">
+            <div className="mgmt-drawer-title"><SkeletonLine width="8em" /></div>
+            <div className="mgmt-drawer-subtitle"><SkeletonLine width="5em" /></div>
+          </div>
+          {canManageLayout && <SkeletonControl width="var(--control-md)" />}
+        </div>
+        <div className="mgmt-drawer-body">
+          <div className="mgmt-drawer-section">
+            <div className="mgmt-section-title"><SkeletonLine width="6em" /></div>
+            <SkeletonTable gridTemplate={SEATS_GRID} rowActions={canManageLayout} toolbar={{ title: false, action: canManageLayout }} rows={4} />
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
 type Seat = SeatDto;
 
 type ZoneModalState =
@@ -318,7 +348,7 @@ export function ZonesTab({
           ]}
           rows={zones}
           rowKey={(zone) => readString(zone, 'zoneId')}
-          gridTemplate="1fr"
+          gridTemplate={ZONES_GRID}
           selectedKey={selectedZoneId}
           onSelectRow={(zone) => setSelectedZoneId(readString(zone, 'zoneId'))}
           rowActions={zoneRowActions}
@@ -349,7 +379,7 @@ export function ZonesTab({
                 ]}
                 rows={selectedZoneSeats}
                 rowKey={(seat) => readString(seat, 'seatId')}
-                gridTemplate="1fr 90px"
+                gridTemplate={SEATS_GRID}
                 rowActions={seatRowActions(readString(selectedZone, 'zoneId'))}
                 toolbar={{
                   primary: canManageLayout

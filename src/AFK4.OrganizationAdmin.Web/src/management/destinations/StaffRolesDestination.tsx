@@ -24,9 +24,13 @@ import { managementScreenState, type DestinationProps } from './types';
 import type { StaffUserDto } from '../../operatorApiClients';
 import { useBlockedReason } from '../../components/BlockedReason';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
+import { SkeletonTable } from '../../LoadingSkeleton';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type StaffUser = StaffUserDto;
+
+// Колонки списка сотрудников — одни на таблицу и её заглушку.
+const STAFF_GRID = '1.3fr 1fr 1.1fr 0.8fr';
 
 export function toggleRole(current: string[], role: string): string[] {
   const next = current.includes(role)
@@ -380,6 +384,11 @@ export function StaffRolesDestination({
       subtitle={t('op.management.dest.staff.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
+      skeleton={
+        <div className="mgmt-master-detail">
+          <SkeletonTable gridTemplate={STAFF_GRID} rowActions={canManageBranchStaff} toolbar={{ action: canInviteStaff }} />
+        </div>
+      }
       failure={failure}
       onRetry={onRetry}
       viewOnly={backend !== null && !canManageBranchStaff ? t('op.management.viewOnly.staff') : null}
@@ -402,7 +411,7 @@ export function StaffRolesDestination({
           ]}
           rows={staffRows}
           rowKey={(staffUser) => readString(staffUser, 'staffUserId')}
-          gridTemplate="1.3fr 1fr 1.1fr 0.8fr"
+          gridTemplate={STAFF_GRID}
           selectedKey={selectedStaffUserId}
           onSelectRow={(staffUser) => setSelectedStaffUserId(readString(staffUser, 'staffUserId'))}
           rowActions={rowActions}

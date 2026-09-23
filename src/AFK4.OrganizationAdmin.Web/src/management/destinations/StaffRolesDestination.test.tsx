@@ -85,11 +85,12 @@ describe('StaffRolesDestination', () => {
     expect(onDirtyChange).toHaveBeenCalledWith(false);
   });
 
-  it('shows a loading skeleton instead of staff rows while loadStatus is loading', () => {
+  it('shows a four-column staff table as its loading shape', async () => {
     const { container } = wrap(
       <StaffRolesDestination backend={null} session={session([])} currencyCode="TJS" staffUsers={staffUsers} loadStatus="loading" />
     );
-    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
+    expect(container.querySelectorAll('[data-skeleton="table"] .ctable-head > span')).toHaveLength(4);
     expect(screen.queryByText('Марина Сидорова')).toBeNull();
   });
 

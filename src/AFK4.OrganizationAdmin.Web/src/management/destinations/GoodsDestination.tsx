@@ -26,8 +26,12 @@ import type { PosProductDto } from '../../operatorApiClients';
 import { managementScreenState, type DestinationProps } from './types';
 import { deriveCategoryOptions, type CategoryOption } from './goods/categoryModel';
 import { CategoriesPanel } from './goods/CategoriesPanel';
+import { SkeletonLine, SkeletonRows, SkeletonTable } from '../../LoadingSkeleton';
 
 type Product = PosProductDto;
+
+// Колонки каталога — одни на таблицу и её заглушку, чтобы они не разъехались.
+const GOODS_GRID = '1.3fr 1fr 0.9fr 0.8fr 0.7fr 0.9fr';
 
 interface DelistAction {
   productId: string;
@@ -350,6 +354,17 @@ export function GoodsDestination({
       subtitle={t('op.management.dest.goods.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
+      skeleton={
+        <>
+          <section className="mgmt-drawer-section">
+            <div className="mgmt-section-title"><SkeletonLine width="8em" /></div>
+            <SkeletonRows rows={3} rowClassName="mgmt-zone-row" trailing={canManagePosCatalog} />
+          </section>
+          <div className="mgmt-master-detail">
+            <SkeletonTable gridTemplate={GOODS_GRID} rowActions={canManagePosCatalog} toolbar={{ action: canManagePosCatalog }} />
+          </div>
+        </>
+      }
       failure={failure}
       onRetry={onRetry}
       // Раздел открыт и тому, у кого есть только право на остатки: товары и категории ему серые.
@@ -391,7 +406,7 @@ export function GoodsDestination({
           ]}
           rows={catalogRows}
           rowKey={(product) => readString(product, 'productId')}
-          gridTemplate="1.3fr 1fr 0.9fr 0.8fr 0.7fr 0.9fr"
+          gridTemplate={GOODS_GRID}
           selectedKey={selectedProductId}
           onSelectRow={(product) => setSelectedProductId(readString(product, 'productId'))}
           rowActions={rowActions}

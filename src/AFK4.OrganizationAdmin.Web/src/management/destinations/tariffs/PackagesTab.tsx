@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Archive, Package as PackageIcon, Pencil } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
+import { SkeletonTable } from '../../../LoadingSkeleton';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
@@ -23,6 +24,16 @@ import type { PackageOptionDto } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
 type PackageOption = PackageOptionDto;
+
+const PACKAGES_GRID = '1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.8fr';
+
+export function PackagesTabSkeleton({ canManagePackages }: { canManagePackages: boolean }) {
+  return (
+    <div className="mgmt-master-detail">
+      <SkeletonTable gridTemplate={PACKAGES_GRID} rowActions={canManagePackages} toolbar={{ action: canManagePackages }} />
+    </div>
+  );
+}
 
 interface RetirePackageAction {
   packageDefinitionId: string;
@@ -261,7 +272,7 @@ export function PackagesTab({
           ]}
           rows={packageOptions}
           rowKey={(option) => readString(option, 'packageDefinitionId')}
-          gridTemplate="1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.8fr"
+          gridTemplate={PACKAGES_GRID}
           selectedKey={selectedPackageDefinitionId}
           onSelectRow={(option) => setSelectedPackageDefinitionId(readString(option, 'packageDefinitionId'))}
           rowActions={rowActions}

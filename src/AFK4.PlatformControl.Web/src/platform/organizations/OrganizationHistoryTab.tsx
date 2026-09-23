@@ -1,7 +1,8 @@
 import type { AuditApi } from '@/api/platformClients/audit';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useLoadable } from '../useLoadable';
 import { auditOutcomeLabel, auditOutcomeVariant, auditSourceLabel, auditTargetLabel } from '@/platform/audit/auditModel';
@@ -14,7 +15,7 @@ export function OrganizationHistoryTab({ client, organizationId }: {
   const state = useLoadable(() => client.listOrganizationHistory(organizationId), [organizationId]);
 
   if (state.status === 'error') return <ErrorState title={t('platform.organization.history.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
-  if (state.status === 'loading') return <LoadingCards count={3} />;
+  if (state.status === 'loading') return <Loading><SkeletonTable columns={5} rows={6} /></Loading>;
   if (state.data.records.length === 0) return <EmptyState message={t('platform.organization.history.empty')} next="calm" />;
 
   return <div className="table-panel"><Table>

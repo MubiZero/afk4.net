@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
@@ -118,8 +119,14 @@ export function UpdatesScreen({ client, organizationsClient, canManagePackages, 
       </Page>
     );
   }
+  // Шапка экрана — описание и кнопка по праву — известна до ответа и стоит так же, как встанет.
+  const pageHead = {
+    title: t('nav.platform.updates'),
+    description: t('platform.updates.packages.description'),
+    actions: canManagePackages ? <Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button> : undefined
+  };
   if (packagesState.status === 'loading' || (rolloutsState.status === 'loading' && !rolloutsAnswered.current)) {
-    return <Page title={t('nav.platform.updates')}><LoadingCards count={3} /></Page>;
+    return <Page {...pageHead}><Loading><SkeletonTable columns={6} /></Loading></Page>;
   }
   const packages = packagesState.data;
   // Без раскаток экран не знает, опубликована ли сборка: «Опубликовать» и рычаги раскатки
@@ -133,11 +140,7 @@ export function UpdatesScreen({ client, organizationsClient, canManagePackages, 
   }
 
   return (
-    <Page
-      title={t('nav.platform.updates')}
-      description={t('platform.updates.packages.description')}
-      actions={canManagePackages ? <Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button> : undefined}
-    >
+    <Page {...pageHead}>
       {rolloutsState.status === 'error' ? (
         <ErrorState
           title={t('platform.updates.rollouts.error.load')}
@@ -145,7 +148,10 @@ export function UpdatesScreen({ client, organizationsClient, canManagePackages, 
           retryLabel={rolloutsState.canRetry ? t('common.retry') : undefined}
           onRetry={rolloutsState.canRetry ? rolloutsState.retry : undefined}
         />
-      ) : rolloutsState.status === 'loading' ? <LoadingCards count={1} /> : null}
+      ) : null}
+      {/* Повторная загрузка раскаток после отказа ничего не рисует над таблицей: готовые раскатки
+          сами тоже ничего здесь не рисуют (они — значки в строках), и заглушка на месте пустоты
+          только сдвинула бы таблицу вниз и обратно. */}
       {packages.length === 0 ? (
         <EmptyState
           message={t('platform.updates.packages.empty')}

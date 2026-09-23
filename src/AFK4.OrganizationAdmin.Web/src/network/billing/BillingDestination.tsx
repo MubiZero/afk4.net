@@ -7,6 +7,7 @@ import { createAuthenticatedOperatorClients } from '../../operatorHelpers';
 import { projectOperatorError } from '../../apiErrors';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import { SectionState } from '../SectionState';
+import { SkeletonLine, SkeletonTable, SkeletonTiles } from '../../LoadingSkeleton';
 import { useBilling, type BillingClient } from './useBilling';
 import { subscriptionStatusLabelKey, subscriptionStatusTone, invoiceStatusLabelKey, invoiceStatusTone } from './billingModel';
 
@@ -50,6 +51,8 @@ export function BillingDestination({
     : !nothingShown ? 'ready'
     : subscription.status === 'loading' || invoices.status === 'loading' ? 'loading'
     : 'error';
+  const subscriptionSkeleton = <SkeletonTiles count={5} className="network-billing-grid" tileClassName="network-stat" />;
+  const invoicesSkeleton = <SkeletonTable gridTemplate={INVOICES_GRID} rows={3} />;
   const retryAll = () => {
     if (subscription.status === 'error') subscription.retry();
     if (invoices.status === 'error') invoices.retry();
@@ -61,6 +64,18 @@ export function BillingDestination({
       subtitle={t('op.network.dest.billing.subtitle')}
       contentWidth="full"
       state={screenState}
+      skeleton={
+        <>
+          <section className="management-panel network-billing-sub">
+            <h3><SkeletonLine width="8em" /></h3>
+            {subscriptionSkeleton}
+          </section>
+          <section className="management-panel network-billing-invoices">
+            <h3><SkeletonLine width="8em" /></h3>
+            {invoicesSkeleton}
+          </section>
+        </>
+      }
       failure={subscription.status === 'error' ? projectOperatorError(subscription.error, t) : undefined}
       onRetry={retryAll}
     >
@@ -68,7 +83,7 @@ export function BillingDestination({
         <>
           <section className="management-panel network-billing-sub">
             <h3>{t('op.network.billing.subscription')}</h3>
-            <SectionState section={subscription} failedTitle={t('op.network.billing.subscription.loadFailed')} />
+            <SectionState section={subscription} failedTitle={t('op.network.billing.subscription.loadFailed')} skeleton={subscriptionSkeleton} />
             {subscription.status === 'ready' && (
               <dl className="network-billing-grid">
                 <Field label={t('op.network.billing.plan')} value={subscription.data.planCode} />
@@ -100,7 +115,7 @@ export function BillingDestination({
 
           <section className="management-panel network-billing-invoices">
             <h3>{t('op.network.billing.invoices')}</h3>
-            <SectionState section={invoices} failedTitle={t('op.network.billing.invoices.loadFailed')} />
+            <SectionState section={invoices} failedTitle={t('op.network.billing.invoices.loadFailed')} skeleton={invoicesSkeleton} />
             {invoices.status !== 'ready' ? null : invoices.data.length === 0 ? (
               <EmptyState
                 inline

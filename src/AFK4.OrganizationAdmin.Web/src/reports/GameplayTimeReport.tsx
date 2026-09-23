@@ -8,7 +8,8 @@ import { PartialLoadFailure } from '../operatorPrimitives';
 import type { FloorMapDto } from '../operatorApiClients';
 import type { GameplayTimeReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportRangeControls } from './ReportRangeControls';
+import { ReportFiguresSkeleton, ReportRangeControls, ReportRangeSkeleton } from './ReportRangeControls';
+import { SkeletonTable } from '../LoadingSkeleton';
 import { todayReportRange, toReportInstantQuery, type ReportDateRange } from './reportRange';
 import { createDetailReportClients } from './reportClient';
 
@@ -19,6 +20,8 @@ import { createDetailReportClients } from './reportClient';
  * открыть его в кабинете или скачать по требованию было негде: сервер отдавал и данные, и CSV,
  * а вкладки не существовало.
  */
+const GAMEPLAY_GRID = 'minmax(120px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 120px 140px';
+
 export function GameplayTimeReport({ backend }: { backend: OperatorBackendContext | null }): JSX.Element {
   const { t, formatDate, formatNumber } = useI18n();
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
@@ -72,6 +75,13 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
       subtitle={t('op.reports.gameplay.subtitle')}
       contentWidth="full"
       state={state}
+      skeleton={
+        <>
+          <ReportRangeSkeleton exportable />
+          <ReportFiguresSkeleton count={4} />
+          <SkeletonTable gridTemplate={GAMEPLAY_GRID} />
+        </>
+      }
       failure={error}
       onRetry={() => void load()}
     >
@@ -105,7 +115,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
             ]}
             rows={data.rows}
             rowKey={(row) => row.sessionId}
-            gridTemplate="minmax(120px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 120px 140px"
+            gridTemplate={GAMEPLAY_GRID}
             empty={{ title: t('op.reports.empty'), next: { kind: 'elsewhere', hint: t('op.reports.emptyHint') } }}
           />
           {/* Сервер отдаёт не больше limit строк. Молчать об этом нельзя: неполный отчёт,

@@ -6,7 +6,8 @@ import { downloadTextFile, operatorDisplayNameLabel } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import type { OperatorActionReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportRangeControls } from './ReportRangeControls';
+import { ReportFiguresSkeleton, ReportRangeControls, ReportRangeSkeleton } from './ReportRangeControls';
+import { SkeletonTable } from '../LoadingSkeleton';
 import { todayReportRange, toReportInstantQuery, type ReportDateRange } from './reportRange';
 import { createDetailReportClients } from './reportClient';
 
@@ -17,6 +18,8 @@ import { createDetailReportClients } from './reportClient';
  * Владельцу он нужен ровно тогда, когда что-то разошлось: видно, кто отменял брони, кому чаще
  * всего отказывали в правах и в какие часы это происходило.
  */
+const ACTIONS_GRID = 'minmax(160px, 1fr) minmax(200px, 1.4fr) 140px 120px 160px';
+
 export function OperatorActionsReport({ backend }: { backend: OperatorBackendContext | null }): JSX.Element {
   const { t, formatDate, formatNumber } = useI18n();
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
@@ -48,6 +51,13 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
       subtitle={t('op.reports.actions.subtitle')}
       contentWidth="full"
       state={state}
+      skeleton={
+        <>
+          <ReportRangeSkeleton exportable />
+          <ReportFiguresSkeleton count={1} />
+          <SkeletonTable gridTemplate={ACTIONS_GRID} />
+        </>
+      }
       failure={error}
       onRetry={() => void load()}
     >
@@ -67,7 +77,7 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
             ]}
             rows={data.rows}
             rowKey={(row) => `${row.actorStaffUserId ?? 'system'}-${row.action}-${row.outcome}`}
-            gridTemplate="minmax(160px, 1fr) minmax(200px, 1.4fr) 140px 120px 160px"
+            gridTemplate={ACTIONS_GRID}
             empty={{ title: t('op.reports.empty'), next: { kind: 'elsewhere', hint: t('op.reports.emptyHint') } }}
           />
           {data.rows.length >= data.limit
