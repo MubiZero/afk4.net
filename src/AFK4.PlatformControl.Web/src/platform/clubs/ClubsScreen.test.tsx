@@ -111,24 +111,24 @@ it('expands clubs from the chevron without leaving the screen', async () => {
   expect(onOpenOrganization).not.toHaveBeenCalled();
 });
 
-// Завести клуб — главное, зачем в эту панель заходят в первый раз. Экран заведения работал, но
+// Завести организацию — главное, зачем в эту панель заходят в первый раз. Экран заведения работал, но
 // кнопка к нему потерялась при переделке списка в пульс: попасть туда можно было только набрав
 // адрес руками.
-it('даёт завести клуб', () => {
+it('даёт завести организацию', () => {
   const onCreateOrganization = mock();
   setup({ onCreateOrganization });
 
-  fireEvent.click(screen.getByRole('button', { name: 'Новый клуб' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Новая организация' }));
 
   expect(onCreateOrganization).toHaveBeenCalledTimes(1);
 });
 
 // Кнопка, которая гарантированно ответит отказом, хуже её отсутствия: право на заведение
 // проверяет сервер, и без него кнопки нет.
-it('без права заводить клубы кнопки не показывает', () => {
+it('без права заводить организации кнопки не показывает', () => {
   setup();
 
-  expect(screen.queryByRole('button', { name: 'Новый клуб' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Новая организация' })).toBeNull();
 });
 
 // Сотрудник без права на обзор должен прочитать, что дело в правах, а не жать «Повторить» до
@@ -182,7 +182,7 @@ it('пустая платформа зовёт завести первую ор�
 it('без права заводить говорит, у кого оно есть, и кнопки не рисует', async () => {
   setup({ view: 'all' });
 
-  expect(await screen.findByText('Это может сотрудник платформы с правом «Заводить новые клубы».')).toBeTruthy();
+  expect(await screen.findByText('Это может сотрудник платформы с правом «Заводить новые организации».')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Завести первую организацию' })).toBeNull();
 });
 

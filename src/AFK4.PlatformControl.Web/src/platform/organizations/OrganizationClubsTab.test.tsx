@@ -107,7 +107,7 @@ describe('OrganizationClubsTab', () => {
       </I18nProvider>
     );
 
-    expect(screen.getByText('Это может сотрудник платформы с правом «Заводить новые клубы».')).toBeInTheDocument();
+    expect(screen.getByText('Это может сотрудник платформы с правом «Заводить новые организации».')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Добавить первый филиал' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Добавить филиал' })).toBeNull();
   });

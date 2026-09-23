@@ -31,8 +31,13 @@ it('ru, en and tg have identical key sets (catalog parity)', () => {
 // it only fakes "translated" coverage. Add a key here ONLY with a real reason above,
 // never to silence the check. Native-Tajik review may move entries out of this list.
 const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
-    // «Кешбэк» и «Тариф» — заимствования, в таджикском пишутся так же; переводить их нечем.
-    'customer.loyalty.title', 'customer.reservations.tariff',
+    // «Тариф» — заимствование, в таджикском пишется так же; переводить его нечем.
+    'customer.reservations.tariff', 'setup.wizard.stepper.tariff',
+    // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
+    // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
+    'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',
+    'platform.organization.invites.branch', 'op.status.club', 'platform.search.kind.club', 'op.cash.shift.cashier',
+    'platform.audit.target', 'platform.organization.history.target',
     'roles.technician',
     'op.network.billing.col.number',
     'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone', 'op.network.billing.plan',
@@ -64,7 +69,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.settings.layout.seatCount', 'op.settings.layout.seatFallback', 'op.settings.packages.packageFallback', 'op.settings.pos.category',
     'op.settings.pos.sku', 'op.settings.tariffs.tariffFallback',
     'op.stock.journal.csv.sku', 'platform.billing.column.number', 'platform.billing.column.plan',
-    'platform.billing.column.organization', 'platform.newOrganization.field.planCode', 'platform.newOrganization.section.plan', 'platform.plan.growth',
+    'platform.newOrganization.field.planCode', 'platform.newOrganization.section.plan', 'platform.plan.growth',
     'platform.plan.scale', 'platform.plan.starter', 'platform.organization.subscriptionForm.plan',
     'setup.wizard.finished.summary.branch', 'setup.wizard.stepper.branch', 'platform.organization.tab.history', 'platform.settings.column.twoFactor',
     // Чистый шаблон склейки «{day}, {time}» — переводить в нём нечего.

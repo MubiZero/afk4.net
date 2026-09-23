@@ -344,12 +344,12 @@
   "customerHistoryPurchases": "Харидҳо",
   "customerHistoryPurchasesError": "Харидҳоро бор кардан муяссар нашуд.",
   "customerHistoryVisits": "Ташрифҳо",
-  "customerLoyaltyEarned": "Бо кешбэк ҷамъ шудааст",
-  "customerLoyaltyEmpty": "Ҳанӯз кешбэк ҳисоб нашудааст",
+  "customerLoyaltyEarned": "Бо кэшбэк ҷамъ шудааст",
+  "customerLoyaltyEmpty": "Ҳанӯз кэшбэк ҳисоб нашудааст",
   "customerLoyaltyEmptyHint": "Он пас аз аввалин пуркунӣ ё фармоиш пайдо мешавад.",
   "customerLoyaltyHistory": "Ҳисобкуниҳои охирин",
-  "customerLoyaltyLoadError": "Кешбэкро бор кардан муяссар нашуд",
-  "customerLoyaltyOff": "Клуб ҳоло кешбэк намедиҳад",
+  "customerLoyaltyLoadError": "Кэшбэкро бор кардан муяссар нашуд",
+  "customerLoyaltyOff": "Клуб ҳоло кэшбэк намедиҳад",
   "customerLoyaltyRuleSession": "{percent} аз вақти пардохтшуда",
   "@customerLoyaltyRuleSession": {
     "placeholders": {
@@ -378,8 +378,8 @@
   "customerLoyaltySourceSession": "Вақти бозӣ",
   "customerLoyaltySourceShop": "Фармоиши бар",
   "customerLoyaltySourceTopUp": "Пуркунӣ",
-  "customerLoyaltySpendNote": "Кешбэк пули оддии ҳамён аст: онро барои вақт ва бар сарф кардан мумкин аст.",
-  "customerLoyaltyTitle": "Кешбэк",
+  "customerLoyaltySpendNote": "Кэшбэк пули оддии ҳамён аст: онро барои вақт ва бар сарф кардан мумкин аст.",
+  "customerLoyaltyTitle": "Кэшбэк",
   "customerNavDashboard": "Асосӣ",
   "customerNavProfile": "Профил",
   "customerNavReservations": "Бронҳо",
@@ -534,8 +534,8 @@
   "customerPinStateSet": "PIN гузошта шудааст",
   "customerPinStateUnset": "PIN ҳанӯз гузошта нашудааст — ҳоло маъмур шуморо ба ПК менишонад",
   "customerPinTitle": "PIN барои нишастан ба ПК",
-  "customerPlayCode": "Рамз аз экрани компютер",
-  "customerPlayCodeHint": "Шаш рақам, ки компютери озод нишон медиҳад",
+  "customerPlayCode": "Рамз аз экрани ПК",
+  "customerPlayCodeHint": "Шаш рақам, ки ПК-и озод нишон медиҳад",
   "customerPlayConfirm": "Оғоз бо {amount}",
   "@customerPlayConfirm": {
     "placeholders": {
@@ -556,7 +556,7 @@
   "customerPlayNoTariffs": "Клуб ҳанӯз нархҳоро муқаррар накардааст",
   "customerPlayNoTariffsHint": "Аз барнома бозиро оғоз кардан мумкин нест. Ба назди мизи корӣ равед — маъмур шуморо шинонда мекунад.",
   "customerPlayPickTariff": "Тарифро интихоб кунед",
-  "customerPlayPinNeeded": "Дар экрани ПК рақам ва ПИН-коди шуморо мепурсанд — онро ҳозир таъин кунед, то ба мизи қабул барнагардед",
+  "customerPlayPinNeeded": "Дар экрани ПК рақам ва PIN-и шуморо мепурсанд — онро ҳозир таъин кунед, то ба мизи қабул барнагардед",
   "customerPlaySeatsFree": "Ҷойҳои озод: {count}",
   "@customerPlaySeatsFree": {
     "placeholders": {
@@ -581,7 +581,7 @@
   "customerProfileChangePhone": "Иваз кардани рақам",
   "customerProfileDeleteBlockedBalance": "Дар ҳамён пул мондааст. Онро дар назди клуб гиред ва ба ин ҷо баргардед.",
   "customerProfileDeleteBlockedDebt": "Шумо қарздоред. Қарзро пӯшонед — аз ҳамён ё дар назди клуб.",
-  "customerProfileDeleteBlockedSession": "Ҳоло ҷаласаи шумо давом дорад. Онро анҷом диҳед ва бори дигар кӯшиш кунед.",
+  "customerProfileDeleteBlockedSession": "Ҳоло сессияи шумо давом дорад. Онро анҷом диҳед ва бори дигар кӯшиш кунед.",
   "customerProfileDeleteBody": "Вуруд аз байн меравад, ном ва рақам дигар шуморо нишон намедиҳанд. Таърихи амалиёт дар клуб мемонад — ин баҳисобгирии ӯст. Ҳисобро баргардондан мумкин нест, вале бо ҳамон рақам аз нав сабти ном шудан мумкин аст.",
   "customerProfileDeleteConfirm": "Нест кардан",
   "customerProfileDeleteError": "Ҳисоби корбариро нест кардан нашуд. Бори дигар кӯшиш кунед.",
@@ -736,8 +736,8 @@
   "customerReservationsErrPrepay": "Барои пешпардохт пул намерасад — ҳамёнро пур кунед",
   "customerReservationsGate": "Барои онлайн брон кардан рақами телефони худро тасдиқ кунед.",
   "customerReservationsGroupNoFunds": "Дар ҳамён барои тамоми гурӯҳ маблағ намерасад. Онро пур кунед ё ҷойҳои камтар гиред.",
-  "customerReservationsGroupNoSeats": "Дар ин вақт дар толор ин қадар компютери холӣ нест. Ҷойҳои камтар гиред ё вақти дигар интихоб кунед.",
-  "customerReservationsGroupSeatNote": "Компютерҳоро маъмури клуб таъин мекунад — шумо онҳоро дар тасдиқ мегиред. Агар дар толор компютерҳои холӣ бошанд, гурӯҳ паҳлӯи ҳам менишинад.",
+  "customerReservationsGroupNoSeats": "Дар ин вақт дар толор ин қадар ПК-и холӣ нест. Ҷойҳои камтар гиред ё вақти дигар интихоб кунед.",
+  "customerReservationsGroupSeatNote": "ПК-ҳоро маъмури клуб таъин мекунад — шумо онҳоро дар тасдиқ мегиред. Агар дар толор ПК-ҳои холӣ бошанд, гурӯҳ паҳлӯи ҳам менишинад.",
   "customerReservationsGroupTooMany": "Бо як фармоиш на бештар аз {max} ҷой гирифта мешавад. Дар бораи гурӯҳи калон бо клуб гуфтугӯ кунед.",
   "@customerReservationsGroupTooMany": {
     "placeholders": {
@@ -767,9 +767,9 @@
   "customerReservationsNewTitle": "Брони нав",
   "customerReservationsNoFunds": "Дар ҳамён барои ин брон маблағ намерасад — пур кунед ва бори дигар кӯшиш кунед",
   "customerReservationsNoSeat": "Бе ҷой",
-  "customerReservationsNoSeats": "Дар ин вақт дар толор компютери холӣ намондааст. Вақти дигар интихоб кунед.",
+  "customerReservationsNoSeats": "Дар ин вақт дар толор ПК-и холӣ намондааст. Вақти дигар интихоб кунед.",
   "customerReservationsNone": "Ҳоло броне нест",
-  "customerReservationsNoneHint": "Бронь ПК-и интихобшударо то омадани шумо нигоҳ медорад",
+  "customerReservationsNoneHint": "Брон ПК-и интихобшударо то омадани шумо нигоҳ медорад",
   "customerReservationsNotChosen": "Интихоб нашудааст",
   "customerReservationsPrice": "Барои пардохт {amount}",
   "@customerReservationsPrice": {

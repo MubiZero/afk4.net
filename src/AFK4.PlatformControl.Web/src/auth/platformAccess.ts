@@ -33,9 +33,9 @@ export type PlatformCapability =
 
 const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'organizations.read': ['platform.organizations.view'],
-  // Отдельно от `organizations.manage`: заведение клуба бэкенд спрашивает ровно по
+  // Отдельно от `organizations.manage`: заведение организации бэкенд спрашивает ровно по
   // `platform.organizations.create`. Сотрудник, которому можно только менять статус или лимиты,
-  // не должен видеть кнопку «Новый клуб» — единственным ответом на неё был бы отказ.
+  // не должен видеть кнопку «Новая организация» — единственным ответом на неё был бы отказ.
   'organizations.create': ['platform.organizations.create'],
   'organizations.manage': [
     'platform.organizations.create',
