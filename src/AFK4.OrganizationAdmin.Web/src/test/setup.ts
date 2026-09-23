@@ -48,9 +48,6 @@ configure({ asyncUtilTimeout: 15000 });
   __afk4RealOperatorHelpers?: typeof import('../operatorHelpers');
 }).__afk4RealOperatorHelpers = { ...(await import('../operatorHelpers')) };
 
-// Same hazard for the three «Отчёты» destination modules: ReportsWorkspace.test.tsx stubs all
-// three with mock.module to isolate the switcher from their internals. Snapshot the genuine
-
 // NB: App.test.tsx (the only broad integration suite) depends on the REAL authClient/
 // operatorApiClients/operatorHelpers AND its own operatorRealtime mock. In one bun process the
 // above sibling mock.module registrations leak across files non-deterministically (bun keeps them

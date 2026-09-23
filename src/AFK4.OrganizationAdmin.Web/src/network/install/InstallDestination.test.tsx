@@ -1,4 +1,4 @@
-import { describe, it, expect, mock, afterEach } from 'bun:test';
+import { afterAll, describe, it, expect, mock, afterEach } from 'bun:test';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 
@@ -13,6 +13,12 @@ mock.module('../../operatorHelpers', () => ({
 function backend(setupInstallerUrl?: string) {
   return { config: { platformBaseUrl: 'x', currencyCode: 'TJS', setupInstallerUrl }, session: { organizationId: 'org', accessToken: 't' }, branchId: 'b1' };
 }
+
+afterAll(() => {
+  mock.module('../../operatorHelpers', () => (globalThis as typeof globalThis & {
+    __afk4RealOperatorHelpers: typeof import('../../operatorHelpers');
+  }).__afk4RealOperatorHelpers);
+});
 
 describe('InstallDestination', () => {
   it('enables download when url is configured', async () => {

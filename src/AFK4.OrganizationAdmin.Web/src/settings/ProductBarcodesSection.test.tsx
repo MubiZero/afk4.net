@@ -36,7 +36,7 @@ afterEach(() => {
   deleteProductBarcode.mockClear();
   cleanup();
 });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../operatorHelpers', () => actual); });
 
 describe('ProductBarcodesSection', () => {
   it('показывает секцию без чипов когда штрихкодов нет', async () => {

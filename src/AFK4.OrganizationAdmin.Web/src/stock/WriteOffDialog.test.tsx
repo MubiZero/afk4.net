@@ -15,7 +15,7 @@ const view = (onDone = () => {}, onClose = () => {}) =>
   render(<I18nProvider initialLocale="ru"><WriteOffDialog item={item} backend={backend} currencyCode="TJS" onClose={onClose} onDone={onDone} /></I18nProvider>);
 
 afterEach(() => { createStockMovement.mockClear(); cleanup(); });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../operatorHelpers', () => actual); });
 
 describe('WriteOffDialog', () => {
   it('шлёт adjustment с отрицательным кол-вом и себестоимостью из avgCost', async () => {

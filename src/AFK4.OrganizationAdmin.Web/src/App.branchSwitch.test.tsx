@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
 import type { OperatorRealtimeOptions, SessionLifecycleChangedDto } from './operatorRealtime';
 
 // Task 11: реактивный контекст филиала + свитчер в шапке. Отдельный (не App.test.tsx) файл — тот
@@ -137,6 +137,12 @@ function installConfig() {
     branchId: BRANCH_A
   };
 }
+
+afterAll(() => {
+  mock.module('./operatorRealtime', () => (globalThis as typeof globalThis & {
+    __afk4RealOperatorRealtime: typeof import('./operatorRealtime');
+  }).__afk4RealOperatorRealtime);
+});
 
 describe('App — branch switch (Task 11)', () => {
   beforeEach(() => {

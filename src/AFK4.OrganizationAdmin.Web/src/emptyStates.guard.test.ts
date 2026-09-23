@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 /**
  * Пустое состояние без следующего шага — это «Нет товаров», перед которым кассир не знает, что
@@ -82,7 +82,9 @@ function rawEmptyUsages(): { file: string; key: string }[] {
   for (const path of sourceFiles(srcRoot)) {
     const source = readFileSync(path, 'utf8');
     for (const match of source.matchAll(RAW_EMPTY)) {
-      hits.push({ file: relative(srcRoot, path), key: match[1] });
+      // Исключения записаны через «/»: на Windows relative() отдаёт «\», и без этого каждое
+      // из них считалось бы нарушением.
+      hits.push({ file: relative(srcRoot, path).split(sep).join('/'), key: match[1] });
     }
   }
   return hits;

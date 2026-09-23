@@ -63,7 +63,7 @@ afterEach(() => {
   featuresList.mockClear();
   cleanup();
 });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../../operatorHelpers', () => actual); });
 
 describe('PaymentsLoyaltyDestination (одна страница, без табов)', () => {
   // Одна связная страница: обе зоны стопкой, без таб-стрипа и без глобального save-бара

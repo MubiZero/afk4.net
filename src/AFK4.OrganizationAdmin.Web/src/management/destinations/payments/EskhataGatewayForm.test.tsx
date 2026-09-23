@@ -36,7 +36,7 @@ afterEach(() => {
   update.mockClear();
   cleanup();
 });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../../../operatorHelpers', () => actual); });
 
 describe('EskhataGatewayForm', () => {
   it('keeps Save disabled until all required fields are valid, then saves', async () => {

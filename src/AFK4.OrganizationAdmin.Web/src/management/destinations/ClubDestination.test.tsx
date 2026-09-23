@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -48,6 +48,8 @@ const { ClubDestination } = await import('./ClubDestination');
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o1' }, branchId: 'b1' } as never;
 
 afterEach(() => { getBranchProfile.mockClear(); getBranding.mockClear(); updateBranding.mockClear(); cleanup(); });
+
+afterAll(() => mock.module('../../operatorHelpers', () => actual));
 
 describe('ClubDestination', () => {
   // Пока профиль грузится, на экране его форма: те же три области (профиль, превью, часы) и семь

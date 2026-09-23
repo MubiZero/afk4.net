@@ -22,7 +22,7 @@ const session = { permissions: ['organization.inventory.view'], organizationId: 
 const view = () => render(<I18nProvider initialLocale="ru"><StockLevelsWorkspace backend={backend} currencyCode="TJS" session={session} /></I18nProvider>);
 
 afterEach(() => cleanup());
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../operatorHelpers', () => actual); });
 
 describe('StockLevelsWorkspace', () => {
   it('показывает товары и помечает «на исходе» по per-product порогу', async () => {

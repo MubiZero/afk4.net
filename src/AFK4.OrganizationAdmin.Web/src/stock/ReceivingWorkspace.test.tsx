@@ -38,7 +38,7 @@ function scan(code: string) {
 }
 
 afterEach(() => { createStockMovement.mockClear(); getCatalog.mockClear(); cleanup(); });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../operatorHelpers', () => actual); });
 
 describe('ReceivingWorkspace', () => {
   it('поиск добавляет товар строкой с преподставленной себестоимостью (avgCost)', async () => {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { PlatformApiError } from '../platformApi';
@@ -41,6 +41,8 @@ afterEach(() => {
   reputationForPerson.mockClear();
   cleanup();
 });
+
+afterAll(() => mock.module('../operatorHelpers', () => actual));
 
 describe('useReputation', () => {
   it('не спрашивает сеть, пока карточку просто открыли: аудит не должен полниться пролистанными', async () => {

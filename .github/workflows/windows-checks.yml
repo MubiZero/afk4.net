@@ -58,3 +58,18 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Write-Host "::endgroup::"
           }
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install web dependencies
+        run: bun install --frozen-lockfile
+
+      # Тесты Панели AFK4.net — ещё и здесь: порядок файлов в прогоне задаёт файловая система,
+      # и на NTFS он другой, чем на Linux. Утечка подмены модуля из одного файла в другой
+      # краснела только на Windows, а CI гоняет веб на Linux и её не видел.
+      - name: Test Organization Admin web
+        working-directory: src/AFK4.OrganizationAdmin.Web
+        run: bun run test
