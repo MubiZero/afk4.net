@@ -122,7 +122,7 @@ describe('TariffScreen · тариф создаётся один раз', () => 
     expect((screen.getByLabelText('Название тарифа') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByLabelText('Цена за час, сомони') as HTMLInputElement).disabled).toBe(true);
     // Куда идти за остальным — сказано рядом, а не угадывается.
-    expect(screen.getByText(/Остальные тарифы и расписание по дням заводятся в панели клуба/)).toBeTruthy();
+    expect(screen.getByText(/Остальные тарифы и расписание по дням заводятся в Панели AFK4.net/)).toBeTruthy();
   });
 
   it('при возврате на шаг созданный тариф не предлагается к созданию снова', () => {

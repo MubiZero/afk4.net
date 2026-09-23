@@ -3719,7 +3719,7 @@ export const ru = {
   "setup.wizard.stepper.staff": "Сотрудники",
   "setup.wizard.stepper.tariff": "Тариф",
   "setup.wizard.tariff.create": "Создать тариф",
-  "setup.wizard.tariff.created": "Тариф «{name}» создан. Остальные тарифы и расписание по дням заводятся в панели клуба.",
+  "setup.wizard.tariff.created": "Тариф «{name}» создан. Остальные тарифы и расписание по дням заводятся в Панели AFK4.net.",
   "setup.wizard.tariff.defaultName": "Стандартный",
   "setup.wizard.tariff.failed": "Не удалось создать тариф. Проверьте цену и попробуйте ещё раз.",
   "setup.wizard.tariff.name": "Название тарифа",
