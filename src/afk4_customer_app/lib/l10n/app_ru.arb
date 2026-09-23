@@ -1087,6 +1087,20 @@
   "ledgerAccountDebt": "Долг",
   "ledgerAccountPackageTime": "Пакетное время",
   "ledgerAccountWallet": "Кошелёк",
+  "ledgerBalanceAfter": "Остаток {amount}",
+  "@ledgerBalanceAfter": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerHoldReleaseCancelled": "Бронь отменена — деньги вернулись",
+  "ledgerHoldReleaseMoved": "Бронь перенесена — прежняя сумма вернулась",
+  "ledgerHoldReleaseNoShow": "Неявка — придержанное снято",
+  "ledgerHoldReleaseRejected": "Клуб отклонил бронь — деньги вернулись",
+  "ledgerHoldReleaseRequestExpired": "Клуб не ответил на бронь — деньги вернулись",
+  "ledgerHoldReleaseSeated": "Бронь началась — придержанное вернулось",
   "ledgerTypeBonusConsumption": "Время из бонуса",
   "ledgerTypeBonusGrant": "Начисление бонуса",
   "ledgerTypeCashback": "Кэшбэк",
@@ -1098,6 +1112,7 @@
   "ledgerTypePostpaidDebt": "Записано в долг",
   "ledgerTypeReferralBonus": "Бонус за друга",
   "ledgerTypeRefund": "Возврат",
+  "ledgerTypeReservationHold": "Придержано под бронь",
   "ledgerTypeReservationNoShowFee": "Удержано за неявку",
   "ledgerTypeReversal": "Отмена операции",
   "ledgerTypeTopUp": "Пополнение",

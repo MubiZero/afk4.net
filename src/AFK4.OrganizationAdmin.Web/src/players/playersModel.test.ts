@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createTranslator } from '@afk4/i18n';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, buildClientOverview, buildClientContext, buildClientContextMap, matchesSegment, isNewClient, relativeVisitLabel, activePackageLabel, type ClientSegmentId } from './playersModel';
 import type { TFunc, PlayerClientItem } from '../operatorHelpers';
@@ -150,6 +152,20 @@ describe('ledgerTypeLabel', () => {
     expect(ledgerTypeLabel('cashback', t)).toBe('ledger.type.cashback');
     expect(ledgerTypeLabel('reversal', t)).toBe('ledger.type.reversal');
     expect(ledgerTypeLabel('mystery_type', t)).toBe('op.players.ledger.type.fallback');
+  });
+
+  // Удержание под бронь, неявка, бонус за друга и взносы за события стойка называла
+  // «Операция», хотя в каталоге они давно есть. Заслон: каждый тип из контракта назван.
+  it('names every entry type the server can write', () => {
+    const source = readFileSync(
+      join(import.meta.dir, '..', '..', '..', 'AFK4.Shared.Contracts', 'Billing', 'LedgerEntryTypeNames.cs'),
+      'utf8'
+    );
+    const entryTypes = [...source.matchAll(/const string \w+ = "(\w+)";/g)].map((match) => match[1]);
+    expect(entryTypes.length).toBeGreaterThan(15);
+    for (const entryType of entryTypes) {
+      expect([entryType, ledgerTypeLabel(entryType, t)]).not.toEqual([entryType, 'op.players.ledger.type.fallback']);
+    }
   });
 });
 

@@ -76,9 +76,11 @@ describe('каталог переводов', () => {
     const dead = keys.filter((key) => {
       if (COMPOSED_PREFIXES.some((composed) => key.startsWith(composed.prefix))) return false;
       // Ключи игрока живут в исходниках приложения в camelCase: `customer.shop.title` →
-      // `customerShopTitle`, — потому что Flutter генерирует из ARB именно такие имена.
+      // `customerShopTitle`, — потому что Flutter генерирует из ARB именно такие имена. Генератор
+      // ARB режет и по подчёркиваниям (`ledger.type.top_up` → `ledgerTypeTopUp`): без этого ключ,
+      // который читает только приложение, выглядел мёртвым.
       const camel = key
-        .split('.')
+        .split(/[._]/)
         .map((part, index) => (index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
         .join('');
       return !mentioned.has(key) && !mentioned.has(camel);

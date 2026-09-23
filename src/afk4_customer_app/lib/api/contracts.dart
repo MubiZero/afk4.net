@@ -9293,6 +9293,18 @@ class PlayerDebtPaymentRequest {
 /// сессии или по сессии не выбит чек. Без него «Списание за игру −45 с.» — тупик: сумма есть,
 /// а из чего она сложилась, видно только в другой вкладке и только по времени на глаз.
 /// </param>
+/// <param name="HoldReleaseCause">
+/// Почему вернулись деньги, придержанные под бронь, — только у строки, которая снимает такое
+/// удержание: `seated` (бронь началась, дальше считает сессия), `cancelled`,
+/// `rejected`, `request_expired`, `no_show`, `moved`. Без повода строка
+/// читалась бы «Отмена операции +15 с.» — и человек не знал бы, что именно отменили.
+/// </param>
+/// <param name="WalletBalanceAfter">
+/// Сколько осталось на кошельке сразу после этой строки. Пусто у строк не про кошелёк — пакетное
+/// и бонусное время, долг: они остаток не двигают. Сходится с балансом наверху экрана, потому что
+/// удержание под бронь в выписке тоже есть — прятать его значило бы получить остаток, который не
+/// складывается из видимых строк.
+/// </param>
 ///
 /// Контракт: Players/PlayerLedgerEntryDto.cs
 class PlayerLedgerEntryDto {
@@ -9303,6 +9315,8 @@ class PlayerLedgerEntryDto {
     required this.quantitySeconds,
     required this.createdAtUtc,
     this.receiptSessionId,
+    this.holdReleaseCause,
+    this.walletBalanceAfter,
   });
 
   final String ledgerEntryId;
@@ -9311,6 +9325,8 @@ class PlayerLedgerEntryDto {
   final int quantitySeconds;
   final DateTime createdAtUtc;
   final String? receiptSessionId;
+  final String? holdReleaseCause;
+  final MoneyDto? walletBalanceAfter;
 
   factory PlayerLedgerEntryDto.fromJson(Map<String, dynamic> json) => PlayerLedgerEntryDto(
         ledgerEntryId: json['ledgerEntryId'] as String,
@@ -9319,6 +9335,8 @@ class PlayerLedgerEntryDto {
         quantitySeconds: (json['quantitySeconds'] as num).toInt(),
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         receiptSessionId: json['receiptSessionId'] == null ? null : json['receiptSessionId'] as String,
+        holdReleaseCause: json['holdReleaseCause'] == null ? null : json['holdReleaseCause'] as String,
+        walletBalanceAfter: json['walletBalanceAfter'] == null ? null : MoneyDto.fromJson(json['walletBalanceAfter'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -9328,6 +9346,8 @@ class PlayerLedgerEntryDto {
         'quantitySeconds': quantitySeconds,
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'receiptSessionId': receiptSessionId,
+        'holdReleaseCause': holdReleaseCause,
+        'walletBalanceAfter': walletBalanceAfter?.toJson(),
       };
 }
 

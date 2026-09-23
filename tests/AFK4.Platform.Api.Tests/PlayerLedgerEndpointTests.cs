@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Common;
 using AFK4.Shared.Contracts.Players;
@@ -117,21 +118,23 @@ public sealed class PlayerLedgerEndpointTests
     }
 
     /// <summary>
-    /// Заморозка под бронь и её снятие — это одно событие, у которого нет денежного итога.
-    /// Показать их значит выдать «−15 c» и «+15 c», между которыми ничего не произошло, и
-    /// заставить человека искать пропажу, которой нет. Придержанное объясняет третье число
-    /// кошелька, а не выписка.
+    /// Удержание под бронь видно, и видно, почему деньги вернулись. Раньше обе строки прятались как
+    /// «событие без итога» — и остаток кошелька не складывался из видимых строк: в баланс удержание
+    /// входит, а в выписку не входило.
     /// </summary>
     [Fact]
-    public async Task Ledger_HidesTheHoldAndItsRelease()
+    public async Task Ledger_ShowsTheHoldAndWhyTheMoneyCameBack()
     {
         await using var factory = new PlatformApiFactory();
         var p = await PlayerLedgerTestData.SeedPlayerAsync(factory);
+        var reservationId = Guid.NewGuid();
         await PlayerLedgerTestData.AddAsync(factory, p, LedgerEntryTypeNames.TopUp, 20_000, Now.AddHours(-5));
         var holdId = await PlayerLedgerTestData.AddAsync(
-            factory, p, LedgerEntryTypeNames.ReservationHold, -1_500, Now.AddHours(-4));
+            factory, p, LedgerEntryTypeNames.ReservationHold, -1_500, Now.AddHours(-4),
+            reason: ReservationHold.Reason(reservationId));
         await PlayerLedgerTestData.AddAsync(
-            factory, p, LedgerEntryTypeNames.Reversal, 1_500, Now.AddHours(-3), reverses: holdId);
+            factory, p, LedgerEntryTypeNames.Reversal, 1_500, Now.AddHours(-3), reverses: holdId,
+            reason: ReservationHold.ReleaseReason(reservationId, ReservationHoldCauses.Seated));
 
         using var client = factory.CreateClient();
         await PlayerLedgerTestData.AuthenticateAsync(client, p);
@@ -139,7 +142,106 @@ public sealed class PlayerLedgerEndpointTests
         var page = await (await client.GetAsync("/api/me/wallet/ledger"))
             .Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
 
-        Assert.Equal([LedgerEntryTypeNames.TopUp], page!.Items.Select(item => item.EntryType).ToArray());
+        Assert.Equal(
+            new[] { LedgerEntryTypeNames.Reversal, LedgerEntryTypeNames.ReservationHold, LedgerEntryTypeNames.TopUp },
+            page!.Items.Select(item => item.EntryType).ToArray());
+        Assert.Equal(ReservationHoldCauses.Seated, page.Items[0].HoldReleaseCause);
+        Assert.Null(page.Items[1].HoldReleaseCause);
+        Assert.Equal(
+            new long[] { 20_000, 18_500, 20_000 },
+            page.Items.Select(item => item.WalletBalanceAfter!.MinorUnits).ToArray());
+    }
+
+    /// <summary>
+    /// Неявка: снятие удержания и удержание за неявку пишутся одним моментом. Остаток у пары
+    /// должен сходиться с порядком строк, иначе выписка покажет число, которого не было.
+    /// </summary>
+    [Fact]
+    public async Task Ledger_BalanceFollowsRowsWrittenAtTheSameMoment()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await PlayerLedgerTestData.SeedPlayerAsync(factory);
+        var reservationId = Guid.NewGuid();
+        await PlayerLedgerTestData.AddAsync(factory, p, LedgerEntryTypeNames.TopUp, 10_000, Now.AddHours(-5));
+        var holdId = await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.ReservationHold, -2_000, Now.AddHours(-4),
+            reason: ReservationHold.Reason(reservationId));
+        var moment = Now.AddHours(-2);
+        await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.Reversal, 2_000, moment, reverses: holdId,
+            reason: ReservationHold.ReleaseReason(reservationId, ReservationHoldCauses.NoShow));
+        await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.ReservationNoShowFee, -2_000, moment,
+            reason: ReservationHold.NoShowFeeReason(reservationId));
+
+        using var client = factory.CreateClient();
+        await PlayerLedgerTestData.AuthenticateAsync(client, p);
+
+        var page = await (await client.GetAsync("/api/me/wallet/ledger"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
+
+        AssertBalancesAddUp(page!.Items, expectedNewest: 8_000);
+        Assert.Contains(page.Items, item => item.HoldReleaseCause == ReservationHoldCauses.NoShow);
+    }
+
+    /// <summary>
+    /// Пакетное и бонусное время остаток кошелька не двигает: у такой строки остатка нет, а соседние
+    /// строки кошелька сходятся через неё.
+    /// </summary>
+    [Fact]
+    public async Task Ledger_TimeRowsCarryNoWalletBalance()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await PlayerLedgerTestData.SeedPlayerAsync(factory);
+        await PlayerLedgerTestData.AddAsync(factory, p, LedgerEntryTypeNames.TopUp, 5_000, Now.AddHours(-3));
+        await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.BonusGrant, 0, Now.AddHours(-2),
+            accountType: LedgerAccountTypeNames.BonusTime);
+        await PlayerLedgerTestData.AddAsync(factory, p, LedgerEntryTypeNames.GameplayCharge, -1_000, Now.AddHours(-1));
+
+        using var client = factory.CreateClient();
+        await PlayerLedgerTestData.AuthenticateAsync(client, p);
+
+        var page = await (await client.GetAsync("/api/me/wallet/ledger"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
+
+        Assert.Equal(4_000, page!.Items[0].WalletBalanceAfter!.MinorUnits);
+        Assert.Null(page.Items[1].WalletBalanceAfter);
+        Assert.Equal(5_000, page.Items[2].WalletBalanceAfter!.MinorUnits);
+    }
+
+    /// <summary>Незнакомый повод наружу не уходит: причина записи — служебная строка.</summary>
+    [Fact]
+    public async Task Ledger_DoesNotLeakAnUnknownReleaseCause()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await PlayerLedgerTestData.SeedPlayerAsync(factory);
+        var reservationId = Guid.NewGuid();
+        var holdId = await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.ReservationHold, -1_000, Now.AddHours(-2),
+            reason: ReservationHold.Reason(reservationId));
+        await PlayerLedgerTestData.AddAsync(
+            factory, p, LedgerEntryTypeNames.Reversal, 1_000, Now.AddHours(-1), reverses: holdId,
+            reason: ReservationHold.ReleaseReason(reservationId, "operator_typo_42"));
+
+        using var client = factory.CreateClient();
+        await PlayerLedgerTestData.AuthenticateAsync(client, p);
+
+        var body = await (await client.GetAsync("/api/me/wallet/ledger")).Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain("operator_typo_42", body, StringComparison.Ordinal);
+    }
+
+    private static void AssertBalancesAddUp(IReadOnlyList<PlayerLedgerEntryDto> rows, long expectedNewest)
+    {
+        var wallet = rows.Where(row => row.WalletBalanceAfter is not null).ToList();
+        Assert.Equal(expectedNewest, wallet[0].WalletBalanceAfter!.MinorUnits);
+        for (var index = 0; index < wallet.Count - 1; index++)
+        {
+            Assert.Equal(
+                wallet[index].WalletBalanceAfter!.MinorUnits - wallet[index].Amount.MinorUnits,
+                wallet[index + 1].WalletBalanceAfter!.MinorUnits);
+        }
     }
 
     /// <summary>
@@ -168,20 +270,23 @@ public sealed class PlayerLedgerEndpointTests
     }
 
     /// <summary>
-    /// Страница отбирается до нарезки, а не после. Отфильтруй мы скрытое из уже набранной
-    /// страницы — она приходила бы короче обещанного, а часть событий не показалась бы вовсе.
+    /// Остаток не рвётся на границе страниц: первая строка второй страницы продолжает последнюю
+    /// строку первой, а самая новая строка сходится с балансом кошелька.
     /// </summary>
     [Fact]
-    public async Task Ledger_PagesOverVisibleEntriesOnly()
+    public async Task Ledger_BalanceContinuesAcrossPages()
     {
         await using var factory = new PlatformApiFactory();
         var p = await PlayerLedgerTestData.SeedPlayerAsync(factory);
         for (var index = 0; index < 4; index++)
         {
+            var reservationId = Guid.NewGuid();
             var holdId = await PlayerLedgerTestData.AddAsync(
-                factory, p, LedgerEntryTypeNames.ReservationHold, -100, Now.AddMinutes(-index * 10 - 5));
+                factory, p, LedgerEntryTypeNames.ReservationHold, -100, Now.AddMinutes(-index * 10 - 5),
+                reason: ReservationHold.Reason(reservationId));
             await PlayerLedgerTestData.AddAsync(
-                factory, p, LedgerEntryTypeNames.Reversal, 100, Now.AddMinutes(-index * 10 - 4), reverses: holdId);
+                factory, p, LedgerEntryTypeNames.Reversal, 100, Now.AddMinutes(-index * 10 - 4), reverses: holdId,
+                reason: ReservationHold.ReleaseReason(reservationId, ReservationHoldCauses.Cancelled));
             await PlayerLedgerTestData.AddAsync(
                 factory, p, LedgerEntryTypeNames.TopUp, 1_000, Now.AddMinutes(-index * 10));
         }
@@ -189,18 +294,22 @@ public sealed class PlayerLedgerEndpointTests
         using var client = factory.CreateClient();
         await PlayerLedgerTestData.AuthenticateAsync(client, p);
 
-        var first = await (await client.GetAsync("/api/me/wallet/ledger?limit=2"))
-            .Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
+        var rows = new List<PlayerLedgerEntryDto>();
+        string? cursor = null;
+        do
+        {
+            var url = cursor is null
+                ? "/api/me/wallet/ledger?limit=5"
+                : $"/api/me/wallet/ledger?limit=5&cursor={Uri.EscapeDataString(cursor)}";
+            var page = await (await client.GetAsync(url)).Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
+            rows.AddRange(page!.Items);
+            cursor = page.NextCursor;
+        }
+        while (cursor is not null);
 
-        Assert.Equal(2, first!.Items.Count);
-        Assert.All(first.Items, item => Assert.Equal(LedgerEntryTypeNames.TopUp, item.EntryType));
-        Assert.NotNull(first.NextCursor);
-
-        var second = await (await client.GetAsync($"/api/me/wallet/ledger?limit=2&cursor={Uri.EscapeDataString(first.NextCursor!)}"))
-            .Content.ReadFromJsonAsync<CursorPage<PlayerLedgerEntryDto>>();
-
-        Assert.Equal(2, second!.Items.Count);
-        Assert.All(second.Items, item => Assert.Equal(LedgerEntryTypeNames.TopUp, item.EntryType));
+        Assert.Equal(12, rows.Count);
+        Assert.Equal(12, rows.Select(row => row.LedgerEntryId).Distinct().Count());
+        AssertBalancesAddUp(rows, expectedNewest: 4_000);
     }
 
     /// <summary>Чужой выписки не существует: маршрут отвечает только про своего владельца.</summary>

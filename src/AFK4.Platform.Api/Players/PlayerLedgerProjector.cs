@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Common;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Common;
@@ -68,18 +69,17 @@ public static class PlayerLedgerFilter
         string.IsNullOrEmpty(accountType) || KnownAccountTypes.Contains(accountType);
 }
 
-// Постраничный журнал ledger игрока (keyset, не offset). Зеркалит стратегию PlayerHistoryProjector:
-// курсор кодирует (CreatedAtUtc DESC, LedgerEntryId DESC); WHERE-фильтр по timestamp в SQL/InMemory,
-// затем точный tie-break (CreatedAtUtc, LedgerEntryId) в памяти (EF Core InMemory не транслирует
-// Guid.CompareTo внутри LINQ Where). Проекция — через переиспользуемый LedgerBalanceProjector.ToDto.
+// Постраничный журнал ledger игрока (keyset, не offset): курсор кодирует (CreatedAtUtc DESC,
+// LedgerEntryId DESC), нарезку делает KeysetPage. Проекция — через LedgerBalanceProjector.ToDto.
 public static class PlayerLedgerProjector
 {
     /// <summary>
-    /// Выписка глазами игрока: те же записи журнала, но без служебных и без внутренних полей.
+    /// Выписка глазами игрока: все записи журнала, но без внутренних полей.
     ///
-    /// Скрытое отбирается ДО нарезки страницы, а не после: отфильтруй мы уже набранную страницу,
-    /// она приходила бы короче обещанного, а часть событий не показалась бы вовсе — курсор ушёл
-    /// бы дальше них.
+    /// Удержание под бронь и его снятие здесь есть, хотя раньше прятались как «событие без итога».
+    /// Прятать их значило оставить остаток кошелька, который не складывается из видимых строк: в
+    /// баланс удержание входит, а в выписку нет. Теперь строка снятия несёт повод, а каждая строка
+    /// кошелька — остаток после неё.
     /// </summary>
     public static async Task<CursorPage<PlayerLedgerEntryDto>> GetPlayerLedgerPageAsync(
         PlatformDbContext dbContext,
@@ -90,45 +90,12 @@ public static class PlayerLedgerProjector
     {
         var pageSize = PlayerLedgerFilter.ClampLimit(limit);
 
-        // Заморозка под бронь и её снятие — одно событие без денежного итога. Показать их значит
-        // выдать «−15 c» и «+15 c», между которыми ничего не произошло, и заставить человека
-        // искать пропажу, которой нет: придержанное объясняет третье число кошелька.
-        //
-        // Реверс настоящего списания при этом остаётся: человеку вернули деньги, и он вправе
-        // это видеть.
-        var holdIds = dbContext.LedgerEntries
-            .Where(entry => entry.PlayerAccountId == playerAccountId
-                && entry.EntryType == LedgerEntryTypeNames.ReservationHold)
-            .Select(entry => entry.LedgerEntryId);
-
         var query = dbContext.LedgerEntries
             .AsNoTracking()
-            .Where(entry => entry.PlayerAccountId == playerAccountId
-                && entry.EntryType != LedgerEntryTypeNames.ReservationHold
-                && (entry.ReversesLedgerEntryId == null
-                    || !holdIds.Contains(entry.ReversesLedgerEntryId.Value)));
+            .Where(entry => entry.PlayerAccountId == playerAccountId);
 
-        bool hasCursor = CursorToken.TryDecode(before, out var afterTs, out var afterId);
-        if (hasCursor)
-        {
-            query = query.Where(entry => entry.CreatedAtUtc <= afterTs);
-        }
-
-        var windowSize = hasCursor ? (pageSize + 1) * 2 : pageSize + 1;
-        var candidates = await query
-            .OrderByDescending(entry => entry.CreatedAtUtc)
-            .ThenByDescending(entry => entry.LedgerEntryId)
-            .Take(windowSize)
-            .ToListAsync(cancellationToken);
-
-        var entries = hasCursor
-            ? candidates
-                .Where(entry =>
-                    entry.CreatedAtUtc < afterTs ||
-                    (entry.CreatedAtUtc == afterTs && entry.LedgerEntryId.CompareTo(afterId) < 0))
-                .Take(pageSize + 1)
-                .ToList()
-            : candidates.Take(pageSize + 1).ToList();
+        var entries = await KeysetPage.TakeAsync(
+            query, entry => entry.CreatedAtUtc, entry => entry.LedgerEntryId, before, pageSize + 1, cancellationToken);
 
         var hasMore = entries.Count > pageSize;
         if (hasMore)
@@ -155,8 +122,33 @@ public static class PlayerLedgerProjector
                 .ToListAsync(cancellationToken))
                 .ToHashSet();
 
-        var items = entries
-            .Select(entry => new PlayerLedgerEntryDto(
+        // Повод есть только у снятия удержания, поэтому и спрашиваем только про записи, которые
+        // что-то отменяют: какие из отменённых были удержаниями.
+        var reversedIds = entries
+            .Where(entry => entry.ReversesLedgerEntryId != null)
+            .Select(entry => entry.ReversesLedgerEntryId!.Value)
+            .Distinct()
+            .ToList();
+
+        var reversedHolds = reversedIds.Count == 0
+            ? []
+            : (await dbContext.LedgerEntries
+                .AsNoTracking()
+                .Where(entry => reversedIds.Contains(entry.LedgerEntryId)
+                    && entry.EntryType == LedgerEntryTypeNames.ReservationHold)
+                .Select(entry => entry.LedgerEntryId)
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+
+        var balanceAfter = entries.Count == 0
+            ? 0
+            : await WalletBalanceAfterAsync(dbContext, playerAccountId, entries[0], cancellationToken);
+
+        var items = new List<PlayerLedgerEntryDto>(entries.Count);
+        foreach (var entry in entries)
+        {
+            var isWallet = entry.AccountType == LedgerAccountTypeNames.Wallet;
+            items.Add(new PlayerLedgerEntryDto(
                 entry.LedgerEntryId,
                 entry.EntryType,
                 new MoneyDto(entry.CurrencyCode, entry.AmountMinorUnits),
@@ -164,14 +156,62 @@ public static class PlayerLedgerProjector
                 entry.CreatedAtUtc,
                 entry.SessionId is { } sessionId && sessionsWithReceipt.Contains(sessionId)
                     ? sessionId
-                    : null))
-            .ToList();
+                    : null,
+                entry.ReversesLedgerEntryId is { } reversed && reversedHolds.Contains(reversed)
+                    ? ReservationHold.TryReadReleaseCause(entry.Reason)
+                    : null,
+                isWallet ? new MoneyDto(entry.CurrencyCode, balanceAfter) : null));
+
+            // Строки идут от новой к старой: остаток перед этой строкой — это остаток после
+            // следующей, более старой.
+            if (isWallet)
+            {
+                balanceAfter -= entry.AmountMinorUnits;
+            }
+        }
 
         var nextCursor = hasMore && entries.Count > 0
             ? CursorToken.Encode(entries[^1].CreatedAtUtc, entries[^1].LedgerEntryId)
             : null;
 
         return new CursorPage<PlayerLedgerEntryDto>(items, nextCursor);
+    }
+
+    /// <summary>
+    /// Остаток кошелька сразу после <paramref name="newest"/> — самой новой строки страницы: весь
+    /// кошелёк минус то, что случилось позже неё. Позже — это раньше в том же порядке, в каком
+    /// режется выписка, поэтому строки с тем же моментом упорядочиваются базой, а не в памяти:
+    /// порядок идентификаторов у базы и у .NET разный, и остаток разошёлся бы со строками.
+    /// </summary>
+    private static async Task<long> WalletBalanceAfterAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        LedgerEntryEntity newest,
+        CancellationToken cancellationToken)
+    {
+        var wallet = dbContext.LedgerEntries
+            .Where(entry => entry.PlayerAccountId == playerAccountId
+                && entry.AccountType == LedgerAccountTypeNames.Wallet);
+
+        var total = await wallet.SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+        var later = await wallet
+            .Where(entry => entry.CreatedAtUtc > newest.CreatedAtUtc)
+            .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+
+        // Все строки этого момента, а не только кошелёк: сама newest может быть не про кошелёк, и
+        // без неё в списке не нашлось бы, где остановиться.
+        var sameMoment = await dbContext.LedgerEntries
+            .Where(entry => entry.PlayerAccountId == playerAccountId
+                && entry.CreatedAtUtc == newest.CreatedAtUtc)
+            .OrderByDescending(entry => entry.LedgerEntryId)
+            .Select(entry => new { entry.LedgerEntryId, entry.AccountType, entry.AmountMinorUnits })
+            .ToListAsync(cancellationToken);
+        var laterAtSameMoment = sameMoment
+            .TakeWhile(entry => entry.LedgerEntryId != newest.LedgerEntryId)
+            .Where(entry => entry.AccountType == LedgerAccountTypeNames.Wallet)
+            .Sum(entry => entry.AmountMinorUnits);
+
+        return total - later - laterAtSameMoment;
     }
 
     public static async Task<CursorPage<LedgerEntryDto>> GetLedgerPageAsync(
@@ -199,36 +239,9 @@ public static class PlayerLedgerProjector
             query = query.Where(entry => entry.AccountType == accountType);
         }
 
-        // Битый/пустой курсор → false → первая страница (CursorToken.TryDecode не бросает).
-        bool hasCursor = CursorToken.TryDecode(before, out var afterTs, out var afterId);
-
-        if (hasCursor)
-        {
-            query = query.Where(entry => entry.CreatedAtUtc <= afterTs);
-        }
-
-        // Удвоенное окно при курсоре: даёт запас кандидатов на in-memory tie-break + pageSize+1 для hasMore.
-        var windowSize = hasCursor ? (pageSize + 1) * 2 : pageSize + 1;
-        var candidates = await query
-            .OrderByDescending(entry => entry.CreatedAtUtc)
-            .ThenByDescending(entry => entry.LedgerEntryId)
-            .Take(windowSize)
-            .ToListAsync(cancellationToken);
-
-        List<LedgerEntryEntity> entries;
-        if (hasCursor)
-        {
-            entries = candidates
-                .Where(entry =>
-                    entry.CreatedAtUtc < afterTs ||
-                    (entry.CreatedAtUtc == afterTs && entry.LedgerEntryId.CompareTo(afterId) < 0))
-                .Take(pageSize + 1)
-                .ToList();
-        }
-        else
-        {
-            entries = candidates.Take(pageSize + 1).ToList();
-        }
+        // Битый/пустой курсор → первая страница (CursorToken.TryDecode не бросает).
+        var entries = await KeysetPage.TakeAsync(
+            query, entry => entry.CreatedAtUtc, entry => entry.LedgerEntryId, before, pageSize + 1, cancellationToken);
 
         var hasMore = entries.Count > pageSize;
         if (hasMore)

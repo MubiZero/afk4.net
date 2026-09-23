@@ -1087,6 +1087,20 @@
   "ledgerAccountDebt": "Қарз",
   "ledgerAccountPackageTime": "Вақти пакет",
   "ledgerAccountWallet": "Ҳамён",
+  "ledgerBalanceAfter": "Бақия {amount}",
+  "@ledgerBalanceAfter": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerHoldReleaseCancelled": "Брон бекор шуд — пул баргашт",
+  "ledgerHoldReleaseMoved": "Брон интиқол ёфт — маблағи пештара баргашт",
+  "ledgerHoldReleaseNoShow": "Наомадан — маблағи нигоҳдошта гирифта шуд",
+  "ledgerHoldReleaseRejected": "Клуб бронро рад кард — пул баргашт",
+  "ledgerHoldReleaseRequestExpired": "Клуб ба брон ҷавоб надод — пул баргашт",
+  "ledgerHoldReleaseSeated": "Брон оғоз шуд — маблағи нигоҳдошта баргашт",
   "ledgerTypeBonusConsumption": "Вақт аз бонус",
   "ledgerTypeBonusGrant": "Ҳисобкунии бонус",
   "ledgerTypeCashback": "Бозгашти маблағ",
@@ -1098,6 +1112,7 @@
   "ledgerTypePostpaidDebt": "Ба қарз навишта шуд",
   "ledgerTypeReferralBonus": "Бонус барои дӯст",
   "ledgerTypeRefund": "Бозгашт",
+  "ledgerTypeReservationHold": "Барои брон нигоҳ дошта шуд",
   "ledgerTypeReservationNoShowFee": "Барои наомадан нигоҳ дошта шуд",
   "ledgerTypeReversal": "Амалиёт бекор карда шуд",
   "ledgerTypeTopUp": "Пуркунӣ",

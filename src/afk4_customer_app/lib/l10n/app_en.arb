@@ -1087,6 +1087,20 @@
   "ledgerAccountDebt": "Debt",
   "ledgerAccountPackageTime": "Package time",
   "ledgerAccountWallet": "Wallet",
+  "ledgerBalanceAfter": "Balance {amount}",
+  "@ledgerBalanceAfter": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerHoldReleaseCancelled": "Booking cancelled — money returned",
+  "ledgerHoldReleaseMoved": "Booking moved — previous amount returned",
+  "ledgerHoldReleaseNoShow": "No-show — held money released",
+  "ledgerHoldReleaseRejected": "Club declined the booking — money returned",
+  "ledgerHoldReleaseRequestExpired": "Club did not answer the booking — money returned",
+  "ledgerHoldReleaseSeated": "Booking started — held money returned",
   "ledgerTypeBonusConsumption": "Time from a bonus",
   "ledgerTypeBonusGrant": "Bonus grant",
   "ledgerTypeCashback": "Cashback",
@@ -1098,6 +1112,7 @@
   "ledgerTypePostpaidDebt": "Added to debt",
   "ledgerTypeReferralBonus": "Friend bonus",
   "ledgerTypeRefund": "Refund",
+  "ledgerTypeReservationHold": "Held for a booking",
   "ledgerTypeReservationNoShowFee": "Kept for a no-show",
   "ledgerTypeReversal": "Operation reversed",
   "ledgerTypeTopUp": "Top-up",

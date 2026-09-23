@@ -472,6 +472,49 @@ void main() {
     expect(find.text('Записано в долг'), findsOneWidget);
   });
 
+  // Удержание под бронь видно, а у его снятия — почему вернулись деньги. Под суммой — остаток
+  // после строки, чтобы выписка сходилась с балансом наверху.
+  testWidgets('удержание под бронь и его возврат названы, у строк есть остаток', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve(ledger: _page([
+      {
+        'ledgerEntryId': 'l2',
+        'entryType': 'reversal',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': 1500},
+        'quantitySeconds': 0,
+        'createdAtUtc': '2026-09-12T09:00:00Z',
+        'holdReleaseCause': 'cancelled',
+        'walletBalanceAfter': {'currencyCode': 'TJS', 'minorUnits': 20000},
+      },
+      {
+        'ledgerEntryId': 'l1',
+        'entryType': 'reservation_hold',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': -1500},
+        'quantitySeconds': 0,
+        'createdAtUtc': '2026-09-12T08:00:00Z',
+        'walletBalanceAfter': {'currencyCode': 'TJS', 'minorUnits': 18500},
+      },
+      {
+        'ledgerEntryId': 'l0',
+        'entryType': 'bonus_grant',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': 0},
+        'quantitySeconds': 3600,
+        'createdAtUtc': '2026-09-12T07:00:00Z',
+      },
+    ])))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Деньги'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Придержано под бронь'), findsOneWidget);
+    expect(find.text('Бронь отменена — деньги вернулись'), findsOneWidget);
+    expect(find.text('Отмена операции'), findsNothing);
+    expect(find.textContaining('Остаток 200,00'), findsOneWidget);
+    expect(find.textContaining('Остаток 185,00'), findsOneWidget);
+    // Строка про время кошелёк не двигает — остатка у неё нет.
+    expect(find.textContaining('Остаток'), findsNWidgets(2));
+  });
+
   /// Сумма без состава — половина ответа на «за что»: чек рядом и давно работает, но добраться
   /// до него можно было только через другую вкладку и сопоставление по времени на глаз.
   testWidgets('строка про визит ведёт в его чек', (tester) async {

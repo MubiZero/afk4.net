@@ -4,13 +4,17 @@ using System.Text;
 namespace AFK4.Platform.Api.Common;
 
 // Opaque keyset-pagination cursor for (CreatedAtUtc DESC, Id DESC) ordered lists.
-// Encodes "<unixMillis>:<guid>" as URL-safe base64. Decode never throws on user
-// input — bad cursors yield false so the caller falls back to the first page.
+// Encodes "t<utcTicks>:<guid>" as base64. Decode never throws on user input — bad cursors
+// yield false so the caller falls back to the first page.
+//
+// The moment is kept whole, not in milliseconds: Postgres stores microseconds, and a cursor cut
+// to the millisecond sat after rows of its own millisecond — the next page skipped them. The
+// old "<unixMillis>:<guid>" form is still read, so a page already open in an app keeps paging.
 public static class CursorToken
 {
     public static string Encode(DateTimeOffset timestamp, Guid id)
     {
-        var payload = $"{timestamp.ToUnixTimeMilliseconds()}:{id:N}";
+        var payload = $"t{timestamp.UtcTicks}:{id:N}";
         return Convert.ToBase64String(Encoding.UTF8.GetBytes(payload));
     }
 
@@ -33,13 +37,26 @@ public static class CursorToken
                 return false;
             }
 
-            if (!long.TryParse(payload[..separator], out var unixMillis) ||
+            var moment = payload[..separator];
+            var inTicks = moment.StartsWith('t');
+            if (!long.TryParse(inTicks ? moment[1..] : moment, out var value) ||
                 !Guid.TryParseExact(payload[(separator + 1)..], "N", out id))
             {
                 return false;
             }
 
-            timestamp = DateTimeOffset.FromUnixTimeMilliseconds(unixMillis);
+            if (inTicks)
+            {
+                if (value < DateTimeOffset.MinValue.UtcTicks || value > DateTimeOffset.MaxValue.UtcTicks)
+                {
+                    return false;
+                }
+
+                timestamp = new DateTimeOffset(value, TimeSpan.Zero);
+                return true;
+            }
+
+            timestamp = DateTimeOffset.FromUnixTimeMilliseconds(value);
             return true;
         }
         catch (FormatException)
