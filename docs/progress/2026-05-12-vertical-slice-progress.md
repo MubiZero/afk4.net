@@ -638,6 +638,12 @@ have no interface for this pass to look at beyond words that reach a human.
   past `PIN_LENGTH`. The sign-in button went dead below six digits without saying so. The hall
   screen refused to create seats when the branch had no hall and never said why — the very same
   case is explained in words on the device screen.
+- #386 — every screen remounts on its step, and what was typed lived inside the screen: "Back"
+  met a person with defaults even where they had already sent something. The invited staff and
+  their codes vanished (the only copy if the SMS never arrives), the tariff offered itself for
+  creation again — and the server refuses the same tariff twice. Six screens, not four: device
+  name and the sign-in number had the same hole. Drafts now live in `App`, in memory only; the
+  PIN is deliberately not brought back, and branch-owned drafts do not follow a branch change.
 
 **Along the way:** #376 — `WorkerTests.RotationRequest_...` waited for a ten-second heartbeat
 inside a twenty-second budget and fell over on a loaded runner; it painted the CSS-token PR red.
@@ -657,9 +663,8 @@ stated so the next person does not rediscover them:
   card grids, forms, tiles and charts, so the layout jumps when content replaces it.
 - **Partial failure swallowed silently** — 8 places in Organization Admin, 2 in Platform Control
   (`Promise.all` pairs where one refusal wipes a screen that has half its data).
-- **Setup wizard**: inverted weight of actions on two more screens, input lost when stepping
-  back (four screens), Enter does not submit on six fields, and one destination called four
-  different names.
+- **Setup wizard**: inverted weight of actions on two more screens, Enter does not submit on six
+  fields, and one destination called four different names.
 - **Player app**: 30 raw colours outside the theme, three touch targets under 48dp, the light
   theme written and unreachable, and no clamp on the system font scale.
 - **Looking with eyes** — this pass read markup, styles and states rather than running the

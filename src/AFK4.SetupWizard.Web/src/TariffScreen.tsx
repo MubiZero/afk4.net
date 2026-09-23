@@ -8,26 +8,45 @@ export interface TariffClient {
   createTariff(name: string, pricePerHourMinorUnits: number): Promise<{ name: string }>;
 }
 
+/// Введённое на экране. Живёт в App: экран монтируется заново на каждом шаге, и при «Назад»
+/// созданный тариф снова предлагался к созданию — а тот же тариф сервер второй раз не примет.
+export interface TariffDraft {
+  name: string;
+  pricePerHour: string;
+  created: string | null;
+}
+
 interface TariffScreenProps {
   /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
   stepNumber: number;
   client: TariffClient;
   ownerName: string;
   branchName: string;
-  onContinue(): void;
-  onBack(): void;
+  /// Что было введено при прошлом заходе на шаг; null — заход первый.
+  initialDraft?: TariffDraft | null;
+  onContinue(draft: TariffDraft): void;
+  onBack(draft: TariffDraft): void;
 }
 
-export function TariffScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: TariffScreenProps) {
+export function TariffScreen({
+  stepNumber,
+  client,
+  ownerName,
+  branchName,
+  initialDraft = null,
+  onContinue,
+  onBack,
+}: TariffScreenProps) {
   const { t } = useI18n();
-  const [name, setName] = useState(t('setup.wizard.tariff.defaultName'));
-  const [pricePerHour, setPricePerHour] = useState('10');
-  const [created, setCreated] = useState<string | null>(null);
+  const [name, setName] = useState(initialDraft?.name ?? t('setup.wizard.tariff.defaultName'));
+  const [pricePerHour, setPricePerHour] = useState(initialDraft?.pricePerHour ?? '10');
+  const [created, setCreated] = useState<string | null>(initialDraft?.created ?? null);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
   const parsedPrice = Number.parseFloat(pricePerHour.replace(',', '.'));
   const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving;
+  const draft: TariffDraft = { name, pricePerHour, created };
 
   async function create(): Promise<void> {
     if (!canCreate) return;
@@ -88,11 +107,11 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
       {created === null ? null : <p className="ui-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
 
       <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="ui-btn ui-btn--primary" onClick={onContinue} disabled={saving}>
+        <button type="button" className="ui-btn ui-btn--primary" onClick={() => onContinue(draft)} disabled={saving}>
           <ArrowRight size={16} aria-hidden />
           {created === null ? t('setup.wizard.tariff.skip') : t('setup.wizard.tariff.next')}
         </button>
