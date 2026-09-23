@@ -87,4 +87,22 @@ describe('классы мастера', () => {
 
     expect([...missing.keys()]).toEqual([]);
   });
+
+  // `.ui-phone-field` — это рамка вокруг «+992» и поля. Своя рамка есть и у голого `<input>`, и
+  // гасит её только `ui-phone-input`. На экране сотрудников класса не было: внутри поля стояла
+  // вторая узкая рамка, а клик по правой части поля не ставил курсор. Класс-проверка выше этого
+  // не видит — все имена в разметке существуют, просто одного не хватает.
+  it('в каждом поле телефона поле ввода нарисовано китом', () => {
+    const broken: string[] = [];
+    for (const file of tsxFiles()) {
+      const source = readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/ui-phone-field/g)) {
+        const rest = source.slice(match.index);
+        const input = rest.slice(rest.indexOf('<input'), rest.indexOf('/>', rest.indexOf('<input')));
+        if (!input.includes('ui-phone-input')) broken.push(file.split('/').pop()!);
+      }
+    }
+
+    expect(broken).toEqual([]);
+  });
 });
