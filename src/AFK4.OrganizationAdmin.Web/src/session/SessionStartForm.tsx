@@ -168,7 +168,13 @@ export function SessionStartForm({
     ? Math.floor(client.balanceMinorUnits / pricePerMinute)
     : null;
 
-  useEffect(() => { onValidityChange?.(valid, missing); }, [valid, missing, onValidityChange]);
+  // Сообщаем родителю, когда меняется смысл — годна ли форма и чего не хватает, — а не когда
+  // меняется сам колбэк. Все родители передают его новой стрелкой на каждой отрисовке; с колбэком
+  // в зависимостях эффект звал его после каждой отрисовки родителя, и родитель на каждую свою
+  // отрисовку получал лишнее обновление состояния.
+  const onValidityChangeRef = useRef(onValidityChange);
+  onValidityChangeRef.current = onValidityChange;
+  useEffect(() => { onValidityChangeRef.current?.(valid, missing); }, [valid, missing]);
 
   const chooseMode = (nextMode: SessionBillingModeId) => {
     const nextTariff = tariffs[0] ?? null;

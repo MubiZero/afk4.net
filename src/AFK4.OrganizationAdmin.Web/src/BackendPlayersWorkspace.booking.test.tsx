@@ -214,5 +214,8 @@ describe('BackendPlayersWorkspace · посадить за ПК из карто�
     const payload = startGuestSession.mock.calls[0]![1] as Record<string, unknown>;
     expect(payload.seatId).toBe('seat-1');
     expect(payload.playerAccountId).toBe('p1');
+    // Одно открытие — один запрос тарифов. Загрузчики-стрелки перезапрашивали их на каждой
+    // перерисовке диалога — пять раз за одно открытие.
+    expect(getTariffOptions).toHaveBeenCalledTimes(1);
   });
 });
