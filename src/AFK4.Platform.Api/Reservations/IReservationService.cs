@@ -65,6 +65,20 @@ public interface IReservationService
         ReservationSearchQuery query,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Места, на которые бронь в окне [<paramref name="startsAtUtc"/>, <paramref name="endsAtUtc"/>)
+    /// встанет без конфликта. Правило то же, по которому создание и перенос брони её принимают:
+    /// список, посчитанный иначе, обещал бы то, что сервер отклонит, или прятал бы то, что примет.
+    /// <paramref name="excludedReservationId"/> — сама переносимая бронь: своё место она не занимает.
+    /// </summary>
+    Task<ReservationSeatAvailabilityDto> FindFreeSeatsAsync(
+        Guid organizationId,
+        Guid branchId,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset endsAtUtc,
+        Guid? excludedReservationId,
+        CancellationToken cancellationToken);
+
     Task<ReservationServiceResult<ReservationDto>> CreateAsync(
         Guid branchId,
         Guid actorStaffUserId,

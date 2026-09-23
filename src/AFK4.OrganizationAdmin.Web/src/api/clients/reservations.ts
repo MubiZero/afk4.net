@@ -11,6 +11,7 @@ import type {
   ReservationDto,
   ReservationGroupResultDto,
   ReservationSearchResultDto,
+  ReservationSeatAvailabilityDto,
   SeatReservationRequest,
   StartReservationSessionRequest,
   StartReservationSessionResponse,
@@ -27,6 +28,7 @@ export type {
   ReservationGroupConflictDto,
   ReservationGroupResultDto,
   ReservationSearchResultDto,
+  ReservationSeatAvailabilityDto,
   SeatReservationRequest,
   StartReservationSessionRequest,
   StartReservationSessionResponse,
@@ -39,10 +41,20 @@ export type ReservationSearchQuery = ReportQuery & {
   playerAccountId?: Guid | null;
 };
 
+// Окно брони, на которое спрашивают свободные места. Переносимая бронь своё место не занимает.
+export type ReservationFreeSeatsQuery = {
+  startsAtUtc: string;
+  endsAtUtc: string;
+  excludeReservationId?: Guid | null;
+};
+
 export function createReservationClient(api: PlatformApiClient) {
   return {
     search(branchId: Guid, query?: ReservationSearchQuery): Promise<ReservationSearchResultDto> {
       return api.get<ReservationSearchResultDto>(`branches/${branchId}/reservations`, normalizeReportQuery(query));
+    },
+    freeSeats(branchId: Guid, query: ReservationFreeSeatsQuery): Promise<ReservationSeatAvailabilityDto> {
+      return api.get<ReservationSeatAvailabilityDto>(`branches/${branchId}/reservations/free-seats`, query);
     },
     create(branchId: Guid, request: CreateReservationRequest): Promise<ReservationDto> {
       return api.post<ReservationDto, CreateReservationRequest>(`branches/${branchId}/reservations`, request);

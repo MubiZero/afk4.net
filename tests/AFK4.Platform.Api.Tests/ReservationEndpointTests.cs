@@ -412,6 +412,87 @@ public sealed class ReservationEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
     }
 
+    [Fact]
+    public async Task GetFreeSeats_WithoutStaffToken_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync(FreeSeatsUrl(BookingDay.AddHours(16), BookingDay.AddHours(17), null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetFreeSeats_WithTechnicianRole_ReturnsForbiddenAndWritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+
+        var response = await client.GetAsync(FreeSeatsUrl(BookingDay.AddHours(16), BookingDay.AddHours(17), null));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.ViewReservations, audit.Action);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+    }
+
+    [Fact]
+    public async Task GetFreeSeats_WithEmptyWindow_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+
+        var response = await client.GetAsync(FreeSeatsUrl(BookingDay.AddHours(17), BookingDay.AddHours(16), null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Переносимая бронь своё место не занимает, а чужая бронь в том же окне — занимает, даже если
+    // сейчас это место свободно.
+    [Fact]
+    public async Task GetFreeSeats_ReturnsSeatsFreeInTheBookingsOwnWindow()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        await SeedLayoutAsync(factory);
+        var moved = await CreateReservationAsync(client);
+        var other = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations",
+            new CreateReservationRequest(
+                TestIds.OrganizationId,
+                PlayerAccountId: null,
+                SeatTwoId,
+                CustomerName: "Other guest",
+                PhoneNumber: null,
+                StartsAtUtc: BookingDay.AddHours(16).AddMinutes(30),
+                DurationMinutes: 60,
+                Source: ReservationSourceNames.Operator,
+                Note: "other"));
+        Assert.Equal(HttpStatusCode.OK, other.StatusCode);
+
+        var response = await client.GetAsync(FreeSeatsUrl(moved.StartsAtUtc, moved.EndsAtUtc, moved.ReservationId));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ReservationSeatAvailabilityDto>();
+        Assert.Equal(moved.StartsAtUtc, body!.StartsAtUtc);
+        Assert.Equal(moved.EndsAtUtc, body.EndsAtUtc);
+        Assert.Equal([SeatOneId], body.FreeSeatIds);
+    }
+
+    private static string FreeSeatsUrl(DateTimeOffset startsAtUtc, DateTimeOffset endsAtUtc, Guid? excludeReservationId)
+    {
+        var url = $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations/free-seats" +
+            $"?startsAtUtc={Uri.EscapeDataString(startsAtUtc.ToString("O"))}" +
+            $"&endsAtUtc={Uri.EscapeDataString(endsAtUtc.ToString("O"))}";
+        return excludeReservationId is { } id ? $"{url}&excludeReservationId={id:D}" : url;
+    }
+
     // Отказ по брони называет себя машинным именем. Без него до стойки доезжала английская фраза
     // сервера — «Only pending reservations can be confirmed», — а оператору нужно понять, что
     // бронь уже закрыли без него, и просто обновить список.

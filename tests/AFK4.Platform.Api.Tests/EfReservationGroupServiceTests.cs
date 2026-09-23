@@ -32,7 +32,8 @@ public sealed class EfReservationGroupServiceTests
         }
         if (sessionOnSeatC)
         {
-            // Открытая сессия на SeatC блокирует его под бронь в любом будущем окне.
+            // Открытая сессия на SeatC держит его под бронь, окно которой уже началось (Start в
+            // прошлом относительно системных часов). В будущее бессрочная сессия не переносится.
             db.Sessions.Add(new SessionEntity
             {
                 SessionId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId, SeatId = SeatC,
