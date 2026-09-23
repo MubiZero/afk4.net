@@ -235,20 +235,28 @@ For normal app-only changes:
 1. Push the reviewed branch to GitHub and open a PR.
 2. Let the PR run `PR Verification Result` on the current head commit.
 3. Merge only after the required PR gate is green.
-4. The `Coolify Staging Deploy` workflow queues a Coolify deployment through
-   `GET /api/v1/deploy?uuid=...&force=...`.
-5. The workflow polls `GET /api/v1/deployments/{uuid}` until Coolify reports a
+4. The `Coolify Staging Deploy` workflow waits two minutes, then checks that its
+   commit is still the head of `main`. A newer push in that window cancels the
+   run (`concurrency: cancel-in-progress`), and a run whose commit is no longer
+   the head skips the deploy — so a batch of merges deploys once, from the last
+   commit. The Coolify queue is shared with other projects on the same server,
+   and a GitHub cancellation does not remove a deployment Coolify has already
+   queued: on 2026-09-23 twenty-two back-to-back merges queued twenty-two
+   deploys and held up another project's urgent release. A manual
+   `workflow_dispatch` run deploys immediately.
+5. The workflow queues a Coolify deployment through
+   `POST /api/v1/deploy?uuid=...&force=...`.
+6. The workflow polls `GET /api/v1/deployments/{uuid}` until Coolify reports a
    terminal status.
-6. The workflow confirms `AFK4_STAGING_PLATFORM_BASE_URL/api/health` returns
+7. The workflow confirms `AFK4_STAGING_PLATFORM_BASE_URL/api/health` returns
    `status = ok`.
 
-If a pushed commit includes files under
-`src/AFK4.Platform.Api/Data/Migrations/`, the automatic deploy fails closed.
-First run the EF migration order above, including backup/snapshot and staging
-database update. Then start `Coolify Staging Deploy` manually with
-`confirm_migrations_applied=true` after the migration has been handled. This
-keeps schema changes explicit while removing the manual Coolify click path for
-ordinary backend deploys.
+EF migrations are applied by the container itself: the Coolify pre-deployment
+command runs `dotnet AFK4.Platform.Api.dll --migrate` before the new version
+starts. The workflow only reports which migrations a deploy carries.
+
+Platform Control is deployed by Coolify's own auto-deploy on push, not by this
+workflow, so the latest-commit rule above does not cover it.
 
 ## Smoke Verification
 

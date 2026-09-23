@@ -40,12 +40,41 @@ jobs:
     env:
       COOLIFY_FORCE_REBUILD: ${{ inputs.force_rebuild || false }}
     steps:
+      # Пачка вливаний (десяток PR подряд) ставила в очередь Coolify по деплою на каждый пуш.
+      # Отмена устаревшего запуска GitHub'ом их оттуда не снимает: очередь Coolify общая с
+      # другими проектами на том же сервере, и 23.09 последний деплой простоял 20 минут за
+      # двумя десятками своих же и упал по таймауту, задержав чужую срочную выкатку.
+      # Поэтому деплой идёт только с последнего коммита: сначала выжидаем, пока пачка утихнет
+      # (новый пуш за это время отменяет этот запуск — concurrency выше), потом сверяемся, что
+      # наш коммит всё ещё голова `main`. Ручной запуск выкатывает сразу — его зовут нарочно.
+      - name: Let a batch of pushes settle
+        if: github.event_name == 'push'
+        run: sleep 120
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Deploy only the latest main
+        id: head
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -ne "push") {
+            "current=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+
+          $mainHead = (git ls-remote origin refs/heads/main).Split()[0]
+          if ($mainHead -eq "${{ github.sha }}") {
+            "current=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            Write-Host "main moved on to $mainHead; this push (${{ github.sha }}) is superseded, skipping the deploy."
+            "current=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
       - name: Report EF migrations in this deploy
+        if: steps.head.outputs.current == 'true'
         shell: pwsh
         run: |
           # Миграции применяет сам сервер: pre-deployment command контейнера запускает
@@ -73,6 +102,7 @@ jobs:
           }
 
       - name: Trigger Coolify deployment
+        if: steps.head.outputs.current == 'true'
         id: deploy
         shell: pwsh
         env:
@@ -116,6 +146,7 @@ jobs:
           "deployment_uuid=$deploymentUuid" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Wait for Coolify deployment
+        if: steps.head.outputs.current == 'true'
         shell: pwsh
         env:
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
@@ -174,6 +205,7 @@ jobs:
           throw "Timed out waiting for Coolify deployment $deploymentUuid."
 
       - name: Verify staging health
+        if: steps.head.outputs.current == 'true'
         shell: pwsh
         env:
           AFK4_STAGING_PLATFORM_BASE_URL: ${{ vars.AFK4_STAGING_PLATFORM_BASE_URL }}

@@ -215,4 +215,24 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("$transientFailures", workflow, StringComparison.Ordinal);
         Assert.Contains("three times in a row", workflow, StringComparison.Ordinal);
     }
+
+    // Пачка вливаний ставила в общую очередь Coolify по деплою на каждый пуш: отмена устаревшего
+    // запуска GitHub'ом их оттуда не снимает. Деплой идёт только с последнего коммита: запуск
+    // выжидает, пока пачка утихнет, и сверяется, что его коммит всё ещё голова main. Каждый шаг,
+    // который зовёт Coolify, стоит за этой проверкой — иначе пропущенный запуск всё равно выкатит.
+    [Fact]
+    public void CoolifyStagingDeployWorkflow_DeploysOnlyTheLatestMain()
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(
+            Path.Combine(GetRepositoryRoot(), ".github", "workflows", "coolify-staging-deploy.yml")));
+
+        Assert.Contains("cancel-in-progress: true", workflow, StringComparison.Ordinal);
+        Assert.Contains("- name: Let a batch of pushes settle\n        if: github.event_name == 'push'\n        run: sleep 120", workflow, StringComparison.Ordinal);
+        Assert.Contains("git ls-remote origin refs/heads/main", workflow, StringComparison.Ordinal);
+
+        foreach (var step in new[] { "Report EF migrations in this deploy", "Trigger Coolify deployment", "Wait for Coolify deployment", "Verify staging health" })
+        {
+            Assert.Contains($"- name: {step}\n        if: steps.head.outputs.current == 'true'", workflow, StringComparison.Ordinal);
+        }
+    }
 }
