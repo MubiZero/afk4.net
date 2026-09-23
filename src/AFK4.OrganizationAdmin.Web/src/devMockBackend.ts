@@ -115,14 +115,20 @@ function previewLayoutZones() {
   return [...zones.values()];
 }
 
+// Сотрудники филиала в форме StaffUserDto. Раньше здесь лежали `login` и `roles` вместо `userName`
+// и `roleNames`, и экран «Сотрудники» в превью показывал заглушки вместо имён и ролей.
+const previewStaffRows: Array<Record<string, unknown>> = [
+  { staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', organizationId: ORG, userName: 'operator-preview', displayName: 'Администратор смены', isActive: true, roleNames: ['organization_owner', 'branch_manager'], createdAtUtc: '2026-05-01T08:00:00Z' },
+  { staffUserId: '7a4d2c1e-0b3f-4e6a-9c8d-2f1e0a9b8c71', organizationId: ORG, userName: 'marina', displayName: 'Марина Сидорова', isActive: true, roleNames: ['operator'], createdAtUtc: '2026-06-02T08:00:00Z' }
+];
+// Сотрудники сети вне этого филиала — для «Из сети»: один работает в другом филиале, у второго
+// назначений не осталось.
+const previewStaffCandidates: Array<Record<string, unknown>> = [
+  { staffUserId: '9c1b3e5d-7f2a-4b6c-8d0e-1a2b3c4d5e61', userName: 'dilnoza', displayName: 'Дильноза Каримова', isActive: true, branchNames: ['AFK4 Худжанд'] },
+  { staffUserId: '9c1b3e5d-7f2a-4b6c-8d0e-1a2b3c4d5e62', userName: 'rustam', displayName: 'Рустам Назаров', isActive: true, branchNames: [] }
+];
 function previewStaff() {
-  return [{
-    staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
-    displayName: 'Администратор смены',
-    login: 'operator-preview',
-    isActive: true,
-    roles: ['branch_manager']
-  }];
+  return previewStaffRows;
 }
 
 function dashboardSummary() {
@@ -1032,6 +1038,36 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     const player = players().find((p) => p.playerAccountId === id);
     if (player) player.isActive = Boolean(req.isActive);
     return json(player ?? {});
+  }
+  const staffRolesMatch = url.pathname.match(/\/staff\/([^/]+)\/roles$/);
+  if (staffRolesMatch && method === 'PATCH') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    const id = staffRolesMatch[1];
+    const roleNames = Array.isArray(req.roleNames) ? req.roleNames as string[] : [];
+    let row = previewStaffRows.find((staff) => staff.staffUserId === id);
+    if (!row) {
+      const candidateIndex = previewStaffCandidates.findIndex((candidate) => candidate.staffUserId === id);
+      if (candidateIndex < 0) return jsonError(404, 'not_found', 'Staff user not found.');
+      const [candidate] = previewStaffCandidates.splice(candidateIndex, 1);
+      row = { staffUserId: id, organizationId: ORG, userName: candidate.userName, displayName: candidate.displayName, isActive: candidate.isActive, roleNames: [], createdAtUtc: '2026-06-02T08:00:00Z' };
+      previewStaffRows.push(row);
+    }
+    const keepsOwner = (row.roleNames as string[]).includes('organization_owner');
+    row.roleNames = [...(keepsOwner ? ['organization_owner'] : []), ...roleNames];
+    return json(row);
+  }
+  if (url.pathname.endsWith('/staff/candidates') && method === 'GET') {
+    return json(previewStaffCandidates);
+  }
+  const staffRemoveMatch = url.pathname.match(/\/branches\/[^/]+\/staff\/([^/]+)$/);
+  if (staffRemoveMatch && method === 'DELETE') {
+    const index = previewStaffRows.findIndex((staff) => staff.staffUserId === staffRemoveMatch[1]);
+    if (index >= 0) {
+      const [removed] = previewStaffRows.splice(index, 1);
+      previewStaffCandidates.push({ staffUserId: removed.staffUserId, userName: removed.userName, displayName: removed.displayName, isActive: removed.isActive, branchNames: [] });
+    }
+    return noContent();
   }
   if (/\/players\/[^/]+$/.test(url.pathname) && method === 'PATCH') {
     let req: Record<string, unknown> = {};

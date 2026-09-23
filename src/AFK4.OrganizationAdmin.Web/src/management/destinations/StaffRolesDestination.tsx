@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
-import { KeyRound, Pencil, Power, PowerOff, Users } from 'lucide-react';
+import { KeyRound, Pencil, Power, PowerOff, UserMinus, UserPlus, Users } from 'lucide-react';
 import { ManagementScreen } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
 import { MgmtDrawer } from '../kit/MgmtDrawer';
@@ -9,7 +9,7 @@ import type { RowAction } from '../kit/types';
 import { PanelModal } from '../../PanelModal';
 import { CriticalActionConfirmation } from '../../operatorPrimitives';
 import { projectOperatorError } from '../../apiErrors';
-import { hasPermission, permissionNames, staffRoleOptions } from '../../operatorPermissions';
+import { hasPermission, ownerRoleName, permissionNames, staffRoleOptions } from '../../operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
   isGuid,
@@ -25,6 +25,7 @@ import type { StaffUserDto } from '../../operatorApiClients';
 import { useBlockedReason } from '../../components/BlockedReason';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
 import { SkeletonTable } from '../../LoadingSkeleton';
+import { StaffFromNetworkModal } from './StaffFromNetworkModal';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type StaffUser = StaffUserDto;
@@ -41,6 +42,7 @@ export function toggleRole(current: string[], role: string): string[] {
 
 type CriticalAction =
   | { kind: 'disable'; staffUserId: string; name: string }
+  | { kind: 'remove-from-branch'; staffUserId: string; name: string }
   | { kind: 'reset-password'; staffUserId: string; name: string; newPassword: string };
 
 // Сотрудники и роли: список+drawer CRUD по эталону «Залы и ПК»/«Тарифы» (см.
@@ -68,6 +70,7 @@ export function StaffRolesDestination({
 
   const [selectedStaffUserId, setSelectedStaffUserId] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [networkOpen, setNetworkOpen] = useState(false);
   const [criticalAction, setCriticalAction] = useState<CriticalAction | null>(null);
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState(() => t('op.settings.prefill.inviteDisplayName'));
@@ -116,6 +119,10 @@ export function StaffRolesDestination({
   // ManageBranchStaff is still true (profile/state stay allowed), so these need their own gates — visible, enabled
   // buttons that always 403 are worse than ones that are disabled outright.
   const canInviteStaff = canManageBranchStaff && !session?.isSupportSession;
+  // Добавить из сети и снять с филиала — это выдача и снятие ролей, то есть право владельца. Под
+  // поддержкой платформы роли не меняются вовсе (сервер не пускает туда грант поддержки).
+  const canMoveStaff = canManageRoles && !session?.isSupportSession;
+  const selectedStaffIsOwner = readArray<string>(selectedStaffUser, 'roleNames').includes(ownerRoleName);
   const canResetStaffPassword = canManageBranchStaff && !session?.isSupportSession;
   // Поле ПИН-кода и кнопка гасли без объяснения — ни у сотрудника без права, ни у поддержки
   // платформы, которой менять чужие ПИН-коды нельзя по построению.
@@ -308,7 +315,20 @@ export function StaffRolesDestination({
     const action = criticalAction;
     setCriticalAction(null);
 
-    if (action.kind === 'disable') {
+    if (action.kind === 'remove-from-branch') {
+      const label = t('op.management.staff.removeFromBranch.cta');
+      onFeedback?.({ label, state: 'pending' });
+      try {
+        const nextBackend = requireBackend(backend, t);
+        const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+        await apiClients.settings.removeStaffFromBranch(nextBackend.branchId, action.staffUserId);
+        onStaffUsersChange?.(staffRows.filter((item) => readString(item, 'staffUserId') !== action.staffUserId));
+        setSelectedStaffUserId(null);
+        onFeedback?.({ label, state: 'confirmed' });
+      } catch (error) {
+        onFeedback?.({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+      }
+    } else if (action.kind === 'disable') {
       const label = t('op.settings.action.disableStaff');
       onFeedback?.({ label, state: 'pending' });
       try {
@@ -417,6 +437,9 @@ export function StaffRolesDestination({
           rowActions={rowActions}
           toolbar={{
             title: t('op.settings.staff.title'),
+            secondary: canMoveStaff
+              ? { label: t('op.management.staff.network.cta'), icon: <UserPlus size={14} aria-hidden="true" />, onClick: () => setNetworkOpen(true) }
+              : undefined,
             primary: canInviteStaff ? { label: t('op.management.staff.addStaffCta'), onClick: openInvite } : undefined
           }}
           empty={{
@@ -516,6 +539,32 @@ export function StaffRolesDestination({
                 {resetBlocked.hint}
               </div>
             </div>
+
+            {/* Снять с филиала — не то же, что отключить: человек остаётся в сети, работает в других
+                филиалах и возвращается сюда кнопкой «Добавить из сети». Себя и владельца не снять. */}
+            {canMoveStaff && !selectedStaffIsSelf && !selectedStaffIsOwner && (
+              <div className="mgmt-drawer-section">
+                <div className="mgmt-section-title"><span>{t('op.management.staff.removeFromBranch.title')}</span></div>
+                <div className="mgmt-form">
+                  <p className="mgmt-drawer-hint">{t('op.management.staff.removeFromBranch.hint')}</p>
+                  <div className="mgmt-form-actions">
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn--danger"
+                      disabled={busy}
+                      onClick={() => setCriticalAction({
+                        kind: 'remove-from-branch',
+                        staffUserId: readString(selectedStaffUser, 'staffUserId'),
+                        name: operatorDisplayNameLabel(readString(selectedStaffUser, 'displayName'), t)
+                      })}
+                    >
+                      <UserMinus size={14} aria-hidden="true" />
+                      {t('op.management.staff.removeFromBranch.cta')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </MgmtDrawer>
         )}
       </div>
@@ -571,6 +620,28 @@ export function StaffRolesDestination({
         </PanelModal>
       )}
 
+      {networkOpen && backend !== null && (
+        <StaffFromNetworkModal
+          backend={backend}
+          onClose={() => setNetworkOpen(false)}
+          onAdded={(staffUser) => {
+            onStaffUsersChange?.([...staffRows.filter((item) => readString(item, 'staffUserId') !== staffUser.staffUserId), staffUser]);
+            setNetworkOpen(false);
+            onFeedback?.({ label: t('op.management.staff.network.submit'), state: 'confirmed' });
+          }}
+        />
+      )}
+
+      {criticalAction?.kind === 'remove-from-branch' && (
+        <CriticalActionConfirmation
+          title={t('op.management.staff.removeFromBranch.confirmTitle')}
+          detail={criticalAction.name}
+          impact={t('op.management.staff.removeFromBranch.impact')}
+          confirmLabel={t('op.management.staff.removeFromBranch.cta')}
+          onCancel={() => setCriticalAction(null)}
+          onConfirm={() => void confirmCriticalAction()}
+        />
+      )}
       {criticalAction?.kind === 'disable' && (
         <CriticalActionConfirmation
           title={t('op.management.staff.confirmDisable.title')}

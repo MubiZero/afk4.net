@@ -301,6 +301,9 @@ export function staffRoleLabel(roleName: string, t: TFunc): string {
       return t('op.helper.staff.technician');
     case 'accountant':
       return t('op.helper.staff.accountant');
+    // Владельца в списке выбора нет, но в колонке «Роль» он есть — и стоял там сырым кодом.
+    case 'organization_owner':
+      return t('roles.organization_owner');
     default:
       return roleName || t('op.helper.staff.roleNotSet');
   }
@@ -1508,6 +1511,8 @@ export function auditActionLabel(action: string, t: TFunc): string {
       return t('op.helper.audit.staffCreate');
     case 'identity.staff.roles.update':
       return t('op.helper.audit.staffRolesUpdate');
+    case 'identity.staff.branch.remove':
+      return t('op.helper.audit.staffBranchRemove');
     case 'updates.rollouts.view':
       return t('op.helper.audit.updatesView');
     case 'updates.rollouts.state.change':

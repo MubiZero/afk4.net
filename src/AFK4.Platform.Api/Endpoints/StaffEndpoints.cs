@@ -20,6 +20,7 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
@@ -158,6 +159,7 @@ internal static class StaffEndpoints
             UpdateStaffUserRolesRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
+            IPlanLimitGuard planLimitGuard,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -218,19 +220,38 @@ internal static class StaffEndpoints
                     roleAssignment.StaffUserId == staffUserId)
                 .ToListAsync(cancellationToken);
 
-            if (existingAssignments.Count == 0)
+            // Назначений в этом филиале нет — это добавление человека из сети в филиал. Место он
+            // занимает так же, как новый сотрудник, поэтому и лимит тарифа тот же.
+            var addingToBranch = existingAssignments.Count == 0;
+            if (addingToBranch)
             {
-                return Results.NotFound();
+                var planLimit = await planLimitGuard.CheckStaffUserAsync(request.OrganizationId, branchId, cancellationToken);
+                if (planLimit is not null)
+                {
+                    return Results.Conflict(new { Error = "The plan's staff limit for this branch is reached.", planLimit.Code, PlanLimit = planLimit });
+                }
             }
 
-            var roleNames = request.RoleNames
+            var requestedRoleNames = request.RoleNames
                 .Select(roleName => roleName.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(roleName => roleName, StringComparer.Ordinal)
                 .ToList();
-            var requestedRoleSet = roleNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var requestedRoleSet = requestedRoleNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // Роль владельца здесь не выдаётся и не снимается: её в запросе быть не может (её не
+            // пропускает проверка ролей), и строка владельца стиралась бы как «не запрошенная» —
+            // владелец, отметивший себе «управляющего», терял права владельца в филиале. Она
+            // передаётся только передачей организации.
             var assignmentsToRemove = existingAssignments
-                .Where(roleAssignment => !requestedRoleSet.Contains(roleAssignment.RoleName))
+                .Where(roleAssignment =>
+                    roleAssignment.RoleName != OrganizationRoleNames.OrganizationOwner &&
+                    !requestedRoleSet.Contains(roleAssignment.RoleName))
+                .ToList();
+            var roleNames = requestedRoleNames
+                .Concat(existingAssignments
+                    .Where(roleAssignment => roleAssignment.RoleName == OrganizationRoleNames.OrganizationOwner)
+                    .Select(roleAssignment => roleAssignment.RoleName))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(roleName => roleName, StringComparer.Ordinal)
                 .ToList();
 
             dbContext.StaffRoleAssignments.RemoveRange(assignmentsToRemove);
@@ -240,7 +261,7 @@ internal static class StaffEndpoints
                 .Select(roleAssignment => roleAssignment.RoleName)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var roleName in roleNames.Where(roleName => !existingRoleSet.Contains(roleName)))
+            foreach (var roleName in requestedRoleNames.Where(roleName => !existingRoleSet.Contains(roleName)))
             {
                 dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
                 {
@@ -265,10 +286,140 @@ internal static class StaffEndpoints
                 "StaffUser",
                 staffUserId.ToString("D"),
                 AuditOutcome.Succeeded,
-                new { staffUser.UserName, response.RoleNames },
+                new { staffUser.UserName, response.RoleNames, AddedToBranch = addingToBranch },
                 cancellationToken);
 
             return Results.Ok(response);
+        });
+
+        // Кого можно добавить в этот филиал: сотрудники организации без назначения здесь — в том
+        // числе те, у кого назначений не осталось вовсе. Иначе такого человека не показывал ни
+        // один список, и вернуть его было нечем. Только владельцу: добавление выдаёт роли.
+        app.MapGet("branches/{branchId:guid}/staff/candidates", async (
+            Guid branchId,
+            StaffAuthorizationService authorizationService,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ManageRoles,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var organizationId = authorization.StaffContext!.OrganizationId;
+            var assignments = await dbContext.StaffRoleAssignments
+                .AsNoTracking()
+                .Where(roleAssignment => roleAssignment.OrganizationId == organizationId)
+                .Select(roleAssignment => new { roleAssignment.StaffUserId, roleAssignment.BranchId })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            var inThisBranch = assignments
+                .Where(assignment => assignment.BranchId == branchId)
+                .Select(assignment => assignment.StaffUserId)
+                .ToHashSet();
+            var branchNames = await dbContext.Branches
+                .AsNoTracking()
+                .Where(branch => branch.OrganizationId == organizationId)
+                .ToDictionaryAsync(branch => branch.BranchId, branch => branch.Name, cancellationToken);
+            var staffUsers = await dbContext.StaffUsers
+                .AsNoTracking()
+                .Where(staffUser => staffUser.OrganizationId == organizationId)
+                .OrderBy(staffUser => staffUser.DisplayName)
+                .ToListAsync(cancellationToken);
+
+            var response = staffUsers
+                .Where(staffUser => !inThisBranch.Contains(staffUser.StaffUserId))
+                .Select(staffUser => new StaffBranchCandidateDto(
+                    staffUser.StaffUserId,
+                    staffUser.UserName,
+                    staffUser.DisplayName,
+                    staffUser.IsActive,
+                    assignments
+                        .Where(assignment => assignment.StaffUserId == staffUser.StaffUserId)
+                        .Select(assignment => branchNames.GetValueOrDefault(assignment.BranchId, ""))
+                        .Where(name => name.Length > 0)
+                        .OrderBy(name => name, StringComparer.CurrentCulture)
+                        .ToList()))
+                .ToList();
+
+            return Results.Ok(response);
+        });
+
+        // Снять сотрудника с филиала: убрать все его роли здесь. Пустой набор ролей эндпоинт ролей
+        // не сохраняет, поэтому снятие — отдельное действие. Себя снять нельзя (так владелец
+        // потерял бы доступ к филиалу, которым управляет), владельца — тоже: его роль передаётся
+        // только передачей организации. Снятый с последнего филиала остаётся в списке кандидатов
+        // и возвращается добавлением.
+        app.MapDelete("branches/{branchId:guid}/staff/{staffUserId:guid}", async (
+            Guid branchId,
+            Guid staffUserId,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ManageRoles,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            var organizationId = authorization.StaffContext!.OrganizationId;
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter, organizationId, branchId, authorization.StaffContext.StaffUserId,
+                    AuditActionNames.RemoveStaffFromBranch, "StaffUser", staffUserId.ToString("D"),
+                    AuditOutcome.Denied, new { authorization.DenialReason }, cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (staffUserId == authorization.StaffContext.StaffUserId)
+            {
+                return Results.Conflict(new { Error = "You cannot remove yourself from a branch.", Code = "staff_remove_self" });
+            }
+
+            var assignments = await dbContext.StaffRoleAssignments
+                .Where(roleAssignment =>
+                    roleAssignment.OrganizationId == organizationId &&
+                    roleAssignment.BranchId == branchId &&
+                    roleAssignment.StaffUserId == staffUserId)
+                .ToListAsync(cancellationToken);
+
+            if (assignments.Count == 0)
+            {
+                return Results.NotFound();
+            }
+
+            if (assignments.Any(roleAssignment => roleAssignment.RoleName == OrganizationRoleNames.OrganizationOwner))
+            {
+                return Results.Conflict(new { Error = "An organization owner cannot be removed from a branch.", Code = "staff_remove_owner" });
+            }
+
+            dbContext.StaffRoleAssignments.RemoveRange(assignments);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            await WriteAuditAsync(
+                auditRecordWriter, organizationId, branchId, authorization.StaffContext.StaffUserId,
+                AuditActionNames.RemoveStaffFromBranch, "StaffUser", staffUserId.ToString("D"),
+                AuditOutcome.Succeeded, new { RoleNames = assignments.Select(roleAssignment => roleAssignment.RoleName).ToList() },
+                cancellationToken);
+
+            return Results.NoContent();
         });
         // Не AllowPlatformSupportAccess: смена ролей сотрудника может выдать денежные права
         // (например BranchManager), а грант поддержки не отзывается вместе с этим доступом —

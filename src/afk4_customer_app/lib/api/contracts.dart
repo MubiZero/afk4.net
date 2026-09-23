@@ -14000,6 +14000,43 @@ class ShopOrderLineInput {
       };
 }
 
+/// Сотрудник организации, которого нет в этом филиале: его можно добавить сюда ролями. Филиалы, где
+/// он уже работает, — названиями; пустой список значит, что назначений у него не осталось вовсе и
+/// войти в Панель ему некуда, пока его не вернут в филиал.
+///
+/// Контракт: Identity/StaffBranchCandidateDto.cs
+class StaffBranchCandidateDto {
+  const StaffBranchCandidateDto({
+    required this.staffUserId,
+    required this.userName,
+    required this.displayName,
+    required this.isActive,
+    required this.branchNames,
+  });
+
+  final String staffUserId;
+  final String userName;
+  final String displayName;
+  final bool isActive;
+  final List<String> branchNames;
+
+  factory StaffBranchCandidateDto.fromJson(Map<String, dynamic> json) => StaffBranchCandidateDto(
+        staffUserId: json['staffUserId'] as String,
+        userName: json['userName'] as String,
+        displayName: json['displayName'] as String,
+        isActive: json['isActive'] as bool,
+        branchNames: (json['branchNames'] as List<dynamic>).map((item) => item as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'staffUserId': staffUserId,
+        'userName': userName,
+        'displayName': displayName,
+        'isActive': isActive,
+        'branchNames': branchNames.map((item) => item).toList(),
+      };
+}
+
 /// Requests an SMS password-reset code to a staff account's verified phone.
 ///
 /// Контракт: Identity/StaffForgotPasswordByPhoneRequest.cs

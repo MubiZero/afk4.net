@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { EmptyState, Skeleton } from './operatorPrimitives';
+import { I18nProvider } from '@afk4/i18n';
+import { CriticalActionConfirmation, EmptyState, Skeleton } from './operatorPrimitives';
 
 afterEach(cleanup);
 
@@ -82,5 +83,26 @@ describe('EmptyState', () => {
     // @ts-expect-error — «пусто, и это нормально» обязано сказать, что здесь появится
     const calm = <EmptyState title="Нет заявок" next={{ kind: 'calm' }} />;
     expect([silent, denied, elsewhere, calm]).toHaveLength(4);
+  });
+});
+
+// Подтверждение стоит в потоке экрана: в разделах со списком и карточкой оно вставало под
+// списком, за краем видимой области. Появившись, оно показывается и забирает фокус — на «Отмену».
+describe('CriticalActionConfirmation', () => {
+  it('scrolls itself into view and focuses the cancel button, not the dangerous one', () => {
+    const scrolled = mock(() => {});
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrolled;
+    try {
+      render(
+        <I18nProvider initialLocale="ru">
+          <CriticalActionConfirmation title="Снять?" detail="Марина" impact="Роли снимутся" confirmLabel="Снять" onConfirm={() => {}} onCancel={() => {}} />
+        </I18nProvider>
+      );
+      expect(scrolled).toHaveBeenCalled();
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Отмена' }));
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
   });
 });
