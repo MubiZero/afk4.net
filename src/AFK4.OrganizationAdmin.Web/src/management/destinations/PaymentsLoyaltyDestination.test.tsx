@@ -72,7 +72,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
     const { container } = view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
 
     expect(screen.getByText(/eskhata merchant/i)).toBeInTheDocument();
-    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/кэшбек с пополнений/i)).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(container.querySelector('.management-save-bar')).toBeNull();
   });
@@ -80,29 +80,29 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
   it('shows only the payment-methods zone for gateways-only permission', () => {
     view([permissionNames.managePaymentGateways]);
     expect(screen.getByText(/eskhata merchant/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/кэшбэк с пополнений/i)).toBeNull();
+    expect(screen.queryByLabelText(/кэшбек с пополнений/i)).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
   });
 
   it('shows only the loyalty zone for loyalty-only permission', async () => {
     view([permissionNames.manageLoyaltySettings]);
-    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/кэшбек с пополнений/i)).toBeInTheDocument();
     expect(screen.queryByText(/eskhata merchant/i)).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
   });
 
   it('keeps the loyalty section save button disabled until something changes', async () => {
     view([permissionNames.manageLoyaltySettings]);
-    await screen.findByLabelText(/кэшбэк с пополнений/i);
+    await screen.findByLabelText(/кэшбек с пополнений/i);
     const saveButton = screen.getByRole('button', { name: 'Сохранить' });
     expect(saveButton).toBeDisabled();
-    fireEvent.click(screen.getByLabelText(/кэшбэк с пополнений/i));
+    fireEvent.click(screen.getByLabelText(/кэшбек с пополнений/i));
     expect(saveButton).toBeEnabled();
   });
 
   it('saves loyalty percents in basis points from its own section button', async () => {
     view([permissionNames.manageLoyaltySettings]);
-    const toggle = await screen.findByLabelText(/кэшбэк с пополнений/i);
+    const toggle = await screen.findByLabelText(/кэшбек с пополнений/i);
     fireEvent.click(toggle);
     fireEvent.change(screen.getByLabelText(/процент с пополнений/i), { target: { value: '5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -114,7 +114,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
 
   it('shows a live accrual example when a rule is enabled', async () => {
     view([permissionNames.manageLoyaltySettings]);
-    const toggle = await screen.findByLabelText(/кэшбэк с пополнений/i);
+    const toggle = await screen.findByLabelText(/кэшбек с пополнений/i);
     fireEvent.click(toggle);
     fireEvent.change(screen.getByLabelText(/процент с пополнений/i), { target: { value: '10' } });
     // 10% со 100 → +10.00 (Money signed рендерит с «+»)
@@ -123,7 +123,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
 
   it('hides the accrual example when the rule is disabled', async () => {
     view([permissionNames.manageLoyaltySettings]);
-    await screen.findByLabelText(/кэшбэк с пополнений/i);
+    await screen.findByLabelText(/кэшбек с пополнений/i);
     // Percent has a value but the rule stays off → example must not render.
     fireEvent.change(screen.getByLabelText(/процент с пополнений/i), { target: { value: '10' } });
     expect(screen.queryByText(/\+10/)).toBeNull();
@@ -136,7 +136,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
     // The payments zone (unrelated to the loyalty feature flag) stays visible...
     await screen.findByText(/eskhata merchant/i);
     // ...but the loyalty zone disappears entirely, not just its settings.
-    await waitFor(() => expect(screen.queryByLabelText(/кэшбэк с пополнений/i)).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText(/кэшбек с пополнений/i)).toBeNull());
     expect(screen.queryByText(/как вы возвращаете/i)).toBeNull();
   });
 
@@ -144,6 +144,6 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
     featuresList.mockResolvedValueOnce(['loyalty']);
     view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
 
-    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/кэшбек с пополнений/i)).toBeInTheDocument();
   });
 });

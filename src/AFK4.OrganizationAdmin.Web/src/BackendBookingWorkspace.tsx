@@ -48,9 +48,11 @@ import {
   buildSeatRows,
   unseatedOnlineRequests,
   onlineRequestCount,
+  moveTargetSeats,
+  sessionClashesWithWindow,
   type SessionDtoLike
 } from './booking/bookingModel';
-import type { BookingDraft } from './booking/BookingDrawer';
+import type { BookingDraft, MoveTargets } from './booking/BookingDrawer';
 import { BookingDrawer } from './booking/BookingDrawer';
 import { BookingTimeline } from './booking/BookingTimeline';
 import { BookingRequestsLane } from './booking/BookingRequestsLane';
@@ -607,6 +609,41 @@ export function BackendBookingWorkspace({
   };
 
   const selectedItem = items.find((i) => i.reservationId === selectedReservationId) ?? null;
+
+  // Куда перенести открытую бронь, спрашивается у сервера на её же время: текущий зал говорит
+  // только про «сейчас», а бронь бывает и на завтра. Ответ на другое окно или другую бронь —
+  // уже не про эту бронь, поэтому ключ едет вместе с ответом.
+  const moveWindow = drawerMode === 'detail' && selectedItem !== null
+    ? { reservationId: selectedItem.reservationId, startMs: selectedItem.startMs, endMs: selectedItem.endMs }
+    : null;
+  const moveWindowKey = moveWindow ? `${moveWindow.reservationId}:${moveWindow.startMs}:${moveWindow.endMs}` : '';
+  const [moveFreeSeats, setMoveFreeSeats] = useState<{ key: string; status: 'ready' | 'failed'; seatIds: Set<string> } | null>(null);
+  useEffect(() => {
+    if (backend === null || moveWindow === null) return undefined;
+    let disposed = false;
+    const key = moveWindowKey;
+    createAuthenticatedOperatorClients(backend.config, backend.session).reservations
+      .freeSeats(backend.branchId, {
+        startsAtUtc: new Date(moveWindow.startMs).toISOString(),
+        endsAtUtc: new Date(moveWindow.endMs).toISOString(),
+        excludeReservationId: moveWindow.reservationId
+      })
+      .then((result) => {
+        if (disposed) return;
+        setMoveFreeSeats({ key, status: 'ready', seatIds: new Set(readArray<string>(result, 'freeSeatIds')) });
+      })
+      .catch(() => {
+        if (disposed) return;
+        setMoveFreeSeats({ key, status: 'failed', seatIds: new Set() });
+      });
+    return () => { disposed = true; };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, moveWindowKey, reloadVersion]);
+  const moveTargets: MoveTargets = moveFreeSeats === null || moveFreeSeats.key !== moveWindowKey || selectedItem === null
+    ? { status: 'loading', seats: [] }
+    : {
+        status: moveFreeSeats.status,
+        seats: moveTargetSeats(floorMap.seats, moveFreeSeats.seatIds, selectedItem, nowMs)
+      };
   // Чего не хватает форме, она говорит сама. Окно открывается только у подтверждённой брони, но
   // статус может смениться под открытым окном (игрок отменил, отмечена неявка) — и кнопка гасла молча.
   const startBlocked = useBlockedReason(
@@ -717,11 +754,12 @@ export function BackendBookingWorkspace({
     ? items.find((item) => item.seatId === draft.seatId && item.state !== 'cancelled' && item.startMs < draftEndMs && previewStartMs < item.endMs) ?? null
     : null;
 
-  // Пересекается ли место по времени с активной бронью ИЛИ идущей сессией (открытая = до бесконечности).
+  // Пересекается ли место по времени с активной бронью ИЛИ сессией — правилом сервера: бессрочная
+  // сессия держит место только в окне, которое уже началось.
   const seatHasClash = (seatId: string): boolean =>
     Number.isFinite(previewStartMs) && (
       items.some((item) => item.seatId === seatId && item.state !== 'cancelled' && item.startMs < draftEndMs && previewStartMs < item.endMs)
-      || sessionItems.some((s) => s.seatId === seatId && s.startMs < draftEndMs && previewStartMs < (s.endMs ?? Number.POSITIVE_INFINITY))
+      || sessionItems.some((s) => s.seatId === seatId && sessionClashesWithWindow(s, previewStartMs, draftEndMs, nowMs))
     );
 
   // Проактивные конфликты массовой брони: считаем на фронте (бронь + сессия) ещё до отправки и
@@ -808,6 +846,7 @@ export function BackendBookingWorkspace({
             mode={drawerMode}
             selected={selectedItem}
             freeSeats={readySeats}
+            moveTargets={moveTargets}
             allSeats={floorMap.seats}
             draft={draft}
             busy={reservationBusy}

@@ -20,6 +20,7 @@ import type {
 import { CashRegisterRows } from './CashTerminalFrame';
 import { CashShiftCommandBar } from './CashShiftCommandBar';
 import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
+import { useShownFor } from '../useShownFor';
 
 interface ShiftCockpitClient {
   current(branchId: string): Promise<ShiftRevenueDto | null>;
@@ -91,14 +92,12 @@ export function CashShiftWorkspace({
   const [cashRowsError, setCashRowsError] = useState<OperatorErrorProjection | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [selectedShiftId, setSelectedShiftId] = useState('');
+  const shown = useShownFor(branchId);
 
   useEffect(() => {
     if (revenueClient === null || reports === null) return undefined;
     let active = true;
-    setLoading(true);
-    setLoadError(null);
-    setHistoryError(null);
-    setCashRowsError(null);
+    if (!shown.isShown()) setLoading(true);
     // Три запроса — три панели. Без текущей смены экран не знает, открыта ли она, и не может
     // предложить ни открыть, ни закрыть: её отказ по-прежнему занимает весь экран. Прошлые смены
     // и движение наличных — справка рядом, и их отказ не должен стирать смену со сверкой.
@@ -109,14 +108,14 @@ export function CashShiftWorkspace({
     ])
       .then(([cur, hist, cash]) => {
         if (!active) return;
-        if (cur.status === 'fulfilled') setCurrent(cur.value);
+        if (cur.status === 'fulfilled') { setCurrent(cur.value); setLoadError(null); }
         else setLoadError(projectOperatorError(cur.reason, t).detail);
-        if (hist.status === 'fulfilled') setHistory(closedShifts(hist.value.shifts));
+        if (hist.status === 'fulfilled') { setHistory(closedShifts(hist.value.shifts)); setHistoryError(null); }
         else setHistoryError(projectOperatorError(hist.reason, t));
-        if (cash.status === 'fulfilled') setCashRows(cash.value.rows);
+        if (cash.status === 'fulfilled') { setCashRows(cash.value.rows); setCashRowsError(null); }
         else setCashRowsError(projectOperatorError(cash.reason, t));
       })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active) { setLoading(false); shown.markShown(); } });
     return () => { active = false; };
   }, [revenueClient, reports, branchId, shiftNonce]);
 

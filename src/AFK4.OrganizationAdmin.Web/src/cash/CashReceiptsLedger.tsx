@@ -27,6 +27,7 @@ import type { PosSaleDto, ReceiptDto, SalesReportResultDto } from '../operatorAp
 import { useFeedbackToasts } from '../useFeedbackToasts';
 import { CashMetricStrip, CashRegisterRows, CashTerminalSkeleton, CashTerminalSplit } from './CashTerminalFrame';
 import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
+import { useShownFor } from '../useShownFor';
 
 type ReceiptDetailState = {
   status: 'idle' | 'loading' | 'ready' | 'failed';
@@ -77,16 +78,16 @@ export function CashReceiptsLedger({
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
   const [nonce, setNonce] = useState(0);
+  const shown = useShownFor(branchId);
 
   useEffect(() => {
     if (clients === null) { setLoading(false); return undefined; }
     let active = true;
-    setLoading(true);
-    setLoadError(null);
+    if (!shown.isShown()) setLoading(true);
     clients.shifts.getSalesReport(branchId, { limit: 50 })
-      .then((result) => { if (active) setReport(result); })
+      .then((result) => { if (active) { setReport(result); setLoadError(null); } })
       .catch((error) => { if (active) setLoadError(projectOperatorError(error, t).detail); })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active) { setLoading(false); shown.markShown(); } });
     return () => { active = false; };
   }, [clients, branchId, nonce]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PanelModal } from '../PanelModal';
 import { SessionStartForm, SessionStartSkeleton, createSessionStartSelection, type SessionStartSelection } from '../session/SessionStartForm';
@@ -37,6 +37,23 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
   const [formValid, setFormValid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Форма перезапрашивает тарифы и пакеты, когда меняется загрузчик, и ждёт, что родитель его
+  // запоминает. Здесь загрузчики были новыми стрелками на каждой отрисовке: ответ тарифов менял
+  // выбор, выбор перерисовывал диалог, новая стрелка запрашивала тарифы снова — пять запросов на
+  // одно открытие.
+  const loadTariffs = useCallback(
+    () => hasPermission(backend.session, permissionNames.viewTariffs)
+      ? createAuthenticatedOperatorClients(backend.config, backend.session).settings.getTariffOptions(backend.branchId)
+      : Promise.resolve([]),
+    [backend.branchId, backend.config, backend.session]
+  );
+  const loadPackages = useCallback(
+    (playerAccountId: string) => hasPermission(backend.session, permissionNames.viewBilling)
+      ? createAuthenticatedOperatorClients(backend.config, backend.session).players.getPlayerPackages(playerAccountId)
+      : Promise.resolve([]),
+    [backend.config, backend.session]
+  );
 
   useEffect(() => {
     let active = true;
@@ -142,12 +159,8 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
               balanceMinorUnits: player.balanceMinorUnits ?? null,
               debtMinorUnits: player.debtMinorUnits
             }}
-            loadTariffs={() => hasPermission(backend.session, permissionNames.viewTariffs)
-              ? createAuthenticatedOperatorClients(backend.config, backend.session).settings.getTariffOptions(backend.branchId)
-              : Promise.resolve([])}
-            loadPackages={(playerAccountId) => hasPermission(backend.session, permissionNames.viewBilling)
-              ? createAuthenticatedOperatorClients(backend.config, backend.session).players.getPlayerPackages(playerAccountId)
-              : Promise.resolve([])}
+            loadTariffs={loadTariffs}
+            loadPackages={loadPackages}
             onValidityChange={(valid) => setFormValid(valid)}
           />
 

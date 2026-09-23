@@ -80,6 +80,37 @@ public sealed class EfReservationService(
             limit);
     }
 
+    public async Task<ReservationSeatAvailabilityDto> FindFreeSeatsAsync(
+        Guid organizationId,
+        Guid branchId,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset endsAtUtc,
+        Guid? excludedReservationId,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+
+        var reservedSeatIds = OverlappingReservations(
+                organizationId, branchId, startsAtUtc, endsAtUtc, excludedReservationId)
+            .Where(reservation => reservation.SeatId != null)
+            .Select(reservation => reservation.SeatId!.Value);
+        var busySeatIds = SeatOccupancy
+            .BlockingSessions(dbContext.Sessions.AsNoTracking(), organizationId, branchId, startsAtUtc, endsAtUtc, now)
+            .Select(session => session.SeatId);
+
+        var freeSeatIds = await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat =>
+                seat.OrganizationId == organizationId &&
+                seat.BranchId == branchId &&
+                !reservedSeatIds.Contains(seat.SeatId) &&
+                !busySeatIds.Contains(seat.SeatId))
+            .Select(seat => seat.SeatId)
+            .ToListAsync(cancellationToken);
+
+        return new ReservationSeatAvailabilityDto(startsAtUtc, endsAtUtc, freeSeatIds);
+    }
+
     public async Task<ReservationServiceResult<ReservationDto>> CreateAsync(
         Guid branchId,
         Guid actorStaffUserId,
@@ -833,32 +864,41 @@ public sealed class EfReservationService(
             return null;
         }
 
-        var hasReservationConflict = await dbContext.Reservations.AnyAsync(
-            reservation =>
-                reservation.OrganizationId == organizationId &&
-                reservation.BranchId == branchId &&
-                reservation.SeatId == seatId &&
-                reservation.ReservationId != excludedReservationId &&
-                ActiveReservationStates.Contains(reservation.State) &&
-                reservation.StartsAtUtc < endsAtUtc &&
-                reservation.EndsAtUtc > startsAtUtc,
-            cancellationToken);
+        var hasReservationConflict = await OverlappingReservations(
+                organizationId, branchId, startsAtUtc, endsAtUtc, excludedReservationId)
+            .AnyAsync(reservation => reservation.SeatId == seatId, cancellationToken);
         if (hasReservationConflict)
         {
             return "Seat already has an overlapping active reservation.";
         }
 
-        return await HasBlockingSessionAsync(
-            organizationId,
-            branchId,
-            seatId.Value,
-            startsAtUtc,
-            endsAtUtc,
-            cancellationToken)
+        // Правило общее со списком свободных мест и с вместимостью: место с гостем без конца
+        // сессии сегодня не закрыто для брони на завтра.
+        return await SeatOccupancy
+            .BlockingSessions(dbContext.Sessions, organizationId, branchId, startsAtUtc, endsAtUtc, timeProvider.GetUtcNow())
+            .AnyAsync(session => session.SeatId == seatId.Value, cancellationToken)
             ? "Seat has an active, paused, or ending session."
             : null;
     }
 
+    private IQueryable<ReservationEntity> OverlappingReservations(
+        Guid organizationId,
+        Guid branchId,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset endsAtUtc,
+        Guid? excludedReservationId) =>
+        dbContext.Reservations.Where(reservation =>
+            reservation.OrganizationId == organizationId &&
+            reservation.BranchId == branchId &&
+            reservation.ReservationId != excludedReservationId &&
+            ActiveReservationStates.Contains(reservation.State) &&
+            reservation.StartsAtUtc < endsAtUtc &&
+            reservation.EndsAtUtc > startsAtUtc);
+
+    /// <summary>
+    /// Сидит ли кто-то за этой машиной прямо сейчас — вопрос посадки, а не будущего окна: здесь
+    /// бессрочная сессия занимает машину всегда, ведь человек за ней ещё сидит.
+    /// </summary>
     private async Task<bool> HasBlockingSessionAsync(
         Guid organizationId,
         Guid branchId,

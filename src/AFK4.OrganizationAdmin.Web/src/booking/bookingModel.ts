@@ -335,3 +335,28 @@ export function onlineRequestCount(items: BookingItem[]): number {
 export function unseatedOnlineRequests(items: BookingItem[]): BookingItem[] {
   return items.filter((i) => i.source === 'online' && i.state === 'pending' && i.seatId.length === 0);
 }
+
+// Куда перенести бронь. Свободное на её время место называет сервер (freeSeatIds) — тем же
+// правилом, которым примет перенос. Текущее состояние зала важно, только когда время брони уже
+// идёт: за машину без связи или на обслуживании сесть нельзя сейчас, а к завтрашнему вечеру её,
+// скорее всего, включат.
+export function moveTargetSeats(
+  seats: SeatSummary[],
+  freeSeatIds: ReadonlySet<string>,
+  booking: { seatId: string; startMs: number },
+  nowMs: number
+): SeatSummary[] {
+  const hasStarted = booking.startMs <= nowMs;
+  return seats.filter((seat) =>
+    seat.id !== booking.seatId
+    && freeSeatIds.has(seat.id)
+    && (!hasStarted || (seat.tone === 'ready' && !seat.activeSessionId)));
+}
+
+// Держит ли сессия место в окне будущей брони — то же правило, что у сервера (SeatOccupancy):
+// сессия с концом держит место до конца, бессрочная — только в окне, которое уже началось. Иначе
+// сегодняшний гость без конца сессии закрывал бы место для брони на завтра.
+export function sessionClashesWithWindow(session: SessionItem, startMs: number, endMs: number, nowMs: number): boolean {
+  if (session.startMs >= endMs) return false;
+  return session.endMs !== null ? startMs < session.endMs : nowMs > startMs;
+}

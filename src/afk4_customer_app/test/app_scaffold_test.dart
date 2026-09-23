@@ -72,7 +72,7 @@ void main() {
           body: QuickActions(
             actions: [
               QuickAction(icon: Icons.event_outlined, label: 'Забронировать', onOpen: () {}),
-              QuickAction(icon: Icons.savings_outlined, label: 'Кешбэк', onOpen: () {}),
+              QuickAction(icon: Icons.savings_outlined, label: 'Кэшбек', onOpen: () {}),
             ],
           ),
         ),
@@ -83,7 +83,7 @@ void main() {
       find.ancestor(of: find.text('Забронировать'), matching: find.byType(Pressable)),
     );
     final second = tester.getSize(
-      find.ancestor(of: find.text('Кешбэк'), matching: find.byType(Pressable)),
+      find.ancestor(of: find.text('Кэшбек'), matching: find.byType(Pressable)),
     );
 
     expect(first.width, second.width);
@@ -99,7 +99,7 @@ void main() {
             actions: [
               QuickAction(icon: Icons.event_outlined, label: 'Забронировать', onOpen: () {}),
               QuickAction(icon: Icons.local_cafe_outlined, label: 'Заказать', onOpen: () {}),
-              QuickAction(icon: Icons.savings_outlined, label: 'Кешбэк', onOpen: () {}),
+              QuickAction(icon: Icons.savings_outlined, label: 'Кэшбек', onOpen: () {}),
             ],
           ),
         ),
@@ -108,7 +108,7 @@ void main() {
 
     final row = tester.getSize(find.byType(QuickActions)).width;
     final third = tester.getSize(
-      find.ancestor(of: find.text('Кешбэк'), matching: find.byType(Pressable)),
+      find.ancestor(of: find.text('Кэшбек'), matching: find.byType(Pressable)),
     );
 
     expect(third.width, lessThan(row / 2 + 1));

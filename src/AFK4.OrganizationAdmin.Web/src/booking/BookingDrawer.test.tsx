@@ -32,7 +32,7 @@ function draft(): BookingDraft {
 
 function renderDrawer(groupConflicts = new Set<string>()) {
   const props: BookingDrawerProps = {
-    mode: 'create', selected: null, freeSeats: [], allSeats: [activeSeat, serviceSeat], draft: draft(),
+    mode: 'create', selected: null, freeSeats: [], moveTargets: { status: 'ready', seats: [] }, allSeats: [activeSeat, serviceSeat], draft: draft(),
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
     groupConflicts, groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose: () => {},
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
@@ -60,7 +60,7 @@ function detail(
   };
   const { seatId: _seatId, ...propsOver } = over;
   const props: BookingDrawerProps = {
-    mode: 'detail', selected: item, freeSeats: [], allSeats: [activeSeat], draft: draft(),
+    mode: 'detail', selected: item, freeSeats: [], moveTargets: { status: 'ready', seats: [] }, allSeats: [activeSeat], draft: draft(),
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null,
     seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(),
     onClose: () => {}, onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {},
@@ -73,7 +73,7 @@ function detail(
 it('blocks drawer close while a reservation command is pending', () => {
   const onClose = mock(() => {});
   const props: BookingDrawerProps = {
-    mode: 'detail', selected: null, freeSeats: [], allSeats: [], draft: draft(), busy: true,
+    mode: 'detail', selected: null, freeSeats: [], moveTargets: { status: 'ready', seats: [] }, allSeats: [], draft: draft(), busy: true,
     canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
     groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose,
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
@@ -191,23 +191,46 @@ it('у посаженной и отменённой брони кнопки пр
   }
 });
 
-// Серое «Перенести на место» с прочерком не говорило, что переносить некуда: список предлагает
-// только места, свободные прямо сейчас.
+// Серое «Перенести на место» с прочерком не говорило, что переносить некуда. Список считает
+// сервер на время самой брони, поэтому и причина говорит про это время, а не про «сейчас».
 describe('BookingDrawer · почему нельзя перенести', () => {
-  it('называет причину, когда свободных мест нет', () => {
+  it('называет причину, когда на время брони свободных мест нет', () => {
     const result = detail('confirmed');
     const move = result.getByRole('combobox', { name: 'Перенести на место' });
     expect(move).toBeDisabled();
-    expect(move).toHaveTextContent('Сейчас свободных мест нет');
+    expect(move).toHaveTextContent('На это время свободных мест нет');
   });
 
-  it('оставляет прочерк, когда переносить есть куда', () => {
+  it('оставляет прочерк и предлагает места, когда переносить есть куда', () => {
     const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000, () => {}, {
-      freeSeats: [seat({ id: 'c7', name: 'PC-07' })]
+      moveTargets: { status: 'ready', seats: [seat({ id: 'c7', name: 'PC-07' })] }
     });
     const move = result.getByRole('combobox', { name: 'Перенести на место' });
     expect(move).not.toBeDisabled();
-    expect(move).not.toHaveTextContent('Сейчас свободных мест нет');
+    expect(move).not.toHaveTextContent('На это время свободных мест нет');
+    fireEvent.click(move);
+    expect(result.getByRole('option', { name: 'Зал A · PC-07' })).toBeInTheDocument();
+  });
+
+  // Пока сервер не ответил, пустой список — не «мест нет»: иначе администратор успевает прочитать
+  // неправду до того, как придёт ответ.
+  it('пока список считается, не говорит, что мест нет', async () => {
+    const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000, () => {}, {
+      moveTargets: { status: 'loading', seats: [] }
+    });
+    const move = result.getByRole('combobox', { name: 'Перенести на место' });
+    expect(move).toBeDisabled();
+    expect(move).not.toHaveTextContent('На это время свободных мест нет');
+    expect(await result.findByText('Проверяем свободные места…')).toBeInTheDocument();
+  });
+
+  it('говорит, что список не пришёл, а не что мест нет', () => {
+    const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000, () => {}, {
+      moveTargets: { status: 'failed', seats: [] }
+    });
+    const move = result.getByRole('combobox', { name: 'Перенести на место' });
+    expect(move).toBeDisabled();
+    expect(move).toHaveTextContent('Не удалось проверить свободные места');
   });
 });
 
