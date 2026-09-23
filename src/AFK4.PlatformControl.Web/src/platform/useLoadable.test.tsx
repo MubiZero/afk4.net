@@ -84,6 +84,30 @@ it('фоновое обновление не стирает то, что уже 
   expect(afterFirstAnswer).not.toContain('loading');
 });
 
+// Под нагрузкой таймер копит срабатывания, и два обновления идут подряд раньше, чем React
+// выполнит эффект первого. Общий флаг «тихо» гасило первое — второе накрывало данные
+// скелетоном. Занятый поток воспроизводит это и на свободной машине.
+it('не мигает скелетоном, когда фоновые обновления идут подряд', async () => {
+  const load = mock().mockResolvedValue(['данные']);
+  const seen: string[] = [];
+  const { result } = renderHook(() => {
+    const state = useLoadable(load, [], { refreshMs: 1 });
+    seen.push(state.status);
+    return state;
+  }, { wrapper });
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+
+  for (let round = 0; round < 150; round++) {
+    const busyUntil = Date.now() + 2;
+    while (Date.now() < busyUntil) { /* поток занят, срабатывания копятся */ }
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  expect(load.mock.calls.length).toBeGreaterThan(5);
+  expect(seen.slice(seen.indexOf('ready'))).not.toContain('loading');
+});
+
 // Отказ по правам не чинится повтором: раздел обязан сказать это экрану, иначе тот рисует
 // кнопку, которая заведомо не поможет, и человек жмёт её вместо того, чтобы просить доступ.
 it('отличает отказ по правам от того, что стоит повторить', async () => {
