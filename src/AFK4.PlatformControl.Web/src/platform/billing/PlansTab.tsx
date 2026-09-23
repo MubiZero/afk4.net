@@ -56,7 +56,12 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
       </CardHeader>
       <CardContent>
         {state.data.length === 0 ? (
-          <EmptyState message={t('platform.billing.empty.plans')} />
+          <EmptyState
+            message={t('platform.billing.empty.plans')}
+            next={canManage
+              ? { label: t('platform.billing.plans.createFirst'), onClick: openCreate }
+              : { noPermission: t('state.empty.noPermission', { permission: t('platform.permission.billing.plans.manage') }) }}
+          />
         ) : (
           <Table>
             <TableHeader>

@@ -36,6 +36,8 @@ const TABS: { value: OrganizationTab; labelKey: MessageKey; allowed: (access: Or
 
 export interface OrganizationPageAccess {
   canManageOrganization: boolean;
+  /// Филиал сервер заводит по праву на заведение организаций, а не по общему «управлению».
+  canAddBranch: boolean;
   canManageAccess: boolean;
   canViewSupport: boolean;
   canViewBilling: boolean;
@@ -110,6 +112,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
                     organizationId={organizationId}
                     branches={organization.branches}
                     limits={organization.limits}
+                    canAddBranch={access.canAddBranch}
                     onBranchCreated={branch => apply({ ...organization, branches: [...organization.branches, branch] })}
                   />
                 </TabBoundary>

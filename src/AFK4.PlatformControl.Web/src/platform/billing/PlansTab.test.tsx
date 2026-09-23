@@ -86,9 +86,22 @@ describe('PlansTab', () => {
     expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
   });
 
-  it('пустой каталог так и говорит', async () => {
+  // Пустой каталог раньше говорил только «Тарифов пока нет.» — и всё. Без тарифа организации не
+  // назначить подписку, поэтому первый шаг назван прямо в пустом списке.
+  it('пустой каталог зовёт завести первый тариф', async () => {
     setup([]);
 
-    await screen.findByText('Тарифов пока нет.');
+    await screen.findByText('Тарифов пока нет. Без тарифа организации не назначить подписку.');
+    fireEvent.click(screen.getByRole('button', { name: 'Завести первый тариф' }));
+
+    expect(await screen.findByLabelText('Код тарифа')).toBeInTheDocument();
+  });
+
+  it('без права на тарифы пустой каталог называет, у кого оно есть', async () => {
+    setup([], false);
+
+    await screen.findByText('Это может сотрудник платформы с правом «Заводить и менять тарифы».');
+    expect(screen.queryByRole('button', { name: 'Завести первый тариф' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Новый тариф' })).toBeNull();
   });
 });

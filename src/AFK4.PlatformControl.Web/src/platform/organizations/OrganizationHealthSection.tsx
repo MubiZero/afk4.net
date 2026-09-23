@@ -46,7 +46,7 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
             </dl>
 
             {state.data.recentErrors.length === 0 ? (
-              <EmptyState message={t('platform.organization.health.recentErrorsEmpty')} />
+              <EmptyState message={t('platform.organization.health.recentErrorsEmpty')} next="calm" />
             ) : (
               <Table>
                 <TableHeader>

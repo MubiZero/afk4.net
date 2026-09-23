@@ -15,7 +15,7 @@ export function OrganizationHistoryTab({ client, organizationId }: {
 
   if (state.status === 'error') return <ErrorState title={t('platform.organization.history.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   if (state.status === 'loading') return <LoadingCards count={3} />;
-  if (state.data.records.length === 0) return <EmptyState message={t('platform.organization.history.empty')} />;
+  if (state.data.records.length === 0) return <EmptyState message={t('platform.organization.history.empty')} next="calm" />;
 
   return <div className="table-panel"><Table>
     <TableHeader><TableRow>

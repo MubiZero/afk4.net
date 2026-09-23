@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PartialFailure } from '@/components/ui/states';
+import { EmptyState, PartialFailure } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import { alertDetailText, alertLabel } from '@/platform/clubs/pulseModel';
 import { NewBranchDialog } from './NewBranchDialog';
@@ -19,12 +19,15 @@ type OrganizationsClient = Pick<OrganizationsApi, 'createBranch'>;
  * adds a live overlay (devices/seats/shift) when a branch has reported in.
  * A pulse outage must not hide the roster itself.
  */
-export function OrganizationClubsTab({ client, organizationsClient, organizationId, branches, limits, onBranchCreated }: {
+export function OrganizationClubsTab({ client, organizationsClient, organizationId, branches, limits, canAddBranch, onBranchCreated }: {
   client: PulseClient;
   organizationsClient: OrganizationsClient;
   organizationId: string;
   branches: OrganizationBranch[];
   limits: OrganizationLimits;
+  /// Филиал сервер заводит по праву на заведение организаций. Без него кнопки нет вовсе: на неё
+  /// ответили бы только отказом.
+  canAddBranch: boolean;
   onBranchCreated: (branch: OrganizationBranch) => void;
 }) {
   const { t, formatDate } = useI18n();
@@ -48,7 +51,7 @@ export function OrganizationClubsTab({ client, organizationsClient, organization
 
   const header = (
     <div className="pc-cell-actions">
-      <Button size="sm" onClick={() => setAddOpen(true)}>{t('platform.organization.branches.add')}</Button>
+      {canAddBranch ? <Button size="sm" onClick={() => setAddOpen(true)}>{t('platform.organization.branches.add')}</Button> : null}
       {limits.maxBranches !== null ? (
         <span>{t('platform.organization.branches.usage', { current: branches.length, limit: limits.maxBranches })}</span>
       ) : null}
@@ -68,7 +71,12 @@ export function OrganizationClubsTab({ client, organizationsClient, organization
     return (
       <div>
         {header}
-        <p>{t('platform.organization.clubsTab.empty')}</p>
+        <EmptyState
+          message={t('platform.organization.clubsTab.empty')}
+          next={canAddBranch
+            ? { label: t('platform.organization.branches.addFirst'), onClick: () => setAddOpen(true) }
+            : { noPermission: t('state.empty.noPermission', { permission: t('platform.permission.organizations.create') }) }}
+        />
         {dialog}
       </div>
     );

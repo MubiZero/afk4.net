@@ -205,7 +205,7 @@ it('includes the platform admin keys', () => {
   for (const key of [
     'nav.platform.clubs', 'nav.platform.money', 'nav.platform.journal',
     'platform.clubs.title', 'platform.clubs.view.label', 'platform.clubs.view.now',
-    'platform.clubs.view.all', 'platform.clubs.view.debt', 'platform.clubs.empty.now',
+    'platform.clubs.view.all', 'platform.clubs.view.debt', 'platform.clubs.empty.create',
     'platform.clubs.empty.all', 'platform.clubs.empty.debt', 'platform.plan.starter',
     'platform.plan.growth', 'platform.plan.scale'
   ] as const) {

@@ -19,12 +19,6 @@ const VIEW_LABEL_KEY: Record<PulseView, MessageKey> = {
   debt: 'platform.clubs.view.debt'
 };
 
-const EMPTY_KEY: Record<PulseView, MessageKey> = {
-  now: 'platform.clubs.empty.now',
-  all: 'platform.clubs.empty.all',
-  debt: 'platform.clubs.empty.debt'
-};
-
 interface ClubsScreenProps {
   client: Pick<PlatformApiClient, 'pulse'>;
   view: PulseView;
@@ -72,22 +66,37 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
       ) : state.status === 'error' ? (
         <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       ) : (
-        <ClubsList organizations={state.data.organizations ?? []} view={view} emptyMessage={t(EMPTY_KEY[view])} onOpenOrganization={onOpenOrganization} />
+        <ClubsList organizations={state.data.organizations ?? []} view={view} onOpenOrganization={onOpenOrganization} onCreateOrganization={onCreateOrganization} />
       )}
     </Page>
   );
 }
 
-function ClubsList({ organizations, view, emptyMessage, onOpenOrganization }: {
+function ClubsList({ organizations, view, onOpenOrganization, onCreateOrganization }: {
   organizations: PulseOrganization[];
   view: PulseView;
-  emptyMessage: string;
   onOpenOrganization: (organizationId: string) => void;
+  onCreateOrganization?: () => void;
 }) {
+  const { t } = useI18n();
   const rows = useMemo(() => selectView(organizations, view), [organizations, view]);
   const density = resolveDensity(organizations.length);
 
-  if (rows.length === 0) return <EmptyState message={emptyMessage} />;
+  // «Сейчас» и «Все» ничего не отсеивают — они пусты, только когда организаций нет вовсе, и тогда
+  // следующий шаг один: завести первую. Раньше «Сейчас» отвечал на это «нет сетей с активными
+  // сигналами», и первый вход в пустую платформу выглядел как спокойный день.
+  if (organizations.length === 0) {
+    return (
+      <EmptyState
+        message={t('platform.clubs.empty.all')}
+        next={onCreateOrganization !== undefined
+          ? { label: t('platform.clubs.empty.create'), onClick: onCreateOrganization }
+          : { noPermission: t('state.empty.noPermission', { permission: t('platform.permission.organizations.create') }) }}
+      />
+    );
+  }
+  // Долги — единственный вид, который отсеивает, и его пустота — хорошая новость.
+  if (rows.length === 0) return <EmptyState message={t('platform.clubs.empty.debt')} next="calm" />;
 
   return (
     <ul className={density === 'dense' ? 'pulse-list is-dense' : 'pulse-list'}>

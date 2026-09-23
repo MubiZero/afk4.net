@@ -79,7 +79,7 @@ describe('OrganizationDynamicsTab', () => {
 
     await waitFor(() => expect(screen.getByText('Не удалось загрузить историю клуба')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
-    expect(screen.queryByText('За последние 30 дней снимков по этому клубу нет')).not.toBeInTheDocument();
+    expect(screen.queryByText('За последние 30 дней снимков нет. Снимок пишется за каждые прошедшие сутки — у нового клуба первый появится завтра.')).not.toBeInTheDocument();
   });
 
   it('ни одна подпись на экране не содержит символа \'{\' (регрессия на ICU-шаблон, попавший в UI сырым)', async () => {

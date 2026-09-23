@@ -123,7 +123,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
       </CardHeader>
       <CardContent>
         {isEmpty ? (
-          <EmptyState message={t('platform.settings.empty')} />
+          <EmptyState message={t('platform.settings.empty')} next={{ label: t('platform.settings.inviteFirst'), onClick: () => setInviteOpen(true) }} />
         ) : (
           <Table>
             <TableHeader>

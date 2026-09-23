@@ -34,7 +34,7 @@ function fakeClient(overrides: Record<string, unknown> = {}) {
 describe('OrganizationInvoicesSection', () => {
   it('shows empty state after load', async () => {
     render(<I18nProvider><ToastProvider><OrganizationInvoicesSection client={fakeClient()} organizationId="o" /></ToastProvider></I18nProvider>);
-    await waitFor(() => expect(screen.getByText('Счетов пока нет.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Счетов пока нет. Счёт по подписке выставится сам в начале периода.')).toBeInTheDocument());
   });
 
   // Две кнопки рядом делают разное: одна выставляет счёт подписки за период, другая — счёт
@@ -47,7 +47,7 @@ describe('OrganizationInvoicesSection', () => {
 
   it('без права вести биллинг кнопок выставления нет', async () => {
     render(<I18nProvider><ToastProvider><OrganizationInvoicesSection client={fakeClient()} organizationId="o" canManage={false} /></ToastProvider></I18nProvider>);
-    await waitFor(() => expect(screen.getByText('Счетов пока нет.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Счетов пока нет. Счёт по подписке выставится сам в начале периода.')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Счёт по подписке' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Счёт вручную' })).toBeNull();
   });

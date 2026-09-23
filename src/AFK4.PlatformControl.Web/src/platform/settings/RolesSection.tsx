@@ -45,6 +45,10 @@ export function RolesSection({ client }: { client: Client }) {
   const [deleteTarget, setDeleteTarget] = useState<PlatformRole | null>(null);
   const [pending, setPending] = useState(false);
 
+  function startNewRole() {
+    setDraft({ roleName: '', displayName: '', description: '', permissions: new Set() });
+  }
+
   function reload() {
     setDraft(null);
     setDeleteTarget(null);
@@ -104,7 +108,7 @@ export function RolesSection({ client }: { client: Client }) {
         <CardTitle>{t('platform.settings.roles.title')}</CardTitle>
         <Button
           variant="outline"
-          onClick={() => setDraft({ roleName: '', displayName: '', description: '', permissions: new Set() })}
+          onClick={startNewRole}
         >
           {t('platform.settings.roles.create')}
         </Button>
@@ -112,7 +116,7 @@ export function RolesSection({ client }: { client: Client }) {
       <CardContent>
         <p className="mgmt-drawer-hint">{t('platform.settings.roles.description')}</p>
 
-        {roles.length === 0 ? <EmptyState message={t('platform.settings.roles.empty')} /> : null}
+        {roles.length === 0 ? <EmptyState message={t('platform.settings.roles.empty')} next={{ label: t('platform.settings.roles.createFirst'), onClick: startNewRole }} /> : null}
 
         {roles.map(role => (
           <div key={role.roleName} className="pc-kv">
