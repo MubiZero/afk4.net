@@ -5,7 +5,7 @@ import { ClubProfileFields, type ClubBrandForm, type ClubProfileForm } from '../
 import { ClubPlayerPreview } from '../../settings/club/ClubPlayerPreview';
 import { normalizeWorkingHours } from '../../settings/club/workingHours';
 import { mapProfileToForm, buildUpdateBranchProfileRequest } from '../../settings/club/branchProfileRequest';
-import { projectOperatorError } from '../../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../../apiErrors';
 import {
   createAuthenticatedOperatorClients,
   emptyFeedback,
@@ -40,7 +40,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
   // Форма показывается только над загруженным профилем. Сохранение пишет профиль целиком, и
   // форма над умолчаниями («AFK4», «Dushanbe», пустые адрес и фото) проходила проверку
   // обязательных полей: поправил телефон при сбое сети — и затёр клубу название, адрес и часы.
-  const [load, setLoad] = useState<{ state: 'loading' | 'error' | 'ready'; errorDetail?: string }>({ state: 'loading' });
+  const [load, setLoad] = useState<{ state: 'loading' | 'error' | 'ready'; failure?: OperatorErrorProjection }>({ state: 'loading' });
   const [loadAttempt, setLoadAttempt] = useState(0);
   useFeedbackToasts(feedback);
 
@@ -69,7 +69,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       })
       .catch((error) => {
         if (!active) return;
-        setLoad({ state: 'error', errorDetail: projectOperatorError(error, t).detail });
+        setLoad({ state: 'error', failure: projectOperatorError(error, t) });
       });
     return () => { active = false; };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, loadAttempt]);
@@ -138,7 +138,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       subtitle={t('op.management.dest.club.subtitle')}
       contentWidth="full"
       state={backend === null ? 'ready' : load.state}
-      errorDetail={load.errorDetail}
+      failure={load.failure}
       onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
       save={{ state: saveState, onSave: () => void save(), onDiscard: discard, disabled: backend === null || load.state !== 'ready' }}
     >
