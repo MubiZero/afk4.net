@@ -1,11 +1,17 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!-- Имя, которое видит человек, — «Панель AFK4.net» (решение владельца 2026-09-23): так же
+       программу называют мастер и панель. Кириллице нужна кодовая страница 1251 — по умолчанию
+       WiX берёт 1252, и кириллица в ней не представима. Папка установки остаётся
+       «Organization Admin»: по этому пути программу находят агент и мастер. -->
   <Package
-      Name="Organization Admin by AFK4"
+      Name="Панель AFK4.net"
       Manufacturer="AFK4.NET"
+      Codepage="1251"
       Version="$(var.PackageVersion)"
       UpgradeCode="{5B345D78-17AE-4CC7-9FE7-7E5F4203FAF1}"
       Scope="perMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Organization Admin is already installed." />
+    <SummaryInformation Codepage="1251" />
+    <MajorUpgrade DowngradeErrorMessage="Уже установлена более новая версия Панели AFK4.net." />
     <MediaTemplate EmbedCab="yes" />
 
     <!-- EdgeUpdate records the runtime version (pv) in three places: the 64-bit client key read
@@ -53,7 +59,7 @@
 
     <StandardDirectory Id="DesktopFolder" />
 
-    <Feature Id="MainFeature" Title="Organization Admin by AFK4" Level="1">
+    <Feature Id="MainFeature" Title="Панель AFK4.net" Level="1">
       <ComponentGroupRef Id="OrganizationAdminFiles" />
       <ComponentRef Id="OrganizationAdminAgentConfiguration" />
       <ComponentRef Id="OrganizationAdminStartMenuShortcut" />
@@ -64,8 +70,8 @@
     <Component Id="OrganizationAdminStartMenuShortcut" Directory="OrganizationAdminMenuFolder" Guid="{5686D743-A622-4B89-8983-29B596BBCBC6}">
       <Shortcut
           Id="OrganizationAdminShortcut"
-          Name="Organization Admin"
-          Description="AFK4 organization management"
+          Name="Панель AFK4.net"
+          Description="Карта зала, касса и настройки клуба"
           Target="[OrganizationAdminFolder]AFK4.OrganizationAdmin.App.exe"
           WorkingDirectory="OrganizationAdminFolder" />
       <RemoveFolder Id="RemoveOrganizationAdminMenuFolder" Directory="OrganizationAdminMenuFolder" On="uninstall" />
@@ -82,8 +88,8 @@
     <Component Id="OrganizationAdminDesktopShortcut" Directory="DesktopFolder" Guid="{5D1BFA85-EE72-4427-AEF9-133EEDB21FB6}">
       <Shortcut
           Id="OrganizationAdminDesktopShortcutLink"
-          Name="Organization Admin"
-          Description="AFK4 organization management"
+          Name="Панель AFK4.net"
+          Description="Карта зала, касса и настройки клуба"
           Target="[OrganizationAdminFolder]AFK4.OrganizationAdmin.App.exe"
           WorkingDirectory="OrganizationAdminFolder" />
       <RegistryValue

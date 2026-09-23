@@ -105,4 +105,27 @@ describe('ClubDestination', () => {
     await waitFor(() => expect(screen.getByDisplayValue('AFK4 Сомони')).toBeInTheDocument());
     expect(updateBranding).not.toHaveBeenCalled();
   });
+
+  // Сохранение пишет профиль целиком. Форма над умолчаниями («AFK4», «Dushanbe», пустые адрес и
+  // фото) проходила проверку обязательных полей — правка телефона при сбое сети затирала клубу
+  // название, адрес и часы.
+  it('не даёт править профиль, который не загрузился, и загружает его по «Повторить»', async () => {
+    getBranchProfile.mockImplementationOnce(async () => { throw new TypeError('Failed to fetch'); });
+    render(
+      <I18nProvider initialLocale="ru">
+        <ToastProvider>
+          <ClubDestination backend={backend} session={{ permissions: [], organizationId: 'o1' } as never} currencyCode="TJS" />
+        </ToastProvider>
+      </I18nProvider>
+    );
+
+    expect(await screen.findByText('Не удалось загрузить')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('AFK4')).toBeNull();
+    expect(screen.queryByDisplayValue('Dushanbe')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(await screen.findByDisplayValue('AFK4 Центр')).toBeInTheDocument();
+    expect(getBranchProfile).toHaveBeenCalledTimes(2);
+  });
 });

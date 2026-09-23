@@ -35,6 +35,7 @@ public sealed class SessionBillingService(
             tariffVersionId,
             playerPackageId,
             durationMinutes,
+            checkTariffSchedule: true,
             cancellationToken);
     }
 
@@ -56,6 +57,9 @@ public sealed class SessionBillingService(
             tariffVersionId,
             playerPackageId,
             additionalMinutes,
+            // Продление расписанием не проверяется: сессия началась в часы своего тарифа и до
+            // конца считается по нему — решение владельца 2026-09-23.
+            checkTariffSchedule: false,
             cancellationToken);
     }
 
@@ -109,6 +113,7 @@ public sealed class SessionBillingService(
         Guid? tariffVersionId,
         Guid? playerPackageId,
         int durationMinutes,
+        bool checkTariffSchedule,
         CancellationToken cancellationToken)
     {
         if (durationMinutes <= 0)
@@ -157,6 +162,7 @@ public sealed class SessionBillingService(
                 tariffVersionId,
                 durationMinutes,
                 requireWalletBalance: true,
+                checkTariffSchedule,
                 cancellationToken),
             BillingModeNames.PostpaidDebt => await ValidateTariffBillingAsync(
                 organizationId,
@@ -165,6 +171,7 @@ public sealed class SessionBillingService(
                 tariffVersionId,
                 durationMinutes,
                 requireWalletBalance: false,
+                checkTariffSchedule,
                 cancellationToken),
             BillingModeNames.Package => await ValidatePackageBillingAsync(
                 organizationId,
@@ -194,6 +201,7 @@ public sealed class SessionBillingService(
         Guid? tariffVersionId,
         int durationMinutes,
         bool requireWalletBalance,
+        bool checkTariffSchedule,
         CancellationToken cancellationToken)
     {
         if (tariffVersionId is null)
@@ -204,16 +212,12 @@ public sealed class SessionBillingService(
         // Тариф с расписанием нельзя выбрать вне его часов: иначе утренняя цена продаётся вечером
         // одним нажатием, и весь смысл дешёвого утра пропадает. Проверка стоит здесь, а не в
         // расчёте: расчёт — калькулятор, им же считают предварительную цену на стойке, а запрет
-        // касается только настоящей продажи времени. Уже начатая сессия к своей версии тарифа
-        // привязана до конца и по расписанию не пересчитывается — цена не меняется под игроком.
+        // касается только настоящей продажи времени.
         //
-        // Проверяется весь оплачиваемый промежуток, а не только его начало: сессия считается одной
-        // ставкой на всю длительность, и старт в 15:30 на двенадцать часов иначе продал бы вечер
-        // по утренней цене. У сессии без запланированного конца длительность приходит как одна
-        // минута — там проверить можно только сам момент, и это записано в известных ограничениях.
-        var now = timeProvider.GetUtcNow();
-        if (!await TariffAvailability.AppliesThroughoutAsync(
-            dbContext, organizationId, branchId, tariffVersionId.Value, now, now.AddMinutes(durationMinutes),
+        // Проверяется только момент старта (решение владельца 2026-09-23): начатая сессия до конца
+        // считается по своему тарифу, сколько бы ни длилась и сколько бы её ни продлевали.
+        if (checkTariffSchedule && !await TariffAvailability.AppliesAtAsync(
+            dbContext, organizationId, branchId, tariffVersionId.Value, timeProvider.GetUtcNow(),
             cancellationToken))
         {
             return Invalid(TariffSchedule.OutsideHoursCode);
@@ -643,11 +647,9 @@ public sealed class SessionBillingService(
 
         // Бесплатное время тоже оценивается по тарифу, и эта оценка идёт в порог одобрения
         // менеджером. Утренний тариф вечером занизил бы её и провёл подарок под порогом, который
-        // вечерняя ставка бы подняла.
-        var compNow = timeProvider.GetUtcNow();
-        if (!await TariffAvailability.AppliesThroughoutAsync(
-            dbContext, organizationId, branchId, tariffVersionId, compNow,
-            compNow.AddMinutes(durationMinutes), cancellationToken))
+        // вечерняя ставка бы подняла. Как и у продажи, решает момент старта.
+        if (!await TariffAvailability.AppliesAtAsync(
+            dbContext, organizationId, branchId, tariffVersionId, timeProvider.GetUtcNow(), cancellationToken))
         {
             return Invalid(TariffSchedule.OutsideHoursCode);
         }
