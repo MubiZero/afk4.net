@@ -218,6 +218,21 @@
   box-shadow: var(--shadow-card);
 }
 
+/* «Только просмотр» — одна тихая строка над экраном вместо серых полей без объяснения
+   (management/ViewOnlyNotice.tsx). */
+.management-view-only {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

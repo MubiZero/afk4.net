@@ -238,6 +238,8 @@ describe('StaffRolesDestination', () => {
     fireEvent.click(screen.getByText('Марина Сидорова'));
     expect(screen.getByRole('checkbox', { name: 'Администратор' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
+    // Почему серое — сказано словами: роли назначает только владелец.
+    expect(screen.getByRole('note')).toHaveTextContent('Роли сотрудника назначает только владелец организации.');
   });
 
   it('does not offer access deactivation for the authenticated staff user', () => {

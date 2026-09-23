@@ -7,6 +7,7 @@ import { LoadFailureState } from '../../operatorPrimitives';
 import { managementScreenState, type DestinationProps } from './types';
 import { TariffsTab } from './tariffs/TariffsTab';
 import { PackagesTab } from './tariffs/PackagesTab';
+import { ViewOnlyNotice } from '../ViewOnlyNotice';
 
 type TariffsPackagesTab = 'tariffs' | 'packages';
 
@@ -69,6 +70,14 @@ export function TariffsPackagesDestination({
         </button>
       </div>
 
+      {/* Раздел открыт по любому из двух прав; вкладка без своего права — только для просмотра. */}
+      <ViewOnlyNotice
+        reason={backend === null
+          ? null
+          : activeTab === 'tariffs'
+            ? (canManageTariffs ? null : t('op.management.viewOnly.tariffs'))
+            : (canManagePackages ? null : t('op.management.viewOnly.packages'))}
+      />
       {activeTab === 'tariffs' ? (
         <TariffsTab
           tariffs={tariffs ?? []}

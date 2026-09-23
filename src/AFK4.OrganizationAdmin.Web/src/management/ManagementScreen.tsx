@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { LoadFailureState } from '../operatorPrimitives';
+import { ViewOnlyNotice } from './ViewOnlyNotice';
 
 export type SaveState = 'clean' | 'dirty' | 'saving' | 'saved';
 
@@ -23,6 +24,9 @@ export interface ManagementScreenProps {
   // change the answer (not under a permission refusal, where the access hint takes its place).
   failure?: OperatorErrorProjection;
   onRetry?: () => void;
+  // Смотреть экран можно, менять — нет: одна строка «только просмотр» и кто может менять, вместо
+  // погашенных без объяснения полей и кнопок.
+  viewOnly?: string | null;
   save?: {
     // omit for read-only destinations
     state: SaveState;
@@ -40,6 +44,7 @@ export function ManagementScreen({
   state = 'ready',
   failure,
   onRetry,
+  viewOnly,
   save
 }: ManagementScreenProps): JSX.Element {
   const { t } = useI18n();
@@ -66,6 +71,7 @@ export function ManagementScreen({
             </div>
           ) : (
             <>
+              <ViewOnlyNotice reason={viewOnly} />
               {children}
 
               {save && (

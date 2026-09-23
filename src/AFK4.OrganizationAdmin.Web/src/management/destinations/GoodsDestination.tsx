@@ -352,6 +352,8 @@ export function GoodsDestination({
       state={managementScreenState(loadStatus)}
       failure={failure}
       onRetry={onRetry}
+      // Раздел открыт и тому, у кого есть только право на остатки: товары и категории ему серые.
+      viewOnly={backend !== null && !canManagePosCatalog ? t('op.management.viewOnly.goods') : null}
     >
       <CategoriesPanel
         backend={backend}

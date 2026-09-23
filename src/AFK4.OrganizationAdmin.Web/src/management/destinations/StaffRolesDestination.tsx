@@ -23,6 +23,7 @@ import {
 import { managementScreenState, type DestinationProps } from './types';
 import type { StaffUserDto } from '../../operatorApiClients';
 import { useBlockedReason } from '../../components/BlockedReason';
+import { ViewOnlyNotice } from '../ViewOnlyNotice';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type StaffUser = StaffUserDto;
@@ -381,6 +382,7 @@ export function StaffRolesDestination({
       state={managementScreenState(loadStatus)}
       failure={failure}
       onRetry={onRetry}
+      viewOnly={backend !== null && !canManageBranchStaff ? t('op.management.viewOnly.staff') : null}
     >
       <div className="mgmt-master-detail">
         <MgmtTable<StaffUser>
@@ -443,6 +445,8 @@ export function StaffRolesDestination({
 
             <div className="mgmt-drawer-section">
               <div className="mgmt-section-title"><span>{t('op.management.staff.roleSection.title')}</span></div>
+              {/* Роли назначает только владелец: у управляющего вся секция серая, и молча. */}
+              <ViewOnlyNotice reason={backend !== null && !canManageRoles ? t('op.management.viewOnly.roles') : null} />
               <div className="mgmt-form">
                 <div className="mgmt-form-grid">
                   <fieldset className="mgmt-role-set">
