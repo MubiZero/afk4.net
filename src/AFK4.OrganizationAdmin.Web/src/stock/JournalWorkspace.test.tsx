@@ -1,6 +1,7 @@
 import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { PlatformApiError } from '../platformApi';
 
 const getCatalog = mock(async (_branchId: string) => ([
   { productId: 'p1', name: 'Cola 0.5', sku: 'COLA-05', trackStock: true },
@@ -50,5 +51,23 @@ describe('JournalWorkspace', () => {
     view();
     await screen.findAllByText('Cola 0.5');
     expect(screen.getByRole('button', { name: 'Экспорт CSV' })).toBeEnabled();
+  });
+
+  // Каталог нужен журналу только ради названий. Его отказ не должен стирать сами движения: что,
+  // когда, сколько и кто — всё это в ответе журнала, а повтор перезапрашивает только каталог.
+  it('отказ каталога не прячет движения и повторяет только каталог', async () => {
+    getCatalog.mockImplementationOnce(async () => { throw new PlatformApiError('boom', 500, 'Internal Server Error', ''); });
+    view();
+
+    expect(await screen.findByText(/Не удалось загрузить названия товаров/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+    expect(screen.getAllByText((content) => content.includes('Олег С.')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((content) => content.includes('брак')).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    await screen.findAllByText('Cola 0.5');
+    expect(getCatalog).toHaveBeenCalledTimes(2);
+    expect(getStockMovements).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Не удалось загрузить названия товаров/)).toBeNull();
   });
 });

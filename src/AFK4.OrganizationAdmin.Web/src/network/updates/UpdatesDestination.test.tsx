@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
+import { PlatformApiError } from '../../platformApi';
 import { UpdatesDestination } from './UpdatesDestination';
 import type { UpdateStatusClient } from './useUpdateStatus';
 import type { OrganizationAdminUpdatePreferenceDto, UpdateRolloutStatusDto } from '../../api/clients/updates';
@@ -133,13 +134,35 @@ describe('UpdatesDestination', () => {
     expect(screen.getByLabelText('С')).toBeInTheDocument();
   });
 
-  it('на сбое загрузки показывает ошибку экрана, а не пустые поля', async () => {
+  it('на сбое загрузки окна показывает ошибку, а не пустые поля', async () => {
     renderUpdates(makeClient({
       getPreference: mock(async () => { throw new Error('boom'); })
     }));
 
     expect(await screen.findByRole('button', { name: 'Повторить' })).toBeInTheDocument();
     expect(screen.queryByLabelText('С')).toBeNull();
+  });
+
+  // Состояние обновления и окно обслуживания — две независимые панели. Отказ окна не должен
+  // прятать версию и «Перезапустить сейчас», а повтор — перечитывать то, что уже пришло.
+  it('отказ окна не прячет состояние обновления и повторяет только окно', async () => {
+    const getPreference = mock()
+      .mockRejectedValueOnce(new PlatformApiError('boom', 500, 'Internal Server Error', ''))
+      .mockResolvedValue(preference);
+    const client = makeClient({ getPreference });
+    renderUpdates(client);
+
+    expect(await screen.findByText('2.3.1')).toBeInTheDocument();
+    expect(screen.getByText('Не удалось загрузить время обновления')).toBeInTheDocument();
+    expect(screen.getByText('Сервер вернул ошибку. Повторите позже.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('С')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByLabelText('С')).toHaveValue('03:00');
+    expect(getPreference).toHaveBeenCalledTimes(2);
+    expect(client.getRolloutStatuses).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('2.3.1')).toBeInTheDocument();
   });
 
   // Раскатки клиентских ПК приходят в том же ответе — экран про рабочее место администратора

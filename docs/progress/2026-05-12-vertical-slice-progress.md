@@ -638,6 +638,15 @@ have no interface for this pass to look at beyond words that reach a human.
   past `PIN_LENGTH`. The sign-in button went dead below six digits without saying so. The hall
   screen refused to create seats when the branch had no hall and never said why — the very same
   case is explained in words on the device screen.
+- #386 — every screen remounts on its step, and what was typed lived inside the screen: "Back"
+  met a person with defaults even where they had already sent something. The invited staff and
+  their codes vanished (the only copy if the SMS never arrives), the tariff offered itself for
+  creation again — and the server refuses the same tariff twice. Six screens, not four: device
+  name and the sign-in number had the same hole. Drafts now live in `App`, in memory only; the
+  PIN is deliberately not brought back, and branch-owned drafts do not follow a branch change.
+- #387 — six fields on the staff, hall and tariff screens lay outside any form, so Enter did
+  nothing, while sign-in and the device screen right next to them submit on Enter. They now
+  follow that pattern; a disabled button and a request in flight both swallow Enter.
 
 **Along the way:** #376 — `WorkerTests.RotationRequest_...` waited for a ten-second heartbeat
 inside a twenty-second budget and fell over on a loaded runner; it painted the CSS-token PR red.
@@ -655,16 +664,25 @@ stated so the next person does not rediscover them:
   explain), ~35 in Platform Control. The fix is not mechanical: each needs the real reason.
 - **The skeleton does not repeat the final geometry** — one shape (four 56px rows) stands in for
   card grids, forms, tiles and charts, so the layout jumps when content replaces it.
-- **Partial failure swallowed silently** — 8 places in Organization Admin, 2 in Platform Control
-  (`Promise.all` pairs where one refusal wipes a screen that has half its data).
-- **Setup wizard**: inverted weight of actions on two more screens, input lost when stepping
-  back (four screens), Enter does not submit on six fields, and one destination called four
-  different names.
 - **Player app**: 30 raw colours outside the theme, three touch targets under 48dp, the light
   theme written and unreachable, and no clamp on the system font scale.
 - **Looking with eyes** — this pass read markup, styles and states rather than running the
   product: the live stand is frozen by decision. That catches half-presence, missing states,
   semantics, colour-only meaning, density and words, but not fine visual harmony.
+
+**Closed after the pass — partial failure swallowed silently.** The pass counted 8 + 2 by
+reading; walking every screen loader found 10 in Organization Admin and 3 in Platform Control.
+Either one refusal wiped the half that had arrived (a staff-list 403 blanked Halls, Tariffs,
+Staff and Goods at once; a missing invoice list hid the subscription), or the secondary request
+fell into a silent fallback that told the person something false (an unknown shift read as
+«open a shift», a failed device list as «no devices», News hung in loading forever). Each section
+now keeps what arrived, names its own reason and retries only itself (`useLoadable` with
+`retryCanHelp` in Platform Control; `PartialLoadFailure` / `SectionState` over
+`projectOperatorError` in Organization Admin). Left all-or-nothing on purpose: the POS (a sale
+needs catalog, categories and shift together), the club profile form (one save writes both
+halves), and the current shift in the cash cockpit (without it the screen cannot offer open or
+close). Still silent by design and not touched: the players' live «now» column, branch rollup
+KPIs, the shift-close tolerance lookup.
 
 ## Latest Verification
 
@@ -920,13 +938,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   because the hall is full today, which is worse. Counter-side bookings
   (`CreateAsync`) are deliberately not capacity-checked: the operator sees the floor
   and may overbook on purpose.
-- **An open-ended session is checked against its tariff's hours only at the
-  moment it starts.** A walk-in put on the 08:00–16:00 tariff at 15:30 keeps
-  playing at the morning price until midnight, and checkout bills the whole span
-  at it. Ending the session at the window edge, or repricing the tail, both
-  change what an operator's session means and need a product decision. Fixed
-  duration and extensions are already handled: they are refused outside the
-  tariff's hours, and the minutes each of them billed keep their own price.
+- **A tariff with hours is checked at the start moment only — owner's decision,
+  2026-09-23.** A session or booking that starts inside the tariff's hours is
+  billed at that tariff to the end, and extensions are not checked against the
+  schedule at all: a walk-in who sat at 15:30 on 08:00–16:00 pays the morning
+  price all night. The alternative (repricing or refusing past the window) left
+  clubs explaining why two identical sessions cost differently and why "open"
+  was allowed while "two hours" was not. A club that wants a separate evening
+  price adds an evening tariff or a package with its own window. The tariff
+  editor says this next to the hours.
 - **Operator entity search** is half-closed: the command palette finds people
   (#202) but still does not search seats, reservations, orders, or receipts.
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean

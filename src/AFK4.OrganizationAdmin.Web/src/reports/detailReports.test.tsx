@@ -6,6 +6,8 @@ import { OperatorActionsReport } from './OperatorActionsReport';
 
 const originalFetch = globalThis.fetch;
 let requestedUrls: string[] = [];
+// Сколько раз подряд план зала ответит отказом — для проверки частичного сбоя.
+let floorMapFailures = 0;
 
 const money = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 
@@ -39,9 +41,14 @@ const actionsReport = {
 
 beforeEach(() => {
   requestedUrls = [];
+  floorMapFailures = 0;
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = input instanceof Request ? input.url : String(input);
     requestedUrls.push(url);
+    if (url.includes('/floor-map') && floorMapFailures > 0) {
+      floorMapFailures -= 1;
+      return new Response('{}', { status: 500, statusText: 'Internal Server Error', headers: { 'Content-Type': 'application/json' } });
+    }
     if (url.includes('/export.csv')) {
       return new Response('seat,hours\nPC-01,1', { status: 200, headers: { 'Content-Type': 'text/csv' } });
     }
@@ -84,6 +91,22 @@ describe('GameplayTimeReport', () => {
 
     expect(await screen.findByText('PC-01')).toBeInTheDocument();
     expect(screen.queryByText('seat-1')).not.toBeInTheDocument();
+  });
+
+  // План зала нужен отчёту только ради имён мест. Его отказ не должен прятать сам отчёт, но и
+  // молчать нельзя: колонка «Место» из одних прочерков без объяснения читается как «ПК не было».
+  it('отказ плана зала не прячет отчёт, называет причину и повторяет только план', async () => {
+    floorMapFailures = 1;
+    render(<I18nProvider initialLocale="ru"><GameplayTimeReport backend={backend} /></I18nProvider>);
+
+    expect(await screen.findByText('Часов игры')).toBeInTheDocument();
+    expect(await screen.findByText(/Не удалось загрузить названия мест/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByText('PC-01')).toBeInTheDocument();
+    expect(requestedUrls.filter((url) => url.includes('/floor-map'))).toHaveLength(2);
+    expect(requestedUrls.filter((url) => url.includes('/reports/gameplay-time'))).toHaveLength(1);
   });
 
   it('спрашивает у сервера сутки целиком, а не одну полночь', async () => {

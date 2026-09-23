@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { majorToMinor } from '@afk4/money';
@@ -8,28 +8,53 @@ export interface TariffClient {
   createTariff(name: string, pricePerHourMinorUnits: number): Promise<{ name: string }>;
 }
 
+/// Введённое на экране. Живёт в App: экран монтируется заново на каждом шаге, и при «Назад»
+/// созданный тариф снова предлагался к созданию — а тот же тариф сервер второй раз не примет.
+export interface TariffDraft {
+  name: string;
+  pricePerHour: string;
+  created: string | null;
+}
+
 interface TariffScreenProps {
   /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
   stepNumber: number;
   client: TariffClient;
   ownerName: string;
   branchName: string;
-  onContinue(): void;
-  onBack(): void;
+  /// Что было введено при прошлом заходе на шаг; null — заход первый.
+  initialDraft?: TariffDraft | null;
+  onContinue(draft: TariffDraft): void;
+  onBack(draft: TariffDraft): void;
 }
 
-export function TariffScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: TariffScreenProps) {
+export function TariffScreen({
+  stepNumber,
+  client,
+  ownerName,
+  branchName,
+  initialDraft = null,
+  onContinue,
+  onBack,
+}: TariffScreenProps) {
   const { t } = useI18n();
-  const [name, setName] = useState(t('setup.wizard.tariff.defaultName'));
-  const [pricePerHour, setPricePerHour] = useState('10');
-  const [created, setCreated] = useState<string | null>(null);
+  const [name, setName] = useState(initialDraft?.name ?? t('setup.wizard.tariff.defaultName'));
+  const [pricePerHour, setPricePerHour] = useState(initialDraft?.pricePerHour ?? '10');
+  const [created, setCreated] = useState<string | null>(initialDraft?.created ?? null);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
   const parsedPrice = Number.parseFloat(pricePerHour.replace(',', '.'));
-  const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving;
+  // Шаг заводит первый тариф клуба, и только его: он показывается, пока тарифов нет, а поправить
+  // созданный мастер не умеет — только создать ещё один. Повторное нажатие получало отказ сервера
+  // на то же имя, а смена одной цены — тот же отказ, хотя человек хотел поправить опечатку.
+  // Остальные тарифы и расписание живут в Панели AFK4.net, и это сказано рядом с кнопкой.
+  const done = created !== null;
+  const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving && !done;
+  const draft: TariffDraft = { name, pricePerHour, created };
 
-  async function create(): Promise<void> {
+  async function create(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
     if (!canCreate) return;
     setSaving(true);
     setFailure(null);
@@ -58,41 +83,59 @@ export function TariffScreen({ stepNumber, client, ownerName, branchName, onCont
         <p>{t('setup.wizard.tariff.subtitle')}</p>
       </div>
 
-      <div className="ui-field">
-        <label className="ui-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
-        <input
-          id="tariff-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-      </div>
+      {/* Форма — ради Enter: набрал цену и жмёт Enter, как на входе и на экране устройства.
+          Поля вне формы Enter молча проглатывали. «Дальше» в форму не входит: Enter в поле
+          создаёт тариф, а не уводит со шага. */}
+      <form className="wizard-form" onSubmit={create} noValidate>
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
+          <input
+            id="tariff-name"
+            value={name}
+            disabled={done}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
 
-      <div className="ui-field">
-        <label className="ui-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
-        <input
-          id="tariff-price"
-          type="number"
-          min={1}
-          step="0.5"
-          value={pricePerHour}
-          onChange={(event) => setPricePerHour(event.target.value)}
-        />
-      </div>
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
+          <input
+            id="tariff-price"
+            type="number"
+            min={1}
+            step="0.5"
+            value={pricePerHour}
+            disabled={done}
+            onChange={(event) => setPricePerHour(event.target.value)}
+          />
+        </div>
 
-      <button type="button" className="ui-btn" onClick={() => void create()} disabled={!canCreate}>
-        {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
-        {t('setup.wizard.tariff.create')}
-      </button>
+        {/* Работа экрана — назначить цену часа, а не уйти с него: пока тарифа нет, главное
+            действие здесь. */}
+        <button
+          type="submit"
+          className={created === null ? 'ui-btn ui-btn--primary' : 'ui-btn'}
+          disabled={!canCreate}
+        >
+          {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
+          {t('setup.wizard.tariff.create')}
+        </button>
+      </form>
 
       {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
       {created === null ? null : <p className="ui-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
 
       <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="ui-btn ui-btn--primary" onClick={onContinue} disabled={saving}>
+        <button
+          type="button"
+          className={created === null ? 'ui-btn' : 'ui-btn ui-btn--primary'}
+          onClick={() => onContinue(draft)}
+          disabled={saving}
+        >
           <ArrowRight size={16} aria-hidden />
           {created === null ? t('setup.wizard.tariff.skip') : t('setup.wizard.tariff.next')}
         </button>

@@ -4,6 +4,8 @@ import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
 import { downloadTextFile, formatMinorUnits } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { PartialLoadFailure } from '../operatorPrimitives';
+import type { FloorMapDto } from '../operatorApiClients';
 import type { GameplayTimeReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { ReportRangeControls } from './ReportRangeControls';
@@ -25,24 +27,35 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
   // места лежит в плане зала, и один запрос за ним дешевле, чем отчёт, по которому не понять,
   // какой ПК столько наиграл.
   const [seatNames, setSeatNames] = useState<Record<string, string>>({});
+  // План зала нужен отчёту только ради имён мест: его отказ не прячет отчёт, но и не молчит —
+  // колонка из одних прочерков без объяснения читается как «ПК не было».
+  const [seatNamesError, setSeatNamesError] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     if (!backend) { setState('error'); setError(t('op.reports.backendRequired')); return; }
     setState('loading');
-    try {
-      const clients = createDetailReportClients(backend);
-      const [report, floorMap] = await Promise.all([
-        clients.shifts.getGameplayTimeReport(backend.branchId, toReportInstantQuery(range)),
-        clients.floorMap.getFloorMap(backend.branchId).catch(() => null)
-      ]);
-      setData(report);
-      setSeatNames(Object.fromEntries((floorMap?.seats ?? []).map((seat) => [seat.seatId, seat.seatName])));
-      setState('ready');
-    } catch (reason) { setError(projectOperatorError(reason, t).detail); setState('error'); }
+    setSeatNamesError(null);
+    const clients = createDetailReportClients(backend);
+    const [report, floorMap] = await Promise.allSettled([
+      clients.shifts.getGameplayTimeReport(backend.branchId, toReportInstantQuery(range)),
+      clients.floorMap.getFloorMap(backend.branchId)
+    ]);
+    if (floorMap.status === 'fulfilled') setSeatNames(seatNamesOf(floorMap.value));
+    else setSeatNamesError(projectOperatorError(floorMap.reason, t).detail);
+    if (report.status === 'fulfilled') { setData(report.value); setState('ready'); }
+    else { setError(projectOperatorError(report.reason, t).detail); setState('error'); }
   }, [backend, range, t]);
   useEffect(() => { void load(); }, [load]);
+
+  async function retrySeatNames() {
+    if (!backend) return;
+    setSeatNamesError(null);
+    try {
+      setSeatNames(seatNamesOf(await createDetailReportClients(backend).floorMap.getFloorMap(backend.branchId)));
+    } catch (reason) { setSeatNamesError(projectOperatorError(reason, t).detail); }
+  }
 
   async function exportCsv() {
     if (!backend) return;
@@ -65,6 +78,9 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
       <ReportRangeControls range={range} onChange={setRange} onRefresh={() => void load()} onExport={() => void exportCsv()} />
       {data ? (
         <>
+          {seatNamesError !== null && (
+            <PartialLoadFailure text={t('op.reports.gameplay.seatNamesFailed', { reason: seatNamesError })} onRetry={() => void retrySeatNames()} />
+          )}
           <dl className="reports-figures">
             <div><dt>{t('op.reports.gameplay.total')}</dt><dd>{hours(data.totalDurationSeconds)}</dd></div>
             <div><dt>{t('op.reports.gameplay.fromPackages')}</dt><dd>{hours(data.totalPackageSeconds)}</dd></div>
@@ -101,6 +117,10 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
       ) : null}
     </ManagementScreen>
   );
+}
+
+function seatNamesOf(floorMap: FloorMapDto): Record<string, string> {
+  return Object.fromEntries((floorMap.seats ?? []).map((seat) => [seat.seatId, seat.seatName]));
 }
 
 function playerKindKey(kind: string): MessageKey {

@@ -1,6 +1,7 @@
 import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { PlatformApiError } from '../platformApi';
 
 // У товара с сервера есть только `categoryId` — имя живёт в справочнике категорий филиала.
 const getCatalog = mock(async () => ([
@@ -94,5 +95,25 @@ describe('StockLevelsWorkspace', () => {
     // «Оформить приёмку» (есть товары «на исходе» → блок виден)
     fireEvent.click(screen.getByRole('button', { name: 'Оформить приёмку' }));
     expect(onReceive).toHaveBeenCalledWith();
+  });
+
+  // Справочник категорий нужен остаткам только ради подписи. Раньше его отказ молча превращался
+  // в пустой справочник: подписи пропадали без объяснения. Теперь остатки на месте, причина
+  // названа, а повтор спрашивает только справочник.
+  it('отказ справочника категорий называет причину и повторяет только справочник', async () => {
+    getCatalog.mockClear();
+    listProductCategories.mockClear();
+    listProductCategories.mockImplementationOnce(async () => { throw new PlatformApiError('boom', 500, 'Internal Server Error', ''); });
+    view();
+
+    expect(await screen.findByText('Cola 0.5')).toBeInTheDocument();
+    expect(await screen.findByText(/Не удалось загрузить категории товаров/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect((await screen.findAllByText('Напитки')).length).toBeGreaterThan(0);
+    expect(listProductCategories).toHaveBeenCalledTimes(2);
+    expect(getCatalog).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Не удалось загрузить категории товаров/)).toBeNull();
   });
 });

@@ -30,29 +30,48 @@ export interface BrandingClient {
   uploadLogo(): Promise<{ logoUrl?: string | null }>;
 }
 
+/// Выбор на экране. Живёт в App, а не здесь: экран монтируется заново на каждом шаге, и при
+/// «Назад» человек видел палитру по умолчанию вместо того, что сам выбрал и сохранил.
+export interface BrandingDraft {
+  logoUrl: string | null;
+  accentColor: string;
+  ownLogoUrl: string | null;
+}
+
 interface BrandingScreenProps {
   /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
   stepNumber: number;
   client: BrandingClient;
   ownerName: string;
   branchName: string;
-  onContinue(): void;
-  onBack(): void;
+  /// Что было выбрано при прошлом заходе на шаг; null — заход первый.
+  initialDraft?: BrandingDraft | null;
+  onContinue(draft: BrandingDraft): void;
+  onBack(draft: BrandingDraft): void;
 }
 
-export function BrandingScreen({ stepNumber, client, ownerName, branchName, onContinue, onBack }: BrandingScreenProps) {
+export function BrandingScreen({
+  stepNumber,
+  client,
+  ownerName,
+  branchName,
+  initialDraft = null,
+  onContinue,
+  onBack,
+}: BrandingScreenProps) {
   const { t } = useI18n();
   // null — ещё грузим. Пустой массив — пресетов не будет (отказ или их правда нет): шаг всё
   // равно рабочий. Раньше оба состояния выглядели одинаково пустым блоком, и на телефонном
   // интернете раздел читался как сломанный.
   const [presets, setPresets] = useState<WizardBrandingPreset[] | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [accentColor, setAccentColor] = useState<string>(COLORS[0]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialDraft?.logoUrl ?? null);
+  const [accentColor, setAccentColor] = useState<string>(initialDraft?.accentColor ?? COLORS[0]);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadFailure, setUploadFailure] = useState<string | null>(null);
-  const [ownLogoUrl, setOwnLogoUrl] = useState<string | null>(null);
+  const [ownLogoUrl, setOwnLogoUrl] = useState<string | null>(initialDraft?.ownLogoUrl ?? null);
+  const draft: BrandingDraft = { logoUrl, accentColor, ownLogoUrl };
 
   // Спиннер с задержкой: на быстрой сети он бы мелькнул и только дёрнул глаз. Тот же приём и с
   // тем же порогом, что на экране входа.
@@ -105,7 +124,7 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
     setFailure(null);
     try {
       await client.save(logoUrl, accentColor);
-      onContinue();
+      onContinue(draft);
     } catch (error) {
       setFailure(wizardErrorMessage(error, t, 'setup.wizard.branding.failed'));
     } finally {
@@ -196,13 +215,13 @@ export function BrandingScreen({ stepNumber, client, ownerName, branchName, onCo
       {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
 
       <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={onBack}>
+        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
         {/* Оформление можно пропустить: клуб откроется и без логотипа, а поставить его
             управляющий сможет в панели. */}
-        <button type="button" className="ui-btn" onClick={onContinue} disabled={saving}>
+        <button type="button" className="ui-btn" onClick={() => onContinue(draft)} disabled={saving}>
           {t('setup.wizard.branding.skip')}
         </button>
         <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()} disabled={saving}>

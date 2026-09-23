@@ -18,6 +18,7 @@ import {
 } from './operatorHelpers';
 import { useFeedbackToasts } from './useFeedbackToasts';
 import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './cash/CashTerminalFrame';
+import { PartialLoadFailure } from './operatorPrimitives';
 
 type ReviewSegment = 'queue' | 'history' | 'audit';
 
@@ -59,6 +60,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
 
   const [requests, setRequests] = useState<MoneyActionRequestDto[]>([]);
   const [staffNames, setStaffNames] = useState<Record<string, string>>({});
+  const [staffLoadError, setStaffLoadError] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [rejectingId, setRejectingId] = useState('');
   const [decisionReason, setDecisionReason] = useState('');
@@ -77,7 +79,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
     return resolved || auditActorLabel(record, backend, t);
   };
 
-  const loadQueue = async (nextBackend = backend) => {
+  const loadQueue = async (nextBackend = backend, shared?: ReturnType<typeof createAuthenticatedOperatorClients>) => {
     if (nextBackend === null) {
       setLoadStatus('fixture');
       setLoadError(null);
@@ -86,17 +88,9 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
     setLoadStatus('loading');
     setLoadError(null);
     try {
-      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [feed, staff] = await Promise.all([
-        apiClients.moneyActions.listPending(nextBackend.branchId),
-        apiClients.settings.getStaffUsers(nextBackend.branchId)
-      ]);
+      const apiClients = shared ?? createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const feed = await apiClients.moneyActions.listPending(nextBackend.branchId);
       setRequests(readArray<MoneyActionRequestDto>(feed, 'requests'));
-      const names: Record<string, string> = {};
-      for (const user of staff) {
-        names[readString(user, 'staffUserId').toLowerCase()] = operatorDisplayNameLabel(readString(user, 'displayName'), t);
-      }
-      setStaffNames(names);
       setLoadStatus('backend');
     } catch (error) {
       const detail = projectOperatorError(error, t).detail;
@@ -106,8 +100,34 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
     }
   };
 
+  // Имена сотрудников — подпись к заявке, а не сама заявка, и грузятся отдельно от очереди. Их
+  // отказ (например, у проверяющего нет права видеть список сотрудников) раньше стирал всю
+  // очередь; теперь заявки остаются, вместо имени видно начало номера, а повтор спрашивает
+  // только имена.
+  const loadStaffNames = async (nextBackend = backend, shared?: ReturnType<typeof createAuthenticatedOperatorClients>) => {
+    if (nextBackend === null) {
+      setStaffLoadError(null);
+      return;
+    }
+    setStaffLoadError(null);
+    try {
+      const apiClients = shared ?? createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const staff = await apiClients.settings.getStaffUsers(nextBackend.branchId);
+      const names: Record<string, string> = {};
+      for (const user of staff) {
+        names[readString(user, 'staffUserId').toLowerCase()] = operatorDisplayNameLabel(readString(user, 'displayName'), t);
+      }
+      setStaffNames(names);
+    } catch (error) {
+      setStaffLoadError(projectOperatorError(error, t).detail);
+    }
+  };
+
   useEffect(() => {
-    void loadQueue();
+    // Один набор клиентов на оба запроса: у каждого набора свой продлеватель сессии.
+    const shared = backend === null ? undefined : createAuthenticatedOperatorClients(backend.config, backend.session);
+    void loadQueue(backend, shared);
+    void loadStaffNames(backend, shared);
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
   const approveRequest = async (request: MoneyActionRequestDto) => {
@@ -196,6 +216,10 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
         { label: t('op.review.expiringCount'), value: expiringCount, tone: expiringCount ? 'attention' : 'default' },
         { label: t('op.review.overdueCount'), value: overdueCount, tone: overdueCount ? 'danger' : 'default' }
       ]} />
+
+      {staffLoadError !== null && (
+        <PartialLoadFailure text={t('op.review.staffNamesFailed', { reason: staffLoadError })} onRetry={() => void loadStaffNames()} />
+      )}
 
       <div className="review-segments" role="tablist">
         <button type="button" role="tab" aria-selected={activeSegment === 'queue'} className={activeSegment === 'queue' ? 'active' : undefined} onClick={() => setActiveSegment('queue')}>{t('op.review.tabQueue')}</button>
