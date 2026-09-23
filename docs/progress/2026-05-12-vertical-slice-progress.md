@@ -920,13 +920,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   because the hall is full today, which is worse. Counter-side bookings
   (`CreateAsync`) are deliberately not capacity-checked: the operator sees the floor
   and may overbook on purpose.
-- **An open-ended session is checked against its tariff's hours only at the
-  moment it starts.** A walk-in put on the 08:00–16:00 tariff at 15:30 keeps
-  playing at the morning price until midnight, and checkout bills the whole span
-  at it. Ending the session at the window edge, or repricing the tail, both
-  change what an operator's session means and need a product decision. Fixed
-  duration and extensions are already handled: they are refused outside the
-  tariff's hours, and the minutes each of them billed keep their own price.
+- **A tariff with hours is checked at the start moment only — owner's decision,
+  2026-09-23.** A session or booking that starts inside the tariff's hours is
+  billed at that tariff to the end, and extensions are not checked against the
+  schedule at all: a walk-in who sat at 15:30 on 08:00–16:00 pays the morning
+  price all night. The alternative (repricing or refusing past the window) left
+  clubs explaining why two identical sessions cost differently and why "open"
+  was allowed while "two hours" was not. A club that wants a separate evening
+  price adds an evening tariff or a package with its own window. The tariff
+  editor says this next to the hours.
 - **Operator entity search** is half-closed: the command palette finds people
   (#202) but still does not search seats, reservations, orders, or receipts.
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean

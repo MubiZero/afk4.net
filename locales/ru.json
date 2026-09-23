@@ -1677,6 +1677,7 @@
   "op.management.tariffs.schedule.from": "С",
   "op.management.tariffs.schedule.legend": "Когда действует",
   "op.management.tariffs.schedule.overnightNote": "Окно переходит через полночь: оно принадлежит тому дню, в который началось.",
+  "op.management.tariffs.schedule.startRuleHint": "Сессия или бронь, начатая в эти часы, до конца считается по этому тарифу — даже если заходит за конец окна. Продлить её тоже можно.",
   "op.management.tariffs.schedule.to": "До",
   "op.management.tariffs.tab.packages": "Пакеты",
   "op.management.tariffs.tab.tariffs": "Тарифы",
