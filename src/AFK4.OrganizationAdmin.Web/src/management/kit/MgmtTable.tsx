@@ -15,6 +15,9 @@ interface MgmtTableProps<T> {
   toolbar?: {
     title?: string;
     search?: { value: string; onChange: (value: string) => void; placeholder: string };
+    // Второе действие раздела рядом с главным — тихой кнопкой: «Добавить из сети» рядом с
+    // «Пригласить».
+    secondary?: { label: string; icon?: ReactNode; onClick: () => void; disabled?: boolean };
     primary?: { label: string; icon?: ReactNode; onClick: () => void; disabled?: boolean };
   };
   isLoading?: boolean;
@@ -57,6 +60,17 @@ export function MgmtTable<T>({
             </label>
           )}
           <div className="tt-spacer" />
+          {toolbar.secondary && (
+            <button
+              type="button"
+              className="ui-btn"
+              disabled={toolbar.secondary.disabled}
+              onClick={toolbar.secondary.onClick}
+            >
+              {toolbar.secondary.icon}
+              {toolbar.secondary.label}
+            </button>
+          )}
           {toolbar.primary && (
             <button
               type="button"

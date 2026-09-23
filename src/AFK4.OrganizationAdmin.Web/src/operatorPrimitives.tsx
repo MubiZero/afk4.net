@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorErrorProjection } from './apiErrors';
 import type { CriticalConfirmationTone, Feedback } from './operatorTypes';
@@ -42,9 +42,19 @@ export function CriticalActionConfirmation({
   onCancel: () => void;
 }) {
   const { t } = useI18n();
+  const sectionRef = useRef<HTMLElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  // Подтверждение стоит в потоке экрана, а не поверх него: в разделах со списком и карточкой оно
+  // вставало под списком, за краем видимой области, и человек, нажавший «Отключить» в карточке,
+  // не видел, что от него ждут ответа. Появившись, оно показывается и забирает фокус — на
+  // «Отмену», а не на опасную кнопку.
+  useEffect(() => {
+    sectionRef.current?.scrollIntoView?.({ block: 'nearest' });
+    cancelRef.current?.focus();
+  }, []);
 
   return (
-    <section className={`critical-confirmation ${tone}`} role="alertdialog" aria-label={title}>
+    <section ref={sectionRef} className={`critical-confirmation ${tone}`} role="alertdialog" aria-label={title}>
       <div>
         <strong>{title}</strong>
         <span>{detail}</span>
@@ -52,7 +62,7 @@ export function CriticalActionConfirmation({
       </div>
       {children}
       <div className="critical-confirmation-actions">
-        <button type="button" onClick={onCancel} disabled={disabled}>{cancelLabel ?? t('common.cancel')}</button>
+        <button ref={cancelRef} type="button" onClick={onCancel} disabled={disabled}>{cancelLabel ?? t('common.cancel')}</button>
         <button type="button" className="danger" onClick={onConfirm} disabled={disabled}>{confirmLabel}</button>
       </div>
     </section>

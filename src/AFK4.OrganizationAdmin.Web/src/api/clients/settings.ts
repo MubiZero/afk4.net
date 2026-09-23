@@ -22,6 +22,7 @@ import type {
   ReorderProductCategoriesRequest,
   ResetStaffUserPasswordRequest,
   SeatDto,
+  StaffBranchCandidateDto,
   StaffInviteDto,
   StaffUserDto,
   TariffDto,
@@ -64,6 +65,7 @@ export type {
   ReorderProductCategoriesRequest,
   ResetStaffUserPasswordRequest,
   SeatDto,
+  StaffBranchCandidateDto,
   StaffInviteDto,
   StaffUserDto,
   TariffDto,
@@ -131,6 +133,14 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     updateStaffUserRoles(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserRolesRequest): Promise<StaffUserDto> {
       return api.patch<StaffUserDto, UpdateStaffUserRolesRequest>(`branches/${branchId}/staff/${staffUserId}/roles`, request);
+    },
+    // Сотрудники сети, которых нет в этом филиале, — кого можно добавить сюда ролями (только владельцу).
+    getStaffCandidates(branchId: Guid): Promise<StaffBranchCandidateDto[]> {
+      return api.get<StaffBranchCandidateDto[]>(`branches/${branchId}/staff/candidates`);
+    },
+    // Снять с филиала: все роли человека здесь. Себя и владельца сервер не снимает.
+    removeStaffFromBranch(branchId: Guid, staffUserId: Guid): Promise<void> {
+      return api.delete<void>(`branches/${branchId}/staff/${staffUserId}`);
     },
     updateStaffUserState(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserStateRequest): Promise<StaffUserDto> {
       return api.patch<StaffUserDto, UpdateStaffUserStateRequest>(`branches/${branchId}/staff/${staffUserId}/state`, request);

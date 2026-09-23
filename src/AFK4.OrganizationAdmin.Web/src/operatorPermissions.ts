@@ -13,6 +13,9 @@ export { permissionNames };
 
 export const staffRoleOptions = ['operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant'] as const;
 
+// Роль владельца в списке выбора не стоит: её не выдают ролями, а передают вместе с организацией.
+export const ownerRoleName = 'organization_owner';
+
 export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
   map: [permissionNames.viewFloorMap],
   dashboard: [permissionNames.viewReports, permissionNames.viewAudit],
