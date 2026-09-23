@@ -48,22 +48,24 @@ function detail(
   onStart = () => {},
   onMarkNoShow = () => {},
   startMs = Date.now() + 60_000,
-  onSeat = () => {}
+  onSeat = () => {},
+  over: Partial<BookingDrawerProps> & { seatId?: string } = {}
 ) {
   const item = {
     reservationId: 'r1', reservationGroupId: '', version: 2, state, source: 'operator',
     startMs, endMs: startMs + 3_600_000, durationMinutes: 60,
     customerName: 'Мадина', phoneNumber: '+992900000000', note: '', playerAccountId: 'p1',
-    platformPersonId: '', seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: '',
+    platformPersonId: '', seatId: over.seatId ?? 'a1', seatName: over.seatId === '' ? '' : 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: '',
     respondByMs: null
   };
+  const { seatId: _seatId, ...propsOver } = over;
   const props: BookingDrawerProps = {
     mode: 'detail', selected: item, freeSeats: [], allSeats: [activeSeat], draft: draft(),
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null,
     seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(),
     onClose: () => {}, onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {},
     onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {}, onReject: () => {}, onMarkNoShow,
-    onConfirm, onOpenMap: () => {}, onSeat
+    onConfirm, onOpenMap: () => {}, onSeat, ...propsOver
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
 }
@@ -187,4 +189,44 @@ it('у посаженной и отменённой брони кнопки пр
     expect(result.queryByRole('button', { name: 'Пришёл' })).toBeNull();
     cleanup();
   }
+});
+
+// Серое «Перенести на место» с прочерком не говорило, что переносить некуда: список предлагает
+// только места, свободные прямо сейчас.
+describe('BookingDrawer · почему нельзя перенести', () => {
+  it('называет причину, когда свободных мест нет', () => {
+    const result = detail('confirmed');
+    const move = result.getByRole('combobox', { name: 'Перенести на место' });
+    expect(move).toBeDisabled();
+    expect(move).toHaveTextContent('Сейчас свободных мест нет');
+  });
+
+  it('оставляет прочерк, когда переносить есть куда', () => {
+    const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000, () => {}, {
+      freeSeats: [seat({ id: 'c7', name: 'PC-07' })]
+    });
+    const move = result.getByRole('combobox', { name: 'Перенести на место' });
+    expect(move).not.toBeDisabled();
+    expect(move).not.toHaveTextContent('Сейчас свободных мест нет');
+  });
+});
+
+// Заявка из приложения может прийти без места. У такой брони «Открыть карту», «Начать сессию»
+// и «Пришёл» были серыми молча.
+describe('BookingDrawer · бронь без места', () => {
+  it('говорит, что сначала нужно выбрать место', () => {
+    const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000, () => {}, { seatId: '' });
+    const reason = result.getByText(/У брони нет места/);
+    for (const name of ['Открыть карту', 'Начать сессию', 'Пришёл']) {
+      const button = result.getByRole('button', { name });
+      expect(button).toBeDisabled();
+      expect(button.getAttribute('aria-describedby')).toBe(reason.id);
+    }
+  });
+
+  it('молчит, когда место в брони есть', () => {
+    const result = detail('confirmed');
+    expect(result.queryByText(/У брони нет места/)).toBeNull();
+    expect(result.getByRole('button', { name: 'Открыть карту' }).getAttribute('aria-describedby')).toBeNull();
+  });
 });

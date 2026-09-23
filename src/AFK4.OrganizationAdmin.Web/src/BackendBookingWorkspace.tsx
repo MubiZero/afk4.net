@@ -38,6 +38,7 @@ function roundToQuarter(date: Date): Date {
   return next;
 }
 import { StateFlag } from './operatorPrimitives';
+import { ViewOnlyNotice } from './management/ViewOnlyNotice';
 import { useDeferredFlag } from './useDeferredFlag';
 import { useFeedbackToasts } from './useFeedbackToasts';
 import {
@@ -753,6 +754,10 @@ export function BackendBookingWorkspace({
           <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} tone={requestCount > 0 ? 'warning' : undefined} />
         </div>
       </section>
+
+      {/* Брони открываются по праву смотреть их, а ведёт их другое право: у бухгалтера серые все
+          кнопки ленты и карточки. Одна строка вместо подписи под каждой. */}
+      <ViewOnlyNotice reason={backend !== null && !canManageReservations ? t('op.booking.viewOnly') : null} />
 
       {loadStatus === 'failed' && (
         <p className="ui-alert ui-alert--spaced" role="alert">{loadError ?? t('op.booking.load.failed')}</p>

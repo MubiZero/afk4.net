@@ -142,6 +142,9 @@ export function SessionStartForm({
   const openBlocked = useBlockedReason(
     value.isComp ? t('op.map.panel.openTabBlockedComp') : !openAllowed ? t('op.map.panel.openTabBlockedPrepaid') : null
   );
+  // Бронь без аккаунта клиента (fixedClient === null) запускается только гостем: кошелька и пакетов
+  // у неё нет. Серая вкладка «Клиент клуба» об этом молчала.
+  const memberBlocked = useBlockedReason(fixedClient === null ? t('op.map.panel.startMemberBlockedNoAccount') : null);
   const selectedTariff = tariffs.find((item) => readString(item, 'tariffVersionId') === value.tariffVersionId) ?? tariffs[0] ?? null;
   const pricePerMinute = selectedTariff ? readNumber(selectedTariff, 'pricePerMinuteMinorUnits', 0) : 0;
   const durationMinutes = value.durationMode === 'open' ? null : (value.durationMinutes ?? 60);
@@ -210,9 +213,10 @@ export function SessionStartForm({
         disabled={disabled || fixedClient !== undefined && fixedClient !== null}
         onClick={() => { chooseMode('guest'); if (fixedClient === undefined) { setQuery(''); publishClient(null); } }}>{t('op.helper.billing.guest')}</button>
       <button type="button" role="tab" aria-selected={!isGuest} className={!isGuest ? 'active' : undefined}
-        disabled={disabled || fixedClient === null}
+        disabled={disabled || fixedClient === null} aria-describedby={memberBlocked.describedBy}
         onClick={() => { if (isGuest) chooseMode('prepaid_wallet'); }}>{t('op.map.panel.startMember')}</button>
     </div>
+    {memberBlocked.hint}
 
     {!isGuest && <>
       <div className="start-section-head">{t('op.map.panel.startPlayerHead')}</div>
