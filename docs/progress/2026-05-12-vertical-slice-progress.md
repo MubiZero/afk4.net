@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-22
+Last updated: 2026-09-23
 
 ## Purpose
 
@@ -657,21 +657,34 @@ The fake server now announces a one-second interval — this test never checked 
 
 ### Named, not done
 
-These are classes the pass found and did not close. Each needs its own PR, and the reason is
-stated so the next person does not rediscover them:
+Closed on 2026-09-23 (PR #385–#406, all merged): empty states now carry a required decision
+about the next step in both panels (`next` in Platform Control, `EmptyState` in Organization
+Admin — `tsc` refuses a list without one); a disabled control on the cashier's paths names its
+reason (`useBlockedReason`: seat menu, session start, booking start, top-up, POS client picker,
+receiving, device assignment, staff PIN reset); the player app takes colour from the theme, has
+48dp targets, a reachable light theme (dark by default) and a 1.3 font-scale ceiling; the setup
+wizard keeps input on Back, submits on Enter, weighs its actions and calls the program one name;
+«Повторить» appears only where a retry can help. Names changed by the owner the same day: the
+club program is «Панель AFK4.net» (installer, shortcut, window, catalog), the person at the
+counter is «администратор», never «оператор» — both guarded in `voice.test.ts`.
 
-- **Empty states do not name the next step** — 23 of 25 lists in Platform Control (not one
-  passes an action to `EmptyState`), 33 of 47 places in Organization Admin. Cheap per place,
-  but it is new copy in three languages for every list.
-- **A disabled control does not say what is missing** — 365 places in Organization Admin (four
-  explain), ~35 in Platform Control. The fix is not mechanical: each needs the real reason.
+Still open, each its own PR:
+
+- **Disabled controls, the rest** — management screens gated by `canManage…` (~40; one line per
+  screen «you can view, not change» reads better than a hint under every button), ~70
+  `disabled={disabled}` pass-throughs whose parent must name the reason, ~35 in Platform Control.
 - **The skeleton does not repeat the final geometry** — one shape (four 56px rows) stands in for
   card grids, forms, tiles and charts, so the layout jumps when content replaces it.
-- **Player app**: 30 raw colours outside the theme, three touch targets under 48dp, the light
-  theme written and unreachable, and no clamp on the system font scale.
-- **Looking with eyes** — this pass read markup, styles and states rather than running the
-  product: the live stand is frozen by decision. That catches half-presence, missing states,
-  semantics, colour-only meaning, density and words, but not fine visual harmony.
+- **Permission mismatches found in passing** — in Platform Control «Отметить оплаченным»,
+  «Аннулировать», «Проверить пакет», «Опубликовать», «Отозвать» ask a different right than the
+  server checks; the support-notes form shows to read-only holders.
+- **Words** — «Новый клуб» in Platform Control creates an organization; the wizard names itself
+  three ways; the tg label for shift supervisor («Сармуҳосиби навбат») reads as «chief
+  accountant» and needs a native speaker.
+- **Player app** — the club accent is chosen by lightness only in the dark theme, without a
+  contrast check.
+- **Looking with eyes** — the passes read markup, styles and states rather than running the
+  product: the live stand is frozen by decision.
 
 **Closed after the pass — partial failure swallowed silently.** The pass counted 8 + 2 by
 reading; walking every screen loader found 10 in Organization Admin and 3 in Platform Control.
@@ -989,8 +1002,8 @@ thrown away rather than polished.
    the pulse alert, but no endpoint exposes them). Waves without that view trade
    one risk for another: a wave nobody widens leaves part of the fleet on an old
    version silently. Decide the pair together.
-3. **The third pass's "named, not done" list** (section above) — one PR per
-   class, cheapest and most visible first.
+3. **The rest of the "named, not done" list** (section above) — disabled controls on
+   management screens and Platform Control, the permission mismatches, skeleton geometry.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
