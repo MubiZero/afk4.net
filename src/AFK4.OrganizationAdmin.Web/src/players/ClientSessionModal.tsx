@@ -7,6 +7,7 @@ import { hasPermission, permissionNames } from '../operatorPermissions';
 import { projectOperatorError } from '../apiErrors';
 import type { PlayerClientItem } from '../operatorHelpers';
 import type { OperatorBackendContext } from '../operatorTypes';
+import { isSeatReadyForGuest } from '../floorMapState';
 
 interface FreeSeat {
   seatId: string;
@@ -44,7 +45,7 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
         if (!active) return;
         // Свободные места и без активной сессии — те же, что на Карте предлагают под запуск.
         const free = map.seats
-          .filter((seat) => seat.activeSessionId === null && (seat.state === 'free' || seat.state === 'ready'))
+          .filter(isSeatReadyForGuest)
           .map((seat) => ({ seatId: seat.seatId, seatName: seat.seatName, zoneName: seat.zoneName }));
         setSeats(free);
         setSeatId(free[0]?.seatId ?? '');
