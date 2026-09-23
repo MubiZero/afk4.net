@@ -4,6 +4,781 @@
 // ignore_for_file: lines_longer_than_80_chars
 library;
 
+/// Словарь: Platform/Billing/BillingIntervalNames.cs
+abstract final class BillingIntervalNames {
+  static const String monthly = 'monthly';
+  static const String yearly = 'yearly';
+}
+
+/// Словарь: Billing/BillingModeNames.cs
+abstract final class BillingModeNames {
+  static const String prepaidWallet = 'prepaid_wallet';
+  static const String postpaidDebt = 'postpaid_debt';
+  static const String package = 'package';
+}
+
+/// Что оператор может найти одной строкой из палитры. Строки, а не enum: контракт переживает
+/// клиентов, и старый клиент, встретив незнакомый вид, просто его не покажет.
+///
+/// Словарь: Operator/BranchSearchResultDto.cs
+abstract final class BranchSearchKindNames {
+  static const String seat = 'seat';
+  static const String player = 'player';
+  static const String reservation = 'reservation';
+  static const String receipt = 'receipt';
+  static const String order = 'order';
+}
+
+/// Словарь: Shifts/CashMovementTypeNames.cs
+abstract final class CashMovementTypeNames {
+  static const String cashIn = 'cash_in';
+  static const String cashOut = 'cash_out';
+}
+
+/// Чем закончилась команда на устройстве — машинным именем, а не фразой.
+/// Журнал команд читает администратор клуба на своём языке. Агент до этого присылал только
+/// человеческую строку и присылал её по-английски («Workstation locked (nothing)»), и она
+/// доезжала до экрана как есть. Имя исхода переводится на стороне клиента — тот же порядок, что
+/// у кодов ошибок API: сервер отдаёт код, клиент решает, какими словами о нём сказать.
+/// Строку-сообщение это не отменяет: она остаётся деталью для инженера.
+///
+/// Словарь: Devices/DeviceCommandOutcomeNames.cs
+abstract final class DeviceCommandOutcomeNames {
+  /// Команда принята, отдельного исхода у неё нет.
+  static const String accepted = 'accepted';
+  /// Аренда принята, место открыто гостю.
+  static const String leaseAccepted = 'lease-accepted';
+  /// Аренда продлена: сессия продолжается.
+  static const String leaseRefreshed = 'lease-refreshed';
+  /// Машина заперта.
+  static const String workstationLocked = 'workstation-locked';
+  /// Агент не смог применить машинные политики: на самой машине ничего не изменилось. Раньше
+  /// такой исход сообщался как обычный успех — оператор видел «заблокировано» там, где
+  /// диспетчер задач остался доступен.
+  static const String machinePoliciesUnavailable = 'machine-policies-unavailable';
+  /// Предупреждение показано на экране игрока.
+  static const String warningShown = 'warning-shown';
+  /// Причина предупреждения агенту неизвестна — игрок ничего не увидел.
+  static const String warningReasonUnknown = 'warning-reason-unknown';
+  /// Такой тип команды этот агент не исполняет.
+  static const String commandNotImplemented = 'command-not-implemented';
+  /// Исполнение сорвалось: диск, реестр, права. Агент обязан ответить и в этом случае — молчание
+  /// оператор читает как «команда где-то в пути», и ждать он будет бесконечно.
+  static const String commandExecutionFailed = 'command-execution-failed';
+  /// В команде не было аренды сессии.
+  static const String leaseMissing = 'lease-missing';
+  /// Аренду в команде не удалось прочитать.
+  static const String leaseUnreadable = 'lease-unreadable';
+  /// Аренда не прошла проверку подписи или срока.
+  static const String leaseInvalid = 'lease-invalid';
+}
+
+/// Словарь: Devices/DeviceCommandTypeNames.cs
+abstract final class DeviceCommandTypeNames {
+  static const String lock = 'lock';
+  static const String unlock = 'unlock';
+  static const String refreshSessionLease = 'refresh-session-lease';
+  /// A non-blocking warning overlay pushed to the shell (e.g. fixed time almost
+  /// up, or an open tab approaching its credit limit).
+  static const String warn = 'warn';
+}
+
+/// Словарь: Install/DeviceEnrollmentStateNames.cs
+abstract final class DeviceEnrollmentStateNames {
+  static const String approved = 'approved';
+  static const String pending = 'pending';
+  static const String rejected = 'rejected';
+  static const String removed = 'removed';
+}
+
+/// Словарь: Install/DeviceRoleNames.cs
+abstract final class DeviceRoleNames {
+  static const String gamingPc = 'gaming_pc';
+  static const String managerWorkstation = 'manager_workstation';
+}
+
+/// Что с дружбой прямо сейчас.
+///
+/// Словарь: Friends/FriendDtos.cs
+abstract final class FriendshipStateNames {
+  /// Позвали, ответа ещё нет.
+  static const String pending = 'pending';
+  static const String accepted = 'accepted';
+  /// Отказали. Строка остаётся, чтобы человека не звали второй раз.
+  static const String declined = 'declined';
+}
+
+/// Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
+/// текст отказа с сервера — всегда английский: показать его человеку у ПК нельзя, а назвать
+/// причину своими словами по коду — можно.
+///
+/// Словарь: Install/InstallErrorCodeNames.cs
+abstract final class InstallErrorCodeNames {
+  /// На выбранное место уже привязан другой ПК.
+  static const String seatOccupied = 'seat_occupied';
+}
+
+/// Словарь: Platform/Billing/InvoiceKindNames.cs
+abstract final class InvoiceKindNames {
+  static const String subscription = 'subscription';
+  static const String proration = 'proration';
+  /// Manually issued charge outside the subscription: setup, hardware, extra service.
+  static const String oneOff = 'one_off';
+  /// Money owed back to the club. Carries a negative amount so the balance is arithmetic.
+  static const String credit = 'credit';
+}
+
+/// Словарь: Platform/Billing/InvoiceStatusNames.cs
+abstract final class InvoiceStatusNames {
+  static const String issued = 'issued';
+  static const String paid = 'paid';
+  static const String void_ = 'void';
+  static const String overdue = 'overdue';
+}
+
+/// Словарь: Billing/LedgerAccountTypeNames.cs
+abstract final class LedgerAccountTypeNames {
+  static const String wallet = 'wallet';
+  static const String debt = 'debt';
+  static const String packageTime = 'package_time';
+  static const String bonusTime = 'bonus_time';
+}
+
+/// Словарь: Billing/LedgerEntryTypeNames.cs
+abstract final class LedgerEntryTypeNames {
+  static const String topUp = 'top_up';
+  static const String gameplayCharge = 'gameplay_charge';
+  static const String packagePurchase = 'package_purchase';
+  static const String packageConsumption = 'package_consumption';
+  static const String bonusGrant = 'bonus_grant';
+  static const String bonusConsumption = 'bonus_consumption';
+  static const String refund = 'refund';
+  static const String manualCorrection = 'manual_correction';
+  static const String postpaidDebt = 'postpaid_debt';
+  static const String debtPayment = 'debt_payment';
+  static const String walletPayment = 'wallet_payment';
+  static const String reversal = 'reversal';
+  static const String cashback = 'cashback';
+  /// Деньги за приведённого друга — платит клуб, обоим сразу.
+  static const String referralBonus = 'referral_bonus';
+  /// Заморозка под бронь: деньги остаются игроку, но потратить их второй раз уже нельзя.
+  /// Оплатой не становится никогда — только снимается реверсом.
+  static const String reservationHold = 'reservation_hold';
+  /// Удержанная за неявку предоплата — выручка клуба, а не «деньги, которые не вернулись».
+  /// Пишется только если филиал так решил, и всегда после снятия заморозки.
+  static const String reservationNoShowFee = 'reservation_no_show_fee';
+  /// Взнос за участие в событии клуба — списывается при записи.
+  static const String tournamentEntryFee = 'tournament_entry_fee';
+  /// Возврат взноса: игрок снялся до начала или клуб отменил событие. Отдельно от общего
+  /// возврата, чтобы в выписке было видно, за что деньги вернулись.
+  static const String tournamentEntryRefund = 'tournament_entry_refund';
+}
+
+/// Словарь: Media/MediaPurposeNames.cs
+abstract final class MediaPurposeNames {
+  static const String branchLogo = 'branch-logo';
+  /// Логотип клуба целиком: его показывают приложение игрока, витрина и экран игрового ПК.
+  /// Отдельно от логотипа зала — у сети он один, а залов много.
+  static const String organizationLogo = 'organization-logo';
+  /// Фото зала для витрины клуба в приложении игрока.
+  static const String branchCover = 'branch-cover';
+  /// Остальные фото зала: их несколько, и новая загрузка не заменяет прежние.
+  static const String branchGallery = 'branch-gallery';
+}
+
+/// Машинные имена отказов при подключении админки клуба к клубу.
+/// Этот экран человек видит раньше всего остального — до входа, до языка интерфейса он уже
+/// выбран. Английская фраза сервера («OrganizationSlug must contain only lowercase letters…»)
+/// доезжала до него дословно: непонятно и похоже на поломку программы.
+///
+/// Словарь: Platform/Operator/OperatorConnectionErrorCodeNames.cs
+abstract final class OperatorConnectionErrorCodeNames {
+  /// Не указано ни адреса клуба и филиала, ни кода подключения.
+  static const String inputMissing = 'connection_input_missing';
+  /// Указано и то и другое сразу.
+  static const String inputAmbiguous = 'connection_input_ambiguous';
+  /// Адрес клуба или филиала записан не по формату.
+  static const String slugInvalid = 'connection_slug_invalid';
+  /// Код подключения пустой.
+  static const String setupCodeRequired = 'setup_code_required';
+  /// Кодом подключения уже воспользовались или его отозвали.
+  static const String setupCodeNotUsable = 'setup_code_not_usable';
+}
+
+/// Словарь: Identity/AccountActivation/OrganizationOwnerInviteStatusNames.cs
+abstract final class OrganizationOwnerInviteStatusNames {
+  static const String pending = 'pending';
+  static const String accepted = 'accepted';
+  static const String revoked = 'revoked';
+  static const String expired = 'expired';
+}
+
+/// Словарь: Identity/OrganizationPermissionNames.cs
+abstract final class OrganizationPermissionNames {
+  static const String createDeviceEnrollmentCode = 'organization.devices.enrollment_codes.create';
+  static const String dispatchDeviceCommand = 'organization.devices.commands.dispatch';
+  static const String viewDeviceCommandStatus = 'organization.devices.commands.status.view';
+  static const String rotateDeviceCredential = 'organization.devices.credentials.rotate';
+  static const String revokeDeviceCredential = 'organization.devices.credentials.revoke';
+  static const String assignDeviceSeat = 'organization.devices.seat_assignment.assign';
+  static const String viewDeviceDetail = 'organization.devices.detail.view';
+  static const String installDevice = 'organization.devices.install';
+  static const String viewFloorMap = 'organization.floor_map.view';
+  static const String manageLayout = 'organization.layout.manage';
+  static const String startSession = 'organization.sessions.start';
+  static const String extendSession = 'organization.sessions.extend';
+  /// Поставить сессию на паузу и снять её. Право того же круга, что продление: обе правят время.
+  static const String pauseSession = 'organization.sessions.pause';
+  static const String transferSession = 'organization.sessions.transfer';
+  static const String endSession = 'organization.sessions.end';
+  static const String viewSession = 'organization.sessions.view';
+  static const String createPlayerAccount = 'organization.players.create';
+  static const String viewPlayers = 'organization.players.view';
+  static const String viewBilling = 'organization.billing.view';
+  static const String topUpWallet = 'organization.billing.wallet.top_up';
+  static const String refundLedgerEntry = 'organization.billing.refund';
+  static const String manualLedgerCorrection = 'organization.billing.manual_correction';
+  static const String payDebt = 'organization.billing.debt.pay';
+  /// Anti-fraud (§5.2/D2): approve an over-threshold high-risk money action raised by another actor.
+  static const String approveMoneyAction = 'organization.billing.money_action.approve';
+  static const String viewSubscription = 'organization.billing.subscription.view';
+  static const String manageTariffs = 'organization.tariffs.manage';
+  static const String viewTariffs = 'organization.tariffs.view';
+  static const String managePackages = 'organization.packages.manage';
+  static const String viewPackages = 'organization.packages.view';
+  static const String purchasePackage = 'organization.packages.purchase';
+  static const String openShift = 'organization.shifts.open';
+  static const String closeShift = 'organization.shifts.close';
+  /// Закрыть СВОЮ смену — ту, которую сам и открыл. Узкое подмножество CloseShift.
+  /// Контроль от этого не слабеет: сверка кассы обязательна для всех (CountedCash), а
+  /// расхождение сверх допуска филиала по-прежнему требует подписи второго человека, который
+  /// не открывал и не закрывает смену (§5.7, EfShiftService). То есть «закрыть поверх
+  /// недостачи» в одиночку нельзя было и не станет можно.
+  /// Без этого права ночной кассир, которого гейт после входа ЗАСТАВИЛ открыть смену, не мог
+  /// её закрыть: в шесть утра он один, а закрывать обязан кто-то другой.
+  static const String closeOwnShift = 'organization.shifts.close_own';
+  static const String viewShift = 'organization.shifts.view';
+  static const String manageShiftCash = 'organization.shifts.cash.manage';
+  static const String viewReports = 'organization.reports.view';
+  static const String viewReservations = 'organization.reservations.view';
+  static const String manageReservations = 'organization.reservations.manage';
+  static const String managePosCatalog = 'organization.pos.catalog.manage';
+  static const String createPosSale = 'organization.pos.sales.create';
+  static const String payPosSale = 'organization.pos.sales.pay';
+  static const String refundPosSale = 'organization.pos.sales.refund';
+  static const String voidPosSale = 'organization.pos.sales.void';
+  /// Отменить СВОЙ чек, пробитый только что, без старшего — узкое подмножество VoidPosSale.
+  /// Границы правила и довод за него живут в `Pos/PosSelfVoidPolicy.cs`: право само по
+  /// себе ничего не разрешает, пока продажа не своя, не в текущей открытой смене и не свежая.
+  static const String voidOwnRecentPosSale = 'organization.pos.sales.void_own_recent';
+  static const String manageInventoryStock = 'organization.inventory.stock.manage';
+  static const String viewInventory = 'organization.inventory.view';
+  static const String viewReceipt = 'organization.receipts.view';
+  static const String viewUpdateStatus = 'organization.updates.status.view';
+  static const String viewDiagnostics = 'organization.diagnostics.view';
+  static const String manageBranchStaff = 'organization.identity.branch_staff.manage';
+  static const String manageRoles = 'organization.identity.roles.manage';
+  static const String viewAudit = 'organization.audit.view';
+  /// Owner-only: read org-wide audit across all branches + org-level records.
+  static const String viewOrganizationAudit = 'organization.audit.organization.view';
+  static const String manageBranchSettings = 'organization.branches.settings.manage';
+  /// Owner-only: view the org-wide branch roster (network overview).
+  static const String viewBranches = 'organization.branches.view';
+  /// Owner-only: connect/manage the club's DC-Bank payment cards (dcgate gateways).
+  static const String managePaymentGateways = 'organization.payments.gateways.manage';
+  /// Очередь заказов бара разведена на два права по одной границе: двигаются ли деньги.
+  /// Serve — увидеть очередь, принять заказ, выдать его. Это чистая смена статуса, ничего не
+  /// списывается и не возвращается: заказ оплачен в момент оформления. Выдаёт еду кассир, ему
+  /// это право и нужно.
+  /// Manage — отменить заказ, а отмена идёт через денежный координатор и возвращает деньги.
+  /// Это денежное действие и остаётся за тем же кругом, что возвраты в кассе.
+  static const String serveShopOrders = 'organization.shop.orders.serve';
+  static const String manageShopOrders = 'organization.shop.orders.manage';
+  /// Снять с места вызов оператора. Право того же круга, что и «отдать заказ»: зовут человека
+  /// с зала, а не того, кто правит настройки.
+  static const String resolveAssistanceRequest = 'organization.assistance.resolve';
+  /// Owner-only: configure org-wide loyalty/cashback rates.
+  static const String manageLoyaltySettings = 'organization.loyalty.settings.manage';
+  static const String manageNews = 'organization.news.manage';
+  /// Заводить и отменять события клуба. Отдельно от новостей: событие возвращает деньги
+  /// при отмене, и это право сильнее права написать объявление.
+  static const String manageTournaments = 'organization.tournaments.manage';
+}
+
+/// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
+abstract final class OrganizationPlanCodeNames {
+  static const String starter = 'starter';
+  static const String growth = 'growth';
+  static const String scale = 'scale';
+}
+
+/// Словарь: Platform/Organizations/OrganizationStatusNames.cs
+abstract final class OrganizationStatusNames {
+  static const String active = 'active';
+  static const String suspended = 'suspended';
+  static const String deletionPending = 'deletion_pending';
+  /// Клуб ушёл и его данные стёрты. Терминальный статус: архивная строка нужна отчётности по
+  /// деньгам, но отличать её от живой заявки на уход обязательно — иначе стёртый клуб выглядит
+  /// как ещё живая заявка.
+  static const String purged = 'purged';
+}
+
+/// Словарь: Payments/PaymentMethodNames.cs
+abstract final class PaymentMethodNames {
+  static const String cash = 'cash';
+  static const String cardManual = 'card_manual';
+  static const String wallet = 'wallet';
+}
+
+/// Машинные имена лимитов тарифа и код отказа. Фразу для человека собирает клиент —
+/// сервер отдаёт только код и числа.
+///
+/// Словарь: Platform/Organizations/PlanLimitNames.cs
+abstract final class PlanLimitNames {
+  static const String reachedCode = 'plan_limit_reached';
+  static const String branches = 'branches';
+  static const String devicesPerBranch = 'devices_per_branch';
+  static const String concurrentSessions = 'concurrent_sessions';
+  static const String staffUsersPerBranch = 'staff_users_per_branch';
+}
+
+/// Словарь: Platform/Auth/PlatformAdminPermissionNames.cs
+abstract final class PlatformAdminPermissionNames {
+  static const String useSupportAccess = 'platform.support.access';
+  static const String viewOrganizations = 'platform.organizations.view';
+  static const String createOrganization = 'platform.organizations.create';
+  static const String updateOrganizationStatus = 'platform.organizations.status.update';
+  static const String updateOrganizationLimits = 'platform.organizations.limits.update';
+  static const String updateOrganizationProfile = 'platform.organizations.profile.update';
+  static const String updateOrganizationUpdateChannel = 'platform.organizations.update_channel.update';
+  static const String viewOrganizationSupportNotes = 'platform.organizations.support_notes.view';
+  static const String manageOrganizationSupportNotes = 'platform.organizations.support_notes.manage';
+  static const String manageOrganizationOwnerInvites = 'platform.organizations.owner_invites.manage';
+  static const String transferOrganizationOwner = 'platform.organizations.owner.transfer';
+  static const String viewOrganizationHealth = 'platform.organizations.health.view';
+  static const String viewPlatformAudit = 'platform.audit.view';
+  static const String viewBilling = 'platform.billing.view';
+  static const String managePlans = 'platform.billing.plans.manage';
+  static const String manageSubscriptions = 'platform.billing.subscriptions.manage';
+  static const String manageInvoices = 'platform.billing.invoices.manage';
+  static const String viewUpdates = 'platform.updates.view';
+  static const String manageUpdatePackages = 'platform.updates.packages.manage';
+  static const String manageUpdateRollouts = 'platform.updates.rollouts.manage';
+  static const String managePlatformAdmins = 'platform.admins.manage';
+  static const String viewPlatformHealth = 'platform.health.view';
+  /// Отправка проверочного письма. Отдельно от просмотра здоровья: это действие наружу,
+  /// а не чтение.
+  static const String sendTestNotification = 'platform.health.test_email.send';
+  static const String manageOrganizationFeatures = 'platform.organizations.features.manage';
+  /// Ведение анонсов платформы. Отдельного «смотреть анонсы» нет: как и у ролей, кто их ведёт,
+  /// тот их и читает — лишнее право усложнило бы модель, ничего не добавив.
+  static const String manageAnnouncements = 'platform.announcements.manage';
+  /// Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
+  /// вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
+  /// право здесь значит раздать необратимое тем, кому дали настраивать.
+  static const String manageOffboarding = 'platform.organizations.offboarding.manage';
+  /// Сетевой запрет человеку: закрыть или открыть ему самообслуживание во всей сети. Право
+  /// платформы и только её — клуб решает за свой клуб, закрывая у себя карточку, и дальше его
+  /// решения не идут. Поддержке не даётся по той же причине, по которой ей не даётся репутация.
+  static const String manageNetworkBans = 'platform.people.network_ban.manage';
+}
+
+/// Словарь: Platform/Auth/PlatformAdminRoleNames.cs
+abstract final class PlatformAdminRoleNames {
+  static const String platformAdmin = 'platform_admin';
+  static const String platformSupport = 'platform_support';
+}
+
+/// Машинные имена отказов платформенного контура.
+/// Причина та же, по которой они появились у офбординга (<see
+/// cref="Organizations.OffboardingErrorCodes"/>): текст отказа сервер пишет по-английски и
+/// именами своих полей («CurrentPeriodEndUtc must be later than…»), а панель работает на трёх
+/// языках. Показать такой текст нельзя, и без кода панель показывала одно «не удалось сохранить
+/// изменения» на десяток разных причин — в форме подписки из семи полей человек не мог понять,
+/// какое из них поправить.
+/// Здесь только те причины, которые человек за панелью исправляет сам. Остальное остаётся без
+/// кода и честно называется общими словами.
+///
+/// Словарь: Platform/Billing/PlatformErrorCodeNames.cs
+abstract final class PlatformErrorCodeNames {
+  /// Счёт за текущий период уже выставлен.
+  static const String invoicePeriodAlreadyBilled = 'invoice_period_already_billed';
+  /// Счёт уже оплачен.
+  static const String invoiceAlreadyPaid = 'invoice_already_paid';
+  /// Счёт уже аннулирован.
+  static const String invoiceAlreadyVoid = 'invoice_already_void';
+  /// Оплаченный счёт не аннулируют — на него выписывают кредит-ноту.
+  static const String paidInvoiceCannotBeVoided = 'paid_invoice_cannot_be_voided';
+  /// Кредит-ноту не оплачивают: она учитывается в балансе.
+  static const String creditNoteNotPayable = 'credit_note_not_payable';
+  /// Номер счёта занял параллельный запрос — можно повторить.
+  static const String invoiceNumberingConflict = 'invoice_numbering_conflict';
+  /// Конец оплаченного периода не позже его начала.
+  static const String subscriptionPeriodEndNotAfterStart = 'subscription_period_end_not_after_start';
+  /// Отсрочку ставят на будущее: прошедшая дата ничего не отсрочит.
+  static const String subscriptionGraceNotInFuture = 'subscription_grace_not_in_future';
+  /// Перевод на пробный период без даты его окончания.
+  static const String subscriptionTrialNeedsPeriodEnd = 'subscription_trial_needs_period_end';
+  /// Выбранного тарифа нет в каталоге.
+  static const String subscriptionPlanNotFound = 'subscription_plan_not_found';
+  /// Такой адрес организации уже занят другим клубом.
+  static const String organizationSlugTaken = 'organization_slug_taken';
+  /// Такой адрес филиала уже занят в этой организации.
+  static const String branchSlugTaken = 'branch_slug_taken';
+  /// Логин владельца уже занят в этой организации.
+  static const String ownerUserNameTaken = 'owner_username_taken';
+}
+
+/// Ключи фич, которые платформа умеет включать и выключать клубу. Каждый ключ обязан иметь
+/// точку проверки в коде: флаг без потребителя — мусор, который невозможно опознать через месяц.
+///
+/// Словарь: Platform/Features/PlatformFeatureNames.cs
+abstract final class PlatformFeatureNames {
+  /// Код отказа, когда фича выключена. Фразу собирает клиент.
+  static const String disabledCode = 'feature_disabled';
+  static const String onlineBooking = 'online_booking';
+  static const String loyalty = 'loyalty';
+  static const String onlineTopUp = 'online_topup';
+  static const String playerShop = 'player_shop';
+  static const String tournaments = 'tournaments';
+}
+
+/// Словарь: Platform/Health/PlatformHealthContracts.cs
+abstract final class PlatformQueueNames {
+  static const String notifications = 'notifications';
+  static const String billingOutbox = 'billing_outbox';
+}
+
+/// Словарь: Platform/Updates/PlatformUpdateContracts.cs
+abstract final class PlatformUpdateTargetKindNames {
+  static const String organization = 'organization';
+  static const String branch = 'branch';
+  static const String device = 'device';
+}
+
+/// Словарь: Shell/PlayerShellStateNames.cs
+abstract final class PlayerShellStateNames {
+  static const String locked = 'locked';
+  static const String active = 'active';
+  static const String grace = 'grace';
+  static const String ending = 'ending';
+  static const String maintenance = 'maintenance';
+  static const String offline = 'offline';
+  static const String error = 'error';
+}
+
+/// Словарь: Pos/PosSaleStateNames.cs
+abstract final class PosSaleStateNames {
+  static const String draft = 'draft';
+  static const String pendingPayment = 'pending_payment';
+  static const String paid = 'paid';
+  static const String refunded = 'refunded';
+  static const String voided = 'voided';
+}
+
+/// Словарь: Platform/Pulse/PlatformPulseContracts.cs
+abstract final class PulseAlertKindNames {
+  static const String agentSilent = 'agent_silent';
+  static const String shiftNotClosed = 'shift_not_closed';
+  static const String paymentOverdue = 'payment_overdue';
+  static const String rolloutFailed = 'rollout_failed';
+}
+
+/// Словарь: Platform/Pulse/PlatformPulseContracts.cs
+abstract final class PulseAlertLevelNames {
+  static const String normal = 'normal';
+  static const String attention = 'attention';
+  static const String critical = 'critical';
+}
+
+/// How often a report schedule fires and the size of the window each run covers.
+///
+/// Словарь: Reports/ReportScheduleNames.cs
+abstract final class ReportScheduleFrequencyNames {
+  static const String daily = 'daily';
+  static const String weekly = 'weekly';
+  static const String monthly = 'monthly';
+}
+
+/// Машинные имена отказов по броням. См. Shifts.ShiftErrorCodeNames — та же причина:
+/// стойка работает на трёх языках, а английская фраза сервера в интерфейс попадать не должна.
+/// Почти все эти отказы — про состояние брони, которое успело измениться: сосед подтвердил её
+/// раньше, гость уже сидит, заявку уже отклонили. Отличать их друг от друга оператору нужно
+/// именно потому, что дальше он делает разное.
+///
+/// Словарь: Reservations/ReservationErrorCodeNames.cs
+abstract final class ReservationErrorCodeNames {
+  /// Подтвердить можно только заявку, на которую клуб ещё не ответил.
+  static const String notPending = 'reservation_not_pending';
+  /// Менять можно бронь, которая ещё не отменена и не закрыта.
+  static const String notChangeable = 'reservation_not_changeable';
+  /// Посадить можно только заявку или подтверждённую бронь.
+  static const String notSeatable = 'reservation_not_seatable';
+  /// Бронь без места — сажать некуда.
+  static const String seatRequired = 'reservation_seat_required';
+  /// Отменить можно только заявку или подтверждённую бронь.
+  static const String notCancellable = 'reservation_not_cancellable';
+  /// Отмена без причины: её читает гость и она же уходит в журнал.
+  static const String cancelReasonRequired = 'reservation_cancel_reason_required';
+  /// Отказать можно в заявке, на которую клуб ещё не ответил.
+  static const String notRejectable = 'reservation_not_rejectable';
+  /// Отказ «своими словами» без слов.
+  static const String refusalNoteRequired = 'reservation_refusal_note_required';
+  /// Неизвестная причина отказа.
+  static const String rejectReasonUnsupported = 'reservation_reject_reason_unsupported';
+  /// Неявку отмечают у подтверждённой брони, время которой уже началось.
+  static const String noShowNotAllowed = 'reservation_no_show_not_allowed';
+}
+
+/// Словарь: Reservations/ReservationSourceNames.cs
+abstract final class ReservationSourceNames {
+  static const String operator = 'operator';
+  static const String online = 'online';
+}
+
+/// Словарь: Reservations/ReservationStateNames.cs
+abstract final class ReservationStateNames {
+  static const String pending = 'pending';
+  static const String confirmed = 'confirmed';
+  static const String seated = 'seated';
+  static const String cancelled = 'cancelled';
+  /// Игрок не приехал. Отдельно от отмены намеренно: отменённая бронь — это решение человека
+  /// или клуба, а неявка — его отсутствие, и стоить она может денег. Пока оба исхода изображала
+  /// одна «отмена» с пометкой в свободном тексте, отличить их можно было только сравнением строк.
+  static const String noShow = 'no_show';
+  /// Клуб отказал в заявке — с причиной. Не отмена: игрок ничего не отменял, и в его репутации
+  /// чужой отказ появляться не должен.
+  static const String rejected = 'rejected';
+}
+
+/// The report kinds a schedule can deliver — one per existing report export endpoint.
+///
+/// Словарь: Reports/ReportScheduleNames.cs
+abstract final class ScheduledReportTypeNames {
+  static const String shifts = 'shifts';
+  static const String sales = 'sales';
+  static const String gameplayTime = 'gameplay_time';
+  static const String cashOperations = 'cash_operations';
+  static const String operatorActions = 'operator_actions';
+}
+
+/// Состояние места на карте зала — то, что сервер кладёт в SeatStatusDto.State.
+/// Пишутся с большой буквы, в отличие от состояний сессии: это отдельный словарь карты, а не код
+/// сессии. Пока их писали литералами, Панель сравнивала сырое значение с «free» и «ready», которых
+/// сервер не присылает никогда, и «Посадить за ПК» из карточки клиента не предлагало ни одного
+/// места (#423).
+///
+/// Словарь: FloorMap/SeatStateNames.cs
+abstract final class SeatStateNames {
+  static const String free = 'Free';
+  /// ПК на связи и заперт: гость может сесть — это то же «свободно».
+  static const String locked = 'Locked';
+  static const String active = 'Active';
+  static const String paused = 'Paused';
+  static const String ending = 'Ending';
+  /// ПК не привязан к месту или не одобрен.
+  static const String maintenance = 'Maintenance';
+  static const String offline = 'Offline';
+}
+
+/// С чего началась сессия. Раньше на этот вопрос отвечали догадкой по косвенным признакам —
+/// «раз есть бронь, значит по брони», — и догадка врала на любом нестандартном вечере.
+/// Пустая строка — законный ответ «неизвестно» для строк, заведённых до того, как вопрос начали
+/// задавать. Подставлять вместо неё Operator нельзя: это уже утверждение, а не факт.
+///
+/// Словарь: Sessions/SessionOriginNames.cs
+abstract final class SessionOriginNames {
+  /// Посадил администратор за стойкой.
+  static const String operator = 'operator';
+  /// Игрок сел сам. Именно «сам», а не «по PIN»: самопосадка идёт и из приложения, где никакого
+  /// PIN человек не набирал, — имя по механизму врало бы в самом поле, заведённом ради правды.
+  static const String selfService = 'self_service';
+  /// Сессия выросла из брони: человек пришёл на забронированное время.
+  static const String reservation = 'reservation';
+}
+
+/// Словарь: Sessions/SessionStateNames.cs
+abstract final class SessionStateNames {
+  static const String requested = 'requested';
+  static const String active = 'active';
+  static const String paused = 'paused';
+  static const String ending = 'ending';
+  static const String ended = 'ended';
+  static const String failed = 'failed';
+  static const String reconciled = 'reconciled';
+}
+
+/// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
+/// причина: у кассы эти отказы самые частые, а без кода до кассира доезжала английская фраза
+/// сервера вместе с сырым телом ответа.
+///
+/// Словарь: Shifts/ShiftErrorCodeNames.cs
+abstract final class ShiftErrorCodeNames {
+  /// В филиале уже открыта смена — вторую открыть нельзя.
+  static const String alreadyOpen = 'shift_already_open';
+  /// Смену уже закрыли: скорее всего, это сделал сосед по кассе.
+  static const String alreadyClosed = 'shift_already_closed';
+  /// Валюта операции не совпадает с валютой смены.
+  static const String currencyMismatch = 'shift_currency_mismatch';
+  /// Расхождение по кассе больше допуска — нужна подпись старшего.
+  static const String signOffRequired = 'shift_sign_off_required';
+  /// Подписать расхождение должен не тот, кто смену открыл или закрывает.
+  static const String signOffMustDiffer = 'shift_sign_off_must_differ';
+  /// У выбранного сотрудника нет права подписывать расхождение.
+  static const String signOffNotAuthorized = 'shift_sign_off_not_authorized';
+  /// Внесение и изъятие наличных возможны только при открытой смене.
+  static const String cashMovementNeedsOpenShift = 'cash_movement_needs_open_shift';
+}
+
+/// Словарь: Shifts/ShiftStateNames.cs
+abstract final class ShiftStateNames {
+  static const String open = 'open';
+  static const String closed = 'closed';
+}
+
+/// Словарь: Shop/ShopOrderStatusNames.cs
+abstract final class ShopOrderStatusNames {
+  static const String placed = 'placed';
+  static const String accepted = 'accepted';
+  static const String delivered = 'delivered';
+  static const String cancelled = 'cancelled';
+}
+
+/// Машинные причины отказа на входе сотрудника. Клиент по ним и подбирает слова: текст сервера
+/// английский, а мастер и приложение клуба работают на трёх языках.
+///
+/// Словарь: Identity/StaffAuthErrorCodeNames.cs
+abstract final class StaffAuthErrorCodeNames {
+  /// Пять промахов подряд — вход в эту учётную запись закрыт на четверть часа. Отдельно от
+  /// обычного «неверно»: там человек ищет опечатку, здесь ждёт.
+  static const String tooManyPasswordAttempts = 'too_many_password_attempts';
+}
+
+/// Машинные имена отказов при приглашении сотрудника. См.
+/// Install.InstallErrorCodeNames — та же причина: отказ нужно назвать на языке того,
+/// кто его читает.
+///
+/// Словарь: Identity/StaffInviteErrorCodeNames.cs
+abstract final class StaffInviteErrorCodeNames {
+  /// Номер не похож на телефон — приглашение уходит SMS, слать его некуда.
+  static const String invalidPhone = 'invalid_phone';
+  /// Логин уже занят другим сотрудником клуба.
+  static const String userNameTaken = 'staff_username_taken';
+  /// Номер уже принадлежит сотруднику клуба.
+  static const String phoneTaken = 'staff_phone_taken';
+}
+
+/// Словарь: Inventory/StockMovementTypeNames.cs
+abstract final class StockMovementTypeNames {
+  static const String purchase = 'purchase';
+  static const String sale = 'sale';
+  static const String refund = 'refund';
+  static const String adjustment = 'adjustment';
+}
+
+/// Словарь: Platform/Organizations/SubscriptionStatusNames.cs
+abstract final class SubscriptionStatusNames {
+  static const String trial = 'trial';
+  static const String active = 'active';
+  static const String pastDue = 'past_due';
+  static const String cancelled = 'cancelled';
+}
+
+/// Машинные имена отказов по тарифам. См. Install.InstallErrorCodeNames — та же
+/// причина: отказ нужно назвать на языке того, кто его читает.
+///
+/// Словарь: Tariffs/TariffErrorCodeNames.cs
+abstract final class TariffErrorCodeNames {
+  /// Тариф с таким именем в филиале уже есть.
+  static const String nameTaken = 'tariff_name_taken';
+}
+
+/// Что с записью игрока на событие.
+///
+/// Словарь: Tournaments/TournamentStateNames.cs
+abstract final class TournamentRegistrationStateNames {
+  static const String registered = 'registered';
+  static const String cancelled = 'cancelled';
+}
+
+/// Что с событием клуба прямо сейчас.
+///
+/// Словарь: Tournaments/TournamentStateNames.cs
+abstract final class TournamentStateNames {
+  /// Черновик: клуб составляет событие, игрок его не видит.
+  static const String draft = 'draft';
+  /// Опубликовано: событие видно в приложении и на него записываются.
+  static const String published = 'published';
+  /// Отменено клубом. Взносы возвращены всем записавшимся.
+  static const String cancelled = 'cancelled';
+}
+
+/// Словарь: Updates/UpdateChannelNames.cs
+abstract final class UpdateChannelNames {
+  static const String stable = 'stable';
+  static const String beta = 'beta';
+  static const String internal = 'internal';
+}
+
+/// Словарь: Updates/UpdateComponentNames.cs
+abstract final class UpdateComponentNames {
+  static const String organizationAdmin = 'organization-admin';
+  static const String agentService = 'agent-service';
+  static const String playerShell = 'player-shell';
+}
+
+/// Словарь: Updates/UpdatePackageSignatureAlgorithmNames.cs
+abstract final class UpdatePackageSignatureAlgorithmNames {
+  static const String ecdsaP256Sha256IeeeP1363 = 'ECDSA-P256-SHA256-IEEE-P1363';
+}
+
+/// Словарь: Updates/UpdatePackageStateNames.cs
+abstract final class UpdatePackageStateNames {
+  static const String registered = 'registered';
+  static const String validated = 'validated';
+  static const String rejected = 'rejected';
+  static const String retired = 'retired';
+}
+
+/// Словарь: Updates/UpdateRolloutStateNames.cs
+abstract final class UpdateRolloutStateNames {
+  static const String draft = 'draft';
+  static const String active = 'active';
+  static const String paused = 'paused';
+  static const String completed = 'completed';
+  static const String rollbackRequested = 'rollback-requested';
+  static const String rolledBack = 'rolled-back';
+  static const String cancelled = 'cancelled';
+}
+
+/// Словарь: Updates/UpdateStatusNames.cs
+abstract final class UpdateStatusNames {
+  static const String notStarted = 'not-started';
+  static const String offered = 'offered';
+  static const String downloading = 'downloading';
+  static const String downloaded = 'downloaded';
+  static const String installing = 'installing';
+  static const String installed = 'installed';
+  /// Пакет лёг, но файлы, занятые работающими процессами, Windows заменит только после
+  /// перезагрузки машины: до неё устройство работает на прежней сборке.
+  static const String pendingRestart = 'pending-restart';
+  static const String superseded = 'superseded';
+  static const String failed = 'failed';
+  static const String rollbackStarted = 'rollback-started';
+  static const String rolledBack = 'rolled-back';
+  static const String deferred = 'deferred';
+  static const String readyToInstall = 'ready-to-install';
+  static const String awaitingAppExit = 'awaiting-app-exit';
+  static const String healthChecking = 'health-checking';
+  static const String rollbackRequired = 'rollback-required';
+}
+
+/// Словарь: Updates/UpdateTargetKindNames.cs
+abstract final class UpdateTargetKindNames {
+  static const String branch = 'branch';
+  static const String device = 'device';
+}
+
 /// Контракт: Identity/AccountActivation/AcceptOrganizationOwnerInviteRequest.cs
 class AcceptOrganizationOwnerInviteRequest {
   const AcceptOrganizationOwnerInviteRequest({
@@ -9951,7 +10726,7 @@ class PlayerReservationDto {
   final DateTime endsAtUtc;
 
   /// Отменить можно то, что ещё не состоялось: `pending` и `confirmed`. Отменённую или уже
-  /// отыгранную бронь трогать нечего — кнопка там только сбивает с толку.
+  /// отыгранную бронь трогать нечего — кнопка там только сбивает с толку. Одно из ReservationStateNames.
   final String state;
   final String? note;
   final String? tariffVersionId;
@@ -10687,6 +11462,8 @@ class PlayerTournamentDto {
   final int capacity;
   final int registeredCount;
   final bool isRegistered;
+
+  /// Одно из TournamentStateNames.
   final String state;
 
   /// Почему клуб отменил. Пусто, пока событие в силе.
@@ -13889,7 +14666,7 @@ class ShopOrderDto {
   final String playerDisplayName;
 
   /// `placed` и `accepted` — заказ ещё в работе, за ним есть смысл следить и его ещё можно
-  /// отменить. После «принесли» отменять нечего.
+  /// отменить. После «принесли» отменять нечего. Одно из ShopOrderStatusNames.
   final String status;
   final MoneyDto total;
   final List<ShopOrderLineDto> lines;

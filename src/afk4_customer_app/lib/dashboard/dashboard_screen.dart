@@ -303,9 +303,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// null в списке возможностей — «считаем включённым», как и везде в приложении: спрятать
   /// заказ из-за сетевого сбоя значит соврать игроку, что клуб его не принимает.
-  bool get _shopEnabled => widget.features == null || widget.features!.contains('player_shop');
+  bool get _shopEnabled => widget.features == null || widget.features!.contains(PlatformFeatureNames.playerShop);
 
-  bool get _loyaltyEnabled => widget.features == null || widget.features!.contains('loyalty');
+  bool get _loyaltyEnabled => widget.features == null || widget.features!.contains(PlatformFeatureNames.loyalty);
 
   Future<void> _startSession() async {
     final l = L.of(context);

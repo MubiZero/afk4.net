@@ -10,7 +10,7 @@ public sealed record ShopOrderDto(
     Guid PlayerAccountId,
     string PlayerDisplayName,
     // `placed` и `accepted` — заказ ещё в работе, за ним есть смысл следить и его ещё можно
-    // отменить. После «принесли» отменять нечего.
+    // отменить. После «принесли» отменять нечего. Одно из ShopOrderStatusNames.
     string Status,
     MoneyDto Total,
     IReadOnlyList<ShopOrderLineDto> Lines,

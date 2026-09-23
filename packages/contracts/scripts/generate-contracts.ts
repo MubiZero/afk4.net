@@ -185,5 +185,5 @@ const known = new Set(records.map((record) => record.name));
 mkdirSync(outDir, { recursive: true });
 const dictionaries = parseNames(contractsRoot);
 writeFileSync(join(outDir, 'contracts.ts'), emitTypeScript(records, known, dictionaries), 'utf8');
-writeFileSync(dartOut, emitDart(records, known), 'utf8');
+writeFileSync(dartOut, emitDart(records, known, dictionaries), 'utf8');
 console.log(`сгенерировано ${records.length} типов из ${all.length} записей (${excluded.size} служебных пропущено) и ${dictionaries.length} словарей`);
