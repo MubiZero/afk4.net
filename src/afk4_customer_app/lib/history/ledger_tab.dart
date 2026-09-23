@@ -5,6 +5,7 @@ import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import 'cursor_list.dart';
 import 'cursor_list_view.dart';
@@ -164,7 +165,7 @@ class _LedgerRow extends StatelessWidget {
                   Text(
                     '${income ? '+' : '−'}${formatMoney(entry.amount.minorUnits.abs(), entry.amount.currencyCode, locale: locale)}',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: income ? theme.colorScheme.primary : null,
+                      color: income ? AppPalette.of(context).income : null,
                     ),
                   ),
                   // Остаток после строки — чтобы выписка сходилась с балансом наверху без

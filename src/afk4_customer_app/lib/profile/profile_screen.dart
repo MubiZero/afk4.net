@@ -10,8 +10,8 @@ import '../shell/load_failure.dart';
 import '../theme/brand_mark.dart';
 import 'pin_sheet.dart';
 
-/// Профиль: кто вошёл, чем садиться за ПК, на каком языке говорить, и выходы — из аккаунта
-/// и из клуба.
+/// Профиль: кто вошёл, чем садиться за ПК, на каком языке говорить, в каком оформлении
+/// показываться, и выходы — из аккаунта и из клуба.
 ///
 /// Имя, номер и PIN принадлежат человеку и одинаковы во всех клубах сети. Рассылка — дело
 /// клуба, поэтому её карточка появляется, только когда счёт в клубе уже есть.
@@ -25,6 +25,8 @@ class ProfileScreen extends StatefulWidget {
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
+    this.themeMode = ThemeMode.dark,
+    this.onThemeModeChanged,
     this.onPhoneVerified,
     this.onPersonChanged,
   });
@@ -43,6 +45,10 @@ class ProfileScreen extends StatefulWidget {
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
+
+  /// Текущее оформление и его смена. Смена null — карточки выбора нет: выбирать некому.
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode>? onThemeModeChanged;
 
   /// Номер подтвердили отсюда — оболочке пора считать игрока подтверждённым.
   final VoidCallback? onPhoneVerified;
@@ -416,6 +422,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       const SizedBox(height: 12),
+      // Оформление — настройка этого телефона, а не человека: сервер о ней не знает, ждать
+      // нечего. Поэтому переключатель не блокируется, пока сохраняется язык.
+      if (widget.onThemeModeChanged case final onThemeModeChanged?) ...[
+        _Group(
+          children: [
+            Text(l.customerProfileTheme, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
+            SegmentedButton<ThemeMode>(
+              segments: [
+                ButtonSegment(value: ThemeMode.system, label: Text(l.customerProfileThemeSystem)),
+                ButtonSegment(value: ThemeMode.dark, label: Text(l.customerProfileThemeDark)),
+                ButtonSegment(value: ThemeMode.light, label: Text(l.customerProfileThemeLight)),
+              ],
+              selected: {widget.themeMode},
+              onSelectionChanged: (selection) => onThemeModeChanged(selection.first),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
       // Рассылка — своей карточкой, а не хвостом языковой: заголовок «Язык» над переключателем
       // об акциях обещал не то, что под ним стоит.
       // Пуши — отдельно от рассылки: это разные вещи. Рассылка про акции, пуши про то, что

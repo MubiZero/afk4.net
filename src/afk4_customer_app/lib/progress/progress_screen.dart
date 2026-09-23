@@ -111,7 +111,7 @@ class LevelCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             theme.colorScheme.primary.withValues(alpha: 0.24),
-            AppTheme.violet.withValues(alpha: 0.20),
+            theme.colorScheme.secondary.withValues(alpha: 0.20),
           ],
         ),
         border: Border.all(color: theme.colorScheme.outline),
