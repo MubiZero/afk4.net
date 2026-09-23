@@ -2018,6 +2018,7 @@ export const en = {
   "op.players.list.emptyBackend": "No clients match the current search.",
   "op.players.list.emptyConnect": "Connect to the server to load clients.",
   "op.players.list.emptyTitle": "No clients found",
+  "op.players.list.noneDenied": "Clients are added at the front desk by an admin, a shift supervisor or a branch manager.",
   "op.players.list.searchPlaceholder": "Player, phone, card",
   "op.players.menu.open": "Client actions",
   "op.players.newClient": "New client",

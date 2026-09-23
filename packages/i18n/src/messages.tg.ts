@@ -2018,6 +2018,7 @@ export const tg = {
   "op.players.list.emptyBackend": "Ҷустуҷӯи ҷорӣ натиҷа надод.",
   "op.players.list.emptyConnect": "Барои боркунии муштариён ба сервер пайваст шавед.",
   "op.players.list.emptyTitle": "Муштарӣ ёфт нашуд",
+  "op.players.list.noneDenied": "Муштариёнро дар пешгоҳ маъмур, сармуҳосиби навбат ё мудири шӯъба илова мекунад.",
   "op.players.list.searchPlaceholder": "Бозигар, телефон, карта",
   "op.players.menu.open": "Амалҳо бо мизоҷ",
   "op.players.newClient": "Муштарии нав",
