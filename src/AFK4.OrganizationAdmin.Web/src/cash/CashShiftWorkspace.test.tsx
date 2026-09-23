@@ -53,6 +53,30 @@ function renderWs(current: ShiftRevenueDto | null, cashRows: CashOperationReport
 }
 
 describe('CashShiftWorkspace', () => {
+  // После «Внести» или «Изъять» раздел перечитывает смену. Раньше экран со сверкой, которую
+  // кассир только что читал, пропадал под заглушкой до ответа; теперь остаётся на месте.
+  it('после собственного действия смена не пропадает, пока идёт перечитывание', async () => {
+    let calls = 0;
+    const revenueClient = {
+      current: () => { calls += 1; return calls === 1 ? Promise.resolve(openShift()) : new Promise<ShiftRevenueDto | null>(() => {}); },
+      history: async () => ({ shifts: [], limit: 20 })
+    };
+    const reports = { getCashOperationReport: async () => cashOperationReport([]) };
+    const ui = (shiftNonce: number) => (
+      <I18nProvider initialLocale="ru">
+        <ToastProvider>
+          <CashShiftWorkspace backend={backend} branchId="b1" currencyCode="TJS" revenueClient={revenueClient} reports={reports} shiftNonce={shiftNonce} />
+        </ToastProvider>
+      </I18nProvider>
+    );
+    const { container, rerender } = render(ui(0));
+    await waitFor(() => expect(container.querySelector('.cash-shift-status-card')).toBeTruthy());
+
+    rerender(ui(1));
+    await waitFor(() => expect(calls).toBe(2));
+    expect(container.querySelector('.cash-shift-status-card')).toBeTruthy();
+  });
+
   it('удержания за неявку стоят отдельной величиной в полосе выручки', async () => {
     renderWs(openShift());
     await waitFor(() => expect(screen.getByText('Выручка смены')).toBeInTheDocument());
