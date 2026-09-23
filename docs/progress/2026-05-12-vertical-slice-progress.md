@@ -675,9 +675,9 @@ Still open, each its own PR:
   `disabled={disabled}` pass-throughs whose parent must name the reason, ~35 in Platform Control.
 - **The skeleton does not repeat the final geometry** — one shape (four 56px rows) stands in for
   card grids, forms, tiles and charts, so the layout jumps when content replaces it.
-- **Permission mismatches found in passing** — in Platform Control «Отметить оплаченным»,
-  «Аннулировать», «Проверить пакет», «Опубликовать», «Отозвать» ask a different right than the
-  server checks; the support-notes form shows to read-only holders.
+- ~~Permission mismatches~~ — closed in #408: every Platform Control button now asks exactly the
+  right its server route checks (invoices, subscriptions, status, limits, packages, rollouts,
+  support access, notes write vs read).
 - **Words** — «Новый клуб» in Platform Control creates an organization; the wizard names itself
   three ways; the tg label for shift supervisor («Сармуҳосиби навбат») reads as «chief
   accountant» and needs a native speaker.
@@ -1003,7 +1003,7 @@ thrown away rather than polished.
    one risk for another: a wave nobody widens leaves part of the fleet on an old
    version silently. Decide the pair together.
 3. **The rest of the "named, not done" list** (section above) — disabled controls on
-   management screens and Platform Control, the permission mismatches, skeleton geometry.
+   management screens and Platform Control, skeleton geometry.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
