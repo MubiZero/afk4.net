@@ -49,7 +49,7 @@ function setup(state: string = 'registered', rollouts: unknown[] = []) {
 describe('UpdatesScreen', () => {
   it('shows the global package catalog and validates a registered package with a reason', async () => {
     const { updates } = setup();
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     fireEvent.click(screen.getByRole('button', { name: 'Проверить пакет' }));
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Подпись и хеш проверены.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить проверку' }));
@@ -61,7 +61,7 @@ describe('UpdatesScreen', () => {
   // молча останется на старой версии.
   it('publishes a validated package to every organization at once', async () => {
     const { updates } = setup('validated');
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Опубликовать' })[1]);
     await waitFor(() => expect(updates.createRollout).toHaveBeenCalled());
@@ -124,7 +124,7 @@ describe('UpdatesScreen', () => {
 
   it('offers no staged rollout controls', async () => {
     setup('validated');
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     expect(screen.queryByRole('button', { name: 'Запустить rollout' })).toBeNull();
     expect(screen.queryByLabelText('Размер партии, %')).toBeNull();
   });
@@ -133,7 +133,7 @@ describe('UpdatesScreen', () => {
   // регистрация пакета падала целиком — каждый раз, на любом приложении.
   it('регистрирует пакет под тем именем приложения, которое принимает сервер', async () => {
     const { updates } = setup();
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     fireEvent.click(screen.getAllByRole('button', { name: 'Зарегистрировать пакет' })[0]!);
 
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '1.5.0' } });
