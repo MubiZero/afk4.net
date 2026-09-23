@@ -3269,6 +3269,7 @@ export const en = {
   "platform.organization.invites.create": "Create code",
   "platform.organization.invites.created": "Setup code created",
   "platform.organization.invites.empty": "No codes yet. Create one with the form above — the owner uses it to set up their sign-in.",
+  "platform.organization.invites.emptyNoBranch": "No codes yet. Add a branch on the Clubs tab first — after that, codes are created with the form above.",
   "platform.organization.invites.ownerDisplayName": "Owner display name",
   "platform.organization.invites.ownerEmail": "Owner email",
   "platform.organization.invites.ownerEmailHint": "The code is emailed to this address. Leave it empty to hand the code over in person.",

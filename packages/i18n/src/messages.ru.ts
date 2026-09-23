@@ -3269,6 +3269,7 @@ export const ru = {
   "platform.organization.invites.create": "Создать код",
   "platform.organization.invites.created": "Код создан",
   "platform.organization.invites.empty": "Кодов пока нет. Создайте код формой выше — по нему владелец заведёт себе вход.",
+  "platform.organization.invites.emptyNoBranch": "Кодов пока нет. Сначала добавьте филиал на вкладке «Клубы» — после этого код создаётся формой выше.",
   "platform.organization.invites.ownerDisplayName": "Имя владельца",
   "platform.organization.invites.ownerEmail": "Почта владельца",
   "platform.organization.invites.ownerEmailHint": "Код уйдёт письмом на этот адрес. Оставьте пустым — код придётся передать владельцу лично.",

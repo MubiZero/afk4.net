@@ -3269,6 +3269,7 @@ export const tg = {
   "platform.organization.invites.create": "Сохтани рамз",
   "platform.organization.invites.created": "Рамз сохта шуд",
   "platform.organization.invites.empty": "Ҳоло рамз нест. Бо шакли боло рамз созед — соҳиб бо он воридшавии худро месозад.",
+  "platform.organization.invites.emptyNoBranch": "Ҳоло рамз нест. Аввал дар ҷадвали «Клубҳо» филиал илова кунед — баъд рамз бо шакли боло сохта мешавад.",
   "platform.organization.invites.ownerDisplayName": "Номи соҳиб",
   "platform.organization.invites.ownerEmail": "Почтаи соҳиб",
   "platform.organization.invites.ownerEmailHint": "Код бо мактуб ба ин суроға фиристода мешавад. Агар холӣ монад, кодро бояд худатон ба соҳиб супоред.",
