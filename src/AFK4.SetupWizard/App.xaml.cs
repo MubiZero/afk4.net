@@ -70,8 +70,8 @@ public partial class App : Application
         // Mark handled so WPF doesn't tear the process down with a raw crash dialog. Best-effort
         // message to the user; the device may be partially enrolled — the log holds the detail.
         MessageBox.Show(
-            $"Произошла непредвиденная ошибка мастера настройки:\n\n{e.Exception.Message}",
-            "AFK4.NET — Мастер настройки",
+            $"Произошла непредвиденная ошибка мастера установки:\n\n{e.Exception.Message}",
+            "Мастер установки AFK4.NET",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.Handled = true;

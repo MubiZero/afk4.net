@@ -234,7 +234,7 @@ public partial class WebViewSetupWindow : Window
 
     private void ShowStartupFailure(string message)
     {
-        StatusTitle.Text = "Не удалось запустить мастер настройки";
+        StatusTitle.Text = "Не удалось запустить мастер установки";
         StatusText.Text = message;
         StartupOverlay.Visibility = Visibility.Visible;
     }
