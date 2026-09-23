@@ -674,21 +674,40 @@ turned out to be in-flight or self-evident; the booking drawer was the real gap)
 on the «Лимиты» tab needs the status right; every loading screen in both panels has a skeleton of
 its final shape (`ManagementScreen` refuses `state` without `skeleton`), shown after 180 ms.
 
-Still open, each its own PR:
+Closed on 2026-09-23 evening (#417–#429):
+- **No active branch** (#417) — the shell says it once, on one screen, instead of grey forms; an
+  enrolment bound to a foreign branch no longer becomes the «active» one.
+- **Loading, the rest** (#422, #428, #429) — shaped skeletons in cash, news, client packages and
+  support access; a new report period refreshes quietly over shown data; «События» names a list
+  failure instead of waiting forever; the cash tabs reread after the person's own action without
+  blanking the screen (`useShownFor`).
+- **Words** (#420, #426) — the wizard has one name; Platform Control says «организация»; tg keeps
+  one word per concept (guarded, `TG_ONE_WORD`), the shift supervisor is «сардори навбат»; the
+  gaming PC is «ПК» in every language — «машина», «мошин», computer and machine are guarded too.
+- **Player app** (#419) — the club accent is checked for 4.5:1 contrast in both themes.
+- **Client card** (#423) — «Посадить за ПК» and booking from the card compared raw seat states
+  with lowercase literals the server never sends, so on production they offered no seat at all.
+- Also: the command palette finds bar orders (#421); owner reports proven on real PostgreSQL and
+  the report plan closed (#418); a test's `mock.module` must be put back in `afterAll` (#424,
+  guarded — it caught one more leak on the way in); a quiet-refresh race in Platform Control's
+  `useLoadable` flashed a skeleton when two timer ticks came back to back (#427).
 
-- **Loading, the rest** — «Загрузка…» text instead of a shaped skeleton in cash shifts/journal/
-  top-ups, news, client packages and modals, support access in Platform Control; changing the
-  report period blanks the whole report instead of refreshing quietly over shown data.
-- **No active branch** — a staff member without an active branch sees grey loyalty, invite,
-  booking-intake and club-profile forms with no reason, and «Платежи» claims «Нет подключения к
-  серверу». The reason belongs once in the shell, not in every form.
-- **Words** — «Новый клуб» in Platform Control creates an organization, and its offboarding screen
-  says «клуб» for the organization; the wizard names itself three ways; tg has uneven spots
-  («Калиди организацию», «филиал» vs «Шӯъба») and the shift supervisor label («Сармуҳосиби
-  навбат») reads as «chief accountant» — needs a native speaker.
-- **Booking move** offers only seats free right now, even for tomorrow's booking.
-- **Player app** — the club accent is chosen by lightness only in the dark theme, without a
-  contrast check.
+Waiting for an owner decision:
+- **Booking move** (#425, open) — a session without an end blocks a seat only once the booking
+  window has started. The strict alternative locks a seat all day for an evening booking.
+- **Reports: two rules for gameplay revenue.** The summary and «Выручка» figures take sessions
+  *started* in the period and do not subtract gameplay refunds; the trend and the per-cashier
+  breakdown take ledger rows *written* in the period and do subtract them. A week's trend can
+  therefore disagree with the week's total. Proposal: net of refunds, by charge date, everywhere.
+
+Still open, named:
+- seat states are string literals on the server (`EfFloorMapReadService.GetSeatState`) with no
+  `SeatStateNames` in `AFK4.Shared.Contracts`, so generated types do not know them — the root of
+  the #423 bug;
+- no way to return a staff member with no assignments to a branch from the panel;
+- unstyled: `.clients-packages-section`, `.pos-package-purchase` in the client modal, the `select`
+  in `.clients-new-form` (22px against 36px fields) and its «за счёт клуба» checkbox;
+- two «Мастер настройки» strings hardcoded in the WPF fallback windows of the wizard;
 - **Looking with eyes** — the passes read markup, styles and states rather than running the
   product: the live stand is frozen by decision.
 
@@ -998,32 +1017,27 @@ thrown away rather than polished.
    nothing reads). A Tajik club sees a Russian kiosk. The rewrite carries the
    work that has to live in an interactive process: kiosk input blocking,
    wiring «позвать оператора» to the agent's existing reporter (the server path
-   is done, #278), deciding whether the player can pause themselves (operator
-   pause exists, #279), empty states in shop/extend.
-2. **Rollouts in waves, with a progress view — an owner's decision, not ours.**
-   Publishing a package still reaches every club at once, which is a deliberate
-   choice recorded in the code and guarded by a test. The server already supports
-   waves; what is missing on both paths is any view of how a rollout is going
-   (device-level install/failure counts exist in `DeviceUpdateStatuses` and feed
-   the pulse alert, but no endpoint exposes them). Waves without that view trade
-   one risk for another: a wave nobody widens leaves part of the fleet on an old
-   version silently. Decide the pair together.
-3. **The rest of the "named, not done" list** (section above) — the no-active-branch state, the
-   remaining «Загрузка…» texts, the words.
+   is done, #278), empty states in shop/extend. The player does not pause
+   themselves: pause stays the admin's (owner, 2026-09-23; admin pause is #279).
+2. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
+   There are no clubs yet, so a package still reaches everyone at once, on purpose
+   and guarded by a test. Before the first clubs, decide waves together with a view
+   of how a rollout is going: device-level counts exist in `DeviceUpdateStatuses`,
+   but no endpoint exposes them, and a wave nobody widens leaves part of the fleet
+   behind silently.
+3. **The rest of the "named, not done" list** (section above) — two owner decisions (booking
+   move, gameplay revenue rule), `SeatStateNames` in the contract, the unstyled client-card bits.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
    checklist.
-5. **Decide whether iOS ships at launch** — no Apple account, no APNs key, no
-   `ios` folder.
+5. **iOS does not ship yet** (owner, 2026-09-23) — no Apple account, no APNs
+   key, no `ios` folder; revisit before launch.
 6. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
    `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
    smoke.
 
-Known smaller debts worth picking up between the big pieces: the `mock.module`
-leak that fails one Organization Admin web test on Windows in a full run (green
-on Linux, so CI never sees it), the report-plan tail listed in
-`docs/superpowers/plans/README.md`, and the three items the player app audit left
-open on purpose — the running balance in the wallet statement (needs the product
-decision on holds), `/api/me/achievements` reading the whole visit history, and the
-weight of `/api/public/organizations`.
+Known smaller debts worth picking up between the big pieces: `/api/me/achievements` reading the
+whole visit history and the weight of `/api/public/organizations` — both deferred until the first
+club. Closed on 2026-09-23: the `mock.module` leak (#424), the report-plan tail (#418), the running
+balance and hold lines in the wallet statement (#396).
