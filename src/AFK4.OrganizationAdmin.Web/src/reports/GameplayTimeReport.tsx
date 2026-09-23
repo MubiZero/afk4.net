@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
@@ -8,10 +8,11 @@ import { PartialLoadFailure } from '../operatorPrimitives';
 import type { FloorMapDto } from '../operatorApiClients';
 import type { GameplayTimeReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportFiguresSkeleton, ReportRangeControls, ReportRangeSkeleton } from './ReportRangeControls';
+import { ReportBody, ReportFiguresSkeleton, ReportRangeControls } from './ReportRangeControls';
 import { SkeletonTable } from '../LoadingSkeleton';
 import { todayReportRange, toReportInstantQuery, type ReportDateRange } from './reportRange';
 import { createDetailReportClients } from './reportClient';
+import { useReportData } from './useReportData';
 
 /**
  * Куда ушло игровое время и что оно принесло.
@@ -25,7 +26,6 @@ const GAMEPLAY_GRID = 'minmax(120px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 
 export function GameplayTimeReport({ backend }: { backend: OperatorBackendContext | null }): JSX.Element {
   const { t, formatDate, formatNumber } = useI18n();
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
-  const [data, setData] = useState<GameplayTimeReportResultDto | null>(null);
   // Место сессия называет только идентификатором. Показывать его человеку бессмысленно: имя
   // места лежит в плане зала, и один запрос за ним дешевле, чем отчёт, по которому не понять,
   // какой ПК столько наиграл.
@@ -33,24 +33,22 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
   // План зала нужен отчёту только ради имён мест: его отказ не прячет отчёт, но и не молчит —
   // колонка из одних прочерков без объяснения читается как «ПК не было».
   const [seatNamesError, setSeatNamesError] = useState<OperatorErrorProjection | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState<OperatorErrorProjection | undefined>();
 
-  const load = useCallback(async () => {
-    if (!backend) { setState('error'); setError(projectOperatorError(t('op.reports.backendRequired'), t)); return; }
-    setState('loading');
-    setSeatNamesError(null);
-    const clients = createDetailReportClients(backend);
-    const [report, floorMap] = await Promise.allSettled([
-      clients.shifts.getGameplayTimeReport(backend.branchId, toReportInstantQuery(range)),
-      clients.floorMap.getFloorMap(backend.branchId)
-    ]);
-    if (floorMap.status === 'fulfilled') setSeatNames(seatNamesOf(floorMap.value));
-    else setSeatNamesError(projectOperatorError(floorMap.reason, t));
-    if (report.status === 'fulfilled') { setData(report.value); setState('ready'); }
-    else { setError(projectOperatorError(report.reason, t)); setState('error'); }
-  }, [backend, range, t]);
-  useEffect(() => { void load(); }, [load]);
+  const { state, data, refreshing, error, reload } = useReportData(
+    backend ? async () => {
+      setSeatNamesError(null);
+      const clients = createDetailReportClients(backend);
+      const [report, floorMap] = await Promise.allSettled([
+        clients.shifts.getGameplayTimeReport(backend.branchId, toReportInstantQuery(range)),
+        clients.floorMap.getFloorMap(backend.branchId)
+      ]);
+      if (floorMap.status === 'fulfilled') setSeatNames(seatNamesOf(floorMap.value));
+      else setSeatNamesError(projectOperatorError(floorMap.reason, t));
+      if (report.status === 'rejected') throw report.reason;
+      return report.value;
+    } : null,
+    [backend, range]
+  );
 
   async function retrySeatNames() {
     if (!backend) return;
@@ -77,17 +75,16 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
       state={state}
       skeleton={
         <>
-          <ReportRangeSkeleton exportable />
           <ReportFiguresSkeleton count={4} />
           <SkeletonTable gridTemplate={GAMEPLAY_GRID} />
         </>
       }
       failure={error}
-      onRetry={() => void load()}
+      onRetry={reload}
+      controls={<ReportRangeControls range={range} onChange={setRange} onRefresh={reload} onExport={() => void exportCsv()} refreshing={refreshing} />}
     >
-      <ReportRangeControls range={range} onChange={setRange} onRefresh={() => void load()} onExport={() => void exportCsv()} />
       {data ? (
-        <>
+        <ReportBody refreshing={refreshing}>
           {seatNamesError !== null && (
             <PartialLoadFailure text={t('op.reports.gameplay.seatNamesFailed', { reason: seatNamesError.detail })} failure={seatNamesError} onRetry={() => void retrySeatNames()} />
           )}
@@ -123,7 +120,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
           {data.rows.length >= data.limit
             ? <p className="mgmt-drawer-hint">{t('op.reports.truncated', { count: data.limit })}</p>
             : null}
-        </>
+        </ReportBody>
       ) : null}
     </ManagementScreen>
   );

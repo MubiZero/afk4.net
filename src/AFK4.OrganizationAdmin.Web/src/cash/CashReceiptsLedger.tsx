@@ -25,7 +25,8 @@ import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { PosSaleDto, ReceiptDto, SalesReportResultDto } from '../operatorApiClients';
 import { useFeedbackToasts } from '../useFeedbackToasts';
-import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
+import { CashMetricStrip, CashRegisterRows, CashTerminalSkeleton, CashTerminalSplit } from './CashTerminalFrame';
+import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
 
 type ReceiptDetailState = {
   status: 'idle' | 'loading' | 'ready' | 'failed';
@@ -288,7 +289,18 @@ export function CashReceiptsLedger({
     }
   };
 
-  if (loading) return <p className="workspace-loading">{t('op.cash.journal.loading')}</p>;
+  if (loading) {
+    return (
+      <DeferredSkeleton>
+        <CashTerminalSkeleton
+          className="cash-receipts-terminal"
+          metrics={3}
+          inspectorHint={t('op.cash.receipts.selectHint')}
+          row={<div className="cash-receipt-row"><span><SkeletonLine width="3em" /></span><strong><SkeletonLine width="5em" /></strong><em><SkeletonLine width="14em" /></em><b><SkeletonLine width="4em" /></b></div>}
+        />
+      </DeferredSkeleton>
+    );
+  }
   if (loadError) return <p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p>;
 
   return (
@@ -309,7 +321,7 @@ export function CashReceiptsLedger({
           <em>{posSaleLineSummary(row, t)}</em>
           <b><Money minorUnits={row.total.minorUnits} currencyCode={currencyCode} /></b>
         </div>} />}
-        inspector={detailState.status === 'loading' ? <p className="cash-receipt-detail-state">{t('op.cash.receipts.detailLoading')}</p>
+        inspector={detailState.status === 'loading' ? <DeferredSkeleton><ReceiptInspectorSkeleton /></DeferredSkeleton>
           : detailState.status === 'failed' ? <LoadFailureState title={t('op.cash.receipts.detailFailed')} failure={detailState.error ?? projectOperatorError(undefined, t)} onRetry={() => void (detailState.saleId ? loadSaleDetail(detailState.saleId) : loadReceiptDetail(detailState.receiptId))} />
           : detailState.status === 'ready' && (saleDetail !== null || receiptDetail !== null) ? <div className="cash-receipt-inspector">
             {/* Чек закрытия сессии продажи не имеет вовсе — тогда шапку и итог берём из самого
@@ -365,5 +377,28 @@ export function CashReceiptsLedger({
         </CriticalActionConfirmation>
       )}
     </section>
+  );
+}
+
+// Карточка чека, пока она грузится: шапка с итогом, состав, оплата и кнопки — в тех же блоках.
+// Заголовки разделов от ответа не зависят и стоят настоящим текстом.
+function ReceiptInspectorSkeleton() {
+  const { t } = useI18n();
+  return (
+    <div className="cash-receipt-inspector" data-skeleton="receipt" aria-hidden="true">
+      <div className="cash-receipt-inspector-head"><span>{t('op.pos.receipts.detailsTitle')}</span><strong><SkeletonLine width="5em" /></strong><b><SkeletonLine width="4em" /></b></div>
+      <section>
+        <h3>{t('op.cash.receipts.lines')}</h3>
+        {[0, 1].map((line) => (
+          <div key={line} className="cash-receipt-line"><span><SkeletonLine width="10em" /><small><SkeletonLine width="6em" /></small></span><strong><SkeletonLine width="4em" /></strong></div>
+        ))}
+      </section>
+      <section>
+        <h3>{t('op.cash.receipts.payments')}</h3>
+        <div className="cash-receipt-payment"><span><SkeletonLine width="7em" /></span><strong><SkeletonLine width="4em" /></strong></div>
+      </section>
+      {/* Кнопки чека стоят в строку; какие из них будут, решают права и состояние продажи. */}
+      <div className="pos-receipt-actions"><SkeletonControl width="16rem" size="sm" /></div>
+    </div>
   );
 }

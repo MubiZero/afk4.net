@@ -12,6 +12,7 @@ import { HealthScreen } from '@/platform/health/HealthScreen';
 import { UpdatesScreen } from '@/platform/updates/UpdatesScreen';
 import { OrganizationHistoryTab } from '@/platform/organizations/OrganizationHistoryTab';
 import { OrganizationHealthSection } from '@/platform/organizations/OrganizationHealthSection';
+import { SupportAccessSection } from '@/platform/organizations/SupportAccessSection';
 
 afterEach(cleanup);
 
@@ -100,5 +101,17 @@ describe('screens wait in the shape of their content', () => {
     await waitFor(() => expect(shape(container, 'tiles')).not.toBeNull());
     expect(container.querySelectorAll('.pc-facts > .pc-fact')).toHaveLength(4);
     expect(columns(container)).toBe(5);
+  });
+
+  // Раньше на месте списка стояла строка «Загрузка…». Форма выдачи доступа от ответа не зависит и
+  // стоит сразу, а под ней ждёт строка доступа: кто, зачем, до какого времени и кнопка.
+  it('support access: the issue form now, and a grant row in the list', async () => {
+    const { container } = renderRu(<SupportAccessSection client={silent} organizationId="org-1" />);
+    await waitFor(() => expect(shape(container, 'list')).not.toBeNull());
+    const row = container.querySelector('.ui-list[data-skeleton="list"] > li')!;
+    expect(row.querySelectorAll(':scope > p')).toHaveLength(3);
+    expect(row.querySelector('.skeleton-control')).not.toBeNull();
+    expect(container.querySelector('textarea')).not.toBeNull();
+    expect(container.textContent).not.toMatch(/Загрузка/);
   });
 });

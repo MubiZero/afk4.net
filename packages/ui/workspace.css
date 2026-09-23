@@ -97,15 +97,6 @@
   background: var(--surface-canvas);
 }
 
-/* Shared loading / error states for the lighter workspace screens. */
-.workspace-loading {
-  margin: 0;
-  padding: 12px;
-  color: var(--text-tertiary);
-  font-size: 13px;
-}
-
-
 /* Skeleton placeholders — mirror the final layout so content swaps in without a shift. */
 @keyframes skeleton-pulse {
   0%,

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { createOperatorApiClients } from './operatorApiClients';
+import { DeferredSkeleton, SkeletonLine } from './LoadingSkeleton';
 
 // Structurally compatible with App.tsx's backend context (config + session);
 // declared locally to avoid a circular import (App.tsx imports this file).
@@ -115,7 +116,16 @@ export function PhoneVerificationCard({ backend }: { backend: PhoneVerificationB
       <h3>{t('account.phone.title')}</h3>
       {error !== null && <p className="account-phone-error" role="alert">{error}</p>}
 
-      {phase === 'loading' && <p className="account-phone-hint">{t('account.phone.loading')}</p>}
+      {/* Номер подтверждают один раз, и чаще всего он уже подтверждён: заглушка повторяет эту
+          строку — номер слева, «Изменить» справа. */}
+      {phase === 'loading' && (
+        <DeferredSkeleton>
+          <div className="account-phone-verified" data-skeleton="phone" aria-hidden="true">
+            <strong><SkeletonLine width="9em" /></strong>
+            <button type="button" className="secondary" tabIndex={-1}><SkeletonLine width="5em" /></button>
+          </div>
+        </DeferredSkeleton>
+      )}
 
       {phase === 'load_error' && (
         <div className="account-phone-load-error">

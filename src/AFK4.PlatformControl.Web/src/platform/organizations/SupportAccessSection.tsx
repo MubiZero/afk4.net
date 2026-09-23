@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { Loading, SkeletonControl, SkeletonLine } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { describeApiError } from '@/api/describeApiError';
 import type { SupportAccessApi } from '@/api/platformClients/supportAccess';
@@ -129,7 +130,19 @@ export function SupportAccessSection({ client, organizationId, openUrl = default
 
         <section aria-label={t('platform.supportAccess.active.title')}>
           <h3>{t('platform.supportAccess.active.title')}</h3>
-          {grants.status === 'loading' && <p className="mgmt-drawer-hint">{t('state.loading')}</p>}
+          {/* Та же строка списка, что придёт: кто, зачем, до какого времени и кнопка «Оборвать». */}
+          {grants.status === 'loading' && (
+            <Loading>
+              <ul className="ui-list" data-skeleton="list" aria-hidden="true">
+                <li>
+                  <p><SkeletonLine width="10em" /></p>
+                  <p><SkeletonLine width="18em" /></p>
+                  <p className="mgmt-drawer-hint"><SkeletonLine width="14em" /></p>
+                  <SkeletonControl width="8rem" />
+                </li>
+              </ul>
+            </Loading>
+          )}
           {grants.status === 'failed' && (
             <p role="alert">
               {t('platform.supportAccess.active.failed')}{' '}

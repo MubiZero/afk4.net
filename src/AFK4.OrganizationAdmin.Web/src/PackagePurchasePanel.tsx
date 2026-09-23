@@ -7,6 +7,7 @@ import { createAuthenticatedOperatorClients, createIdempotencyKey, formatMinorUn
 import { hasPermission, permissionNames } from './operatorPermissions';
 import { PlatformApiError } from './platformApi';
 import { projectOperatorError } from './apiErrors';
+import { SkeletonControl } from './LoadingSkeleton';
 
 type PurchasePackage = ReturnType<typeof createAuthenticatedOperatorClients>['players']['purchasePackage'];
 
@@ -78,4 +79,18 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
       : t('op.pos.packages.purchasedRefreshFailed', { name: purchasedName, reason: refreshFailure })}</p>}
     <button type="button" className="ui-btn ui-btn--primary" disabled={!allowed || busy} onClick={() => void submit()}>{t('op.pos.packages.purchase')}</button>
   </section>;
+}
+
+// Та же панель, пока варианты пакетов в пути: заголовок от ответа не зависит и стоит настоящим
+// текстом, выбор пакета и кнопка покупки — полосами высоты контрола. Своей раскладки у панели нет
+// (заголовок, выбор и кнопка идут одной строкой), и заглушка держит ту же строку флексом.
+export function PackagePurchaseSkeleton() {
+  const { t } = useI18n();
+  return (
+    <section className="pos-package-purchase" data-skeleton="form" aria-hidden="true" style={{ display: 'flex', alignItems: 'center' }}>
+      <strong>{t('op.pos.packages.title')}</strong>
+      <SkeletonControl width="8rem" size="sm" />
+      <SkeletonControl width="6rem" />
+    </section>
+  );
 }

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PanelModal } from '../PanelModal';
 import { PartialLoadFailure } from '../operatorPrimitives';
-import { PackagePurchasePanel } from '../PackagePurchasePanel';
+import { PackagePurchasePanel, PackagePurchaseSkeleton } from '../PackagePurchasePanel';
+import { DeferredSkeleton } from '../LoadingSkeleton';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import type { PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
@@ -70,7 +71,7 @@ export function ClientPackageModal({ backend, player, onClose, onPurchased }: {
         <PartialLoadFailure text={t('op.players.packages.shiftFailed', { reason: shiftError.detail })} failure={shiftError} onRetry={retryShift} />
       )}
       {options === null ? (
-        <p>{t('state.loading')}</p>
+        <DeferredSkeleton><PackagePurchaseSkeleton /></DeferredSkeleton>
       ) : options.length === 0 && error === null ? (
         <p>{t('op.players.packages.noOptions')}</p>
       ) : (

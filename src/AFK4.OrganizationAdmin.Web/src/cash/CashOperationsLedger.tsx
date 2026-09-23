@@ -11,7 +11,8 @@ import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors
 import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { CashOperationReportResultDto, CashOperationReportRowDto } from '../operatorApiClients';
-import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
+import { CashMetricStrip, CashRegisterRows, CashTerminalSkeleton, CashTerminalSplit } from './CashTerminalFrame';
+import { DeferredSkeleton, SkeletonLine } from '../LoadingSkeleton';
 import { filterCashOperationRows } from './cashTerminalModel';
 
 interface LedgerReports {
@@ -77,7 +78,25 @@ export function CashOperationsLedger({
     }
   };
 
-  if (loading) return <p className="workspace-loading">{t('op.cash.journal.loading')}</p>;
+  if (loading) {
+    return (
+      <DeferredSkeleton>
+        <CashTerminalSkeleton
+          className="cash-operations-terminal"
+          metrics={3}
+          search
+          inspectorHint={t('op.cash.journal.selectHint')}
+          row={
+            <div className="ui-ledger-row cash-operation-row">
+              <span className="ui-ledger-time"><SkeletonLine width="3em" /></span>
+              <div className="ui-ledger-body"><span className="ui-ledger-title"><SkeletonLine width="7em" /></span><span className="ui-ledger-detail"><SkeletonLine width="12em" /></span></div>
+              <span className="ui-ledger-aside"><SkeletonLine width="4em" /></span>
+            </div>
+          }
+        />
+      </DeferredSkeleton>
+    );
+  }
   if (loadError) return <section className="cash-ledger-failure"><PartialLoadFailure text={loadError.detail} failure={loadError} onRetry={() => setReloadNonce((value) => value + 1)} /></section>;
 
   return (
