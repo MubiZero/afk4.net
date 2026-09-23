@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:afk4_customer_app/l10n/localization_setup.dart';
+import 'package:afk4_customer_app/shell/push_note.dart';
 import 'package:afk4_customer_app/theme/app_theme.dart';
 
 double contrast(Color a, Color b) {
@@ -153,8 +155,109 @@ void main() {
   });
 
   // Белые буквы на жёлтой кнопке не читаются, чёрные на тёмно-синей — тоже.
-  test('надпись на цвете клуба выбирается по его яркости', () {
+  test('надпись на цвете клуба выбирается по контрасту', () {
     expect(AppTheme.onAccentFor(const Color(0xFFF5D90A)), isNot(Colors.white));
     expect(AppTheme.onAccentFor(const Color(0xFF1E3A8A)), Colors.white);
+    // Чистый красный и оранжевый темнее порога яркости 0,42, но тёмная надпись на них
+    // контрастнее белой: белая на красном даёт 4:1, тёмная — 4,7:1.
+    for (final accent in [
+      ...awkwardClubColors,
+      const Color(0xFFFF0000),
+      const Color(0xFFFF8C00),
+      const Color(0xFF00A3FF),
+      AppTheme.emerald,
+    ]) {
+      expect(AppTheme.onAccentFor(accent), moreContrastingLabel(accent), reason: '$accent');
+    }
   });
+
+  // Цвет клуба задаёт владелец, и он бывает любым: насыщенный синий почти не отличается по
+  // яркости от чёрного фона, почти белый — от белого листа. Приводить его только по светлоте
+  // мало: у синего и жёлтого одной светлоты яркость различается в разы. Порог — контраст с
+  // каждым фоном, на котором акцентом набраны надписи: холст, лист, карточка и подсветка
+  // выбранного чипа.
+  group('цвет клуба читается в обеих темах', () {
+    for (final club in <Color?>[null, ...awkwardClubColors]) {
+      final name = club == null ? 'emerald' : '#${club.toARGB32().toRadixString(16)}';
+      for (final build in [AppTheme.dark, AppTheme.light]) {
+        final theme = build(clubColor: club);
+        final scheme = theme.colorScheme;
+        final label = '$name, ${theme.brightness.name}';
+
+        test('акцент как текст — $label', () {
+          final backgrounds = [theme.canvasColor, scheme.surface, scheme.surfaceContainerHighest];
+          for (final background in [
+            ...backgrounds,
+            // Выбранный чип и строка филиала: подпись акцентом на его же подсветке.
+            for (final base in [scheme.surface, scheme.surfaceContainerHighest])
+              Color.alphaBlend(scheme.primary.withValues(alpha: 0.12), base),
+          ]) {
+            expect(contrast(scheme.primary, background), greaterThanOrEqualTo(4.5),
+                reason: '${scheme.primary} on $background');
+          }
+          // Значки на подложках плотнее — плитки быстрых действий, карточка кошелька.
+          for (final base in backgrounds) {
+            final plate = Color.alphaBlend(scheme.primary.withValues(alpha: 0.18), base);
+            expect(contrast(scheme.primary, plate), greaterThanOrEqualTo(3),
+                reason: '${scheme.primary} on $plate');
+          }
+        });
+
+        test('надпись на кнопке — $label', () {
+          expect(scheme.onPrimary, moreContrastingLabel(scheme.primary));
+          expect(contrast(scheme.onPrimary, scheme.primary), greaterThanOrEqualTo(4.5));
+        });
+
+        test('текст на подсвеченной подложке — $label', () {
+          expect(contrast(scheme.onSecondaryContainer, scheme.secondaryContainer),
+              greaterThanOrEqualTo(4.5));
+        });
+      }
+    }
+  });
+
+  // Полоса уведомления залита подсвеченной подложкой. Кнопка «Открыть» на ней была набрана
+  // акцентом, и в светлой теме фирменный акцент на собственной подсветке давал 3,9:1.
+  testWidgets('кнопка на полосе уведомления читается на её подложке', (tester) async {
+    for (final club in <Color?>[null, ...awkwardClubColors]) {
+      for (final theme in [AppTheme.dark(clubColor: club), AppTheme.light(clubColor: club)]) {
+        await tester.pumpWidget(MaterialApp(
+          theme: theme,
+          locale: const Locale('ru'),
+          localizationsDelegates: appLocalizationsDelegates,
+          supportedLocales: appSupportedLocales,
+          home: Scaffold(body: PushNote(text: 'Бронь подтверждена', onOpen: () {}, onDismiss: () {})),
+        ));
+        // Смена темы в MaterialApp анимирована: без ожидания видны цвета предыдущей.
+        await tester.pumpAndSettle();
+
+        final open = tester.widget<Text>(
+          find.descendant(of: find.byType(TextButton), matching: find.byType(Text)),
+        );
+        final shown = DefaultTextStyle.of(tester.element(find.byWidget(open))).style.color;
+        expect(contrast(shown!, theme.colorScheme.secondaryContainer), greaterThanOrEqualTo(4.5),
+            reason: '$club, ${theme.brightness.name}');
+      }
+    }
+  });
+}
+
+/// Цвета клубов, на которых подбор акцента ломается первым.
+const awkwardClubColors = <Color>[
+  Color(0xFF0000FF), // насыщенный синий: яркость как у тёмно-серого
+  Color(0xFF8B0000), // тёмно-красный
+  Color(0xFF0A0A0A), // почти чёрный
+  Color(0xFFFAFAFA), // почти белый
+  Color(0xFFFFEB3B), // жёлтый
+  Color(0xFFF5D90A), // жёлтый логотип
+  Color(0xFF22D3EE), // бирюзовый
+  Color(0xFFD64545), // красный
+  Color(0xFF1E3A8A), // тёмно-синий
+  Color(0xFF0A1240), // почти чёрный синий
+];
+
+/// Из тёмной и белой надписи — та, что контрастнее с цветом кнопки.
+Color moreContrastingLabel(Color accent) {
+  const darkLabel = Color(0xFF04120D);
+  return contrast(darkLabel, accent) >= contrast(Colors.white, accent) ? darkLabel : Colors.white;
 }
