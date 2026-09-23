@@ -62,11 +62,11 @@ function mockReservations(reservations: unknown[], limit: number) {
   }) as typeof fetch;
 }
 
-function renderWorkspace() {
+function renderWorkspace(context: OperatorBackendContext = backend) {
   render(
     <I18nProvider initialLocale="ru">
       <ToastProvider>
-        <BackendBookingWorkspace floorMap={floorMap} backend={backend} currencyCode="TJS" onOpenSeat={() => {}} />
+        <BackendBookingWorkspace floorMap={floorMap} backend={context} currencyCode="TJS" onOpenSeat={() => {}} />
       </ToastProvider>
     </I18nProvider>
   );
@@ -97,5 +97,28 @@ describe('BackendBookingWorkspace · лента заявок', () => {
 
     await screen.findByText('+992 93 738 00 70');
     expect(screen.queryByText(/Показаны первые/)).toBeNull();
+  });
+});
+
+// Брони открываются по праву смотреть их, а ведёт их другое право. Бухгалтер видел ленту, где
+// «Принять», «Добавить бронь» и все кнопки карточки серые, и ни слова почему.
+describe('BackendBookingWorkspace · только просмотр', () => {
+  const viewOnly = /Только просмотр: брони ведут/;
+
+  it('говорит одной строкой, кто ведёт брони, если их можно только смотреть', async () => {
+    mockReservations([request(1)], 200);
+    renderWorkspace({ ...backend, session: { ...backend.session, permissions: ['organization.reservations.view'] } });
+
+    await screen.findByText('+992 93 738 00 70');
+    expect(screen.getByRole('note')).toHaveTextContent(viewOnly);
+    expect(screen.getByRole('button', { name: /Добавить бронь/ })).toBeDisabled();
+  });
+
+  it('молчит, когда брони можно вести', async () => {
+    mockReservations([request(1)], 200);
+    renderWorkspace();
+
+    await screen.findByText('+992 93 738 00 70');
+    expect(screen.queryByText(viewOnly)).toBeNull();
   });
 });

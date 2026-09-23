@@ -5,6 +5,7 @@ import type { SeatSummary } from '../operatorData';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
 import { formatLocal, localPhoneDigits } from '../phoneFormat';
 import { Skeleton } from '../operatorPrimitives';
+import { useBlockedReason } from '../components/BlockedReason';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
@@ -117,6 +118,12 @@ export function BookingDrawer(props: BookingDrawerProps) {
   );
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
+  // Заявка из приложения может прийти без места: открыть её на карте, посадить или запустить
+  // сессию не на что, пока место не выбрано.
+  const unassigned = useBlockedReason(mode === 'detail' && selected !== null && !selected.seatId ? t('op.booking.unassignedHint') : null);
+  // Перенести можно только на место, свободное прямо сейчас; прочерк в сером списке не говорил,
+  // что таких мест нет.
+  const moveTargets = freeSeats.filter((seat) => seat.id !== selected?.seatId);
 
   // Массовая бронь: непустой seatIds. Резолвим выбранные места в порядке списка.
   const isGroup = draft.seatIds.length > 0;
@@ -310,12 +317,12 @@ export function BookingDrawer(props: BookingDrawerProps) {
           )}
 
           <div className="booking-action-grid">
-            <button type="button" disabled={!selected.seatId || busy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
+            <button type="button" disabled={!selected.seatId || busy} aria-describedby={unassigned.describedBy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
             {actions.canStart && (
-              <button type="button" disabled={!canManage || !canStartSessions || busy || !selected.seatId} onClick={props.onStart}><UserRoundPlus size={15} />{t('op.booking.actions.startSession')}</button>
+              <button type="button" disabled={!canManage || !canStartSessions || busy || !selected.seatId} aria-describedby={unassigned.describedBy} onClick={props.onStart}><UserRoundPlus size={15} />{t('op.booking.actions.startSession')}</button>
             )}
             {actions.canSeat && (
-              <button type="button" disabled={!canManage || busy || !selected.seatId} onClick={props.onSeat}><UserRoundCheck size={15} />{t('op.booking.actions.seat')}</button>
+              <button type="button" disabled={!canManage || busy || !selected.seatId} aria-describedby={unassigned.describedBy} onClick={props.onSeat}><UserRoundCheck size={15} />{t('op.booking.actions.seat')}</button>
             )}
             {actions.canConfirm && (
               <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</button>
@@ -331,6 +338,7 @@ export function BookingDrawer(props: BookingDrawerProps) {
               <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancelGroup}><Layers size={15} />{t('op.booking.group.cancelAll')}</button>
             )}
           </div>
+          {unassigned.hint}
 
           {confirmingNoShow && actions.canMarkNoShow && (
             <div className="booking-reject" role="group" aria-label={t('op.booking.noShow.confirmTitle')}>
@@ -368,9 +376,9 @@ export function BookingDrawer(props: BookingDrawerProps) {
             <PanelSelect
               ariaLabel={t('op.booking.move.seat')}
               value=""
-              placeholder="—"
-              disabled={!canManage || busy || freeSeats.filter((s) => s.id !== selected.seatId).length === 0}
-              options={groupSeatsByZone(freeSeats.filter((s) => s.id !== selected.seatId)).map((seat) => ({
+              placeholder={moveTargets.length === 0 ? t('op.booking.move.noFreeSeats') : '—'}
+              disabled={!canManage || busy || moveTargets.length === 0}
+              options={groupSeatsByZone(moveTargets).map((seat) => ({
                 value: seat.id,
                 label: `${zoneLabel(seat.zone, t)} · ${seat.name}`
               }))}

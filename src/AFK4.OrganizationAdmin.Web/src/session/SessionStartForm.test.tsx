@@ -31,6 +31,32 @@ describe('SessionStartForm', () => {
     await waitFor(() => expect(onValidityChange).toHaveBeenLastCalledWith(true, null));
   });
 
+  // Бронь без аккаунта клиента запускается только гостем. Серая вкладка «Клиент клуба» молчала
+  // об этом, и администратор искал, как привязать кошелёк.
+  it('names why a reservation without an account starts only as a guest', () => {
+    render(<I18nProvider><SessionStartForm
+      seatName="PC-01" currencyCode="TJS" disabled={false}
+      value={createSessionStartSelection()} onChange={() => {}}
+      fixedClient={null} loadTariffs={() => new Promise(() => {})} loadPackages={async () => []}
+    /></I18nProvider>);
+
+    const member = screen.getByRole('tab', { name: 'Клиент клуба' });
+    expect(member).toBeDisabled();
+    const reason = screen.getByText(/Бронь без аккаунта клиента/);
+    expect(member.getAttribute('aria-describedby')).toBe(reason.id);
+  });
+
+  it('says nothing about the account when the client can be picked', () => {
+    render(<I18nProvider><SessionStartForm
+      seatName="PC-01" currencyCode="TJS" disabled={false}
+      value={createSessionStartSelection()} onChange={() => {}}
+      searchClients={async () => []} loadTariffs={() => new Promise(() => {})} loadPackages={async () => []}
+    /></I18nProvider>);
+
+    expect(screen.getByRole('tab', { name: 'Клиент клуба' })).not.toBeDisabled();
+    expect(screen.queryByText(/Бронь без аккаунта клиента/)).toBeNull();
+  });
+
   it('locks a reservation client, supports wallet/package and validates comp reason', async () => {
     const loadTariffs = async () => tariffs;
     const loadPackages = async () => [{ playerPackageId: 'pkg-1', name: 'Night 5h', remainingIncludedSeconds: 10800 }];
