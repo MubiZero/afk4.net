@@ -12715,6 +12715,8 @@ class SeatStatusDto {
   final String zoneId;
   final String zoneName;
   final int sortOrder;
+
+  /// Одно из SeatStateNames.
   final String state;
   final String? deviceId;
   final String? deviceName;

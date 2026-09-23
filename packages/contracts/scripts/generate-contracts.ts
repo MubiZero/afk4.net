@@ -13,7 +13,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseContracts, type ContractField, type ContractRecord } from './parse.ts';
+import { parseContracts, parseNames, type ContractField, type ContractNames, type ContractRecord } from './parse.ts';
 import { emitDart } from './emit-dart.ts';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -110,13 +110,39 @@ function docBlock(lines: string[], indent: string): string {
   return `${indent}/**\n${body}\n${indent} */\n`;
 }
 
-function fieldLine(field: ContractField, known: Set<string>, where: string): string {
-  const type = tsType(field.type, known, where);
+/** `SeatStateNames` → `SeatStateName`: тип одного значения из словаря. */
+const valueTypeName = (names: string) => names.replace(/Names$/, 'Name');
+
+/**
+ * Строковое поле, в комментарии к которому назван словарь (`// Одно из SeatStateNames.`),
+ * получает тип его значений. Тогда сравнение с кодом, которого сервер не присылает, не пропустит
+ * `tsc`: так Панель сравнивала состояние места с «free», а сервер пишет «Free» (#423).
+ */
+function dictionaryOf(field: ContractField, dictionaries: Set<string>, where: string): string | null {
+  if (field.type !== 'string') return null;
+  const named = [...new Set(field.doc.join(' ').match(/\b[A-Z][A-Za-z0-9]*Names\b/g) ?? [])]
+    .filter((name) => dictionaries.has(name));
+  if (named.length > 1) throw new Error(`Поле ${field.name} в ${where} ссылается на несколько словарей: ${named.join(', ')}.`);
+  return named.length === 1 ? valueTypeName(named[0]) : null;
+}
+
+function fieldLine(field: ContractField, known: Set<string>, where: string, dictionaries: Set<string>): string {
+  const type = dictionaryOf(field, dictionaries, where) ?? tsType(field.type, known, where);
   const nullable = field.nullable ? `${type} | null` : type;
   return `${docBlock(field.doc, '  ')}  ${field.name}${field.optional ? '?' : ''}: ${nullable};\n`;
 }
 
-function emitTypeScript(records: ContractRecord[], known: Set<string>): string {
+function emitNames(names: ContractNames): string {
+  const doc = [...names.doc, names.doc.length > 0 ? '' : null, `Словарь: ${names.file}`]
+    .filter((line): line is string => line !== null);
+  const values = names.values
+    .map((value) => `${docBlock(value.doc, '  ')}  ${value.name}: ${JSON.stringify(value.value).replace(/^"|"$/g, "'")},\n`)
+    .join('');
+  return `${docBlock(doc, '')}export const ${names.name} = {\n${values}} as const;\n` +
+    `export type ${valueTypeName(names.name)} = (typeof ${names.name})[keyof typeof ${names.name}];\n\n`;
+}
+
+function emitTypeScript(records: ContractRecord[], known: Set<string>, dictionaries: ContractNames[]): string {
   const parts: string[] = [
     '// Сгенерировано из src/AFK4.Shared.Contracts. Руками не править:\n',
     '// правка живёт в записи C#, а сюда приезжает через `bun run gen` в packages/contracts.\n',
@@ -124,6 +150,11 @@ function emitTypeScript(records: ContractRecord[], known: Set<string>): string {
     ALIASES,
     '\n'
   ];
+  const dictionaryNames = new Set(dictionaries.map((names) => names.name));
+  for (const names of dictionaries) {
+    if (known.has(valueTypeName(names.name))) throw new Error(`Тип ${valueTypeName(names.name)} из словаря ${names.name} совпадает с именем записи.`);
+    parts.push(emitNames(names));
+  }
 
   for (const record of records) {
     const parameters = record.typeParameters.length > 0 ? `<${record.typeParameters.join(', ')}>` : '';
@@ -133,7 +164,7 @@ function emitTypeScript(records: ContractRecord[], known: Set<string>): string {
     parts.push(`export interface ${record.name}${parameters} {\n`);
     const scoped = new Set([...known, ...record.typeParameters]);
     for (const field of record.fields) {
-      parts.push(fieldLine(field, scoped, `${record.name} (${record.file})`));
+      parts.push(fieldLine(field, scoped, `${record.name} (${record.file})`, dictionaryNames));
     }
     parts.push('}\n\n');
   }
@@ -152,6 +183,7 @@ if (missing.length > 0) {
 
 const known = new Set(records.map((record) => record.name));
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, 'contracts.ts'), emitTypeScript(records, known), 'utf8');
+const dictionaries = parseNames(contractsRoot);
+writeFileSync(join(outDir, 'contracts.ts'), emitTypeScript(records, known, dictionaries), 'utf8');
 writeFileSync(dartOut, emitDart(records, known), 'utf8');
-console.log(`сгенерировано ${records.length} типов из ${all.length} записей (${excluded.size} служебных пропущено)`);
+console.log(`сгенерировано ${records.length} типов из ${all.length} записей (${excluded.size} служебных пропущено) и ${dictionaries.length} словарей`);

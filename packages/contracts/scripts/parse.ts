@@ -32,6 +32,14 @@ export interface ContractRecord {
   fields: ContractField[];
 }
 
+/** Словарь строковых кодов: `public static class SeatStateNames { public const string Free = "Free"; }`. */
+export interface ContractNames {
+  name: string;
+  file: string;
+  doc: string[];
+  values: { name: string; value: string; doc: string[] }[];
+}
+
 function sourceFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry === 'bin' || entry === 'obj') continue;
@@ -219,4 +227,32 @@ export function parseContracts(contractsRoot: string): ContractRecord[] {
   }
   records.sort((left, right) => left.name.localeCompare(right.name));
   return records;
+}
+
+/**
+ * Классы `*Names` — словари кодов, которые ходят по сети строками: состояния, типы, причины.
+ * Берутся только `public const string`: остальное в таком классе (список «все», проверка) —
+ * производное от значений, а не значение с провода.
+ */
+export function parseNames(contractsRoot: string): ContractNames[] {
+  const found: ContractNames[] = [];
+  for (const file of sourceFiles(contractsRoot)) {
+    const source = readFileSync(file, 'utf8');
+    const relative = file.slice(contractsRoot.length + 1).split(sep).join('/');
+    for (const match of source.matchAll(/public\s+static\s+class\s+([A-Za-z0-9_]+Names)\s*\{/g)) {
+      const open = match.index! + match[0].length - 1;
+      const body = source.slice(open + 1, matching(source, open, '{', '}'));
+      const values = [...body.matchAll(/public\s+const\s+string\s+([A-Za-z0-9_]+)\s*=\s*"([^"]*)"\s*;/g)]
+        .map((constant) => ({ name: constant[1], value: constant[2], doc: docAbove(body, constant.index!) }));
+      if (values.length === 0) continue;
+      found.push({ name: match[1], file: relative, doc: docAbove(source, match.index!), values });
+    }
+  }
+  const byName = new Map<string, string>();
+  for (const names of found) {
+    const other = byName.get(names.name);
+    if (other !== undefined) throw new Error(`Словарь ${names.name} объявлен дважды: ${other} и ${names.file}.`);
+    byName.set(names.name, names.file);
+  }
+  return found.sort((left, right) => left.name.localeCompare(right.name));
 }

@@ -6,6 +6,7 @@ public sealed record SeatStatusDto(
     Guid ZoneId,
     string ZoneName,
     int SortOrder,
+    // Одно из SeatStateNames.
     string State,
     Guid? DeviceId,
     string? DeviceName,

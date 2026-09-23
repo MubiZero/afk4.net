@@ -16,6 +16,920 @@ export type IsoTime = string;
 /** Длительность, ISO-8601: `PT2H30M`. */
 export type IsoDuration = string;
 
+/** Словарь: Platform/Billing/BillingIntervalNames.cs */
+export const BillingIntervalNames = {
+  Monthly: 'monthly',
+  Yearly: 'yearly',
+} as const;
+export type BillingIntervalName = (typeof BillingIntervalNames)[keyof typeof BillingIntervalNames];
+
+/** Словарь: Billing/BillingModeNames.cs */
+export const BillingModeNames = {
+  PrepaidWallet: 'prepaid_wallet',
+  PostpaidDebt: 'postpaid_debt',
+  Package: 'package',
+} as const;
+export type BillingModeName = (typeof BillingModeNames)[keyof typeof BillingModeNames];
+
+/**
+ * Что оператор может найти одной строкой из палитры. Строки, а не enum: контракт переживает
+ * клиентов, и старый клиент, встретив незнакомый вид, просто его не покажет.
+ *
+ * Словарь: Operator/BranchSearchResultDto.cs
+ */
+export const BranchSearchKindNames = {
+  Seat: 'seat',
+  Player: 'player',
+  Reservation: 'reservation',
+  Receipt: 'receipt',
+  Order: 'order',
+} as const;
+export type BranchSearchKindName = (typeof BranchSearchKindNames)[keyof typeof BranchSearchKindNames];
+
+/** Словарь: Shifts/CashMovementTypeNames.cs */
+export const CashMovementTypeNames = {
+  CashIn: 'cash_in',
+  CashOut: 'cash_out',
+} as const;
+export type CashMovementTypeName = (typeof CashMovementTypeNames)[keyof typeof CashMovementTypeNames];
+
+/**
+ * Чем закончилась команда на устройстве — машинным именем, а не фразой.
+ * Журнал команд читает администратор клуба на своём языке. Агент до этого присылал только
+ * человеческую строку и присылал её по-английски («Workstation locked (nothing)»), и она
+ * доезжала до экрана как есть. Имя исхода переводится на стороне клиента — тот же порядок, что
+ * у кодов ошибок API: сервер отдаёт код, клиент решает, какими словами о нём сказать.
+ * Строку-сообщение это не отменяет: она остаётся деталью для инженера.
+ *
+ * Словарь: Devices/DeviceCommandOutcomeNames.cs
+ */
+export const DeviceCommandOutcomeNames = {
+  /** Команда принята, отдельного исхода у неё нет. */
+  Accepted: 'accepted',
+  /** Аренда принята, место открыто гостю. */
+  LeaseAccepted: 'lease-accepted',
+  /** Аренда продлена: сессия продолжается. */
+  LeaseRefreshed: 'lease-refreshed',
+  /** Машина заперта. */
+  WorkstationLocked: 'workstation-locked',
+  /**
+   * Агент не смог применить машинные политики: на самой машине ничего не изменилось. Раньше
+   * такой исход сообщался как обычный успех — оператор видел «заблокировано» там, где
+   * диспетчер задач остался доступен.
+   */
+  MachinePoliciesUnavailable: 'machine-policies-unavailable',
+  /** Предупреждение показано на экране игрока. */
+  WarningShown: 'warning-shown',
+  /** Причина предупреждения агенту неизвестна — игрок ничего не увидел. */
+  WarningReasonUnknown: 'warning-reason-unknown',
+  /** Такой тип команды этот агент не исполняет. */
+  CommandNotImplemented: 'command-not-implemented',
+  /**
+   * Исполнение сорвалось: диск, реестр, права. Агент обязан ответить и в этом случае — молчание
+   * оператор читает как «команда где-то в пути», и ждать он будет бесконечно.
+   */
+  CommandExecutionFailed: 'command-execution-failed',
+  /** В команде не было аренды сессии. */
+  LeaseMissing: 'lease-missing',
+  /** Аренду в команде не удалось прочитать. */
+  LeaseUnreadable: 'lease-unreadable',
+  /** Аренда не прошла проверку подписи или срока. */
+  LeaseInvalid: 'lease-invalid',
+} as const;
+export type DeviceCommandOutcomeName = (typeof DeviceCommandOutcomeNames)[keyof typeof DeviceCommandOutcomeNames];
+
+/** Словарь: Devices/DeviceCommandTypeNames.cs */
+export const DeviceCommandTypeNames = {
+  Lock: 'lock',
+  Unlock: 'unlock',
+  RefreshSessionLease: 'refresh-session-lease',
+  /**
+   * A non-blocking warning overlay pushed to the shell (e.g. fixed time almost
+   * up, or an open tab approaching its credit limit).
+   */
+  Warn: 'warn',
+} as const;
+export type DeviceCommandTypeName = (typeof DeviceCommandTypeNames)[keyof typeof DeviceCommandTypeNames];
+
+/** Словарь: Install/DeviceEnrollmentStateNames.cs */
+export const DeviceEnrollmentStateNames = {
+  Approved: 'approved',
+  Pending: 'pending',
+  Rejected: 'rejected',
+  Removed: 'removed',
+} as const;
+export type DeviceEnrollmentStateName = (typeof DeviceEnrollmentStateNames)[keyof typeof DeviceEnrollmentStateNames];
+
+/** Словарь: Install/DeviceRoleNames.cs */
+export const DeviceRoleNames = {
+  GamingPc: 'gaming_pc',
+  ManagerWorkstation: 'manager_workstation',
+} as const;
+export type DeviceRoleName = (typeof DeviceRoleNames)[keyof typeof DeviceRoleNames];
+
+/**
+ * Что с дружбой прямо сейчас.
+ *
+ * Словарь: Friends/FriendDtos.cs
+ */
+export const FriendshipStateNames = {
+  /** Позвали, ответа ещё нет. */
+  Pending: 'pending',
+  Accepted: 'accepted',
+  /** Отказали. Строка остаётся, чтобы человека не звали второй раз. */
+  Declined: 'declined',
+} as const;
+export type FriendshipStateName = (typeof FriendshipStateNames)[keyof typeof FriendshipStateNames];
+
+/**
+ * Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
+ * текст отказа с сервера — всегда английский: показать его человеку у ПК нельзя, а назвать
+ * причину своими словами по коду — можно.
+ *
+ * Словарь: Install/InstallErrorCodeNames.cs
+ */
+export const InstallErrorCodeNames = {
+  /** На выбранное место уже привязан другой ПК. */
+  SeatOccupied: 'seat_occupied',
+} as const;
+export type InstallErrorCodeName = (typeof InstallErrorCodeNames)[keyof typeof InstallErrorCodeNames];
+
+/** Словарь: Platform/Billing/InvoiceKindNames.cs */
+export const InvoiceKindNames = {
+  Subscription: 'subscription',
+  Proration: 'proration',
+  /** Manually issued charge outside the subscription: setup, hardware, extra service. */
+  OneOff: 'one_off',
+  /** Money owed back to the club. Carries a negative amount so the balance is arithmetic. */
+  Credit: 'credit',
+} as const;
+export type InvoiceKindName = (typeof InvoiceKindNames)[keyof typeof InvoiceKindNames];
+
+/** Словарь: Platform/Billing/InvoiceStatusNames.cs */
+export const InvoiceStatusNames = {
+  Issued: 'issued',
+  Paid: 'paid',
+  Void: 'void',
+  Overdue: 'overdue',
+} as const;
+export type InvoiceStatusName = (typeof InvoiceStatusNames)[keyof typeof InvoiceStatusNames];
+
+/** Словарь: Billing/LedgerAccountTypeNames.cs */
+export const LedgerAccountTypeNames = {
+  Wallet: 'wallet',
+  Debt: 'debt',
+  PackageTime: 'package_time',
+  BonusTime: 'bonus_time',
+} as const;
+export type LedgerAccountTypeName = (typeof LedgerAccountTypeNames)[keyof typeof LedgerAccountTypeNames];
+
+/** Словарь: Billing/LedgerEntryTypeNames.cs */
+export const LedgerEntryTypeNames = {
+  TopUp: 'top_up',
+  GameplayCharge: 'gameplay_charge',
+  PackagePurchase: 'package_purchase',
+  PackageConsumption: 'package_consumption',
+  BonusGrant: 'bonus_grant',
+  BonusConsumption: 'bonus_consumption',
+  Refund: 'refund',
+  ManualCorrection: 'manual_correction',
+  PostpaidDebt: 'postpaid_debt',
+  DebtPayment: 'debt_payment',
+  WalletPayment: 'wallet_payment',
+  Reversal: 'reversal',
+  Cashback: 'cashback',
+  /** Деньги за приведённого друга — платит клуб, обоим сразу. */
+  ReferralBonus: 'referral_bonus',
+  /**
+   * Заморозка под бронь: деньги остаются игроку, но потратить их второй раз уже нельзя.
+   * Оплатой не становится никогда — только снимается реверсом.
+   */
+  ReservationHold: 'reservation_hold',
+  /**
+   * Удержанная за неявку предоплата — выручка клуба, а не «деньги, которые не вернулись».
+   * Пишется только если филиал так решил, и всегда после снятия заморозки.
+   */
+  ReservationNoShowFee: 'reservation_no_show_fee',
+  /** Взнос за участие в событии клуба — списывается при записи. */
+  TournamentEntryFee: 'tournament_entry_fee',
+  /**
+   * Возврат взноса: игрок снялся до начала или клуб отменил событие. Отдельно от общего
+   * возврата, чтобы в выписке было видно, за что деньги вернулись.
+   */
+  TournamentEntryRefund: 'tournament_entry_refund',
+} as const;
+export type LedgerEntryTypeName = (typeof LedgerEntryTypeNames)[keyof typeof LedgerEntryTypeNames];
+
+/** Словарь: Media/MediaPurposeNames.cs */
+export const MediaPurposeNames = {
+  BranchLogo: 'branch-logo',
+  /**
+   * Логотип клуба целиком: его показывают приложение игрока, витрина и экран игрового ПК.
+   * Отдельно от логотипа зала — у сети он один, а залов много.
+   */
+  OrganizationLogo: 'organization-logo',
+  /** Фото зала для витрины клуба в приложении игрока. */
+  BranchCover: 'branch-cover',
+  /** Остальные фото зала: их несколько, и новая загрузка не заменяет прежние. */
+  BranchGallery: 'branch-gallery',
+} as const;
+export type MediaPurposeName = (typeof MediaPurposeNames)[keyof typeof MediaPurposeNames];
+
+/**
+ * Машинные имена отказов при подключении админки клуба к клубу.
+ * Этот экран человек видит раньше всего остального — до входа, до языка интерфейса он уже
+ * выбран. Английская фраза сервера («OrganizationSlug must contain only lowercase letters…»)
+ * доезжала до него дословно: непонятно и похоже на поломку программы.
+ *
+ * Словарь: Platform/Operator/OperatorConnectionErrorCodeNames.cs
+ */
+export const OperatorConnectionErrorCodeNames = {
+  /** Не указано ни адреса клуба и филиала, ни кода подключения. */
+  InputMissing: 'connection_input_missing',
+  /** Указано и то и другое сразу. */
+  InputAmbiguous: 'connection_input_ambiguous',
+  /** Адрес клуба или филиала записан не по формату. */
+  SlugInvalid: 'connection_slug_invalid',
+  /** Код подключения пустой. */
+  SetupCodeRequired: 'setup_code_required',
+  /** Кодом подключения уже воспользовались или его отозвали. */
+  SetupCodeNotUsable: 'setup_code_not_usable',
+} as const;
+export type OperatorConnectionErrorCodeName = (typeof OperatorConnectionErrorCodeNames)[keyof typeof OperatorConnectionErrorCodeNames];
+
+/** Словарь: Identity/AccountActivation/OrganizationOwnerInviteStatusNames.cs */
+export const OrganizationOwnerInviteStatusNames = {
+  Pending: 'pending',
+  Accepted: 'accepted',
+  Revoked: 'revoked',
+  Expired: 'expired',
+} as const;
+export type OrganizationOwnerInviteStatusName = (typeof OrganizationOwnerInviteStatusNames)[keyof typeof OrganizationOwnerInviteStatusNames];
+
+/** Словарь: Identity/OrganizationPermissionNames.cs */
+export const OrganizationPermissionNames = {
+  CreateDeviceEnrollmentCode: 'organization.devices.enrollment_codes.create',
+  DispatchDeviceCommand: 'organization.devices.commands.dispatch',
+  ViewDeviceCommandStatus: 'organization.devices.commands.status.view',
+  RotateDeviceCredential: 'organization.devices.credentials.rotate',
+  RevokeDeviceCredential: 'organization.devices.credentials.revoke',
+  AssignDeviceSeat: 'organization.devices.seat_assignment.assign',
+  ViewDeviceDetail: 'organization.devices.detail.view',
+  InstallDevice: 'organization.devices.install',
+  ViewFloorMap: 'organization.floor_map.view',
+  ManageLayout: 'organization.layout.manage',
+  StartSession: 'organization.sessions.start',
+  ExtendSession: 'organization.sessions.extend',
+  /** Поставить сессию на паузу и снять её. Право того же круга, что продление: обе правят время. */
+  PauseSession: 'organization.sessions.pause',
+  TransferSession: 'organization.sessions.transfer',
+  EndSession: 'organization.sessions.end',
+  ViewSession: 'organization.sessions.view',
+  CreatePlayerAccount: 'organization.players.create',
+  ViewPlayers: 'organization.players.view',
+  ViewBilling: 'organization.billing.view',
+  TopUpWallet: 'organization.billing.wallet.top_up',
+  RefundLedgerEntry: 'organization.billing.refund',
+  ManualLedgerCorrection: 'organization.billing.manual_correction',
+  PayDebt: 'organization.billing.debt.pay',
+  /** Anti-fraud (§5.2/D2): approve an over-threshold high-risk money action raised by another actor. */
+  ApproveMoneyAction: 'organization.billing.money_action.approve',
+  ViewSubscription: 'organization.billing.subscription.view',
+  ManageTariffs: 'organization.tariffs.manage',
+  ViewTariffs: 'organization.tariffs.view',
+  ManagePackages: 'organization.packages.manage',
+  ViewPackages: 'organization.packages.view',
+  PurchasePackage: 'organization.packages.purchase',
+  OpenShift: 'organization.shifts.open',
+  CloseShift: 'organization.shifts.close',
+  /**
+   * Закрыть СВОЮ смену — ту, которую сам и открыл. Узкое подмножество CloseShift.
+   * Контроль от этого не слабеет: сверка кассы обязательна для всех (CountedCash), а
+   * расхождение сверх допуска филиала по-прежнему требует подписи второго человека, который
+   * не открывал и не закрывает смену (§5.7, EfShiftService). То есть «закрыть поверх
+   * недостачи» в одиночку нельзя было и не станет можно.
+   * Без этого права ночной кассир, которого гейт после входа ЗАСТАВИЛ открыть смену, не мог
+   * её закрыть: в шесть утра он один, а закрывать обязан кто-то другой.
+   */
+  CloseOwnShift: 'organization.shifts.close_own',
+  ViewShift: 'organization.shifts.view',
+  ManageShiftCash: 'organization.shifts.cash.manage',
+  ViewReports: 'organization.reports.view',
+  ViewReservations: 'organization.reservations.view',
+  ManageReservations: 'organization.reservations.manage',
+  ManagePosCatalog: 'organization.pos.catalog.manage',
+  CreatePosSale: 'organization.pos.sales.create',
+  PayPosSale: 'organization.pos.sales.pay',
+  RefundPosSale: 'organization.pos.sales.refund',
+  VoidPosSale: 'organization.pos.sales.void',
+  /**
+   * Отменить СВОЙ чек, пробитый только что, без старшего — узкое подмножество VoidPosSale.
+   * Границы правила и довод за него живут в `Pos/PosSelfVoidPolicy.cs`: право само по
+   * себе ничего не разрешает, пока продажа не своя, не в текущей открытой смене и не свежая.
+   */
+  VoidOwnRecentPosSale: 'organization.pos.sales.void_own_recent',
+  ManageInventoryStock: 'organization.inventory.stock.manage',
+  ViewInventory: 'organization.inventory.view',
+  ViewReceipt: 'organization.receipts.view',
+  ViewUpdateStatus: 'organization.updates.status.view',
+  ViewDiagnostics: 'organization.diagnostics.view',
+  ManageBranchStaff: 'organization.identity.branch_staff.manage',
+  ManageRoles: 'organization.identity.roles.manage',
+  ViewAudit: 'organization.audit.view',
+  /** Owner-only: read org-wide audit across all branches + org-level records. */
+  ViewOrganizationAudit: 'organization.audit.organization.view',
+  ManageBranchSettings: 'organization.branches.settings.manage',
+  /** Owner-only: view the org-wide branch roster (network overview). */
+  ViewBranches: 'organization.branches.view',
+  /** Owner-only: connect/manage the club's DC-Bank payment cards (dcgate gateways). */
+  ManagePaymentGateways: 'organization.payments.gateways.manage',
+  /**
+   * Очередь заказов бара разведена на два права по одной границе: двигаются ли деньги.
+   * Serve — увидеть очередь, принять заказ, выдать его. Это чистая смена статуса, ничего не
+   * списывается и не возвращается: заказ оплачен в момент оформления. Выдаёт еду кассир, ему
+   * это право и нужно.
+   * Manage — отменить заказ, а отмена идёт через денежный координатор и возвращает деньги.
+   * Это денежное действие и остаётся за тем же кругом, что возвраты в кассе.
+   */
+  ServeShopOrders: 'organization.shop.orders.serve',
+  ManageShopOrders: 'organization.shop.orders.manage',
+  /**
+   * Снять с места вызов оператора. Право того же круга, что и «отдать заказ»: зовут человека
+   * с зала, а не того, кто правит настройки.
+   */
+  ResolveAssistanceRequest: 'organization.assistance.resolve',
+  /** Owner-only: configure org-wide loyalty/cashback rates. */
+  ManageLoyaltySettings: 'organization.loyalty.settings.manage',
+  ManageNews: 'organization.news.manage',
+  /**
+   * Заводить и отменять события клуба. Отдельно от новостей: событие возвращает деньги
+   * при отмене, и это право сильнее права написать объявление.
+   */
+  ManageTournaments: 'organization.tournaments.manage',
+} as const;
+export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
+
+/** Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs */
+export const OrganizationPlanCodeNames = {
+  Starter: 'starter',
+  Growth: 'growth',
+  Scale: 'scale',
+} as const;
+export type OrganizationPlanCodeName = (typeof OrganizationPlanCodeNames)[keyof typeof OrganizationPlanCodeNames];
+
+/** Словарь: Platform/Organizations/OrganizationStatusNames.cs */
+export const OrganizationStatusNames = {
+  Active: 'active',
+  Suspended: 'suspended',
+  DeletionPending: 'deletion_pending',
+  /**
+   * Клуб ушёл и его данные стёрты. Терминальный статус: архивная строка нужна отчётности по
+   * деньгам, но отличать её от живой заявки на уход обязательно — иначе стёртый клуб выглядит
+   * как ещё живая заявка.
+   */
+  Purged: 'purged',
+} as const;
+export type OrganizationStatusName = (typeof OrganizationStatusNames)[keyof typeof OrganizationStatusNames];
+
+/** Словарь: Payments/PaymentMethodNames.cs */
+export const PaymentMethodNames = {
+  Cash: 'cash',
+  CardManual: 'card_manual',
+  Wallet: 'wallet',
+} as const;
+export type PaymentMethodName = (typeof PaymentMethodNames)[keyof typeof PaymentMethodNames];
+
+/**
+ * Машинные имена лимитов тарифа и код отказа. Фразу для человека собирает клиент —
+ * сервер отдаёт только код и числа.
+ *
+ * Словарь: Platform/Organizations/PlanLimitNames.cs
+ */
+export const PlanLimitNames = {
+  ReachedCode: 'plan_limit_reached',
+  Branches: 'branches',
+  DevicesPerBranch: 'devices_per_branch',
+  ConcurrentSessions: 'concurrent_sessions',
+  StaffUsersPerBranch: 'staff_users_per_branch',
+} as const;
+export type PlanLimitName = (typeof PlanLimitNames)[keyof typeof PlanLimitNames];
+
+/** Словарь: Platform/Auth/PlatformAdminPermissionNames.cs */
+export const PlatformAdminPermissionNames = {
+  UseSupportAccess: 'platform.support.access',
+  ViewOrganizations: 'platform.organizations.view',
+  CreateOrganization: 'platform.organizations.create',
+  UpdateOrganizationStatus: 'platform.organizations.status.update',
+  UpdateOrganizationLimits: 'platform.organizations.limits.update',
+  UpdateOrganizationProfile: 'platform.organizations.profile.update',
+  UpdateOrganizationUpdateChannel: 'platform.organizations.update_channel.update',
+  ViewOrganizationSupportNotes: 'platform.organizations.support_notes.view',
+  ManageOrganizationSupportNotes: 'platform.organizations.support_notes.manage',
+  ManageOrganizationOwnerInvites: 'platform.organizations.owner_invites.manage',
+  TransferOrganizationOwner: 'platform.organizations.owner.transfer',
+  ViewOrganizationHealth: 'platform.organizations.health.view',
+  ViewPlatformAudit: 'platform.audit.view',
+  ViewBilling: 'platform.billing.view',
+  ManagePlans: 'platform.billing.plans.manage',
+  ManageSubscriptions: 'platform.billing.subscriptions.manage',
+  ManageInvoices: 'platform.billing.invoices.manage',
+  ViewUpdates: 'platform.updates.view',
+  ManageUpdatePackages: 'platform.updates.packages.manage',
+  ManageUpdateRollouts: 'platform.updates.rollouts.manage',
+  ManagePlatformAdmins: 'platform.admins.manage',
+  ViewPlatformHealth: 'platform.health.view',
+  /**
+   * Отправка проверочного письма. Отдельно от просмотра здоровья: это действие наружу,
+   * а не чтение.
+   */
+  SendTestNotification: 'platform.health.test_email.send',
+  ManageOrganizationFeatures: 'platform.organizations.features.manage',
+  /**
+   * Ведение анонсов платформы. Отдельного «смотреть анонсы» нет: как и у ролей, кто их ведёт,
+   * тот их и читает — лишнее право усложнило бы модель, ничего не добавив.
+   */
+  ManageAnnouncements: 'platform.announcements.manage',
+  /**
+   * Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
+   * вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
+   * право здесь значит раздать необратимое тем, кому дали настраивать.
+   */
+  ManageOffboarding: 'platform.organizations.offboarding.manage',
+  /**
+   * Сетевой запрет человеку: закрыть или открыть ему самообслуживание во всей сети. Право
+   * платформы и только её — клуб решает за свой клуб, закрывая у себя карточку, и дальше его
+   * решения не идут. Поддержке не даётся по той же причине, по которой ей не даётся репутация.
+   */
+  ManageNetworkBans: 'platform.people.network_ban.manage',
+} as const;
+export type PlatformAdminPermissionName = (typeof PlatformAdminPermissionNames)[keyof typeof PlatformAdminPermissionNames];
+
+/** Словарь: Platform/Auth/PlatformAdminRoleNames.cs */
+export const PlatformAdminRoleNames = {
+  PlatformAdmin: 'platform_admin',
+  PlatformSupport: 'platform_support',
+} as const;
+export type PlatformAdminRoleName = (typeof PlatformAdminRoleNames)[keyof typeof PlatformAdminRoleNames];
+
+/**
+ * Машинные имена отказов платформенного контура.
+ * Причина та же, по которой они появились у офбординга (<see
+ * cref="Organizations.OffboardingErrorCodes"/>): текст отказа сервер пишет по-английски и
+ * именами своих полей («CurrentPeriodEndUtc must be later than…»), а панель работает на трёх
+ * языках. Показать такой текст нельзя, и без кода панель показывала одно «не удалось сохранить
+ * изменения» на десяток разных причин — в форме подписки из семи полей человек не мог понять,
+ * какое из них поправить.
+ * Здесь только те причины, которые человек за панелью исправляет сам. Остальное остаётся без
+ * кода и честно называется общими словами.
+ *
+ * Словарь: Platform/Billing/PlatformErrorCodeNames.cs
+ */
+export const PlatformErrorCodeNames = {
+  /** Счёт за текущий период уже выставлен. */
+  InvoicePeriodAlreadyBilled: 'invoice_period_already_billed',
+  /** Счёт уже оплачен. */
+  InvoiceAlreadyPaid: 'invoice_already_paid',
+  /** Счёт уже аннулирован. */
+  InvoiceAlreadyVoid: 'invoice_already_void',
+  /** Оплаченный счёт не аннулируют — на него выписывают кредит-ноту. */
+  PaidInvoiceCannotBeVoided: 'paid_invoice_cannot_be_voided',
+  /** Кредит-ноту не оплачивают: она учитывается в балансе. */
+  CreditNoteNotPayable: 'credit_note_not_payable',
+  /** Номер счёта занял параллельный запрос — можно повторить. */
+  InvoiceNumberingConflict: 'invoice_numbering_conflict',
+  /** Конец оплаченного периода не позже его начала. */
+  SubscriptionPeriodEndNotAfterStart: 'subscription_period_end_not_after_start',
+  /** Отсрочку ставят на будущее: прошедшая дата ничего не отсрочит. */
+  SubscriptionGraceNotInFuture: 'subscription_grace_not_in_future',
+  /** Перевод на пробный период без даты его окончания. */
+  SubscriptionTrialNeedsPeriodEnd: 'subscription_trial_needs_period_end',
+  /** Выбранного тарифа нет в каталоге. */
+  SubscriptionPlanNotFound: 'subscription_plan_not_found',
+  /** Такой адрес организации уже занят другим клубом. */
+  OrganizationSlugTaken: 'organization_slug_taken',
+  /** Такой адрес филиала уже занят в этой организации. */
+  BranchSlugTaken: 'branch_slug_taken',
+  /** Логин владельца уже занят в этой организации. */
+  OwnerUserNameTaken: 'owner_username_taken',
+} as const;
+export type PlatformErrorCodeName = (typeof PlatformErrorCodeNames)[keyof typeof PlatformErrorCodeNames];
+
+/**
+ * Ключи фич, которые платформа умеет включать и выключать клубу. Каждый ключ обязан иметь
+ * точку проверки в коде: флаг без потребителя — мусор, который невозможно опознать через месяц.
+ *
+ * Словарь: Platform/Features/PlatformFeatureNames.cs
+ */
+export const PlatformFeatureNames = {
+  /** Код отказа, когда фича выключена. Фразу собирает клиент. */
+  DisabledCode: 'feature_disabled',
+  OnlineBooking: 'online_booking',
+  Loyalty: 'loyalty',
+  OnlineTopUp: 'online_topup',
+  PlayerShop: 'player_shop',
+  Tournaments: 'tournaments',
+} as const;
+export type PlatformFeatureName = (typeof PlatformFeatureNames)[keyof typeof PlatformFeatureNames];
+
+/** Словарь: Platform/Health/PlatformHealthContracts.cs */
+export const PlatformQueueNames = {
+  Notifications: 'notifications',
+  BillingOutbox: 'billing_outbox',
+} as const;
+export type PlatformQueueName = (typeof PlatformQueueNames)[keyof typeof PlatformQueueNames];
+
+/** Словарь: Platform/Updates/PlatformUpdateContracts.cs */
+export const PlatformUpdateTargetKindNames = {
+  Organization: 'organization',
+  Branch: 'branch',
+  Device: 'device',
+} as const;
+export type PlatformUpdateTargetKindName = (typeof PlatformUpdateTargetKindNames)[keyof typeof PlatformUpdateTargetKindNames];
+
+/** Словарь: Shell/PlayerShellStateNames.cs */
+export const PlayerShellStateNames = {
+  Locked: 'locked',
+  Active: 'active',
+  Grace: 'grace',
+  Ending: 'ending',
+  Maintenance: 'maintenance',
+  Offline: 'offline',
+  Error: 'error',
+} as const;
+export type PlayerShellStateName = (typeof PlayerShellStateNames)[keyof typeof PlayerShellStateNames];
+
+/** Словарь: Pos/PosSaleStateNames.cs */
+export const PosSaleStateNames = {
+  Draft: 'draft',
+  PendingPayment: 'pending_payment',
+  Paid: 'paid',
+  Refunded: 'refunded',
+  Voided: 'voided',
+} as const;
+export type PosSaleStateName = (typeof PosSaleStateNames)[keyof typeof PosSaleStateNames];
+
+/** Словарь: Platform/Pulse/PlatformPulseContracts.cs */
+export const PulseAlertKindNames = {
+  AgentSilent: 'agent_silent',
+  ShiftNotClosed: 'shift_not_closed',
+  PaymentOverdue: 'payment_overdue',
+  RolloutFailed: 'rollout_failed',
+} as const;
+export type PulseAlertKindName = (typeof PulseAlertKindNames)[keyof typeof PulseAlertKindNames];
+
+/** Словарь: Platform/Pulse/PlatformPulseContracts.cs */
+export const PulseAlertLevelNames = {
+  Normal: 'normal',
+  Attention: 'attention',
+  Critical: 'critical',
+} as const;
+export type PulseAlertLevelName = (typeof PulseAlertLevelNames)[keyof typeof PulseAlertLevelNames];
+
+/**
+ * How often a report schedule fires and the size of the window each run covers.
+ *
+ * Словарь: Reports/ReportScheduleNames.cs
+ */
+export const ReportScheduleFrequencyNames = {
+  Daily: 'daily',
+  Weekly: 'weekly',
+  Monthly: 'monthly',
+} as const;
+export type ReportScheduleFrequencyName = (typeof ReportScheduleFrequencyNames)[keyof typeof ReportScheduleFrequencyNames];
+
+/**
+ * Машинные имена отказов по броням. См. Shifts.ShiftErrorCodeNames — та же причина:
+ * стойка работает на трёх языках, а английская фраза сервера в интерфейс попадать не должна.
+ * Почти все эти отказы — про состояние брони, которое успело измениться: сосед подтвердил её
+ * раньше, гость уже сидит, заявку уже отклонили. Отличать их друг от друга оператору нужно
+ * именно потому, что дальше он делает разное.
+ *
+ * Словарь: Reservations/ReservationErrorCodeNames.cs
+ */
+export const ReservationErrorCodeNames = {
+  /** Подтвердить можно только заявку, на которую клуб ещё не ответил. */
+  NotPending: 'reservation_not_pending',
+  /** Менять можно бронь, которая ещё не отменена и не закрыта. */
+  NotChangeable: 'reservation_not_changeable',
+  /** Посадить можно только заявку или подтверждённую бронь. */
+  NotSeatable: 'reservation_not_seatable',
+  /** Бронь без места — сажать некуда. */
+  SeatRequired: 'reservation_seat_required',
+  /** Отменить можно только заявку или подтверждённую бронь. */
+  NotCancellable: 'reservation_not_cancellable',
+  /** Отмена без причины: её читает гость и она же уходит в журнал. */
+  CancelReasonRequired: 'reservation_cancel_reason_required',
+  /** Отказать можно в заявке, на которую клуб ещё не ответил. */
+  NotRejectable: 'reservation_not_rejectable',
+  /** Отказ «своими словами» без слов. */
+  RefusalNoteRequired: 'reservation_refusal_note_required',
+  /** Неизвестная причина отказа. */
+  RejectReasonUnsupported: 'reservation_reject_reason_unsupported',
+  /** Неявку отмечают у подтверждённой брони, время которой уже началось. */
+  NoShowNotAllowed: 'reservation_no_show_not_allowed',
+} as const;
+export type ReservationErrorCodeName = (typeof ReservationErrorCodeNames)[keyof typeof ReservationErrorCodeNames];
+
+/** Словарь: Reservations/ReservationSourceNames.cs */
+export const ReservationSourceNames = {
+  Operator: 'operator',
+  Online: 'online',
+} as const;
+export type ReservationSourceName = (typeof ReservationSourceNames)[keyof typeof ReservationSourceNames];
+
+/** Словарь: Reservations/ReservationStateNames.cs */
+export const ReservationStateNames = {
+  Pending: 'pending',
+  Confirmed: 'confirmed',
+  Seated: 'seated',
+  Cancelled: 'cancelled',
+  /**
+   * Игрок не приехал. Отдельно от отмены намеренно: отменённая бронь — это решение человека
+   * или клуба, а неявка — его отсутствие, и стоить она может денег. Пока оба исхода изображала
+   * одна «отмена» с пометкой в свободном тексте, отличить их можно было только сравнением строк.
+   */
+  NoShow: 'no_show',
+  /**
+   * Клуб отказал в заявке — с причиной. Не отмена: игрок ничего не отменял, и в его репутации
+   * чужой отказ появляться не должен.
+   */
+  Rejected: 'rejected',
+} as const;
+export type ReservationStateName = (typeof ReservationStateNames)[keyof typeof ReservationStateNames];
+
+/**
+ * The report kinds a schedule can deliver — one per existing report export endpoint.
+ *
+ * Словарь: Reports/ReportScheduleNames.cs
+ */
+export const ScheduledReportTypeNames = {
+  Shifts: 'shifts',
+  Sales: 'sales',
+  GameplayTime: 'gameplay_time',
+  CashOperations: 'cash_operations',
+  OperatorActions: 'operator_actions',
+} as const;
+export type ScheduledReportTypeName = (typeof ScheduledReportTypeNames)[keyof typeof ScheduledReportTypeNames];
+
+/**
+ * Состояние места на карте зала — то, что сервер кладёт в SeatStatusDto.State.
+ * Пишутся с большой буквы, в отличие от состояний сессии: это отдельный словарь карты, а не код
+ * сессии. Пока их писали литералами, Панель сравнивала сырое значение с «free» и «ready», которых
+ * сервер не присылает никогда, и «Посадить за ПК» из карточки клиента не предлагало ни одного
+ * места (#423).
+ *
+ * Словарь: FloorMap/SeatStateNames.cs
+ */
+export const SeatStateNames = {
+  Free: 'Free',
+  /** ПК на связи и заперт: гость может сесть — это то же «свободно». */
+  Locked: 'Locked',
+  Active: 'Active',
+  Paused: 'Paused',
+  Ending: 'Ending',
+  /** ПК не привязан к месту или не одобрен. */
+  Maintenance: 'Maintenance',
+  Offline: 'Offline',
+} as const;
+export type SeatStateName = (typeof SeatStateNames)[keyof typeof SeatStateNames];
+
+/**
+ * С чего началась сессия. Раньше на этот вопрос отвечали догадкой по косвенным признакам —
+ * «раз есть бронь, значит по брони», — и догадка врала на любом нестандартном вечере.
+ * Пустая строка — законный ответ «неизвестно» для строк, заведённых до того, как вопрос начали
+ * задавать. Подставлять вместо неё Operator нельзя: это уже утверждение, а не факт.
+ *
+ * Словарь: Sessions/SessionOriginNames.cs
+ */
+export const SessionOriginNames = {
+  /** Посадил администратор за стойкой. */
+  Operator: 'operator',
+  /**
+   * Игрок сел сам. Именно «сам», а не «по PIN»: самопосадка идёт и из приложения, где никакого
+   * PIN человек не набирал, — имя по механизму врало бы в самом поле, заведённом ради правды.
+   */
+  SelfService: 'self_service',
+  /** Сессия выросла из брони: человек пришёл на забронированное время. */
+  Reservation: 'reservation',
+} as const;
+export type SessionOriginName = (typeof SessionOriginNames)[keyof typeof SessionOriginNames];
+
+/** Словарь: Sessions/SessionStateNames.cs */
+export const SessionStateNames = {
+  Requested: 'requested',
+  Active: 'active',
+  Paused: 'paused',
+  Ending: 'ending',
+  Ended: 'ended',
+  Failed: 'failed',
+  Reconciled: 'reconciled',
+} as const;
+export type SessionStateName = (typeof SessionStateNames)[keyof typeof SessionStateNames];
+
+/**
+ * Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
+ * причина: у кассы эти отказы самые частые, а без кода до кассира доезжала английская фраза
+ * сервера вместе с сырым телом ответа.
+ *
+ * Словарь: Shifts/ShiftErrorCodeNames.cs
+ */
+export const ShiftErrorCodeNames = {
+  /** В филиале уже открыта смена — вторую открыть нельзя. */
+  AlreadyOpen: 'shift_already_open',
+  /** Смену уже закрыли: скорее всего, это сделал сосед по кассе. */
+  AlreadyClosed: 'shift_already_closed',
+  /** Валюта операции не совпадает с валютой смены. */
+  CurrencyMismatch: 'shift_currency_mismatch',
+  /** Расхождение по кассе больше допуска — нужна подпись старшего. */
+  SignOffRequired: 'shift_sign_off_required',
+  /** Подписать расхождение должен не тот, кто смену открыл или закрывает. */
+  SignOffMustDiffer: 'shift_sign_off_must_differ',
+  /** У выбранного сотрудника нет права подписывать расхождение. */
+  SignOffNotAuthorized: 'shift_sign_off_not_authorized',
+  /** Внесение и изъятие наличных возможны только при открытой смене. */
+  CashMovementNeedsOpenShift: 'cash_movement_needs_open_shift',
+} as const;
+export type ShiftErrorCodeName = (typeof ShiftErrorCodeNames)[keyof typeof ShiftErrorCodeNames];
+
+/** Словарь: Shifts/ShiftStateNames.cs */
+export const ShiftStateNames = {
+  Open: 'open',
+  Closed: 'closed',
+} as const;
+export type ShiftStateName = (typeof ShiftStateNames)[keyof typeof ShiftStateNames];
+
+/** Словарь: Shop/ShopOrderStatusNames.cs */
+export const ShopOrderStatusNames = {
+  Placed: 'placed',
+  Accepted: 'accepted',
+  Delivered: 'delivered',
+  Cancelled: 'cancelled',
+} as const;
+export type ShopOrderStatusName = (typeof ShopOrderStatusNames)[keyof typeof ShopOrderStatusNames];
+
+/**
+ * Машинные причины отказа на входе сотрудника. Клиент по ним и подбирает слова: текст сервера
+ * английский, а мастер и приложение клуба работают на трёх языках.
+ *
+ * Словарь: Identity/StaffAuthErrorCodeNames.cs
+ */
+export const StaffAuthErrorCodeNames = {
+  /**
+   * Пять промахов подряд — вход в эту учётную запись закрыт на четверть часа. Отдельно от
+   * обычного «неверно»: там человек ищет опечатку, здесь ждёт.
+   */
+  TooManyPasswordAttempts: 'too_many_password_attempts',
+} as const;
+export type StaffAuthErrorCodeName = (typeof StaffAuthErrorCodeNames)[keyof typeof StaffAuthErrorCodeNames];
+
+/**
+ * Машинные имена отказов при приглашении сотрудника. См.
+ * Install.InstallErrorCodeNames — та же причина: отказ нужно назвать на языке того,
+ * кто его читает.
+ *
+ * Словарь: Identity/StaffInviteErrorCodeNames.cs
+ */
+export const StaffInviteErrorCodeNames = {
+  /** Номер не похож на телефон — приглашение уходит SMS, слать его некуда. */
+  InvalidPhone: 'invalid_phone',
+  /** Логин уже занят другим сотрудником клуба. */
+  UserNameTaken: 'staff_username_taken',
+  /** Номер уже принадлежит сотруднику клуба. */
+  PhoneTaken: 'staff_phone_taken',
+} as const;
+export type StaffInviteErrorCodeName = (typeof StaffInviteErrorCodeNames)[keyof typeof StaffInviteErrorCodeNames];
+
+/** Словарь: Inventory/StockMovementTypeNames.cs */
+export const StockMovementTypeNames = {
+  Purchase: 'purchase',
+  Sale: 'sale',
+  Refund: 'refund',
+  Adjustment: 'adjustment',
+} as const;
+export type StockMovementTypeName = (typeof StockMovementTypeNames)[keyof typeof StockMovementTypeNames];
+
+/** Словарь: Platform/Organizations/SubscriptionStatusNames.cs */
+export const SubscriptionStatusNames = {
+  Trial: 'trial',
+  Active: 'active',
+  PastDue: 'past_due',
+  Cancelled: 'cancelled',
+} as const;
+export type SubscriptionStatusName = (typeof SubscriptionStatusNames)[keyof typeof SubscriptionStatusNames];
+
+/**
+ * Машинные имена отказов по тарифам. См. Install.InstallErrorCodeNames — та же
+ * причина: отказ нужно назвать на языке того, кто его читает.
+ *
+ * Словарь: Tariffs/TariffErrorCodeNames.cs
+ */
+export const TariffErrorCodeNames = {
+  /** Тариф с таким именем в филиале уже есть. */
+  NameTaken: 'tariff_name_taken',
+} as const;
+export type TariffErrorCodeName = (typeof TariffErrorCodeNames)[keyof typeof TariffErrorCodeNames];
+
+/**
+ * Что с записью игрока на событие.
+ *
+ * Словарь: Tournaments/TournamentStateNames.cs
+ */
+export const TournamentRegistrationStateNames = {
+  Registered: 'registered',
+  Cancelled: 'cancelled',
+} as const;
+export type TournamentRegistrationStateName = (typeof TournamentRegistrationStateNames)[keyof typeof TournamentRegistrationStateNames];
+
+/**
+ * Что с событием клуба прямо сейчас.
+ *
+ * Словарь: Tournaments/TournamentStateNames.cs
+ */
+export const TournamentStateNames = {
+  /** Черновик: клуб составляет событие, игрок его не видит. */
+  Draft: 'draft',
+  /** Опубликовано: событие видно в приложении и на него записываются. */
+  Published: 'published',
+  /** Отменено клубом. Взносы возвращены всем записавшимся. */
+  Cancelled: 'cancelled',
+} as const;
+export type TournamentStateName = (typeof TournamentStateNames)[keyof typeof TournamentStateNames];
+
+/** Словарь: Updates/UpdateChannelNames.cs */
+export const UpdateChannelNames = {
+  Stable: 'stable',
+  Beta: 'beta',
+  Internal: 'internal',
+} as const;
+export type UpdateChannelName = (typeof UpdateChannelNames)[keyof typeof UpdateChannelNames];
+
+/** Словарь: Updates/UpdateComponentNames.cs */
+export const UpdateComponentNames = {
+  OrganizationAdmin: 'organization-admin',
+  AgentService: 'agent-service',
+  PlayerShell: 'player-shell',
+} as const;
+export type UpdateComponentName = (typeof UpdateComponentNames)[keyof typeof UpdateComponentNames];
+
+/** Словарь: Updates/UpdatePackageSignatureAlgorithmNames.cs */
+export const UpdatePackageSignatureAlgorithmNames = {
+  EcdsaP256Sha256IeeeP1363: 'ECDSA-P256-SHA256-IEEE-P1363',
+} as const;
+export type UpdatePackageSignatureAlgorithmName = (typeof UpdatePackageSignatureAlgorithmNames)[keyof typeof UpdatePackageSignatureAlgorithmNames];
+
+/** Словарь: Updates/UpdatePackageStateNames.cs */
+export const UpdatePackageStateNames = {
+  Registered: 'registered',
+  Validated: 'validated',
+  Rejected: 'rejected',
+  Retired: 'retired',
+} as const;
+export type UpdatePackageStateName = (typeof UpdatePackageStateNames)[keyof typeof UpdatePackageStateNames];
+
+/** Словарь: Updates/UpdateRolloutStateNames.cs */
+export const UpdateRolloutStateNames = {
+  Draft: 'draft',
+  Active: 'active',
+  Paused: 'paused',
+  Completed: 'completed',
+  RollbackRequested: 'rollback-requested',
+  RolledBack: 'rolled-back',
+  Cancelled: 'cancelled',
+} as const;
+export type UpdateRolloutStateName = (typeof UpdateRolloutStateNames)[keyof typeof UpdateRolloutStateNames];
+
+/** Словарь: Updates/UpdateStatusNames.cs */
+export const UpdateStatusNames = {
+  NotStarted: 'not-started',
+  Offered: 'offered',
+  Downloading: 'downloading',
+  Downloaded: 'downloaded',
+  Installing: 'installing',
+  Installed: 'installed',
+  /**
+   * Пакет лёг, но файлы, занятые работающими процессами, Windows заменит только после
+   * перезагрузки машины: до неё устройство работает на прежней сборке.
+   */
+  PendingRestart: 'pending-restart',
+  Superseded: 'superseded',
+  Failed: 'failed',
+  RollbackStarted: 'rollback-started',
+  RolledBack: 'rolled-back',
+  Deferred: 'deferred',
+  ReadyToInstall: 'ready-to-install',
+  AwaitingAppExit: 'awaiting-app-exit',
+  HealthChecking: 'health-checking',
+  RollbackRequired: 'rollback-required',
+} as const;
+export type UpdateStatusName = (typeof UpdateStatusNames)[keyof typeof UpdateStatusNames];
+
+/** Словарь: Updates/UpdateTargetKindNames.cs */
+export const UpdateTargetKindNames = {
+  Branch: 'branch',
+  Device: 'device',
+} as const;
+export type UpdateTargetKindName = (typeof UpdateTargetKindNames)[keyof typeof UpdateTargetKindNames];
+
 /** Контракт: Identity/AccountActivation/AcceptOrganizationOwnerInviteRequest.cs */
 export interface AcceptOrganizationOwnerInviteRequest {
   code: string;
@@ -4201,7 +5115,8 @@ export interface SeatStatusDto {
   zoneId: Guid;
   zoneName: string;
   sortOrder: number;
-  state: string;
+  /** Одно из SeatStateNames. */
+  state: SeatStateName;
   deviceId: Guid | null;
   deviceName: string | null;
   isDeviceOnline: boolean | null;
