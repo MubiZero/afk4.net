@@ -258,8 +258,10 @@ class _CoverState extends State<_Cover> {
                 child: _PhotoDots(count: photos.length, current: _page),
               ),
             ),
+          // Плашка рисуется в 12 пунктах от края, а её зона касания — выше и ниже плашки: сама она
+          // 28 пунктов в высоту, палец — нет. Отступ сверху поэтому меньше на разницу.
           Positioned(
-            top: 12,
+            top: 12 - (AppTheme.minTouchTarget - _RatingBadge.visualHeight) / 2,
             right: 12,
             child: _RatingBadge(
               club: widget.club,
@@ -362,6 +364,9 @@ class _Monogram extends StatelessWidget {
 class _RatingBadge extends StatelessWidget {
   const _RatingBadge({required this.club, this.onOpenReviews});
 
+  /// Высота нарисованной плашки при обычном размере шрифта.
+  static const double visualHeight = 28;
+
   final Organization club;
   final VoidCallback? onOpenReviews;
 
@@ -411,12 +416,26 @@ class _RatingBadge extends StatelessWidget {
       ),
     );
 
-    if (!openable) return badge;
+    // Зона касания — не меньше минимума, плашка внутри неё по центру. Неоткрываемая оценка
+    // занимает то же место, чтобы плашка не прыгала между клубами с отзывами и без.
+    final area = ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: AppTheme.minTouchTarget,
+        minHeight: AppTheme.minTouchTarget,
+      ),
+      child: Center(widthFactor: 1, heightFactor: 1, child: badge),
+    );
+
+    if (!openable) return area;
 
     return Semantics(
       button: true,
       label: l.customerReviewsTitle,
-      child: GestureDetector(onTap: onOpenReviews, child: badge),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onOpenReviews,
+        child: area,
+      ),
     );
   }
 }

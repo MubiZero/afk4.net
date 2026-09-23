@@ -107,9 +107,10 @@ void main() {
     }
   });
 
-  // Палец, а не мышь: 44 — минимум для касания. Главная кнопка экрана крупнее минимума,
+  // Палец, а не мышь: 48 — минимум для касания. Главная кнопка экрана крупнее минимума,
   // иначе основное действие требует прицеливания.
-  test('минимальная высота интерактивных элементов не ниже 44', () {
+  test('минимальная высота интерактивных элементов не ниже 48', () {
+    expect(AppTheme.minTouchTarget, greaterThanOrEqualTo(48));
     for (final theme in [AppTheme.dark(), AppTheme.light()]) {
       final buttonSize = theme.filledButtonTheme.style?.minimumSize?.resolve({});
       expect(buttonSize, isNotNull);
