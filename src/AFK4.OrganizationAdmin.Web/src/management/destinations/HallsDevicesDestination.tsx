@@ -6,8 +6,9 @@ import { isGuid } from '../../operatorHelpers';
 import { projectOperatorError } from '../../apiErrors';
 import { LoadFailureState } from '../../operatorPrimitives';
 import { managementScreenState, type DestinationProps } from './types';
-import { ZonesTab } from './halls/ZonesTab';
-import { DevicesTab } from './halls/DevicesTab';
+import { ZonesTab, ZonesTabSkeleton } from './halls/ZonesTab';
+import { DevicesTab, DevicesTabSkeleton } from './halls/DevicesTab';
+import { DeferredSkeleton, SkeletonTabs } from '../../LoadingSkeleton';
 
 type HallsTab = 'layout' | 'devices';
 
@@ -62,6 +63,12 @@ export function HallsDevicesDestination({
       subtitle={t('op.management.dest.halls.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
+      skeleton={
+        <>
+          <SkeletonTabs count={2} />
+          {activeTab === 'layout' ? <ZonesTabSkeleton canManageLayout={canManageLayout} /> : <DevicesTabSkeleton />}
+        </>
+      }
       failure={failure}
       onRetry={onRetry}
     >
@@ -103,7 +110,7 @@ export function HallsDevicesDestination({
           onRetry={() => onRetryDevices?.()}
         />
       ) : deviceState?.status === 'loading' && deviceState.data.length === 0 ? (
-        <div className="management-skeleton" aria-hidden="true" />
+        <DeferredSkeleton><DevicesTabSkeleton /></DeferredSkeleton>
       ) : (
         <DevicesTab
           deviceInventory={deviceRows}

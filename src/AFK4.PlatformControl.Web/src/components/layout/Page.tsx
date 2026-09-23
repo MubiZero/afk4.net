@@ -9,8 +9,9 @@ import { ChevronLeft } from 'lucide-react';
 export function Page({ width = 'wide', back, title, description, actions, children }: {
   width?: 'form' | 'wide' | 'full';
   back?: { label: string; onBack: () => void };
-  title?: string;
-  description?: string;
+  // Узел, а не строка: пока карточка грузится, на месте названия стоит его заглушка.
+  title?: ReactNode;
+  description?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }) {

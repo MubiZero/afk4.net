@@ -106,8 +106,7 @@
 }
 
 
-/* Skeleton placeholders — mirror the final layout so content swaps in without a shift. The pulse is
-   killed by the global prefers-reduced-motion rule, leaving a static block. */
+/* Skeleton placeholders — mirror the final layout so content swaps in without a shift. */
 @keyframes skeleton-pulse {
   0%,
   100% {
@@ -123,4 +122,71 @@
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
   animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+/* Форма заглушки собрана из тех же контейнеров, что и настоящее содержимое (строка таблицы,
+   плитка, поле формы), поэтому высоту ей задаёт не подобранное число, а сам контейнер. Строка
+   текста — блок с неразрывным пробелом внутри: он занимает ровно одну строку того шрифта, что у
+   контейнера, а видимая полоса короче строки и нарисована поверх. Тег — <i>, чтобы правила экранов
+   на span и strong не меняли ему шрифт. */
+@keyframes skeleton-line-pulse {
+  0%,
+  100% {
+    background-color: var(--border-soft);
+  }
+
+  50% {
+    background-color: var(--border-default);
+  }
+}
+
+.skeleton-line {
+  position: relative;
+  display: block;
+  font-style: normal;
+  max-width: 100%;
+  overflow: hidden;
+  color: transparent;
+  white-space: nowrap;
+}
+
+.skeleton-line::before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 0.4em) 0 auto;
+  height: 0.8em;
+  border-radius: var(--radius-xs);
+  background: var(--border-soft);
+  animation: skeleton-line-pulse 1.4s ease-in-out infinite;
+}
+
+/* Поле ввода или кнопка: высота контрола, а не строки текста. */
+.skeleton-control {
+  display: block;
+  flex: none;
+  height: var(--control-h);
+  border-radius: var(--control-radius);
+}
+
+.skeleton-control--sm {
+  height: var(--control-sm);
+}
+
+.skeleton-control--lg {
+  height: var(--control-lg);
+}
+
+/* Заглушка — не содержимое: её не нажать, не выделить и не навести. */
+[data-skeleton] {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Пульс — движение, и выключившему анимацию он не нужен: заглушка стоит ровной полосой. В Панели
+   AFK4.net это делало и общее правило reduced-motion, в Platform Control такого правила нет. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block,
+  .skeleton-line::before {
+    animation: none;
+  }
 }

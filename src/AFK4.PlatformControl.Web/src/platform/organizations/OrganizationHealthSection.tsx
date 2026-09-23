@@ -2,7 +2,8 @@ import { RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonTable, SkeletonTiles } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useLoadable } from '../useLoadable';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
@@ -35,7 +36,10 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
         {state.status === 'error' ? (
           <ErrorState title={t('platform.organization.health.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
         ) : state.status === 'loading' ? (
-          <LoadingCards count={1} />
+          <Loading>
+            <SkeletonTiles count={4} className="pc-facts" tileClassName="pc-fact" />
+            <SkeletonTable columns={5} rows={2} />
+          </Loading>
         ) : (
           <>
             <dl className="pc-facts">

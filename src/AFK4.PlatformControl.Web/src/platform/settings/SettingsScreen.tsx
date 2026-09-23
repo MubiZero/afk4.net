@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons';
 import { Dialog } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
@@ -113,7 +114,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
     }
   }
 
-  if (adminsState.status === 'loading') return <LoadingCards count={2} />;
+  if (adminsState.status === 'loading') return <Loading><SkeletonCard action><SkeletonTable columns={6} /></SkeletonCard></Loading>;
 
   const admins = adminsState.status === 'ready' ? adminsState.data : [];
   const pendingInvitations = invitationsState.status === 'ready'

@@ -7,7 +7,8 @@ import { can, type PlatformCapability } from './auth/platformAccess';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { SignIn } from './components/SignIn';
 import { AppShell } from './components/shell/AppShell';
-import { ForbiddenState, LoadingCards } from './components/ui/states';
+import { ForbiddenState } from './components/ui/states';
+import { Loading, SkeletonTable } from './components/ui/skeletons';
 import { TabBoundary as ScreenBoundary } from '@/components/shared/TabBoundary';
 import { Page } from './components/layout/Page';
 import { useI18n } from './i18n/I18nProvider';
@@ -124,7 +125,10 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         message={t('platform.screenBoundary.error')}
         retryLabel={t('platform.screenBoundary.retry')}
       >
-      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <ClubsScreen
+      {/* Пока догружается код раздела, его формы ещё не знает никто: разделы рейла очень разные.
+          Общая таблица здесь — осознанно; код почти всегда приходит быстрее 180 мс, и её не видно,
+          а сам раздел затем покажет свою заглушку. */}
+      <Suspense fallback={<Loading><SkeletonTable columns={4} /></Loading>}>{route.kind === 'overview' ? <ClubsScreen
             client={client}
             view={route.view}
             onViewChange={view => navigate({ kind: 'overview', view })}

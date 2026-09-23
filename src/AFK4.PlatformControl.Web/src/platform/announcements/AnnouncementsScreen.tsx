@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -144,7 +145,16 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
   if (state.status === 'error') {
     return <ErrorState title={t('platform.announcements.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? reload : undefined} />;
   }
-  if (announcements === null) return <LoadingCards count={2} />;
+  if (announcements === null) {
+    return (
+      <Loading>
+        <SkeletonCard action>
+          <p className="mgmt-drawer-hint">{t('platform.announcements.description')}</p>
+          <SkeletonTable columns={7} />
+        </SkeletonCard>
+      </Loading>
+    );
+  }
 
   const canSave = draft !== null && draft.title.trim().length > 0 && draft.body.trim().length > 0;
 

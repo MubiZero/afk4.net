@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../../operatorToast';
 import type { BranchBookingSettingsDto } from '../../../api/clients/settings';
@@ -36,6 +36,7 @@ mock.module('../../../operatorHelpers', () => ({
 }));
 
 const { BookingIntakeDestination } = await import('./BookingIntakeDestination');
+const { bookingAcceptanceModes } = await import('./bookingRulesModel');
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId }, branchId: 'b1' } as never;
 
 function renderScreen() {
@@ -56,6 +57,15 @@ afterEach(() => {
 });
 
 describe('BookingIntakeDestination', () => {
+  // Пока правила грузятся, стоят те же три зоны и в них столько же карточек правил, сколько
+  // будет: режимы приёма и два переключателя.
+  it('shows the three setup zones with their rules as its loading shape', async () => {
+    getBookingSettings.mockImplementationOnce(() => new Promise<BranchBookingSettingsDto>(() => {}));
+    const { container } = renderScreen();
+    await waitFor(() => expect(container.querySelectorAll('.payset-section[data-skeleton="form"]')).toHaveLength(3));
+    expect(container.querySelectorAll('[data-skeleton] .payset-rule')).toHaveLength(bookingAcceptanceModes.length + 2);
+  });
+
   it('показывает настройки филиала и помечает ненастроенный филиал значениями по умолчанию', async () => {
     renderScreen();
 

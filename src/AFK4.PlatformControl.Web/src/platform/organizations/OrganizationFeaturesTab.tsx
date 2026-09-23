@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
-import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonControl, SkeletonLine, SkeletonRepeat } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { describeApiError } from '@/api/describeApiError';
 import type { FeaturesApi } from '@/api/platformClients/features';
@@ -30,7 +31,20 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode, canM
   if (state.status === 'error') {
     return <ErrorState title={t('platform.organization.features.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   }
-  if (state.status === 'loading') return <LoadingCards count={3} />;
+  if (state.status === 'loading') {
+    return (
+      <Loading>
+        <div className="pc-analytics">
+          <SkeletonRepeat count={3}>
+            <SkeletonCard>
+              <p className="mgmt-drawer-hint"><SkeletonLine width="14em" /></p>
+              {canManage ? <SkeletonControl /> : null}
+            </SkeletonCard>
+          </SkeletonRepeat>
+        </div>
+      </Loading>
+    );
+  }
   if (state.data.length === 0) return <EmptyState message={t('platform.organization.features.empty')} next="elsewhere" />;
 
   const { data: features, apply } = state;

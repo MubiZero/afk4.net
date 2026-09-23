@@ -50,6 +50,24 @@ const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToke
 afterEach(() => { getBranchProfile.mockClear(); getBranding.mockClear(); updateBranding.mockClear(); cleanup(); });
 
 describe('ClubDestination', () => {
+  // Пока профиль грузится, на экране его форма: те же три области (профиль, превью, часы) и семь
+  // строк часов — а не четыре полоски, поверх которых потом вырастает сетка полей.
+  it('shows the profile, preview and hours areas as its loading shape', async () => {
+    getBranchProfile.mockImplementationOnce(() => new Promise<BranchProfileDto>(() => {}));
+    const { container } = render(
+      <I18nProvider initialLocale="ru">
+        <ToastProvider>
+          <ClubDestination backend={backend} session={{ permissions: [], organizationId: 'o1' } as never} currencyCode="TJS" />
+        </ToastProvider>
+      </I18nProvider>
+    );
+    await waitFor(() => expect(container.querySelector('.club-profile-layout[data-skeleton="form"]')).toBeTruthy());
+    for (const area of ['.club-area-profile', '.club-area-preview', '.club-area-schedule']) {
+      expect(container.querySelector(`[data-skeleton] ${area}`)).toBeTruthy();
+    }
+    expect(container.querySelectorAll('[data-skeleton] .club-hours-row')).toHaveLength(7);
+  });
+
   it('renders full club profile with player preview', async () => {
     const { container } = render(
       <I18nProvider initialLocale="ru">

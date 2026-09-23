@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonRows } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
@@ -96,7 +97,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
         {state.status === 'error' ? (
           <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
         ) : state.status === 'loading' ? (
-          <LoadingCards count={1} />
+          <Loading><SkeletonRows rows={2} rowClassName="pc-list-row" trailing={canManageInvoices} /></Loading>
         ) : state.data.length === 0 ? (
           <EmptyState message={t('platform.organization.invoices.empty')} next="calm" />
         ) : (

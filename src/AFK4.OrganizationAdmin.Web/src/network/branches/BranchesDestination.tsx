@@ -3,6 +3,7 @@ import type { JSX, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { EmptyState, Money } from '../../operatorPrimitives';
+import { SkeletonCards, SkeletonControl, SkeletonLine, SkeletonTiles } from '../../LoadingSkeleton';
 import { projectOperatorError } from '../../apiErrors';
 import { createAuthenticatedOperatorClients, dashboardRangeQuery, toDateInputValue } from '../../operatorHelpers';
 import { mapProfileToForm, buildUpdateBranchProfileRequest } from '../../settings/club/branchProfileRequest';
@@ -46,6 +47,27 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
       subtitle={t('op.network.dest.branches.subtitle')}
       contentWidth="full"
       state={screenState}
+      skeleton={
+        <>
+          <SkeletonTiles
+            count={5}
+            className="network-branches-totals"
+            tileClassName="management-panel network-total"
+            labelClassName="network-total-label"
+            valueClassName="network-total-value"
+          />
+          <SkeletonCards count={3} className="network-branches-grid">
+            <section className="management-panel network-branch-card">
+              <header>
+                <h3><SkeletonLine width="9em" /></h3>
+                <span className="network-branch-city"><SkeletonLine width="6em" /></span>
+              </header>
+              <SkeletonTiles count={4} className="network-branch-kpis" tileClassName="network-stat" />
+              <div className="network-branch-actions"><SkeletonControl width="8rem" /></div>
+            </section>
+          </SkeletonCards>
+        </>
+      }
       failure={state.status === 'error' ? projectOperatorError(state.error, t) : undefined}
       onRetry={state.status === 'error' ? state.retry : undefined}
     >

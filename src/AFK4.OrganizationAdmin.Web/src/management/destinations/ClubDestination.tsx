@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../ManagementScreen';
-import { ClubProfileFields, type ClubBrandForm, type ClubProfileForm } from '../../settings/club/ClubProfileFields';
+import { ClubProfileFields, ClubProfileSkeleton, type ClubBrandForm, type ClubProfileForm } from '../../settings/club/ClubProfileFields';
 import { ClubPlayerPreview } from '../../settings/club/ClubPlayerPreview';
 import { normalizeWorkingHours } from '../../settings/club/workingHours';
 import { mapProfileToForm, buildUpdateBranchProfileRequest } from '../../settings/club/branchProfileRequest';
@@ -138,6 +138,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       subtitle={t('op.management.dest.club.subtitle')}
       contentWidth="full"
       state={backend === null ? 'ready' : load.state}
+      skeleton={<ClubProfileSkeleton />}
       failure={load.failure}
       onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
       save={{ state: saveState, onSave: () => void save(), onDiscard: discard, disabled: backend === null || load.state !== 'ready' }}

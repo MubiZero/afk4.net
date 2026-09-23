@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
@@ -52,7 +53,27 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
     }
   }
 
-  if (state.status === 'loading') return <LoadingCards count={2} />;
+  // Фильтры не зависят от ответа и стоят на своём месте и во время загрузки: под ними ждёт
+  // таблица, а не пустота, и поиск можно набрать, пока она идёт.
+  const filters = (
+    <div className="pc-filters">
+      <Input
+        placeholder={t('platform.billing.search.placeholder')}
+        aria-label={t('platform.billing.search.placeholder')}
+        value={query}
+        onChange={event => setQuery(event.target.value)}
+      />
+      <Select aria-label={t('platform.billing.column.status')} value={status} onChange={event => setStatus(event.target.value)}>
+        {INVOICE_STATUS_FILTERS.map(value => (
+          <option key={value} value={value}>
+            {value === 'all' ? t('platform.billing.filter.allStatuses') : t(INVOICE_STATUS_LABEL[value])}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+
+  if (state.status === 'loading') return <>{filters}<Loading><SkeletonTable columns={7} /></Loading></>;
   if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
 
   const rows = filterInvoices(state.data, { query, status });
@@ -60,21 +81,7 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
 
   return (
     <>
-      <div className="pc-filters">
-        <Input
-          placeholder={t('platform.billing.search.placeholder')}
-          aria-label={t('platform.billing.search.placeholder')}
-          value={query}
-          onChange={event => setQuery(event.target.value)}
-        />
-        <Select aria-label={t('platform.billing.column.status')} value={status} onChange={event => setStatus(event.target.value)}>
-          {INVOICE_STATUS_FILTERS.map(value => (
-            <option key={value} value={value}>
-              {value === 'all' ? t('platform.billing.filter.allStatuses') : t(INVOICE_STATUS_LABEL[value])}
-            </option>
-          ))}
-        </Select>
-      </div>
+      {filters}
 
       {state.data.length === 0 ? (
         <EmptyState message={t('platform.billing.empty.invoices')} next="elsewhere" />

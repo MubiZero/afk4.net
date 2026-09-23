@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { KeyRound, Lock, MonitorSmartphone, Unlock, Wifi, WifiOff } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
+import { SkeletonTable } from '../../../LoadingSkeleton';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
 import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
@@ -33,6 +34,17 @@ import { useBlockedReason } from '../../../components/BlockedReason';
 // Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
 // сервера, и поле, которого в ответе нет, теперь заметит компилятор.
 type Device = DeviceInventoryItemDto;
+
+const DEVICES_GRID = '1.1fr 160px 1fr 1.7fr';
+
+// Форма вкладки, пока ПК грузятся. Полосу «ждут подтверждения» не рисуем: её может и не быть.
+export function DevicesTabSkeleton() {
+  return (
+    <div className="mgmt-master-detail">
+      <SkeletonTable gridTemplate={DEVICES_GRID} toolbar={{}} />
+    </div>
+  );
+}
 type SeatOption = { seatId: string; label: string };
 
 interface DevicesTabProps {
@@ -381,7 +393,7 @@ export function DevicesTab({
           ]}
           rows={deviceInventory}
           rowKey={(device) => readString(device, 'deviceId')}
-          gridTemplate="1.1fr 160px 1fr 1.7fr"
+          gridTemplate={DEVICES_GRID}
           selectedKey={selectedDeviceId}
           onSelectRow={(device) => setSelectedDeviceId(readString(device, 'deviceId'))}
           toolbar={{ title: t('op.management.halls.devicesTable.title') }}

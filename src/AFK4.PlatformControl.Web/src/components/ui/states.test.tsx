@@ -1,18 +1,6 @@
 import { it, expect, mock } from 'bun:test';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { LoadingCards, ErrorState, EmptyState, ForbiddenState, PartialFailure } from './states';
-
-it('renders the requested number of loading skeletons', async () => {
-  render(<LoadingCards count={3} />);
-  expect(await screen.findAllByTestId('loading-skeleton')).toHaveLength(3);
-});
-
-// Быстрый ответ не должен мигать ожиданием: пятая доля секунды — это граница, за которой
-// человек замечает паузу, а до неё скелетон только дёргает экран.
-it('holds the skeleton back for an instant so quick answers do not flash', () => {
-  render(<LoadingCards count={3} />);
-  expect(screen.queryAllByTestId('loading-skeleton')).toHaveLength(0);
-});
+import { ErrorState, EmptyState, ForbiddenState, PartialFailure } from './states';
 
 it('renders an error message and calls retry', () => {
   const retry = mock();

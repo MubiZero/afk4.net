@@ -10,7 +10,8 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
-import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonChart, SkeletonRows, SkeletonTiles } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { BranchDynamicsApi } from '@/api/platformClients/branchDynamics';
@@ -19,6 +20,9 @@ import { countAliveDays, toDynamicsSeries } from './dynamicsModel';
 import { useBranchDynamics } from './useBranchDynamics';
 
 type Client = Pick<BranchDynamicsApi, 'getBranchDynamics'>;
+
+// Высота обоих графиков — одна на график и его заглушку.
+const DYNAMICS_CHART_HEIGHT = 220;
 
 export function OrganizationDynamicsTab({ client, organizationId, branches }: {
   client: Client;
@@ -52,7 +56,14 @@ export function OrganizationDynamicsTab({ client, organizationId, branches }: {
         </label>
       ) : null}
 
-      {state.status === 'loading' ? <LoadingCards count={3} /> : null}
+      {state.status === 'loading' ? (
+        <Loading>
+          <SkeletonTiles count={3} className="pc-analytics-summary" tileClassName="pc-analytics-tile" labelClassName="pc-analytics-tile-label" valueClassName="pc-analytics-tile-value" />
+          <SkeletonRows rows={3} rowClassName="pc-kv" />
+          <SkeletonCard><SkeletonChart height={DYNAMICS_CHART_HEIGHT} /></SkeletonCard>
+          <SkeletonCard><SkeletonChart height={DYNAMICS_CHART_HEIGHT} /></SkeletonCard>
+        </Loading>
+      ) : null}
       {state.status === 'error' ? (
         <ErrorState title={i18n.t('platform.dynamics.error')} message={state.message} retryLabel={state.canRetry ? i18n.t('platform.dynamics.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       ) : null}
@@ -110,7 +121,7 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
         </CardHeader>
         <CardContent>
           <div className="pc-analytics-chart">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={DYNAMICS_CHART_HEIGHT}>
               <LineChart data={series}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
                 <XAxis dataKey="date" stroke="var(--text-tertiary)" fontSize={12} />
@@ -132,7 +143,7 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
         </CardHeader>
         <CardContent>
           <div className="pc-analytics-chart">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={DYNAMICS_CHART_HEIGHT}>
               <LineChart data={series}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
                 <XAxis dataKey="date" stroke="var(--text-tertiary)" fontSize={12} />

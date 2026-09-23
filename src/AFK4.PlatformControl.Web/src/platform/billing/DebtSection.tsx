@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { ErrorState, LoadingCards } from '@/components/ui/states';
+import { ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonRows } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
@@ -85,7 +86,16 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
     }
   }
 
-  if (state.status === 'loading') return <LoadingCards count={2} />;
+  if (state.status === 'loading') {
+    const canActOnRows = access.canMarkPaid || access.canGrantGrace || access.canToggleStatus || access.canAddNote;
+    return (
+      <Loading>
+        <SkeletonCard description>
+          <SkeletonRows as="ul" rows={3} className="pc-queue" rowClassName="pc-queue-row" trailing={canActOnRows} />
+        </SkeletonCard>
+      </Loading>
+    );
+  }
   if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
 
   const rows = sortDebtRows(state.data);

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -115,7 +115,7 @@ describe('TariffsPackagesDestination', () => {
     expect(screen.queryByRole('button', { name: '+ Тариф' })).toBeNull();
   });
 
-  it('shows a loading skeleton instead of tariffs while loadStatus is loading', () => {
+  it('shows the tabs and a six-column tariffs table as its loading shape', async () => {
     const { container } = wrap(
       <TariffsPackagesDestination
         backend={null}
@@ -126,7 +126,9 @@ describe('TariffsPackagesDestination', () => {
         loadStatus="loading"
       />
     );
-    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
+    expect(container.querySelector('.mgmt-tabs')).toBeTruthy();
+    expect(container.querySelectorAll('[data-skeleton="table"] .ctable-head > span')).toHaveLength(6);
     expect(screen.queryByText('Стандарт')).toBeNull();
   });
 

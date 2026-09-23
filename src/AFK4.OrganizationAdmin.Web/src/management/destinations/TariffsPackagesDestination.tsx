@@ -5,9 +5,10 @@ import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { projectOperatorError } from '../../apiErrors';
 import { LoadFailureState } from '../../operatorPrimitives';
 import { managementScreenState, type DestinationProps } from './types';
-import { TariffsTab } from './tariffs/TariffsTab';
-import { PackagesTab } from './tariffs/PackagesTab';
+import { TariffsTab, TariffsTabSkeleton } from './tariffs/TariffsTab';
+import { PackagesTab, PackagesTabSkeleton } from './tariffs/PackagesTab';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
+import { DeferredSkeleton, SkeletonTabs } from '../../LoadingSkeleton';
 
 type TariffsPackagesTab = 'tariffs' | 'packages';
 
@@ -39,6 +40,12 @@ export function TariffsPackagesDestination({
 
   const canManageTariffs = backend !== null && hasPermission(session, permissionNames.manageTariffs);
   const canManagePackages = backend !== null && hasPermission(session, permissionNames.managePackages);
+  // Раздел открыт по любому из двух прав; вкладка без своего права — только для просмотра.
+  const tabViewOnly = backend === null
+    ? null
+    : activeTab === 'tariffs'
+      ? (canManageTariffs ? null : t('op.management.viewOnly.tariffs'))
+      : (canManagePackages ? null : t('op.management.viewOnly.packages'));
 
   return (
     <ManagementScreen
@@ -46,6 +53,15 @@ export function TariffsPackagesDestination({
       subtitle={t('op.management.dest.tariffs.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
+      skeleton={
+        <>
+          <SkeletonTabs count={2} />
+          <ViewOnlyNotice reason={tabViewOnly} />
+          {activeTab === 'tariffs'
+            ? <TariffsTabSkeleton canManageTariffs={canManageTariffs} />
+            : <PackagesTabSkeleton canManagePackages={canManagePackages} />}
+        </>
+      }
       failure={failure}
       onRetry={onRetry}
     >
@@ -70,14 +86,7 @@ export function TariffsPackagesDestination({
         </button>
       </div>
 
-      {/* Раздел открыт по любому из двух прав; вкладка без своего права — только для просмотра. */}
-      <ViewOnlyNotice
-        reason={backend === null
-          ? null
-          : activeTab === 'tariffs'
-            ? (canManageTariffs ? null : t('op.management.viewOnly.tariffs'))
-            : (canManagePackages ? null : t('op.management.viewOnly.packages'))}
-      />
+      <ViewOnlyNotice reason={tabViewOnly} />
       {activeTab === 'tariffs' ? (
         <TariffsTab
           tariffs={tariffs ?? []}
@@ -95,7 +104,7 @@ export function TariffsPackagesDestination({
             onRetry={() => onRetryPackages?.()}
           />
         ) : packageState?.status === 'loading' && packageState.data.length === 0 ? (
-          <div className="management-skeleton" aria-hidden="true" />
+          <DeferredSkeleton><PackagesTabSkeleton canManagePackages={canManagePackages} /></DeferredSkeleton>
         ) : (
           <PackagesTab
             packageOptions={packageState?.data ?? packageOptions ?? []}

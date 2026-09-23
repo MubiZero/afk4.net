@@ -1,5 +1,7 @@
 import { useI18n } from '@afk4/i18n';
 import { LoadFailureState } from '../../../operatorPrimitives';
+import { DeferredSkeleton, SkeletonControl } from '../../../LoadingSkeleton';
+import { SETUP_LIMITS_HINT_STYLE, SetupFieldsSkeleton, SetupRuleSkeleton, SetupSubheadSkeleton } from '../../kit/SetupSection';
 import type { ReferralSettingsController } from './useReferralSettings';
 
 interface Props {
@@ -21,10 +23,17 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
 
   if (hasBackend && !c.ready) {
     return (
-      <div className="payset-loading" data-testid="referral-skeleton" aria-hidden="true">
-        <div className="management-skeleton-line" />
-        <div className="management-skeleton-line" />
-      </div>
+      <DeferredSkeleton>
+        <SetupRuleSkeleton hint={t('op.referral.enabledHint')} />
+        <div className="payset-divider" />
+        <SetupSubheadSkeleton />
+        <SetupFieldsSkeleton hints={[t('op.referral.referrerBonusHint'), t('op.referral.inviteeBonusHint')]} />
+        <div className="payset-divider" />
+        <SetupSubheadSkeleton />
+        <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>{t('op.referral.limits.hint')}</p>
+        <SetupFieldsSkeleton hints={[t('op.referral.minimumTopUpHint'), t('op.referral.claimWindowHint'), t('op.referral.maxRewardedHint')]} />
+        <div className="payset-foot"><SkeletonControl width="10rem" /></div>
+      </DeferredSkeleton>
     );
   }
 
@@ -85,7 +94,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
       <div className="payset-divider" />
 
       <div className="payset-subhead">{t('op.referral.limits.title')}</div>
-      <p className="payset-field-hint" style={{ marginTop: -6, marginBottom: 14 }}>
+      <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>
         {t('op.referral.limits.hint')}
       </p>
       <div className="payset-limits">

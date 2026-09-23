@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonLine } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -77,7 +78,16 @@ export function OrganizationSupportNotesSection({ client, organizationId, canWri
         {state.status === 'error' ? (
           <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
         ) : state.status === 'loading' ? (
-          <LoadingCards count={1} />
+          <Loading>
+            <ul data-skeleton="list" aria-hidden="true">
+              {[0, 1].map(note => (
+                <li key={note} className="pc-note">
+                  <div className="pc-note-head"><SkeletonLine width="8em" /><SkeletonLine width="6em" /></div>
+                  <p className="pc-note-body"><SkeletonLine width="80%" /></p>
+                </li>
+              ))}
+            </ul>
+          </Loading>
         ) : state.data.length === 0 ? (
           <EmptyState message={t('platform.organization.notes.empty')} next={canWrite ? 'formAbove' : 'calm'} />
         ) : (

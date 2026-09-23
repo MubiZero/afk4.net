@@ -11,7 +11,8 @@ import {
   YAxis
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ErrorState, LoadingCards } from '@/components/ui/states';
+import { ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonChart, SkeletonTiles } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { AnalyticsApi } from '@/api/platformClients/analytics';
@@ -28,11 +29,28 @@ const MONTH_LABEL_KEY: readonly MessageKey[] = [
   'platform.analytics.month.10', 'platform.analytics.month.11', 'platform.analytics.month.12'
 ];
 
+// Высоты графиков — одни на график и его заглушку.
+const REVENUE_CHART_HEIGHT = 260;
+const MOVEMENT_CHART_HEIGHT = 220;
+
 export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOverview'> }) {
   const { t, formatCurrency } = useI18n();
   const state = useAnalytics(client);
 
-  if (state.status === 'loading') return <LoadingCards count={3} />;
+  if (state.status === 'loading') {
+    return (
+      <Loading>
+        <div className="pc-analytics">
+          <SkeletonTiles count={4} className="pc-analytics-summary" tileClassName="pc-analytics-tile" labelClassName="pc-analytics-tile-label" valueClassName="pc-analytics-tile-value" />
+          <SkeletonCard><SkeletonChart height={REVENUE_CHART_HEIGHT} /></SkeletonCard>
+          <SkeletonCard>
+            <SkeletonChart height={MOVEMENT_CHART_HEIGHT} />
+            <p className="pc-analytics-footnote">{t('platform.analytics.movement.footnote')}</p>
+          </SkeletonCard>
+        </div>
+      </Loading>
+    );
+  }
   if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
 
   const overview = state.data;
@@ -84,7 +102,7 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
             </CardHeader>
             <CardContent>
               <div className="pc-analytics-chart">
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={REVENUE_CHART_HEIGHT}>
                   <BarChart data={revenueSeries}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
                     <XAxis dataKey="label" stroke="var(--text-tertiary)" fontSize={12} />
@@ -108,7 +126,7 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
             </CardHeader>
             <CardContent>
               <div className="pc-analytics-chart">
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={MOVEMENT_CHART_HEIGHT}>
                   <LineChart data={movementSeries}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
                     <XAxis dataKey="label" stroke="var(--text-tertiary)" fontSize={12} />

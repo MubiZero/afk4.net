@@ -136,11 +136,14 @@ describe('GoodsDestination', () => {
     expect(onDirtyChange).toHaveBeenCalledWith(false);
   });
 
-  it('shows a loading skeleton instead of the catalog while loadStatus is loading', () => {
+  // Категории списком и каталог таблицей в шесть колонок; без права на каталог — без меню строки.
+  it('shows the categories list and a six-column catalog table as its loading shape', async () => {
     const { container } = wrap(
       <GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} loadStatus="loading" />
     );
-    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
+    expect(container.querySelector('[data-skeleton="list"]')).toBeTruthy();
+    expect(container.querySelectorAll('[data-skeleton="table"] .ctable-head > span')).toHaveLength(6);
     expect(screen.queryByText('Cola 0.5')).toBeNull();
   });
 

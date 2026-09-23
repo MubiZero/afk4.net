@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useBlockedReason } from '@/components/ui/blockedReason';
@@ -139,7 +140,7 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
         {state.status === 'error' ? (
           <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
         ) : state.status === 'loading' ? (
-          <LoadingCards count={1} />
+          <Loading><SkeletonTable columns={5} rows={2} /></Loading>
         ) : state.data.length === 0 ? (
           <EmptyState message={t('platform.organization.invites.empty')} next="formAbove" />
         ) : (

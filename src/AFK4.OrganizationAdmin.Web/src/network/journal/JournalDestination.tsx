@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { EmptyState } from '../../operatorPrimitives';
+import { DeferredSkeleton, SkeletonTable } from '../../LoadingSkeleton';
 import { projectOperatorError } from '../../apiErrors';
 import { createAuthenticatedOperatorClients, downloadTextFile } from '../../operatorHelpers';
 import { toAuditCsv } from './orgAuditCsv';
@@ -79,6 +80,7 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
       subtitle={t('op.network.dest.journal.subtitle')}
       contentWidth="full"
       state={screenState}
+      skeleton={<div className="network-journal"><SkeletonTable gridTemplate={GRID} /></div>}
       failure={state.status === 'error' ? projectOperatorError(state.error, t) : undefined}
       onRetry={state.status === 'error' ? state.retry : undefined}
     >
@@ -94,11 +96,7 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
         />
 
         {state.status === 'loading' ? (
-          <div className="management-skeleton" aria-hidden="true">
-            <div className="management-skeleton-line" />
-            <div className="management-skeleton-line" />
-            <div className="management-skeleton-line" />
-          </div>
+          <DeferredSkeleton><SkeletonTable gridTemplate={GRID} /></DeferredSkeleton>
         ) : rows.length === 0 ? (
           <EmptyState
             title={t('op.network.journal.empty')}

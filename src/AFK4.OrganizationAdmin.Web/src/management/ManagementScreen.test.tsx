@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ManagementScreen } from './ManagementScreen';
 
@@ -34,21 +34,44 @@ describe('ManagementScreen', () => {
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
   });
 
-  it('renders a loading skeleton instead of children, with no save bar, when state is loading', () => {
+  it('renders the screen\'s own skeleton instead of children, with no save bar, when state is loading', async () => {
     const { container } = renderScreen(
-      <ManagementScreen title="t" subtitle="s" state="loading" save={{ state: 'dirty', onSave: () => {} }}>
+      <ManagementScreen title="t" subtitle="s" state="loading" skeleton={<div data-skeleton="table" />} save={{ state: 'dirty', onSave: () => {} }}>
         <p>тело</p>
       </ManagementScreen>
     );
-    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
     expect(screen.queryByText('тело')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
+  });
+
+  // Быстрый ответ не должен мигать ожиданием: первые 180 мс на месте тела ничего нет, и ответ,
+  // пришедший раньше, подменяет пустоту содержимым без промежуточной заглушки. То же правило, что
+  // у Platform Control.
+  it('holds the skeleton back for an instant so quick answers do not flash', async () => {
+    const { container } = renderScreen(
+      <ManagementScreen title="t" subtitle="s" state="loading" skeleton={<div data-skeleton="table" />}><p>тело</p></ManagementScreen>
+    );
+    expect(container.querySelector('[data-skeleton]')).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(container.querySelector('[data-skeleton]')).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy();
+  });
+
+  // Право известно до ответа: строка «только просмотр» стоит над заглушкой так же, как встанет над
+  // содержимым, а не вдвигается сверху в момент подмены.
+  it('keeps the view-only line above the skeleton while loading', () => {
+    renderScreen(
+      <ManagementScreen title="t" subtitle="s" state="loading" skeleton={null} viewOnly="Менять может владелец."><p>тело</p></ManagementScreen>
+    );
+    expect(screen.getByText('Менять может владелец.', { exact: false })).toBeTruthy();
   });
 
   it('renders the concrete error detail and a retry button that calls onRetry when state is error', () => {
     const onRetry = mock(() => {});
     renderScreen(
-      <ManagementScreen title="t" subtitle="s" state="error" failure={{ title: '', detail: 'boom', retryCanHelp: true }} onRetry={onRetry}>
+      <ManagementScreen title="t" subtitle="s" state="error" skeleton={null} failure={{ title: '', detail: 'boom', retryCanHelp: true }} onRetry={onRetry}>
         <p>тело</p>
       </ManagementScreen>
     );
@@ -59,7 +82,7 @@ describe('ManagementScreen', () => {
   });
 
   it('renders children as usual when state is ready or omitted (regression)', () => {
-    renderScreen(<ManagementScreen title="t" subtitle="s" state="ready"><p>тело</p></ManagementScreen>);
+    renderScreen(<ManagementScreen title="t" subtitle="s" state="ready" skeleton={null}><p>тело</p></ManagementScreen>);
     expect(screen.getByText('тело')).toBeTruthy();
   });
 });

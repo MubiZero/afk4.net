@@ -10,6 +10,7 @@ import { isHostBridgeAvailable, postHostRequest } from '../../hostBridge';
 import type { Feedback, OperatorBackendContext } from '../../operatorTypes';
 import type { OrganizationAdminUpdatePreferenceDto } from '../../api/clients/updates';
 import { SectionState } from '../SectionState';
+import { SkeletonControl, SkeletonLine, SkeletonTiles } from '../../LoadingSkeleton';
 import { useUpdateStatus, type UpdateStatusClient } from './useUpdateStatus';
 import {
   canRestartNow,
@@ -123,12 +124,41 @@ export function UpdatesDestination({
   const windowDirty = preference !== null
     && (start !== toTimeInput(preference.maintenanceWindowStart) || end !== toTimeInput(preference.maintenanceWindowEnd));
 
+  const rolloutsSkeleton = <SkeletonTiles count={3} className="network-updates-facts" />;
+  // Фрагмент, а не обёртка: части встают прямо в сетку .mgmt-form, с её же зазорами. Пояснение —
+  // настоящим текстом: оно известно до ответа, а от его длины зависит высота панели.
+  const windowSkeleton = (
+    <>
+      <p className="network-updates-lead">{t('op.network.updates.window.lead')}</p>
+      <div className="network-updates-window-grid" data-skeleton="form" aria-hidden="true">
+        <label><SkeletonLine width="4em" /><SkeletonControl /></label>
+        <label><SkeletonLine width="4em" /><SkeletonControl /></label>
+        <div className="mgmt-meta-row"><SkeletonLine width="10em" /></div>
+      </div>
+      <div className="network-updates-actions" aria-hidden="true"><SkeletonControl width="10rem" /></div>
+    </>
+  );
+
   return (
     <ManagementScreen
       title={t('op.network.dest.updates')}
       subtitle={t('op.network.dest.updates.subtitle')}
       contentWidth="form"
       state={screenState}
+      skeleton={
+        <>
+          <section className="management-panel network-updates-state">
+            <div className="mgmt-section-title"><SkeletonLine width="10em" /></div>
+            {rolloutsSkeleton}
+          </section>
+          <section className="management-panel network-updates-window">
+            <div className="mgmt-form">
+              <div className="mgmt-section-title"><SkeletonLine width="10em" /></div>
+              {windowSkeleton}
+            </div>
+          </section>
+        </>
+      }
       failure={rollouts.status === 'error' ? projectOperatorError(rollouts.error, t) : undefined}
       onRetry={retryAll}
     >
@@ -136,7 +166,7 @@ export function UpdatesDestination({
         <>
           <section className="management-panel network-updates-state">
             <div className="mgmt-section-title"><span>{t('op.network.updates.app.title')}</span></div>
-            <SectionState section={rollouts} failedTitle={t('op.network.updates.app.loadFailed')} />
+            <SectionState section={rollouts} failedTitle={t('op.network.updates.app.loadFailed')} skeleton={rolloutsSkeleton} />
             {rollouts.status !== 'ready' ? null : rollout === null ? (
               <EmptyState title={t('op.network.updates.app.upToDate')} next={{ kind: 'calm', hint: t('op.network.updates.app.upToDateHint') }} />
             ) : (
@@ -183,7 +213,7 @@ export function UpdatesDestination({
           <section className="management-panel network-updates-window">
             <div className="mgmt-form">
               <div className="mgmt-section-title"><span>{t('op.network.updates.window.title')}</span></div>
-              <SectionState section={preferenceSection} failedTitle={t('op.network.updates.window.loadFailed')} />
+              <SectionState section={preferenceSection} failedTitle={t('op.network.updates.window.loadFailed')} skeleton={windowSkeleton} />
               {preferenceSection.status === 'ready' && (
                 <>
                   <p className="network-updates-lead">{t('op.network.updates.window.lead')}</p>

@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -45,7 +46,7 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
     }
   }
 
-  if (state.status === 'loading') return <LoadingCards count={2} />;
+  if (state.status === 'loading') return <Loading><SkeletonCard action={canManage}><SkeletonTable columns={5} /></SkeletonCard></Loading>;
   if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
 
   return (

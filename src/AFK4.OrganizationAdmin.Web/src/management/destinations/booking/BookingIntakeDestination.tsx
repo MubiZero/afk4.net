@@ -3,7 +3,8 @@ import { CalendarCheck, UserRoundSearch, CircleSlash } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../../ManagementScreen';
-import { SetupSection } from '../../kit/SetupSection';
+import { SetupFieldsSkeleton, SetupRuleSkeleton, SetupSection, SetupSectionSkeleton } from '../../kit/SetupSection';
+import { SkeletonLine } from '../../../LoadingSkeleton';
 import { projectOperatorError, type OperatorErrorProjection } from '../../../apiErrors';
 import { createAuthenticatedOperatorClients, emptyFeedback } from '../../../operatorHelpers';
 import { useFeedbackToasts } from '../../../useFeedbackToasts';
@@ -186,6 +187,31 @@ export function BookingIntakeDestination({ backend, onDirtyChange }: Destination
       subtitle={t('op.management.dest.booking.subtitle')}
       contentWidth="wide"
       state={managementScreenState(loadStatus)}
+      skeleton={
+        <>
+          <p className="payset-origin-note"><SkeletonLine width="22em" /></p>
+          {/* Те же три зоны, в том же порядке и с тем же числом правил и полей. */}
+          <div className="payset-columns">
+            <SetupSectionSkeleton lead={t('op.bookingRules.zone.acceptance.lead')}>
+              <div className="payset-rules">
+                {bookingAcceptanceModes.map((mode) => <SetupRuleSkeleton key={mode} hint={t(modeCopy[mode].hint)} />)}
+              </div>
+              <div className="payset-divider" />
+              <SetupFieldsSkeleton hints={[t('op.bookingRules.respondWithin.hint')]} single />
+            </SetupSectionSkeleton>
+            <SetupSectionSkeleton lead={t('op.bookingRules.zone.newGuests.lead')}>
+              <SetupFieldsSkeleton hints={[t('op.bookingRules.regularAfterVisits.hint'), '']} />
+              <div className="payset-divider" />
+              <SetupRuleSkeleton hint={t('op.bookingRules.requirePrepayment.hint')} />
+            </SetupSectionSkeleton>
+            <SetupSectionSkeleton lead={t('op.bookingRules.zone.noShow.lead')}>
+              <SetupFieldsSkeleton hints={[t('op.bookingRules.holdSeat.hint')]} single />
+              <div className="payset-divider" />
+              <SetupRuleSkeleton hint={t('op.bookingRules.keepPrepayment.hint')} />
+            </SetupSectionSkeleton>
+          </div>
+        </>
+      }
       failure={loadFailure}
       onRetry={() => setReloadNonce((nonce) => nonce + 1)}
       save={{ state: saveState, onSave: () => void save(), onDiscard: discard, disabled }}

@@ -1,5 +1,7 @@
 import { useI18n } from '@afk4/i18n';
 import { LoadFailureState, Money } from '../../../operatorPrimitives';
+import { DeferredSkeleton, SkeletonControl } from '../../../LoadingSkeleton';
+import { SETUP_LIMITS_HINT_STYLE, SetupFieldsSkeleton, SetupRuleSkeleton, SetupSubheadSkeleton } from '../../kit/SetupSection';
 import type { LoyaltySettingsController } from './useLoyaltySettings';
 
 interface Props {
@@ -85,11 +87,19 @@ export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Prop
 
   if (hasBackend && !c.ready) {
     return (
-      <div className="payset-loading" data-testid="loyalty-skeleton" aria-hidden="true">
-        <div className="management-skeleton-line" />
-        <div className="management-skeleton-line" />
-        <div className="management-skeleton-line" />
-      </div>
+      <DeferredSkeleton>
+        <SetupSubheadSkeleton />
+        <div className="payset-rules">
+          <SetupRuleSkeleton hint={t('op.loyalty.topUpHint')} percentLabel={t('op.loyalty.percentShort')} />
+          <SetupRuleSkeleton hint={t('op.loyalty.shopHint')} percentLabel={t('op.loyalty.percentShort')} />
+          <SetupRuleSkeleton hint={t('op.loyalty.sessionHint')} percentLabel={t('op.loyalty.percentShort')} />
+        </div>
+        <div className="payset-divider" />
+        <SetupSubheadSkeleton />
+        <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>{t('op.loyalty.limits.hint')}</p>
+        <SetupFieldsSkeleton hints={[t('op.loyalty.capHint'), t('op.loyalty.minimumHint')]} />
+        <div className="payset-foot"><SkeletonControl width="10rem" /></div>
+      </DeferredSkeleton>
     );
   }
 
@@ -138,7 +148,7 @@ export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Prop
       <div className="payset-divider" />
 
       <div className="payset-subhead">{t('op.loyalty.limits.title')}</div>
-      <p className="payset-field-hint" style={{ marginTop: -6, marginBottom: 14 }}>{t('op.loyalty.limits.hint')}</p>
+      <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>{t('op.loyalty.limits.hint')}</p>
       <div className="payset-limits">
         <div className="payset-field">
           <label htmlFor="loyalty-cap">{`${t('op.loyalty.cap')}, ${currencyCode}`}</label>

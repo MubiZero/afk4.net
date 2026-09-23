@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { ErrorState, EmptyState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonRows } from '@/components/ui/skeletons';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -96,7 +97,16 @@ export function RolesSection({ client }: { client: Client }) {
   }
 
   if (state.status === 'error') return <ErrorState title={t('platform.settings.roles.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? reload : undefined} />;
-  if (state.status === 'loading') return <LoadingCards count={1} />;
+  if (state.status === 'loading') {
+    return (
+      <Loading>
+        <SkeletonCard action>
+          <p className="mgmt-drawer-hint">{t('platform.settings.roles.description')}</p>
+          <SkeletonRows rows={3} rowClassName="pc-kv" trailing />
+        </SkeletonCard>
+      </Loading>
+    );
+  }
 
   const roles = state.data;
   const nameIsValid = draft !== null
@@ -180,7 +190,7 @@ export function RolesSection({ client }: { client: Client }) {
                   retryLabel={permissionsState.canRetry ? t('state.retry') : undefined}
                   onRetry={permissionsState.canRetry ? permissionsState.retry : undefined}
                 />
-              ) : permissionsState.status === 'loading' ? <LoadingCards count={1} /> : (
+              ) : permissionsState.status === 'loading' ? <Loading><SkeletonRows rows={4} rowClassName="pc-kv" /></Loading> : (
                 <fieldset>
                   <legend>{t('platform.settings.roles.permissions')}</legend>
                   <p className="mgmt-drawer-hint">{t('platform.settings.roles.permissionsHint')}</p>

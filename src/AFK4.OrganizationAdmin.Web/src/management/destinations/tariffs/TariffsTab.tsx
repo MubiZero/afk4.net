@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Archive, Pencil, Tag } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
+import { SkeletonTable } from '../../../LoadingSkeleton';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
@@ -25,6 +26,16 @@ import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type Tariff = TariffOptionDto;
+
+const TARIFFS_GRID = '1.3fr 0.9fr 0.8fr 0.8fr 1.1fr 0.7fr';
+
+export function TariffsTabSkeleton({ canManageTariffs }: { canManageTariffs: boolean }) {
+  return (
+    <div className="mgmt-master-detail">
+      <SkeletonTable gridTemplate={TARIFFS_GRID} rowActions={canManageTariffs} toolbar={{ action: canManageTariffs }} />
+    </div>
+  );
+}
 
 interface RetireTariffAction {
   tariffId: string;
@@ -346,7 +357,7 @@ export function TariffsTab({
           ]}
           rows={tariffs}
           rowKey={(tariff) => readString(tariff, 'tariffVersionId')}
-          gridTemplate="1.3fr 0.9fr 0.8fr 0.8fr 1.1fr 0.7fr"
+          gridTemplate={TARIFFS_GRID}
           selectedKey={selectedTariffVersionId}
           onSelectRow={(tariff) => setSelectedTariffVersionId(readString(tariff, 'tariffVersionId'))}
           rowActions={rowActions}

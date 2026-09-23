@@ -6,6 +6,7 @@ import { GalleryUpload, type GalleryPhoto } from '../../components/GalleryUpload
 import type { OperatorBackendContext } from '../../operatorTypes';
 import type { BranchWorkingHoursDay } from '../../api/clients/settings';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
+import { SkeletonControl, SkeletonLine } from '../../LoadingSkeleton';
 
 // Media purpose used by the branch-logo upload. The frontend has no `@afk4/contracts` package
 // (that name is a C# assembly, `AFK4.Shared.Contracts`) — `MediaUpload`'s `purpose` prop is a
@@ -249,5 +250,90 @@ export function ClubProfileFields({ form, brand, currencyCode, backend, disabled
         </div>
       </section>
     </>
+  );
+}
+
+const skeletonFields = (count: number) => Array.from({ length: count }, (_, index) => (
+  <label key={index}><SkeletonLine width={index % 2 === 0 ? '7em' : '9em'} /><SkeletonControl /></label>
+));
+
+// Заглушка профиля клуба: те же три области (профиль, превью, часы и настройки), те же заголовки
+// секций и сетки полей. Подсказки — настоящим текстом: от них зависит высота, а они известны до
+// ответа. Поля картинок — в пустом состоянии: есть ли уже логотип и сколько фото в галерее, до
+// ответа неизвестно, и у клуба с фото карточка вырастет ниже.
+// Поле загрузки картинки в пустом состоянии: крупная кнопка и подсказка о форматах (у логотипа в
+// шапке подсказку прячет CSS, а кнопка там высотой обычного поля — отсюда `field`).
+function MediaUploadSkeleton({ field = false }: { field?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <div className="media-upload">
+      <div className="media-upload-actions"><SkeletonControl width="9rem" size={field ? undefined : 'lg'} /></div>
+      <p className="media-upload-hint">{t('op.media.upload.hint')}</p>
+    </div>
+  );
+}
+
+export function ClubProfileSkeleton() {
+  const { t } = useI18n();
+  return (
+    <div className="club-profile-layout" data-skeleton="form" aria-hidden="true">
+      <section className="management-panel club-area-profile">
+        <div className="mgmt-form">
+          <div className="mgmt-section-title"><SkeletonLine width="10em" /></div>
+          <div className="club-identity-grid">
+            <label className="club-identity-name"><SkeletonLine width="7em" /><SkeletonControl /></label>
+            <label className="club-logo-field club-identity-logo"><SkeletonLine width="5em" /><MediaUploadSkeleton field /></label>
+            <label className="club-logo-field club-identity-cover">
+              <SkeletonLine width="6em" />
+              <MediaUploadSkeleton />
+              <span className="club-field-hint">{t('op.club.hint.cover')}</span>
+            </label>
+            <label className="club-identity-gallery">
+              <SkeletonLine width="6em" />
+              <div className="gallery-upload"><div className="media-upload-actions"><SkeletonControl width="9rem" size="lg" /></div></div>
+            </label>
+            {/* Высота — как у textarea описания (.club-identity-desc textarea). */}
+            <label className="club-identity-desc"><SkeletonLine width="8em" /><span className="skeleton-block" style={{ height: 130 }} /></label>
+          </div>
+          <div className="mgmt-section-title"><SkeletonLine width="8em" /></div>
+          <div className="club-field-grid">{skeletonFields(8)}</div>
+          <p className="club-field-hint">{t('op.club.hint.coords')}</p>
+          <div className="mgmt-section-title"><SkeletonLine width="8em" /></div>
+          <div className="club-field-grid">
+            <label className="club-logo-field"><SkeletonLine width="7em" /><MediaUploadSkeleton /></label>
+            <div className="club-brand-colors">
+              <span className="club-brand-colors-label"><SkeletonLine width="8em" /></span>
+              <div className="club-brand-swatches">
+                {BRAND_COLORS.map((color) => <span key={color} className="club-brand-swatch skeleton-block" />)}
+              </div>
+              <span className="club-field-hint">{t('op.club.hint.brand')}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside className="club-preview club-area-preview">
+        <div className="mgmt-section-title"><SkeletonLine width="8em" /></div>
+        <div className="club-preview-card">
+          <span className="club-preview-logo skeleton-block" />
+          <div className="club-preview-name"><SkeletonLine width="60%" /></div>
+          <div className="club-preview-address"><SkeletonLine width="80%" /></div>
+          <div className="club-preview-today"><SkeletonLine width="50%" /></div>
+        </div>
+      </aside>
+
+      <section className="management-panel club-area-schedule">
+        <div className="mgmt-form">
+          <div className="mgmt-section-title"><SkeletonLine width="8em" /></div>
+          <div className="club-hours">
+            <div className="club-hours-grid">
+              {Array.from({ length: 7 }, (_, day) => <div key={day} className="club-hours-row"><SkeletonControl /></div>)}
+            </div>
+          </div>
+          <div className="mgmt-section-title"><SkeletonLine width="8em" /></div>
+          <div className="club-field-grid">{skeletonFields(3)}</div>
+        </div>
+      </section>
+    </div>
   );
 }

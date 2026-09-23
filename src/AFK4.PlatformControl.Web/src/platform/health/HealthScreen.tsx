@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ErrorState, LoadingCards } from '@/components/ui/states';
+import { ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonRepeat, SkeletonRows } from '@/components/ui/skeletons';
 import { Page } from '@/components/layout/Page';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
@@ -57,7 +58,14 @@ export function HealthScreen({ client, canSendTestEmail }: HealthScreenProps) {
   return (
     <Page title={t('platform.health.title')} description={t('platform.health.subtitle')}>
       {state.status === 'loading' ? (
-        <LoadingCards count={3} />
+        // Карточки здоровья — очереди строк (.pc-queue): инциденты, задания, очереди, сбои.
+        <Loading>
+          <SkeletonRepeat count={4}>
+            <SkeletonCard>
+              <SkeletonRows as="ul" rows={2} className="pc-queue" rowClassName="pc-queue-row" />
+            </SkeletonCard>
+          </SkeletonRepeat>
+        </Loading>
       ) : state.status === 'error' ? (
         <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       ) : (
