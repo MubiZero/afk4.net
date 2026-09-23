@@ -268,29 +268,29 @@ public sealed class EfFloorMapReadService(
         {
             return activeSession.State switch
             {
-                SessionStateNames.Ending => "Ending",
-                SessionStateNames.Paused => "Paused",
-                SessionStateNames.Active => "Active",
-                _ => "Active"
+                SessionStateNames.Ending => SeatStateNames.Ending,
+                SessionStateNames.Paused => SeatStateNames.Paused,
+                SessionStateNames.Active => SeatStateNames.Active,
+                _ => SeatStateNames.Active
             };
         }
 
         if (device is null)
         {
-            return "Maintenance";
+            return SeatStateNames.Maintenance;
         }
 
         if (device.EnrollmentState != DeviceEnrollmentStateNames.Approved)
         {
-            return "Maintenance";
+            return SeatStateNames.Maintenance;
         }
 
         if (isDeviceOnline != true)
         {
-            return "Offline";
+            return SeatStateNames.Offline;
         }
 
-        return device.IsLocked ? "Locked" : "Free";
+        return device.IsLocked ? SeatStateNames.Locked : SeatStateNames.Free;
     }
 
     private bool IsHeartbeatFresh(DeviceEntity device, DateTimeOffset now)

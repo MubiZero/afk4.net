@@ -53,7 +53,7 @@ beforeEach(() => {
       return new Response('seat,hours\nPC-01,1', { status: 200, headers: { 'Content-Type': 'text/csv' } });
     }
     const body = url.includes('/floor-map')
-      ? { branchId: 'branch-1', branchName: 'Главный', zones: [], seats: [{ seatId: 'seat-1', seatName: 'PC-01', zoneId: 'z1', zoneName: 'Зал', sortOrder: 1, state: 'free', deviceId: null, deviceName: null, isDeviceOnline: null, isDeviceLocked: null, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: null, remainingSeconds: null }] }
+      ? { branchId: 'branch-1', branchName: 'Главный', zones: [], seats: [{ seatId: 'seat-1', seatName: 'PC-01', zoneId: 'z1', zoneName: 'Зал', sortOrder: 1, state: 'Maintenance', deviceId: null, deviceName: null, isDeviceOnline: null, isDeviceLocked: null, lastHeartbeatAtUtc: null, agentVersion: null, shellVersion: null, activeSessionId: null, remainingSeconds: null }] }
       : url.includes('/reports/gameplay-time')
         ? gameplayReport
         : actionsReport;

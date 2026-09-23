@@ -4,6 +4,7 @@ import { formatMinorUnits } from './currencyFormat';
 import { type MessageKey } from '@afk4/i18n';
 import type { FloorMapCacheEntry } from './floorMapCache';
 import type { FloorMapDto, FloorMapZoneDto, SeatStatusDto } from './operatorApiClients';
+import { SeatStateNames } from '@afk4/contracts';
 import type { SeatSummary, SeatTone } from './operatorData';
 import type { DeviceStatusChangedDto } from './operatorRealtime';
 
@@ -231,8 +232,8 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
   const nextRawState = hasActiveSession
     ? seat.rawState ?? seat.tone
     : status.isOnline
-      ? status.isLocked ? 'Locked' : 'Free'
-      : 'Offline';
+      ? status.isLocked ? SeatStateNames.Locked : SeatStateNames.Free
+      : SeatStateNames.Offline;
   const normalizedState = normalizeState(nextRawState);
   const tone = resolveTone(normalizedState, hasDevice, status.isOnline, hasActiveSession);
 

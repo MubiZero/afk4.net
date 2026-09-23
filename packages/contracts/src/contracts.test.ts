@@ -77,7 +77,17 @@ describe('сгенерированный файл', () => {
 
   it('не подменяет неизвестный тип на any', () => {
     expect(generated).not.toContain(': any');
-    expect(generated).not.toContain('unknown');
+    // Тип `unknown`, а не слово: код `warning-reason-unknown` из словаря — это данные.
+    expect(generated).not.toMatch(/:\s*unknown\b/);
+  });
+
+  // Словари кодов доезжают до клиентов вместе с записями, и поле, помеченное словарём, не
+  // принимает кода, которого сервер не присылает: «Посадить за ПК» сравнивало состояние места с
+  // «free», а сервер пишет «Free» (#423).
+  it('выпускает словари кодов и типизирует ими помеченные поля', () => {
+    expect(generated).toContain("export const SeatStateNames = {\n  Free: 'Free',");
+    expect(generated).toContain('export type SeatStateName = (typeof SeatStateNames)[keyof typeof SeatStateNames];');
+    expect(generated).toMatch(/export interface SeatStatusDto \{[^}]*\n  state: SeatStateName;/);
   });
 
   it('переносит объяснение из контракта в тип', () => {
