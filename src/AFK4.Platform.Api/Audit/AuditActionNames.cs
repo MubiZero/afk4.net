@@ -206,6 +206,8 @@ public static class AuditActionNames
 
     public const string UpdateStaffState = "identity.staff.state.update";
 
+    public const string RemoveStaffFromBranch = "identity.staff.branch.remove";
+
     public const string ResetStaffPassword = "identity.staff.password.reset";
 
     public const string CreateZone = "layout.zones.create";

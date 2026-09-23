@@ -17,12 +17,17 @@ const updateStaffUserState = mock(async (_branchId: string, _staffUserId: string
   isActive: request.isActive
 }));
 const resetStaffUserPassword = mock(async () => ({ staffUserId: 'u1', userName: 'operator1', displayName: 'Марина Сидорова', roleNames: ['operator'], isActive: true }));
+const getStaffCandidates = mock(async () => [
+  { staffUserId: 'c1', userName: 'dilnoza', displayName: 'Дильноза Каримова', isActive: true, branchNames: ['Филиал Север'] },
+  { staffUserId: 'c2', userName: 'rustam', displayName: 'Рустам Назаров', isActive: true, branchNames: [] }
+]);
+const removeStaffFromBranch = mock(async () => undefined);
 
 const actualHelpers = await import('../../operatorHelpers');
 mock.module('../../operatorHelpers', () => ({
   ...actualHelpers,
   createAuthenticatedOperatorClients: () => ({
-    settings: { createStaffInvite, updateStaffUserProfile, updateStaffUserRoles, updateStaffUserState, resetStaffUserPassword }
+    settings: { createStaffInvite, updateStaffUserProfile, updateStaffUserRoles, updateStaffUserState, resetStaffUserPassword, getStaffCandidates, removeStaffFromBranch }
   })
 }));
 
@@ -41,6 +46,8 @@ afterEach(() => {
   updateStaffUserRoles.mockClear();
   updateStaffUserState.mockClear();
   resetStaffUserPassword.mockClear();
+  getStaffCandidates.mockClear();
+  removeStaffFromBranch.mockClear();
 });
 
 const wrap = (ui: React.ReactNode) =>
@@ -338,5 +345,84 @@ describe('StaffRolesDestination', () => {
       organizationId: 'org',
       newPassword: '246813'
     }));
+  });
+
+  // Сотрудника другого филиала раньше было не поставить в этот (приглашение на тот же телефон
+  // отказывает), а снятого с последнего филиала не показывал ни один список.
+  it('adds someone from the network to this branch with the chosen roles', async () => {
+    const onStaffUsersChange = mock(() => {});
+    updateStaffUserRoles.mockImplementationOnce(async () => ({ staffUserId: 'c2', userName: 'rustam', displayName: 'Рустам Назаров', roleNames: ['technician'], isActive: true }));
+    wrap(
+      <StaffRolesDestination
+        backend={backend as never}
+        session={session([permissionNames.manageBranchStaff, permissionNames.manageRoles])}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+        onStaffUsersChange={onStaffUsersChange}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Из сети' }));
+
+    expect(await screen.findByText('Работает: Филиал Север')).toBeTruthy();
+    expect(screen.getByText('Без филиала — войти ему некуда')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: /Рустам Назаров/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Администратор' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить в филиал' }));
+
+    await waitFor(() => expect(updateStaffUserRoles).toHaveBeenCalledWith('b1', 'c2', { organizationId: 'org', roleNames: ['technician'] }));
+    await waitFor(() => expect(onStaffUsersChange).toHaveBeenCalledWith([...staffUsers, expect.objectContaining({ staffUserId: 'c2' })]));
+  });
+
+  it('offers adding from the network and removing from the branch to the owner only', () => {
+    wrap(
+      <StaffRolesDestination
+        backend={backend as never}
+        session={session([permissionNames.manageBranchStaff])}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Из сети' })).toBeNull();
+    fireEvent.click(screen.getByText('Марина Сидорова'));
+    expect(screen.queryByRole('button', { name: 'Снять с филиала' })).toBeNull();
+  });
+
+  it('removes someone from this branch after confirmation, without disabling them', async () => {
+    const onStaffUsersChange = mock(() => {});
+    wrap(
+      <StaffRolesDestination
+        backend={backend as never}
+        session={session([permissionNames.manageBranchStaff, permissionNames.manageRoles])}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+        onStaffUsersChange={onStaffUsersChange}
+      />
+    );
+    fireEvent.click(screen.getByText('Марина Сидорова'));
+    fireEvent.click(screen.getByRole('button', { name: 'Снять с филиала' }));
+    expect(removeStaffFromBranch).not.toHaveBeenCalled();
+
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Снять с филиала' }));
+
+    await waitFor(() => expect(removeStaffFromBranch).toHaveBeenCalledWith('b1', staffUserId));
+    await waitFor(() => expect(onStaffUsersChange).toHaveBeenCalledWith([]));
+    expect(updateStaffUserState).not.toHaveBeenCalled();
+  });
+
+  it('does not offer removing yourself or an owner from the branch', () => {
+    const owner = { ...staffUsers[0], staffUserId: '22222222-2222-2222-2222-222222222222', displayName: 'Владелец Сети', roleNames: ['organization_owner'] } as never;
+    wrap(
+      <StaffRolesDestination
+        backend={backend as never}
+        session={session([permissionNames.manageBranchStaff, permissionNames.manageRoles], staffUserId)}
+        currencyCode="TJS"
+        staffUsers={[...staffUsers, owner]}
+      />
+    );
+    fireEvent.click(screen.getByText('Марина Сидорова'));
+    expect(screen.queryByRole('button', { name: 'Снять с филиала' })).toBeNull();
+    fireEvent.click(screen.getByText('Владелец Сети'));
+    expect(screen.queryByRole('button', { name: 'Снять с филиала' })).toBeNull();
   });
 });

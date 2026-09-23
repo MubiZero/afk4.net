@@ -405,6 +405,61 @@
   font-weight: 600;
 }
 
+/* Выбор человека из сети: строка — переключатель, имя и где он работает. Своя раскладка, а не
+   .mgmt-role-set: там короткие подписи в две колонки, здесь по две строки текста на человека. */
+.mgmt-form fieldset.staff-network-list,
+.staff-network-list {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-height: 280px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 0;
+}
+
+.mgmt-form fieldset.staff-network-list legend {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mgmt-form label.staff-network-option,
+.staff-network-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  cursor: pointer;
+}
+
+.mgmt-form label.staff-network-option:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.staff-network-option > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.staff-network-option b {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.staff-network-option small {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
 /* Часы тарифа: два поля времени, подпись и переключатели дней одним блоком. Своя раскладка, а не
    .mgmt-role-set: там две колонки чекбоксов, здесь колонка из разнородных строк. */
 .mgmt-form fieldset.mgmt-schedule-set {
