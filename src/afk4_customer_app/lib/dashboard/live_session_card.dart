@@ -6,6 +6,7 @@ import '../api/contracts.dart';
 import '../api/dto_rules.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import 'live_session.dart';
 
@@ -88,7 +89,7 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
     // Идущая сессия — единственное, что на экране живёт прямо сейчас, и выглядит она так же:
     // подсвеченная карточка с бегущими цифрами. На исходе оплаченного времени свет меняется
     // на тревожный — игрока не должно выбрасывать из-за компьютера при спокойном экране.
-    final signal = alarming ? theme.colorScheme.error : AppTheme.emerald;
+    final signal = alarming ? theme.colorScheme.error : AppPalette.of(context).success;
 
     return Container(
       decoration: BoxDecoration(
@@ -97,9 +98,10 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: dark
-              ? [signal.withValues(alpha: 0.18), const Color(0xFF121B19)]
-              : [signal.withValues(alpha: 0.10), Colors.white],
+          colors: [
+            Color.alphaBlend(signal.withValues(alpha: dark ? 0.18 : 0.10), theme.colorScheme.surface),
+            theme.colorScheme.surface,
+          ],
         ),
         boxShadow: dark ? AppTheme.accentGlow(signal.withValues(alpha: 0.30)) : null,
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_palette.dart';
+
 /// Тема клиентского приложения.
 ///
 /// Приложение игрока — не админка: им пользуются в тёмном зале, между катками, одной рукой.
@@ -108,6 +110,7 @@ class AppTheme {
       accent: accent,
       onAccent: clubColor == null ? _darkOnAccent : onAccentFor(accent),
       danger: _darkDanger,
+      palette: AppPalette.dark,
     );
   }
 
@@ -124,6 +127,7 @@ class AppTheme {
       accent: accent,
       onAccent: clubColor == null ? _lightOnAccent : onAccentFor(accent),
       danger: _lightDanger,
+      palette: AppPalette.light,
     );
   }
 
@@ -138,6 +142,7 @@ class AppTheme {
     required Color accent,
     required Color onAccent,
     required Color danger,
+    required AppPalette palette,
   }) {
     final scheme = ColorScheme(
       brightness: brightness,
@@ -177,6 +182,7 @@ class AppTheme {
       // свет зала перекрывался бы каждым Scaffold и появлялся бы шов при переходах.
       scaffoldBackgroundColor: Colors.transparent,
       canvasColor: canvas,
+      extensions: [palette],
       splashFactory: InkSparkle.splashFactory,
       textTheme: typography,
       appBarTheme: AppBarTheme(
