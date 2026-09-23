@@ -545,7 +545,7 @@
     }
   },
   "customerPlayDuration": "Чанд вақт",
-  "customerPlayErrDeviceGone": "Ин ПК ба платформа пайваст нест — операторро даъват кунед",
+  "customerPlayErrDeviceGone": "Ин ПК ба платформа пайваст нест — маъмурро даъват кунед",
   "customerPlayErrFunds": "Дар ҳамён барои ин вақт маблағ намерасад",
   "customerPlayErrGeneric": "Сессияро оғоз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
   "customerPlayErrTaken": "Ин ҷойро ҳозир банд карданд — дигарашро интихоб кунед",
@@ -566,7 +566,7 @@
     }
   },
   "customerPlayStart": "Ба ПК нишастан",
-  "customerPlayStartHint": "Бе оператор бозиро оғоз кунед",
+  "customerPlayStartHint": "Бе маъмур бозиро оғоз кунед",
   "customerPlayStarted": "Сессия оғоз шуд — ба {seat} нишинед",
   "@customerPlayStarted": {
     "placeholders": {
@@ -577,7 +577,7 @@
   },
   "customerPlayStarting": "Оғоз карда истодаем…",
   "customerPlayTitle": "Оғози бозӣ",
-  "customerPlayUnavailable": "Ҳоло худатон нишастан мумкин нест — ба назди мизи қабул оед, оператор шуморо шинонад",
+  "customerPlayUnavailable": "Ҳоло худатон нишастан мумкин нест — ба назди мизи қабул оед, маъмур шуморо шинонад",
   "customerProfileChangePhone": "Иваз кардани рақам",
   "customerProfileDeleteBlockedBalance": "Дар ҳамён пул мондааст. Онро дар назди клуб гиред ва ба ин ҷо баргардед.",
   "customerProfileDeleteBlockedDebt": "Шумо қарздоред. Қарзро пӯшонед — аз ҳамён ё дар назди клуб.",
@@ -880,7 +880,7 @@
   "customerSessionEndBody": "Ҷой фавран озод мешавад. Вақти пардохтшуда, ки бозӣ накардаед, ба ҳамён бармегардад.",
   "customerSessionEndCancel": "Мондан",
   "customerSessionEndConfirm": "Тамом кардан",
-  "customerSessionEndFailed": "Сессияро тамом кардан нашуд. Бори дигар кӯшиш кунед ё операторро ҷеғ занед.",
+  "customerSessionEndFailed": "Сессияро тамом кардан нашуд. Бори дигар кӯшиш кунед ё маъмурро ҷеғ занед.",
   "customerSessionEndNoRefund": "Сессия тамом шуд",
   "customerSessionEndRefunded": "Барои вақти бознакарда {amount} баргардонида шуд",
   "@customerSessionEndRefunded": {
@@ -971,7 +971,7 @@
     }
   },
   "customerShopPlacing": "Ба расмият дароварда истодаем…",
-  "customerShopStatusAccepted": "Оператор фармоишро оварда истодааст",
+  "customerShopStatusAccepted": "Маъмур фармоишро оварда истодааст",
   "customerShopStatusCancelled": "Фармоиш бекор карда шуд",
   "customerShopStatusDelivered": "Фармоиш оварда шуд",
   "customerShopStatusPlaced": "Фармоиш қабул шуд, тайёр карда истодаем",
