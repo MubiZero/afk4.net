@@ -95,3 +95,26 @@ it('мастер зовёт Панель AFK4.net одним полным име
 
   expect(hits).toEqual([]);
 });
+
+// Мастер установки назывался четырьмя именами: «мастер установки» в заголовке, «Мастер настройки»
+// в Панели AFK4.net, «приложение установки» на экране входа и голое «Setup Wizard» посреди
+// русской фразы, а по-таджикски ещё «Мастер», «устоди танзим» и «барномаи насб». Администратор
+// читал «подключите ПК через Мастер настройки» и не находил такой программы. Имя одно, как в
+// заголовке мастера: «мастер установки», «setup wizard», «устоди насб». Английское «AFK4.NET
+// Setup Wizard» допустимо только в кавычках — так подписаны окно и ярлык в меню «Пуск».
+it('мастер установки зовётся одним именем во всех поверхностях', () => {
+  const hits: string[] = [];
+  const check = (loc: Locale, bad: RegExp) => {
+    for (const [key, value] of Object.entries(messages[loc])) if (bad.test(value)) hits.push(`${loc}:${key} = "${value}"`);
+  };
+  const shortcut = /«AFK4\.NET Setup Wizard»/g;
+  const outsideShortcut = (bad: RegExp) => ({ test: (value: string) => bad.test(value.replace(shortcut, '')) }) as RegExp;
+  check('ru', /мастер[а-я]*\s+настройк|приложени[а-я]*\s+установк/i);
+  check('ru', outsideShortcut(/setup\s+wizard/i));
+  // «Устои насб», «усторо» — опечатка, которая прожила на экране сбоя: «усто» без «д» — другое слово.
+  check('tg', /(?<![а-яӣӯҳқғҷ])мастер|(?<![а-яӣӯҳқғҷ])усто(?!д)|устод[а-яӣӯ]*\s+танзим|барномаи\s+насб/i);
+  check('tg', outsideShortcut(/setup\s+wizard/i));
+  check('en', /setup app/i);
+
+  expect(hits).toEqual([]);
+});

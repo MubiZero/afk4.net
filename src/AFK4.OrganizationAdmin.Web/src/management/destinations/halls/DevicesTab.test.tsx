@@ -160,7 +160,7 @@ describe('DevicesTab', () => {
       />
     );
     expect(screen.getByText('Нет подключённых устройств')).toBeTruthy();
-    expect(screen.getByText('Устройства появляются здесь после установки клиентского ПК через Мастер настройки.')).toBeTruthy();
+    expect(screen.getByText('Устройства появляются здесь, когда ПК подключают через мастер установки.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '+ Подключить устройство' })).toBeNull();
   });
 
