@@ -4,6 +4,7 @@ import type { MessageKey } from '@afk4/i18n';
 import { navSections } from './operatorData';
 import { canOpenWorkspace, hasPermission, permissionNames } from './operatorPermissions';
 import { createAuthenticatedOperatorClients, formatDateTime, formatMinorUnits } from './operatorHelpers';
+import { visibleCashTabs } from './cash/cashModel';
 import type { BranchSearchResultDto } from './operatorApiClients';
 import type { OperatorBackendContext, WorkspaceId } from './operatorTypes';
 import type { OperatorAuthSession } from './authClient';
@@ -35,14 +36,23 @@ const MIN_QUERY = 2;
 const SEARCH_DEBOUNCE_MS = 200;
 
 /// Виды находок в том порядке, в каком они полезны за стойкой: место под рукой, потом человек,
-/// потом бронь, потом чек. Каждый вид показываем только тому, кому этот раздел и так открыт, —
-/// иначе палитра стала бы обходом прав.
+/// потом бронь, потом чек и заказ. Каждый вид показываем только тому, кому этот раздел и так
+/// открыт, — иначе палитра стала бы обходом прав.
 const ENTITY_KINDS = [
   { kind: 'seat', headingKey: 'op.command.palette.seatsHeading', workspaceId: 'map', permission: permissionNames.viewFloorMap },
   { kind: 'player', headingKey: 'op.command.palette.peopleHeading', workspaceId: 'players', permission: permissionNames.viewPlayers },
   { kind: 'reservation', headingKey: 'op.command.palette.reservationsHeading', workspaceId: 'booking', permission: permissionNames.viewReservations },
-  { kind: 'receipt', headingKey: 'op.command.palette.receiptsHeading', workspaceId: 'cash', permission: permissionNames.viewReceipt }
+  { kind: 'receipt', headingKey: 'op.command.palette.receiptsHeading', workspaceId: 'cash', permission: permissionNames.viewReceipt },
+  { kind: 'order', headingKey: 'op.command.palette.ordersHeading', workspaceId: 'cash', permission: permissionNames.serveShopOrders }
 ] as const satisfies readonly { kind: string; headingKey: MessageKey; workspaceId: WorkspaceId; permission: string }[];
+
+// Подпись состояния заказа: сервер отдаёт код, язык знает клиент.
+const ORDER_STATUS_KEYS: Record<string, MessageKey> = {
+  placed: 'op.shopOrders.status.placed',
+  accepted: 'op.shopOrders.status.accepted',
+  delivered: 'op.shopOrders.status.delivered',
+  cancelled: 'op.shopOrders.status.cancelled'
+};
 
 export type PaletteReservationTarget = { reservationId: string; startsAtUtc: string | null };
 
@@ -55,6 +65,7 @@ export function CommandPalette({
   onOpenSeat,
   onOpenReservation,
   onOpenReceipt,
+  onOpenOrder,
   onClose
 }: {
   session: OperatorAuthSession | null;
@@ -71,6 +82,7 @@ export function CommandPalette({
   onOpenSeat?: (seatId: string) => void;
   onOpenReservation?: (target: PaletteReservationTarget) => void;
   onOpenReceipt?: (target: { receiptId: string }) => void;
+  onOpenOrder?: (target: { orderId: string }) => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -103,14 +115,17 @@ export function CommandPalette({
     reservation: onOpenReservation
       ? (entity) => onOpenReservation({ reservationId: entity.id, startsAtUtc: entity.occursAtUtc ?? null })
       : undefined,
-    receipt: onOpenReceipt ? (entity) => onOpenReceipt({ receiptId: entity.id }) : undefined
+    receipt: onOpenReceipt ? (entity) => onOpenReceipt({ receiptId: entity.id }) : undefined,
+    order: onOpenOrder ? (entity) => onOpenOrder({ orderId: entity.id }) : undefined
   };
 
-  // Ищем только то, что этому человеку и так видно и есть чем открыть.
+  // Ищем только то, что этому человеку и так видно и есть чем открыть. Лента заказов живёт во
+  // вкладке «Продажи»: кому она закрыта, тому найденный заказ открыть негде.
   const searchableKinds = ENTITY_KINDS.filter((entry) =>
     openers[entry.kind] != null &&
     canOpenWorkspace(session, entry.workspaceId) &&
     hasPermission(session, entry.permission) &&
+    (entry.kind !== 'order' || visibleCashTabs(session).includes('sales')) &&
     (visibleWorkspaceIds == null || visibleWorkspaceIds.has(entry.workspaceId)));
   const searchableKindNames = searchableKinds.map((entry) => entry.kind).join(',');
 
@@ -154,12 +169,22 @@ export function CommandPalette({
   // и часовой пояс знает он, а не сервер.
   const hintOf = (entity: BranchSearchResultDto): string | null => {
     const parts: string[] = [];
-    if (entity.kind === 'receipt' && entity.amountMinorUnits != null) {
+    // У заказа первым — где он сейчас: «готовится» и «выдан» за стойкой различают раньше суммы.
+    const statusKey = entity.kind === 'order' && entity.status ? ORDER_STATUS_KEYS[entity.status] : undefined;
+    if (statusKey) {
+      parts.push(t(statusKey));
+    }
+
+    if ((entity.kind === 'receipt' || entity.kind === 'order') && entity.amountMinorUnits != null) {
       parts.push(formatMinorUnits(entity.amountMinorUnits, entity.currencyCode ?? ''));
     }
 
     if (entity.subtitle) {
       parts.push(entity.subtitle);
+    }
+
+    if (entity.number) {
+      parts.push(entity.number);
     }
 
     if (entity.occursAtUtc) {

@@ -10,11 +10,13 @@ import { PosOrdersTicker } from '../PosOrdersTicker';
 export function CashSalesWorkspace({
   backend,
   currencyCode,
-  session
+  session,
+  openOrder
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  openOrder?: { orderId: string } | null;
 }) {
   const canPos = hasAnyPermission(session, [
     permissionNames.createPosSale,
@@ -32,7 +34,7 @@ export function CashSalesWorkspace({
 
   return (
     <main className="workspace-screen cash-sales-screen">
-      {canOrders && <PosOrdersTicker backend={backend} canCancel={canCancelOrders} />}
+      {canOrders && <PosOrdersTicker backend={backend} canCancel={canCancelOrders} openOrder={openOrder} />}
       {canPos && <BackendPosWorkspace currencyCode={currencyCode} backend={backend} embedded />}
     </main>
   );

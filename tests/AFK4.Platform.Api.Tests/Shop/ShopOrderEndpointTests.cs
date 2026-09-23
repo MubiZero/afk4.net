@@ -93,6 +93,111 @@ public sealed class ShopOrderEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, cancel.StatusCode);
     }
 
+    // Лента на стойке показывает место так, как его зовут вслух, а не идентификатором.
+    [Fact]
+    public async Task Queue_NamesTheSeatTheOrderGoesTo()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var staffClient = factory.CreateClient();
+        using var playerClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
+        var placed = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
+            new PlaceShopOrderRequest([new ShopOrderLineInput(seeded.ColaProductId, 1)], "shop-order-seat-name-001")))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
+
+        var queue = await staffClient.GetFromJsonAsync<List<ShopOrderDto>>(
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders");
+
+        Assert.Equal("PC-07", placed!.SeatName);
+        Assert.Equal("PC-07", Assert.Single(queue!).SeatName);
+    }
+
+    // Палитра открывает и выданный заказ, которого в ленте уже нет: он грузится по
+    // идентификатору, с тем же правом, что и сама лента.
+    [Fact]
+    public async Task Order_ById_OpensADeliveredOrderThatLeftTheQueue()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var staffClient = factory.CreateClient();
+        using var playerClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
+        var placed = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
+            new PlaceShopOrderRequest([new ShopOrderLineInput(seeded.ColaProductId, 2)], "shop-order-by-id-001")))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(
+            factory, staffClient, seeded.OrganizationId, seeded.BranchId,
+            withShopPermission: false, roleOverride: OrganizationRoleNames.Operator);
+        var basePath = $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders";
+        var accepted = await (await staffClient.PostAsJsonAsync($"{basePath}/{placed!.Id:D}/accept", new { expectedVersion = placed.Version }))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await staffClient.PostAsJsonAsync($"{basePath}/{placed.Id:D}/deliver", new { expectedVersion = accepted!.Version });
+
+        var response = await staffClient.GetAsync($"{basePath}/{placed.Id:D}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var order = await response.Content.ReadFromJsonAsync<ShopOrderDto>();
+        Assert.Equal(placed.Id, order!.Id);
+        Assert.Equal(ShopOrderStatusNames.Delivered, order.Status);
+        Assert.Equal("PC-07", order.SeatName);
+        Assert.Equal(2, Assert.Single(order.Lines).Quantity);
+    }
+
+    [Fact]
+    public async Task Order_ById_WithoutTheQueuePermission_Returns403()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var staffClient = factory.CreateClient();
+        using var playerClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
+        var placed = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
+            new PlaceShopOrderRequest([new ShopOrderLineInput(seeded.ColaProductId, 1)], "shop-order-by-id-403")))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: false);
+
+        var response = await staffClient.GetAsync(
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders/{placed!.Id:D}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // Идентификатор чужого филиала не открывает заказ и через адрес своего.
+    [Fact]
+    public async Task Order_ById_FromAnotherBranch_IsNotFound()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var staffClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
+        var foreignOrderId = Guid.NewGuid();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.ShopOrders.Add(new ShopOrderEntity
+            {
+                ShopOrderId = foreignOrderId,
+                OrganizationId = seeded.OrganizationId,
+                BranchId = Guid.NewGuid(),
+                PlayerAccountId = Guid.NewGuid(),
+                SessionId = Guid.NewGuid(),
+                SeatId = Guid.NewGuid(),
+                Status = ShopOrderStatusNames.Placed,
+                CurrencyCode = "TJS",
+                PlacedAtUtc = DateTimeOffset.UtcNow,
+                Version = 1
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var response = await staffClient.GetAsync(
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders/{foreignOrderId:D}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     [Fact]
     public async Task Queue_WithoutPermission_Returns403()
     {

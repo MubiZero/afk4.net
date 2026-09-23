@@ -11,6 +11,12 @@ public interface IShopOrderService
 
     Task<IReadOnlyList<ShopOrderDto>> ListQueueAsync(Guid branchId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Один заказ филиала в любом состоянии — и тот, что уже выдан или отменён и из ленты ушёл.
+    /// null — такого заказа в этом филиале нет.
+    /// </summary>
+    Task<ShopOrderDto?> GetForBranchAsync(Guid branchId, Guid shopOrderId, CancellationToken cancellationToken);
+
     Task<ShopOrderActionResult> AcceptAsync(
         Guid branchId, Guid shopOrderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken);
 

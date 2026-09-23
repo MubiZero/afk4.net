@@ -284,14 +284,15 @@ function previewAudit(searchParams: URLSearchParams) {
 }
 
 // Очередь заказов из Player Shell (Заказы): игрок оформляет с места, касса лишь меняет статус.
-// placed → ждёт принятия; accepted → ждёт выдачи. seatId показывается как есть (читаемое имя места).
+// placed → ждёт принятия; accepted → ждёт выдачи. seatId — идентификатор места с карты зала,
+// на чипе показывается seatName, как с настоящего сервера.
 function shopOrders() {
   const line = (productId: string, name: string, unitMinor: number, quantity: number) =>
     ({ productId, name, unitPrice: money(unitMinor), quantity, lineTotal: money(unitMinor * quantity) });
   return [
-    { id: 'so-1', branchId: BRANCH, seatId: 'PC-01', playerAccountId: 'pl-2', playerDisplayName: 'Амир Каримов', status: 'placed', total: money(8600), lines: [line('prod-hotdog', 'Хот-дог', 2800, 1), line('prod-cola', 'Cola 0.5', 1200, 1), line('prod-chips', 'Чипсы Lays', 1400, 2), line('prod-energy', 'Энергетик Red Bull', 1800, 1)], placedAtUtc: minutesAgoUtc(5), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 },
-    { id: 'so-2', branchId: BRANCH, seatId: 'PC-09', playerAccountId: 'pl-4', playerDisplayName: 'Юсуф Ахмедов', status: 'accepted', total: money(1200), lines: [line('prod-cola', 'Cola 0.5', 1200, 1)], placedAtUtc: minutesAgoUtc(15), acceptedAtUtc: minutesAgoUtc(10), deliveredAtUtc: null, cancelledAtUtc: null, version: 2 },
-    { id: 'so-3', branchId: BRANCH, seatId: 'VIP-01', playerAccountId: 'pl-3', playerDisplayName: 'Мадина Саидова', status: 'placed', total: money(3600), lines: [line('prod-energy', 'Энергетик Red Bull', 1800, 2)], placedAtUtc: minutesAgoUtc(2), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 }
+    { id: 'so-1', branchId: BRANCH, seatId: 'a1', seatName: 'PC-01', playerAccountId: 'pl-2', playerDisplayName: 'Амир Каримов', status: 'placed', total: money(8600), lines: [line('prod-hotdog', 'Хот-дог', 2800, 1), line('prod-cola', 'Cola 0.5', 1200, 1), line('prod-chips', 'Чипсы Lays', 1400, 2), line('prod-energy', 'Энергетик Red Bull', 1800, 1)], placedAtUtc: minutesAgoUtc(5), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 },
+    { id: 'so-2', branchId: BRANCH, seatId: 'c3', seatName: 'PC-09', playerAccountId: 'pl-4', playerDisplayName: 'Юсуф Ахмедов', status: 'accepted', total: money(1200), lines: [line('prod-cola', 'Cola 0.5', 1200, 1)], placedAtUtc: minutesAgoUtc(15), acceptedAtUtc: minutesAgoUtc(10), deliveredAtUtc: null, cancelledAtUtc: null, version: 2 },
+    { id: 'so-3', branchId: BRANCH, seatId: 'b1', seatName: 'VIP-01', playerAccountId: 'pl-3', playerDisplayName: 'Мадина Саидова', status: 'placed', total: money(3600), lines: [line('prod-energy', 'Энергетик Red Bull', 1800, 2)], placedAtUtc: minutesAgoUtc(2), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 }
   ];
 }
 
@@ -570,6 +571,8 @@ function route(pathname: string, method: string): unknown | undefined {
     return posSales().map((sale) => sale.latestReceipt).find((receipt) => receipt.receiptId === receiptMatch[1]) ?? {};
   }
   if (pathname.endsWith('/shop/orders') && method === 'GET') return shopOrders();
+  const shopOrderMatch = pathname.match(/\/shop\/orders\/([^/]+)$/);
+  if (shopOrderMatch && method === 'GET') return shopOrders().find((order) => order.id === shopOrderMatch[1]) ?? {};
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
   if (pathname.endsWith('/pos/categories')) return posCategories();
   if (pathname.endsWith('/booking-settings') && method === 'GET') return previewBookingSettings;

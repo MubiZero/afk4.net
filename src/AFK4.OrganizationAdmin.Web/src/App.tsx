@@ -180,6 +180,8 @@ function AppInner() {
   // время; чек открывается по идентификатору — лента смены его может и не содержать.
   const [openReservation, setOpenReservation] = useState<{ reservationId: string; startsAtUtc: string | null } | null>(null);
   const [openReceipt, setOpenReceipt] = useState<{ receiptId: string } | null>(null);
+  // Заказ бара: каждый выбор в палитре — новый объект, и тот же заказ, выбранный снова, открывается снова.
+  const [openOrder, setOpenOrder] = useState<{ orderId: string } | null>(null);
   // Токен «открыть запуск сессии» — растёт по клику на «+» свободной плитки; боковая панель
   // реагирует на изменение и открывает старт-диалог для выбранного места.
   const [startSeatToken, setStartSeatToken] = useState(0);
@@ -510,7 +512,16 @@ function AppInner() {
               setPaletteOpen(false);
             }}
             onOpenReceipt={(target) => {
+              // Касса открывается на одном из двух — последнем выбранном, а не на том, что
+              // выбирали раньше.
+              setOpenOrder(null);
               setOpenReceipt(target);
+              setWorkspace('cash');
+              setPaletteOpen(false);
+            }}
+            onOpenOrder={(target) => {
+              setOpenReceipt(null);
+              setOpenOrder(target);
               setWorkspace('cash');
               setPaletteOpen(false);
             }}
@@ -572,6 +583,7 @@ function AppInner() {
             openClient={openClient}
             openReservation={openReservation}
             openReceipt={openReceipt}
+            openOrder={openOrder}
           />
         </div>
 

@@ -21,4 +21,7 @@ public sealed record ShopOrderDto(
     DateTimeOffset? DeliveredAtUtc,
     DateTimeOffset? CancelledAtUtc,
     int Version,
-    Guid? PosSaleId = null);
+    Guid? PosSaleId = null,
+    // Имя места на стене — «PC-12»: туда и несут заказ. Без него лента на стойке могла показать
+    // только идентификатор места, который вслух никто не произносит.
+    string? SeatName = null);

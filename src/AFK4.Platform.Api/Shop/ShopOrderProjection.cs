@@ -9,7 +9,8 @@ public static class ShopOrderProjection
     public static ShopOrderDto ToDto(
         ShopOrderEntity order,
         IReadOnlyCollection<ShopOrderLineEntity> lines,
-        string playerDisplayName)
+        string playerDisplayName,
+        string? seatName = null)
     {
         var lineDtos = lines
             .Select(line => new ShopOrderLineDto(
@@ -34,6 +35,7 @@ public static class ShopOrderProjection
             order.DeliveredAtUtc,
             order.CancelledAtUtc,
             order.Version,
-            order.PosSaleId);
+            order.PosSaleId,
+            seatName);
     }
 }

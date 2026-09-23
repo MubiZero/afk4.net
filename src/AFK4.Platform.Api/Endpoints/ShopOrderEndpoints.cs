@@ -38,6 +38,32 @@ internal static class ShopOrderEndpoints
             return Results.Ok(await shopOrderService.ListQueueAsync(branchId, cancellationToken));
         });
 
+        // Один заказ по идентификатору — для палитры: лента держит только заказы в работе, а
+        // приходят и с выданным. Право то же, что у ленты: кто не видит ленту, не откроет и заказ.
+        app.MapGet("branches/{branchId:guid}/shop/orders/{orderId:guid}", async (
+            Guid branchId,
+            Guid orderId,
+            StaffAuthorizationService authorizationService,
+            IShopOrderService shopOrderService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ServeShopOrders, cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var order = await shopOrderService.GetForBranchAsync(branchId, orderId, cancellationToken);
+            return order is null ? Results.NotFound() : Results.Ok(order);
+        });
+
         // Пуш шлём на «принят»: это и есть момент, когда игроку есть что узнать — заказ собирают
         // и сейчас понесут. На «доставлен» писать поздно: заказ уже стоит на столе.
         MapTransition(app, "accept", AuditActionNames.AcceptShopOrder,
