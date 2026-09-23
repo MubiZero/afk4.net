@@ -87,6 +87,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
     navigate({ kind: 'organization', organizationId, tab: initialInvite === null ? 'clubs' : 'access' }, { initialInvite });
   const organizationAccess = {
     canManageOrganization: can(session, 'organizations.manage'),
+    canAddBranch: can(session, 'organizations.create'),
     canManageAccess: session.permissions.includes('platform.organizations.owner_invites.manage'),
     canViewSupport: session.permissions.some(permission => permission === 'platform.organizations.support_notes.view' || permission === 'platform.organizations.support_notes.manage'),
     canViewBilling: can(session, 'billing.read'),
@@ -132,6 +133,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
             tab={route.tab}
             onTabChange={tab => navigate({ ...route, tab })}
             canManage={can(session, 'billing.manage')}
+            canManagePlans={can(session, 'billing.plans.manage')}
             debtAccess={{
               canMarkPaid: can(session, 'billing.invoices.manage'),
               canGrantGrace: can(session, 'billing.subscriptions.manage'),
@@ -139,7 +141,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
               canAddNote: can(session, 'organizations.support_notes.manage')
             }}
           />
-        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} organizationsClient={client.organizations} />
+        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} organizationsClient={client.organizations} canRegisterPackages={can(session, 'updates.packages.manage')} />
         : route.kind === 'audit' ? <AuditScreen client={client.audit} organizationsClient={client.organizations} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'overview', view: 'now' })} />
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onBack={() => navigate({ kind: 'overview', view: 'now' })} onChanged={() => {}} />

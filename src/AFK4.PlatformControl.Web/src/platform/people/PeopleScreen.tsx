@@ -90,7 +90,7 @@ export function PeopleScreen({ client }: { client: Client }) {
         </div>
 
         {person === null
-          ? (searched ? <EmptyState message={t('platform.people.notFound')} /> : null)
+          ? (searched ? <EmptyState message={t('platform.people.notFound')} next="formAbove" /> : null)
           : (
             <div className="mgmt-form">
               <p className="pc-num">+992 {formatLocal(person.phoneNumber)}</p>

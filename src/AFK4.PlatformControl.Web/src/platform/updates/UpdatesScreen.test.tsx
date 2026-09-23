@@ -24,9 +24,14 @@ const packageRow = {
   validatedByPlatformAdminUserId: null, validatedAtUtc: null, retiredAtUtc: null
 };
 
-function setup(state: string = 'registered', rollouts: unknown[] = [], listRollouts = mock().mockResolvedValue(rollouts)) {
+function setup(
+  state: string = 'registered',
+  rollouts: unknown[] = [],
+  { packages = [{ ...packageRow, state }], canRegisterPackages = true, listRollouts = mock().mockResolvedValue(rollouts) }:
+    { packages?: unknown[]; canRegisterPackages?: boolean; listRollouts?: ReturnType<typeof mock> } = {}
+) {
   const updates = {
-    listPackages: mock().mockResolvedValue([{ ...packageRow, state }]),
+    listPackages: mock().mockResolvedValue(packages),
     listRollouts,
     registerPackage: mock(),
     changePackageState: mock().mockResolvedValue({ ...packageRow, state: 'validated' }),
@@ -41,7 +46,7 @@ function setup(state: string = 'registered', rollouts: unknown[] = [], listRollo
   };
   render(
     <I18nProvider><ToastProvider>
-      <UpdatesScreen client={updates as never} organizationsClient={organizations as never} />
+      <UpdatesScreen client={updates as never} organizationsClient={organizations as never} canRegisterPackages={canRegisterPackages} />
     </ToastProvider></I18nProvider>
   );
   return { updates, organizations };
@@ -153,9 +158,9 @@ describe('UpdatesScreen', () => {
   // «Опубликовать» без них показывать нельзя: по раскаткам экран понимает, что сборка уже
   // опубликована, и без них предложил бы выложить её второй раз.
   it('отказ раскаток оставляет каталог, прячет публикацию и повторяет только раскатки', async () => {
-    const { updates } = setup('validated', [], mock()
+    const { updates } = setup('validated', [], { listRollouts: mock()
       .mockRejectedValueOnce(new PlatformApiError(500, 'boom'))
-      .mockResolvedValue([]));
+      .mockResolvedValue([]) });
 
     expect(await screen.findByText('Панель AFK4.net')).toBeInTheDocument();
     expect(await screen.findByText('Не удалось загрузить раскатки — пока их нет, публиковать и менять раскатки нельзя')).toBeInTheDocument();
@@ -168,5 +173,23 @@ describe('UpdatesScreen', () => {
     expect(await screen.findByRole('button', { name: 'Опубликовать' })).toBeInTheDocument();
     expect(updates.listPackages.mock.calls.length).toBe(packageCalls);
     expect(updates.listRollouts).toHaveBeenCalledTimes(2);
+  });
+
+  it('пустой каталог зовёт зарегистрировать первый пакет', async () => {
+    setup('registered', [], { packages: [] });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Зарегистрировать первый пакет' }));
+
+    expect(screen.getByLabelText('Версия')).toBeInTheDocument();
+  });
+
+  // Раздел открыт по праву на просмотр, а регистрацию сервер спрашивает по отдельному праву на
+  // пакеты. Кнопка «Зарегистрировать пакет» раньше висела у всех, и ответом на неё был отказ.
+  it('без права на пакеты не зовёт регистрировать, а говорит, у кого это право', async () => {
+    setup('registered', [], { packages: [], canRegisterPackages: false });
+
+    expect(await screen.findByText('Это может сотрудник платформы с правом «Загружать и отзывать пакеты обновлений».')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Зарегистрировать первый пакет' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Зарегистрировать пакет' })).toBeNull();
   });
 });

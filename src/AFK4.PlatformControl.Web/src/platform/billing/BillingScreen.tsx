@@ -10,11 +10,13 @@ import { InvoicesTab } from './InvoicesTab';
 import { PlansTab } from './PlansTab';
 import { AnalyticsTab } from './AnalyticsTab';
 
-export function BillingScreen({ client, tab, onTabChange, canManage, debtAccess }: {
+export function BillingScreen({ client, tab, onTabChange, canManage, canManagePlans, debtAccess }: {
   client: PlatformApiClient;
   tab: BillingTab;
   onTabChange: (tab: BillingTab) => void;
   canManage: boolean;
+  /// Тарифы сервер правит по своему праву, а не по любому из трёх денежных.
+  canManagePlans: boolean;
   debtAccess: DebtSectionAccess;
 }) {
   const { t } = useI18n();
@@ -38,7 +40,7 @@ export function BillingScreen({ client, tab, onTabChange, canManage, debtAccess 
       <div role="tabpanel">
         {tab === 'subscriptions' ? <SubscriptionsTab client={client.subscriptions} /> : null}
         {tab === 'invoices' ? <InvoicesTab client={client.invoices} canManage={canManage} /> : null}
-        {tab === 'plans' ? <PlansTab client={client.plans} canManage={canManage} /> : null}
+        {tab === 'plans' ? <PlansTab client={client.plans} canManage={canManagePlans} /> : null}
         {tab === 'analytics' ? <AnalyticsTab client={client.analytics} /> : null}
       </div>
     </Page>

@@ -59,6 +59,7 @@ function client(): ClientPassportClients {
 
 const fullAccess: OrganizationPageAccess = {
   canManageOrganization: true,
+  canAddBranch: true,
   canManageAccess: true,
   canViewSupport: true,
   canViewBilling: true,
@@ -187,6 +188,7 @@ it('shows the outstanding debt amount from the debt queue without leaving the pa
 it('hides billing and organization-management levers without the matching rights', () => {
   setup({
     canManageOrganization: false,
+    canAddBranch: false,
     canManageAccess: false,
     canViewSupport: false,
     canViewBilling: false,

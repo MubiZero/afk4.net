@@ -69,7 +69,7 @@ describe('PeopleScreen', () => {
 
     await findAsync(user);
 
-    await waitFor(() => expect(screen.getByText('Такого номера в сети нет')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Такого номера в сети нет. Проверьте цифры: человек попадает в сеть, когда регистрируется в любом клубе.')).toBeTruthy());
   });
 
   // Запрет без причины некому объяснить и не на каком основании снять — кнопка ждёт причину.

@@ -117,6 +117,6 @@ describe('PayableQueue', () => {
   it('пустая очередь так и говорит', async () => {
     setup([invoice({ status: 'paid' })]);
 
-    await screen.findByText('Неоплаченных счетов нет.');
+    await screen.findByText('Неоплаченных счетов нет — все выставленные счета закрыты. Новый счёт встанет сюда, как только его выставят.');
   });
 });

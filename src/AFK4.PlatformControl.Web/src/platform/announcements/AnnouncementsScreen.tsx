@@ -158,7 +158,7 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
         <p className="mgmt-drawer-hint">{t('platform.announcements.description')}</p>
 
         {announcements.length === 0 ? (
-          <EmptyState message={t('platform.announcements.empty')} />
+          <EmptyState message={t('platform.announcements.empty')} next={{ label: t('platform.announcements.createFirst'), onClick: () => setDraft(emptyDraft()) }} />
         ) : (
           <Table>
             <TableHeader>

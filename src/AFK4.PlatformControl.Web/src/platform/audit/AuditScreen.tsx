@@ -13,6 +13,14 @@ import { auditOutcomeLabel, auditOutcomeVariant, auditSourceLabel, auditTargetLa
 
 export interface AuditFilters { organizationId: string; action: string; outcome: string; from: string; to: string }
 
+const NO_FILTERS: AuditFilters = { organizationId: '', action: '', outcome: '', from: '', to: '' };
+
+// Поля перечислены явно: владелец маршрута передаёт сюда весь маршрут, и в нём есть не только
+// фильтры.
+function hasFilters(filters: AuditFilters): boolean {
+  return [filters.organizationId, filters.action, filters.outcome, filters.from, filters.to].some(value => value !== '');
+}
+
 const OUTCOME_OPTIONS = ['Succeeded', 'Denied', 'Failed'] as const;
 
 export function AuditScreen({ client, organizationsClient, filters, onFiltersChange }: {
@@ -70,7 +78,10 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
     </form>
     {state.status === 'error' ? <ErrorState title={t('platform.audit.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       : state.status === 'loading' ? <LoadingCards count={3} />
-      : (state.data.records ?? []).length === 0 ? <EmptyState message={t('platform.audit.empty')} />
+      // Пустой журнал и фильтр, под который ничего не подошло, — разные ответы: у второго есть выход.
+      : (state.data.records ?? []).length === 0 ? (hasFilters(filters)
+        ? <EmptyState message={t('state.empty.filtered')} next={{ label: t('state.empty.resetFilter'), onClick: () => onFiltersChange(NO_FILTERS) }} />
+        : <EmptyState message={t('platform.audit.empty')} next="calm" />)
       : <div className="table-panel"><Table><TableHeader><TableRow>
           <TableHead>{t('platform.audit.time')}</TableHead><TableHead>{t('platform.audit.organization')}</TableHead><TableHead>{t('platform.audit.action')}</TableHead><TableHead>{t('platform.audit.target')}</TableHead><TableHead>{t('platform.audit.outcome')}</TableHead><TableHead>{t('platform.audit.source')}</TableHead>
         </TableRow></TableHeader><TableBody>{(state.data.records ?? []).map(record => <TableRow key={record.auditRecordId}>

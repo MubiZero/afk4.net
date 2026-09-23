@@ -98,7 +98,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
         ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
         ) : state.data.length === 0 ? (
-          <EmptyState message={t('platform.organization.invoices.empty')} />
+          <EmptyState message={t('platform.organization.invoices.empty')} next="calm" />
         ) : (
           state.data.map(inv => (
             <div key={inv.invoiceId} className="pc-list-row">

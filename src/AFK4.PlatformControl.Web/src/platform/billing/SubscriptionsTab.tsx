@@ -42,8 +42,10 @@ export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
         </Select>
       </div>
 
-      {rows.length === 0 ? (
-        <EmptyState message={t('platform.billing.empty.subscriptions')} />
+      {state.data.length === 0 ? (
+        <EmptyState message={t('platform.billing.empty.subscriptions')} next="elsewhere" />
+      ) : rows.length === 0 ? (
+        <EmptyState message={t('state.empty.filtered')} next={{ label: t('state.empty.resetFilter'), onClick: () => { setQuery(''); setStatus('all'); } }} />
       ) : (
         <Table>
           <TableHeader>

@@ -29,9 +29,12 @@ type OrganizationsClient = Pick<OrganizationsApi, 'listOrganizations'>;
 // на все организации сразу (100%), поэтому тревога «обновление не установилось» продолжает
 // считаться по реальным отчётам устройств. Точечный рычаг остался один — закрепить версию
 // конкретному клиенту в его карточке, когда у него что-то сломалось.
-export function UpdatesScreen({ client, organizationsClient }: {
+export function UpdatesScreen({ client, organizationsClient, canRegisterPackages }: {
   client: UpdatesClient;
   organizationsClient: OrganizationsClient;
+  /// Раздел открыт по праву на просмотр, а регистрацию сервер спрашивает по праву на пакеты. Без
+  /// него кнопки нет: единственным ответом на неё был бы отказ.
+  canRegisterPackages: boolean;
 }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
@@ -129,7 +132,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
     <Page
       title={t('nav.platform.updates')}
       description={t('platform.updates.packages.description')}
-      actions={<Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button>}
+      actions={canRegisterPackages ? <Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button> : undefined}
     >
       {rolloutsState.status === 'error' ? (
         <ErrorState
@@ -139,7 +142,14 @@ export function UpdatesScreen({ client, organizationsClient }: {
           onRetry={rolloutsState.canRetry ? rolloutsState.retry : undefined}
         />
       ) : rolloutsState.status === 'loading' ? <LoadingCards count={1} /> : null}
-      {packages.length === 0 ? <EmptyState message={t('platform.updates.packages.empty')} /> : (
+      {packages.length === 0 ? (
+        <EmptyState
+          message={t('platform.updates.packages.empty')}
+          next={canRegisterPackages
+            ? { label: t('platform.updates.packages.registerFirst'), onClick: () => setPackageFormOpen(true) }
+            : { noPermission: t('state.empty.noPermission', { permission: t('platform.permission.updates.packages.manage') }) }}
+        />
+      ) : (
         <Table>
           <TableHeader>
             <TableRow>

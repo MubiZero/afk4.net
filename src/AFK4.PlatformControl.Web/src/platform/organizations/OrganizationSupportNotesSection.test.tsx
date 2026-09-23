@@ -34,7 +34,7 @@ it('creates a note from the draft', async () => {
     updateSupportNote: mock()
   };
   renderSection(client);
-  await screen.findByText('Заметок поддержки пока нет.');
+  await screen.findByText('Заметок пока нет. Здесь поддержка записывает то, что следующему дежурному стоит знать об организации.');
 
   fireEvent.change(screen.getByRole('textbox', { name: 'Новая заметка' }), { target: { value: 'added' } });
   fireEvent.click(screen.getByRole('button', { name: 'Добавить заметку' }));

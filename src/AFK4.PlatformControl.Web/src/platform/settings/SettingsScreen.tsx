@@ -142,7 +142,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
           />
         ) : null}
         {isEmpty ? (
-          <EmptyState message={t('platform.settings.empty')} />
+          <EmptyState message={t('platform.settings.empty')} next={{ label: t('platform.settings.inviteFirst'), onClick: () => setInviteOpen(true) }} />
         ) : hasRows ? (
           <Table>
             <TableHeader>

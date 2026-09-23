@@ -165,3 +165,35 @@ it('говорит, на какой момент данные', async () => {
 
   expect(await screen.findByText(/Данные на /u)).toBeTruthy();
 });
+
+// Первый вход в пустую платформу открывает вид «Сейчас», и там было «Нет сетей с активными
+// сигналами» — неправда: вид ничего не отсеивает, он пуст, только когда организаций нет вовсе.
+// Человек не знал, что дальше. Теперь следующий шаг назван, и ровно тем, у кого он есть.
+it('пустая платформа зовёт завести первую организацию', async () => {
+  const onCreateOrganization = mock();
+  setup({ onCreateOrganization });
+
+  expect(await screen.findByText('Организаций пока нет. Заведите первую — здесь появятся её клубы и их сигналы.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Завести первую организацию' }));
+
+  expect(onCreateOrganization).toHaveBeenCalledTimes(1);
+});
+
+it('без права заводить говорит, у кого оно есть, и кнопки не рисует', async () => {
+  setup({ view: 'all' });
+
+  expect(await screen.findByText('Это может сотрудник платформы с правом «Заводить новые клубы».')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Завести первую организацию' })).toBeNull();
+});
+
+// Нет должников — хорошая новость, и кнопке здесь делать нечего.
+it('пустой вид долгов говорит, что всё в порядке, без кнопки', async () => {
+  const getPulse = mock().mockResolvedValue({
+    generatedAtUtc: '2026-08-03T00:00:00Z',
+    organizations: [org({ organizationId: 'o1', name: 'Arena' })]
+  });
+  setup({ client: client({ getPulse }), view: 'debt', onCreateOrganization: mock() });
+
+  expect(await screen.findByText('Долгов нет — все организации расплатились. Организация с долгом появится здесь.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Завести первую организацию' })).toBeNull();
+});
