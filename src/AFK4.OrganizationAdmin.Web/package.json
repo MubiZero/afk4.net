@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "tsc -b && vite build",
-    "test": "bun test --timeout 20000 $(find src -name '*.test.ts' -o -name '*.test.tsx' | grep -v App.test | grep -v support/supportShell.test) && bun test --timeout 20000 src/App.test.tsx src/support/supportShell.test.tsx",
+    "test": "bun test --timeout 20000 --path-ignore-patterns='src/App.test.tsx' --path-ignore-patterns='src/support/supportShell.test.tsx' && bun test --timeout 20000 src/App.test.tsx src/support/supportShell.test.tsx",
     "preview": "vite preview --host 127.0.0.1 --port 4174"
   },
   "dependencies": {

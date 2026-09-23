@@ -11,9 +11,10 @@ public sealed record BranchSearchScope(
     bool Seats,
     bool Players,
     bool Reservations,
-    bool Receipts)
+    bool Receipts,
+    bool Orders)
 {
-    public bool Nothing => !Seats && !Players && !Reservations && !Receipts;
+    public bool Nothing => !Seats && !Players && !Reservations && !Receipts && !Orders;
 }
 
 public interface IBranchSearchService

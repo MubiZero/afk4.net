@@ -2,6 +2,7 @@ import { useI18n } from '@afk4/i18n';
 import type { PlayerPackageDto } from '../operatorApiClients';
 import { EmptyState } from '../operatorPrimitives';
 import { projectPlayerPackage } from './playersModel';
+import { DeferredSkeleton, SkeletonLine } from '../LoadingSkeleton';
 
 export function PackagesSection({ packages, loading, errorDetail, canSellPackage = false, onSellPackage }: {
   packages: PlayerPackageDto[];
@@ -11,7 +12,16 @@ export function PackagesSection({ packages, loading, errorDetail, canSellPackage
   onSellPackage?: () => void;
 }) {
   const { t, locale } = useI18n();
-  if (loading) return <section><strong>{t('op.players.profile.packagesLabel')}</strong><p>{t('state.loading')}</p></section>;
+  // Заголовок от ответа не зависит и стоит сразу; на месте пакетов — пакет той же разметки. Название,
+  // минуты и срок идут одной строкой текста, и в ширину карточки она переносится на вторую.
+  if (loading) {
+    return (
+      <section className="clients-packages-section">
+        <strong>{t('op.players.profile.packagesLabel')}</strong>
+        <DeferredSkeleton><article data-skeleton="list" aria-hidden="true"><SkeletonLine width="90%" /><SkeletonLine width="45%" /></article></DeferredSkeleton>
+      </section>
+    );
+  }
   if (errorDetail) return <section><strong>{t('op.players.profile.packagesLabel')}</strong><p role="alert">{errorDetail}</p></section>;
   if (packages.length === 0) {
     return (

@@ -19,6 +19,8 @@ import type {
 } from '../operatorApiClients';
 import { CashRegisterRows } from './CashTerminalFrame';
 import { CashShiftCommandBar } from './CashShiftCommandBar';
+import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
+import { useShownFor } from '../useShownFor';
 
 interface ShiftCockpitClient {
   current(branchId: string): Promise<ShiftRevenueDto | null>;
@@ -90,14 +92,12 @@ export function CashShiftWorkspace({
   const [cashRowsError, setCashRowsError] = useState<OperatorErrorProjection | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [selectedShiftId, setSelectedShiftId] = useState('');
+  const shown = useShownFor(branchId);
 
   useEffect(() => {
     if (revenueClient === null || reports === null) return undefined;
     let active = true;
-    setLoading(true);
-    setLoadError(null);
-    setHistoryError(null);
-    setCashRowsError(null);
+    if (!shown.isShown()) setLoading(true);
     // Три запроса — три панели. Без текущей смены экран не знает, открыта ли она, и не может
     // предложить ни открыть, ни закрыть: её отказ по-прежнему занимает весь экран. Прошлые смены
     // и движение наличных — справка рядом, и их отказ не должен стирать смену со сверкой.
@@ -108,14 +108,14 @@ export function CashShiftWorkspace({
     ])
       .then(([cur, hist, cash]) => {
         if (!active) return;
-        if (cur.status === 'fulfilled') setCurrent(cur.value);
+        if (cur.status === 'fulfilled') { setCurrent(cur.value); setLoadError(null); }
         else setLoadError(projectOperatorError(cur.reason, t).detail);
-        if (hist.status === 'fulfilled') setHistory(closedShifts(hist.value.shifts));
+        if (hist.status === 'fulfilled') { setHistory(closedShifts(hist.value.shifts)); setHistoryError(null); }
         else setHistoryError(projectOperatorError(hist.reason, t));
-        if (cash.status === 'fulfilled') setCashRows(cash.value.rows);
+        if (cash.status === 'fulfilled') { setCashRows(cash.value.rows); setCashRowsError(null); }
         else setCashRowsError(projectOperatorError(cash.reason, t));
       })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active) { setLoading(false); shown.markShown(); } });
     return () => { active = false; };
   }, [revenueClient, reports, branchId, shiftNonce]);
 
@@ -153,7 +153,7 @@ export function CashShiftWorkspace({
     }
   };
 
-  if (loading) return <main className="workspace-screen cash-shift-screen"><p className="workspace-loading">{t('op.shifts.loading')}</p></main>;
+  if (loading) return <DeferredSkeleton><CashShiftSkeleton /></DeferredSkeleton>;
   if (loadError) return <main className="workspace-screen cash-shift-screen"><p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p></main>;
 
   const selectedShift = history.find((shift) => shift.shiftId === selectedShiftId)
@@ -264,6 +264,72 @@ export function CashShiftWorkspace({
           {selectedShift ? <div className="cash-shift-last-closed"><span>{t('op.cash.shift.lastClosed')}</span><strong>{new Date(selectedShift.openedAtUtc).toLocaleDateString('ru-RU')}</strong><b><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></b></div> : null}
         </section>
       )}
+    </main>
+  );
+}
+
+const times = (count: number) => Array.from({ length: count }, (_, index) => index);
+
+// Открытая смена — в тех же блоках, что и настоящая: статус с командами, сверка ящика, полоса
+// выручки, движение наличных и прошлые смены. Открыта ли смена, до ответа не знает никто; в часы
+// работы клуба она почти всегда открыта, и заглушка повторяет этот случай. Подписи — полосами:
+// «Смена открыта» или «Касса» до ответа были бы утверждением, которого экран ещё не знает.
+function CashShiftSkeleton() {
+  return (
+    <main className="workspace-screen cash-shift-screen" data-skeleton="cash-shift" aria-hidden="true">
+      <section className="cash-shift-status-card">
+        <div className="cash-shift-status-block cash-shift-status-lead"><span><SkeletonLine width="7em" /></span><strong><SkeletonLine width="4.5em" /></strong></div>
+        {times(3).map((block) => (
+          <div key={block} className="cash-shift-status-block"><span><SkeletonLine width="5em" /></span><strong><SkeletonLine width="7em" /></strong></div>
+        ))}
+        <div className="cash-shift-status-actions">
+          {times(4).map((button) => <SkeletonControl key={button} width="6.5rem" />)}
+        </div>
+      </section>
+
+      <section className="cash-shift-reconcile-band">
+        {times(3).map((cell) => (
+          <div key={cell}><span><SkeletonLine width="9em" /></span><strong><SkeletonLine width="5em" /></strong><small><SkeletonLine width="14em" /></small></div>
+        ))}
+      </section>
+
+      <div className="cash-shift-main-grid">
+        <div className="cash-shift-main-column">
+          <section className="cash-shift-revenue-strip">
+            <div className="cash-shift-revenue-total"><span><SkeletonLine width="6em" /></span><strong><SkeletonLine width="5em" /></strong></div>
+            {times(5).map((cell) => (
+              <div key={cell}><span><SkeletonLine width="5em" /></span><strong><SkeletonLine width="4em" /></strong><small><SkeletonLine width="2em" /></small></div>
+            ))}
+          </section>
+
+          <section className="cash-shift-movement-ledger">
+            <header><h2><SkeletonLine width="10em" /></h2></header>
+            <div className="cash-shift-movement-head">{times(5).map((column) => <span key={column}><SkeletonLine width="4em" /></span>)}</div>
+            <ul className="cash-shift-movements">
+              {times(4).map((row) => (
+                <li key={row}><span><SkeletonLine width="3em" /></span><strong><SkeletonLine width="7em" /></strong><em><SkeletonLine width="12em" /></em><span><SkeletonLine width="7em" /></span><b><SkeletonLine width="4em" /></b></li>
+              ))}
+            </ul>
+            <footer><span><SkeletonLine width="8em" /></span><strong><SkeletonLine width="4em" /></strong></footer>
+          </section>
+        </div>
+
+        <section className="cash-shift-history-panel">
+          <header><h2><SkeletonLine width="8em" /></h2></header>
+          <div className="cash-register-rows">
+            {times(5).map((row) => (
+              <div key={row} className="cash-register-row">
+                <div className="cash-shift-history-row">
+                  <span><SkeletonLine width="5.5em" /></span>
+                  <span><small><SkeletonLine width="4em" /></small><strong><SkeletonLine width="5em" /></strong></span>
+                  <span><small><SkeletonLine width="5em" /></small><strong><SkeletonLine width="4em" /></strong></span>
+                  <span />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

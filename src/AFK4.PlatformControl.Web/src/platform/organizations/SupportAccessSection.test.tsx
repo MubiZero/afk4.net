@@ -81,7 +81,7 @@ it('обрывает доступ и обновляет список', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отзыв' }));
 
   await waitFor(() => expect(revokeGrant).toHaveBeenCalledWith('g1'));
-  await screen.findByText('Сейчас в этот клуб никто не допущен.');
+  await screen.findByText('Сейчас в эту организацию никто не допущен.');
 });
 
 // Сбой загрузки и «никого нет» — разные ответы. Показать первое как второе значит уверенно
@@ -94,5 +94,5 @@ it('не выдаёт сбой загрузки за пустой список',
   });
 
   await screen.findByText('Не удалось загрузить список доступов.');
-  expect(screen.queryByText('Сейчас в этот клуб никто не допущен.')).toBeNull();
+  expect(screen.queryByText('Сейчас в эту организацию никто не допущен.')).toBeNull();
 });

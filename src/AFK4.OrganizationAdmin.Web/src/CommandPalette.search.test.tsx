@@ -24,6 +24,17 @@ const found = [
     occursAtUtc: '2026-09-16T10:00:00Z',
     amountMinorUnits: 4500,
     currencyCode: 'TJS'
+  },
+  {
+    kind: 'order',
+    id: 'o1',
+    title: 'PC-07',
+    subtitle: 'Фаррух Азизов',
+    occursAtUtc: '2026-09-16T11:00:00Z',
+    amountMinorUnits: 3200,
+    currencyCode: 'TJS',
+    status: 'accepted',
+    number: 'POS-20260916-0042'
   }
 ];
 const searchBranch = mock(async () => found);
@@ -47,7 +58,9 @@ const managerPerms = [
   'organization.reservations.view',
   'organization.players.view',
   'organization.receipts.view',
-  'organization.identity.branch_staff.manage'
+  'organization.identity.branch_staff.manage',
+  'organization.pos.sales.create',
+  'organization.shop.orders.serve'
 ];
 // Кассир видит кассу, но не раздел клиентов — значит, и людей в палитре искать не может.
 const cashierPerms = ['organization.pos.sales.create'];
@@ -64,6 +77,7 @@ type Handlers = {
   onOpenSeat?: (seatId: string) => void;
   onOpenReservation?: (target: { reservationId: string; startsAtUtc: string | null }) => void;
   onOpenReceipt?: (target: { receiptId: string }) => void;
+  onOpenOrder?: (target: { orderId: string }) => void;
 };
 
 function renderPalette(perms: string[], handlers: Handlers = {}) {
@@ -78,6 +92,7 @@ function renderPalette(perms: string[], handlers: Handlers = {}) {
         onOpenSeat={handlers.onOpenSeat ?? mock(() => {})}
         onOpenReservation={handlers.onOpenReservation ?? mock(() => {})}
         onOpenReceipt={handlers.onOpenReceipt ?? mock(() => {})}
+        onOpenOrder={handlers.onOpenOrder ?? mock(() => {})}
         onClose={onClose}
       />
     </I18nProvider>
@@ -163,6 +178,52 @@ describe('CommandPalette · поиск по клубу', () => {
     fireEvent.click(await screen.findByText('POS-20260916-0007'));
 
     expect(onOpenReceipt.mock.calls[0]![0]).toEqual({ receiptId: 'rc1' });
+  });
+
+  // Заказ узнают по месту, гостю и тому, где он сейчас; номер чека — чтобы было видно, что
+  // нашлось именно набранное.
+  it('находит заказ и подписывает его гостем, состоянием и номером', async () => {
+    renderPalette(managerPerms);
+    type('Фаррух');
+
+    expect(await screen.findByText('Заказы')).toBeDefined();
+    const orderRow = screen.getByText('PC-07').closest('li')!;
+    expect(orderRow.textContent).toContain('Фаррух Азизов');
+    expect(orderRow.textContent).toContain('Готовится');
+    expect(orderRow.textContent).toContain('POS-20260916-0042');
+    expect(orderRow.textContent).toContain('32');
+  });
+
+  it('выбор заказа ведёт в кассу к этому заказу', async () => {
+    const onOpenOrder = mock((_: { orderId: string }) => {});
+    const { onClose } = renderPalette(managerPerms, { onOpenOrder });
+    type('Фаррух');
+
+    fireEvent.click(await screen.findByText('PC-07'));
+
+    expect(onOpenOrder.mock.calls[0]![0]).toEqual({ orderId: 'o1' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Заказы видит тот, кому открыта лента заказов: без этого права их не ищут, даже если сервер
+  // по ошибке их вернул бы.
+  it('без права на ленту заказов заказов не показывает', async () => {
+    renderPalette(managerPerms.filter((permission) => permission !== 'organization.shop.orders.serve'));
+    type('Фаррух');
+
+    await screen.findByText('Фаррух Азизов');
+    expect(screen.queryByText('Заказы')).toBeNull();
+    expect(screen.queryByText('PC-07')).toBeNull();
+  });
+
+  // Лента заказов живёт во вкладке «Продажи»: кому она закрыта, тому найденный заказ открыть
+  // негде, а строка, ведущая в никуда, хуже её отсутствия.
+  it('без вкладки продаж заказ не ищется, даже с правом на ленту', async () => {
+    renderPalette(managerPerms.filter((permission) => permission !== 'organization.pos.sales.create'));
+    type('Фаррух');
+
+    await screen.findByText('Фаррух Азизов');
+    expect(screen.queryByText('PC-07')).toBeNull();
   });
 
   // Стрелки ходят сквозь все разделы: для того, кто набирает, это один список.

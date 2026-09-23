@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState, type JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
 import { downloadTextFile, operatorDisplayNameLabel } from '../operatorHelpers';
-import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import type { OperatorActionReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportFiguresSkeleton, ReportRangeControls, ReportRangeSkeleton } from './ReportRangeControls';
+import { ReportBody, ReportFiguresSkeleton, ReportRangeControls } from './ReportRangeControls';
 import { SkeletonTable } from '../LoadingSkeleton';
 import { todayReportRange, toReportInstantQuery, type ReportDateRange } from './reportRange';
 import { createDetailReportClients } from './reportClient';
+import { useReportData } from './useReportData';
 
 /**
  * Кто из сотрудников что делал за период.
@@ -23,20 +23,10 @@ const ACTIONS_GRID = 'minmax(160px, 1fr) minmax(200px, 1.4fr) 140px 120px 160px'
 export function OperatorActionsReport({ backend }: { backend: OperatorBackendContext | null }): JSX.Element {
   const { t, formatDate, formatNumber } = useI18n();
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
-  const [data, setData] = useState<OperatorActionReportResultDto | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState<OperatorErrorProjection | undefined>();
-
-  const load = useCallback(async () => {
-    if (!backend) { setState('error'); setError(projectOperatorError(t('op.reports.backendRequired'), t)); return; }
-    setState('loading');
-    try {
-      const clients = createDetailReportClients(backend);
-      setData(await clients.shifts.getOperatorActionReport(backend.branchId, toReportInstantQuery(range)));
-      setState('ready');
-    } catch (reason) { setError(projectOperatorError(reason, t)); setState('error'); }
-  }, [backend, range, t]);
-  useEffect(() => { void load(); }, [load]);
+  const { state, data, refreshing, error, reload } = useReportData(
+    backend ? () => createDetailReportClients(backend).shifts.getOperatorActionReport(backend.branchId, toReportInstantQuery(range)) : null,
+    [backend, range]
+  );
 
   async function exportCsv() {
     if (!backend) return;
@@ -53,17 +43,16 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
       state={state}
       skeleton={
         <>
-          <ReportRangeSkeleton exportable />
           <ReportFiguresSkeleton count={1} />
           <SkeletonTable gridTemplate={ACTIONS_GRID} />
         </>
       }
       failure={error}
-      onRetry={() => void load()}
+      onRetry={reload}
+      controls={<ReportRangeControls range={range} onChange={setRange} onRefresh={reload} onExport={() => void exportCsv()} refreshing={refreshing} />}
     >
-      <ReportRangeControls range={range} onChange={setRange} onRefresh={() => void load()} onExport={() => void exportCsv()} />
       {data ? (
-        <>
+        <ReportBody refreshing={refreshing}>
           <dl className="reports-figures">
             <div><dt>{t('op.reports.actions.total')}</dt><dd>{formatNumber(data.totalActionCount)}</dd></div>
           </dl>
@@ -83,7 +72,7 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
           {data.rows.length >= data.limit
             ? <p className="mgmt-drawer-hint">{t('op.reports.truncated', { count: data.limit })}</p>
             : null}
-        </>
+        </ReportBody>
       ) : null}
     </ManagementScreen>
   );

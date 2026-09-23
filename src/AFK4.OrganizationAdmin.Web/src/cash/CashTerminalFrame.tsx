@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
 
 export interface CashMetricItem {
   label: string;
@@ -119,5 +120,45 @@ export function CashRegisterRows<TRow>({
         );
       })}
     </div>
+  );
+}
+
+const times = (count: number) => Array.from({ length: count }, (_, index) => index);
+
+// Заглушка кассового терминала — те же блоки, что у настоящего: полоса цифр, реестр слева и
+// инспектор справа. Строка реестра у каждого экрана своя (`row`), панель поиска — если она будет у
+// настоящего. Подсказка инспектора известна до ответа (пока ничего не выбрано, она и стоит), и
+// показана настоящим текстом.
+export function CashTerminalSkeleton({ className, metrics, search = false, rows = 6, row, inspectorHint }: {
+  className: string;
+  metrics: number;
+  search?: boolean;
+  rows?: number;
+  row: ReactNode;
+  inspectorHint: string;
+}) {
+  return (
+    <section className={className} data-skeleton="cash-terminal" aria-hidden="true">
+      <section className="cash-terminal-metrics" style={{ '--cash-metric-count': metrics } as CSSProperties}>
+        {times(metrics).map((metric) => (
+          <div key={metric} className="cash-terminal-metric"><span><SkeletonLine width="7em" /></span><strong><SkeletonLine width="5em" /></strong></div>
+        ))}
+      </section>
+      <div className="cash-terminal-split">
+        <section className="cash-terminal-register">
+          {search && (
+            <div className="cash-ledger-search">
+              <span style={{ flex: 1, minWidth: 0 }}><SkeletonControl width="100%" /></span>
+              <SkeletonControl width="9rem" />
+              <SkeletonControl width="6rem" />
+            </div>
+          )}
+          <div className="cash-register-rows">
+            {times(rows).map((index) => <div key={index} className="cash-register-row">{row}</div>)}
+          </div>
+        </section>
+        <aside className="cash-terminal-inspector"><p className="cash-inspector-empty">{inspectorHint}</p></aside>
+      </div>
+    </section>
   );
 }

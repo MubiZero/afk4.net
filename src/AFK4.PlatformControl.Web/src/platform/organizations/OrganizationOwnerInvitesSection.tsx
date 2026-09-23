@@ -142,7 +142,10 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
         ) : state.status === 'loading' ? (
           <Loading><SkeletonTable columns={5} rows={2} /></Loading>
         ) : state.data.length === 0 ? (
-          <EmptyState message={t('platform.organization.invites.empty')} next="formAbove" />
+          // Без филиала форма выше кода не создаст — звать к ней значило бы обещать то, чего нет.
+          branchId === ''
+            ? <EmptyState message={t('platform.organization.invites.emptyNoBranch')} next="elsewhere" />
+            : <EmptyState message={t('platform.organization.invites.empty')} next="formAbove" />
         ) : (
           <Table>
             <TableHeader>

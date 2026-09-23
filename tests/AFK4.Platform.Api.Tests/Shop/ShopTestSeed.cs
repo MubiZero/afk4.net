@@ -72,6 +72,17 @@ internal static class ShopTestSeed
             CreatedAtUtc = DateTimeOffset.UtcNow
         });
 
+        db.Seats.Add(new SeatEntity
+        {
+            SeatId = seat,
+            OrganizationId = org,
+            BranchId = branch,
+            ZoneId = Guid.NewGuid(),
+            Name = "PC-07",
+            SortOrder = 1,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+
         db.Sessions.Add(new SessionEntity
         {
             SessionId = session,

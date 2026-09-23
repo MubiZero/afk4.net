@@ -22,14 +22,15 @@ internal static class BranchSearchEndpoints
             CancellationToken cancellationToken) =>
         {
             // Пускаем всякого, у кого есть хоть один из разделов: кассиру без карты зала поиск
-            // чека нужен ровно так же, как оператору — поиск места.
+            // чека или заказа нужен ровно так же, как оператору — поиск места.
             var authorization = await authorizationService.RequireBranchAnyPermissionAsync(
                 branchId,
                 [
                     OrganizationPermissionNames.ViewFloorMap,
                     OrganizationPermissionNames.ViewPlayers,
                     OrganizationPermissionNames.ViewReservations,
-                    OrganizationPermissionNames.ViewReceipt
+                    OrganizationPermissionNames.ViewReceipt,
+                    OrganizationPermissionNames.ServeShopOrders
                 ],
                 cancellationToken);
 
@@ -50,7 +51,10 @@ internal static class BranchSearchEndpoints
                 Seats: staffContext.HasBranchPermission(branchId, OrganizationPermissionNames.ViewFloorMap),
                 Players: staffContext.HasBranchPermission(branchId, OrganizationPermissionNames.ViewPlayers),
                 Reservations: staffContext.HasBranchPermission(branchId, OrganizationPermissionNames.ViewReservations),
-                Receipts: staffContext.HasBranchPermission(branchId, OrganizationPermissionNames.ViewReceipt));
+                Receipts: staffContext.HasBranchPermission(branchId, OrganizationPermissionNames.ViewReceipt),
+                // Заказы — ровно тем, кому открыта лента заказов на стойке: то же право, что сервер
+                // спрашивает на очередь и на «Принять/Выдать».
+                Orders: staffContext.HasBranchPermission(branchId, OrganizationPermissionNames.ServeShopOrders));
 
             var results = await searchService.SearchAsync(
                 staffContext.OrganizationId,

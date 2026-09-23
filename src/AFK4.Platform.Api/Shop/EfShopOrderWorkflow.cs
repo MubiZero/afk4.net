@@ -39,13 +39,19 @@ public sealed class EfShopOrderWorkflow(
             return new(false, "no_active_session", null);
         }
 
+        var seatName = await dbContext.Seats.AsNoTracking()
+            .Where(seat => seat.SeatId == session.SeatId)
+            .Select(seat => seat.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new(true, null, new ShopPlacementContext(
             player.OrganizationId,
             session.BranchId,
             playerAccountId,
             session.SessionId,
             session.SeatId,
-            player.DisplayName));
+            player.DisplayName,
+            seatName));
     }
 
     public Task<ShopOrderDto> CreatePlacedAsync(
@@ -86,7 +92,7 @@ public sealed class EfShopOrderWorkflow(
 
         dbContext.ShopOrders.Add(order);
         dbContext.ShopOrderLines.AddRange(lines);
-        return Task.FromResult(ShopOrderProjection.ToDto(order, lines, context.PlayerDisplayName));
+        return Task.FromResult(ShopOrderProjection.ToDto(order, lines, context.PlayerDisplayName, context.SeatName));
     }
 
     public async Task<ShopCancellationContextResult> ResolveOperatorCancellationAsync(
@@ -234,6 +240,13 @@ public sealed class EfShopOrderWorkflow(
         return await ProjectManyAsync(orders, cancellationToken);
     }
 
+    public async Task<ShopOrderDto?> GetForBranchAsync(Guid branchId, Guid orderId, CancellationToken cancellationToken)
+    {
+        var order = await dbContext.ShopOrders.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.ShopOrderId == orderId && candidate.BranchId == branchId, cancellationToken);
+        return order is null ? null : await ProjectAsync(order, cancellationToken);
+    }
+
     public Task<ShopOrderActionResult> AcceptAsync(
         Guid branchId, Guid orderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
         TransitionAsync(branchId, orderId, expectedVersion, ShopOrderStatusNames.Placed, ShopOrderStatusNames.Accepted, cancellationToken);
@@ -251,7 +264,11 @@ public sealed class EfShopOrderWorkflow(
             .Where(player => player.PlayerAccountId == order.PlayerAccountId)
             .Select(player => player.DisplayName)
             .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
-        return ShopOrderProjection.ToDto(order, lines, playerName);
+        var seatName = await dbContext.Seats.AsNoTracking()
+            .Where(seat => seat.SeatId == order.SeatId)
+            .Select(seat => seat.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+        return ShopOrderProjection.ToDto(order, lines, playerName, seatName);
     }
 
     private async Task<ShopOrderActionResult> TransitionAsync(
@@ -335,9 +352,14 @@ public sealed class EfShopOrderWorkflow(
         var names = await dbContext.PlayerAccounts.AsNoTracking()
             .Where(player => playerIds.Contains(player.PlayerAccountId))
             .ToDictionaryAsync(player => player.PlayerAccountId, player => player.DisplayName, cancellationToken);
+        var seatIds = orders.Select(order => order.SeatId).Distinct().ToList();
+        var seatNames = await dbContext.Seats.AsNoTracking()
+            .Where(seat => seatIds.Contains(seat.SeatId))
+            .ToDictionaryAsync(seat => seat.SeatId, seat => seat.Name, cancellationToken);
         return orders.Select(order => ShopOrderProjection.ToDto(
             order,
             linesByOrder.GetValueOrDefault(order.ShopOrderId, []),
-            names.GetValueOrDefault(order.PlayerAccountId, string.Empty))).ToList();
+            names.GetValueOrDefault(order.PlayerAccountId, string.Empty),
+            seatNames.GetValueOrDefault(order.SeatId))).ToList();
     }
 }

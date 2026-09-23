@@ -22,7 +22,7 @@ const session = { permissions: ['organization.inventory.view'], organizationId: 
 const view = () => render(<I18nProvider initialLocale="ru"><JournalWorkspace backend={backend} currencyCode="TJS" session={session} /></I18nProvider>);
 
 afterEach(() => { getCatalog.mockClear(); getStockMovements.mockClear(); cleanup(); });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../operatorHelpers', () => actual); });
 
 describe('JournalWorkspace', () => {
   it('показывает движения с резолвом имени товара, типом и автором', async () => {

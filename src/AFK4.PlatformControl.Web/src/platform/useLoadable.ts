@@ -39,7 +39,16 @@ export function useLoadable<T>(
 ): Loadable<T> {
   const { t } = useI18n();
   const [tick, setTick] = useState(0);
-  const quiet = useRef(false);
+  // Какие перезапуски идут тихо — отметка у каждого своя. Общий флаг гасило первое же
+  // обновление: когда два срабатывания таймера шли подряд раньше эффекта (занятый поток,
+  // проснувшаяся вкладка), второе видело флаг уже снятым и накрывало данные скелетоном.
+  const lastTick = useRef(0);
+  const quietTicks = useRef(new Set<number>());
+  const nextTick = useCallback((quiet: boolean) => {
+    const next = ++lastTick.current;
+    if (quiet) quietTicks.current.add(next);
+    setTick(next);
+  }, []);
   const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: T; message?: string; canRetry?: boolean }>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const statusRef = useRef(state.status);
@@ -48,10 +57,7 @@ export function useLoadable<T>(
   // успешного действия («Отметить оплаченным», «Снять отключение»), и подмена содержимого
   // скелетоном на полсекунды читается как сбой: человек нажал — и всё, что он читал, исчезло.
   // Скелетон остаётся там, где показывать нечего: первая загрузка и повтор после ошибки.
-  const retry = useCallback(() => {
-    quiet.current = statusRef.current === 'ready';
-    setTick(value => value + 1);
-  }, []);
+  const retry = useCallback(() => nextTick(statusRef.current === 'ready'), [nextTick]);
   const apply = useCallback((next: T) => setState({ status: 'ready', data: next }), []);
   // Запрос пересобирается на каждой отрисовке вместе с замыканием на клиента и параметры, но
   // перезапускать его из-за этого нельзя — иначе раздел грузился бы бесконечно.
@@ -65,16 +71,17 @@ export function useLoadable<T>(
       // Скрытая вкладка ничего не показывает, а запросы шлёт: браузер оставляет её открытой
       // сутками, и все эти сутки панель опрашивала бы сервер впустую.
       if (typeof document !== 'undefined' && document.hidden) return;
-      quiet.current = true;
-      setTick(value => value + 1);
+      nextTick(true);
     }, refreshMs);
     return () => clearInterval(timer);
-  }, [refreshMs]);
+  }, [refreshMs, nextTick]);
 
   useEffect(() => {
     let cancelled = false;
-    if (quiet.current) {
-      quiet.current = false;
+    const quiet = quietTicks.current.has(tick);
+    // Отметки до этого перезапуска уже не нужны: React мог свести несколько в одну отрисовку.
+    for (const past of quietTicks.current) if (past <= tick) quietTicks.current.delete(past);
+    if (quiet) {
       setRefreshing(true);
     } else {
       setState({ status: 'loading' });

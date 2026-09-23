@@ -93,9 +93,7 @@ public sealed class OrganizationAdminReportService(
         Guid organizationId, Guid branchId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken)
     {
         var period = await ResolvePeriodAsync(organizationId, branchId, fromDate, toDate, cancellationToken);
-        var dayCount = toDate.DayNumber - fromDate.DayNumber + 1;
-        var previousTo = fromDate.AddDays(-1);
-        var previousFrom = previousTo.AddDays(-(dayCount - 1));
+        var (previousFrom, previousTo) = OrganizationAdminReportPeriod.PreviousOf(fromDate, toDate);
         var previousPeriod = await ResolvePeriodAsync(organizationId, branchId, previousFrom, previousTo, cancellationToken);
         var currentQuery = Query(period);
         var previousQuery = Query(previousPeriod);

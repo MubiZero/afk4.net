@@ -11,7 +11,17 @@ const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const BRANCH = 'acfc0212-967f-4d84-94be-9003387b09c2';
 const FAR_FUTURE = '2099-01-01T00:00:00Z';
 
-export function createMockSession(): Record<string, unknown> {
+// `?nobranch` в адресе превью — вход сотрудника без единого назначения в филиал, чтобы глазами
+// посмотреть экран «Нет активного филиала». «Проверить снова» тоже вернёт такую сессию.
+const PREVIEW_WITHOUT_BRANCH = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nobranch');
+
+export function createMockSession({ withoutBranch = false }: { withoutBranch?: boolean } = {}): Record<string, unknown> {
+  if (withoutBranch) {
+    // Сервер строит и филиалы, и права из назначений ролей (OpaqueStaffTokenService): нет
+    // назначений — пусто и то, и другое.
+    const { activeBranchId: _, ...session } = createMockSession();
+    return { ...session, branchIds: [], roleNames: [], permissions: [] };
+  }
   return {
     staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     organizationId: ORG,
@@ -274,14 +284,15 @@ function previewAudit(searchParams: URLSearchParams) {
 }
 
 // Очередь заказов из Player Shell (Заказы): игрок оформляет с места, касса лишь меняет статус.
-// placed → ждёт принятия; accepted → ждёт выдачи. seatId показывается как есть (читаемое имя места).
+// placed → ждёт принятия; accepted → ждёт выдачи. seatId — идентификатор места с карты зала,
+// на чипе показывается seatName, как с настоящего сервера.
 function shopOrders() {
   const line = (productId: string, name: string, unitMinor: number, quantity: number) =>
     ({ productId, name, unitPrice: money(unitMinor), quantity, lineTotal: money(unitMinor * quantity) });
   return [
-    { id: 'so-1', branchId: BRANCH, seatId: 'PC-01', playerAccountId: 'pl-2', playerDisplayName: 'Амир Каримов', status: 'placed', total: money(8600), lines: [line('prod-hotdog', 'Хот-дог', 2800, 1), line('prod-cola', 'Cola 0.5', 1200, 1), line('prod-chips', 'Чипсы Lays', 1400, 2), line('prod-energy', 'Энергетик Red Bull', 1800, 1)], placedAtUtc: minutesAgoUtc(5), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 },
-    { id: 'so-2', branchId: BRANCH, seatId: 'PC-09', playerAccountId: 'pl-4', playerDisplayName: 'Юсуф Ахмедов', status: 'accepted', total: money(1200), lines: [line('prod-cola', 'Cola 0.5', 1200, 1)], placedAtUtc: minutesAgoUtc(15), acceptedAtUtc: minutesAgoUtc(10), deliveredAtUtc: null, cancelledAtUtc: null, version: 2 },
-    { id: 'so-3', branchId: BRANCH, seatId: 'VIP-01', playerAccountId: 'pl-3', playerDisplayName: 'Мадина Саидова', status: 'placed', total: money(3600), lines: [line('prod-energy', 'Энергетик Red Bull', 1800, 2)], placedAtUtc: minutesAgoUtc(2), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 }
+    { id: 'so-1', branchId: BRANCH, seatId: 'a1', seatName: 'PC-01', playerAccountId: 'pl-2', playerDisplayName: 'Амир Каримов', status: 'placed', total: money(8600), lines: [line('prod-hotdog', 'Хот-дог', 2800, 1), line('prod-cola', 'Cola 0.5', 1200, 1), line('prod-chips', 'Чипсы Lays', 1400, 2), line('prod-energy', 'Энергетик Red Bull', 1800, 1)], placedAtUtc: minutesAgoUtc(5), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 },
+    { id: 'so-2', branchId: BRANCH, seatId: 'c3', seatName: 'PC-09', playerAccountId: 'pl-4', playerDisplayName: 'Юсуф Ахмедов', status: 'accepted', total: money(1200), lines: [line('prod-cola', 'Cola 0.5', 1200, 1)], placedAtUtc: minutesAgoUtc(15), acceptedAtUtc: minutesAgoUtc(10), deliveredAtUtc: null, cancelledAtUtc: null, version: 2 },
+    { id: 'so-3', branchId: BRANCH, seatId: 'b1', seatName: 'VIP-01', playerAccountId: 'pl-3', playerDisplayName: 'Мадина Саидова', status: 'placed', total: money(3600), lines: [line('prod-energy', 'Энергетик Red Bull', 1800, 2)], placedAtUtc: minutesAgoUtc(2), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 }
   ];
 }
 
@@ -536,9 +547,9 @@ function eskhataConfig(): Record<string, unknown> {
 function route(pathname: string, method: string): unknown | undefined {
   // Preview sign-in: any credentials succeed (no real backend behind the mock), mirroring what the
   // dev host-bridge stub used to fake over the WebView2 auth bridge before auth moved to plain HTTP.
-  if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession();
-  if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession();
-  if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession();
+  if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
+  if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
+  if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
@@ -560,6 +571,8 @@ function route(pathname: string, method: string): unknown | undefined {
     return posSales().map((sale) => sale.latestReceipt).find((receipt) => receipt.receiptId === receiptMatch[1]) ?? {};
   }
   if (pathname.endsWith('/shop/orders') && method === 'GET') return shopOrders();
+  const shopOrderMatch = pathname.match(/\/shop\/orders\/([^/]+)$/);
+  if (shopOrderMatch && method === 'GET') return shopOrders().find((order) => order.id === shopOrderMatch[1]) ?? {};
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
   if (pathname.endsWith('/pos/categories')) return posCategories();
   if (pathname.endsWith('/booking-settings') && method === 'GET') return previewBookingSettings;

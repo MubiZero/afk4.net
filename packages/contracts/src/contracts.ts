@@ -287,6 +287,14 @@ export interface BranchProfileDto {
  * К какому моменту относится находка: начало брони, дата чека. Сырое время, а не готовая
  * подпись, — язык и часовой пояс знает клиент, а не сервер.
  * </param>
+ * <param name="Status">
+ * Где находка сейчас, если у неё есть ход жизни: у заказа — новый, готовится, выдан или отменён.
+ * Код, а не подпись: подпись на своём языке ставит клиент.
+ * </param>
+ * <param name="Number">
+ * Номер, по которому её называют, когда он не в заголовке: у заказа — номер его чека. По нему
+ * человек и узнаёт, что нашлось именно то, что он набирал.
+ * </param>
  *
  * Контракт: Operator/BranchSearchResultDto.cs
  */
@@ -298,6 +306,8 @@ export interface BranchSearchResultDto {
   occursAtUtc?: IsoDateTime | null;
   amountMinorUnits?: number | null;
   currencyCode?: string | null;
+  status?: string | null;
+  number?: string | null;
 }
 
 /** Контракт: Branches/BranchSettingsDto.cs */
@@ -4609,6 +4619,11 @@ export interface ShopOrderDto {
   cancelledAtUtc: IsoDateTime | null;
   version: number;
   posSaleId?: Guid | null;
+  /**
+   * Имя места на стене — «PC-12»: туда и несут заказ. Без него лента на стойке могла показать
+   * только идентификатор места, который вслух никто не произносит.
+   */
+  seatName?: string | null;
 }
 
 /**

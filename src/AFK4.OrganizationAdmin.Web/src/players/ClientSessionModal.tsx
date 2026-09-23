@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PanelModal } from '../PanelModal';
-import { SessionStartForm, createSessionStartSelection, type SessionStartSelection } from '../session/SessionStartForm';
+import { SessionStartForm, SessionStartSkeleton, createSessionStartSelection, type SessionStartSelection } from '../session/SessionStartForm';
+import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
 import { createAuthenticatedOperatorClients, createIdempotencyKey } from '../operatorHelpers';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { projectOperatorError } from '../apiErrors';
 import type { PlayerClientItem } from '../operatorHelpers';
 import type { OperatorBackendContext } from '../operatorTypes';
+import { isSeatReadyForGuest } from '../floorMapState';
 
 interface FreeSeat {
   seatId: string;
@@ -44,7 +46,7 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
         if (!active) return;
         // Свободные места и без активной сессии — те же, что на Карте предлагают под запуск.
         const free = map.seats
-          .filter((seat) => seat.activeSessionId === null && (seat.state === 'free' || seat.state === 'ready'))
+          .filter(isSeatReadyForGuest)
           .map((seat) => ({ seatId: seat.seatId, seatName: seat.seatName, zoneName: seat.zoneName }));
         setSeats(free);
         setSeatId(free[0]?.seatId ?? '');
@@ -99,7 +101,17 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
       closeDisabled={busy}
     >
       {seats === null ? (
-        <p>{t('state.loading')}</p>
+        <DeferredSkeleton>
+          {/* Та же форма, что придёт: место, форма запуска и две кнопки внизу. */}
+          <div className="clients-new-form" data-skeleton="form" aria-hidden="true">
+            <label>{t('op.players.session.seatLabel')}</label>
+            <SkeletonControl size="sm" />
+            <SessionStartSkeleton />
+            <div className="critical-confirmation-actions">
+              {[0, 1].map((button) => <button key={button} type="button" tabIndex={-1}><SkeletonLine width="6em" /></button>)}
+            </div>
+          </div>
+        </DeferredSkeleton>
       ) : seats.length === 0 ? (
         <p>{error ?? t('op.players.session.noFreeSeats')}</p>
       ) : (

@@ -7,6 +7,12 @@
 .reports-range { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
 .reports-range label { display: grid; gap: 5px; color: var(--text-tertiary); font-size: 12px; font-weight: 700; }
 .reports-range input { min-height: 36px; padding: 0 10px; border: 1px solid var(--border-soft); border-radius: 8px; color: var(--text-primary); background: var(--surface-sunken); color-scheme: light dark; }
+/* Запрос за новый период поверх показанных данных: панель говорит, что идёт обновление, а прошлые
+   цифры остаются на месте приглушёнными — они уже не за те даты, что в полях. Тело — колонка с тем
+   же зазором, что у .management-content, чтобы обёртка не меняла расстояний между блоками. */
+.reports-refreshing { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; color: var(--text-tertiary); font-size: 12px; }
+.reports-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; transition: opacity 120ms ease; }
+.reports-body[data-refreshing] { opacity: 0.55; }
 .reports-summary { display: grid; gap: 20px; }
 .reports-day-state { padding: 22px 24px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface-elevated); }
 .reports-day-state.ok h2 { color: var(--success-text); }

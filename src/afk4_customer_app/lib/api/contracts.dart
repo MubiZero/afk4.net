@@ -799,6 +799,14 @@ class BranchProfileDto {
 /// К какому моменту относится находка: начало брони, дата чека. Сырое время, а не готовая
 /// подпись, — язык и часовой пояс знает клиент, а не сервер.
 /// </param>
+/// <param name="Status">
+/// Где находка сейчас, если у неё есть ход жизни: у заказа — новый, готовится, выдан или отменён.
+/// Код, а не подпись: подпись на своём языке ставит клиент.
+/// </param>
+/// <param name="Number">
+/// Номер, по которому её называют, когда он не в заголовке: у заказа — номер его чека. По нему
+/// человек и узнаёт, что нашлось именно то, что он набирал.
+/// </param>
 ///
 /// Контракт: Operator/BranchSearchResultDto.cs
 class BranchSearchResultDto {
@@ -810,6 +818,8 @@ class BranchSearchResultDto {
     this.occursAtUtc,
     this.amountMinorUnits,
     this.currencyCode,
+    this.status,
+    this.number,
   });
 
   final String kind;
@@ -819,6 +829,8 @@ class BranchSearchResultDto {
   final DateTime? occursAtUtc;
   final int? amountMinorUnits;
   final String? currencyCode;
+  final String? status;
+  final String? number;
 
   factory BranchSearchResultDto.fromJson(Map<String, dynamic> json) => BranchSearchResultDto(
         kind: json['kind'] as String,
@@ -828,6 +840,8 @@ class BranchSearchResultDto {
         occursAtUtc: json['occursAtUtc'] == null ? null : DateTime.parse(json['occursAtUtc'] as String),
         amountMinorUnits: json['amountMinorUnits'] == null ? null : (json['amountMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] == null ? null : json['currencyCode'] as String,
+        status: json['status'] == null ? null : json['status'] as String,
+        number: json['number'] == null ? null : json['number'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -838,6 +852,8 @@ class BranchSearchResultDto {
         'occursAtUtc': occursAtUtc?.toIso8601String(),
         'amountMinorUnits': amountMinorUnits,
         'currencyCode': currencyCode,
+        'status': status,
+        'number': number,
       };
 }
 
@@ -13861,6 +13877,7 @@ class ShopOrderDto {
     this.cancelledAtUtc,
     required this.version,
     this.posSaleId,
+    this.seatName,
   });
 
   final String id;
@@ -13884,6 +13901,10 @@ class ShopOrderDto {
   final int version;
   final String? posSaleId;
 
+  /// Имя места на стене — «PC-12»: туда и несут заказ. Без него лента на стойке могла показать
+  /// только идентификатор места, который вслух никто не произносит.
+  final String? seatName;
+
   factory ShopOrderDto.fromJson(Map<String, dynamic> json) => ShopOrderDto(
         id: json['id'] as String,
         branchId: json['branchId'] as String,
@@ -13899,6 +13920,7 @@ class ShopOrderDto {
         cancelledAtUtc: json['cancelledAtUtc'] == null ? null : DateTime.parse(json['cancelledAtUtc'] as String),
         version: (json['version'] as num).toInt(),
         posSaleId: json['posSaleId'] == null ? null : json['posSaleId'] as String,
+        seatName: json['seatName'] == null ? null : json['seatName'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -13916,6 +13938,7 @@ class ShopOrderDto {
         'cancelledAtUtc': cancelledAtUtc?.toIso8601String(),
         'version': version,
         'posSaleId': posSaleId,
+        'seatName': seatName,
       };
 }
 

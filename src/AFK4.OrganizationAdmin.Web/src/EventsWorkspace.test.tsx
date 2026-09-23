@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { EventsWorkspace } from './EventsWorkspace';
+import { PlatformApiError } from './platformApi';
 import type {
   CreateTournamentRequest,
   TournamentDto,
@@ -91,6 +92,29 @@ function renderWorkspace(c: ReturnType<typeof client>, canManage?: boolean) {
 
 describe('EventsWorkspace', () => {
   afterEach(() => cleanup());
+
+  // Отказ списка раньше никто не ловил: экран стоял в ожидании навсегда.
+  it('при отказе списка называет причину и повторяет запрос', async () => {
+    const c = client([event()]);
+    let calls = 0;
+    const list = c.list;
+    c.list = async () => {
+      calls += 1;
+      if (calls === 1) throw new PlatformApiError('boom', 500, 'Server Error', '');
+      return list();
+    };
+    renderWorkspace(c, true);
+    fireEvent.click(await screen.findByRole('button', { name: 'Повторить' }));
+    expect(await screen.findByText('Ночь Counter-Strike')).toBeTruthy();
+  });
+
+  it('при отказе по правам не предлагает повтор', async () => {
+    const c = client();
+    c.list = async () => { throw new PlatformApiError('no', 403, 'Forbidden', ''); };
+    renderWorkspace(c, true);
+    await screen.findByText('Не удалось загрузить');
+    expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull();
+  });
 
   it('заводит событие через дровер', async () => {
     const c = client();

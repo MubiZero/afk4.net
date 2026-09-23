@@ -8,6 +8,10 @@ import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
+import { DeferredSkeleton, SkeletonTable } from './LoadingSkeleton';
+
+// Колонки списка — одни на таблицу и её заглушку.
+const NEWS_GRID = '1.6fr 1fr 0.8fr 1.2fr';
 
 interface NewsClient {
   list(): Promise<NewsItemDto[]>;
@@ -171,7 +175,13 @@ export function NewsWorkspace({
   };
 
   if (!ready) {
-    return <p className="workspace-loading">{t('state.loading')}</p>;
+    return (
+      <DeferredSkeleton>
+        <div className="mgmt-master-detail">
+          <SkeletonTable gridTemplate={NEWS_GRID} toolbar={{ action: canManage }} />
+        </div>
+      </DeferredSkeleton>
+    );
   }
 
   if (listError !== null) {
@@ -216,7 +226,7 @@ export function NewsWorkspace({
         ]}
         rows={items}
         rowKey={(n) => n.id}
-        gridTemplate="1.6fr 1fr 0.8fr 1.2fr"
+        gridTemplate={NEWS_GRID}
         selectedKey={isCreate ? null : selectedId}
         onSelectRow={(n) => edit(n)}
         toolbar={{

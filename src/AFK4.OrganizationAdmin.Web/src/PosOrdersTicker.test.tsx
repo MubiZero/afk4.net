@@ -6,9 +6,11 @@ import { ToastProvider } from './operatorToast';
 // bun's mock.module is not hoisted above static imports, so register it before
 // importing the component under test.
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
+// Идентификатор места — guid, как с настоящего сервера: вслух место зовут по имени, и лента
+// должна показывать имя, а не идентификатор.
 const listQueue = mock(async () => ([
   {
-    id: 'o1', branchId: 'b1', seatId: 'PC-01', playerAccountId: 'pl', playerDisplayName: 'Alex',
+    id: 'o1', branchId: 'b1', seatId: '9c1f5e0a-seat-guid', seatName: 'PC-01', playerAccountId: 'pl', playerDisplayName: 'Alex',
     status: 'placed', total: m(8500),
     // 3 позиции: чип покажет «3 поз · 85 с.», сами товары — только в поповере.
     lines: [
@@ -22,11 +24,22 @@ const listQueue = mock(async () => ([
 const accept = mock(async () => ({ id: 'o1', status: 'accepted', version: 2 }));
 const deliver = mock(async () => ({}));
 const cancel = mock(async () => ({}));
+// Выданный заказ из палитры: в ленте его уже нет, он грузится по идентификатору.
+const deliveredOrder = {
+  id: 'o9', branchId: 'b1', seatId: 'b7d2-seat-guid', seatName: 'VIP-03', playerAccountId: 'pl', playerDisplayName: 'Alex',
+  status: 'delivered', total: m(1200),
+  lines: [{ productId: 'p1', name: 'Cola 0.5', unitPrice: m(1200), quantity: 1, lineTotal: m(1200) }],
+  placedAtUtc: '2026-06-24T08:00:00Z', acceptedAtUtc: '2026-06-24T08:02:00Z', deliveredAtUtc: '2026-06-24T08:10:00Z', cancelledAtUtc: null, version: 3
+};
+const get = mock(async (_branchId: string, orderId: string) => {
+  if (orderId === 'o9') return deliveredOrder;
+  return (await listQueue())[0];
+});
 
 const actualHelpers = await import('./operatorHelpers');
 mock.module('./operatorHelpers', () => ({
   ...actualHelpers,
-  createAuthenticatedOperatorClients: () => ({ shopOrders: { listQueue, accept, deliver, cancel } })
+  createAuthenticatedOperatorClients: () => ({ shopOrders: { listQueue, get, accept, deliver, cancel } })
 }));
 
 const actualRealtime = await import('./operatorRealtime');
@@ -57,8 +70,8 @@ const backend = {
   branchId: 'b1'
 };
 
-function renderTicker(b: unknown = backend) {
-  render(<I18nProvider><ToastProvider><PosOrdersTicker backend={b as never} canCancel /></ToastProvider></I18nProvider>);
+function renderTicker(b: unknown = backend, openOrder: { orderId: string } | null = null) {
+  render(<I18nProvider><ToastProvider><PosOrdersTicker backend={b as never} canCancel openOrder={openOrder} /></ToastProvider></I18nProvider>);
 }
 
 describe('PosOrdersTicker', () => {
@@ -150,5 +163,33 @@ describe('PosOrdersTicker', () => {
     expect(within(dialog).getByText('Cola 0.5')).toBeInTheDocument();
     expect(within(dialog).getByText('Хот-дог')).toBeInTheDocument();
     expect(within(dialog).getByText('Чипсы Lays')).toBeInTheDocument();
+  });
+
+  it('на чипе — имя места, а не его идентификатор', async () => {
+    renderTicker();
+    expect(await screen.findByText('PC-01')).toBeInTheDocument();
+    expect(screen.queryByText('9c1f5e0a-seat-guid')).toBeNull();
+  });
+
+  // Палитра открывает сам заказ, а не просто раздел: поповер с составом и действиями.
+  it('заказ из палитры открывается сразу, с составом и действиями', async () => {
+    renderTicker(backend, { orderId: 'o1' });
+
+    const dialog = await screen.findByRole('dialog');
+    expect(get).toHaveBeenCalledWith('b1', 'o1');
+    expect(within(dialog).getByText('PC-01')).toBeInTheDocument();
+    expect(within(dialog).getByText('Хот-дог')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /принять|accept/i })).toBeInTheDocument();
+  });
+
+  // С выданным заказом приходят спорить: он открывается, но выдать или отменить его уже нельзя.
+  it('выданный заказ из палитры открывается без действий', async () => {
+    renderTicker(backend, { orderId: 'o9' });
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('VIP-03')).toBeInTheDocument();
+    expect(within(dialog).getByText('Выдан')).toBeInTheDocument();
+    expect(within(dialog).getByText('Cola 0.5')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /принять|выдать|отменить/i })).toBeNull();
   });
 });

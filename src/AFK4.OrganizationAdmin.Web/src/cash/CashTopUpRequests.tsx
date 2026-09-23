@@ -5,6 +5,8 @@ import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors
 import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorTopUpIntentDto } from '../operatorApiClients';
+import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
+import { useShownFor } from '../useShownFor';
 
 interface TopUpQueueClient {
   listPending(branchId: string): Promise<OperatorTopUpIntentDto[]>;
@@ -50,16 +52,16 @@ export function CashTopUpRequests({
   const [loadError, setLoadError] = useState<OperatorErrorProjection | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const shown = useShownFor(branchId);
 
   useEffect(() => {
     if (client === null) return undefined;
     let active = true;
-    setLoading(true);
-    setLoadError(null);
+    if (!shown.isShown()) setLoading(true);
     client.listPending(branchId)
-      .then((rows) => { if (active) setRequests(rows); })
+      .then((rows) => { if (active) { setRequests(rows); setLoadError(null); } })
       .catch((error) => { if (active) setLoadError(projectOperatorError(error, t)); })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active) { setLoading(false); shown.markShown(); } });
     return () => { active = false; };
   }, [client, branchId, reloadNonce]);
 
@@ -85,7 +87,7 @@ export function CashTopUpRequests({
     }
   };
 
-  if (loading) return <p className="workspace-loading">{t('op.cash.topups.loading')}</p>;
+  if (loading) return <DeferredSkeleton><TopUpQueueSkeleton /></DeferredSkeleton>;
   if (loadError !== null) {
     return (
       <section className="cash-ledger-failure">
@@ -138,6 +140,22 @@ export function CashTopUpRequests({
           </article>
         );
       })}
+    </section>
+  );
+}
+
+// Очередь заявок — теми же строками ленты: время, кто и откуда, сумма и кнопка приёма.
+function TopUpQueueSkeleton() {
+  return (
+    <section className="cash-topups" data-skeleton="list" aria-hidden="true">
+      {Array.from({ length: 3 }, (_, row) => (
+        <article key={row} className="ui-ledger-row cash-topup-row">
+          <span className="ui-ledger-time"><SkeletonLine width="3em" /></span>
+          <div className="ui-ledger-body"><span className="ui-ledger-title"><SkeletonLine width="8em" /></span><span className="ui-ledger-detail"><SkeletonLine width="11em" /></span></div>
+          <span className="ui-ledger-aside"><SkeletonLine width="4em" /></span>
+          <SkeletonControl width="8rem" size="sm" />
+        </article>
+      ))}
     </section>
   );
 }

@@ -18,6 +18,14 @@ public sealed class OrganizationAdminReportPeriodTests
     }
 
     [Fact]
+    public void PreviousOf_IsTheSameNumberOfDaysRightBefore()
+    {
+        Assert.Equal(
+            (new DateOnly(2026, 6, 28), new DateOnly(2026, 6, 30)),
+            OrganizationAdminReportPeriod.PreviousOf(new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 3)));
+    }
+
+    [Fact]
     public void Resolve_RejectsAnInvertedRange()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => OrganizationAdminReportPeriod.Resolve(

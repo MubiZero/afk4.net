@@ -17,7 +17,8 @@ export function CashWorkspace({
   backend,
   currencyCode,
   session,
-  openReceipt
+  openReceipt,
+  openOrder
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
@@ -25,6 +26,8 @@ export function CashWorkspace({
   // Чек из командной палитры: касса открывается сразу на журнале, а не на той вкладке, где её
   // оставили в прошлый раз.
   openReceipt?: { receiptId: string } | null;
+  // Заказ бара из палитры: лента заказов живёт в «Продажах», касса открывается там.
+  openOrder?: { orderId: string } | null;
 }) {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<CashTab>(() => visibleCashTabs(session)[0] ?? 'sales');
@@ -40,6 +43,13 @@ export function CashWorkspace({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openReceipt?.receiptId]);
+
+  useEffect(() => {
+    if (openOrder && visible.has('sales')) {
+      setActiveTab('sales');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOrder]);
   const allTabs: { id: CashTab; label: string }[] = [
     { id: 'sales', label: t('op.cash.sales.tab') },
     { id: 'shift', label: t('op.cash.tab.shift') },
@@ -59,7 +69,9 @@ export function CashWorkspace({
       />}
       <CashTabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} label={t('op.shell.navGroup.cashier')} />
       <div className="cash-tab-content">
-        {activeTab === 'sales' && <CashSalesWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
+        {activeTab === 'sales' && (
+          <CashSalesWorkspace backend={backend} currencyCode={currencyCode} session={session} openOrder={openOrder} />
+        )}
         {activeTab === 'shift' && backend !== null && (
           <CashShiftWorkspace backend={backend} branchId={backend.branchId} currencyCode={currencyCode} session={session} shiftNonce={shiftNonce} onShiftChanged={() => setShiftNonce((n) => n + 1)} />
         )}

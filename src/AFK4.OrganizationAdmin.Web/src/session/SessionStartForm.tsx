@@ -17,6 +17,7 @@ import { ClientPicker } from '../booking/ClientPicker';
 import { PanelSelect } from '../PanelSelect';
 import { projectOperatorError } from '../apiErrors';
 import { PlatformApiError } from '../platformApi';
+import { SkeletonLine } from '../LoadingSkeleton';
 
 const START_DURATIONS = [30, 60, 120, 180] as const;
 
@@ -318,4 +319,31 @@ function safeReferenceLoadError(error: unknown, t: Parameters<typeof projectOper
   return error instanceof PlatformApiError && projected.detail !== error.message
     ? projected.detail
     : t('op.error.actionFailed.noDetail');
+}
+
+// Форма запуска, пока ей не во что встать (места ещё в пути): те же группы для клиента клуба —
+// кто играет, как платит, тариф, время, «за счёт клуба» и итог. Заголовки групп от ответа не
+// зависят и стоят настоящим текстом; кнопки выбора — полосами в своих рамках. Строки, которые
+// появляются по данным (покрытие баланса, цена, почему закрыт открытый счёт), не угадываются.
+export function SessionStartSkeleton() {
+  const { t } = useI18n();
+  const choice = (count: number) => Array.from({ length: count }, (_, index) => (
+    <button key={index} type="button" tabIndex={-1}><SkeletonLine width="5em" /></button>
+  ));
+  return (
+    <div className="billing-selection-panel start-dialog-body" data-skeleton="form" aria-hidden="true">
+      <div className="start-section-head">{t('op.map.panel.startWhoHead')}</div>
+      <div className="start-segment">{choice(2)}</div>
+      <div className="start-section-head">{t('op.map.panel.startPlayerHead')}</div>
+      <div className="start-fixed-client"><strong><SkeletonLine width="9em" /></strong><span><SkeletonLine width="6em" /></span></div>
+      <div className="start-section-head">{t('op.map.panel.startChargeHead')}</div>
+      <div className="start-segment three">{choice(3)}</div>
+      <div className="start-section-head">{t('op.map.panel.tariffLabel')}</div>
+      <div className="panel-select start-select"><button type="button" className="panel-select-trigger" tabIndex={-1}><SkeletonLine width="12em" /></button></div>
+      <div className="start-section-head">{t('op.map.panel.startTimeHead')}</div>
+      <div className="start-duration-chips">{choice(START_DURATIONS.length + 1)}</div>
+      <div className="start-comp-toggle"><SkeletonLine width="12em" /></div>
+      <div className="start-plan"><span>{t('op.map.panel.startPlanLabel')}</span><strong><SkeletonLine width="16em" /></strong></div>
+    </div>
+  );
 }

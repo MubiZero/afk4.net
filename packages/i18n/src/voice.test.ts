@@ -8,8 +8,8 @@ const LOCALES: Locale[] = ['ru', 'en', 'tg'];
 // A Cyrillic ALL-CAPS word of 4+ letters is shouting (brand tone forbids caps).
 // Short acronyms like «ПК» (2 letters) are intentionally allowed.
 const SHOUT = /[А-ЯЁ]{4,}/;
-// The gaming machine is «ПК», never «компьютер».
-const FORBIDDEN_COMPUTER = /компьютер/i;
+// The gaming machine is «ПК», never «компьютер» (tg spells it «компютер» — same word, same ban).
+const FORBIDDEN_COMPUTER = /компь?ютер/i;
 // «Код доступа» is reserved: the glossary gives that meaning to the six-digit PIN, so a
 // one-time invitation code must not borrow the phrase — the two are entered in different
 // places and confusing them is a support call.
@@ -33,6 +33,11 @@ const GLOSSARY: { name: string; forbidden: RegExp; instead: string }[] = [
   { name: 'дашборд', forbidden: /дашборд/i, instead: 'пульс' },
   { name: 'ручная коррекция', forbidden: /ручн[а-я]*\s+коррекц/i, instead: 'поправка вручную' },
   { name: 'компьютерный клуб', forbidden: /компьютерн[а-я]*\s+клуб/i, instead: 'киберклуб' },
+  // «Машина» — разговорное имя того же ПК: бронь говорила «свободных машин», а соседний экран —
+  // «свободных ПК», и два слова читались как две разные вещи. «Машинный перевод» — не про ПК.
+  { name: 'машина', forbidden: /машин(?!н)/i, instead: 'ПК' },
+  { name: 'мошин', forbidden: /мошин(?!ӣ)/i, instead: 'ПК' },
+  { name: 'computer / machine', forbidden: /\b(?:computer|machine)s?\b(?! translation)/i, instead: 'PC' },
   // Пароля в системе нет вовсе — вход везде шестизначный ПИН. Слово на экране заставляет
   // человека искать поле, которого не существует.
   { name: 'пароль', forbidden: /парол[ья]/i, instead: 'ПИН-код' },
@@ -92,6 +97,61 @@ it('мастер зовёт Панель AFK4.net одним полным име
   check('ru', /панел[а-я]*(?!\s+AFK4\.net)(?![а-я])/i);
   check('tg', /панел[а-яӣӯҳқғҷ]*(?!\s+AFK4\.net)(?![а-яӣӯҳқғҷ])/i);
   check('en', /(?<!AFK4\.net )panel|dashboard|club app|Organization Admin/i);
+
+  expect(hits).toEqual([]);
+});
+
+// Мастер установки назывался четырьмя именами: «мастер установки» в заголовке, «Мастер настройки»
+// в Панели AFK4.net, «приложение установки» на экране входа и голое «Setup Wizard» посреди
+// русской фразы, а по-таджикски ещё «Мастер», «устоди танзим» и «барномаи насб». Администратор
+// читал «подключите ПК через Мастер настройки» и не находил такой программы. Имя одно, как в
+// заголовке мастера: «мастер установки», «setup wizard», «устоди насб». Английское «AFK4.NET
+// Setup Wizard» допустимо только в кавычках — так подписаны окно и ярлык в меню «Пуск».
+// Таджикский каталог звал одно понятие двумя-тремя словами, а местами — русским словом с
+// таджикским окончанием: «Калиди организацию», «блокировка шудааст», «Аккаунти ман». Филиал был
+// то «филиал», то «шӯъба», клиент — то «муштарӣ», то «мизоҷ» на соседних строках одного экрана,
+// ПК — ещё «КМ» и «компютер», игрок — «бозигар» и «бозингар», тариф — «тариф» и «таъриф».
+// Выбран вариант, которого в каталоге было больше; слева — чего больше нет, справа — что вместо.
+const TG_ONE_WORD: { name: string; forbidden: RegExp; instead: string }[] = [
+  { name: 'организация', forbidden: /организац/i, instead: 'ташкилот' },
+  { name: 'созмон', forbidden: /созмон/i, instead: 'ташкилот' },
+  { name: 'шӯъба', forbidden: /ш[ӯу]ъба/i, instead: 'филиал' },
+  { name: 'КМ', forbidden: /(?<![а-яӣӯҳқғҷ])КМ(?![а-яӣӯҳқғҷ])/, instead: 'ПК' },
+  { name: 'бозингар', forbidden: /бозингар/i, instead: 'бозигар' },
+  { name: 'бошгоҳ', forbidden: /бошгоҳ/i, instead: 'клуб' },
+  { name: 'мизоҷ', forbidden: /мизоҷ/i, instead: 'муштарӣ' },
+  { name: 'ҷаласа', forbidden: /ҷаласа|сеанс/i, instead: 'сессия' },
+  { name: 'таъриф', forbidden: /таъриф/i, instead: 'тариф' },
+  { name: 'кешбэк', forbidden: /кешбэк/i, instead: 'кэшбэк' },
+  { name: 'ПИН-код', forbidden: /ПИН/, instead: 'PIN' },
+  { name: 'аккаунт', forbidden: /аккаунт/i, instead: 'ҳисоби корбарӣ' },
+  { name: 'блокировка', forbidden: /блокировк/i, instead: 'қулф' },
+  { name: 'списание', forbidden: /списани/i, instead: 'аз ҳисоб баровардан' },
+  // «Сармуҳосиб» — главный бухгалтер, а рядом в том же списке ролей стоит «Муҳосиб» — бухгалтер.
+  // Старший смены читался как начальник бухгалтера. Старший смены — «сардори навбат».
+  { name: 'сармуҳосиб', forbidden: /сармуҳосиб/i, instead: 'сардори навбат' }
+];
+
+it.each(TG_ONE_WORD)('таджикский: вместо $name — $instead', ({ forbidden }) => {
+  const hits = Object.entries(messages.tg)
+    .filter(([, value]) => forbidden.test(value))
+    .map(([key, value]) => `tg:${key} = "${value}"`);
+  expect(hits).toEqual([]);
+});
+
+it('мастер установки зовётся одним именем во всех поверхностях', () => {
+  const hits: string[] = [];
+  const check = (loc: Locale, bad: RegExp) => {
+    for (const [key, value] of Object.entries(messages[loc])) if (bad.test(value)) hits.push(`${loc}:${key} = "${value}"`);
+  };
+  const shortcut = /«AFK4\.NET Setup Wizard»/g;
+  const outsideShortcut = (bad: RegExp) => ({ test: (value: string) => bad.test(value.replace(shortcut, '')) }) as RegExp;
+  check('ru', /мастер[а-я]*\s+настройк|приложени[а-я]*\s+установк/i);
+  check('ru', outsideShortcut(/setup\s+wizard/i));
+  // «Устои насб», «усторо» — опечатка, которая прожила на экране сбоя: «усто» без «д» — другое слово.
+  check('tg', /(?<![а-яӣӯҳқғҷ])мастер|(?<![а-яӣӯҳқғҷ])усто(?!д)|устод[а-яӣӯ]*\s+танзим|барномаи\s+насб/i);
+  check('tg', outsideShortcut(/setup\s+wizard/i));
+  check('en', /setup app/i);
 
   expect(hits).toEqual([]);
 });

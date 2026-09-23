@@ -36,7 +36,7 @@ function scan(code: string) {
 const factInput = (name: string) => screen.getByLabelText(new RegExp(`Факт по полке: ${name}`)) as HTMLInputElement;
 
 afterEach(() => { createStockMovement.mockClear(); getCatalog.mockClear(); cleanup(); });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../operatorHelpers', () => actual); });
 
 describe('InventoryWorkspace', () => {
   it('без права управления — экран отказа', () => {

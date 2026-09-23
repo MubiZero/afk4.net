@@ -21,7 +21,7 @@ const view = (session: unknown) =>
   render(<I18nProvider initialLocale="ru"><ToastProvider><StockWorkspace backend={backend} currencyCode="TJS" session={session as never} /></ToastProvider></I18nProvider>);
 
 afterEach(() => cleanup());
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../operatorHelpers', () => actual); });
 
 describe('StockWorkspace — вкладки', () => {
   it('при праве на управление видны обе вкладки и можно переключиться на Приёмку', async () => {

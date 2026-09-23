@@ -330,7 +330,7 @@ void main() {
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('свободных машин'), findsOneWidget);
+    expect(find.textContaining('свободных ПК'), findsOneWidget);
     expect(find.text('Это время уже занято'), findsNothing);
   });
 

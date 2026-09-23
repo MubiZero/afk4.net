@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../../operatorToast';
@@ -55,6 +55,8 @@ afterEach(() => {
   updateBookingSettings.mockClear();
   cleanup();
 });
+
+afterAll(() => mock.module('../../../operatorHelpers', () => actual));
 
 describe('BookingIntakeDestination', () => {
   // Пока правила грузятся, стоят те же три зоны и в них столько же карточек правил, сколько
