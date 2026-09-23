@@ -2038,7 +2038,7 @@
   "op.players.list.emptyConnect": "Подключитесь к серверу, чтобы загрузить клиентов.",
   "op.players.list.emptyTitle": "Клиенты не найдены",
   "op.players.list.noMatch": "Под поиск и отбор никто не подошёл.",
-  "op.players.list.noneDenied": "Клиентов заводят на стойке: оператор, старший смены или управляющий.",
+  "op.players.list.noneDenied": "Клиентов заводят на стойке: администратор, старший смены или управляющий.",
   "op.players.list.noneTitle": "Клиентов пока нет",
   "op.players.list.searchPlaceholder": "Игрок, телефон, карта",
   "op.players.menu.open": "Действия с клиентом",

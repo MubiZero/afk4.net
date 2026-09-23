@@ -2039,7 +2039,7 @@ export const en = {
   "op.players.list.emptyConnect": "Connect to the server to load clients.",
   "op.players.list.emptyTitle": "No clients found",
   "op.players.list.noMatch": "Nobody matches the search and the selected segment.",
-  "op.players.list.noneDenied": "Clients are added at the front desk by an operator, a shift supervisor or a branch manager.",
+  "op.players.list.noneDenied": "Clients are added at the front desk by an admin, a shift supervisor or a branch manager.",
   "op.players.list.noneTitle": "No clients yet",
   "op.players.list.searchPlaceholder": "Player, phone, card",
   "op.players.menu.open": "Client actions",
