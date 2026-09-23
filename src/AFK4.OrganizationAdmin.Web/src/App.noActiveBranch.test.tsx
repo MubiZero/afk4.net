@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
 import type { OperatorRealtimeOptions } from './operatorRealtime';
 
 // Сотрудник без активного филиала. Всё рабочее в Панели — зал, касса, брони, настройки —
@@ -21,6 +21,10 @@ mock.module('./operatorRealtime', () => ({
 }));
 
 const { App } = await import('./App');
+
+// Подмена модуля живёт дольше файла, если её не вернуть: в полном прогоне все файлы идут одним
+// процессом, и следующий получил бы этот поддельный realtime (заслон — mockModule.guard.test.ts).
+afterAll(() => mock.module('./operatorRealtime', () => actualRealtime));
 
 const ORG_ID = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const BRANCH_A = 'acfc0212-967f-4d84-94be-9003387b09c2';
