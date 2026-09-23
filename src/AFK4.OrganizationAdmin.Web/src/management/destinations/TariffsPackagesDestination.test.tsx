@@ -163,3 +163,18 @@ describe('TariffsPackagesDestination', () => {
     expect(onRetryPackages).toHaveBeenCalledTimes(1);
   });
 });
+
+// Раздел открыт по любому из двух прав; вкладка без своего права говорит, что она только для
+// просмотра, вместо серых без объяснения кнопок.
+describe('TariffsPackagesDestination view-only', () => {
+  const backend = { config: { platformBaseUrl: 'http://test' }, branchId: 'b1', session: { accessToken: 't', organizationId: 'o1' } } as never;
+
+  it('marks the tariffs tab view-only for someone who may only manage packages', () => {
+    wrap(
+      <TariffsPackagesDestination backend={backend} session={session(['organization.packages.manage'])} currencyCode="TJS" tariffs={tariffs} packageOptions={packageOptions} />
+    );
+    expect(screen.getByRole('note')).toHaveTextContent('Только просмотр: тарифы меняют управляющий и владелец организации.');
+    fireEvent.click(screen.getByRole('tab', { name: 'Пакеты' }));
+    expect(screen.queryByRole('note')).toBeNull();
+  });
+});

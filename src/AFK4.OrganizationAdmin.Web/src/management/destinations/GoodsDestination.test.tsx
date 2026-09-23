@@ -463,3 +463,17 @@ describe('GoodsDestination categories', () => {
     expect(screen.queryByRole('button', { name: 'Переименовать' })).toBeNull();
   });
 });
+
+// Раздел открыт и тому, у кого есть только право на остатки: товары и категории у него серые, и
+// экран говорит об этом одной строкой, а не молчит.
+describe('GoodsDestination view-only', () => {
+  it('says the catalog is view-only for someone who may only manage stock', () => {
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.manageInventoryStock])} currencyCode="TJS" catalog={[cola]} />);
+    expect(screen.getByRole('note')).toHaveTextContent('Только просмотр: товары и категории меняют управляющий и владелец организации.');
+  });
+
+  it('says nothing to someone who may change the catalog', () => {
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+    expect(screen.queryByText(/Только просмотр/)).toBeNull();
+  });
+});

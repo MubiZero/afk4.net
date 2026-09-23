@@ -670,9 +670,9 @@ counter is «администратор», never «оператор» — both g
 
 Still open, each its own PR:
 
-- **Disabled controls, the rest** — management screens gated by `canManage…` (~40; one line per
-  screen «you can view, not change» reads better than a hint under every button), ~70
-  `disabled={disabled}` pass-throughs whose parent must name the reason, ~35 in Platform Control.
+- **Disabled controls, the rest** — management screens now say «только просмотр» and who may
+  change (#411); still open: ~70 `disabled={disabled}` pass-throughs whose parent must name the
+  reason, and ~35 in Platform Control.
 - **The skeleton does not repeat the final geometry** — one shape (four 56px rows) stands in for
   card grids, forms, tiles and charts, so the layout jumps when content replaces it.
 - ~~Permission mismatches~~ — closed in #408: every Platform Control button now asks exactly the
@@ -1002,8 +1002,8 @@ thrown away rather than polished.
    the pulse alert, but no endpoint exposes them). Waves without that view trade
    one risk for another: a wave nobody widens leaves part of the fleet on an old
    version silently. Decide the pair together.
-3. **The rest of the "named, not done" list** (section above) — disabled controls on
-   management screens and Platform Control, skeleton geometry.
+3. **The rest of the "named, not done" list** (section above) — disabled controls in
+   Platform Control and behind pass-through props, skeleton geometry.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
