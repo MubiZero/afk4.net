@@ -110,7 +110,13 @@ export function TariffScreen({
           />
         </div>
 
-        <button type="submit" className="ui-btn" disabled={!canCreate}>
+        {/* Работа экрана — назначить цену часа, а не уйти с него: пока тарифа нет, главное
+            действие здесь. */}
+        <button
+          type="submit"
+          className={created === null ? 'ui-btn ui-btn--primary' : 'ui-btn'}
+          disabled={!canCreate}
+        >
           {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
           {t('setup.wizard.tariff.create')}
         </button>
@@ -124,7 +130,12 @@ export function TariffScreen({
           <ArrowLeft size={16} aria-hidden />
           {t('setup.wizard.common.back')}
         </button>
-        <button type="button" className="ui-btn ui-btn--primary" onClick={() => onContinue(draft)} disabled={saving}>
+        <button
+          type="button"
+          className={created === null ? 'ui-btn' : 'ui-btn ui-btn--primary'}
+          onClick={() => onContinue(draft)}
+          disabled={saving}
+        >
           <ArrowRight size={16} aria-hidden />
           {created === null ? t('setup.wizard.tariff.skip') : t('setup.wizard.tariff.next')}
         </button>

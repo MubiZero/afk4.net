@@ -199,3 +199,28 @@ describe('TariffScreen · Enter', () => {
     expect(createTariff).toHaveBeenCalledTimes(1);
   });
 });
+
+// Работа этого экрана — назначить цену часа, а не уйти с него. Пока тариф не создан, вес главного
+// действия принадлежит «Создать тариф»; после — кнопке «Дальше». Так же выправлен экран зала (#382).
+describe('TariffScreen · главное действие', () => {
+  function primaryButtons(): string[] {
+    return screen
+      .getAllByRole('button')
+      .filter((button) => button.classList.contains('ui-btn--primary'))
+      .map((button) => button.textContent ?? '');
+  }
+
+  it('пока тарифа нет, главное — «Создать тариф», а не «Пропустить»', () => {
+    renderScreen({ createTariff: mock() });
+
+    expect(primaryButtons()).toEqual(['Создать тариф']);
+  });
+
+  it('после создания главное — «Дальше»', async () => {
+    renderScreen({ createTariff: mock().mockResolvedValue({ name: 'Стандартный' }) });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
+
+    await waitFor(() => expect(screen.getByText(/Тариф «Стандартный» создан/)).toBeTruthy());
+    expect(primaryButtons()).toEqual(['Дальше']);
+  });
+});

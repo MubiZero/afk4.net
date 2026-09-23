@@ -170,3 +170,30 @@ describe('StaffScreen · Enter', () => {
     expect(invite).toHaveBeenCalledTimes(1);
   });
 });
+
+// Работа этого экрана — пригласить людей, а не уйти с него. Пока не приглашён никто, вес главного
+// действия принадлежит «Пригласить»; после — кнопке «Дальше». Так же выправлен экран зала (#382).
+describe('StaffScreen · главное действие', () => {
+  function primaryButtons(): string[] {
+    return screen
+      .getAllByRole('button')
+      .filter((button) => button.classList.contains('ui-btn--primary'))
+      .map((button) => button.textContent ?? '');
+  }
+
+  it('пока никого нет, главное — «Пригласить», а не «Пропустить»', () => {
+    renderScreen({ invite: mock() });
+
+    expect(primaryButtons()).toEqual(['Пригласить']);
+  });
+
+  it('после приглашения главное — «Дальше»', async () => {
+    renderScreen({ invite: mock().mockResolvedValue(INVITE) });
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '900000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+
+    await waitFor(() => expect(screen.getByText('123456')).toBeTruthy());
+    expect(primaryButtons()).toEqual(['Дальше']);
+  });
+});
