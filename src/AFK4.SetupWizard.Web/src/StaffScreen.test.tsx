@@ -2,6 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 import { HostBridgeRequestError } from './hostBridge';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { pressEnter } from './test/pressEnter';
 import { StaffScreen, type StaffClient } from './StaffScreen';
 
 function renderScreen(client: StaffClient, onContinue = mock()) {
@@ -122,4 +123,77 @@ describe('StaffScreen', () => {
     await waitFor(() => expect(screen.getByText(/Тарифный план клуба/)).toBeTruthy());
   });
 
+});
+
+// Enter в поле формы отправляет её — так человек привык везде, и так уже работают вход и
+// экран устройства. Здесь поля лежали вне формы, и Enter не делал ничего.
+describe('StaffScreen · Enter', () => {
+  function fillValid() {
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '900000000' } });
+  }
+
+  for (const label of ['Имя', 'Телефон']) {
+    it(`Enter в поле «${label}» приглашает`, async () => {
+      const invite = mock().mockResolvedValue(INVITE);
+      renderScreen({ invite });
+      fillValid();
+
+      pressEnter(screen.getByLabelText(label));
+
+      await waitFor(() => expect(invite).toHaveBeenCalledTimes(1));
+    });
+  }
+
+  it('Enter при неактивной кнопке не приглашает', () => {
+    const invite = mock();
+    renderScreen({ invite });
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '90 000' } });
+
+    pressEnter(screen.getByLabelText('Телефон'));
+    // И мимо кнопки: сама отправка тоже не пускает неполный номер.
+    fireEvent.submit(screen.getByLabelText('Телефон').closest('form') as HTMLFormElement);
+
+    expect(invite).not.toHaveBeenCalled();
+  });
+
+  it('двойной Enter не приглашает дважды', () => {
+    const invite = mock(() => new Promise<never>(() => {}));
+    renderScreen({ invite });
+    fillValid();
+
+    pressEnter(screen.getByLabelText('Телефон'));
+    pressEnter(screen.getByLabelText('Телефон'));
+    fireEvent.submit(screen.getByLabelText('Телефон').closest('form') as HTMLFormElement);
+
+    expect(invite).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Работа этого экрана — пригласить людей, а не уйти с него. Пока не приглашён никто, вес главного
+// действия принадлежит «Пригласить»; после — кнопке «Дальше». Так же выправлен экран зала (#382).
+describe('StaffScreen · главное действие', () => {
+  function primaryButtons(): string[] {
+    return screen
+      .getAllByRole('button')
+      .filter((button) => button.classList.contains('ui-btn--primary'))
+      .map((button) => button.textContent ?? '');
+  }
+
+  it('пока никого нет, главное — «Пригласить», а не «Пропустить»', () => {
+    renderScreen({ invite: mock() });
+
+    expect(primaryButtons()).toEqual(['Пригласить']);
+  });
+
+  it('после приглашения главное — «Дальше»', async () => {
+    renderScreen({ invite: mock().mockResolvedValue(INVITE) });
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '900000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+
+    await waitFor(() => expect(screen.getByText('123456')).toBeTruthy());
+    expect(primaryButtons()).toEqual(['Дальше']);
+  });
 });

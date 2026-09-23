@@ -1490,12 +1490,10 @@ public sealed class EfReservationService(
         // бронирует завтрашнее утро, и утренний тариф для этой брони действует, хотя в момент
         // нажатия кнопки — нет.
         //
-        // Проверяется весь промежуток, а не одно его начало. Бронь считается одной ставкой на всю
-        // длительность, поэтому «тариф действовал на старте» пропустило бы бронь с 08:00 до 23:00
-        // целиком по утренней цене.
-        if (!await TariffAvailability.AppliesThroughoutAsync(
-            dbContext, organizationId, branchId, versionId, startsAtUtc,
-            startsAtUtc.AddMinutes(durationMinutes), cancellationToken))
+        // Решает начало брони, как и у сессии (решение владельца 2026-09-23): бронь, начатая в
+        // часы тарифа, целиком считается по нему.
+        if (!await TariffAvailability.AppliesAtAsync(
+            dbContext, organizationId, branchId, versionId, startsAtUtc, cancellationToken))
         {
             return new OnlineBookingPricing(TariffSchedule.OutsideHoursCode, null, null);
         }

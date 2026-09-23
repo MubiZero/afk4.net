@@ -170,13 +170,12 @@ public sealed class EfSessionStartWorkflow(
             ? request.TariffRuleVersionId
             : billingValidation.TariffRuleVersionId;
         if (Guid.TryParse(effectiveTariffRuleVersionId, out var effectiveTariffVersionId) &&
-            !await TariffAvailability.AppliesThroughoutAsync(
+            !await TariffAvailability.AppliesAtAsync(
                 dbContext,
                 request.OrganizationId,
                 branchId,
                 effectiveTariffVersionId,
                 timeProvider.GetUtcNow(),
-                timeProvider.GetUtcNow().AddMinutes(validationMinutes),
                 cancellationToken))
         {
             return Invalid(TariffSchedule.OutsideHoursCode);
