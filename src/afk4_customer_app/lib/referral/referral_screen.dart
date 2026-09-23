@@ -221,7 +221,7 @@ class _CodeCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-        border: Border.all(color: AppTheme.emerald.withValues(alpha: 0.5)),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
         color: theme.colorScheme.surface,
       ),
       padding: const EdgeInsets.all(20),
@@ -267,7 +267,7 @@ class _Step extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: AppTheme.emerald.withValues(alpha: 0.18),
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.18),
             child: Text(number, style: theme.textTheme.labelMedium),
           ),
           const SizedBox(width: 10),

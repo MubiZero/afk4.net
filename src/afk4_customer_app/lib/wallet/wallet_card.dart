@@ -179,6 +179,7 @@ class _WalletCardState extends State<WalletCard> {
 
     final dark = theme.brightness == Brightness.dark;
     final accent = theme.colorScheme.primary;
+    final surface = theme.colorScheme.surface;
 
     // Кошелёк — единственная карточка с собственным светом: баланс должен читаться первым,
     // а не соревноваться с соседними блоками за внимание.
@@ -191,12 +192,10 @@ class _WalletCardState extends State<WalletCard> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: dark
-              ? [
-                  Color.alphaBlend(accent.withValues(alpha: 0.18), const Color(0xFF121B19)),
-                  const Color(0xFF121B19),
-                ]
-              : [Color.alphaBlend(accent.withValues(alpha: 0.14), Colors.white), Colors.white],
+          colors: [
+            Color.alphaBlend(accent.withValues(alpha: dark ? 0.18 : 0.14), surface),
+            surface,
+          ],
         ),
         boxShadow: dark ? AppTheme.accentGlow(accent.withValues(alpha: 0.35)) : null,
       ),

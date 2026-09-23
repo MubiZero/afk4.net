@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../shell/pressable.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import 'halls_line.dart';
 import 'opening_hours.dart';
@@ -194,6 +195,7 @@ class _CoverState extends State<_Cover> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
     final photos = widget.club.photoUrls;
 
     return SizedBox(
@@ -220,13 +222,13 @@ class _CoverState extends State<_Cover> {
             ),
           // Затемнение и подписи не перехватывают касания: под ними лента фото, и жест
           // листания должен доходить до неё.
-          const IgnorePointer(
+          IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.center,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Color(0xCC000000)],
+                  colors: [palette.mediaScrim.withValues(alpha: 0), palette.mediaScrim],
                 ),
               ),
             ),
@@ -241,7 +243,7 @@ class _CoverState extends State<_Cover> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleLarge?.copyWith(
-                  color: Colors.white,
+                  color: palette.onMedia,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -280,23 +282,26 @@ class _PhotoDots extends StatelessWidget {
   final int current;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (var index = 0; index < count; index++)
-        Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: index == current ? Colors.white : Colors.white38,
+  Widget build(BuildContext context) {
+    final onMedia = AppPalette.of(context).onMedia;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var index = 0; index < count; index++)
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: index == current ? onMedia : onMedia.withValues(alpha: 0.38),
+              ),
             ),
           ),
-        ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _CoverFallback extends StatelessWidget {
@@ -317,7 +322,7 @@ class _CoverFallback extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             accent.withValues(alpha: 0.32),
-            AppTheme.violet.withValues(alpha: 0.26),
+            theme.colorScheme.secondary.withValues(alpha: 0.26),
           ],
         ),
       ),
@@ -344,8 +349,10 @@ class _Monogram extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       club.name.characters.first.toUpperCase(),
+      // Буква стоит на подложке из цветов темы, а не на фото: в светлой теме подложка
+      // бледная, и белая буква на ней пропала бы.
       style: theme.textTheme.displaySmall?.copyWith(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
         fontWeight: FontWeight.w700,
       ),
     );
@@ -366,6 +373,7 @@ class _RatingBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
     final l = L.of(context);
     final rating = club.rating;
     // Цифра отвечает «насколько хорошо», а на «почему» отвечают только слова игроков —
@@ -374,7 +382,7 @@ class _RatingBadge extends StatelessWidget {
 
     final badge = DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xCC000000),
+        color: palette.mediaScrim,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
@@ -385,21 +393,21 @@ class _RatingBadge extends StatelessWidget {
             Icon(
               Icons.star_rounded,
               size: 16,
-              color: rating == null ? Colors.white54 : const Color(0xFFFFC53D),
+              color: rating == null ? palette.onMediaMuted : palette.ratingOnMedia,
             ),
             const SizedBox(width: 4),
             Text(
               rating == null
                   ? l.customerClubPickerNoRating
                   : rating.toStringAsFixed(1).replaceAll('.', ','),
-              style: theme.textTheme.labelMedium?.copyWith(color: Colors.white),
+              style: theme.textTheme.labelMedium?.copyWith(color: palette.onMedia),
             ),
             if (rating != null && club.reviewCount > 0) ...[
               const SizedBox(width: 6),
               Text(
                 '·  ${club.reviewCount}',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.white70,
+                  color: palette.onMediaMuted,
                 ),
               ),
             ],

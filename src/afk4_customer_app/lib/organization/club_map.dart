@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import 'organization.dart';
 
@@ -140,8 +141,15 @@ class _Pin extends StatelessWidget {
             decoration: BoxDecoration(
               color: theme.colorScheme.primary,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 8, offset: Offset(0, 3))],
+              // Обводка отделяет точку от любой подложки карты — светлой улицы и тёмного парка.
+              border: Border.all(color: AppPalette.of(context).onMedia, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.shadow.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Icon(Icons.sports_esports, size: 18, color: theme.colorScheme.onPrimary),
           ),

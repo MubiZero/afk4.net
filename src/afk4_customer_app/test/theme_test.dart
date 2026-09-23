@@ -3,13 +3,64 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:afk4_customer_app/theme/app_theme.dart';
 
+double contrast(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  final (hi, lo) = la > lb ? (la, lb) : (lb, la);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 void main() {
   // Фирменный акцент — единственное, что приложение делит с Оператором и вебом: по нему
   // продукт узнаётся. Поверхности у игрока свои (тёмная витрина против плотной админки),
   // а emerald обязан совпадать со значением `--accent` в packages/tokens/tokens.css.
+  //
+  // В светлой теме акцент — `--accent-text` тех же токенов (#087A53), а не `--accent`
+  // (#0B9E74): им здесь набраны и надписи, и заливка кнопок, а #0B9E74 на белом даёт 3,4:1 —
+  // ниже порога для текста. Веб пришёл к тому же значению для текста по той же причине.
   test('акцент совпадает с продуктовым emerald в обеих темах', () {
     expect(AppTheme.dark().colorScheme.primary, const Color(0xFF2CC592));
-    expect(AppTheme.light().colorScheme.primary, const Color(0xFF0B9E74));
+    expect(AppTheme.light().colorScheme.primary, const Color(0xFF087A53));
+  });
+
+  // Светлая тема была написана, но не включалась, и её акцент никто не проверял на белом
+  // листе. Акцентом набраны ссылки и текстовые кнопки, на нём же стоят надписи главных кнопок —
+  // оба сочетания обязаны читаться, и для фирменного цвета, и для цвета клуба.
+  test('в светлой теме акцент читается на листе и надпись читается на акценте', () {
+    for (final club in <Color?>[
+      null,
+      const Color(0xFFF5D90A), // жёлтый
+      const Color(0xFF22D3EE), // бирюзовый
+      const Color(0xFFD64545), // красный
+      const Color(0xFF1E3A8A), // тёмно-синий
+    ]) {
+      final scheme = AppTheme.light(clubColor: club).colorScheme;
+      final name = club?.toString() ?? 'emerald';
+      expect(contrast(scheme.primary, scheme.surface), greaterThanOrEqualTo(4.5), reason: name);
+      expect(contrast(scheme.onPrimary, scheme.primary), greaterThanOrEqualTo(4.5), reason: name);
+    }
+  });
+
+  // Второстепенный текст — подзаголовки витрины и входа, подписи сумм — стоит прямо на холсте
+  // и на листах. Проверяется по значениям: на свете зала пиксельная проверка экрана врёт.
+  test('второстепенный текст читается на холсте и на листе в обеих темах', () {
+    for (final theme in [AppTheme.dark(), AppTheme.light()]) {
+      final muted = theme.colorScheme.onSurfaceVariant;
+      for (final background in [theme.canvasColor, theme.colorScheme.surface]) {
+        final shown = Color.alphaBlend(muted, background);
+        expect(contrast(shown, background), greaterThanOrEqualTo(4.5),
+            reason: '${theme.brightness} on $background');
+      }
+    }
+  });
+
+  // Ошибкой набран текст отказа, и стоит он не только на белом, но и на подкрашенных
+  // подложках карточек.
+  test('в светлой теме текст ошибки читается и на подкрашенной подложке', () {
+    final scheme = AppTheme.light().colorScheme;
+    for (final background in [scheme.surface, AppTheme.light().canvasColor, scheme.secondaryContainer]) {
+      expect(contrast(scheme.error, background), greaterThanOrEqualTo(4.5), reason: '$background');
+    }
   });
 
   test('тёмная и светлая различаются по яркости, а не только по акценту', () {
@@ -30,6 +81,8 @@ void main() {
   test('текст на акценте контрастен: на emerald ни белый, ни серый не читаются', () {
     expect(AppTheme.dark().colorScheme.onPrimary, const Color(0xFF04120D));
     expect(AppTheme.light().colorScheme.onPrimary, Colors.white);
+    expect(contrast(AppTheme.light().colorScheme.onPrimary, AppTheme.light().colorScheme.primary),
+        greaterThanOrEqualTo(4.5));
   });
 
   // Размеры в текстовой теме проставляются только при построении MaterialApp, поэтому поля

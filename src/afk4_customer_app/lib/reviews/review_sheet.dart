@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 
 /// Оценка визита: пять звёзд и необязательный комментарий.
@@ -151,7 +152,7 @@ class _Stars extends StatelessWidget {
               onPressed: onRating == null ? null : () => onRating!(star),
               icon: Icon(
                 star <= rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: star <= rating ? const Color(0xFFFFC53D) : theme.colorScheme.onSurfaceVariant,
+                color: star <= rating ? AppPalette.of(context).rating : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),

@@ -139,16 +139,18 @@ Future<void> openProfile(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Нажимает кнопку в профиле. На невысоком экране до неё надо доскроллить, и с запасом:
-/// прокрутка «до видимости» оставляет кнопку под прилипшей шапкой. Список указывается
-/// явно — разделы живут в IndexedStack, и «первый Scrollable» это главная.
+/// Нажимает кнопку в профиле. На невысоком экране до неё надо доскроллить, и кнопка ставится
+/// в середину списка: прокрутка «до видимости» оставляет её под прилипшей шапкой, а рывок на
+/// фиксированное расстояние разгоняет список по инерции и уносит её за край, как только ниже
+/// появляется ещё одна карточка. Список указывается явно — разделы живут в IndexedStack, и
+/// «первый Scrollable» это главная.
 Future<void> tapInProfile(WidgetTester tester, Finder target) async {
   final profileList = find.descendant(
     of: find.byType(ProfileScreen),
     matching: find.byType(Scrollable),
   );
   await tester.scrollUntilVisible(target, 200, scrollable: profileList);
-  await tester.drag(profileList, const Offset(0, -160));
+  await Scrollable.ensureVisible(tester.element(target), alignment: 0.5);
   await tester.pumpAndSettle();
   await tester.tap(target);
   await tester.pumpAndSettle();

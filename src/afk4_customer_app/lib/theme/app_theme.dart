@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_palette.dart';
+
 /// Тема клиентского приложения.
 ///
 /// Приложение игрока — не админка: им пользуются в тёмном зале, между катками, одной рукой.
@@ -7,9 +9,10 @@ import 'package:flutter/material.dart';
 /// плотный интерфейс за стойкой, у игрока — тёмная витрина с крупными цифрами. Общим остаётся
 /// фирменный emerald: по нему приложение и узнаётся как AFK4.
 ///
-/// Тёмная тема здесь не «ночной режим», а единственный вид продукта — как у игровых площадок,
-/// рядом с которыми это приложение лежит на телефоне. Светлая оставлена рабочей для тех, кто
-/// включил её системно, но проектируется тёмная.
+/// Тёмная тема здесь не «ночной режим», а основной вид продукта — как у игровых площадок,
+/// рядом с которыми это приложение лежит на телефоне, и она включена, пока игрок не выбрал
+/// другое. Светлую (или «как в системе») игрок включает сам, в профиле; проектируется тёмная,
+/// а светлая обязана на тех же экранах читаться не хуже.
 class AppTheme {
   const AppTheme._();
 
@@ -37,9 +40,12 @@ class AppTheme {
   static const Color _lightBorder = Color(0xFFDDE5E2);
   static const Color _lightText = Color(0xFF0B1512);
   static const Color _lightTextMuted = Color(0xFF5A6B66);
-  static const Color _lightAccent = Color(0xFF0B9E74);
+  // `--accent-text` токенов, а не `--accent`: акцентом здесь набраны надписи и залиты кнопки
+  // с белым текстом, и #0B9E74 на белом давал 3,4:1 — ниже порога для текста.
+  static const Color _lightAccent = Color(0xFF087A53);
   static const Color _lightOnAccent = Color(0xFFFFFFFF);
-  static const Color _lightDanger = Color(0xFFDC2626);
+  // Темнее `--danger` (#DC2626): тот на подкрашенных подложках карточек опускался до 4,2:1.
+  static const Color _lightDanger = Color(0xFFB91C1C);
 
   /// Минимальная сторона зоны касания: 48 — минимум Material, он же с запасом покрывает 44 у
   /// Apple. Приложение держат одной рукой, между катками, в тёмном зале — прицеливаться там
@@ -85,11 +91,20 @@ class AppTheme {
   /// светлота: это его цвет, просто различимый.
   static Color _fitAccent(Color color, Brightness brightness) {
     final hsl = HSLColor.fromColor(color);
-    final lightness = brightness == Brightness.dark
-        ? hsl.lightness.clamp(0.42, 1.0)
-        : hsl.lightness.clamp(0.0, 0.58);
-    return hsl.withLightness(lightness).toColor();
+    if (brightness == Brightness.dark) {
+      return hsl.withLightness(hsl.lightness.clamp(0.42, 1.0)).toColor();
+    }
+    // На светлом листе светлоты мало: жёлтый и бирюзовый при светлоте 0,58 всё ещё ярче, чем
+    // нужно для текста на белом. Цвет темнеет, пока ссылка им не станет читаться (4,5:1), —
+    // тогда и белая надпись на кнопке этого цвета читается так же.
+    var fitted = hsl.withLightness(hsl.lightness.clamp(0.0, 0.58));
+    while (_contrastWithWhite(fitted.toColor()) < 4.5 && fitted.lightness > 0) {
+      fitted = fitted.withLightness((fitted.lightness - 0.02).clamp(0.0, 1.0));
+    }
+    return fitted.toColor();
   }
+
+  static double _contrastWithWhite(Color color) => 1.05 / (color.computeLuminance() + 0.05);
 
   /// Что писать на цвете клуба. Порог по яркости, а не «всегда белое»: белые буквы на жёлтом
   /// не читаются, а чёрные на тёмно-синем — тем более.
@@ -110,6 +125,7 @@ class AppTheme {
       accent: accent,
       onAccent: clubColor == null ? _darkOnAccent : onAccentFor(accent),
       danger: _darkDanger,
+      palette: AppPalette.dark,
     );
   }
 
@@ -126,6 +142,7 @@ class AppTheme {
       accent: accent,
       onAccent: clubColor == null ? _lightOnAccent : onAccentFor(accent),
       danger: _lightDanger,
+      palette: AppPalette.light,
     );
   }
 
@@ -140,6 +157,7 @@ class AppTheme {
     required Color accent,
     required Color onAccent,
     required Color danger,
+    required AppPalette palette,
   }) {
     final scheme = ColorScheme(
       brightness: brightness,
@@ -179,6 +197,7 @@ class AppTheme {
       // свет зала перекрывался бы каждым Scaffold и появлялся бы шов при переходах.
       scaffoldBackgroundColor: Colors.transparent,
       canvasColor: canvas,
+      extensions: [palette],
       splashFactory: InkSparkle.splashFactory,
       textTheme: typography,
       appBarTheme: AppBarTheme(

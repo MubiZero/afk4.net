@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'app_theme.dart';
-
 /// Свет зала под всем приложением.
 ///
 /// Ровная чёрная заливка на телефоне читается как «выключено»; два мягких пятна — фирменное
@@ -33,7 +31,7 @@ class AmbientBackground extends StatelessWidget {
             ),
             _Glow(
               alignment: const Alignment(1.1, -0.75),
-              color: AppTheme.violet.withValues(alpha: 0.16),
+              color: theme.colorScheme.secondary.withValues(alpha: 0.16),
               size: 0.9,
             ),
             _Glow(

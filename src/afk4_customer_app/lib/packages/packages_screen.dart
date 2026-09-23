@@ -10,6 +10,7 @@ import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
 
@@ -301,7 +302,7 @@ class _OfferCard extends StatelessWidget {
           if (offer.bonusSeconds > 0)
             Text(
               l.customerPackagesBonus(formatPackageDuration(l, offer.bonusSeconds)),
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.emerald),
+              style: theme.textTheme.bodyMedium?.copyWith(color: AppPalette.of(context).income),
             ),
           if (offer.expiresAfterDays > 0)
             Text(
@@ -339,12 +340,13 @@ class _MinePackageCard extends StatelessWidget {
     final theme = Theme.of(context);
     final now = clock();
     final usable = package.isUsable(now);
+    final success = AppPalette.of(context).success;
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         border: Border.all(
-          color: usable ? AppTheme.emerald.withValues(alpha: 0.5) : theme.colorScheme.outline,
+          color: usable ? success.withValues(alpha: 0.5) : theme.colorScheme.outline,
         ),
         color: theme.colorScheme.surface,
       ),
@@ -361,7 +363,7 @@ class _MinePackageCard extends StatelessWidget {
                     ? l.customerPackagesUsedUp
                     : l.customerPackagesExpired,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: usable ? AppTheme.emerald : theme.colorScheme.onSurfaceVariant,
+              color: usable ? success : theme.colorScheme.onSurfaceVariant,
             ),
           ),
           if (package.expiresAtUtc != null && usable)
