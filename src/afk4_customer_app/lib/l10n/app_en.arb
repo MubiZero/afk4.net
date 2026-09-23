@@ -534,7 +534,7 @@
   "customerPinStateSet": "PIN is set",
   "customerPinStateUnset": "No PIN yet — for now the staff seats you at a PC",
   "customerPinTitle": "PIN for sitting down at a PC",
-  "customerPlayCode": "Code from the computer screen",
+  "customerPlayCode": "Code from the PC screen",
   "customerPlayCodeHint": "Six digits shown by a free PC",
   "customerPlayConfirm": "Start for {amount}",
   "@customerPlayConfirm": {
@@ -736,8 +736,8 @@
   "customerReservationsErrPrepay": "Not enough money for the prepayment — top up your wallet",
   "customerReservationsGate": "To book online, confirm your phone number.",
   "customerReservationsGroupNoFunds": "Your wallet is short for the whole group. Top it up or book fewer seats.",
-  "customerReservationsGroupNoSeats": "The hall does not have that many free machines at this time. Book fewer seats or pick another time.",
-  "customerReservationsGroupSeatNote": "The club assigns the machines — you will get them in the confirmation. Your group will sit together if the hall has free machines.",
+  "customerReservationsGroupNoSeats": "The hall does not have that many free PCs at this time. Book fewer seats or pick another time.",
+  "customerReservationsGroupSeatNote": "The club assigns the PCs — you will get them in the confirmation. Your group will sit together if the hall has free PCs.",
   "customerReservationsGroupTooMany": "One booking takes at most {max} seats. Arrange a bigger group with the club.",
   "@customerReservationsGroupTooMany": {
     "placeholders": {
@@ -767,7 +767,7 @@
   "customerReservationsNewTitle": "New booking",
   "customerReservationsNoFunds": "Your wallet doesn't cover this booking; top it up and try again",
   "customerReservationsNoSeat": "No seat",
-  "customerReservationsNoSeats": "No free machines are left in the hall at this time. Pick another time.",
+  "customerReservationsNoSeats": "No free PCs are left in the hall at this time. Pick another time.",
   "customerReservationsNone": "No bookings yet",
   "customerReservationsNoneHint": "A booking holds the PC you picked until you arrive",
   "customerReservationsNotChosen": "Not chosen",

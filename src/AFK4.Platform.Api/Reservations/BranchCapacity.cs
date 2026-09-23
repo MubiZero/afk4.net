@@ -19,7 +19,7 @@ namespace AFK4.Platform.Api.Reservations;
 /// </summary>
 internal static class BranchCapacity
 {
-    /// <summary>Машинный код отказа: свободных машин на это время не осталось.</summary>
+    /// <summary>Машинный код отказа: свободных ПК на это время не осталось.</summary>
     public const string NoSeatsAvailableCode = "no_seats_available";
 
     /// <summary>
