@@ -2017,7 +2017,6 @@
   "op.players.list.emptyBackend": "По текущему поиску клиентов нет.",
   "op.players.list.emptyConnect": "Подключитесь к серверу, чтобы загрузить клиентов.",
   "op.players.list.emptyTitle": "Клиенты не найдены",
-  "op.players.list.noneDenied": "Клиентов заводят на стойке: администратор, старший смены или управляющий.",
   "op.players.list.searchPlaceholder": "Игрок, телефон, карта",
   "op.players.menu.open": "Действия с клиентом",
   "op.players.newClient": "Новый клиент",
