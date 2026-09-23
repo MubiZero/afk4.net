@@ -41,7 +41,7 @@ afterEach(() => {
   update.mockClear();
   cleanup();
 });
-afterAll(() => mock.restore());
+afterAll(() => { mock.restore(); mock.module('../../../operatorHelpers', () => actual); });
 
 describe('DcTransferForm', () => {
   it('keeps Save disabled until the card and comment template are valid, then saves', async () => {

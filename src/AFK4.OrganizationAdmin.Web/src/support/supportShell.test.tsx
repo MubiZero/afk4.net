@@ -8,7 +8,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 // crashing on whatever sub-client that stub omitted (e.g. `.shifts`). App.test.tsx already solved
 // this by running in its own bun invocation, isolated from the shared-bucket test run; this file is
 // deliberately excluded from that shared bucket and run alongside App.test.tsx instead — see
-// package.json's "test" script. Do not fold it back into the shared `find`-based run.
+// package.json's "test" script. Do not fold it back into the shared run.
 
 // Same reason App.test.tsx mocks this: rendering the real shell pulls in the real realtime hook,
 // which would otherwise open a genuine SignalR connection during a test. bun's mock.module isn't

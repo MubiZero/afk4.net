@@ -1,36 +1,36 @@
 import { describe, it, expect, mock, afterEach } from 'bun:test';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { BillingDestination } from './BillingDestination';
+import type { BillingClient } from './useBilling';
 
 afterEach(() => cleanup());
 
-mock.module('../../operatorHelpers', () => ({
-  createAuthenticatedOperatorClients: () => ({
-    orgBilling: {
-      getSubscription: mock(async () => ({
-        planCode: 'PRO',
-        status: 'active',
-        currentPeriodStartUtc: '2026-07-01T00:00:00Z',
-        currentPeriodEndUtc: '2026-07-31T00:00:00Z',
-        nextInvoiceUtc: '2026-08-01T00:00:00Z',
-        amountMinorUnits: 120000,
-        currencyCode: 'TJS',
-        cancelAtPeriodEnd: false
-      })),
-      listInvoices: mock(async () => [
-        {
-          invoiceId: 'i1',
-          number: 42,
-          issuedAtUtc: '2026-07-01T00:00:00Z',
-          dueAtUtc: '2026-07-10T00:00:00Z',
-          amountMinorUnits: 120000,
-          currencyCode: 'TJS',
-          status: 'paid'
-        }
-      ])
+// Клиент передаётся экрану, а не подменяется через mock.module: подмена общего фабричного хелпера
+// в bun переживает файл и доставалась соседним наборам.
+const client = {
+  getSubscription: mock(async () => ({
+    planCode: 'PRO',
+    status: 'active',
+    currentPeriodStartUtc: '2026-07-01T00:00:00Z',
+    currentPeriodEndUtc: '2026-07-31T00:00:00Z',
+    nextInvoiceUtc: '2026-08-01T00:00:00Z',
+    amountMinorUnits: 120000,
+    currencyCode: 'TJS',
+    cancelAtPeriodEnd: false
+  })),
+  listInvoices: mock(async () => [
+    {
+      invoiceId: 'i1',
+      number: 42,
+      issuedAtUtc: '2026-07-01T00:00:00Z',
+      dueAtUtc: '2026-07-10T00:00:00Z',
+      amountMinorUnits: 120000,
+      currencyCode: 'TJS',
+      status: 'paid'
     }
-  })
-}));
+  ])
+} as unknown as BillingClient;
 
 const backend = {
   config: { platformBaseUrl: 'x', currencyCode: 'TJS' },
@@ -40,10 +40,9 @@ const backend = {
 
 describe('BillingDestination', () => {
   it('renders plan code, subscription status and an invoice row', async () => {
-    const { BillingDestination } = await import('./BillingDestination');
     render(
       <I18nProvider initialLocale="ru">
-        <BillingDestination backend={backend as never} />
+        <BillingDestination backend={backend as never} client={client} />
       </I18nProvider>
     );
     await waitFor(() => expect(screen.getByText('PRO')).toBeInTheDocument());

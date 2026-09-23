@@ -1,4 +1,4 @@
-import { describe, it, expect, mock, afterEach } from 'bun:test';
+import { afterAll, describe, it, expect, mock, afterEach } from 'bun:test';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 
@@ -36,6 +36,12 @@ mock.module('../../operatorHelpers', () => ({
 }));
 
 const backend = { config: { platformBaseUrl: 'x', currencyCode: 'TJS' }, session: { organizationId: 'org', accessToken: 't' }, branchId: 'b1' };
+
+afterAll(() => {
+  mock.module('../../operatorHelpers', () => (globalThis as typeof globalThis & {
+    __afk4RealOperatorHelpers: typeof import('../../operatorHelpers');
+  }).__afk4RealOperatorHelpers);
+});
 
 describe('JournalDestination', () => {
   it('renders an audit row including an org-level (null-branch) action', async () => {
