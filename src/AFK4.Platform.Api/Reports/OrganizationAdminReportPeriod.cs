@@ -25,6 +25,16 @@ public sealed record OrganizationAdminReportPeriod(
         return new OrganizationAdminReportPeriod(fromDate, toDate, timeZone.Id, fromUtc, toUtc);
     }
 
+    /// <summary>
+    /// Период, с которым сравнивается выбранный: столько же дней, вплотную перед ним. Одно правило
+    /// и для экрана, и для выгрузки, чтобы строка сравнения в файле называла те же даты.
+    /// </summary>
+    public static (DateOnly FromDate, DateOnly ToDate) PreviousOf(DateOnly fromDate, DateOnly toDate)
+    {
+        var previousTo = fromDate.AddDays(-1);
+        return (previousTo.AddDays(-(toDate.DayNumber - fromDate.DayNumber)), previousTo);
+    }
+
     private static DateTimeOffset ResolveUtcMidnight(DateOnly date, TimeZoneInfo timeZone)
     {
         var localMidnight = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);

@@ -767,8 +767,15 @@ export function realtimeLabel(state: OperatorRealtimeConnectionState, error: str
 export function resolveActiveBranchId(
   session: OperatorAuthSession, configBranchId?: string, chosenBranchId?: string
 ): string | null {
-  if (chosenBranchId && session.branchIds.includes(chosenBranchId)) return chosenBranchId;
-  return session.activeBranchId ?? configBranchId ?? session.branchIds[0] ?? null;
+  // Активным может быть только свой филиал сессии. Привязка ПК (configBranchId) к чужому филиалу
+  // не делает его своим: сервер откажет в каждом запросе, а сотрудник без филиалов увидел бы
+  // вместо честного «нет активного филиала» зал, который ему не открыть.
+  const own = (branchId: string | undefined): branchId is string =>
+    branchId !== undefined && session.branchIds.includes(branchId);
+  if (own(chosenBranchId)) return chosenBranchId;
+  if (own(session.activeBranchId)) return session.activeBranchId;
+  if (own(configBranchId)) return configBranchId;
+  return session.branchIds[0] ?? null;
 }
 
 export function matchesRealtimeScope(status: DeviceStatusChangedDto, session: OperatorAuthSession, branchId: string): boolean {

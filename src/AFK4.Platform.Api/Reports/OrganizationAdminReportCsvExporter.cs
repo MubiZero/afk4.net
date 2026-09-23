@@ -24,6 +24,14 @@ public static class OrganizationAdminReportCsvExporter
         Line(csv, "total", "net", report.NetRevenue.CurrencyCode, report.NetRevenue.MinorUnits, report.Period.FromDate, report.Period.ToDate);
         foreach (var source in report.Sources)
             Line(csv, "source", source.Source, source.Revenue.CurrencyCode, source.Revenue.MinorUnits, report.Period.FromDate, report.Period.ToDate);
+        var (previousFrom, previousTo) = OrganizationAdminReportPeriod.PreviousOf(report.Period.FromDate, report.Period.ToDate);
+        var previous = report.Comparison.PreviousNetRevenue;
+        Line(csv, "comparison", "previous_net", previous.CurrencyCode, previous.MinorUnits, previousFrom, previousTo);
+        Line(csv, "comparison", "difference", report.NetRevenue.CurrencyCode, report.Comparison.DifferenceMinorUnits, report.Period.FromDate, report.Period.ToDate);
+        foreach (var method in report.PaymentMethods)
+            Line(csv, "payment_method", method.Label, method.Revenue.CurrencyCode, method.Revenue.MinorUnits, report.Period.FromDate, report.Period.ToDate);
+        foreach (var staff in report.Operators)
+            Line(csv, "operator", staff.Label, staff.Revenue.CurrencyCode, staff.Revenue.MinorUnits, report.Period.FromDate, report.Period.ToDate);
         return csv.ToString();
     }
 

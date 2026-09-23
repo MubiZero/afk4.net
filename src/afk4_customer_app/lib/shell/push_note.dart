@@ -37,7 +37,15 @@ class PushNote extends StatelessWidget {
                 ),
               ),
               if (onOpen != null)
-                TextButton(onPressed: onOpen, child: Text(L.of(context).customerPushOpen)),
+                TextButton(
+                  onPressed: onOpen,
+                  // Полоса залита подсветкой акцента, и сам акцент на ней не читается: в
+                  // светлой теме фирменный зелёный давал 3,9:1. Текст на подложке — её пара.
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSecondaryContainer,
+                  ),
+                  child: Text(L.of(context).customerPushOpen),
+                ),
               IconButton(
                 onPressed: onDismiss,
                 icon: const Icon(Icons.close, size: 18),
