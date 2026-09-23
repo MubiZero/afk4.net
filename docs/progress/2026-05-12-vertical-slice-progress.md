@@ -692,22 +692,27 @@ Closed on 2026-09-23 evening (#417–#429):
   guarded — it caught one more leak on the way in); a quiet-refresh race in Platform Control's
   `useLoadable` flashed a skeleton when two timer ticks came back to back (#427).
 
-Waiting for an owner decision:
-- **Booking move** (#425, open) — a session without an end blocks a seat only once the booking
-  window has started. The strict alternative locks a seat all day for an evening booking.
-- **Reports: two rules for gameplay revenue.** The summary and «Выручка» figures take sessions
-  *started* in the period and do not subtract gameplay refunds; the trend and the per-cashier
-  breakdown take ledger rows *written* in the period and do subtract them. A week's trend can
-  therefore disagree with the week's total. Proposal: net of refunds, by charge date, everywhere.
+Closed on 2026-09-23 night (#425, #431–#436), after the owner's answers:
+- **Booking move** (#425) — seats are offered for the booking's own window; a session without an
+  end blocks a seat only once that window has started.
+- **One money rule in reports** (#434) — money counts on the day it moved, net of refunds, on
+  every report screen: bar payments and refunds on their own days, gameplay charges and refunds
+  from the session ledger. The day's total now equals its trend point and the per-cashier sum.
+  Play time stays session-based; the sales list stays a list of sales.
+- **«Кэшбек»** (#431) — one Russian spelling, guarded; Tajik keeps «кэшбэк» by its glossary.
+- **Seat states in the contract** (#435) — `SeatStateNames`; the contract generator now emits all
+  57 `*Names` dictionaries to TS, and a field whose comment names a dictionary gets its value type
+  (`SeatStatusDto.state: SeatStateName`), so comparing with `'free'` fails `tsc`.
+- **Client card** (#436) — packages, package sale and the seat select are styled; the
+  «Комплиментарная сессия» checkbox is inline again.
+- **«Посадить за ПК» from the card** (#432) — five tariff requests per open became one.
+- **Web tests hanging for minutes under load** (#433) — a failed element assertion made bun print
+  the DOM node with its whole document (2.1 MB for a bare button). Nodes now print as short HTML.
 
 Still open, named:
-- seat states are string literals on the server (`EfFloorMapReadService.GetSeatState`) with no
-  `SeatStateNames` in `AFK4.Shared.Contracts`, so generated types do not know them — the root of
-  the #423 bug;
 - no way to return a staff member with no assignments to a branch from the panel;
-- unstyled: `.clients-packages-section`, `.pos-package-purchase` in the client modal, the `select`
-  in `.clients-new-form` (22px against 36px fields) and its «за счёт клуба» checkbox;
 - two «Мастер настройки» strings hardcoded in the WPF fallback windows of the wizard;
+- Dart gets only a comment for dictionary-typed fields, not a type;
 - **Looking with eyes** — the passes read markup, styles and states rather than running the
   product: the live stand is frozen by decision.
 
@@ -1025,8 +1030,8 @@ thrown away rather than polished.
    of how a rollout is going: device-level counts exist in `DeviceUpdateStatuses`,
    but no endpoint exposes them, and a wave nobody widens leaves part of the fleet
    behind silently.
-3. **The rest of the "named, not done" list** (section above) — two owner decisions (booking
-   move, gameplay revenue rule), `SeatStateNames` in the contract, the unstyled client-card bits.
+3. **The rest of the "named, not done" list** (section above) — returning an unassigned staff
+   member to a branch, the two hardcoded wizard strings.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
