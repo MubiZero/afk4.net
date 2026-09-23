@@ -23,6 +23,6 @@ describe('LoyaltyScreen', () => {
       topUpEnabled: false, topUpPercentBasisPoints: 0, shopEnabled: false, shopPercentBasisPoints: 0,
       totalEarned: { currencyCode: 'TJS', minorUnits: 0 }, recent: []
     }) })} onDone={() => {}} />);
-    await waitFor(() => screen.getByText(/кэшбэк пока недоступен/i));
+    await waitFor(() => screen.getByText(/кэшбек пока недоступен/i));
   });
 });
