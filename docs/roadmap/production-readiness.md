@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-09-03
+Last updated: 2026-09-22
 
 ## Purpose
 
@@ -27,8 +27,7 @@ run history belongs in the progress snapshot or archive notes.
 >    smoke is not the next step either, it has nothing to prove yet.
 > 2. *Operational decisions no one else can take:* Authenticode custody and the
 >    update-signing key, production object store/CDN and retention, backup
->    encryption/retention/ownership, an incident and rollback checklist, real SMTP
->    settings, and whether a machine credential exists for release registration
+>    encryption/retention/ownership, an incident and rollback checklist, and whether a machine credential exists for release registration
 >    (registering a package needs a platform-admin session behind two-factor, so
 >    CI cannot do it and a human does it in Platform Control).
 > 3. *The money path end to end:* the DC bank bot stopped delivering deposit
@@ -40,6 +39,13 @@ run history belongs in the progress snapshot or archive notes.
 > lint gate added for the web workspaces, and `deploy/**` finally covered by PR
 > checks. See `docs/progress/2026-05-12-vertical-slice-progress.md` for the
 > feature-level snapshot.
+>
+> **Update 2026-09-22.** Email is closed: `no-reply@afk4.net` sends from staging
+> since 2026-09-12, SPF/DKIM/DMARC pass, DMARC is at `p=reject`, and the owner
+> confirmed delivery lands outside spam. The agent half of item 1 moved too —
+> unknown commands are refused, the launcher list is real, lock disables Task
+> Manager and reports what it enforced (#274, #275); OS-level kiosk input
+> blocking is still missing and belongs to the Player Shell rewrite.
 
 The product scope and architecture decisions remain in:
 
@@ -553,11 +559,9 @@ and the progress snapshot). The remaining path to production is operational:
    `COOLIFY_BASE_URL` / `COOLIFY_STAGING_APP_UUID` and secret
    `COOLIFY_API_TOKEN` are configured for automated staging deploy.
 
-5. **Finish notification delivery configuration** — the backend reset path,
-   Operator forgot/reset-password screen, and MailKit SMTP transport exist.
-   No third-party provider is needed: a Stalwart mail server already runs in
-   Coolify (`mail-mubi-dev`) with matching reverse DNS, and `afk4.net` only has
-   to be added to it. Procedure, DNS records and the verification that counts:
+5. **Notification delivery — done on staging (2026-09-12…22).** Email goes
+   through the Stalwart server in Coolify as `no-reply@afk4.net`; SMS and Android
+   push were proven earlier. A production environment repeats the same steps:
    `docs/operations/email-delivery.md`.
 
 ## Decision Rules

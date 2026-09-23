@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-16
+Last updated: 2026-09-22
 
 ## Purpose
 
@@ -58,7 +58,10 @@ SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
 - **Player shell on the gaming PC** — player auth, self-service extend, shop,
   cashback, news.
 - **Notifications backbone** — MailKit SMTP transport, dispatcher, outbox,
-  contact fields + preferences; staff/owner password-reset backend.
+  contact fields + preferences; staff/owner password-reset backend. All three
+  channels are proven live: SMS, Android push, and email — `no-reply@afk4.net`
+  through the Stalwart server in Coolify since 2026-09-12, SPF/DKIM/DMARC pass,
+  DMARC at `p=reject`, delivered outside spam (`docs/operations/email-delivery.md`).
 - **Localization** — ru/en/tg catalog (`locales/*.json` + `packages/i18n`),
   per-branch locale.
 - **Realtime-consistency** — SignalR device/operator clients, optimistic
@@ -893,11 +896,13 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   shell in front need a hook on the interactive desktop, and the agent sits in
   session 0. So a player can still Alt+Tab out of a "locked" PC — the difference
   is that the server no longer claims otherwise. That half belongs to the Player
-  Shell rewrite. Two more shell-side actions are dead on both ends and need a
-  backend route as well: «позвать оператора» (`shell:requestOperator` answers
-  `{requested:true}` and tells nobody) and «пауза» (the host bridge answers
-  `{paused:true}`; the server models a `Paused` session state that nothing ever
-  reaches). Clock drift is still detected and only logged — a deliberate
+  Shell rewrite. Two shell buttons are still stubs in the host bridge
+  (`PlayerShellWebHostBridge`), but only on the shell side: «позвать оператора»
+  has its whole path below the button — the agent's `IAssistanceRequestReporter`,
+  `POST /api/devices/{id}/assistance-request`, the bell on the seat tile and
+  «Я подошёл» (#278); «пауза» is an operator action on the session
+  (`sessions/{id}/pause` and `/resume`, #279). Whether a player may pause
+  themselves from the shell is a product question for the rewrite. Clock drift is still detected and only logged — a deliberate
   deferral until real fleets show whether they drift.
 
 - **Release registration needs a human.** Registering an update package is a
@@ -908,14 +913,6 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   back — an open policy decision, recorded in
   `docs/operations/update-package-publishing.md`.
 
-- **Per-environment SMTP config** is unwired. The mail server itself is not the
-  gap: Stalwart runs in Coolify (`mail-mubi-dev`) with reverse DNS pointing at
-  `mail.mubi.dev`, and `mubi.dev` already sends with SPF and `p=reject`. What is
-  missing is `afk4.net` inside that server (domain, DKIM, a `no-reply` mailbox),
-  its DNS records in the empty Cloudflare zone, and the `Notifications__*`
-  variables. Steps and the verification that counts:
-  `docs/operations/email-delivery.md`. Email stays the only notification channel
-  not proven end to end; SMS and Android push are.
 - **iOS side of the mobile app** — no APNs key, no iOS build, no `ios` folder at
   all. Android is verified end to end, and since 2026-09-03 the app also handles
   an incoming notification: tapping one opens the screen it is about. iOS is
@@ -938,8 +935,9 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   was allowed while "two hours" was not. A club that wants a separate evening
   price adds an evening tariff or a package with its own window. The tariff
   editor says this next to the hours.
-- **Operator entity search** is half-closed: the command palette finds people
-  (#202) but still does not search seats, reservations, orders, or receipts.
+- **Operator entity search** finds seats, players, reservations and receipts
+  and opens each one in place (#280), within the finder's own rights. Bar orders
+  are the one kind it does not search.
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
   `manager_workstation` install at 100%/125% scaling and run the physical Windows
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
@@ -971,8 +969,9 @@ thrown away rather than polished.
    declared dependency and the agent already sends the branch's `Locale` (which
    nothing reads). A Tajik club sees a Russian kiosk. The rewrite carries the
    work that has to live in an interactive process: kiosk input blocking,
-   «позвать оператора» (needs a backend route — there is none), «пауза» (needs a
-   session endpoint — there is none), empty states in shop/extend.
+   wiring «позвать оператора» to the agent's existing reporter (the server path
+   is done, #278), deciding whether the player can pause themselves (operator
+   pause exists, #279), empty states in shop/extend.
 2. **Rollouts in waves, with a progress view — an owner's decision, not ours.**
    Publishing a package still reaches every club at once, which is a deliberate
    choice recorded in the code and guarded by a test. The server already supports
@@ -981,16 +980,15 @@ thrown away rather than polished.
    the pulse alert, but no endpoint exposes them). Waves without that view trade
    one risk for another: a wave nobody widens leaves part of the fleet on an old
    version silently. Decide the pair together.
-3. **Operator entity search** — the palette finds people but still not seats,
-   reservations, orders or receipts.
+3. **The third pass's "named, not done" list** (section above) — one PR per
+   class, cheapest and most visible first.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
    checklist.
 5. **Decide whether iOS ships at launch** — no Apple account, no APNs key, no
    `ios` folder.
-6. **Then, and only then, the frozen evidence**: the live revenue-wave pass, per
-   environment SMTP (`docs/operations/email-delivery.md`), the clean
+6. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
    `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
    smoke.
 
