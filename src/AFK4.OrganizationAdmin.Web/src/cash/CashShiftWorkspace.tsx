@@ -9,7 +9,7 @@ import {
   formatTime
 } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
-import { Money, PartialLoadFailure } from '../operatorPrimitives';
+import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type {
@@ -218,7 +218,7 @@ export function CashShiftWorkspace({
                 <header><h2>{t('op.cash.shift.movementsTitle')}</h2>{cashRowsError === null && <span>{cashRows.length}</span>}</header>
                 {cashRowsError !== null ? <PartialLoadFailure text={t('op.cash.shift.movementsFailed', { reason: cashRowsError.detail })} failure={cashRowsError} onRetry={retryCashRows} /> : <>
                 <div className="cash-shift-movement-head" aria-hidden="true"><span>{t('op.cash.shift.timeColumn')}</span><span>{t('op.cash.shift.operationColumn')}</span><span>{t('op.cash.shift.reasonColumn')}</span><span>{t('op.cash.shift.operatorColumn')}</span><span>{t('op.cash.shift.amountColumn')}</span></div>
-                {cashRows.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.movementsEmpty')}</p> : <ul className="cash-shift-movements">
+                {cashRows.length === 0 ? <EmptyState inline className="cash-shift-empty-note" title={t('op.cash.shift.movementsEmpty')} next={{ kind: 'calm', hint: t('op.cash.shift.movementsEmptyHint') }} /> : <ul className="cash-shift-movements">
                   {cashRows.slice(0, 8).map((row) => {
                     const negative = row.cashImpact.minorUnits < 0;
                     return <li key={row.operationId} className={negative ? 'out' : 'in'}><span>{formatTime(row.createdAtUtc)}</span><strong>{cashOperationTypeLabel(row.operationType || 'cash', t)}</strong><em>{row.reason || '—'}</em><span>{row.createdByDisplayName || '—'}</span><b><Money minorUnits={row.cashImpact.minorUnits} currencyCode={currencyCode} signed /></b></li>;
@@ -231,7 +231,7 @@ export function CashShiftWorkspace({
 
             <section className="cash-shift-history-panel">
               <header><h2>{t('op.cash.shift.pastShifts')}</h2>{historyError === null && <span>{history.length}</span>}</header>
-              {historyError !== null ? <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError.detail })} failure={historyError} onRetry={retryHistory} /> : history.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.historyEmpty')}</p> : <CashRegisterRows rows={history.slice(0, 8)} selectedId={selectedShift?.shiftId ?? ''} getId={(shift) => shift.shiftId} onSelect={setSelectedShiftId} ariaLabel={t('op.cash.shift.pastShifts')} renderRow={(shift) => <div className="cash-shift-history-row">
+              {historyError !== null ? <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError.detail })} failure={historyError} onRetry={retryHistory} /> : history.length === 0 ? <EmptyState inline className="cash-shift-empty-note" title={t('op.cash.shift.historyEmpty')} next={{ kind: 'calm', hint: t('op.cash.shift.historyEmptyHint') }} /> : <CashRegisterRows rows={history.slice(0, 8)} selectedId={selectedShift?.shiftId ?? ''} getId={(shift) => shift.shiftId} onSelect={setSelectedShiftId} ariaLabel={t('op.cash.shift.pastShifts')} renderRow={(shift) => <div className="cash-shift-history-row">
                 <span>{new Date(shift.openedAtUtc).toLocaleDateString('ru-RU')}</span>
                 <span><small>{t('op.shifts.earned')}</small><strong><Money minorUnits={shift.earned.total.minorUnits} currencyCode={currencyCode} /></strong></span>
                 <span className={shift.cash.difference?.minorUnits ? 'attention' : ''}><small>{t('op.cash.shift.difference')}</small><strong>{shift.cash.difference ? <Money minorUnits={shift.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</strong></span>

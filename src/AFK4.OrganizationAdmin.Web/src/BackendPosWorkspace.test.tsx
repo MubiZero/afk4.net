@@ -380,6 +380,10 @@ describe('BackendPosWorkspace', () => {
 
     expect(screen.getByText('Ничего не нашлось')).toBeInTheDocument();
     expect(screen.queryByText('Каталог пуст')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+    expect((screen.getByPlaceholderText('Товар, услуга, SKU') as HTMLInputElement).value).toBe('');
+    expect(screen.getAllByText('Cola').length).toBeGreaterThan(0);
   });
 
   it('replays an ambiguous multipart settlement once with the same idempotency key', async () => {

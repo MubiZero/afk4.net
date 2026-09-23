@@ -191,9 +191,17 @@ export function JournalWorkspace({
         {capReached && <p className="journal-cap">{t('op.stock.journal.capNote', { count: MOVEMENT_LIMIT })}</p>}
 
         {allRows.length === 0 ? (
-          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.empty')} />
+          <EmptyState
+            icon={<ClipboardList size={28} aria-hidden="true" />}
+            title={t('op.stock.journal.empty')}
+            next={{ kind: 'calm', hint: t('op.stock.journal.emptyHint') }}
+          />
         ) : rows.length === 0 ? (
-          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.emptyFiltered')} />
+          <EmptyState
+            icon={<ClipboardList size={28} aria-hidden="true" />}
+            title={t('op.stock.journal.emptyFiltered')}
+            next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => { setTypeFilter('all'); setPeriod('all'); setSearch(''); } }}
+          />
         ) : (
           <div className="jledger" aria-label={t('op.stock.journal.head')}>
             {groups.map((group) => (

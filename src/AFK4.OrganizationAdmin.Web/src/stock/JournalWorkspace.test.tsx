@@ -42,6 +42,24 @@ describe('JournalWorkspace', () => {
     expect(within(list).getByText('Cola 0.5')).toBeInTheDocument(); // sale остался
   });
 
+  it('пустой отбор снимается «Сбросить фильтр»', async () => {
+    view();
+    await screen.findAllByText('Cola 0.5');
+    fireEvent.change(screen.getByPlaceholderText('Товар…'), { target: { value: 'нет такого' } });
+    expect(screen.getByText('Нет движений под фильтр')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+    expect(screen.getByText('Чипсы Lays')).toBeInTheDocument();
+  });
+
+  // Пустой журнал — не поломка: движения появятся сами, стоит принять товар или продать его.
+  it('пустой журнал говорит, что здесь появится, и не предлагает кнопку', async () => {
+    getStockMovements.mockImplementationOnce(async () => []);
+    const { container } = view();
+    expect(await screen.findByText('Движений по складу пока нет')).toBeInTheDocument();
+    expect(screen.getByText('Приёмки, продажи, возвраты и списания появятся здесь.')).toBeInTheDocument();
+    expect(container.querySelector('.empty-state button')).toBeNull();
+  });
+
   it('без права — экран отказа', () => {
     render(<I18nProvider initialLocale="ru"><JournalWorkspace backend={backend} currencyCode="TJS" session={{ permissions: [], organizationId: 'o' } as never} /></I18nProvider>);
     expect(screen.getByText('Недостаточно прав для просмотра журнала')).toBeInTheDocument();

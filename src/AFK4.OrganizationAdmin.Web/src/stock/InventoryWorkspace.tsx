@@ -172,7 +172,11 @@ export function InventoryWorkspace({
         <div className="recv-doc" aria-label={t('op.stock.inventory.title')}>
           <h2>{t('op.stock.inventory.title')}</h2>
           {lines.length === 0 ? (
-            <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.inventory.empty')} />
+            <EmptyState
+              icon={<Boxes size={28} aria-hidden="true" />}
+              title={t('op.stock.inventory.empty')}
+              next={{ kind: 'elsewhere', hint: t('op.empty.trackStockWhere') }}
+            />
           ) : (
             <>
               <div className="inv-cols" aria-hidden="true">
@@ -185,7 +189,14 @@ export function InventoryWorkspace({
               </div>
               <ul className="inv-lines">
                 {visibleLines.length === 0 && (
-                  <li className="recv-noresults">{t('op.stock.levels.emptyFiltered')}</li>
+                  <li>
+                    <EmptyState
+                      inline
+                      className="recv-noresults"
+                      title={t('op.stock.levels.emptyFiltered')}
+                      next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => setSearch('') }}
+                    />
+                  </li>
                 )}
                 {visibleLines.map((line) => {
                   const diff = lineDiff(line);

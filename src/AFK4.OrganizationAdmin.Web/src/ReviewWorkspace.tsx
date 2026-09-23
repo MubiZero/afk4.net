@@ -18,7 +18,7 @@ import {
 } from './operatorHelpers';
 import { useFeedbackToasts } from './useFeedbackToasts';
 import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './cash/CashTerminalFrame';
-import { PartialLoadFailure } from './operatorPrimitives';
+import { EmptyState, PartialLoadFailure } from './operatorPrimitives';
 
 type ReviewSegment = 'queue' | 'history' | 'audit';
 
@@ -163,13 +163,23 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
     }
   };
 
-  const applyAuditSearch = async () => {
+  const auditFiltered = auditActor !== '' || auditMinAmount.trim() !== '' || auditMaxAmount.trim() !== '';
+  const resetAuditFilter = () => {
+    setAuditActor('');
+    setAuditMinAmount('');
+    setAuditMaxAmount('');
+    void applyAuditSearch({ actor: '', min: '', max: '' });
+  };
+
+  // Фильтр можно передать явно: сброс перечитывает журнал без отбора сразу, не дожидаясь, пока
+  // очищенные поля доедут до состояния.
+  const applyAuditSearch = async (filter = { actor: auditActor, min: auditMinAmount, max: auditMaxAmount }) => {
     setFeedback({ label: t('op.review.feedbackAudit'), state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const parsedMin = auditMinAmount.trim() === '' ? null : Number(auditMinAmount);
-      const parsedMax = auditMaxAmount.trim() === '' ? null : Number(auditMaxAmount);
+      const parsedMin = filter.min.trim() === '' ? null : Number(filter.min);
+      const parsedMax = filter.max.trim() === '' ? null : Number(filter.max);
       const maxAmount = parsedMax !== null && Number.isFinite(parsedMax) ? parsedMax : null;
       // Default to amount-bearing (money / high-risk) records when no amount bound is set:
       // the audit query drops null-amount rows once a bound is present (§5.5).
@@ -178,7 +188,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
         : (maxAmount === null ? 0 : null);
       const result = await apiClients.audit.search({
         branchId: nextBackend.branchId,
-        actorStaffUserId: auditActor.trim() === '' ? null : auditActor.trim(),
+        actorStaffUserId: filter.actor.trim() === '' ? null : filter.actor.trim(),
         minAmount,
         maxAmount,
         limit: 50
@@ -233,7 +243,9 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
           inspectorOpen={selectedRequest !== null}
           closeLabel={t('common.close')}
           onCloseInspector={() => { setSelectedRequestId(''); setRejectingId(''); setDecisionReason(''); }}
-          register={requests.length === 0 ? <p className="review-empty">{loadError ?? t('op.review.emptyQueue')}</p> : <CashRegisterRows rows={requests} selectedId={selectedRequestId} getId={(request) => request.moneyActionRequestId} onSelect={setSelectedRequestId} ariaLabel={t('op.review.queueAria')} renderRow={(request) => {
+          register={requests.length === 0 ? (loadError !== null
+            ? <p className="review-empty">{loadError}</p>
+            : <EmptyState inline className="review-empty" title={t('op.review.emptyQueue')} next={{ kind: 'calm', hint: t('op.review.emptyQueueHint') }} />) : <CashRegisterRows rows={requests} selectedId={selectedRequestId} getId={(request) => request.moneyActionRequestId} onSelect={setSelectedRequestId} ariaLabel={t('op.review.queueAria')} renderRow={(request) => {
             const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now(), t);
             return <div className="review-approval-row"><span>{reviewActionTypeLabel(request.actionType, t)}</span><strong>{formatMinorUnits(request.amountMinorUnits, request.currencyCode || currencyCode)}</strong><em>{request.reason}</em><small>{resolveStaffName(request.requestedByStaffUserId)}</small>{expiryBadge ? <b className={expiryBadge.tone}>{expiryBadge.label}</b> : null}</div>;
           }} />}
@@ -247,7 +259,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
         />
       )}
 
-      {activeSegment === 'history' && <section className="review-panel review-history-panel">{decisionRecords.length === 0 ? <p className="review-empty">{t('op.review.emptyHistory')}</p> : <div className="review-audit-list">{decisionRecords.map((record) => <article key={record.auditRecordId} className="review-audit-row"><span>{formatTime(record.createdAtUtc)}</span><strong>{reviewAuditActorLabel(record)}</strong><em>{auditActionLabel(record.action, t)}</em><b>{record.amountMinorUnits ? formatMinorUnits(record.amountMinorUnits, currencyCode) : '—'}</b></article>)}</div>}</section>}
+      {activeSegment === 'history' && <section className="review-panel review-history-panel">{decisionRecords.length === 0 ? <EmptyState inline className="review-empty" title={t('op.review.emptyHistory')} next={{ kind: 'calm', hint: t('op.review.emptyHistoryHint') }} /> : <div className="review-audit-list">{decisionRecords.map((record) => <article key={record.auditRecordId} className="review-audit-row"><span>{formatTime(record.createdAtUtc)}</span><strong>{reviewAuditActorLabel(record)}</strong><em>{auditActionLabel(record.action, t)}</em><b>{record.amountMinorUnits ? formatMinorUnits(record.amountMinorUnits, currencyCode) : '—'}</b></article>)}</div>}</section>}
 
       {activeSegment === 'audit' && (
         <section className="review-panel review-audit-panel">
@@ -267,7 +279,14 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
           </div>
           <div className="review-audit-list">
             {auditRecords.length === 0 ? (
-              <p className="review-empty">{t('op.review.emptyAudit')}</p>
+              <EmptyState
+                inline
+                className="review-empty"
+                title={t('op.review.emptyAudit')}
+                next={auditFiltered
+                  ? { kind: 'action', label: t('op.empty.resetFilter'), onClick: resetAuditFilter }
+                  : { kind: 'calm', hint: t('op.review.emptyAuditHint') }}
+              />
             ) : (
               auditRecords.map((record) => (
                 <article key={record.auditRecordId} className="review-audit-row">

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { JSX, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
-import { Money } from '../../operatorPrimitives';
+import { EmptyState, Money } from '../../operatorPrimitives';
 import { createAuthenticatedOperatorClients } from '../../operatorHelpers';
 import { projectOperatorError } from '../../apiErrors';
 import type { OperatorBackendContext } from '../../operatorTypes';
@@ -102,7 +102,12 @@ export function BillingDestination({
             <h3>{t('op.network.billing.invoices')}</h3>
             <SectionState section={invoices} failedTitle={t('op.network.billing.invoices.loadFailed')} />
             {invoices.status !== 'ready' ? null : invoices.data.length === 0 ? (
-              <p className="network-billing-empty">{t('op.network.billing.invoices.empty')}</p>
+              <EmptyState
+                inline
+                className="network-billing-empty"
+                title={t('op.network.billing.invoices.empty')}
+                next={{ kind: 'calm', hint: t('op.network.billing.invoices.emptyHint') }}
+              />
             ) : (
               <div className="table-panel">
                 <div className="ctable-head" style={{ gridTemplateColumns: INVOICES_GRID }} aria-hidden="true">

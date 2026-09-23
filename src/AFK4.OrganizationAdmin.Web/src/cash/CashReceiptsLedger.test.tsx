@@ -80,6 +80,15 @@ describe('CashReceiptsLedger', () => {
     expect(await screen.findByText('Оплачен')).toBeInTheDocument();
   });
 
+  // Пустая лента чеков говорила одно слово — «сервер». Теперь — что продаж нет и когда появятся.
+  it('пустая лента чеков говорит, что продаж нет и откуда они появятся', async () => {
+    getSalesReport.mockImplementationOnce(async () => ({ ...(await getSalesReport()), rows: [] }));
+    renderReceipts();
+    expect(await screen.findByText('Продаж пока нет')).toBeInTheDocument();
+    expect(screen.getByText('Чек появится здесь, как только в кассе проведут продажу.')).toBeInTheDocument();
+    expect(screen.queryByText('сервер')).toBeNull();
+  });
+
   it('показывает строки чека и смешанную оплату в инспекторе', async () => {
     renderReceipts();
     fireEvent.click(await screen.findByRole('row', { name: /Оплачен/ }));

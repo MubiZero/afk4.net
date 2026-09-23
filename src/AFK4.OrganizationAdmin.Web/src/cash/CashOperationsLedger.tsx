@@ -8,7 +8,7 @@ import {
   formatTime
 } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
-import { Money, PartialLoadFailure } from '../operatorPrimitives';
+import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { CashOperationReportResultDto, CashOperationReportRowDto } from '../operatorApiClients';
 import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
@@ -105,7 +105,9 @@ export function CashOperationsLedger({
             <button type="button" className="cash-ledger-export" onClick={() => void exportCsv()}><Download size={14} aria-hidden="true" />{t('op.cash.journal.export')}</button>
           </div>
           {exportError && <p className="cash-export-error" role="alert">{exportError}</p>}
-          {filtered.length === 0 ? <p className="cash-shift-empty-note cash-ledger-empty">{rows.length === 0 ? t('op.cash.journal.empty') : t('op.cash.journal.noMatch')}</p> : <CashRegisterRows rows={filtered} selectedId={selectedId} getId={(row) => row.operationId} onSelect={setSelectedId} ariaLabel={t('op.cash.journal.registerAria')} renderRow={(row) => {
+          {filtered.length === 0 ? (rows.length === 0
+            ? <EmptyState inline className="cash-shift-empty-note cash-ledger-empty" title={t('op.cash.journal.empty')} next={{ kind: 'calm', hint: t('op.cash.journal.emptyHint') }} />
+            : <EmptyState inline className="cash-shift-empty-note cash-ledger-empty" title={t('op.cash.journal.noMatch')} next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => { setQuery(''); setOperationType('all'); } }} />) : <CashRegisterRows rows={filtered} selectedId={selectedId} getId={(row) => row.operationId} onSelect={setSelectedId} ariaLabel={t('op.cash.journal.registerAria')} renderRow={(row) => {
             return <div className="ui-ledger-row cash-operation-row">
                 <span className="ui-ledger-time">{formatTime(row.createdAtUtc)}</span>
                 <div className="ui-ledger-body">

@@ -60,7 +60,7 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
           </div>
 
           {state.data.rows.length === 0 ? (
-            <EmptyState title={t('op.network.branches.empty')} />
+            <EmptyState title={t('op.network.branches.empty')} next={{ kind: 'elsewhere', hint: t('op.network.branches.add.viaPlatform') }} />
           ) : (
             <div className="network-branches-grid">
               {state.data.rows.map((row) => (

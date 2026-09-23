@@ -85,6 +85,33 @@ describe('StockLevelsWorkspace', () => {
     expect(within(list).queryAllByText('Энергетик Red Bull').length).toBe(0);
   });
 
+  // Отбор, под который ничего не подошло, снимается кнопкой в самом пустом списке — не надо
+  // искать глазами, какой из чипов и поиска его сузил.
+  it('пустой отбор снимается «Сбросить фильтр»: возвращает и чип, и поиск', async () => {
+    view();
+    await screen.findByText('Cola 0.5');
+    fireEvent.click(screen.getByRole('button', { name: /^нет/i }));
+    fireEvent.change(screen.getByPlaceholderText('Поиск товара…'), { target: { value: 'Cola' } });
+    expect(screen.getByText('Нет товаров, соответствующих фильтру')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+    expect(screen.getAllByText('Cola 0.5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Энергетик Red Bull').length).toBeGreaterThan(0);
+  });
+
+  // Склад считает только товары с учётом остатков. Раньше пустой склад звал «Заказать», а
+  // приёмка отвечала «Нет товаров с учётом остатка» — кнопка вела в тупик.
+  it('без товаров с учётом остатков называет, где его включают, и не зовёт в приёмку', async () => {
+    getCatalog.mockImplementationOnce(async () => [
+      { productId: 'p9', name: 'Кальян', sku: 'HOOKAH', categoryId: 'cat-drinks', trackStock: false, stockOnHand: 0, reorderThreshold: 0, avgCostMinorUnits: 0, price: { currencyCode: 'TJS', minorUnits: 5000 } }
+    ] as never);
+    const onReceive = mock((_id?: string) => {});
+    render(<I18nProvider initialLocale="ru"><StockLevelsWorkspace backend={backend} currencyCode="TJS" session={session} onReceive={onReceive} /></I18nProvider>);
+    expect(await screen.findByText('Товаров на складе нет')).toBeInTheDocument();
+    expect(screen.getByText('Здесь считаются товары с включённым «Учётом остатков». Его включают в карточке товара: Управление → Товары.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Оформить приёмку' })).toBeNull();
+  });
+
   it('кнопка ＋ на строке и «Оформить приёмку» зовут onReceive', async () => {
     const onReceive = mock((_id?: string) => {});
     render(<I18nProvider initialLocale="ru"><StockLevelsWorkspace backend={backend} currencyCode="TJS" session={session} onReceive={onReceive} /></I18nProvider>);

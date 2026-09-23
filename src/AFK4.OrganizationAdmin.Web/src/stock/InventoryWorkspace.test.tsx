@@ -125,5 +125,15 @@ describe('InventoryWorkspace', () => {
     ]));
     view();
     expect(await screen.findByText('Нет товаров с учётом остатка')).toBeInTheDocument();
+    // Пересчитывать нечего не потому, что что-то сломалось: учёт включается в карточке товара.
+    expect(screen.getByText('Здесь считаются товары с включённым «Учётом остатков». Его включают в карточке товара: Управление → Товары.')).toBeInTheDocument();
+  });
+
+  it('поиск, под который ничего не подошло, снимается «Сбросить фильтр»', async () => {
+    view();
+    await screen.findAllByText('Cola 0.5');
+    fireEvent.change(screen.getByPlaceholderText('Поиск товара'), { target: { value: 'нет такого' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Сбросить фильтр' }));
+    expect(screen.getAllByText('Cola 0.5').length).toBeGreaterThan(0);
   });
 });

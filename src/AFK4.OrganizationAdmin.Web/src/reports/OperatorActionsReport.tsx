@@ -68,7 +68,7 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
             rows={data.rows}
             rowKey={(row) => `${row.actorStaffUserId ?? 'system'}-${row.action}-${row.outcome}`}
             gridTemplate="minmax(160px, 1fr) minmax(200px, 1.4fr) 140px 120px 160px"
-            empty={{ title: t('op.reports.empty') }}
+            empty={{ title: t('op.reports.empty'), next: { kind: 'elsewhere', hint: t('op.reports.emptyHint') } }}
           />
           {data.rows.length >= data.limit
             ? <p className="mgmt-drawer-hint">{t('op.reports.truncated', { count: data.limit })}</p>

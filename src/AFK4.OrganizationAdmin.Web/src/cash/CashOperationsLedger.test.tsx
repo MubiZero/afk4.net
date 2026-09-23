@@ -59,6 +59,19 @@ describe('CashOperationsLedger', () => {
     expect(screen.getByText('1 операция')).toBeInTheDocument();
   });
 
+  // «Ничего не найдено» под поиском и типом — не пустая касса: снимается одной кнопкой.
+  it('пустой отбор снимается «Сбросить фильтр»: и поиск, и тип', async () => {
+    renderLedger(rows);
+    await screen.findByText('Размен кассы');
+    fireEvent.change(screen.getByLabelText('Тип операции'), { target: { value: 'cash_out' } });
+    fireEvent.change(screen.getByPlaceholderText('Поиск по причине или типу'), { target: { value: 'размен' } });
+    expect(screen.getByText('Ничего не найдено')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+    expect(screen.getByText('Размен кассы')).toBeInTheDocument();
+    expect(screen.getByText('Инкассация')).toBeInTheDocument();
+  });
+
   it('показывает контекст выбранной операции в стабильном инспекторе', async () => {
     renderLedger(rows);
     fireEvent.click(await screen.findByRole('row', { name: /Инкассация/ }));

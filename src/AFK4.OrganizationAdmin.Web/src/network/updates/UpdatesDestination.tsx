@@ -138,7 +138,7 @@ export function UpdatesDestination({
             <div className="mgmt-section-title"><span>{t('op.network.updates.app.title')}</span></div>
             <SectionState section={rollouts} failedTitle={t('op.network.updates.app.loadFailed')} />
             {rollouts.status !== 'ready' ? null : rollout === null ? (
-              <EmptyState title={t('op.network.updates.app.upToDate')} description={t('op.network.updates.app.upToDateHint')} />
+              <EmptyState title={t('op.network.updates.app.upToDate')} next={{ kind: 'calm', hint: t('op.network.updates.app.upToDateHint') }} />
             ) : (
               <>
                 <dl className="network-updates-facts">

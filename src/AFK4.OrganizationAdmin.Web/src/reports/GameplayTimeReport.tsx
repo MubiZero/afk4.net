@@ -106,7 +106,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
             rows={data.rows}
             rowKey={(row) => row.sessionId}
             gridTemplate="minmax(120px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 120px 140px"
-            empty={{ title: t('op.reports.empty') }}
+            empty={{ title: t('op.reports.empty'), next: { kind: 'elsewhere', hint: t('op.reports.emptyHint') } }}
           />
           {/* Сервер отдаёт не больше limit строк. Молчать об этом нельзя: неполный отчёт,
               который выглядит полным, — это неверные выводы о загрузке зала. */}

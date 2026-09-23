@@ -273,7 +273,9 @@ export function PackagesTab({
             icon: <PackageIcon size={22} aria-hidden="true" />,
             title: t('op.management.tariffs.packagesEmpty.title'),
             description: t('op.management.tariffs.packagesEmpty.description'),
-            action: canManagePackages ? { label: t('op.management.tariffs.addPackageCta'), onClick: openCreate } : undefined
+            next: canManagePackages
+              ? { kind: 'action', label: t('op.management.tariffs.addPackageCta'), onClick: openCreate }
+              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
 

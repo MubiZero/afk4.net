@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients, formatTime } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
-import { Money, PartialLoadFailure } from '../operatorPrimitives';
+import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorTopUpIntentDto } from '../operatorApiClients';
 
@@ -97,8 +97,7 @@ export function CashTopUpRequests({
   if (requests.length === 0) {
     return (
       <section className="cash-topups">
-        <p className="cash-shift-empty-note">{t('op.cash.topups.empty')}</p>
-        <p className="cash-topups-hint">{t('op.cash.topups.emptyHint')}</p>
+        <EmptyState title={t('op.cash.topups.empty')} next={{ kind: 'calm', hint: t('op.cash.topups.emptyHint') }} />
       </section>
     );
   }

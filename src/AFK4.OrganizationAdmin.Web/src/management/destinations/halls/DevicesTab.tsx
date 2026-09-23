@@ -5,7 +5,7 @@ import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
 import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
-import { CriticalActionConfirmation, Skeleton } from '../../../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
 import {
@@ -385,7 +385,8 @@ export function DevicesTab({
           empty={{
             icon: <MonitorSmartphone size={22} aria-hidden="true" />,
             title: t('op.management.halls.devicesEmpty.title'),
-            description: t('op.management.halls.devicesEmpty.description')
+            // Устройство здесь не создаётся: ПК встаёт в список сам, когда его подключили Мастером.
+            next: { kind: 'elsewhere', hint: t('op.management.halls.devicesEmpty.description') }
           }}
         />
 
@@ -430,7 +431,12 @@ export function DevicesTab({
                     ))}
                   </ul>
                 ) : (
-                  <p className="mgmt-drawer-hint">{t('op.settings.devices.commands.empty')}</p>
+                  <EmptyState
+                    inline
+                    className="mgmt-drawer-hint"
+                    title={t('op.settings.devices.commands.empty')}
+                    next={{ kind: 'calm', hint: t('op.settings.devices.commands.emptyHint') }}
+                  />
                 )}
               </div>
             )}

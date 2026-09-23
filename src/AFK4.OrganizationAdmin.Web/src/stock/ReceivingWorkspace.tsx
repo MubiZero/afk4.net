@@ -199,7 +199,12 @@ export function ReceivingWorkspace({
         <div className="recv-doc" aria-label={t('op.stock.receiving.linesTitle')}>
           <h2>{t('op.stock.receiving.linesTitle')}</h2>
           {lines.length === 0 ? (
-            <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.receiving.empty')} />
+            <EmptyState
+              icon={<Boxes size={28} aria-hidden="true" />}
+              title={t('op.stock.receiving.empty')}
+              // Без товаров с учётом остатков поиск выше пуст, и звать к нему — тупик.
+              next={{ kind: 'elsewhere', hint: trackedCatalog.length === 0 ? t('op.empty.trackStockWhere') : t('op.stock.receiving.emptyHint') }}
+            />
           ) : (
             <>
               <div className="recv-cols" aria-hidden="true">

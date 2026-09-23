@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ShieldCheck } from 'lucide-react';
-import { CriticalActionConfirmation, PartialLoadFailure, Skeleton } from '../../../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, PartialLoadFailure, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
 import {
@@ -180,7 +180,12 @@ export function PendingDevicesSection({
         />
       )}
       {pending.status === 'ready' && queue.length === 0 && (
-        <p className="mgmt-drawer-hint">{t('op.management.halls.pending.empty')}</p>
+        <EmptyState
+          inline
+          className="mgmt-drawer-hint"
+          title={t('op.management.halls.pending.empty')}
+          next={{ kind: 'calm', hint: t('op.management.halls.pending.emptyHint') }}
+        />
       )}
       {queue.length > 0 && (
         <ul>

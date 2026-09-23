@@ -3,6 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { Megaphone } from 'lucide-react';
 import { PanelModal } from './PanelModal';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { EmptyState } from './operatorPrimitives';
 import type { PlatformMessageDto } from './operatorApiClients';
 import type { OperatorBackendContext } from './operatorTypes';
 
@@ -145,7 +146,12 @@ export function PlatformMessagesHistory({
       onClose={onClose}
     >
       {state.messages.length === 0 ? (
-        <p className="mgmt-drawer-hint">{t('platform.messages.empty')}</p>
+        <EmptyState
+          inline
+          className="mgmt-drawer-hint"
+          title={t('platform.messages.empty')}
+          next={{ kind: 'calm', hint: t('platform.messages.emptyHint') }}
+        />
       ) : (
         <ul className="platform-message-list">
           {state.messages.map(message => (

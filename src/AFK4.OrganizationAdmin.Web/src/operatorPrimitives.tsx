@@ -119,7 +119,7 @@ export function PartialLoadFailure({ text, failure, onRetry }: { text: string; f
 export function LoadFailureState({ title, failure, onRetry }: { title: string; failure: OperatorErrorProjection; onRetry?: () => void }) {
   const { t } = useI18n();
   return (
-    <EmptyState
+    <StatePanel
       title={title}
       description={failure.detail}
       hint={failure.accessHint}
@@ -128,7 +128,59 @@ export function LoadFailureState({ title, failure, onRetry }: { title: string; f
   );
 }
 
+// Что человеку делать перед пустым списком. Выбор обязателен, и у каждого варианта без кнопки
+// есть свои слова: «Нет товаров» без следующего шага оставляет кассира перед стеной, и `tsc` не
+// пропустит новый список, где решение забыли.
+export type EmptyStateNext =
+  // Следующий шаг — кнопка здесь же: создать, пригласить, сбросить фильтр.
+  | { kind: 'action'; label: string; onClick: () => void }
+  // Шаг делается не здесь (в другом разделе, выше на экране, в Мастере настройки) — hint называет где.
+  | { kind: 'elsewhere'; hint: string }
+  // Шаг есть, но не у этого человека — кнопки нет, hint называет, у кого право.
+  | { kind: 'denied'; hint: string }
+  // Пусто — и это нормально: делать нечего, hint говорит, что здесь появится.
+  | { kind: 'calm'; hint: string };
+
+// Пустой набор — это реальность, а не ошибка. `inline` — одна строка в классе вызывающего, для
+// панелей, где под пустой список места на одну фразу; решение о следующем шаге то же самое.
 export function EmptyState({
+  icon,
+  title,
+  description,
+  next,
+  inline = false,
+  className
+}: {
+  icon?: ReactNode;
+  title: string;
+  description?: string;
+  next: EmptyStateNext;
+  inline?: boolean;
+  className?: string;
+}) {
+  const hint = next.kind === 'action' ? undefined : next.hint;
+  const action = next.kind === 'action' ? { label: next.label, onClick: next.onClick } : undefined;
+  if (inline) {
+    return (
+      <p className={className}>
+        {[title, description, hint].filter(Boolean).map((line, index) => (
+          <span key={index}>{index > 0 ? ' ' : null}{line}</span>
+        ))}
+        {action ? (
+          <>
+            {' '}
+            <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={action.onClick}>{action.label}</button>
+          </>
+        ) : null}
+      </p>
+    );
+  }
+  return <StatePanel icon={icon} title={title} description={description} hint={hint} action={action} className={className} />;
+}
+
+// Общая вёрстка пустой панели и панели отказа. Наружу не отдаётся: пустоту рисует EmptyState, где
+// следующий шаг обязателен, отказ — LoadFailureState.
+function StatePanel({
   icon,
   title,
   description,

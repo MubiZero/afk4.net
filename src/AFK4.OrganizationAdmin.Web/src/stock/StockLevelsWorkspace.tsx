@@ -197,13 +197,19 @@ export function StockLevelsWorkspace({
         </div>
 
         {items.length === 0 ? (
+          // Склад считает только товары с учётом остатков. Приёмка их же и принимает, так что
+          // звать туда отсюда — тупик: следующий шаг в карточке товара.
           <EmptyState
             icon={<Boxes size={28} aria-hidden="true" />}
             title={t('op.stock.levels.empty')}
-            action={onReceive ? { label: t('op.stock.summary.orderBtn'), onClick: () => onReceive() } : undefined}
+            next={{ kind: 'elsewhere', hint: t('op.empty.trackStockWhere') }}
           />
         ) : filtered.length === 0 ? (
-          <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.levels.emptyFiltered')} />
+          <EmptyState
+            icon={<Boxes size={28} aria-hidden="true" />}
+            title={t('op.stock.levels.emptyFiltered')}
+            next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => { setFilter('all'); setSearch(''); } }}
+          />
         ) : (
           <ul className="cash-stock-list">
             {filtered.map((item) => {

@@ -50,6 +50,26 @@ function renderReview() {
 }
 
 describe('ReviewWorkspace', () => {
+  it('пустая очередь — спокойное состояние: что здесь появится, без кнопок в списке', async () => {
+    listPending.mockImplementationOnce(async () => ({ requests: [] }));
+    renderReview();
+    expect(await screen.findByText('Нет заявок на одобрение')).toBeInTheDocument();
+    expect(screen.getByText('Возвраты, поправки вручную и списания долга, которые ждут решения, появятся здесь.')).toBeInTheDocument();
+  });
+
+  // Журнал с суммой «от» пуст — не значит, что действий не было: сброс возвращает весь журнал.
+  it('пустой журнал под фильтром снимается «Сбросить фильтр» и перечитывает без отбора', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Журнал операций' }));
+    fireEvent.change(screen.getByLabelText('Сумма от'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
+    await waitFor(() => expect(search).toHaveBeenLastCalledWith(expect.objectContaining({ minAmount: 5000 })));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Сбросить фильтр' }));
+    await waitFor(() => expect(search).toHaveBeenLastCalledWith(expect.objectContaining({ minAmount: 0, maxAmount: null, actorStaffUserId: null })));
+    expect((screen.getByLabelText('Сумма от') as HTMLInputElement).value).toBe('');
+  });
+
   it('выбирает заявку в инспектор риска', async () => {
     renderReview();
     fireEvent.click(await screen.findByRole('row', { name: /Возврат.*120/ }));

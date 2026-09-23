@@ -28,7 +28,7 @@ import {
   type PlayerClientItem,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { Money } from './operatorPrimitives';
+import { EmptyState, Money } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PlatformApiError } from './platformApi';
@@ -660,12 +660,24 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             {visibleProducts.length === 0 ? (
               /* Опечатка в поиске читалась как «товар исчез из системы»: пустой результат
                  отбора выглядел ровно как пустой каталог. */
-              <div className="pos-empty-state">
-                <strong>{catalogIsFiltered ? t('op.pos.catalog.noMatchTitle') : t('op.pos.catalog.emptyTitle')}</strong>
-                <span>{catalogIsFiltered
-                  ? t('op.pos.catalog.noMatchHint')
-                  : loadStatus === 'backend' ? t('op.pos.catalog.emptyBackend') : t('op.pos.catalog.emptyLoad')}</span>
-              </div>
+              catalogIsFiltered ? (
+                <EmptyState
+                  className="pos-empty-state"
+                  title={t('op.pos.catalog.noMatchTitle')}
+                  description={t('op.pos.catalog.noMatchHint')}
+                  next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => { setProductSearch(''); setActiveCategory(CATEGORY_ALL); } }}
+                />
+              ) : loadStatus === 'backend' ? (
+                // Товар в кассе не заводится: он приходит из каталога Управления.
+                <EmptyState
+                  className="pos-empty-state"
+                  title={t('op.pos.catalog.emptyTitle')}
+                  description={t('op.pos.catalog.emptyBackend')}
+                  next={{ kind: 'elsewhere', hint: t('op.pos.catalog.emptyWhere') }}
+                />
+              ) : (
+                <EmptyState className="pos-empty-state" title={t('op.pos.catalog.emptyTitle')} next={{ kind: 'elsewhere', hint: t('op.pos.catalog.emptyLoad') }} />
+              )
             ) : (
               visibleProducts.map((product) => (
                 <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="ui-card ui-card--interactive pos-product-card" onClick={() => addProduct(product)}>

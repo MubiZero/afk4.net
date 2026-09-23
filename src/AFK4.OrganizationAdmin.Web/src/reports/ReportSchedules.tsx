@@ -3,6 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
+import { EmptyState } from '../operatorPrimitives';
 import type { ReportScheduleDto } from '../api/clients/reports';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { createReportClients } from './reportClient';
@@ -157,7 +158,12 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
       </div>
 
       {schedules.length === 0 ? (
-        <p className="mgmt-drawer-hint">{t('op.reports.schedule.empty')}</p>
+        <EmptyState
+          inline
+          className="mgmt-drawer-hint"
+          title={t('op.reports.schedule.empty')}
+          next={{ kind: 'elsewhere', hint: t('op.reports.schedule.emptyHint') }}
+        />
       ) : (
         <ul>
           {schedules.map((schedule) => (
