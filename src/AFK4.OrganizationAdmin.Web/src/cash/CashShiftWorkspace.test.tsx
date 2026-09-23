@@ -110,7 +110,7 @@ describe('CashShiftWorkspace', () => {
       cashOperationRow({ operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', cashImpact: m(5000), reason: 'Размен', createdByDisplayName: 'Мадина' })
     ]);
     await waitFor(() => expect(screen.getByText('Движение наличных')).toBeInTheDocument());
-    expect(screen.getByText('Оператор')).toBeInTheDocument();
+    expect(screen.getByText('Администратор')).toBeInTheDocument();
     expect(screen.getByText('Мадина')).toBeInTheDocument();
     // «Зарина Н.» — открывшая смену, и она названа ровно один раз: в шапке смены.
     expect(screen.getAllByText('Зарина Н.')).toHaveLength(1);

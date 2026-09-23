@@ -6,7 +6,7 @@ const playerId = 'pl-1';
 describe('dev preview session', () => {
   it('contains the real role contract used by the system footer', () => {
     expect(createMockSession()).toMatchObject({
-      displayName: 'Оператор смены',
+      displayName: 'Администратор смены',
       roleNames: ['operator']
     });
   });
@@ -22,7 +22,7 @@ describe('devMockFetch staff auth', () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toMatchObject({ displayName: 'Оператор смены', roleNames: ['operator'] });
+    expect(body).toMatchObject({ displayName: 'Администратор смены', roleNames: ['operator'] });
   });
 
   it('signs in to a chosen club with a mock session', async () => {

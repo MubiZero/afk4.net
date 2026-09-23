@@ -113,7 +113,7 @@ describe('OperatorActionsReport', () => {
     // Итог приходит машинным словом Denied — на экране оно должно быть по-русски.
     expect(screen.getByText('Отказано')).toBeInTheDocument();
     expect(screen.queryByText('Denied')).not.toBeInTheDocument();
-    expect(screen.getByText('Оператор смены')).toBeInTheDocument();
+    expect(screen.getByText('Администратор смены')).toBeInTheDocument();
   });
 
   it('выгружает тот же период в CSV', async () => {

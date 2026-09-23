@@ -37,7 +37,7 @@ export function ExtendScreen({ api, branchId, sessionId, onExtended, onConflict 
     }
   }
 
-  if (offline) return <p role="alert">Временно недоступно — обратитесь к оператору</p>;
+  if (offline) return <p role="alert">Временно недоступно — обратитесь к администратору</p>;
 
   return (
     <section>

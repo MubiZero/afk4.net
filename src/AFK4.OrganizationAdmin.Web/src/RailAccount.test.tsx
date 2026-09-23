@@ -10,7 +10,7 @@ const openShift = { tone: 'open' as const, value: '13:00', full: 'Смена о�
 function renderWidget(onOpenAccount = () => {}, onSignOut = () => {}, shift = openShift) {
   return render(
     <I18nProvider>
-      <RailAccount displayName="Оператор смены" shift={shift} onOpenAccount={onOpenAccount} onSignOut={onSignOut} />
+      <RailAccount displayName="Администратор смены" shift={shift} onOpenAccount={onOpenAccount} onSignOut={onSignOut} />
     </I18nProvider>
   );
 }

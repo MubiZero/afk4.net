@@ -15,7 +15,7 @@ export function createMockSession(): Record<string, unknown> {
   return {
     staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     organizationId: ORG,
-    displayName: 'Оператор смены',
+    displayName: 'Администратор смены',
     accessToken: 'preview-access-token',
     accessTokenExpiresAtUtc: FAR_FUTURE,
     refreshToken: 'preview-refresh-token',
@@ -108,7 +108,7 @@ function previewLayoutZones() {
 function previewStaff() {
   return [{
     staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
-    displayName: 'Оператор смены',
+    displayName: 'Администратор смены',
     login: 'operator-preview',
     isActive: true,
     roles: ['branch_manager']
@@ -387,7 +387,7 @@ function reservations() {
     booking('r2', 12, 120, 'confirmed', 'online', 'Азиз П.', '+992900000002', pc02, 'онлайн-заявка, подтверждена'),
     booking('r3', 14, 60, 'pending', 'online', 'Камрон Р.', '+992900000003', null, 'онлайн-заявка', null, null, 9),
     booking('r4', 16, 90, 'pending', 'online', 'Сабина М.', '+992900000004', null, 'онлайн-заявка, ждёт места', null, null, 1),
-    booking('r5', 18, 60, 'confirmed', 'operator', 'Фаррух Н.', '+992900000005', vip03, 'бронь оператора'),
+    booking('r5', 18, 60, 'confirmed', 'operator', 'Фаррух Н.', '+992900000005', vip03, 'бронь администратора'),
     booking('r6', 20, 60, 'pending', 'operator', 'Шерзод Б.', '+992900000006', pc01, 'предварительная бронь'),
     // Бронь конкретного клиента (pl-1) — чтобы профиль показывал полосу «ближайшая бронь».
     booking('rp1', 19, 60, 'confirmed', 'operator', 'Фариза Назарова', '+992 93 100 20 30', vip03, 'бронь клиента', null, 'pl-1'),

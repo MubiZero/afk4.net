@@ -45,12 +45,12 @@ export function TopUpScreen({ api, amountMinorUnits, pollIntervalMs = 3000 }: To
     return () => clearInterval(timer);
   }, [api, intent, status, pollIntervalMs]);
 
-  if (offline) return <p role="alert">Временно недоступно — обратитесь к оператору</p>;
+  if (offline) return <p role="alert">Временно недоступно — обратитесь к администратору</p>;
   if (!intent) return <p>Создаём платёж…</p>;
 
   if (status === 'fulfilled') return <p>Оплата успешно зачислена</p>;
   if (status === 'expired') return <p role="alert">Срок истёк — начните заново</p>;
-  if (status === 'disputed') return <p role="alert">Платёж на проверке — обратитесь к оператору</p>;
+  if (status === 'disputed') return <p role="alert">Платёж на проверке — обратитесь к администратору</p>;
 
   return (
     <section>

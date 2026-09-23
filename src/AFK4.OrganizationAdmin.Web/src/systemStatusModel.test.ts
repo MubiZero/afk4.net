@@ -17,7 +17,7 @@ describe('systemStatusModel', () => {
 
     expect(model.left.map((field) => field.value)).toEqual([
       'Иванов И.И.',
-      'Оператор, Старший смены',
+      'Администратор, Старший смены',
       'Арена'
     ]);
     expect(model.connection.tone).toBe('ok');
