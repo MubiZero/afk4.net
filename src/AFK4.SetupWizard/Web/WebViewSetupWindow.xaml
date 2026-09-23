@@ -40,7 +40,7 @@
                            FontWeight="SemiBold" />
                 <TextBlock x:Name="StatusText"
                            Margin="0,12,0,0"
-                           Text="Загрузка мастера настройки..."
+                           Text="Загрузка мастера установки…"
                            Foreground="#475569"
                            FontSize="13"
                            TextWrapping="Wrap" />

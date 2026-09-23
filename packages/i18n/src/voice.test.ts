@@ -1,4 +1,6 @@
 import { it, expect } from 'bun:test';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { messages, type Locale } from './messages';
 
 // Enforces the copy glossary: docs/product/copy-voice-and-terminology.md
@@ -163,5 +165,20 @@ it('мастер установки зовётся одним именем во 
   check('tg', outsideShortcut(/setup\s+wizard/i));
   check('en', /setup app/i);
 
+  expect(hits).toEqual([]);
+});
+
+// Окна WPF-оболочки мастера показываются, когда веб-часть не поднялась, и каталог туда не доходит:
+// строки зашиты в код. Там дольше всего и прожило «мастер настройки» — правило каталога их не видело.
+it('WPF-окна мастера зовут его тем же именем, что и каталог', () => {
+  const root = join(import.meta.dir, '..', '..', '..', 'src', 'AFK4.SetupWizard');
+  const files = (readdirSync(root, { recursive: true }) as string[])
+    .filter((file) => /\.(cs|xaml)$/.test(file) && !/(^|[\\/])(bin|obj)[\\/]/.test(file));
+  const hits = files.flatMap((file) =>
+    readFileSync(join(root, file), 'utf8').split('\n')
+      .map((line, index) => ({ line: line.trim(), at: `${file}:${index + 1}` }))
+      .filter(({ line }) => !line.startsWith('//') && /мастер[а-я]*\s+настройк/i.test(line))
+      .map(({ line, at }) => `${at}: ${line}`));
+  expect(files.length).toBeGreaterThan(0);
   expect(hits).toEqual([]);
 });
