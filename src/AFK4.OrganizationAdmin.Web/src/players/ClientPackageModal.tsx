@@ -4,7 +4,7 @@ import { PanelModal } from '../PanelModal';
 import { PartialLoadFailure } from '../operatorPrimitives';
 import { PackagePurchasePanel } from '../PackagePurchasePanel';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import type { PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
 import type { PlayerClientItem } from '../operatorHelpers';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -25,7 +25,7 @@ export function ClientPackageModal({ backend, player, onClose, onPurchased }: {
   const { t } = useI18n();
   const [options, setOptions] = useState<PackageOptionDto[] | null>(null);
   const [shiftOpen, setShiftOpen] = useState<boolean | null>(null);
-  const [shiftError, setShiftError] = useState<string | null>(null);
+  const [shiftError, setShiftError] = useState<OperatorErrorProjection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function ClientPackageModal({ backend, player, onClose, onPurchased }: {
           setError(projectOperatorError(packageOptions.reason, t).detail);
         }
         if (shift.status === 'fulfilled') setShiftOpen(shift.value !== null);
-        else setShiftError(projectOperatorError(shift.reason, t).detail);
+        else setShiftError(projectOperatorError(shift.reason, t));
       });
     return () => { active = false; };
   }, [backend.branchId, backend.config, backend.session, t]);
@@ -56,7 +56,7 @@ export function ClientPackageModal({ backend, player, onClose, onPurchased }: {
     setShiftError(null);
     createAuthenticatedOperatorClients(backend.config, backend.session).shifts.getCurrentShift(backend.branchId)
       .then((shift) => setShiftOpen(shift !== null))
-      .catch((reason) => setShiftError(projectOperatorError(reason, t).detail));
+      .catch((reason) => setShiftError(projectOperatorError(reason, t)));
   };
 
   return (
@@ -67,7 +67,7 @@ export function ClientPackageModal({ backend, player, onClose, onPurchased }: {
     >
       {error !== null && <p role="alert">{error}</p>}
       {shiftError !== null && (
-        <PartialLoadFailure text={t('op.players.packages.shiftFailed', { reason: shiftError })} onRetry={retryShift} />
+        <PartialLoadFailure text={t('op.players.packages.shiftFailed', { reason: shiftError.detail })} failure={shiftError} onRetry={retryShift} />
       )}
       {options === null ? (
         <p>{t('state.loading')}</p>

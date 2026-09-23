@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { projectOperatorError } from './apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
 import type { AuditRecordDto, AuditSearchResultDto, MoneyActionRequestDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import {
@@ -60,7 +60,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
 
   const [requests, setRequests] = useState<MoneyActionRequestDto[]>([]);
   const [staffNames, setStaffNames] = useState<Record<string, string>>({});
-  const [staffLoadError, setStaffLoadError] = useState<string | null>(null);
+  const [staffLoadError, setStaffLoadError] = useState<OperatorErrorProjection | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [rejectingId, setRejectingId] = useState('');
   const [decisionReason, setDecisionReason] = useState('');
@@ -119,7 +119,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
       }
       setStaffNames(names);
     } catch (error) {
-      setStaffLoadError(projectOperatorError(error, t).detail);
+      setStaffLoadError(projectOperatorError(error, t));
     }
   };
 
@@ -218,7 +218,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
       ]} />
 
       {staffLoadError !== null && (
-        <PartialLoadFailure text={t('op.review.staffNamesFailed', { reason: staffLoadError })} onRetry={() => void loadStaffNames()} />
+        <PartialLoadFailure text={t('op.review.staffNamesFailed', { reason: staffLoadError.detail })} failure={staffLoadError} onRetry={() => void loadStaffNames()} />
       )}
 
       <div className="review-segments" role="tablist">

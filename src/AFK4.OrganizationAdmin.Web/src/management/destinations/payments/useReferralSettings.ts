@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SaveState } from '../../ManagementScreen';
-import { projectOperatorError } from '../../../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../../../apiErrors';
 import {
   createAuthenticatedOperatorClients,
   emptyFeedback,
@@ -29,7 +29,7 @@ export interface ReferralSettingsController {
   saveState: SaveState;
   dirty: boolean;
   ready: boolean;
-  loadError: string | null;
+  loadError: OperatorErrorProjection | null;
   disabled: boolean;
   save: () => Promise<void>;
   retry: () => void;
@@ -52,7 +52,7 @@ export function useReferralSettings(
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<OperatorErrorProjection | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
 
@@ -78,7 +78,7 @@ export function useReferralSettings(
         setReady(true);
       })
       .catch((error) => {
-        if (active) setLoadError(projectOperatorError(error, t).detail);
+        if (active) setLoadError(projectOperatorError(error, t));
       });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

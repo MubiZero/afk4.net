@@ -61,7 +61,7 @@ export function BillingDestination({
       subtitle={t('op.network.dest.billing.subtitle')}
       contentWidth="full"
       state={screenState}
-      errorDetail={subscription.status === 'error' ? projectOperatorError(subscription.error, t).detail : undefined}
+      failure={subscription.status === 'error' ? projectOperatorError(subscription.error, t) : undefined}
       onRetry={retryAll}
     >
       {screenState === 'ready' && (

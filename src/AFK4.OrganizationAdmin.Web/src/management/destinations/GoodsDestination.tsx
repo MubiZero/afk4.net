@@ -61,7 +61,7 @@ export function GoodsDestination({
   onFeedback,
   onDirtyChange,
   loadStatus,
-  errorDetail,
+  failure,
   onRetry
 }: DestinationProps) {
   const { t } = useI18n();
@@ -350,7 +350,7 @@ export function GoodsDestination({
       subtitle={t('op.management.dest.goods.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
-      errorDetail={errorDetail}
+      failure={failure}
       onRetry={onRetry}
     >
       <CategoriesPanel

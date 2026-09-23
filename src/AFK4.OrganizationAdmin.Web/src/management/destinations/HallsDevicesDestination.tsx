@@ -3,7 +3,8 @@ import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { isGuid } from '../../operatorHelpers';
-import { EmptyState } from '../../operatorPrimitives';
+import { projectOperatorError } from '../../apiErrors';
+import { LoadFailureState } from '../../operatorPrimitives';
 import { managementScreenState, type DestinationProps } from './types';
 import { ZonesTab } from './halls/ZonesTab';
 import { DevicesTab } from './halls/DevicesTab';
@@ -26,7 +27,7 @@ export function HallsDevicesDestination({
   onFeedback,
   onDirtyChange,
   loadStatus,
-  errorDetail,
+  failure,
   onRetry,
   onRetryDevices
 }: DestinationProps) {
@@ -61,7 +62,7 @@ export function HallsDevicesDestination({
       subtitle={t('op.management.dest.halls.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
-      errorDetail={errorDetail}
+      failure={failure}
       onRetry={onRetry}
     >
       <div className="mgmt-tabs" role="tablist" aria-label={t('op.management.dest.halls')}>
@@ -96,10 +97,10 @@ export function HallsDevicesDestination({
       ) : deviceState?.status === 'failed' ? (
         // Список устройств грузится отдельно от залов: его отказ называется здесь, а вкладка
         // «Залы и места» остаётся рабочей. Раньше отказ молча превращался в «устройств нет».
-        <EmptyState
+        <LoadFailureState
           title={t('op.management.halls.devices.loadFailed')}
-          description={deviceState.errorDetail}
-          action={{ label: t('op.management.state.retry'), onClick: () => onRetryDevices?.() }}
+          failure={deviceState.failure ?? projectOperatorError(undefined, t)}
+          onRetry={() => onRetryDevices?.()}
         />
       ) : deviceState?.status === 'loading' && deviceState.data.length === 0 ? (
         <div className="management-skeleton" aria-hidden="true" />

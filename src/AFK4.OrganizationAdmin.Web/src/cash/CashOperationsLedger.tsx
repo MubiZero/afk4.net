@@ -7,8 +7,8 @@ import {
   downloadTextFile,
   formatTime
 } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
-import { Money } from '../operatorPrimitives';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
+import { Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { CashOperationReportResultDto, CashOperationReportRowDto } from '../operatorApiClients';
 import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
@@ -42,7 +42,7 @@ export function CashOperationsLedger({
 
   const [report, setReport] = useState<CashOperationReportResultDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<OperatorErrorProjection | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [operationType, setOperationType] = useState('all');
@@ -56,7 +56,7 @@ export function CashOperationsLedger({
     setLoadError(null);
     reports.getCashOperationReport(branchId, { limit: 50 })
       .then((result) => { if (active) setReport(result); })
-      .catch((error) => { if (active) setLoadError(projectOperatorError(error, t).detail); })
+      .catch((error) => { if (active) setLoadError(projectOperatorError(error, t)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [reports, branchId, shiftNonce, reloadNonce]);
@@ -78,7 +78,7 @@ export function CashOperationsLedger({
   };
 
   if (loading) return <p className="workspace-loading">{t('op.cash.journal.loading')}</p>;
-  if (loadError) return <section className="cash-ledger-failure"><p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p><button type="button" onClick={() => setReloadNonce((value) => value + 1)}>{t('op.cash.journal.retry')}</button></section>;
+  if (loadError) return <section className="cash-ledger-failure"><PartialLoadFailure text={loadError.detail} failure={loadError} onRetry={() => setReloadNonce((value) => value + 1)} /></section>;
 
   return (
     <section className="cash-operations-terminal">

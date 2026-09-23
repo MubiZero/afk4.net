@@ -8,9 +8,10 @@ import type {
   ZoneDto
 } from '../../operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from '../../operatorTypes';
+import type { OperatorErrorProjection } from '../../apiErrors';
 import type { ManagementScreenProps } from '../ManagementScreen';
 
-export type ResourceState<T> = { status: LoadStatus; data: T; errorDetail?: string };
+export type ResourceState<T> = { status: LoadStatus; data: T; failure?: OperatorErrorProjection };
 
 // Shared LoadStatus -> ManagementScreen.state mapping, so every settings-domain destination
 // (halls/tariffs/staff/goods) wires loading/error the same way instead of re-deriving it.
@@ -43,7 +44,7 @@ export interface DestinationProps {
   deviceInventory?: DeviceInventoryItemDto[];
   deviceState?: ResourceState<DeviceInventoryItemDto[]>;
   loadStatus?: LoadStatus;
-  errorDetail?: string; // concrete failure text when loadStatus === 'failed' (projectOperatorError of that list's load)
+  failure?: OperatorErrorProjection; // when loadStatus === 'failed': projectOperatorError of that list's load
 
   onStaffUsersChange?: (staffUsers: StaffUserDto[]) => void;
   onCatalogChange?: (catalog: PosProductDto[]) => void;

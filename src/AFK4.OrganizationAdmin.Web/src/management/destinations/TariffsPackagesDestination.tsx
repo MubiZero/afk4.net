@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
+import { projectOperatorError } from '../../apiErrors';
+import { LoadFailureState } from '../../operatorPrimitives';
 import { managementScreenState, type DestinationProps } from './types';
 import { TariffsTab } from './tariffs/TariffsTab';
 import { PackagesTab } from './tariffs/PackagesTab';
@@ -23,7 +25,7 @@ export function TariffsPackagesDestination({
   onFeedback,
   onDirtyChange,
   loadStatus,
-  errorDetail,
+  failure,
   onRetry,
   onRetryPackages
 }: DestinationProps) {
@@ -43,7 +45,7 @@ export function TariffsPackagesDestination({
       subtitle={t('op.management.dest.tariffs.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
-      errorDetail={errorDetail}
+      failure={failure}
       onRetry={onRetry}
     >
       <div className="mgmt-tabs" role="tablist" aria-label={t('op.management.dest.tariffs')}>
@@ -78,10 +80,11 @@ export function TariffsPackagesDestination({
         />
       ) : (
         packageState?.status === 'failed' ? (
-          <div role="alert" className="management-error">
-            <strong>{packageState.errorDetail}</strong>
-            <button type="button" className="ui-btn" onClick={onRetryPackages}>{t('op.management.state.retry')}</button>
-          </div>
+          <LoadFailureState
+            title={t('op.management.state.errorTitle')}
+            failure={packageState.failure ?? projectOperatorError(undefined, t)}
+            onRetry={() => onRetryPackages?.()}
+          />
         ) : packageState?.status === 'loading' && packageState.data.length === 0 ? (
           <div className="management-skeleton" aria-hidden="true" />
         ) : (

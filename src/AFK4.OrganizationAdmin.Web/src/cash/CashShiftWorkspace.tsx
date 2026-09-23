@@ -8,7 +8,7 @@ import {
   downloadTextFile,
   formatTime
 } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
@@ -86,8 +86,8 @@ export function CashShiftWorkspace({
   const [cashRows, setCashRows] = useState<CashOperationReportRowDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [cashRowsError, setCashRowsError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<OperatorErrorProjection | null>(null);
+  const [cashRowsError, setCashRowsError] = useState<OperatorErrorProjection | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [selectedShiftId, setSelectedShiftId] = useState('');
 
@@ -111,9 +111,9 @@ export function CashShiftWorkspace({
         if (cur.status === 'fulfilled') setCurrent(cur.value);
         else setLoadError(projectOperatorError(cur.reason, t).detail);
         if (hist.status === 'fulfilled') setHistory(closedShifts(hist.value.shifts));
-        else setHistoryError(projectOperatorError(hist.reason, t).detail);
+        else setHistoryError(projectOperatorError(hist.reason, t));
         if (cash.status === 'fulfilled') setCashRows(cash.value.rows);
-        else setCashRowsError(projectOperatorError(cash.reason, t).detail);
+        else setCashRowsError(projectOperatorError(cash.reason, t));
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -124,7 +124,7 @@ export function CashShiftWorkspace({
     setHistoryError(null);
     revenueClient.history(branchId, 20)
       .then((hist) => setHistory(closedShifts(hist.shifts)))
-      .catch((error) => setHistoryError(projectOperatorError(error, t).detail));
+      .catch((error) => setHistoryError(projectOperatorError(error, t)));
   };
 
   const retryCashRows = () => {
@@ -132,7 +132,7 @@ export function CashShiftWorkspace({
     setCashRowsError(null);
     reports.getCashOperationReport(branchId, { limit: 8 })
       .then((cash) => setCashRows(cash.rows))
-      .catch((error) => setCashRowsError(projectOperatorError(error, t).detail));
+      .catch((error) => setCashRowsError(projectOperatorError(error, t)));
   };
 
   const exportCsv = async (kind: 'shifts' | 'cash' | 'sales') => {
@@ -216,7 +216,7 @@ export function CashShiftWorkspace({
 
               <section className="cash-shift-movement-ledger">
                 <header><h2>{t('op.cash.shift.movementsTitle')}</h2>{cashRowsError === null && <span>{cashRows.length}</span>}</header>
-                {cashRowsError !== null ? <PartialLoadFailure text={t('op.cash.shift.movementsFailed', { reason: cashRowsError })} onRetry={retryCashRows} /> : <>
+                {cashRowsError !== null ? <PartialLoadFailure text={t('op.cash.shift.movementsFailed', { reason: cashRowsError.detail })} failure={cashRowsError} onRetry={retryCashRows} /> : <>
                 <div className="cash-shift-movement-head" aria-hidden="true"><span>{t('op.cash.shift.timeColumn')}</span><span>{t('op.cash.shift.operationColumn')}</span><span>{t('op.cash.shift.reasonColumn')}</span><span>{t('op.cash.shift.operatorColumn')}</span><span>{t('op.cash.shift.amountColumn')}</span></div>
                 {cashRows.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.movementsEmpty')}</p> : <ul className="cash-shift-movements">
                   {cashRows.slice(0, 8).map((row) => {
@@ -231,7 +231,7 @@ export function CashShiftWorkspace({
 
             <section className="cash-shift-history-panel">
               <header><h2>{t('op.cash.shift.pastShifts')}</h2>{historyError === null && <span>{history.length}</span>}</header>
-              {historyError !== null ? <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError })} onRetry={retryHistory} /> : history.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.historyEmpty')}</p> : <CashRegisterRows rows={history.slice(0, 8)} selectedId={selectedShift?.shiftId ?? ''} getId={(shift) => shift.shiftId} onSelect={setSelectedShiftId} ariaLabel={t('op.cash.shift.pastShifts')} renderRow={(shift) => <div className="cash-shift-history-row">
+              {historyError !== null ? <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError.detail })} failure={historyError} onRetry={retryHistory} /> : history.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.historyEmpty')}</p> : <CashRegisterRows rows={history.slice(0, 8)} selectedId={selectedShift?.shiftId ?? ''} getId={(shift) => shift.shiftId} onSelect={setSelectedShiftId} ariaLabel={t('op.cash.shift.pastShifts')} renderRow={(shift) => <div className="cash-shift-history-row">
                 <span>{new Date(shift.openedAtUtc).toLocaleDateString('ru-RU')}</span>
                 <span><small>{t('op.shifts.earned')}</small><strong><Money minorUnits={shift.earned.total.minorUnits} currencyCode={currencyCode} /></strong></span>
                 <span className={shift.cash.difference?.minorUnits ? 'attention' : ''}><small>{t('op.cash.shift.difference')}</small><strong>{shift.cash.difference ? <Money minorUnits={shift.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</strong></span>
@@ -259,7 +259,7 @@ export function CashShiftWorkspace({
               ? t('op.cash.shift.noOpenAskManager')
               : history.length || historyError !== null ? t('op.cash.shift.noOpenHint') : t('op.cash.shift.historyEmpty')
           }</p>
-          {historyError !== null && <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError })} onRetry={retryHistory} />}
+          {historyError !== null && <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError.detail })} failure={historyError} onRetry={retryHistory} />}
           <div className="cash-shift-no-open-actions">{exportMenu}<CashShiftCommandBar backend={backend} session={session} shiftId={null} isOpen={false} expectedCash={null} currencyCode={currencyCode} onShiftChanged={onShiftChanged} /></div>
           {selectedShift ? <div className="cash-shift-last-closed"><span>{t('op.cash.shift.lastClosed')}</span><strong>{new Date(selectedShift.openedAtUtc).toLocaleDateString('ru-RU')}</strong><b><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></b></div> : null}
         </section>

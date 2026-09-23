@@ -7,7 +7,7 @@ import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { StockHero } from './StockHero';
 import { createAuthenticatedOperatorClients, stockMovementTypeLabel } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
 import type { PosProductDto, StockMovementDto } from '../operatorApiClients';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -50,7 +50,7 @@ export function JournalWorkspace({
   const [catalog, setCatalog] = useState<PosProductDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<OperatorErrorProjection | null>(null);
   const [typeFilter, setTypeFilter] = useState<JournalTypeFilter>('all');
   // Дефолт 'all' (последние ≤200) — всегда показывает свежую активность, без пустоты тихим утром
   // и без завязки тестов на текущую дату. Сегодня/7 дней — опциональное сужение.
@@ -79,7 +79,7 @@ export function JournalWorkspace({
         if (loadedCatalog.status === 'fulfilled') {
           setCatalog(Array.isArray(loadedCatalog.value) ? loadedCatalog.value as PosProductDto[] : []);
         } else {
-          setCatalogError(projectOperatorError(loadedCatalog.reason, t).detail);
+          setCatalogError(projectOperatorError(loadedCatalog.reason, t));
         }
       })
       .finally(() => { if (alive) setLoading(false); });
@@ -92,7 +92,7 @@ export function JournalWorkspace({
     setCatalogError(null);
     clients.pos.getCatalog(backend.branchId)
       .then((loadedCatalog) => setCatalog(Array.isArray(loadedCatalog) ? loadedCatalog as PosProductDto[] : []))
-      .catch((error) => setCatalogError(projectOperatorError(error, t).detail));
+      .catch((error) => setCatalogError(projectOperatorError(error, t)));
   };
 
   const dateTimeFmt = useMemo(() => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }), [locale]);
@@ -185,7 +185,7 @@ export function JournalWorkspace({
         </div>
 
         {catalogError !== null && (
-          <PartialLoadFailure text={t('op.stock.journal.catalogFailed', { reason: catalogError })} onRetry={retryCatalog} />
+          <PartialLoadFailure text={t('op.stock.journal.catalogFailed', { reason: catalogError.detail })} failure={catalogError} onRetry={retryCatalog} />
         )}
 
         {capReached && <p className="journal-cap">{t('op.stock.journal.capNote', { count: MOVEMENT_LIMIT })}</p>}

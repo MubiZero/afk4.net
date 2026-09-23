@@ -48,7 +48,7 @@ describe('ManagementScreen', () => {
   it('renders the concrete error detail and a retry button that calls onRetry when state is error', () => {
     const onRetry = mock(() => {});
     renderScreen(
-      <ManagementScreen title="t" subtitle="s" state="error" errorDetail="boom" onRetry={onRetry}>
+      <ManagementScreen title="t" subtitle="s" state="error" failure={{ title: '', detail: 'boom', retryCanHelp: true }} onRetry={onRetry}>
         <p>тело</p>
       </ManagementScreen>
     );

@@ -17,10 +17,10 @@ import {
   requireBackend,
   safeReceiptFileName
 } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { PermissionRefusal, projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { canSelfVoidSale } from './selfVoid';
 import { hasPermission, permissionNames } from '../operatorPermissions';
-import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
+import { CriticalActionConfirmation, LoadFailureState, Money } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { PosSaleDto, ReceiptDto, SalesReportResultDto } from '../operatorApiClients';
@@ -33,7 +33,7 @@ type ReceiptDetailState = {
   // Чек, открытый не из ленты, а из палитры: повтор после сбоя должен знать, что перезапрашивать,
   // — по номеру чека продажи под рукой ещё нет.
   receiptId: string;
-  error: string | null;
+  error: OperatorErrorProjection | null;
 };
 
 // Сегмент «Чеки» в «Журнале кассы»: продажи смены + деталь чека + возврат (переехало из POS
@@ -148,7 +148,7 @@ export function CashReceiptsLedger({
     try {
       const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.viewReceipt)) {
-        throw new Error(t('op.pos.error.noPermissionViewReceipts'));
+        throw new PermissionRefusal(t('op.pos.error.noPermissionViewReceipts'));
       }
       if (!saleId) throw new Error(t('op.pos.error.selectReceiptFromList'));
       const built = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -162,9 +162,9 @@ export function CashReceiptsLedger({
       setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'confirmed' });
     } catch (error) {
       if (request !== detailRequest.current) return;
-      const detail = projectOperatorError(error, t).detail;
-      setDetailState({ status: 'failed', saleId, receiptId: '', error: detail });
-      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail });
+      const failure = projectOperatorError(error, t);
+      setDetailState({ status: 'failed', saleId, receiptId: '', error: failure });
+      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail: failure.detail });
     }
   };
 
@@ -179,7 +179,7 @@ export function CashReceiptsLedger({
     try {
       const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.viewReceipt)) {
-        throw new Error(t('op.pos.error.noPermissionViewReceipts'));
+        throw new PermissionRefusal(t('op.pos.error.noPermissionViewReceipts'));
       }
       const built = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const receipt = await built.pos.getReceipt(receiptId);
@@ -192,9 +192,9 @@ export function CashReceiptsLedger({
       setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'confirmed' });
     } catch (error) {
       if (request !== detailRequest.current) return;
-      const detail = projectOperatorError(error, t).detail;
-      setDetailState({ status: 'failed', saleId: '', receiptId, error: detail });
-      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail });
+      const failure = projectOperatorError(error, t);
+      setDetailState({ status: 'failed', saleId: '', receiptId, error: failure });
+      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail: failure.detail });
     }
   };
 
@@ -310,7 +310,7 @@ export function CashReceiptsLedger({
           <b><Money minorUnits={row.total.minorUnits} currencyCode={currencyCode} /></b>
         </div>} />}
         inspector={detailState.status === 'loading' ? <p className="cash-receipt-detail-state">{t('op.cash.receipts.detailLoading')}</p>
-          : detailState.status === 'failed' ? <div className="cash-receipt-detail-state"><strong>{t('op.cash.receipts.detailFailed')}</strong><small>{detailState.error}</small><button type="button" onClick={() => void (detailState.saleId ? loadSaleDetail(detailState.saleId) : loadReceiptDetail(detailState.receiptId))}>{t('op.cash.journal.retry')}</button></div>
+          : detailState.status === 'failed' ? <LoadFailureState title={t('op.cash.receipts.detailFailed')} failure={detailState.error ?? projectOperatorError(undefined, t)} onRetry={() => void (detailState.saleId ? loadSaleDetail(detailState.saleId) : loadReceiptDetail(detailState.receiptId))} />
           : detailState.status === 'ready' && (saleDetail !== null || receiptDetail !== null) ? <div className="cash-receipt-inspector">
             {/* Чек закрытия сессии продажи не имеет вовсе — тогда шапку и итог берём из самого
                 чека, иначе найденный по номеру чек открывался бы в пустоту. */}

@@ -3,7 +3,7 @@ import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
 import { downloadTextFile, operatorDisplayNameLabel } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import type { OperatorActionReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { ReportRangeControls } from './ReportRangeControls';
@@ -22,16 +22,16 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
   const [data, setData] = useState<OperatorActionReportResultDto | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<OperatorErrorProjection | undefined>();
 
   const load = useCallback(async () => {
-    if (!backend) { setState('error'); setError(t('op.reports.backendRequired')); return; }
+    if (!backend) { setState('error'); setError(projectOperatorError(t('op.reports.backendRequired'), t)); return; }
     setState('loading');
     try {
       const clients = createDetailReportClients(backend);
       setData(await clients.shifts.getOperatorActionReport(backend.branchId, toReportInstantQuery(range)));
       setState('ready');
-    } catch (reason) { setError(projectOperatorError(reason, t).detail); setState('error'); }
+    } catch (reason) { setError(projectOperatorError(reason, t)); setState('error'); }
   }, [backend, range, t]);
   useEffect(() => { void load(); }, [load]);
 
@@ -48,7 +48,7 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
       subtitle={t('op.reports.actions.subtitle')}
       contentWidth="full"
       state={state}
-      errorDetail={error}
+      failure={error}
       onRetry={() => void load()}
     >
       <ReportRangeControls range={range} onChange={setRange} onRefresh={() => void load()} onExport={() => void exportCsv()} />

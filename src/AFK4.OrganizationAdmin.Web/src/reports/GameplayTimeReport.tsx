@@ -3,7 +3,7 @@ import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
 import { downloadTextFile, formatMinorUnits } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { PartialLoadFailure } from '../operatorPrimitives';
 import type { FloorMapDto } from '../operatorApiClients';
 import type { GameplayTimeReportResultDto } from '../api/clients/shifts';
@@ -29,12 +29,12 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
   const [seatNames, setSeatNames] = useState<Record<string, string>>({});
   // План зала нужен отчёту только ради имён мест: его отказ не прячет отчёт, но и не молчит —
   // колонка из одних прочерков без объяснения читается как «ПК не было».
-  const [seatNamesError, setSeatNamesError] = useState<string | null>(null);
+  const [seatNamesError, setSeatNamesError] = useState<OperatorErrorProjection | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<OperatorErrorProjection | undefined>();
 
   const load = useCallback(async () => {
-    if (!backend) { setState('error'); setError(t('op.reports.backendRequired')); return; }
+    if (!backend) { setState('error'); setError(projectOperatorError(t('op.reports.backendRequired'), t)); return; }
     setState('loading');
     setSeatNamesError(null);
     const clients = createDetailReportClients(backend);
@@ -43,9 +43,9 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
       clients.floorMap.getFloorMap(backend.branchId)
     ]);
     if (floorMap.status === 'fulfilled') setSeatNames(seatNamesOf(floorMap.value));
-    else setSeatNamesError(projectOperatorError(floorMap.reason, t).detail);
+    else setSeatNamesError(projectOperatorError(floorMap.reason, t));
     if (report.status === 'fulfilled') { setData(report.value); setState('ready'); }
-    else { setError(projectOperatorError(report.reason, t).detail); setState('error'); }
+    else { setError(projectOperatorError(report.reason, t)); setState('error'); }
   }, [backend, range, t]);
   useEffect(() => { void load(); }, [load]);
 
@@ -54,7 +54,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
     setSeatNamesError(null);
     try {
       setSeatNames(seatNamesOf(await createDetailReportClients(backend).floorMap.getFloorMap(backend.branchId)));
-    } catch (reason) { setSeatNamesError(projectOperatorError(reason, t).detail); }
+    } catch (reason) { setSeatNamesError(projectOperatorError(reason, t)); }
   }
 
   async function exportCsv() {
@@ -72,14 +72,14 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
       subtitle={t('op.reports.gameplay.subtitle')}
       contentWidth="full"
       state={state}
-      errorDetail={error}
+      failure={error}
       onRetry={() => void load()}
     >
       <ReportRangeControls range={range} onChange={setRange} onRefresh={() => void load()} onExport={() => void exportCsv()} />
       {data ? (
         <>
           {seatNamesError !== null && (
-            <PartialLoadFailure text={t('op.reports.gameplay.seatNamesFailed', { reason: seatNamesError })} onRetry={() => void retrySeatNames()} />
+            <PartialLoadFailure text={t('op.reports.gameplay.seatNamesFailed', { reason: seatNamesError.detail })} failure={seatNamesError} onRetry={() => void retrySeatNames()} />
           )}
           <dl className="reports-figures">
             <div><dt>{t('op.reports.gameplay.total')}</dt><dd>{hours(data.totalDurationSeconds)}</dd></div>

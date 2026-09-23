@@ -54,7 +54,7 @@ export function StaffRolesDestination({
   onFeedback,
   onDirtyChange,
   loadStatus,
-  errorDetail,
+  failure,
   onRetry
 }: DestinationProps) {
   const { t } = useI18n();
@@ -369,7 +369,7 @@ export function StaffRolesDestination({
       subtitle={t('op.management.dest.staff.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
-      errorDetail={errorDetail}
+      failure={failure}
       onRetry={onRetry}
     >
       <div className="mgmt-master-detail">

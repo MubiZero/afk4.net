@@ -5,7 +5,7 @@ import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
 import { CriticalActionConfirmation, EmptyState, PartialLoadFailure } from './operatorPrimitives';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
-import { projectOperatorError } from './apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
 
@@ -65,7 +65,7 @@ export function NewsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [branchesError, setBranchesError] = useState<string | null>(null);
+  const [branchesError, setBranchesError] = useState<OperatorErrorProjection | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null); // id или '__new__' для создания
   const [deleteTarget, setDeleteTarget] = useState<NewsItemDto | null>(null);
   const isDrawerOpen = selectedId !== null;
@@ -82,7 +82,7 @@ export function NewsWorkspace({
       if (list.status === 'fulfilled') setItems(list.value);
       else setListError(projectOperatorError(list.reason, t).detail);
       if (branchList.status === 'fulfilled') setBranches(branchList.value);
-      else setBranchesError(projectOperatorError(branchList.reason, t).detail);
+      else setBranchesError(projectOperatorError(branchList.reason, t));
       setReady(true);
     });
     return () => { active = false; };
@@ -102,7 +102,7 @@ export function NewsWorkspace({
     setBranchesError(null);
     client.listBranches()
       .then(setBranches)
-      .catch((reason) => setBranchesError(projectOperatorError(reason, t).detail));
+      .catch((reason) => setBranchesError(projectOperatorError(reason, t)));
   };
 
   const reload = async () => {
@@ -197,7 +197,7 @@ export function NewsWorkspace({
   return (
     <div className="mgmt-master-detail">
       {branchesError !== null && (
-        <PartialLoadFailure text={t('op.news.branchesFailed', { reason: branchesError })} onRetry={retryBranches} />
+        <PartialLoadFailure text={t('op.news.branchesFailed', { reason: branchesError.detail })} failure={branchesError} onRetry={retryBranches} />
       )}
       <MgmtTable<NewsItemDto>
         columns={[
