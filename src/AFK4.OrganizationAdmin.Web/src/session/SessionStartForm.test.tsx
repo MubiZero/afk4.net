@@ -53,6 +53,9 @@ describe('SessionStartForm', () => {
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Тариф для сессии' })).toHaveTextContent('Standard'));
     await waitFor(() => expect(onValidityChange).toHaveBeenLastCalledWith(true, null));
     expect(screen.getByRole('button', { name: 'Открытый счёт' })).toBeDisabled();
+    // Почему — видно словами, а не во всплывающей подсказке, которой на неактивной кнопке нет.
+    const openReason = screen.getByText(/Открытый счёт — только для гостя или в долг/);
+    expect(screen.getByRole('button', { name: 'Открытый счёт' }).getAttribute('aria-describedby')).toBe(openReason.id);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Постоплата' }));
     await waitFor(() => expect(onValidityChange).toHaveBeenLastCalledWith(true, null));
@@ -69,6 +72,22 @@ describe('SessionStartForm', () => {
     expect(screen.getByRole('button', { name: 'Открытый счёт' })).toBeDisabled();
     expect(screen.getByRole('combobox', { name: 'Тариф для сессии' })).toHaveTextContent('Standard');
     await act(async () => { await Promise.resolve(); });
+  });
+
+  it('говорит, где завести тарифы, когда их нет', async () => {
+    function Harness() {
+      const [value, setValue] = useState(createSessionStartSelection('prepaid_wallet'));
+      return <SessionStartForm
+        seatName="PC-01" currencyCode="TJS" disabled={false} value={value} onChange={setValue}
+        fixedClient={{ playerAccountId: 'p1', name: 'Мадина', phoneNumber: '', balanceMinorUnits: 0, debtMinorUnits: 0 }}
+        loadTariffs={async () => []} loadPackages={async () => []}
+      />;
+    }
+    render(<I18nProvider><Harness /></I18nProvider>);
+
+    expect(await screen.findByText(/нет тарифов — их заводят в «Управление → Тарифы и пакеты»/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Пакет' }));
+    expect(await screen.findByText(/нет активных пакетов — пакет продаётся в кассе/)).toBeInTheDocument();
   });
 
   it('disables every interactive field while submitting', () => {

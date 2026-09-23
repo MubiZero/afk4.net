@@ -18,13 +18,25 @@ const base = {
   onCorrect: () => {},
 };
 
-const renderZone = (over: Partial<typeof base> = {}) =>
+const renderZone = (over: Partial<typeof base> & { topUpBlockedReason?: string | null } = {}) =>
   render(<I18nProvider initialLocale="ru"><WalletZone {...base} {...over} /></I18nProvider>);
 
 describe('WalletZone', () => {
   it('disables the top-up amount field together with the rest of the form when topUp is not allowed', () => {
     renderZone({ canTopUp: false });
     expect(screen.getByLabelText('Сумма пополнения')).toBeDisabled();
+  });
+
+  // Серая кнопка без причины заставляла кассира гадать, почему нельзя пополнить.
+  it('names why top-up is unavailable next to the buttons', () => {
+    renderZone({ canTopUp: false, topUpBlockedReason: 'Нет права на пополнение.' });
+    const reason = screen.getByText('Нет права на пополнение.');
+    expect(screen.getByRole('button', { name: /Пополнить/ }).getAttribute('aria-describedby')).toBe(reason.id);
+  });
+
+  it('says nothing when top-up is allowed', () => {
+    renderZone({ canTopUp: true, topUpBlockedReason: 'Нет права на пополнение.' });
+    expect(screen.queryByText('Нет права на пополнение.')).toBeNull();
   });
 
   it('fires onTopUp when the inline top-up form is submitted', () => {

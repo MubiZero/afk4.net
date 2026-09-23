@@ -19,6 +19,7 @@ import {
 } from './stockLevels';
 import { StockHero } from './StockHero';
 import { WriteOffDialog } from './WriteOffDialog';
+import { useBlockedReason } from '../components/BlockedReason';
 
 type FilterMode = 'all' | 'low' | 'out';
 
@@ -38,6 +39,9 @@ export function StockLevelsWorkspace({
   refreshNonce?: number;
 }) {
   const { t } = useI18n();
+  // Приёмку открывает тот, у кого есть на неё право; без него кнопка «Заказать» гасла молча. Строки
+  // списка с тем же «+» не повторяют причину — хватит одной под итогом.
+  const receiveBlocked = useBlockedReason(onReceive ? null : t('op.stock.receiveNoPermission'));
 
   const canView = hasPermission(session, permissionNames.viewInventory);
 
@@ -302,9 +306,10 @@ export function StockLevelsWorkspace({
                 </div>
               );
             })}
-            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={!onReceive} onClick={() => onReceive?.()}>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={!onReceive} aria-describedby={receiveBlocked.describedBy} onClick={() => onReceive?.()}>
               {t('op.stock.summary.orderBtn')}
             </button>
+            {receiveBlocked.hint}
           </section>
         )}
       </aside>

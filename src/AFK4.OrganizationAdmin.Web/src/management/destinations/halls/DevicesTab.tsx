@@ -28,6 +28,7 @@ import type {
   RotateDeviceCredentialResponse
 } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
+import { useBlockedReason } from '../../../components/BlockedReason';
 
 // Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
 // сервера, и поле, которого в ответе нет, теперь заметит компилятор.
@@ -80,6 +81,8 @@ export function DevicesTab({
   onFeedback
 }: DevicesTabProps) {
   const { t } = useI18n();
+  // Привязать ПК некуда, пока в филиале нет мест, — и кнопка гасла без слова о том, где их завести.
+  const assignBlocked = useBlockedReason(layoutSeatOptions.length === 0 ? t('op.settings.devices.noSeatsHint') : null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<DeviceDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -460,10 +463,11 @@ export function DevicesTab({
                     </select>
                   </label>
                   <div className="mgmt-form-actions">
-                    <button type="button" className="ui-btn ui-btn--primary" disabled={busy || layoutSeatOptions.length === 0} onClick={() => void assignSeat()}>
+                    <button type="button" className="ui-btn ui-btn--primary" disabled={busy || layoutSeatOptions.length === 0} aria-describedby={assignBlocked.describedBy} onClick={() => void assignSeat()}>
                       {t('op.settings.action.assignDevice')}
                     </button>
                   </div>
+                  {assignBlocked.hint}
                 </div>
               </div>
             )}

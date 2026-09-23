@@ -36,6 +36,7 @@ import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
 import { useFeedbackToasts } from './useFeedbackToasts';
+import { useBlockedReason } from './components/BlockedReason';
 import { PackagePurchasePanel } from './PackagePurchasePanel';
 
 type PosCatalogItem = {
@@ -374,6 +375,11 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
           ? 'op.pos.error.catalogNotLoaded'
           : null;
   const canAcceptPayment = paymentBlockedKey === null && cartItems.length > 0;
+  // Выбрать клиента нельзя без права смотреть клиентов — и кнопка гасла молча: кассир не понимал,
+  // почему продажа на клиента недоступна, хотя продажа гостю работает.
+  const clientPickBlocked = useBlockedReason(
+    backend !== null && !hasPermission(backend.session, permissionNames.viewPlayers) ? t('op.pos.cart.clientNoPermission') : null
+  );
 
   const addProduct = useCallback((product: PosCatalogItem) => {
     setCartItems((items) => {
@@ -754,6 +760,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               )}
             </div>
           ) : (
+            <>
             <div className="pos-client-row">
               <UserRoundPlus size={17} />
               <div>
@@ -764,11 +771,14 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                 type="button"
                 className="pos-client-select"
                 disabled={backend !== null && !hasPermission(backend.session, permissionNames.viewPlayers)}
+                aria-describedby={clientPickBlocked.describedBy}
                 onClick={() => setClientPickerOpen(true)}
               >
                 {t('op.pos.cart.selectClientBtn')}
               </button>
             </div>
+            {clientPickBlocked.hint}
+            </>
           )}
 
           {backend !== null && selectedPosPlayer?.playerAccountId && hasPermission(backend.session, permissionNames.purchasePackage) && (

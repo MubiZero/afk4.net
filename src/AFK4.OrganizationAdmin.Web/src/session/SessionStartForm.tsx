@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useBlockedReason } from '../components/BlockedReason';
 import { useI18n } from '@afk4/i18n';
 import type { TariffOptionDto } from '../operatorApiClients';
 import type { SessionBillingModeId } from '../operatorTypes';
@@ -136,6 +137,11 @@ export function SessionStartForm({
   const mode = value.billingMode as SessionBillingModeId;
   const isGuest = mode === 'guest';
   const openAllowed = mode === 'guest' || mode === 'postpaid_debt';
+  // Почему «Без конца» недоступно. Раньше причина жила во всплывающей подсказке, а на неактивной
+  // кнопке браузер её не показывает.
+  const openBlocked = useBlockedReason(
+    value.isComp ? t('op.map.panel.openTabBlockedComp') : !openAllowed ? t('op.map.panel.openTabBlockedPrepaid') : null
+  );
   const selectedTariff = tariffs.find((item) => readString(item, 'tariffVersionId') === value.tariffVersionId) ?? tariffs[0] ?? null;
   const pricePerMinute = selectedTariff ? readNumber(selectedTariff, 'pricePerMinuteMinorUnits', 0) : 0;
   const durationMinutes = value.durationMode === 'open' ? null : (value.durationMinutes ?? 60);
@@ -239,6 +245,7 @@ export function SessionStartForm({
           const item = tariffs.find((candidate) => readString(candidate, 'tariffVersionId') === tariffVersionId);
           onChange({ ...value, tariffVersionId, tariffRuleVersionId: item ? readString(item, 'tariffRuleVersionId', defaultTariffRuleVersionId) : defaultTariffRuleVersionId });
         }} />
+      {tariffs.length === 0 && <p className="ui-blocked-reason" role="status">{t('op.map.panel.noTariffsHint')}</p>}
     </>}
     {mode === 'package' && <>
       <div className="start-section-head">{t('op.map.panel.packageLabel')}</div>
@@ -253,6 +260,7 @@ export function SessionStartForm({
           })
         }))}
         onChange={(playerPackageId) => onChange({ ...value, playerPackageId })} />
+      {packages.length === 0 && <p className="ui-blocked-reason" role="status">{t('op.map.panel.noPackagesHint')}</p>}
     </>}
 
     {mode !== 'package' && <>
@@ -264,9 +272,11 @@ export function SessionStartForm({
           {formatDurationCompact(minutes * 60, t)}
         </button>)}
         <button type="button" className={value.durationMode === 'open' ? 'active' : undefined}
-          disabled={disabled || value.isComp || !openAllowed} title={openAllowed && !value.isComp ? t('op.map.panel.openTabAllowedTitle') : t('op.map.panel.openTabDisabledTitle')}
+          disabled={disabled || value.isComp || !openAllowed} title={openAllowed && !value.isComp ? t('op.map.panel.openTabAllowedTitle') : undefined}
+          aria-describedby={openBlocked.describedBy}
           onClick={() => onChange({ ...value, durationMode: 'open', durationMinutes: null })}>{t('op.map.panel.openTab')}</button>
       </div>
+      {openBlocked.hint}
       {estimate != null && <p className="start-price">{t('op.map.panel.startPriceEstimate', {
         duration: formatDurationCompact((durationMinutes ?? 60) * 60, t), amount: formatMinorUnits(estimate, currencyCode)
       })}</p>}
