@@ -49,7 +49,7 @@ extension PackageOptionRules on PackageOptionDto {
 }
 
 extension PlayerTournamentRules on PlayerTournamentDto {
-  bool get isCancelled => state == 'cancelled';
+  bool get isCancelled => state == TournamentStateNames.cancelled;
 
   bool get isFree => entryFee.minorUnits == 0;
 
@@ -76,15 +76,15 @@ extension ReservationQuoteRules on ReservationQuoteDto {
 extension PlayerReservationRules on PlayerReservationDto {
   /// Отменить можно то, что ещё не состоялось. Отменённую или уже отыгранную бронь трогать
   /// нечего — кнопка там только сбивает с толку.
-  bool get isCancellable => state == 'pending' || state == 'confirmed';
+  bool get isCancellable => state == ReservationStateNames.pending || state == ReservationStateNames.confirmed;
 }
 
 extension ShopOrderRules on ShopOrderDto {
   /// Отменить можно, пока заказ не выдан: после «принесли» отменять нечего.
-  bool get isCancellable => status == 'placed' || status == 'accepted';
+  bool get isCancellable => status == ShopOrderStatusNames.placed || status == ShopOrderStatusNames.accepted;
 
   /// Заказ ещё в работе — за ним есть смысл следить.
-  bool get isOpen => status == 'placed' || status == 'accepted';
+  bool get isOpen => status == ShopOrderStatusNames.placed || status == ShopOrderStatusNames.accepted;
 }
 
 extension CashbackEntryRules on CashbackEntryDto {

@@ -4,7 +4,7 @@
  * Зачем отдельный вывод, а не общий с TypeScript: Dart не читает TS, а держать третью рукописную
  * копию контрактов — верный способ развести их. Источник остаётся один, как у каталога строк.
  */
-import type { ContractField, ContractRecord } from './parse.ts';
+import type { ContractField, ContractNames, ContractRecord } from './parse.ts';
 
 const PRIMITIVES = new Map<string, { type: string; read: (expression: string) => string; write: (expression: string) => string }>([
   ['string', { type: 'String', read: (value) => `${value} as String`, write: (value) => value }],
@@ -104,7 +104,32 @@ function fieldRead(field: ContractField, known: Set<string>, where: string): str
   return `        ${field.name}: ${source} == null ? null : ${readValue(field.type, source, known, where)},`;
 }
 
-export function emitDart(records: ContractRecord[], known: Set<string>): string {
+// Зарезервированные слова Dart именем поля быть не могут (встроенные вроде `operator` — могут).
+const DART_RESERVED = new Set(['assert', 'break', 'case', 'catch', 'class', 'const', 'continue', 'default', 'do', 'else', 'enum',
+  'extends', 'false', 'final', 'finally', 'for', 'if', 'in', 'is', 'new', 'null', 'rethrow', 'return', 'super', 'switch', 'this',
+  'throw', 'true', 'try', 'var', 'void', 'while', 'with']);
+
+/** `NoShow` → `noShow`; зарезервированное слово получает подчёркивание: `Void` → `void_`. */
+function constantName(name: string): string {
+  const camel = name.charAt(0).toLowerCase() + name.slice(1);
+  return DART_RESERVED.has(camel) ? `${camel}_` : camel;
+}
+
+/**
+ * Словарь кодов → класс констант: `SeatStateNames.free`. Тип поля в Dart остаётся `String` — у
+ * языка нет объединений строк, а enum сломал бы разбор кода, которого старое приложение не знает.
+ * Зато сравнение идёт с константой, и опечатка в имени — ошибка компиляции, а не тихое «никогда».
+ */
+function emitDartNames(names: ContractNames): string {
+  const docLines = [...names.doc, names.doc.length > 0 ? '' : null, `Словарь: ${names.file}`]
+    .filter((line): line is string => line !== null);
+  const values = names.values
+    .map((value) => `${value.doc.length > 0 ? doc(value.doc, '  ') : ''}  static const String ${constantName(value.name)} = '${value.value}';\n`)
+    .join('');
+  return `${doc(docLines, '')}abstract final class ${names.name} {\n${values}}\n\n`;
+}
+
+export function emitDart(records: ContractRecord[], known: Set<string>, dictionaries: ContractNames[] = []): string {
   const parts: string[] = [
     '// Сгенерировано из src/AFK4.Shared.Contracts. Руками не править:\n',
     '// правка живёт в записи C#, а сюда приезжает через `bun run gen` в packages/contracts.\n',
@@ -112,6 +137,8 @@ export function emitDart(records: ContractRecord[], known: Set<string>): string 
     '// ignore_for_file: lines_longer_than_80_chars\n',
     'library;\n\n'
   ];
+
+  for (const names of dictionaries) parts.push(emitDartNames(names));
 
   for (const record of records) {
     const scoped = new Set([...known, ...record.typeParameters]);

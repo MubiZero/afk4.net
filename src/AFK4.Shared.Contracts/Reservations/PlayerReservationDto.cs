@@ -16,7 +16,7 @@ public sealed record PlayerReservationDto(
     DateTimeOffset StartsAtUtc,
     DateTimeOffset EndsAtUtc,
     // Отменить можно то, что ещё не состоялось: `pending` и `confirmed`. Отменённую или уже
-    // отыгранную бронь трогать нечего — кнопка там только сбивает с толку.
+    // отыгранную бронь трогать нечего — кнопка там только сбивает с толку. Одно из ReservationStateNames.
     string State,
     string? Note,
     Guid? TariffVersionId = null,

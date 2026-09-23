@@ -84,6 +84,16 @@ describe('сгенерированный файл', () => {
   // Словари кодов доезжают до клиентов вместе с записями, и поле, помеченное словарём, не
   // принимает кода, которого сервер не присылает: «Посадить за ПК» сравнивало состояние места с
   // «free», а сервер пишет «Free» (#423).
+  // В Dart у языка нет объединений строк, поэтому словарь — класс констант: приложение игрока
+  // сравнивает с ReservationStateNames.pending, и опечатка в имени — ошибка компиляции.
+  it('выпускает словари кодов и в Dart — классом констант', () => {
+    const dart = readFileSync(join(import.meta.dir, '..', '..', '..', 'src', 'afk4_customer_app', 'lib', 'api', 'contracts.dart'), 'utf8');
+    expect(dart).toContain("abstract final class SeatStateNames {\n  static const String free = 'Free';");
+    expect(dart).toContain("static const String noShow = 'no_show';");
+    // Зарезервированное слово Dart получает подчёркивание.
+    expect(dart).toContain("static const String void_ = 'void';");
+  });
+
   it('выпускает словари кодов и типизирует ими помеченные поля', () => {
     expect(generated).toContain("export const SeatStateNames = {\n  Free: 'Free',");
     expect(generated).toContain('export type SeatStateName = (typeof SeatStateNames)[keyof typeof SeatStateNames];');

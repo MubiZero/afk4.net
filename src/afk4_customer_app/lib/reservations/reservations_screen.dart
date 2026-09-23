@@ -114,7 +114,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
   /// Отсчёт тикает, только пока есть чему тикать: у экрана без заявок в ожидании таймера нет.
   void _syncCountdown() {
-    final waiting = _reservations.any((r) => r.state == 'pending' && r.respondByUtc != null);
+    final waiting = _reservations.any((r) => r.state == ReservationStateNames.pending && r.respondByUtc != null);
     if (waiting && _countdown == null) {
       _countdown = Timer.periodic(_countdownTick, (_) {
         if (mounted) setState(() {});
@@ -438,7 +438,7 @@ class ReservationEntry {
   List<PlayerReservationDto> get live =>
       reservations
           .where((r) =>
-              r.state != 'cancelled' && r.state != 'no_show' && r.state != 'rejected')
+              r.state != ReservationStateNames.cancelled && r.state != ReservationStateNames.noShow && r.state != ReservationStateNames.rejected)
           .toList();
 
   int get seatCount => live.isNotEmpty ? live.length : reservations.length;
@@ -463,7 +463,7 @@ class ReservationEntry {
   /// отклонённой и уже отыгранной держать нечего — там сумма просто цена вечера.
   bool get holdsMoney =>
       live.isNotEmpty &&
-      live.every((r) => r.state == 'pending' || r.state == 'confirmed');
+      live.every((r) => r.state == ReservationStateNames.pending || r.state == ReservationStateNames.confirmed);
 }
 
 /// Собирает брони в строки списка: компании — под своим идентификатором группы, одиночные —
@@ -529,7 +529,7 @@ class _ReservationCard extends StatelessWidget {
   /// справочника: текст на языке стойки игроку не помог бы, а перевод у кода свой на каждый язык.
   /// Пояснение администратора, если он его написал, идёт следом — оно и есть вся конкретика.
   List<Widget> _rejection(L l, ThemeData theme) {
-    if (entry.state != 'rejected') return const [];
+    if (entry.state != ReservationStateNames.rejected) return const [];
     final reason = switch (reservation.rejectReasonCode) {
       'no_seats' => l.bookingRejectNoSeats,
       'maintenance' => l.bookingRejectMaintenance,
@@ -565,7 +565,7 @@ class _ReservationCard extends StatelessWidget {
   /// вернётся целиком. Игрок должен видеть и то, и другое, иначе будет звонить на стойку.
   List<Widget> _respondBy(L l, ThemeData theme, String locale) {
     final respondBy = reservation.respondByUtc;
-    if (entry.state != 'pending' || respondBy == null) return const [];
+    if (entry.state != ReservationStateNames.pending || respondBy == null) return const [];
 
     final left = respondBy.difference(now);
     if (left.isNegative) {

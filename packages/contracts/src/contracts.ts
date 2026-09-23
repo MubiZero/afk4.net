@@ -4155,9 +4155,9 @@ export interface PlayerReservationDto {
   endsAtUtc: IsoDateTime;
   /**
    * Отменить можно то, что ещё не состоялось: `pending` и `confirmed`. Отменённую или уже
-   * отыгранную бронь трогать нечего — кнопка там только сбивает с толку.
+   * отыгранную бронь трогать нечего — кнопка там только сбивает с толку. Одно из ReservationStateNames.
    */
-  state: string;
+  state: ReservationStateName;
   note: string | null;
   tariffVersionId?: Guid | null;
   /**
@@ -4452,7 +4452,8 @@ export interface PlayerTournamentDto {
   capacity: number;
   registeredCount: number;
   isRegistered: boolean;
-  state: string;
+  /** Одно из TournamentStateNames. */
+  state: TournamentStateName;
   /** Почему клуб отменил. Пусто, пока событие в силе. */
   cancelReason: string;
 }
@@ -5519,9 +5520,9 @@ export interface ShopOrderDto {
   playerDisplayName: string;
   /**
    * `placed` и `accepted` — заказ ещё в работе, за ним есть смысл следить и его ещё можно
-   * отменить. После «принесли» отменять нечего.
+   * отменить. После «принесли» отменять нечего. Одно из ShopOrderStatusNames.
    */
-  status: string;
+  status: ShopOrderStatusName;
   total: MoneyDto;
   lines: ShopOrderLineDto[];
   /**

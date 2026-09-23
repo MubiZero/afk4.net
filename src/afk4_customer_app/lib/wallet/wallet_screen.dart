@@ -108,7 +108,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   /// Список возможностей не загрузился (`null`) — считаем пополнение включённым: право на
   /// запись всё равно проверяет сервер, а спрятанная из-за сбоя кнопка выглядит как поломка.
-  bool get _topUpEnabled => widget.features == null || widget.features!.contains('online_topup');
+  bool get _topUpEnabled => widget.features == null || widget.features!.contains(PlatformFeatureNames.onlineTopUp);
 
   /// Первое пополнение в клубе: счёта ещё нет, поэтому ни остатка, ни прошлых заявок здесь
   /// не бывает — только сумма и зал, в котором клуб заведёт кошелёк.

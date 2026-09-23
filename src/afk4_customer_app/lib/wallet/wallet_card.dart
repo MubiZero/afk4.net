@@ -61,7 +61,7 @@ class _WalletCardState extends State<WalletCard> {
     _refreshIntents();
   }
 
-  bool get _topUpEnabled => widget.features == null || widget.features!.contains('online_topup');
+  bool get _topUpEnabled => widget.features == null || widget.features!.contains(PlatformFeatureNames.onlineTopUp);
 
   /// Заявка, которой игрок ещё ждёт. Именно она отвечает на вопрос «я же пополнял».
   ///

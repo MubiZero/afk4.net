@@ -40,6 +40,7 @@ public sealed record PlayerTournamentDto(
     int Capacity,
     int RegisteredCount,
     bool IsRegistered,
+    // Одно из TournamentStateNames.
     string State,
     // Почему клуб отменил. Пусто, пока событие в силе.
     string CancelReason);
