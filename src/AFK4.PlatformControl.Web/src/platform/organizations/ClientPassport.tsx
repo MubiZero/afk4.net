@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PartialFailure } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -100,6 +101,10 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   const debtStatus = debtPart.status === 'ready' ? 'ready' : 'unknown';
   const somethingFailed = [subscriptionPart, ownerPart, debtPart].some(part => part.status === 'failed');
   const reloadParts = () => setTick(value => value + 1);
+  // Пока подписка в пути, о запросе говорит скелетон цены. А когда она не пришла, полоса сверху
+  // говорит только «часть сведений не загрузилась» — какая кнопка из-за этого серая, надо сказать.
+  const subscriptionBlocked = useBlockedReason(
+    subscriptionPart.status === 'failed' ? t('platform.organization.passport.blocked.subscriptionNotLoaded') : null);
 
   const cities = Array.from(new Set(organization.branches.map(branch => branch.city)));
   const nextStatus = organization.status === 'active' ? 'suspended' : 'active';
@@ -195,11 +200,18 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
       <div className="pc-passport-actions">
         {access.canManageSubscriptions ? (
           // Диалог условий строится вокруг текущей подписки: пока её нет в руках, открывать
-          // нечего. Мёртвая на вид кнопка без объяснения хуже погашенной — рядом стоит полоса,
-          // которая говорит, что сведения не загрузились, и предлагает повторить.
-          <Button size="sm" disabled={subscription === null} onClick={() => setOpenDialog('subscription')}>
-            {t('platform.organization.passport.action.editSubscription')}
-          </Button>
+          // нечего.
+          <>
+            <Button
+              size="sm"
+              disabled={subscription === null}
+              aria-describedby={subscriptionBlocked.describedBy}
+              onClick={() => setOpenDialog('subscription')}
+            >
+              {t('platform.organization.passport.action.editSubscription')}
+            </Button>
+            {subscriptionBlocked.hint}
+          </>
         ) : null}
         {access.canManageInvoices ? (
           <Button variant="outline" size="sm" disabled={invoicePending} onClick={() => void generateInvoice()}>

@@ -39,3 +39,21 @@ it('confirms a status change and calls updateStatus then onUpdated', async () =>
   await waitFor(() => expect(client.updateStatus).toHaveBeenCalledWith('o1', 'suspended', 'Нарушение условий обслуживания'));
   expect(onUpdated).toHaveBeenCalledWith(next);
 });
+
+// Поле «Новый статус» открывается с текущим статусом, и серая кнопка рядом выглядела сломанной.
+it('пока выбран текущий статус, говорит об этом у кнопки', () => {
+  render(
+    <I18nProvider><ToastProvider>
+      <OrganizationStatusSection client={{ updateStatus: mock() } as any} organization={detail({})} onUpdated={mock()} />
+    </ToastProvider></I18nProvider>
+  );
+
+  const apply = screen.getByRole('button', { name: 'Изменить статус' });
+  expect(apply).toBeDisabled();
+  expect(apply.getAttribute('aria-describedby')).toBe(screen.getByText('У организации уже этот статус. Выберите другой.').id);
+
+  fireEvent.change(screen.getByLabelText('Новый статус'), { target: { value: 'suspended' } });
+  expect(apply).toBeEnabled();
+  expect(apply.getAttribute('aria-describedby')).toBeNull();
+  expect(screen.queryByText('У организации уже этот статус. Выберите другой.')).toBeNull();
+});

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -40,6 +41,8 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
   const amountValue = Number.parseFloat(amount.replace(',', '.'));
   const amountValid = Number.isFinite(amountValue) && amountValue > 0;
   const descriptionValid = description.trim().length > 0;
+  // Пустое поле видно и так, а «0» или «сто» выглядят заполненными — их и называем.
+  const amountBlocked = useBlockedReason(amount.trim() !== '' && !amountValid ? t('platform.organization.invoiceDialog.blocked.amount') : null);
   const isCredit = kind === 'credit';
   const formattedAmount = amountValid && currencyCode !== null ? formatCurrency(amountValue, currencyCode) : null;
   const amountHint = isCredit
@@ -78,7 +81,7 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
       footer={
         <>
           <Button variant="outline" disabled={pending} onClick={onClose}>{t('platform.billing.action.cancel')}</Button>
-          <Button disabled={pending || !amountValid || !descriptionValid} onClick={() => void submit()}>
+          <Button disabled={pending || !amountValid || !descriptionValid} aria-describedby={amountBlocked.describedBy} onClick={() => void submit()}>
             {t('platform.organization.invoiceDialog.submit')}
           </Button>
         </>
@@ -98,6 +101,7 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
         >
           <Input id="invoice-amount" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} />
         </Field>
+        {amountBlocked.hint}
 
         <Field label={t('platform.organization.invoiceDialog.description')} htmlFor="invoice-description">
           <Input

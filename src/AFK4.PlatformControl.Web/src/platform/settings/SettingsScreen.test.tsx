@@ -107,6 +107,50 @@ describe('SettingsScreen', () => {
     expect(await screen.findByText('Недостаточно прав для этого действия.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Повторить' })).not.toBeInTheDocument();
   });
+
+  // Причина жила во всплывающей подсказке, а её на неактивной кнопке браузер не показывает.
+  // Теперь это строка в ячейке, одна на обе кнопки, и обе ссылаются на неё.
+  it('у своей строки говорит словами, почему роль и отключение недоступны', async () => {
+    renderSettings();
+    await screen.findByText('Второй');
+
+    const reason = screen.getByText('Нельзя выполнить это действие в отношении собственной учётной записи.');
+    const [ownRole, otherRole] = screen.getAllByRole('button', { name: 'Сделать поддержкой' });
+    const [ownDisable, otherDisable] = screen.getAllByRole('button', { name: 'Отключить' });
+    expect(ownRole).toBeDisabled();
+    expect(ownDisable).toBeDisabled();
+    expect(ownRole.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(ownDisable.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(ownRole.getAttribute('title')).toBeNull();
+
+    // У коллеги ничего не мешает — и объяснять нечего.
+    expect(otherRole.getAttribute('aria-describedby')).toBeNull();
+    expect(otherDisable.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('у последнего администратора с полным доступом называет, почему его нельзя понизить или отключить', async () => {
+    renderSettings({
+      listAdmins: async () => [
+        { ...ADMINS[0], role: 'platform_support' },
+        ADMINS[1]
+      ]
+    });
+    await screen.findByText('Второй');
+
+    const reason = screen.getByText('Нужен хотя бы один активный администратор с полным доступом.');
+    const lastAdminRole = screen.getByRole('button', { name: 'Сделать поддержкой' });
+    const lastAdminDisable = screen.getAllByRole('button', { name: 'Отключить' }).at(-1)!;
+    expect(lastAdminRole).toBeDisabled();
+    expect(lastAdminRole.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(lastAdminDisable.getAttribute('aria-describedby')).toBe(reason.id);
+  });
+
+  it('когда полных администраторов двое, про последнего не говорит', async () => {
+    renderSettings();
+    await screen.findByText('Второй');
+
+    expect(screen.queryByText('Нужен хотя бы один активный администратор с полным доступом.')).not.toBeInTheDocument();
+  });
 });
 
 const ADMINS = [

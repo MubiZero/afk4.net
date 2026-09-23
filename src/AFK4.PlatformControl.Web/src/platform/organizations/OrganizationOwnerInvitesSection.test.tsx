@@ -24,10 +24,10 @@ function summary(over: Partial<OrganizationOwnerInviteSummary>): OrganizationOwn
   };
 }
 
-function renderSection(client: any) {
+function renderSection(client: any, sectionBranches: OrganizationBranch[] = branches) {
   return render(
     <I18nProvider><ToastProvider>
-      <OrganizationOwnerInvitesSection client={client} organizationId="o1" branches={branches} initialInvite={null} />
+      <OrganizationOwnerInvitesSection client={client} organizationId="o1" branches={sectionBranches} initialInvite={null} />
     </ToastProvider></I18nProvider>
   );
 }
@@ -137,4 +137,26 @@ it('выданный код можно передать ссылкой, а не 
   expect(screen.getByLabelText('Ссылка для активации')).toHaveValue(
     `${window.location.origin}/account-activation?code=OWN-98765`
   );
+});
+
+// Код выдаётся на филиал. У организации без филиала список пуст, кнопка серая — и раньше ни слова
+// о том, что сначала нужен филиал и где его завести.
+it('без филиала говорит, почему код не создать и где завести филиал', async () => {
+  const client = { listOrganizationOwnerInvites: mock().mockResolvedValue([]), createOrganizationOwnerInvite: mock(), revokeOrganizationOwnerInvite: mock() };
+  renderSection(client, []);
+
+  const create = screen.getByRole('button', { name: 'Создать код' });
+  expect(create).toBeDisabled();
+  const reason = screen.getByText('Код приглашения выдаётся на филиал, а у организации их пока нет. Филиал добавляют на вкладке «Клубы».');
+  expect(create.getAttribute('aria-describedby')).toBe(reason.id);
+});
+
+it('с филиалом причину не пишет', async () => {
+  const client = { listOrganizationOwnerInvites: mock().mockResolvedValue([]), createOrganizationOwnerInvite: mock(), revokeOrganizationOwnerInvite: mock() };
+  renderSection(client);
+
+  const create = screen.getByRole('button', { name: 'Создать код' });
+  expect(create).toBeEnabled();
+  expect(create.getAttribute('aria-describedby')).toBeNull();
+  expect(screen.queryByText(/Код приглашения выдаётся на филиал/)).toBeNull();
 });

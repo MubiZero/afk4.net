@@ -273,6 +273,16 @@
 
 .ui-field > input[aria-invalid="true"] ~ .ui-field-hint { color: var(--danger-text); }
 
+/* Почему кнопка неактивна — тихим текстом рядом с ней. Всплывающая подсказка на неактивной кнопке
+   не показывается, а на сенсорном экране её нет, поэтому причина — обычная строка (useBlockedReason
+   в обеих админках). */
+.ui-blocked-reason {
+  margin: var(--space-1) 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* Лейбл и действие рядом с ним — «Забыли пароль?» у поля пароля. */
 .ui-label-row {
   display: flex;
