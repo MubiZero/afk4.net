@@ -10,6 +10,16 @@ import {
   type WizardSeat,
 } from './wizardApi';
 
+/// Введённое на экране. Живёт в App: экран монтируется заново на каждом шаге, и после «Назад» и
+/// обратно исправленное имя ПК снова становилось именем машины.
+export interface DeviceDraft {
+  displayName: string;
+  /// Выбор места — только когда его спрашивали (игровой ПК). На рабочем месте управляющего
+  /// списка нет, и «новое место» там не выбор человека, а умолчание, которое не должно
+  /// перебить догадку по имени машины, если роль потом сменят.
+  seatChoice: string | null;
+}
+
 interface DeviceScreenProps {
   /// Номер шага в ЭТОМ прогоне мастера: шаги пропускаются, зашитая цифра врала.
   stepNumber: number;
@@ -18,9 +28,11 @@ interface DeviceScreenProps {
   branch: WizardBranch;
   role: WizardRole;
   defaultDisplayName: string;
+  /// Что было введено при прошлом заходе на шаг; null — заход первый.
+  initialDraft?: DeviceDraft | null;
   onEnrolled(result: WizardEnrollResult, selectedSeat: WizardSeat | null): void;
   onBusyChange?(installing: boolean): void;
-  onBack(): void;
+  onBack(draft: DeviceDraft): void;
 }
 
 /// Значение «завести новое место» в списке — отдельное от любого seatId.
@@ -39,12 +51,13 @@ export function DeviceScreen({
   branch,
   role,
   defaultDisplayName,
+  initialDraft = null,
   onEnrolled,
   onBusyChange,
   onBack,
 }: DeviceScreenProps) {
   const { t } = useI18n();
-  const [displayName, setDisplayName] = useState(defaultDisplayName);
+  const [displayName, setDisplayName] = useState(initialDraft?.displayName ?? defaultDisplayName);
   const [request, setRequest] = useState<RequestState>({ kind: 'idle' });
 
   const requiresSeat = role === 'gaming_pc';
@@ -67,6 +80,10 @@ export function DeviceScreen({
   // подтверждает догадку вместо того, чтобы искать себя в списке.
   const [seatChoice, setSeatChoice] = useState<string>(() => {
     if (freeSeats.length === 0) return NEW_SEAT;
+    const previous = initialDraft?.seatChoice;
+    if (previous != null && (previous === NEW_SEAT || freeSeats.some((seat) => seat.seatId === previous))) {
+      return previous;
+    }
     const machineName = defaultDisplayName.trim().toLowerCase();
     const matched = freeSeats.find((seat) => seat.pcName.trim().toLowerCase() === machineName);
     return (matched ?? freeSeats[0]).seatId;
@@ -206,7 +223,12 @@ export function DeviceScreen({
         )}
 
         <div className="wizard-actions">
-          <button type="button" className="ui-btn" onClick={onBack} disabled={busy}>
+          <button
+            type="button"
+            className="ui-btn"
+            onClick={() => onBack({ displayName, seatChoice: freeSeats.length > 0 ? seatChoice : null })}
+            disabled={busy}
+          >
             <ArrowLeft aria-hidden />
             <span>{t('setup.wizard.common.back')}</span>
           </button>

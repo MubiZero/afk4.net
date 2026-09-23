@@ -56,6 +56,11 @@ export function TariffScheduleFields({
           ? t('op.management.tariffs.schedule.overnightNote')
           : t('op.management.tariffs.schedule.allDayHint')}
       </p>
+      {/* Правило старта называется там, где задают часы: владелец, поставивший 08:00–16:00, иначе
+          ждёт, что в 16:00 сессия оборвётся или подорожает, а она до конца идёт по этому тарифу. */}
+      {value.from !== '' && value.to !== '' && (
+        <p className="mgmt-schedule-hint">{t('op.management.tariffs.schedule.startRuleHint')}</p>
+      )}
 
       <div className="mgmt-day-toggles" role="group" aria-label={t('op.management.tariffs.schedule.days')}>
         {DAY_LABEL_KEYS.map((labelKey, index) => (
