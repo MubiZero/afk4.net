@@ -107,6 +107,18 @@ describe('CashReceiptsLedger', () => {
     expect(screen.queryByText(/^0 с\.$/)).toBeNull();
   });
 
+  // Перечитывание после возврата идёт тихо: лента чеков остаётся на месте до нового ответа.
+  it('после возврата лента не пропадает, пока идёт перечитывание', async () => {
+    renderReceipts();
+    fireEvent.click(await screen.findByText('Оплачен'));
+    fireEvent.click(await screen.findByRole('button', { name: /Возврат по чеку/ }));
+    getSalesReport.mockImplementationOnce(() => new Promise(() => {}));
+    const reportLoadsBeforeRefund = getSalesReport.mock.calls.length;
+    fireEvent.click(await screen.findByRole('button', { name: 'Подтвердить возврат' }));
+    await waitFor(() => expect(getSalesReport.mock.calls.length).toBeGreaterThan(reportLoadsBeforeRefund));
+    expect(screen.getByText('Оплачен')).toBeInTheDocument();
+  });
+
   it('возврат выбранного чека шлёт refundSale', async () => {
     renderReceipts();
     fireEvent.click(await screen.findByText('Оплачен')); // выбрать чек → загрузить деталь
