@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { AlertTriangle, Boxes, Plus, Trash2 } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
-import { EmptyState, Money } from '../operatorPrimitives';
+import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
+import type { PosProductCategoryDto, PosProductDto } from '../operatorApiClients';
 import type { OperatorAuthSession } from '../authClient';
 import { readCategoryDirectory } from '../posCategoryDirectory';
 import {
@@ -47,9 +48,12 @@ export function StockLevelsWorkspace({
     [backend?.config, backend?.session, canView]
   );
 
-  const [items, setItems] = useState<StockItem[]>([]);
+  const [catalog, setCatalog] = useState<PosProductDto[]>([]);
+  const [categories, setCategories] = useState<PosProductCategoryDto[]>([]);
+  const items = useMemo<StockItem[]>(() => mapCatalogToStock(catalog, readCategoryDirectory(categories)), [catalog, categories]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>('all');
   const [search, setSearch] = useState('');
   const [writeOffItem, setWriteOffItem] = useState<StockItem | null>(null);
@@ -61,18 +65,21 @@ export function StockLevelsWorkspace({
     let alive = true;
     setLoading(true);
     setLoadError(null);
+    setCategoriesError(null);
     // Каталог и справочник категорий берутся вместе: без второго у товара есть только
-    // `categoryId`, и подпись категории на карточке не появлялась вовсе.
-    Promise.all([
+    // `categoryId`, и подпись категории на карточке не появлялась вовсе. Но остатки справочнику
+    // не принадлежат: его отказ не прячет их, а называется рядом — раньше он молча становился
+    // пустым справочником, и подписи пропадали без объяснения.
+    Promise.allSettled([
       clients.pos.getCatalog(backend.branchId),
-      clients.settings.listProductCategories(backend.branchId).catch(() => [])
+      clients.settings.listProductCategories(backend.branchId)
     ])
-      .then(([catalog, categories]) => {
+      .then(([loadedCatalog, loadedCategories]) => {
         if (!alive) return;
-        setItems(mapCatalogToStock(catalog, readCategoryDirectory(categories)));
-      })
-      .catch((error) => {
-        if (alive) setLoadError(projectOperatorError(error, t).detail);
+        if (loadedCatalog.status === 'fulfilled') setCatalog(loadedCatalog.value);
+        else setLoadError(projectOperatorError(loadedCatalog.reason, t).detail);
+        if (loadedCategories.status === 'fulfilled') setCategories(loadedCategories.value);
+        else setCategoriesError(projectOperatorError(loadedCategories.reason, t).detail);
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -80,6 +87,14 @@ export function StockLevelsWorkspace({
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, backend?.branchId, canView, reloadNonce, refreshNonce]);
+
+  const retryCategories = () => {
+    if (clients === null || backend === null) return;
+    setCategoriesError(null);
+    clients.settings.listProductCategories(backend.branchId)
+      .then(setCategories)
+      .catch((error) => setCategoriesError(projectOperatorError(error, t).detail));
+  };
 
   const showSkeleton = useDeferredFlag(loading);
 
@@ -163,6 +178,10 @@ export function StockLevelsWorkspace({
             />
           </div>
         </div>
+
+        {categoriesError !== null && (
+          <PartialLoadFailure text={t('op.stock.levels.categoriesFailed', { reason: categoriesError })} onRetry={retryCategories} />
+        )}
 
         {/* Заголовки колонок */}
         <div className="cash-stock-cols srow" aria-hidden="true">

@@ -38,9 +38,11 @@ function draftFrom(role: PlatformRole): Draft {
 export function RolesSection({ client }: { client: Client }) {
   const { t } = useI18n();
   const { toast } = useToast();
-  // Список ролей и полный перечень прав нужны экрану вместе: без второго нечего показать в
-  // редакторе состава, поэтому и грузятся они одним ожиданием.
-  const state = useLoadable(() => Promise.all([client.listRoles(), client.listPermissions()]));
+  // Роли и перечень прав грузятся порознь. Перечень нужен только редактору состава, а сами
+  // роли — кто какую носит и сколько человек — читаются и без него: его отказ не должен
+  // прятать раздел, и повтор перезапрашивает только его.
+  const state = useLoadable(() => client.listRoles());
+  const permissionsState = useLoadable(() => client.listPermissions());
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PlatformRole | null>(null);
   const [pending, setPending] = useState(false);
@@ -53,7 +55,7 @@ export function RolesSection({ client }: { client: Client }) {
 
   async function save() {
     if (draft === null || pending) return;
-    const existing = state.status === 'ready' && state.data[0].some(role => role.roleName === draft.roleName);
+    const existing = state.status === 'ready' && state.data.some(role => role.roleName === draft.roleName);
     setPending(true);
     try {
       const payload = {
@@ -92,7 +94,7 @@ export function RolesSection({ client }: { client: Client }) {
   if (state.status === 'error') return <ErrorState title={t('platform.settings.roles.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? reload : undefined} />;
   if (state.status === 'loading') return <LoadingCards count={1} />;
 
-  const [roles, permissions] = state.data;
+  const roles = state.data;
   const nameIsValid = draft !== null
     && draft.roleName.trim().length > 0
     && draft.displayName.trim().length > 0;
@@ -167,11 +169,18 @@ export function RolesSection({ client }: { client: Client }) {
                 списком, чтобы получать и права, которых ещё не существует. */}
             {draft.permissions.size > 0 && roles.find(role => role.roleName === draft.roleName)?.grantsAllPermissions
               ? <p className="mgmt-drawer-hint">{t('platform.settings.roles.fullAccessNotEditable')}</p>
-              : (
+              : permissionsState.status === 'error' ? (
+                <ErrorState
+                  title={t('platform.settings.roles.error.permissions')}
+                  message={permissionsState.message}
+                  retryLabel={permissionsState.canRetry ? t('state.retry') : undefined}
+                  onRetry={permissionsState.canRetry ? permissionsState.retry : undefined}
+                />
+              ) : permissionsState.status === 'loading' ? <LoadingCards count={1} /> : (
                 <fieldset>
                   <legend>{t('platform.settings.roles.permissions')}</legend>
                   <p className="mgmt-drawer-hint">{t('platform.settings.roles.permissionsHint')}</p>
-                  {groupPermissions(permissions).map(([group, groupPermissionNames]) => (
+                  {groupPermissions(permissionsState.data).map(([group, groupPermissionNames]) => (
                     <div key={group}>
                       <strong>{describePermissionGroup(group, t)}</strong>
                       {groupPermissionNames.map(permission => (

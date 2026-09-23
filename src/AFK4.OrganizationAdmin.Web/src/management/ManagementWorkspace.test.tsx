@@ -4,6 +4,7 @@ import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../operatorToast';
 import { permissionNames } from '../operatorPermissions';
 import { supportPermissions } from '../support/supportWorkspaces';
+import { PlatformApiError } from '../platformApi';
 
 // Task 2.1: ManagementWorkspace now loads the settings-domain data (zones/staff/catalog/
 // tariffs/packages/device lists) that the halls/tariffs/staff/goods destinations need, via
@@ -144,5 +145,44 @@ describe('ManagementWorkspace', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Пакеты' }));
     expect(await screen.findByText('packages offline')).toBeTruthy();
     expect(screen.queryByText('Нет пакетов')).toBeNull();
+  });
+
+  // Сотрудники, залы, товары и тарифы — четыре раздела с общей загрузкой. Отказ одного запроса
+  // (например, у менеджера тарифов нет права видеть список сотрудников) раньше гасил все четыре.
+  it('отказ списка сотрудников не гасит «Тарифы» и повторяет только сотрудников', async () => {
+    getStaffUsers.mockImplementationOnce(async () => { throw new PlatformApiError('boom', 500, 'Internal Server Error', ''); });
+    wrap(<ManagementWorkspace backend={backend as never} session={session([permissionNames.manageTariffs, permissionNames.manageBranchStaff])} currencyCode="TJS" />);
+
+    await waitFor(() => expect(getStaffUsers).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole('tab', { name: 'Тарифы' })).toBeTruthy();
+    expect(screen.queryByText('Сервер вернул ошибку. Повторите позже.')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сотрудники и роли' }));
+    expect(await screen.findByText('Сервер вернул ошибку. Повторите позже.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    await waitFor(() => expect(getStaffUsers).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText('Сервер вернул ошибку. Повторите позже.')).toBeNull());
+    expect(getTariffOptions).toHaveBeenCalledTimes(1);
+    expect(getLayoutZones).toHaveBeenCalledTimes(1);
+    expect(getCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  // Список устройств раньше молча превращался в пустой при отказе: вкладка «Устройства»
+  // говорила «устройств нет», хотя они были. Теперь она называет причину, а залы остаются.
+  it('отказ списка устройств называет причину на своей вкладке и повторяет только его', async () => {
+    listDevices.mockImplementationOnce(async () => { throw new PlatformApiError('boom', 500, 'Internal Server Error', ''); });
+    const deviceBackend = { ...backend, session: { ...backend.session, permissions: [permissionNames.viewDeviceDetail] } };
+    wrap(<ManagementWorkspace backend={deviceBackend as never} session={session([permissionNames.manageLayout, permissionNames.viewDeviceDetail])} currencyCode="TJS" />);
+
+    expect(await screen.findByRole('tab', { name: 'Залы и места' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Устройства' }));
+    expect(await screen.findByText('Сервер вернул ошибку. Повторите позже.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    await waitFor(() => expect(listDevices).toHaveBeenCalledTimes(2));
+    expect(getLayoutZones).toHaveBeenCalledTimes(1);
   });
 });

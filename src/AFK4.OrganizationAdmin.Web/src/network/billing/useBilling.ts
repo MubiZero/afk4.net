@@ -1,48 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { InvoiceDto, OrganizationSubscriptionDto } from '../../api/clients/orgBilling';
+import { useSection, type Section } from '../useSection';
 
 export interface BillingClient {
   getSubscription(organizationId: string): Promise<OrganizationSubscriptionDto>;
   listInvoices(organizationId: string): Promise<InvoiceDto[]>;
 }
 
-export type BillingState =
-  | { status: 'loading' }
-  | { status: 'error'; retry: () => void }
-  | { status: 'ready'; subscription: OrganizationSubscriptionDto; invoices: InvoiceDto[]; retry: () => void };
+export interface BillingState {
+  subscription: Section<OrganizationSubscriptionDto>;
+  invoices: Section<InvoiceDto[]>;
+}
 
-// Loads the subscription + invoice list for the active org in parallel. Both calls are read-only
-// (Task 6 is a read-only screen by design — no plan-management actions), so a single combined
-// error state is enough: there's nothing partial to render if either call fails.
+// Подписка и счета — два независимых запроса и две панели экрана. Раньше они грузились одним
+// ожиданием, и отказ списка счетов стирал с экрана тариф и статус подписки, которые уже пришли.
+// Теперь каждая панель живёт своей загрузкой, а повтор перезапрашивает только то, что не пришло.
 export function useBilling(client: BillingClient, organizationId: string): BillingState {
-  const [tick, setTick] = useState(0);
-  const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
-  const [subscription, setSubscription] = useState<OrganizationSubscriptionDto | null>(null);
-  const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
   const clientRef = useRef(client);
   clientRef.current = client;
-  const retry = useCallback(() => setTick((t) => t + 1), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    setPhase('loading');
-    Promise.all([clientRef.current.getSubscription(organizationId), clientRef.current.listInvoices(organizationId)])
-      .then(([sub, inv]) => {
-        if (!cancelled) {
-          setSubscription(sub);
-          setInvoices(inv);
-          setPhase('ready');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setPhase('error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId, tick]);
-
-  if (phase === 'error') return { status: 'error', retry };
-  if (phase === 'loading' || subscription === null) return { status: 'loading' };
-  return { status: 'ready', subscription, invoices, retry };
+  const subscription = useSection(() => clientRef.current.getSubscription(organizationId), organizationId);
+  const invoices = useSection(() => clientRef.current.listInvoices(organizationId), organizationId);
+  return { subscription, invoices };
 }

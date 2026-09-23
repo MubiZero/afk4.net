@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { CashShiftWorkspace } from './CashShiftWorkspace';
@@ -6,6 +6,7 @@ import type { ShiftRevenueDto } from '../operatorApiClients';
 import { ToastProvider } from '../operatorToast';
 import type { CashOperationReportRowDto } from '../operatorApiClients';
 import { cashOperationReport, cashOperationRow } from './cashFixtures';
+import { PlatformApiError } from '../platformApi';
 
 afterEach(cleanup);
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
@@ -167,5 +168,64 @@ describe('CashShiftWorkspace', () => {
     expect(document.querySelector('.cash-export-error')).toBeNull();
     fireEvent.click(exportBtn);
     await waitFor(() => expect(document.querySelector('.cash-export-error')).not.toBeNull());
+  });
+
+  // Смена, прошлые смены и движение наличных — три запроса и три панели. Отказ отчёта о
+  // наличных не должен стирать открытую смену с её сверкой и кнопкой закрытия, а повтор —
+  // перечитывать то, что уже на экране.
+  it('отказ движения наличных не прячет смену и повторяет только движение', async () => {
+    const current = mock(async () => openShift());
+    const history = mock(async () => ({ shifts: [closedShift()], limit: 20 }));
+    const getCashOperationReport = mock()
+      .mockRejectedValueOnce(new PlatformApiError('boom', 500, 'Internal Server Error', ''))
+      .mockResolvedValue(cashOperationReport([
+        cashOperationRow({ operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', cashImpact: m(5000), reason: 'Размен', createdByDisplayName: 'Мадина' })
+      ]));
+    render(
+      <I18nProvider initialLocale="ru">
+        <ToastProvider>
+          <CashShiftWorkspace backend={backend} branchId="b1" currencyCode="TJS" revenueClient={{ current, history }} reports={{ getCashOperationReport }} />
+        </ToastProvider>
+      </I18nProvider>
+    );
+
+    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /20\.05\.2026/ })).toBeInTheDocument();
+    expect(screen.getByText(/Не удалось загрузить движение наличных/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByText('Мадина')).toBeInTheDocument();
+    expect(getCashOperationReport).toHaveBeenCalledTimes(2);
+    expect(current).toHaveBeenCalledTimes(1);
+    expect(history).toHaveBeenCalledTimes(1);
+  });
+
+  it('отказ прошлых смен называет причину, а открытая смена остаётся', async () => {
+    const history = mock()
+      .mockRejectedValueOnce(new PlatformApiError('boom', 500, 'Internal Server Error', ''))
+      .mockResolvedValue({ shifts: [closedShift()], limit: 20 });
+    render(
+      <I18nProvider initialLocale="ru">
+        <ToastProvider>
+          <CashShiftWorkspace
+            backend={backend}
+            branchId="b1"
+            currencyCode="TJS"
+            revenueClient={{ current: async () => openShift(), history }}
+            reports={{ getCashOperationReport: async () => cashOperationReport() }}
+          />
+        </ToastProvider>
+      </I18nProvider>
+    );
+
+    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
+    expect(screen.getByText(/Не удалось загрузить прошлые смены/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+    expect(screen.queryByText('Закрытых смен нет')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByRole('row', { name: /20\.05\.2026/ })).toBeInTheDocument();
+    expect(history).toHaveBeenCalledTimes(2);
   });
 });

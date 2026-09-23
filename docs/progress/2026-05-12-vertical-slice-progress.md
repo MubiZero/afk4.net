@@ -667,16 +667,25 @@ stated so the next person does not rediscover them:
   explain), ~35 in Platform Control. The fix is not mechanical: each needs the real reason.
 - **The skeleton does not repeat the final geometry** — one shape (four 56px rows) stands in for
   card grids, forms, tiles and charts, so the layout jumps when content replaces it.
-- **Partial failure swallowed silently** — 8 places in Organization Admin, 2 in Platform Control
-  (`Promise.all` pairs where one refusal wipes a screen that has half its data).
-- **Setup wizard**: inverted weight of actions on two more screens, one destination called four
-  different names, and the staff phone input drawn past the kit (no `ui-phone-input`: a second
-  frame inside the field, and a click on its right half does not focus it).
 - **Player app**: 30 raw colours outside the theme, three touch targets under 48dp, the light
   theme written and unreachable, and no clamp on the system font scale.
 - **Looking with eyes** — this pass read markup, styles and states rather than running the
   product: the live stand is frozen by decision. That catches half-presence, missing states,
   semantics, colour-only meaning, density and words, but not fine visual harmony.
+
+**Closed after the pass — partial failure swallowed silently.** The pass counted 8 + 2 by
+reading; walking every screen loader found 10 in Organization Admin and 3 in Platform Control.
+Either one refusal wiped the half that had arrived (a staff-list 403 blanked Halls, Tariffs,
+Staff and Goods at once; a missing invoice list hid the subscription), or the secondary request
+fell into a silent fallback that told the person something false (an unknown shift read as
+«open a shift», a failed device list as «no devices», News hung in loading forever). Each section
+now keeps what arrived, names its own reason and retries only itself (`useLoadable` with
+`retryCanHelp` in Platform Control; `PartialLoadFailure` / `SectionState` over
+`projectOperatorError` in Organization Admin). Left all-or-nothing on purpose: the POS (a sale
+needs catalog, categories and shift together), the club profile form (one save writes both
+halves), and the current shift in the cash cockpit (without it the screen cannot offer open or
+close). Still silent by design and not touched: the players' live «now» column, branch rollup
+KPIs, the shift-close tolerance lookup.
 
 ## Latest Verification
 

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
+import { PlatformApiError } from '@/api/platformTransport';
 import { UpdatesScreen } from './UpdatesScreen';
 
 afterEach(cleanup);
@@ -23,10 +24,10 @@ const packageRow = {
   validatedByPlatformAdminUserId: null, validatedAtUtc: null, retiredAtUtc: null
 };
 
-function setup(state: string = 'registered', rollouts: unknown[] = []) {
+function setup(state: string = 'registered', rollouts: unknown[] = [], listRollouts = mock().mockResolvedValue(rollouts)) {
   const updates = {
     listPackages: mock().mockResolvedValue([{ ...packageRow, state }]),
-    listRollouts: mock().mockResolvedValue(rollouts),
+    listRollouts,
     registerPackage: mock(),
     changePackageState: mock().mockResolvedValue({ ...packageRow, state: 'validated' }),
     createRollout: mock().mockResolvedValue({}),
@@ -146,5 +147,26 @@ describe('UpdatesScreen', () => {
 
     await waitFor(() => expect(updates.registerPackage).toHaveBeenCalled());
     expect(updates.registerPackage.mock.calls[0][0].component).toBe('organization-admin');
+  });
+
+  // Раскатки и каталог пакетов — разные запросы. Отказ раскаток не должен стирать каталог, но и
+  // «Опубликовать» без них показывать нельзя: по раскаткам экран понимает, что сборка уже
+  // опубликована, и без них предложил бы выложить её второй раз.
+  it('отказ раскаток оставляет каталог, прячет публикацию и повторяет только раскатки', async () => {
+    const { updates } = setup('validated', [], mock()
+      .mockRejectedValueOnce(new PlatformApiError(500, 'boom'))
+      .mockResolvedValue([]));
+
+    expect(await screen.findByText('Панель AFK4.net')).toBeInTheDocument();
+    expect(await screen.findByText('Не удалось загрузить раскатки — пока их нет, публиковать и менять раскатки нельзя')).toBeInTheDocument();
+    expect(screen.getByText('Сервер платформы вернул ошибку. Повторите позже.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Опубликовать' })).toBeNull();
+    const packageCalls = updates.listPackages.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByRole('button', { name: 'Опубликовать' })).toBeInTheDocument();
+    expect(updates.listPackages.mock.calls.length).toBe(packageCalls);
+    expect(updates.listRollouts).toHaveBeenCalledTimes(2);
   });
 });

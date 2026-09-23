@@ -14,7 +14,9 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
   backend: OperatorBackendContext;
   player: PlayerClientItem & { playerAccountId: string };
   options: PackageOptionDto[];
-  shiftOpen: boolean;
+  // null — неизвестно: запрос смены не ответил. Тогда продавать нельзя, но и говорить
+  // «откройте смену» тоже нельзя — причину называет тот, кто спрашивал.
+  shiftOpen: boolean | null;
   onPurchased: (result: PlayerPackageDto) => void | Promise<void>;
   purchasePackage?: PurchasePackage;
 }) {
@@ -26,7 +28,7 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
   const [refreshFailure, setRefreshFailure] = useState<string | null>(null);
   const attemptKeyRef = useRef<string | null>(null);
   const selected = options.find((option) => option.packageDefinitionId === selectedId) ?? options[0] ?? null;
-  const allowed = shiftOpen && player.isActive && selected !== null && hasPermission(backend.session, permissionNames.purchasePackage);
+  const allowed = shiftOpen === true && player.isActive && selected !== null && hasPermission(backend.session, permissionNames.purchasePackage);
 
   const submit = async () => {
     if (!allowed || selected === null || busy) return;
@@ -69,7 +71,7 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
     <select aria-label={t('op.pos.packages.selectLabel')} value={selected?.packageDefinitionId ?? ''} disabled={busy || options.length === 0} onChange={(event) => setSelectedId(event.currentTarget.value)}>
       {options.map((option) => <option key={option.packageDefinitionId} value={option.packageDefinitionId}>{option.name} · {formatMinorUnits(option.priceMinorUnits, option.currencyCode)}</option>)}
     </select>
-    {!shiftOpen && <p>{t('op.pos.packages.shiftRequired')}</p>}
+    {shiftOpen === false && <p>{t('op.pos.packages.shiftRequired')}</p>}
     {errorDetail && <p role="alert">{errorDetail}</p>}
     {purchasedName !== null && <p role="status">{refreshFailure === null
       ? t('op.pos.packages.purchased', { name: purchasedName })

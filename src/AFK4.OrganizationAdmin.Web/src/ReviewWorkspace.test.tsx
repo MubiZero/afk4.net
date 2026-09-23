@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from './operatorToast';
+import { PlatformApiError } from './platformApi';
 
 const pendingRequest = {
   moneyActionRequestId: 'ma-1', organizationId: 'o', branchId: 'b1', shiftId: 'sh-1',
@@ -66,5 +67,22 @@ describe('ReviewWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отклонение' }));
     expect(await screen.findByDisplayValue('Нет подтверждения клиента')).toBeInTheDocument();
     await waitFor(() => expect(reject).toHaveBeenCalled());
+  });
+
+  // Имена сотрудников — подпись к заявке, а не сама заявка. Их отказ не должен стирать очередь:
+  // заявку можно проверить и по сумме с причиной, а кто её подал — видно по началу номера.
+  it('отказ имён сотрудников не прячет очередь и повторяет только имена', async () => {
+    getStaffUsers.mockImplementationOnce(async () => { throw new PlatformApiError('boom', 500, 'Internal Server Error', ''); });
+    renderReview();
+
+    expect(await screen.findByRole('row', { name: /Возврат.*120/ })).toBeInTheDocument();
+    expect(await screen.findByText(/Не удалось загрузить имена сотрудников/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByText('Фаррух')).toBeInTheDocument();
+    expect(getStaffUsers).toHaveBeenCalledTimes(2);
+    expect(listPending).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Не удалось загрузить имена сотрудников/)).toBeNull();
   });
 });

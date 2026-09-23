@@ -1,4 +1,4 @@
-import { cloneElement, useCallback, useEffect, useState, type FormEvent, type ReactElement } from 'react';
+import { cloneElement, useRef, useState, type FormEvent, type ReactElement } from 'react';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { UpdatesApi } from '@/api/platformClients/updates';
 import type { PlatformUpdatePackage, PlatformUpdateRollout } from '@/api/types';
@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
+import { useLoadable } from '../useLoadable';
 import { UPDATE_CHANNELS, UPDATE_COMPONENTS, channelLabelKey, componentLabelKey } from './updatesModel';
 
 export type UpdatesClient = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout' | 'changeRolloutState'>;
@@ -34,9 +35,10 @@ export function UpdatesScreen({ client, organizationsClient }: {
 }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
-  const [packages, setPackages] = useState<PlatformUpdatePackage[] | null>(null);
-  const [rollouts, setRollouts] = useState<PlatformUpdateRollout[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Каталог пакетов и раскатки грузятся порознь: отказ раскаток не стирает каталог, а повтор
+  // перезапрашивает только то, что не пришло.
+  const packagesState = useLoadable(() => client.listPackages());
+  const rolloutsState = useLoadable(() => client.listRollouts());
   const [packageFormOpen, setPackageFormOpen] = useState(false);
   const [stateTarget, setStateTarget] = useState<{ id: string; state: string } | null>(null);
   const [publishTarget, setPublishTarget] = useState<PlatformUpdatePackage | null>(null);
@@ -44,18 +46,16 @@ export function UpdatesScreen({ client, organizationsClient }: {
   const [rolloutAction, setRolloutAction] = useState<RolloutAction | null>(null);
   const [changingRollout, setChangingRollout] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const [nextPackages, nextRollouts] = await Promise.all([client.listPackages(), client.listRollouts()]);
-      setPackages(nextPackages);
-      setRollouts(nextRollouts);
-    } catch (cause) {
-      setError(describeApiError(cause, t));
-    }
-  }, [client, t]);
-
-  useEffect(() => { void load(); }, [load]);
+  // После собственного действия перечитываем оба списка: публикация и смена состояния трогают
+  // и пакет, и его раскатку.
+  function reload() {
+    packagesState.retry();
+    rolloutsState.retry();
+  }
+  // Скелетон на весь экран — только пока раскатки не ответили ни разу. Повтор после их отказа
+  // идёт поверх уже показанного каталога и не должен его стирать.
+  const rolloutsAnswered = useRef(false);
+  if (rolloutsState.status !== 'loading') rolloutsAnswered.current = true;
 
   async function publish(target: PlatformUpdatePackage) {
     setPublishing(true);
@@ -77,7 +77,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
         reason: t('platform.updates.publish.reason', { version: target.version })
       });
       setPublishTarget(null);
-      await load();
+      reload();
       toast({ title: t('platform.updates.publish.done'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
@@ -91,7 +91,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
     try {
       await client.changeRolloutState(action.rollout.updateRolloutId, action.next, reason);
       setRolloutAction(null);
-      await load();
+      reload();
       toast({ title: t('platform.updates.rollout.changed'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
@@ -100,12 +100,28 @@ export function UpdatesScreen({ client, organizationsClient }: {
     }
   }
 
-  if (error !== null) return <Page title={t('nav.platform.updates')}><ErrorState message={error} retryLabel={t('common.retry')} onRetry={() => void load()} /></Page>;
-  if (packages === null || rollouts === null) return <Page title={t('nav.platform.updates')}><LoadingCards count={3} /></Page>;
+  if (packagesState.status === 'error') {
+    return (
+      <Page title={t('nav.platform.updates')}>
+        <ErrorState
+          message={packagesState.message}
+          retryLabel={packagesState.canRetry ? t('common.retry') : undefined}
+          onRetry={packagesState.canRetry ? packagesState.retry : undefined}
+        />
+      </Page>
+    );
+  }
+  if (packagesState.status === 'loading' || (rolloutsState.status === 'loading' && !rolloutsAnswered.current)) {
+    return <Page title={t('nav.platform.updates')}><LoadingCards count={3} /></Page>;
+  }
+  const packages = packagesState.data;
+  // Без раскаток экран не знает, опубликована ли сборка: «Опубликовать» и рычаги раскатки
+  // прячутся, пока они не загрузятся, — иначе он предложил бы выложить сборку второй раз.
+  const rolloutsKnown = rolloutsState.status === 'ready';
 
   // Список выкаток приходит от новых к старым, поэтому первая найденная для пакета — последняя.
   const rolloutByPackageId = new Map<string, PlatformUpdateRollout>();
-  for (const rollout of rollouts) {
+  for (const rollout of rolloutsKnown ? rolloutsState.data : []) {
     if (!rolloutByPackageId.has(rollout.updatePackageId)) rolloutByPackageId.set(rollout.updatePackageId, rollout);
   }
 
@@ -115,6 +131,14 @@ export function UpdatesScreen({ client, organizationsClient }: {
       description={t('platform.updates.packages.description')}
       actions={<Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button>}
     >
+      {rolloutsState.status === 'error' ? (
+        <ErrorState
+          title={t('platform.updates.rollouts.error.load')}
+          message={rolloutsState.message}
+          retryLabel={rolloutsState.canRetry ? t('common.retry') : undefined}
+          onRetry={rolloutsState.canRetry ? rolloutsState.retry : undefined}
+        />
+      ) : rolloutsState.status === 'loading' ? <LoadingCards count={1} /> : null}
       {packages.length === 0 ? <EmptyState message={t('platform.updates.packages.empty')} /> : (
         <Table>
           <TableHeader>
@@ -145,7 +169,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
                         {t('platform.updates.package.validate')}
                       </Button>
                     ) : null}
-                    {row.state === 'validated' && rolloutByPackageId.get(row.updatePackageId) === undefined ? (
+                    {rolloutsKnown && row.state === 'validated' && rolloutByPackageId.get(row.updatePackageId) === undefined ? (
                       <Button size="sm" onClick={() => setPublishTarget(row)}>{t('platform.updates.publish.action')}</Button>
                     ) : null}
                     <RolloutActions
@@ -165,8 +189,8 @@ export function UpdatesScreen({ client, organizationsClient }: {
         </Table>
       )}
 
-      <PackageDialog open={packageFormOpen} onOpenChange={setPackageFormOpen} client={client} onSaved={load} />
-      <StateDialog target={stateTarget} onOpenChange={open => { if (!open) setStateTarget(null); }} client={client} onSaved={load} />
+      <PackageDialog open={packageFormOpen} onOpenChange={setPackageFormOpen} client={client} onSaved={reload} />
+      <StateDialog target={stateTarget} onOpenChange={open => { if (!open) setStateTarget(null); }} client={client} onSaved={reload} />
 
       <Dialog
         open={publishTarget !== null}
@@ -280,7 +304,7 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client: UpdatesClient;
-  onSaved: () => Promise<void>;
+  onSaved: () => void;
 }) {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -303,7 +327,7 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
         releaseNotes: value(data, 'releaseNotes')
       });
       onOpenChange(false);
-      await onSaved();
+      onSaved();
       toast({ title: t('platform.updates.package.registered'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
@@ -350,7 +374,7 @@ function StateDialog({ target, onOpenChange, client, onSaved }: {
   target: { id: string; state: string } | null;
   onOpenChange: (open: boolean) => void;
   client: UpdatesClient;
-  onSaved: () => Promise<void>;
+  onSaved: () => void;
 }) {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -365,7 +389,7 @@ function StateDialog({ target, onOpenChange, client, onSaved }: {
       await client.changePackageState(target.id, target.state, reason);
       onOpenChange(false);
       setReason('');
-      await onSaved();
+      onSaved();
       toast({ title: t('platform.updates.state.changed'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
