@@ -79,6 +79,10 @@ The first UI pass reused the existing dashboard and low-level report endpoints.
 Task 2 now supplies the dedicated projection and the UI consumes it; the old
 low-level endpoints remain only for compatibility with other report consumers.
 
+Closed 23.09.2026: `OrganizationAdminReportPostgresTests` proves the branch-day
+boundaries, the seven-day trend, and the previous-period comparison against a real
+PostgreSQL, and the Revenue CSV now carries the comparison and both breakdowns.
+
 ### Task 4: Integrated verification and durable state
 
 **Files:**
