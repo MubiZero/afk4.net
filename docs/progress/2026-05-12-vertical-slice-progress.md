@@ -668,19 +668,25 @@ wizard keeps input on Back, submits on Enter, weighs its actions and calls the p
 club program is «Панель AFK4.net» (installer, shortcut, window, catalog), the person at the
 counter is «администратор», never «оператор» — both guarded in `voice.test.ts`.
 
+Closed on 2026-09-23 afternoon (#411–#415): management screens say «только просмотр» and who may
+change; Platform Control and the remaining pass-through `disabled` props name their reason (most
+turned out to be in-flight or self-evident; the booking drawer was the real gap); the status block
+on the «Лимиты» tab needs the status right; every loading screen in both panels has a skeleton of
+its final shape (`ManagementScreen` refuses `state` without `skeleton`), shown after 180 ms.
+
 Still open, each its own PR:
 
-- **Disabled controls, the rest** — management screens now say «только просмотр» and who may
-  change (#411); still open: ~70 `disabled={disabled}` pass-throughs whose parent must name the
-  reason, and ~35 in Platform Control.
-- **The skeleton does not repeat the final geometry** — one shape (four 56px rows) stands in for
-  card grids, forms, tiles and charts, so the layout jumps when content replaces it.
-- ~~Permission mismatches~~ — closed in #408: every Platform Control button now asks exactly the
-  right its server route checks (invoices, subscriptions, status, limits, packages, rollouts,
-  support access, notes write vs read).
-- **Words** — «Новый клуб» in Platform Control creates an organization; the wizard names itself
-  three ways; the tg label for shift supervisor («Сармуҳосиби навбат») reads as «chief
-  accountant» and needs a native speaker.
+- **Loading, the rest** — «Загрузка…» text instead of a shaped skeleton in cash shifts/journal/
+  top-ups, news, client packages and modals, support access in Platform Control; changing the
+  report period blanks the whole report instead of refreshing quietly over shown data.
+- **No active branch** — a staff member without an active branch sees grey loyalty, invite,
+  booking-intake and club-profile forms with no reason, and «Платежи» claims «Нет подключения к
+  серверу». The reason belongs once in the shell, not in every form.
+- **Words** — «Новый клуб» in Platform Control creates an organization, and its offboarding screen
+  says «клуб» for the organization; the wizard names itself three ways; tg has uneven spots
+  («Калиди организацию», «филиал» vs «Шӯъба») and the shift supervisor label («Сармуҳосиби
+  навбат») reads as «chief accountant» — needs a native speaker.
+- **Booking move** offers only seats free right now, even for tomorrow's booking.
 - **Player app** — the club accent is chosen by lightness only in the dark theme, without a
   contrast check.
 - **Looking with eyes** — the passes read markup, styles and states rather than running the
@@ -1002,8 +1008,8 @@ thrown away rather than polished.
    the pulse alert, but no endpoint exposes them). Waves without that view trade
    one risk for another: a wave nobody widens leaves part of the fleet on an old
    version silently. Decide the pair together.
-3. **The rest of the "named, not done" list** (section above) — disabled controls in
-   Platform Control and behind pass-through props, skeleton geometry.
+3. **The rest of the "named, not done" list** (section above) — the no-active-branch state, the
+   remaining «Загрузка…» texts, the words.
 4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
