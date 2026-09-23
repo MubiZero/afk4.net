@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients, formatTime } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
-import { Money } from '../operatorPrimitives';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
+import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorTopUpIntentDto } from '../operatorApiClients';
 
@@ -47,7 +47,7 @@ export function CashTopUpRequests({
 
   const [requests, setRequests] = useState<OperatorTopUpIntentDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<OperatorErrorProjection | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
@@ -58,7 +58,7 @@ export function CashTopUpRequests({
     setLoadError(null);
     client.listPending(branchId)
       .then((rows) => { if (active) setRequests(rows); })
-      .catch((error) => { if (active) setLoadError(projectOperatorError(error, t).detail); })
+      .catch((error) => { if (active) setLoadError(projectOperatorError(error, t)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [client, branchId, reloadNonce]);
@@ -89,8 +89,7 @@ export function CashTopUpRequests({
   if (loadError !== null) {
     return (
       <section className="cash-ledger-failure">
-        <p className="ui-alert ui-alert--spaced" role="alert">{loadError}</p>
-        <button type="button" onClick={() => setReloadNonce((value) => value + 1)}>{t('op.cash.topups.retry')}</button>
+        <PartialLoadFailure text={loadError.detail} failure={loadError} onRetry={() => setReloadNonce((value) => value + 1)} />
       </section>
     );
   }
@@ -98,8 +97,7 @@ export function CashTopUpRequests({
   if (requests.length === 0) {
     return (
       <section className="cash-topups">
-        <p className="cash-shift-empty-note">{t('op.cash.topups.empty')}</p>
-        <p className="cash-topups-hint">{t('op.cash.topups.emptyHint')}</p>
+        <EmptyState title={t('op.cash.topups.empty')} next={{ kind: 'calm', hint: t('op.cash.topups.emptyHint') }} />
       </section>
     );
   }

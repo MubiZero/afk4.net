@@ -3,11 +3,11 @@ import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { ArrowDownToLine, ClipboardList } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
-import { EmptyState, Money } from '../operatorPrimitives';
+import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { StockHero } from './StockHero';
 import { createAuthenticatedOperatorClients, stockMovementTypeLabel } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
 import type { PosProductDto, StockMovementDto } from '../operatorApiClients';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -50,6 +50,7 @@ export function JournalWorkspace({
   const [catalog, setCatalog] = useState<PosProductDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<OperatorErrorProjection | null>(null);
   const [typeFilter, setTypeFilter] = useState<JournalTypeFilter>('all');
   // Дефолт 'all' (последние ≤200) — всегда показывает свежую активность, без пустоты тихим утром
   // и без завязки тестов на текущую дату. Сегодня/7 дней — опциональное сужение.
@@ -61,20 +62,38 @@ export function JournalWorkspace({
     let alive = true;
     setLoading(true);
     setLoadError(null);
-    Promise.all([
+    setCatalogError(null);
+    // Каталог нужен журналу только ради названий товаров: что, когда, сколько и кто — всё это
+    // в ответе самого журнала. Поэтому отказ каталога не стирает движения, а называется рядом.
+    Promise.allSettled([
       clients.inventory.getStockMovements(backend.branchId, { limit: MOVEMENT_LIMIT }),
       clients.pos.getCatalog(backend.branchId),
     ])
       .then(([loadedMovements, loadedCatalog]) => {
         if (!alive) return;
-        setMovements(Array.isArray(loadedMovements) ? loadedMovements as StockMovementDto[] : []);
-        setCatalog(Array.isArray(loadedCatalog) ? loadedCatalog as PosProductDto[] : []);
+        if (loadedMovements.status === 'fulfilled') {
+          setMovements(Array.isArray(loadedMovements.value) ? loadedMovements.value as StockMovementDto[] : []);
+        } else {
+          setLoadError(projectOperatorError(loadedMovements.reason, t).detail);
+        }
+        if (loadedCatalog.status === 'fulfilled') {
+          setCatalog(Array.isArray(loadedCatalog.value) ? loadedCatalog.value as PosProductDto[] : []);
+        } else {
+          setCatalogError(projectOperatorError(loadedCatalog.reason, t));
+        }
       })
-      .catch((error) => { if (alive) setLoadError(projectOperatorError(error, t).detail); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, backend?.branchId, canView, refreshNonce]);
+
+  const retryCatalog = () => {
+    if (clients === null || backend === null) return;
+    setCatalogError(null);
+    clients.pos.getCatalog(backend.branchId)
+      .then((loadedCatalog) => setCatalog(Array.isArray(loadedCatalog) ? loadedCatalog as PosProductDto[] : []))
+      .catch((error) => setCatalogError(projectOperatorError(error, t)));
+  };
 
   const dateTimeFmt = useMemo(() => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }), [locale]);
   const dayFmt = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), [locale]);
@@ -165,12 +184,24 @@ export function JournalWorkspace({
           </button>
         </div>
 
+        {catalogError !== null && (
+          <PartialLoadFailure text={t('op.stock.journal.catalogFailed', { reason: catalogError.detail })} failure={catalogError} onRetry={retryCatalog} />
+        )}
+
         {capReached && <p className="journal-cap">{t('op.stock.journal.capNote', { count: MOVEMENT_LIMIT })}</p>}
 
         {allRows.length === 0 ? (
-          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.empty')} />
+          <EmptyState
+            icon={<ClipboardList size={28} aria-hidden="true" />}
+            title={t('op.stock.journal.empty')}
+            next={{ kind: 'calm', hint: t('op.stock.journal.emptyHint') }}
+          />
         ) : rows.length === 0 ? (
-          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.emptyFiltered')} />
+          <EmptyState
+            icon={<ClipboardList size={28} aria-hidden="true" />}
+            title={t('op.stock.journal.emptyFiltered')}
+            next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => { setTypeFilter('all'); setPeriod('all'); setSearch(''); } }}
+          />
         ) : (
           <div className="jledger" aria-label={t('op.stock.journal.head')}>
             {groups.map((group) => (

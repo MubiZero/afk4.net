@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ShieldCheck } from 'lucide-react';
-import { CriticalActionConfirmation, Skeleton } from '../../../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, PartialLoadFailure, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
 import {
@@ -24,7 +24,7 @@ import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 type PendingState =
   | { status: 'loading' }
   | { status: 'ready'; devices: DeviceInventoryItemDto[] }
-  | { status: 'failed' };
+  | { status: 'failed'; error: unknown };
 
 export function PendingDevicesSection({
   backend,
@@ -55,8 +55,8 @@ export function PendingDevicesSection({
     const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
     try {
       setPending({ status: 'ready', devices: await clients.devices.listPendingDevices(backend.branchId) });
-    } catch {
-      setPending({ status: 'failed' });
+    } catch (error) {
+      setPending({ status: 'failed', error });
     }
     if (canManageBranchSettings) {
       // Настройки грузятся отдельно от очереди: без них переключатель нечем показать, но очередь
@@ -148,6 +148,7 @@ export function PendingDevicesSection({
   if (!canViewDeviceDetail) return null;
 
   const queue = pending.status === 'ready' ? pending.devices : [];
+  const loadFailure = pending.status === 'failed' ? projectOperatorError(pending.error, t) : null;
 
   return (
     <section className="mgmt-drawer-section">
@@ -171,16 +172,20 @@ export function PendingDevicesSection({
       )}
 
       {pending.status === 'loading' && <Skeleton variant="text" lines={2} />}
-      {pending.status === 'failed' && (
-        <p role="alert">
-          {t('op.management.halls.pending.failed')}{' '}
-          <button type="button" className="ui-btn ui-btn--ghost" onClick={() => void load()}>
-            {t('op.management.state.retry')}
-          </button>
-        </p>
+      {loadFailure !== null && (
+        <PartialLoadFailure
+          text={t('op.management.halls.pending.failed', { reason: loadFailure.detail })}
+          failure={loadFailure}
+          onRetry={() => void load()}
+        />
       )}
       {pending.status === 'ready' && queue.length === 0 && (
-        <p className="mgmt-drawer-hint">{t('op.management.halls.pending.empty')}</p>
+        <EmptyState
+          inline
+          className="mgmt-drawer-hint"
+          title={t('op.management.halls.pending.empty')}
+          next={{ kind: 'calm', hint: t('op.management.halls.pending.emptyHint') }}
+        />
       )}
       {queue.length > 0 && (
         <ul>

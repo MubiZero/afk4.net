@@ -37,7 +37,7 @@ export function OrganizationDynamicsTab({ client, organizationId, branches }: {
     : (branches[0]?.branchId ?? '');
   const state = useBranchDynamics(client, organizationId, branchId);
 
-  if (branches.length === 0) return <EmptyState message={i18n.t('platform.dynamics.empty')} />;
+  if (branches.length === 0) return <EmptyState message={i18n.t('platform.dynamics.noBranches')} next="elsewhere" />;
 
   return (
     <div className="pc-analytics">
@@ -66,7 +66,7 @@ export function OrganizationDynamicsTab({ client, organizationId, branches }: {
 function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; data: BranchDynamics }) {
   const { t, formatCurrency, formatNumber } = i18n;
 
-  if (data.days.length === 0) return <EmptyState message={t('platform.dynamics.empty')} />;
+  if (data.days.length === 0) return <EmptyState message={t('platform.dynamics.empty')} next="calm" />;
 
   const series = toDynamicsSeries(data.days);
   // Сервер уже посчитал «не выходил на связь» и «нет данных» (daysWithoutAgent/daysWithUnknownAgent

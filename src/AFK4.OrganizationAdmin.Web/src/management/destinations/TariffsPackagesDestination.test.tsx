@@ -140,7 +140,7 @@ describe('TariffsPackagesDestination', () => {
         tariffs={tariffs}
         packageOptions={[]}
         loadStatus="failed"
-        errorDetail="boom"
+        failure={{ title: '', detail: 'boom', retryCanHelp: true }}
         onRetry={onRetry}
       />
     );
@@ -153,7 +153,7 @@ describe('TariffsPackagesDestination', () => {
     const onRetryPackages = mock(() => {});
     wrap(<TariffsPackagesDestination
       backend={null} session={session([])} currencyCode="TJS" tariffs={tariffs} packageOptions={[]}
-      packageState={{ status: 'failed', data: [], errorDetail: 'Пакеты недоступны' }} onRetryPackages={onRetryPackages}
+      packageState={{ status: 'failed', data: [], failure: { title: '', detail: 'Пакеты недоступны', retryCanHelp: true } }} onRetryPackages={onRetryPackages}
     />);
     expect(screen.getByText('Стандарт')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Пакеты' }));

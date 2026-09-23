@@ -4,7 +4,7 @@ import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../../ManagementScreen';
 import { SetupSection } from '../../kit/SetupSection';
-import { projectOperatorError } from '../../../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../../../apiErrors';
 import { createAuthenticatedOperatorClients, emptyFeedback } from '../../../operatorHelpers';
 import { useFeedbackToasts } from '../../../useFeedbackToasts';
 import type { Feedback, LoadStatus } from '../../../operatorTypes';
@@ -102,7 +102,7 @@ export function BookingIntakeDestination({ backend, onDirtyChange }: Destination
   const [baseline, setBaseline] = useState<BookingRulesForm>(bookingRulesDefaults);
   const [updatedAtUtc, setUpdatedAtUtc] = useState<string | null>(null);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
-  const [loadErrorDetail, setLoadErrorDetail] = useState<string | undefined>();
+  const [loadFailure, setLoadFailure] = useState<OperatorErrorProjection | undefined>();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -125,7 +125,7 @@ export function BookingIntakeDestination({ backend, onDirtyChange }: Destination
     }
     let active = true;
     setLoadStatus('loading');
-    setLoadErrorDetail(undefined);
+    setLoadFailure(undefined);
     createAuthenticatedOperatorClients(backend.config, backend.session).settings
       .getBookingSettings(backend.branchId)
       .then((settings) => {
@@ -136,7 +136,7 @@ export function BookingIntakeDestination({ backend, onDirtyChange }: Destination
       .catch((error) => {
         if (!active) return;
         setLoadStatus('failed');
-        setLoadErrorDetail(projectOperatorError(error, t).detail);
+        setLoadFailure(projectOperatorError(error, t));
       });
     return () => { active = false; };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, reloadNonce]);
@@ -186,7 +186,7 @@ export function BookingIntakeDestination({ backend, onDirtyChange }: Destination
       subtitle={t('op.management.dest.booking.subtitle')}
       contentWidth="wide"
       state={managementScreenState(loadStatus)}
-      errorDetail={loadErrorDetail}
+      failure={loadFailure}
       onRetry={() => setReloadNonce((nonce) => nonce + 1)}
       save={{ state: saveState, onSave: () => void save(), onDiscard: discard, disabled }}
     >

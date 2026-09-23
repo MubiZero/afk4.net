@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { EmptyState } from '../operatorPrimitives';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
+import { LoadFailureState } from '../operatorPrimitives';
 
 export type SaveState = 'clean' | 'dirty' | 'saving' | 'saved';
 
@@ -17,7 +18,10 @@ export interface ManagementScreenProps {
   // Loading/error swap the body for a skeleton/error affordance instead of children — save bar
   // is suppressed in both. Defaults to 'ready' (renders children as before).
   state?: 'loading' | 'error' | 'ready';
-  errorDetail?: string; // concrete failure text (projectOperatorError/feedback.detail) — shown as-is, never replaced by generic copy
+  // What failed and whether «Повторить» can help (projectOperatorError of the load) — the detail
+  // is shown as-is, never replaced by generic copy; the retry button appears only when a retry can
+  // change the answer (not under a permission refusal, where the access hint takes its place).
+  failure?: OperatorErrorProjection;
   onRetry?: () => void;
   save?: {
     // omit for read-only destinations
@@ -34,7 +38,7 @@ export function ManagementScreen({
   children,
   contentWidth = 'form',
   state = 'ready',
-  errorDetail,
+  failure,
   onRetry,
   save
 }: ManagementScreenProps): JSX.Element {
@@ -58,11 +62,7 @@ export function ManagementScreen({
             </div>
           ) : state === 'error' ? (
             <div className="management-error-state">
-              <EmptyState
-                title={t('op.management.state.errorTitle')}
-                description={errorDetail}
-                action={{ label: t('op.management.state.retry'), onClick: () => onRetry?.() }}
-              />
+              <LoadFailureState title={t('op.management.state.errorTitle')} failure={failure ?? projectOperatorError(undefined, t)} onRetry={onRetry} />
             </div>
           ) : (
             <>

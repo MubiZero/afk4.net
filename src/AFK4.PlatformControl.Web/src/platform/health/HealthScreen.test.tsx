@@ -63,7 +63,7 @@ describe('HealthScreen', () => {
         <HealthScreen canSendTestEmail client={fakeClient(overview({ openIncidents: [] }))} />
       </I18nProvider>
     );
-    await waitFor(() => expect(screen.getByText('Открытых проблем нет')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Открытых проблем нет — платформа работает штатно. Если что-то сломается, проблема появится здесь сама.')).toBeInTheDocument());
     expect(screen.queryByText('Задание не отрабатывает')).not.toBeInTheDocument();
   });
 
@@ -75,7 +75,7 @@ describe('HealthScreen', () => {
     );
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(screen.getByText('Повторить')).toBeInTheDocument();
-    expect(screen.queryByText('Открытых проблем нет')).not.toBeInTheDocument();
+    expect(screen.queryByText('Открытых проблем нет — платформа работает штатно. Если что-то сломается, проблема появится здесь сама.')).not.toBeInTheDocument();
   });
 });
 
@@ -102,7 +102,7 @@ it('says so when there are no recent failures', async () => {
   render(
     <I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({ recentFailures: [] }))} /></I18nProvider>
   );
-  expect(await screen.findByText('Свежих провалов нет')).toBeTruthy();
+  expect(await screen.findByText('Свежих провалов нет — уведомления и биллинг уходят. Неудачная отправка появится здесь с причиной.')).toBeTruthy();
 });
 
 // Кнопка существует ради текста ошибки: без него «письмо не ушло» отправляет разбираться в базу.

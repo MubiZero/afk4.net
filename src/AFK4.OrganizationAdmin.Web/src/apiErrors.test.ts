@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { projectOperatorError, requiresManagerApproval } from './apiErrors';
+import { PermissionRefusal, projectOperatorError, requiresManagerApproval, retryCanHelp } from './apiErrors';
 import { PlatformApiError } from './platformApi';
 
 const t = createTranslator('ru');
@@ -9,7 +9,8 @@ describe('projectOperatorError', () => {
   it('keeps actionable platform error text', () => {
     expect(projectOperatorError(new Error('Platform API returned 401 Unauthorized.'), t)).toEqual({
       title: 'Действие не выполнено',
-      detail: 'Platform API returned 401 Unauthorized.'
+      detail: 'Platform API returned 401 Unauthorized.',
+      retryCanHelp: true
     });
   });
 
@@ -18,14 +19,16 @@ describe('projectOperatorError', () => {
   it('обрыв связи объясняет по-человечески, а не текстом браузера', () => {
     expect(projectOperatorError(new TypeError('Failed to fetch'), t)).toEqual({
       title: 'Действие не выполнено',
-      detail: 'Нет связи с сервером. Проверьте сеть и повторите.'
+      detail: 'Нет связи с сервером. Проверьте сеть и повторите.',
+      retryCanHelp: true
     });
   });
 
   it('uses a stable fallback when the failure has no details', () => {
     expect(projectOperatorError(undefined, t)).toEqual({
       title: 'Действие не выполнено',
-      detail: 'Сервер не вернул подробности. Повторите действие или проверьте связь.'
+      detail: 'Сервер не вернул подробности. Повторите действие или проверьте связь.',
+      retryCanHelp: true
     });
   });
 
@@ -72,7 +75,7 @@ describe('projectOperatorError', () => {
       JSON.stringify({ code, error: 'backend detail', currentVersion: 4 })
     );
 
-    expect(projectOperatorError(error, t)).toEqual({
+    expect(projectOperatorError(error, t)).toMatchObject({
       title: 'Действие не выполнено',
       detail: expectedDetail
     });
@@ -97,7 +100,7 @@ describe('projectOperatorError', () => {
       JSON.stringify({ error: code })
     );
 
-    expect(projectOperatorError(error, t)).toEqual({
+    expect(projectOperatorError(error, t)).toMatchObject({
       title: 'Действие не выполнено',
       detail: expectedDetail
     });
@@ -115,7 +118,8 @@ describe('projectOperatorError', () => {
 
     expect(projectOperatorError(error, t)).toEqual({
       title: 'Действие не выполнено',
-      detail: 'Сервер не принял эти данные. Проверьте, что ввели, и повторите.'
+      detail: 'Сервер не принял эти данные. Проверьте, что ввели, и повторите.',
+      retryCanHelp: false
     });
   });
 
@@ -188,5 +192,83 @@ describe('requiresManagerApproval', () => {
     expect(requiresManagerApproval(error(409, 'not json'))).toBe(false);
     expect(requiresManagerApproval(new Error('boom'))).toBe(false);
     expect(requiresManagerApproval(undefined)).toBe(false);
+  });
+});
+
+// «Повторить» под отказом, который повтор не исправит, обещает то, чего не будет: сколько ни жми,
+// ответ тот же. Человек жмёт по кругу и решает, что сломалась программа, а настоящее действие —
+// попросить доступ или поправить данные — на экране не названо.
+describe('retryCanHelp', () => {
+  const refusal = (status: number, body = '') => new PlatformApiError('failed', status, 'Status', body);
+
+  it.each([401, 403, 404, 400, 422])('на отказ %s повтор не поможет', (status) => {
+    expect(retryCanHelp(refusal(status))).toBe(false);
+  });
+
+  it.each([0, 408, 429, 500, 502, 503, 504])('на сбой %s повтор поможет', (status) => {
+    expect(retryCanHelp(refusal(status))).toBe(true);
+  });
+
+  it('обрыв связи до ответа сервера проходит повтором', () => {
+    expect(retryCanHelp(new TypeError('Failed to fetch'))).toBe(true);
+  });
+
+  // Правило бизнеса не меняется от того, что запрос отправили ещё раз.
+  it.each([
+    ['out_of_stock', 409],
+    ['open_shift_required', 409],
+    ['reservation_not_found', 404],
+    ['plan_limit_reached', 409],
+    ['too_many_password_attempts', 429]
+  ])('отказ по правилу %s повтором не проходит', (code, status) => {
+    expect(retryCanHelp(refusal(status, JSON.stringify({ code })))).toBe(false);
+  });
+
+  // Эти отказы сами просят обновить и повторить: данные изменились у соседа, и свежий запрос
+  // получит свежий ответ.
+  it.each(['version_conflict', 'stale_version'])('конфликт версии %s повтор проходит', (code) => {
+    expect(retryCanHelp(refusal(409, JSON.stringify({ code })))).toBe(true);
+  });
+
+  it('конфликт без кода проходит повтором: данные успели измениться', () => {
+    expect(retryCanHelp(refusal(409))).toBe(true);
+  });
+
+  it('порог одобрения повтором не проходит: нужен старший, а не вторая попытка', () => {
+    expect(retryCanHelp(refusal(409, JSON.stringify({ requiresApproval: true })))).toBe(false);
+  });
+
+  it('отказ по правам, который приложение проверило само, повтором не проходит', () => {
+    expect(retryCanHelp(new PermissionRefusal('Нет права смотреть чеки.'))).toBe(false);
+  });
+
+  it('пустой и неизвестный отказ повтор не запрещает', () => {
+    expect(retryCanHelp(undefined)).toBe(true);
+    expect(retryCanHelp(new Error('boom'))).toBe(true);
+  });
+
+  it('проекция несёт тот же ответ рядом с причиной', () => {
+    expect(projectOperatorError(refusal(403), t).retryCanHelp).toBe(false);
+    expect(projectOperatorError(refusal(503), t).retryCanHelp).toBe(true);
+  });
+});
+
+// Единственное настоящее действие при нехватке прав — попросить доступ. Экран должен сказать,
+// у кого, иначе сотрудник не знает, чинить ли права или ждать сервер.
+describe('accessHint', () => {
+  it('на 403 называет, к кому идти за доступом', () => {
+    expect(projectOperatorError(new PlatformApiError('failed', 403, 'Forbidden', ''), t).accessHint)
+      .toBe('Попросите доступ у управляющего или владельца организации.');
+  });
+
+  it('то же для отказа, который приложение проверило само', () => {
+    const projection = projectOperatorError(new PermissionRefusal('Нет права смотреть чеки.'), t);
+    expect(projection.detail).toBe('Нет права смотреть чеки.');
+    expect(projection.accessHint).toBe('Попросите доступ у управляющего или владельца организации.');
+  });
+
+  // 401 — истёкший вход, а не нехватка прав: управляющий тут ничем не поможет.
+  it.each([401, 404, 500])('на %s подсказки про доступ нет', (status) => {
+    expect(projectOperatorError(new PlatformApiError('failed', status, 'Status', ''), t).accessHint).toBeUndefined();
   });
 });

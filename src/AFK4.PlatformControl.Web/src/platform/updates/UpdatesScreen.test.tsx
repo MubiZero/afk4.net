@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
+import { PlatformApiError } from '@/api/platformTransport';
 import { UpdatesScreen } from './UpdatesScreen';
 
 afterEach(cleanup);
@@ -23,10 +24,15 @@ const packageRow = {
   validatedByPlatformAdminUserId: null, validatedAtUtc: null, retiredAtUtc: null
 };
 
-function setup(state: string = 'registered', rollouts: unknown[] = []) {
+function setup(
+  state: string = 'registered',
+  rollouts: unknown[] = [],
+  { packages = [{ ...packageRow, state }], canRegisterPackages = true, listRollouts = mock().mockResolvedValue(rollouts) }:
+    { packages?: unknown[]; canRegisterPackages?: boolean; listRollouts?: ReturnType<typeof mock> } = {}
+) {
   const updates = {
-    listPackages: mock().mockResolvedValue([{ ...packageRow, state }]),
-    listRollouts: mock().mockResolvedValue(rollouts),
+    listPackages: mock().mockResolvedValue(packages),
+    listRollouts,
     registerPackage: mock(),
     changePackageState: mock().mockResolvedValue({ ...packageRow, state: 'validated' }),
     createRollout: mock().mockResolvedValue({}),
@@ -40,7 +46,7 @@ function setup(state: string = 'registered', rollouts: unknown[] = []) {
   };
   render(
     <I18nProvider><ToastProvider>
-      <UpdatesScreen client={updates as never} organizationsClient={organizations as never} />
+      <UpdatesScreen client={updates as never} organizationsClient={organizations as never} canRegisterPackages={canRegisterPackages} />
     </ToastProvider></I18nProvider>
   );
   return { updates, organizations };
@@ -49,7 +55,7 @@ function setup(state: string = 'registered', rollouts: unknown[] = []) {
 describe('UpdatesScreen', () => {
   it('shows the global package catalog and validates a registered package with a reason', async () => {
     const { updates } = setup();
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     fireEvent.click(screen.getByRole('button', { name: 'Проверить пакет' }));
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Подпись и хеш проверены.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить проверку' }));
@@ -61,7 +67,7 @@ describe('UpdatesScreen', () => {
   // молча останется на старой версии.
   it('publishes a validated package to every organization at once', async () => {
     const { updates } = setup('validated');
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Опубликовать' })[1]);
     await waitFor(() => expect(updates.createRollout).toHaveBeenCalled());
@@ -124,7 +130,7 @@ describe('UpdatesScreen', () => {
 
   it('offers no staged rollout controls', async () => {
     setup('validated');
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     expect(screen.queryByRole('button', { name: 'Запустить rollout' })).toBeNull();
     expect(screen.queryByLabelText('Размер партии, %')).toBeNull();
   });
@@ -133,7 +139,7 @@ describe('UpdatesScreen', () => {
   // регистрация пакета падала целиком — каждый раз, на любом приложении.
   it('регистрирует пакет под тем именем приложения, которое принимает сервер', async () => {
     const { updates } = setup();
-    await screen.findByText('Organization Admin');
+    await screen.findByText('Панель AFK4.net');
     fireEvent.click(screen.getAllByRole('button', { name: 'Зарегистрировать пакет' })[0]!);
 
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '1.5.0' } });
@@ -146,5 +152,44 @@ describe('UpdatesScreen', () => {
 
     await waitFor(() => expect(updates.registerPackage).toHaveBeenCalled());
     expect(updates.registerPackage.mock.calls[0][0].component).toBe('organization-admin');
+  });
+
+  // Раскатки и каталог пакетов — разные запросы. Отказ раскаток не должен стирать каталог, но и
+  // «Опубликовать» без них показывать нельзя: по раскаткам экран понимает, что сборка уже
+  // опубликована, и без них предложил бы выложить её второй раз.
+  it('отказ раскаток оставляет каталог, прячет публикацию и повторяет только раскатки', async () => {
+    const { updates } = setup('validated', [], { listRollouts: mock()
+      .mockRejectedValueOnce(new PlatformApiError(500, 'boom'))
+      .mockResolvedValue([]) });
+
+    expect(await screen.findByText('Панель AFK4.net')).toBeInTheDocument();
+    expect(await screen.findByText('Не удалось загрузить раскатки — пока их нет, публиковать и менять раскатки нельзя')).toBeInTheDocument();
+    expect(screen.getByText('Сервер платформы вернул ошибку. Повторите позже.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Опубликовать' })).toBeNull();
+    const packageCalls = updates.listPackages.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByRole('button', { name: 'Опубликовать' })).toBeInTheDocument();
+    expect(updates.listPackages.mock.calls.length).toBe(packageCalls);
+    expect(updates.listRollouts).toHaveBeenCalledTimes(2);
+  });
+
+  it('пустой каталог зовёт зарегистрировать первый пакет', async () => {
+    setup('registered', [], { packages: [] });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Зарегистрировать первый пакет' }));
+
+    expect(screen.getByLabelText('Версия')).toBeInTheDocument();
+  });
+
+  // Раздел открыт по праву на просмотр, а регистрацию сервер спрашивает по отдельному праву на
+  // пакеты. Кнопка «Зарегистрировать пакет» раньше висела у всех, и ответом на неё был отказ.
+  it('без права на пакеты не зовёт регистрировать, а говорит, у кого это право', async () => {
+    setup('registered', [], { packages: [], canRegisterPackages: false });
+
+    expect(await screen.findByText('Это может сотрудник платформы с правом «Загружать и отзывать пакеты обновлений».')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Зарегистрировать первый пакет' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Зарегистрировать пакет' })).toBeNull();
   });
 });

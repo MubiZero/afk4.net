@@ -22,7 +22,7 @@ export function ClientsTable({
   search,
   showSkeleton,
   isLoading,
-  emptyDescription,
+  connected,
   currencyCode,
   canCreatePlayer,
   liveContextByClient,
@@ -39,7 +39,8 @@ export function ClientsTable({
   search: string;
   showSkeleton: boolean;
   isLoading: boolean;
-  emptyDescription: string;
+  // Список пришёл с сервера. Без этого пустота значит «ещё не подключились», а не «клиентов нет».
+  connected: boolean;
   currencyCode: string;
   canCreatePlayer: boolean;
   liveContextByClient: Map<string, ClientLiveContext>;
@@ -154,13 +155,54 @@ export function ClientsTable({
             );
           })
         ) : isLoading ? null : (
-          <EmptyState
-            icon={<Users size={20} aria-hidden="true" />}
-            title={t('op.players.list.emptyTitle')}
-            description={emptyDescription}
+          <ClientsEmpty
+            connected={connected}
+            filtered={search.trim() !== '' || activeSegment !== 'all'}
+            canCreatePlayer={canCreatePlayer}
+            onNewClient={onNewClient}
+            onResetFilter={() => {
+              onSearchChange('');
+              onSelectSegment('all');
+            }}
           />
         )}
       </div>
     </section>
+  );
+}
+
+// Пустой список клиентов бывает трёх сортов, и следующий шаг у каждого свой: не подключились —
+// подключиться; поиск или отбор никого не нашёл — снять их; базы ещё нет — завести клиента
+// (или, без права, узнать, кто заводит).
+function ClientsEmpty({ connected, filtered, canCreatePlayer, onNewClient, onResetFilter }: {
+  connected: boolean;
+  filtered: boolean;
+  canCreatePlayer: boolean;
+  onNewClient: () => void;
+  onResetFilter: () => void;
+}) {
+  const { t } = useI18n();
+  const icon = <Users size={20} aria-hidden="true" />;
+  if (!connected) {
+    return <EmptyState icon={icon} title={t('op.players.list.emptyTitle')} next={{ kind: 'elsewhere', hint: t('op.players.list.emptyConnect') }} />;
+  }
+  if (filtered) {
+    return (
+      <EmptyState
+        icon={icon}
+        title={t('op.players.list.emptyTitle')}
+        description={t('op.players.list.noMatch')}
+        next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: onResetFilter }}
+      />
+    );
+  }
+  return (
+    <EmptyState
+      icon={icon}
+      title={t('op.players.list.noneTitle')}
+      next={canCreatePlayer
+        ? { kind: 'action', label: t('op.players.newClient.openBtn'), onClick: onNewClient }
+        : { kind: 'denied', hint: t('op.players.list.noneDenied') }}
+    />
   );
 }

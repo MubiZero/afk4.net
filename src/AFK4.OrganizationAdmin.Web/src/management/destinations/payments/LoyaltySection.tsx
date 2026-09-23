@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { EmptyState, Money } from '../../../operatorPrimitives';
+import { LoadFailureState, Money } from '../../../operatorPrimitives';
 import type { LoyaltySettingsController } from './useLoyaltySettings';
 
 interface Props {
@@ -79,11 +79,7 @@ export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Prop
 
   if (c.loadError) {
     return (
-      <EmptyState
-        title={t('op.management.state.errorTitle')}
-        description={c.loadError}
-        action={{ label: t('op.management.state.retry'), onClick: c.retry }}
-      />
+      <LoadFailureState title={t('op.management.state.errorTitle')} failure={c.loadError} onRetry={c.retry} />
     );
   }
 

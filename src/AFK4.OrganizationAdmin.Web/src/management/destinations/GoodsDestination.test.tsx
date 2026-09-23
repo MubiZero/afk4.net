@@ -147,7 +147,7 @@ describe('GoodsDestination', () => {
   it('shows the concrete error detail and retries via onRetry when loadStatus is failed', () => {
     const onRetry = mock(() => {});
     wrap(
-      <GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} loadStatus="failed" errorDetail="boom" onRetry={onRetry} />
+      <GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} loadStatus="failed" failure={{ title: '', detail: 'boom', retryCanHelp: true }} onRetry={onRetry} />
     );
     expect(screen.getByText('boom')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
@@ -208,6 +208,22 @@ describe('GoodsDestination', () => {
   it('shows a create-first-product empty state when there are no products', () => {
     wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[]} />);
     expect(screen.getByText('Нет товаров')).toBeTruthy();
+  });
+
+  // Пустой каталог ведёт туда, где товар заводится, — в тот же диалог, что и кнопка в шапке.
+  it('the empty catalog opens the new-product dialog from the empty state itself', () => {
+    const { container } = wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[]} />);
+    const empty = container.querySelector('.empty-state') as HTMLElement;
+    fireEvent.click(within(empty).getByRole('button', { name: '+ Товар' }));
+    expect(screen.getByRole('dialog', { name: 'Новый товар' })).toBeTruthy();
+  });
+
+  // Раздел открыт и старшему смены — ради склада. Товары он не заводит: кнопки нет, но сказано,
+  // кто заводит, вместо «добавьте первый товар», которое ему не выполнить.
+  it('with stock rights only: no create button, and it says who adds products', () => {
+    const { container } = wrap(<GoodsDestination backend={backend} session={session([permissionNames.manageInventoryStock])} currencyCode="TJS" catalog={[]} />);
+    expect(container.querySelector('.empty-state button')).toBeNull();
+    expect(screen.getByText('Это делает управляющий или владелец организации.')).toBeTruthy();
   });
 
   it('"+ Товар" opens the create modal and submits createProductCategory then createProduct', async () => {
@@ -379,7 +395,8 @@ describe('GoodsDestination categories', () => {
     listProductCategories.mockImplementation(async () => []);
     wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
 
-    await screen.findByText('Категорий пока нет — первая заводится вместе с товаром.');
+    await screen.findByText('Категорий пока нет.');
+    expect(screen.getByText('Первая заводится вместе с товаром.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Переименовать' })).toBeNull();
   });
 

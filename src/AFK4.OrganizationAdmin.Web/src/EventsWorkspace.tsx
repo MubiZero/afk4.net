@@ -3,7 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { Trophy } from 'lucide-react';
 import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
-import { CriticalActionConfirmation } from './operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState } from './operatorPrimitives';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
@@ -262,7 +262,9 @@ export function EventsWorkspace({
           icon: <Trophy size={22} aria-hidden="true" />,
           title: t('op.events.empty'),
           description: t('op.events.emptyDescription'),
-          action: canManage ? { label: t('op.events.addCta'), onClick: openCreate } : undefined
+          next: canManage
+            ? { kind: 'action', label: t('op.events.addCta'), onClick: openCreate }
+            : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
         }}
       />
 
@@ -371,7 +373,12 @@ export function EventsWorkspace({
               {participantsFailed ? (
                 <p className="mgmt-drawer-hint ui-inline-error" role="alert">{t('op.events.participantsFailed')}</p>
               ) : participants.length === 0 ? (
-                <p className="mgmt-drawer-hint">{t('op.events.participantsEmpty')}</p>
+                <EmptyState
+                  inline
+                  className="mgmt-drawer-hint"
+                  title={t('op.events.participantsEmpty')}
+                  next={{ kind: 'calm', hint: t('op.events.participantsEmptyHint') }}
+                />
               ) : (
                 participants.map((participant) => (
                   <p key={participant.tournamentRegistrationId}>

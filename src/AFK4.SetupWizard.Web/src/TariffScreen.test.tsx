@@ -2,6 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 import { HostBridgeRequestError } from './hostBridge';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { pressEnter } from './test/pressEnter';
 import { TariffScreen, type TariffClient } from './TariffScreen';
 
 function renderScreen(client: TariffClient, onContinue = mock()) {
@@ -87,4 +88,139 @@ describe('TariffScreen', () => {
     await waitFor(() => expect(screen.getByText(/Тариф с таким именем в клубе уже есть/)).toBeTruthy());
   });
 
+});
+
+// Шаг заводит первый тариф клуба: он показывается, только пока тарифов нет, а исправить или
+// дополнить созданный мастер не умеет — только создать ещё один. Раньше кнопка после создания
+// оставалась живой: второе нажатие получало отказ сервера на то же имя, а смена одной цены —
+// тот же отказ, хотя человек хотел поправить опечатку.
+describe('TariffScreen · тариф создаётся один раз', () => {
+  async function createOnce() {
+    const createTariff = mock().mockResolvedValue({ name: 'Дневной' });
+    renderScreen({ createTariff });
+    fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Дневной' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
+    await waitFor(() => expect(screen.getByText(/Тариф «Дневной» создан/)).toBeTruthy());
+    return createTariff;
+  }
+
+  it('после создания кнопка гаснет и второй раз не шлёт', async () => {
+    const createTariff = await createOnce();
+
+    const button = screen.getByRole('button', { name: 'Создать тариф' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    pressEnter(screen.getByLabelText('Название тарифа'));
+    fireEvent.submit(screen.getByLabelText('Название тарифа').closest('form') as HTMLFormElement);
+
+    expect(createTariff).toHaveBeenCalledTimes(1);
+  });
+
+  it('поля созданного тарифа не притворяются редактируемыми', async () => {
+    await createOnce();
+
+    expect((screen.getByLabelText('Название тарифа') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Цена за час, сомони') as HTMLInputElement).disabled).toBe(true);
+    // Куда идти за остальным — сказано рядом, а не угадывается.
+    expect(screen.getByText(/Остальные тарифы и расписание по дням заводятся в Панели AFK4.net/)).toBeTruthy();
+  });
+
+  it('при возврате на шаг созданный тариф не предлагается к созданию снова', () => {
+    const createTariff = mock();
+    render(
+      <I18nProvider>
+        <TariffScreen
+          stepNumber={1}
+          client={{ createTariff }}
+          ownerName="Владелец"
+          branchName="Главный"
+          initialDraft={{ name: 'Дневной', pricePerHour: '12', created: 'Дневной' }}
+          onContinue={mock()}
+          onBack={mock()}
+        />
+      </I18nProvider>,
+    );
+
+    expect((screen.getByRole('button', { name: 'Создать тариф' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // Отказ — не создание: после ошибки человек правит имя и пробует снова.
+  it('после отказа сервера кнопка остаётся живой', async () => {
+    renderScreen({
+      createTariff: mock().mockRejectedValue(
+        new HostBridgeRequestError('Platform API returned 400', 'tariff_name_taken', null),
+      ),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
+    await waitFor(() => expect(screen.getByText(/Тариф с таким именем в клубе уже есть/)).toBeTruthy());
+
+    expect((screen.getByRole('button', { name: 'Создать тариф' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByLabelText('Название тарифа') as HTMLInputElement).disabled).toBe(false);
+  });
+});
+
+// Enter в поле формы отправляет её — так человек привык везде, и так уже работают вход и
+// экран устройства. Здесь поля лежали вне формы, и Enter не делал ничего.
+describe('TariffScreen · Enter', () => {
+  for (const label of ['Название тарифа', 'Цена за час, сомони']) {
+    it(`Enter в поле «${label}» создаёт тариф`, async () => {
+      const createTariff = mock().mockResolvedValue({ name: 'Дневной' });
+      renderScreen({ createTariff });
+      fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Дневной' } });
+
+      pressEnter(screen.getByLabelText(label));
+
+      await waitFor(() => expect(createTariff).toHaveBeenCalledTimes(1));
+      expect(createTariff).toHaveBeenCalledWith('Дневной', 1000);
+    });
+  }
+
+  it('Enter при неактивной кнопке не создаёт тариф', () => {
+    const createTariff = mock();
+    renderScreen({ createTariff });
+    fireEvent.change(screen.getByLabelText('Цена за час, сомони'), { target: { value: '' } });
+
+    pressEnter(screen.getByLabelText('Цена за час, сомони'));
+    // И мимо кнопки: сама отправка тоже не пускает тариф без цены.
+    fireEvent.submit(screen.getByLabelText('Цена за час, сомони').closest('form') as HTMLFormElement);
+
+    expect(createTariff).not.toHaveBeenCalled();
+  });
+
+  it('двойной Enter не создаёт тариф дважды', () => {
+    const createTariff = mock(() => new Promise<never>(() => {}));
+    renderScreen({ createTariff });
+
+    pressEnter(screen.getByLabelText('Название тарифа'));
+    pressEnter(screen.getByLabelText('Название тарифа'));
+    fireEvent.submit(screen.getByLabelText('Название тарифа').closest('form') as HTMLFormElement);
+
+    expect(createTariff).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Работа этого экрана — назначить цену часа, а не уйти с него. Пока тариф не создан, вес главного
+// действия принадлежит «Создать тариф»; после — кнопке «Дальше». Так же выправлен экран зала (#382).
+describe('TariffScreen · главное действие', () => {
+  function primaryButtons(): string[] {
+    return screen
+      .getAllByRole('button')
+      .filter((button) => button.classList.contains('ui-btn--primary'))
+      .map((button) => button.textContent ?? '');
+  }
+
+  it('пока тарифа нет, главное — «Создать тариф», а не «Пропустить»', () => {
+    renderScreen({ createTariff: mock() });
+
+    expect(primaryButtons()).toEqual(['Создать тариф']);
+  });
+
+  it('после создания главное — «Дальше»', async () => {
+    renderScreen({ createTariff: mock().mockResolvedValue({ name: 'Стандартный' }) });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
+
+    await waitFor(() => expect(screen.getByText(/Тариф «Стандартный» создан/)).toBeTruthy());
+    expect(primaryButtons()).toEqual(['Дальше']);
+  });
 });

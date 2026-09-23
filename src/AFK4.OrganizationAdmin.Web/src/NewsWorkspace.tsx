@@ -3,8 +3,9 @@ import { useI18n } from '@afk4/i18n';
 import { Newspaper } from 'lucide-react';
 import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
-import { CriticalActionConfirmation } from './operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, PartialLoadFailure } from './operatorPrimitives';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
 
@@ -63,6 +64,8 @@ export function NewsWorkspace({
   const [form, setForm] = useState({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [branchesError, setBranchesError] = useState<OperatorErrorProjection | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null); // id или '__new__' для создания
   const [deleteTarget, setDeleteTarget] = useState<NewsItemDto | null>(null);
   const isDrawerOpen = selectedId !== null;
@@ -71,14 +74,36 @@ export function NewsWorkspace({
   useEffect(() => {
     if (client === null) return undefined;
     let active = true;
-    Promise.all([client.list(), client.listBranches()]).then(([list, branchList]) => {
+    // Филиалы нужны новостям только ради подписи «где показывается» и выбора в форме: их отказ
+    // не должен прятать сами новости. Раньше отказ любого из двух запросов никто не ловил, и
+    // экран так и оставался в загрузке.
+    Promise.allSettled([client.list(), client.listBranches()]).then(([list, branchList]) => {
       if (!active) return;
-      setItems(list);
-      setBranches(branchList);
+      if (list.status === 'fulfilled') setItems(list.value);
+      else setListError(projectOperatorError(list.reason, t).detail);
+      if (branchList.status === 'fulfilled') setBranches(branchList.value);
+      else setBranchesError(projectOperatorError(branchList.reason, t));
       setReady(true);
     });
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client]);
+
+  const retryList = () => {
+    if (client === null) return;
+    setListError(null);
+    client.list()
+      .then(setItems)
+      .catch((reason) => setListError(projectOperatorError(reason, t).detail));
+  };
+
+  const retryBranches = () => {
+    if (client === null) return;
+    setBranchesError(null);
+    client.listBranches()
+      .then(setBranches)
+      .catch((reason) => setBranchesError(projectOperatorError(reason, t)));
+  };
 
   const reload = async () => {
     if (client === null) return;
@@ -149,6 +174,16 @@ export function NewsWorkspace({
     return <p className="workspace-loading">{t('state.loading')}</p>;
   }
 
+  if (listError !== null) {
+    return (
+      <EmptyState
+        title={t('op.management.state.errorTitle')}
+        description={listError}
+        next={{ kind: 'action', label: t('op.management.state.retry'), onClick: retryList }}
+      />
+    );
+  }
+
   const branchName = (branchId: string | null) =>
     branchId === null ? t('op.news.allBranches') : (branches.find((b) => b.branchId === branchId)?.name ?? '—');
 
@@ -161,6 +196,9 @@ export function NewsWorkspace({
 
   return (
     <div className="mgmt-master-detail">
+      {branchesError !== null && (
+        <PartialLoadFailure text={t('op.news.branchesFailed', { reason: branchesError.detail })} failure={branchesError} onRetry={retryBranches} />
+      )}
       <MgmtTable<NewsItemDto>
         columns={[
           { key: 'title', header: t('op.news.fieldTitle'), render: (n) => n.title },
@@ -189,7 +227,9 @@ export function NewsWorkspace({
           icon: <Newspaper size={22} aria-hidden="true" />,
           title: t('op.news.empty'),
           description: t('op.news.emptyDescription'),
-          action: canManage ? { label: t('op.news.addCta'), onClick: openCreate } : undefined
+          next: canManage
+            ? { kind: 'action', label: t('op.news.addCta'), onClick: openCreate }
+            : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
         }}
       />
 
@@ -224,8 +264,12 @@ export function NewsWorkspace({
             </label>
             <label>
               {t('op.news.fieldBranch')}
-              <select value={form.branchId} disabled={!canManage} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>
+              {/* Без списка филиалов выбирать не из чего, а показать «Все филиалы» у новости одного
+                  филиала — значит соврать и тихо перенаправить её при сохранении. Поле замирает
+                  на том, что есть, причина — в строке над таблицей. */}
+              <select value={form.branchId} disabled={!canManage || branchesError !== null} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>
                 <option value="">{t('op.news.allBranches')}</option>
+                {branchesError !== null && form.branchId !== '' && <option value={form.branchId}>—</option>}
                 {branches.map((branch) => (
                   <option key={branch.branchId} value={branch.branchId}>{branch.name}</option>
                 ))}

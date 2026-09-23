@@ -28,7 +28,7 @@ import {
   type PlayerClientItem,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { Money } from './operatorPrimitives';
+import { EmptyState, Money } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PlatformApiError } from './platformApi';
@@ -36,6 +36,7 @@ import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
 import { useFeedbackToasts } from './useFeedbackToasts';
+import { useBlockedReason } from './components/BlockedReason';
 import { PackagePurchasePanel } from './PackagePurchasePanel';
 
 type PosCatalogItem = {
@@ -346,10 +347,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const refreshPurchasedPackage = async () => {
     if (backend === null || selectedPosPlayerId === null) return;
     const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    const [wallet] = await Promise.all([
-      clients.players.getWalletSummary(selectedPosPlayerId),
-      clients.players.getPlayerPackages(selectedPosPlayerId)
-    ]);
+    const wallet = await clients.players.getWalletSummary(selectedPosPlayerId);
     const walletBalance = readMoney(wallet, 'walletBalance');
     const debtBalance = readMoney(wallet, 'debtBalance');
     setPosPlayers((players) => players.map((player) => player.playerAccountId === selectedPosPlayerId
@@ -374,6 +372,11 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
           ? 'op.pos.error.catalogNotLoaded'
           : null;
   const canAcceptPayment = paymentBlockedKey === null && cartItems.length > 0;
+  // Выбрать клиента нельзя без права смотреть клиентов — и кнопка гасла молча: кассир не понимал,
+  // почему продажа на клиента недоступна, хотя продажа гостю работает.
+  const clientPickBlocked = useBlockedReason(
+    backend !== null && !hasPermission(backend.session, permissionNames.viewPlayers) ? t('op.pos.cart.clientNoPermission') : null
+  );
 
   const addProduct = useCallback((product: PosCatalogItem) => {
     setCartItems((items) => {
@@ -660,12 +663,24 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             {visibleProducts.length === 0 ? (
               /* Опечатка в поиске читалась как «товар исчез из системы»: пустой результат
                  отбора выглядел ровно как пустой каталог. */
-              <div className="pos-empty-state">
-                <strong>{catalogIsFiltered ? t('op.pos.catalog.noMatchTitle') : t('op.pos.catalog.emptyTitle')}</strong>
-                <span>{catalogIsFiltered
-                  ? t('op.pos.catalog.noMatchHint')
-                  : loadStatus === 'backend' ? t('op.pos.catalog.emptyBackend') : t('op.pos.catalog.emptyLoad')}</span>
-              </div>
+              catalogIsFiltered ? (
+                <EmptyState
+                  className="pos-empty-state"
+                  title={t('op.pos.catalog.noMatchTitle')}
+                  description={t('op.pos.catalog.noMatchHint')}
+                  next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => { setProductSearch(''); setActiveCategory(CATEGORY_ALL); } }}
+                />
+              ) : loadStatus === 'backend' ? (
+                // Товар в кассе не заводится: он приходит из каталога Управления.
+                <EmptyState
+                  className="pos-empty-state"
+                  title={t('op.pos.catalog.emptyTitle')}
+                  description={t('op.pos.catalog.emptyBackend')}
+                  next={{ kind: 'elsewhere', hint: t('op.pos.catalog.emptyWhere') }}
+                />
+              ) : (
+                <EmptyState className="pos-empty-state" title={t('op.pos.catalog.emptyTitle')} next={{ kind: 'elsewhere', hint: t('op.pos.catalog.emptyLoad') }} />
+              )
             ) : (
               visibleProducts.map((product) => (
                 <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="ui-card ui-card--interactive pos-product-card" onClick={() => addProduct(product)}>
@@ -754,6 +769,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               )}
             </div>
           ) : (
+            <>
             <div className="pos-client-row">
               <UserRoundPlus size={17} />
               <div>
@@ -764,11 +780,14 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                 type="button"
                 className="pos-client-select"
                 disabled={backend !== null && !hasPermission(backend.session, permissionNames.viewPlayers)}
+                aria-describedby={clientPickBlocked.describedBy}
                 onClick={() => setClientPickerOpen(true)}
               >
                 {t('op.pos.cart.selectClientBtn')}
               </button>
             </div>
+            {clientPickBlocked.hint}
+            </>
           )}
 
           {backend !== null && selectedPosPlayer?.playerAccountId && hasPermission(backend.session, permissionNames.purchasePackage) && (
@@ -777,6 +796,9 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               {packageOptionsError && <p role="alert">{packageOptionsError}</p>}
               {!packageOptionsLoading && !packageOptionsError && (
                 <PackagePurchasePanel
+                  // Своя панель на каждого клиента: «куплен» и ключ попытки принадлежат тому, кому
+                  // продавали, и переходить на следующего клиента не должны.
+                  key={selectedPosPlayerId}
                   backend={backend}
                   player={selectedPosPlayer as PlayerClientItem & { playerAccountId: string }}
                   options={packageOptions}

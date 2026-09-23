@@ -252,7 +252,10 @@ describe('BackendPosWorkspace', () => {
     expect(requestedUrls.some((url) => url.endsWith('/api/organizations/organization-1/branches/branch-1/pos/sales'))).toBe(false);
     expect(requestedUrls.some((url) => url.endsWith('/settlements'))).toBe(false);
     await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/players/player-1/wallet-summary'));
-    expect(requestedUrls).toContain('http://test/api/organizations/organization-1/players/player-1/packages');
+    // Список пакетов касса не показывает: запрос за ним ничего не обновлял и был лишней точкой
+    // отказа сразу после списания денег.
+    expect(requestedUrls).not.toContain('http://test/api/organizations/organization-1/players/player-1/packages');
+    expect(await screen.findByRole('status')).toHaveTextContent('куплен');
     await waitFor(() => expect(screen.getByText('15 с.')).toBeInTheDocument());
   });
 
@@ -380,6 +383,10 @@ describe('BackendPosWorkspace', () => {
 
     expect(screen.getByText('Ничего не нашлось')).toBeInTheDocument();
     expect(screen.queryByText('Каталог пуст')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+    expect((screen.getByPlaceholderText('Товар, услуга, SKU') as HTMLInputElement).value).toBe('');
+    expect(screen.getAllByText('Cola').length).toBeGreaterThan(0);
   });
 
   it('replays an ambiguous multipart settlement once with the same idempotency key', async () => {

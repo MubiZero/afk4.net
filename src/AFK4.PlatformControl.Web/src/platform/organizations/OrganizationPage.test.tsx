@@ -24,6 +24,7 @@ function client() {
 
 const allAccess = {
   canManageOrganization: true,
+  canAddBranch: true,
   canManageAccess: true,
   canViewSupport: true,
   canViewBilling: true,
@@ -72,6 +73,7 @@ it('shows a forbidden state for a forbidden direct tab URL', async () => {
   const onTabChange = mock();
   setup('history', onTabChange, {
     canManageOrganization: false,
+    canAddBranch: false,
     canManageAccess: false,
     canViewSupport: false,
     canViewBilling: false,

@@ -1,6 +1,7 @@
 import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { PlatformApiError } from '../platformApi';
 
 // У товара с сервера есть только `categoryId` — имя живёт в справочнике категорий филиала.
 const getCatalog = mock(async () => ([
@@ -84,6 +85,33 @@ describe('StockLevelsWorkspace', () => {
     expect(within(list).queryAllByText('Энергетик Red Bull').length).toBe(0);
   });
 
+  // Отбор, под который ничего не подошло, снимается кнопкой в самом пустом списке — не надо
+  // искать глазами, какой из чипов и поиска его сузил.
+  it('пустой отбор снимается «Сбросить фильтр»: возвращает и чип, и поиск', async () => {
+    view();
+    await screen.findByText('Cola 0.5');
+    fireEvent.click(screen.getByRole('button', { name: /^нет/i }));
+    fireEvent.change(screen.getByPlaceholderText('Поиск товара…'), { target: { value: 'Cola' } });
+    expect(screen.getByText('Нет товаров, соответствующих фильтру')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+    expect(screen.getAllByText('Cola 0.5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Энергетик Red Bull').length).toBeGreaterThan(0);
+  });
+
+  // Склад считает только товары с учётом остатков. Раньше пустой склад звал «Заказать», а
+  // приёмка отвечала «Нет товаров с учётом остатка» — кнопка вела в тупик.
+  it('без товаров с учётом остатков называет, где его включают, и не зовёт в приёмку', async () => {
+    getCatalog.mockImplementationOnce(async () => [
+      { productId: 'p9', name: 'Кальян', sku: 'HOOKAH', categoryId: 'cat-drinks', trackStock: false, stockOnHand: 0, reorderThreshold: 0, avgCostMinorUnits: 0, price: { currencyCode: 'TJS', minorUnits: 5000 } }
+    ] as never);
+    const onReceive = mock((_id?: string) => {});
+    render(<I18nProvider initialLocale="ru"><StockLevelsWorkspace backend={backend} currencyCode="TJS" session={session} onReceive={onReceive} /></I18nProvider>);
+    expect(await screen.findByText('Товаров на складе нет')).toBeInTheDocument();
+    expect(screen.getByText('Здесь считаются товары с включённым «Учётом остатков». Его включают в карточке товара: Управление → Товары.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Оформить приёмку' })).toBeNull();
+  });
+
   it('кнопка ＋ на строке и «Оформить приёмку» зовут onReceive', async () => {
     const onReceive = mock((_id?: string) => {});
     render(<I18nProvider initialLocale="ru"><StockLevelsWorkspace backend={backend} currencyCode="TJS" session={session} onReceive={onReceive} /></I18nProvider>);
@@ -94,5 +122,25 @@ describe('StockLevelsWorkspace', () => {
     // «Оформить приёмку» (есть товары «на исходе» → блок виден)
     fireEvent.click(screen.getByRole('button', { name: 'Оформить приёмку' }));
     expect(onReceive).toHaveBeenCalledWith();
+  });
+
+  // Справочник категорий нужен остаткам только ради подписи. Раньше его отказ молча превращался
+  // в пустой справочник: подписи пропадали без объяснения. Теперь остатки на месте, причина
+  // названа, а повтор спрашивает только справочник.
+  it('отказ справочника категорий называет причину и повторяет только справочник', async () => {
+    getCatalog.mockClear();
+    listProductCategories.mockClear();
+    listProductCategories.mockImplementationOnce(async () => { throw new PlatformApiError('boom', 500, 'Internal Server Error', ''); });
+    view();
+
+    expect(await screen.findByText('Cola 0.5')).toBeInTheDocument();
+    expect(await screen.findByText(/Не удалось загрузить категории товаров/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect((await screen.findAllByText('Напитки')).length).toBeGreaterThan(0);
+    expect(listProductCategories).toHaveBeenCalledTimes(2);
+    expect(getCatalog).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Не удалось загрузить категории товаров/)).toBeNull();
   });
 });

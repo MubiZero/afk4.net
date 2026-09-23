@@ -75,6 +75,8 @@ describe('CashTopUpRequests', () => {
 
     expect(await screen.findByText('Заявок на пополнение нет')).toBeInTheDocument();
     expect(screen.getByText(/подают из приложения/)).toBeInTheDocument();
+    // Пустая очередь — это хорошо: делать нечего, и кнопки, которая что-то обещает, нет.
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('отказ загрузки показывает причину и кнопку повтора, а не пустой список', async () => {

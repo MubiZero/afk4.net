@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
+import { EmptyState } from '../operatorPrimitives';
 import type { ReportScheduleDto } from '../api/clients/reports';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { createReportClients } from './reportClient';
@@ -47,20 +48,20 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
   const { t, formatDate } = useI18n();
   const [schedules, setSchedules] = useState<ReportScheduleDto[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<OperatorErrorProjection | undefined>();
   const [reportType, setReportType] = useState(REPORT_TYPES[0].value);
   const [frequency, setFrequency] = useState(FREQUENCIES[0].value);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
 
   const load = useCallback(async () => {
-    if (!backend) { setState('error'); setError(t('op.reports.backendRequired')); return; }
+    if (!backend) { setState('error'); setError(projectOperatorError(t('op.reports.backendRequired'), t)); return; }
     setState('loading');
     try {
       setSchedules(await createReportClients(backend).listReportSchedules(backend.branchId));
       setState('ready');
     } catch (reason) {
-      setError(projectOperatorError(reason, t).detail);
+      setError(projectOperatorError(reason, t));
       setState('error');
     }
   }, [backend, t]);
@@ -129,7 +130,7 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
       subtitle={t('op.reports.schedule.subtitle')}
       contentWidth="form"
       state={state}
-      errorDetail={error}
+      failure={error}
       onRetry={() => void load()}
     >
       <div className="mgmt-form">
@@ -157,7 +158,12 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
       </div>
 
       {schedules.length === 0 ? (
-        <p className="mgmt-drawer-hint">{t('op.reports.schedule.empty')}</p>
+        <EmptyState
+          inline
+          className="mgmt-drawer-hint"
+          title={t('op.reports.schedule.empty')}
+          next={{ kind: 'elsewhere', hint: t('op.reports.schedule.emptyHint') }}
+        />
       ) : (
         <ul>
           {schedules.map((schedule) => (

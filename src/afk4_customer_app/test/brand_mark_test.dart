@@ -25,7 +25,10 @@ void main() {
 
   // Словесный знак всегда заглавными, `.NET` — акцентом. Правило бренда, а не вкус экрана.
   testWidgets('словесный знак заглавный, а «.NET» выделен акцентом', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: BrandMark())));
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(brightness: Brightness.dark),
+      home: const Scaffold(body: BrandMark()),
+    ));
 
     final text = tester.widget<Text>(find.byType(Text));
     final spans = (text.textSpan! as TextSpan).children!.cast<TextSpan>();
@@ -33,6 +36,21 @@ void main() {
     expect(spans.map((span) => span.text).join(), 'AFK4.NET');
     expect(spans.last.text, '.NET');
     expect(spans.last.style?.color, BrandMark.accent);
+  });
+
+  // Слово стоит прямо на фоне экрана. Тёмная раскладка на светлом фоне сливается с ним, и у
+  // бренда для этого есть светлая: `brand/afk4-logo-horizontal-light.svg`.
+  testWidgets('на светлом фоне словесный знак берёт светлую раскладку бренда', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(brightness: Brightness.light),
+      home: const Scaffold(body: BrandMark()),
+    ));
+
+    final text = tester.widget<Text>(find.byType(Text));
+    final spans = (text.textSpan! as TextSpan).children!.cast<TextSpan>();
+
+    expect(text.textSpan!.style?.color, const Color(0xFF0B1F18));
+    expect(spans.last.style?.color, const Color(0xFF0B9E74));
   });
 
   testWidgets('знак умеет жить без слова — там, где название уже написано', (tester) async {

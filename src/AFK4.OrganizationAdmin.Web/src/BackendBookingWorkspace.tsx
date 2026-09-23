@@ -56,6 +56,7 @@ import { BookingRequestsLane } from './booking/BookingRequestsLane';
 import { useReputation } from './players/useReputation';
 import type { SeatSummary } from './operatorData';
 import { PanelModal } from './PanelModal';
+import { useBlockedReason } from './components/BlockedReason';
 import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
 
 export function buildReservationStartRequest(
@@ -605,6 +606,11 @@ export function BackendBookingWorkspace({
   };
 
   const selectedItem = items.find((i) => i.reservationId === selectedReservationId) ?? null;
+  // Чего не хватает форме, она говорит сама. Окно открывается только у подтверждённой брони, но
+  // статус может смениться под открытым окном (игрок отменил, отмечена неявка) — и кнопка гасла молча.
+  const startBlocked = useBlockedReason(
+    selectedItem !== null && selectedItem.state !== 'confirmed' ? t('op.booking.start.notConfirmed') : null
+  );
   const reputation = useReputation(backend, selectedItem?.phoneNumber ?? '', selectedItem?.platformPersonId || null);
   const selectedGroupSize = selectedItem?.reservationGroupId
     ? items.filter((i) => i.reservationGroupId === selectedItem.reservationGroupId && i.state !== 'cancelled').length
@@ -868,8 +874,10 @@ export function BackendBookingWorkspace({
                 setFeedback(emptyFeedback);
               }}>{t('op.booking.start.newAttempt')}</button>}
               <button type="button" className="cta-primary" disabled={reservationBusy || !startFormValid || selectedItem.state !== 'confirmed'}
+                aria-describedby={startBlocked.describedBy}
                 onClick={() => void submitReservationStart()}>{t('op.booking.start.submit')}</button>
             </div>
+            {startBlocked.hint}
           </PanelModal>
         )}
       </section>

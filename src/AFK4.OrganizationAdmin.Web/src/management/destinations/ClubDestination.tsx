@@ -5,7 +5,7 @@ import { ClubProfileFields, type ClubBrandForm, type ClubProfileForm } from '../
 import { ClubPlayerPreview } from '../../settings/club/ClubPlayerPreview';
 import { normalizeWorkingHours } from '../../settings/club/workingHours';
 import { mapProfileToForm, buildUpdateBranchProfileRequest } from '../../settings/club/branchProfileRequest';
-import { projectOperatorError } from '../../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../../apiErrors';
 import {
   createAuthenticatedOperatorClients,
   emptyFeedback,
@@ -37,11 +37,17 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  // Форма показывается только над загруженным профилем. Сохранение пишет профиль целиком, и
+  // форма над умолчаниями («AFK4», «Dushanbe», пустые адрес и фото) проходила проверку
+  // обязательных полей: поправил телефон при сбое сети — и затёр клубу название, адрес и часы.
+  const [load, setLoad] = useState<{ state: 'loading' | 'error' | 'ready'; failure?: OperatorErrorProjection }>({ state: 'loading' });
+  const [loadAttempt, setLoadAttempt] = useState(0);
   useFeedbackToasts(feedback);
 
   useEffect(() => {
     if (backend === null) return undefined;
     let active = true;
+    setLoad({ state: 'loading' });
     const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
     // Профиль филиала и оформление сети приходят разными запросами, но на экране это одна
     // страница клуба: показывать её без бренда значило бы открыть форму пустой и затереть
@@ -59,13 +65,14 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
         setBrand(loadedBrand);
         setBrandBaseline(loadedBrand);
         setDirty(false);
+        setLoad({ state: 'ready' });
       })
       .catch((error) => {
         if (!active) return;
-        setFeedback({ label: t('op.settings.profile.loadFeedbackLabel'), state: 'failed', detail: projectOperatorError(error, t).detail });
+        setLoad({ state: 'error', failure: projectOperatorError(error, t) });
       });
     return () => { active = false; };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, loadAttempt]);
 
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
 
@@ -130,7 +137,10 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       title={t('op.management.dest.club')}
       subtitle={t('op.management.dest.club.subtitle')}
       contentWidth="full"
-      save={{ state: saveState, onSave: () => void save(), onDiscard: discard, disabled: backend === null }}
+      state={backend === null ? 'ready' : load.state}
+      failure={load.failure}
+      onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
+      save={{ state: saveState, onSave: () => void save(), onDiscard: discard, disabled: backend === null || load.state !== 'ready' }}
     >
       <div className="club-profile-layout">
         {backend !== null && (

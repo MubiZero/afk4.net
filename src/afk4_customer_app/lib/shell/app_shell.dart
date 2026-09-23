@@ -39,6 +39,8 @@ class AppShell extends StatefulWidget {
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
+    this.themeMode = ThemeMode.dark,
+    this.onThemeModeChanged,
     this.onAccountOpened,
     this.clock = DateTime.now,
   });
@@ -61,6 +63,10 @@ class AppShell extends StatefulWidget {
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
+
+  /// Оформление и его смена. null — выбирать негде (тесты разделов без корня приложения).
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode>? onThemeModeChanged;
 
   /// Счёт в этом клубе только что открылся первым действием — список клубов пора перечитать.
   final Future<void> Function()? onAccountOpened;
@@ -303,6 +309,8 @@ class _AppShellState extends State<AppShell> {
           onSignOut: widget.onSignOut,
           onChangeClub: widget.onChangeClub,
           onLocaleChanged: widget.onLocaleChanged,
+          themeMode: widget.themeMode,
+          onThemeModeChanged: widget.onThemeModeChanged,
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
           onPersonChanged: widget.onAccountOpened,
         ),

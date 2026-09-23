@@ -105,7 +105,7 @@ describe('ReceivingWorkspace', () => {
     expect(req).toMatchObject({ productId: 'p1', movementType: 'purchase', quantityDelta: 1 });
     expect(req.unitCost).toMatchObject({ currencyCode: 'TJS', minorUnits: 400 });
     // успех: накладная очищена
-    expect(await screen.findByText('Накладная пуста — добавьте товары сверху')).toBeInTheDocument();
+    expect(await screen.findByText('Накладная пуста')).toBeInTheDocument();
   });
 
   it('частичный сбой оставляет непроведённые строки', async () => {
@@ -139,6 +139,13 @@ describe('ReceivingWorkspace', () => {
     ]));
     view();
     expect(await screen.findByText('Нет товаров с учётом остатка')).toBeInTheDocument();
+    // «Добавьте товары сверху» звало бы к поиску, в котором ничего нет: называем, где учёт включают.
+    expect(screen.getByText('Здесь считаются товары с включённым «Учётом остатков». Его включают в карточке товара: Управление → Товары.')).toBeInTheDocument();
+  });
+
+  it('пустая накладная говорит, откуда берутся строки', async () => {
+    view();
+    expect(await screen.findByText('Найдите товар в поиске выше — он встанет строкой накладной.')).toBeInTheDocument();
   });
 
   it('бейдж «Сканер активен» отображается в полосе добавления товара', async () => {
@@ -186,6 +193,6 @@ describe('ReceivingWorkspace', () => {
 
     await waitFor(() => expect(screen.getByText('Штрих-код не привязан')).toBeInTheDocument());
     // Накладная пуста — пустое сообщение присутствует
-    expect(screen.getByText('Накладная пуста — добавьте товары сверху')).toBeInTheDocument();
+    expect(screen.getByText('Накладная пуста')).toBeInTheDocument();
   });
 });

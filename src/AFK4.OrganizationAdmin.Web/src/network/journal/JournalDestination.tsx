@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { EmptyState } from '../../operatorPrimitives';
+import { projectOperatorError } from '../../apiErrors';
 import { createAuthenticatedOperatorClients, downloadTextFile } from '../../operatorHelpers';
 import { toAuditCsv } from './orgAuditCsv';
 import type { OperatorBackendContext } from '../../operatorTypes';
@@ -46,6 +47,15 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
     query
   );
 
+  // Черновик фильтров живёт внутри OrgAuditFilters; сброс из пустого списка пересоздаёт его,
+  // иначе поля показывали бы старый отбор над уже сброшенным результатом.
+  const [filtersKey, setFiltersKey] = useState(0);
+  const filtered = query.action !== undefined || query.outcome !== undefined || query.targetType !== undefined;
+  const resetFilters = () => {
+    setQuery(buildQuery(range, { action: '', outcome: 'all', targetType: '' }));
+    setFiltersKey((key) => key + 1);
+  };
+
   const records = state.status === 'ready' ? state.records : [];
   const rows = state.status === 'ready' ? toAuditRows(records, { formatDate }, t('op.network.journal.actor.system')) : [];
 
@@ -69,10 +79,12 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
       subtitle={t('op.network.dest.journal.subtitle')}
       contentWidth="full"
       state={screenState}
+      failure={state.status === 'error' ? projectOperatorError(state.error, t) : undefined}
       onRetry={state.status === 'error' ? state.retry : undefined}
     >
       <div className="network-journal">
         <OrgAuditFilters
+          key={filtersKey}
           range={range}
           onRangeChange={handleRange}
           onApply={(draft) => setQuery(buildQuery(range, draft))}
@@ -88,7 +100,12 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
             <div className="management-skeleton-line" />
           </div>
         ) : rows.length === 0 ? (
-          <EmptyState title={t('op.network.journal.empty')} />
+          <EmptyState
+            title={t('op.network.journal.empty')}
+            next={filtered
+              ? { kind: 'action', label: t('op.empty.resetFilter'), onClick: resetFilters }
+              : { kind: 'elsewhere', hint: t('op.network.journal.emptyHint') }}
+          />
         ) : (
           <div className="table-panel">
             <div className="ctable-head" style={{ gridTemplateColumns: GRID }} aria-hidden="true">

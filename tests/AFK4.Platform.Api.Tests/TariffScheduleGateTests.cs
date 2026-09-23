@@ -275,11 +275,12 @@ public class TariffScheduleGateTests
         public override DateTimeOffset GetUtcNow() => now;
     }
     /// <summary>
-    /// Дыра, найденная ревью: проверялось только начало. Бронь с 08:00 до 23:00 на утреннем
-    /// тарифе проходила целиком по утренней цене — пятнадцать часов, из них семь вечерних.
+    /// Решает начало брони (решение владельца 2026-09-23): бронь, начатая в часы тарифа, целиком
+    /// считается по нему, даже если заходит за конец окна. Иначе клубу пришлось бы объяснять,
+    /// почему «на два часа» нельзя, а «без конца» можно.
     /// </summary>
     [Fact]
-    public async Task ABookingThatRunsPastTheWindow_IsRefused()
+    public async Task ABookingThatStartsInsideTheWindow_GoesThroughEvenIfItRunsPastIt()
     {
         await using var db = CreateDbContext();
         var versionId = await SeedMorningTariffAsync(db);
@@ -294,8 +295,7 @@ public class TariffScheduleGateTests
                 null, tomorrowMorning, DateTimeOffset.Parse("2026-08-18T23:00:00Z"), null, versionId),
             CancellationToken.None);
 
-        Assert.False(result.Succeeded);
-        Assert.Equal(TariffSchedule.OutsideHoursCode, result.Error);
+        Assert.True(result.Succeeded);
     }
 
     // Бронь, целиком укладывающаяся в окно, по-прежнему проходит: запрет не должен закрыть то,
@@ -319,11 +319,12 @@ public class TariffScheduleGateTests
     }
 
     /// <summary>
-    /// Та же дыра со стороны сессии: старт в 15:30 на двенадцать часов проходил по утренней
-    /// ставке — одиннадцать с половиной из них вечерние.
+    /// То же со стороны сессии: старт в 15:30 на двенадцать часов идёт по утреннему тарифу целиком.
+    /// Сессия без конца, начатая в 15:30, и так считалась по нему до ночи — два правила для одного
+    /// и того же клуб объяснить не смог бы.
     /// </summary>
     [Fact]
-    public async Task ASessionLongerThanTheWindow_IsRefusedAtStart()
+    public async Task ASessionLongerThanTheWindow_StartsOnTheTariffOfItsStart()
     {
         await using var db = CreateDbContext();
         var versionId = await SeedMorningTariffAsync(db);
@@ -339,8 +340,30 @@ public class TariffScheduleGateTests
             durationMinutes: 720,
             CancellationToken.None);
 
-        Assert.False(result.Succeeded);
-        Assert.Equal(TariffSchedule.OutsideHoursCode, result.Error);
+        Assert.True(result.Succeeded);
+    }
+
+    /// <summary>
+    /// Продление расписанием не проверяется: сессия началась в часы своего тарифа и до конца
+    /// считается по нему. Гость, севший утром, продлевает и в восемь вечера.
+    /// </summary>
+    [Fact]
+    public async Task ExtendingASessionAfterItsTariffWindow_IsAllowed()
+    {
+        await using var db = CreateDbContext();
+        var versionId = await SeedMorningTariffAsync(db);
+
+        var result = await CreateBilling(db, MondayEvening).ValidateExtendAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            PlayerAccountId,
+            BillingModeNames.PostpaidDebt,
+            versionId,
+            playerPackageId: null,
+            additionalMinutes: 60,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
     }
 
     [Fact]

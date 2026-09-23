@@ -7,12 +7,13 @@ export interface OrgAuditClient {
 
 export type OrgAuditState =
   | { status: 'loading' }
-  | { status: 'error'; retry: () => void }
+  | { status: 'error'; error: unknown; retry: () => void }
   | { status: 'ready'; records: OrgAuditRecordDto[]; retry: () => void };
 
 export function useOrgAudit(client: OrgAuditClient, organizationId: string, query: OrgAuditQuery): OrgAuditState {
   const [tick, setTick] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [error, setError] = useState<unknown>(null);
   const [records, setRecords] = useState<OrgAuditRecordDto[]>([]);
   const clientRef = useRef(client);
   clientRef.current = client;
@@ -29,8 +30,11 @@ export function useOrgAudit(client: OrgAuditClient, organizationId: string, quer
           setPhase('ready');
         }
       })
-      .catch(() => {
-        if (!cancelled) setPhase('error');
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(reason);
+          setPhase('error');
+        }
       });
     return () => {
       cancelled = true;
@@ -38,7 +42,7 @@ export function useOrgAudit(client: OrgAuditClient, organizationId: string, quer
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, queryKey, tick]);
 
-  if (phase === 'error') return { status: 'error', retry };
+  if (phase === 'error') return { status: 'error', error, retry };
   if (phase === 'loading') return { status: 'loading' };
   return { status: 'ready', records, retry };
 }

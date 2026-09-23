@@ -477,9 +477,9 @@
 }
 
 .pos-empty-state {
-  display: grid;
+  /* Раскладку (колонка, центр, место под кнопку) держит .empty-state; здесь — только место
+     в сетке каталога и рамка пустой ячейки. */
   grid-column: 1 / -1;
-  gap: var(--space-1);
   min-height: 96px;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);

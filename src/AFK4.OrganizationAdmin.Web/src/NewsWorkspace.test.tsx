@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { NewsWorkspace } from './NewsWorkspace';
 import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
+import { PlatformApiError } from './platformApi';
 
 function client(initial: NewsItemDto[] = []) {
   const created: NewsItemInput[] = [];
@@ -89,5 +90,45 @@ describe('NewsWorkspace', () => {
     expect(screen.queryByRole('button', { name: /сохранить/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /удалить/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/заголовок/i)).toBeDisabled();
+  });
+
+  // Список филиалов нужен новостям только ради подписи «где показывается» и выбора в форме. Его
+  // отказ раньше оставлял экран в вечной загрузке — ошибку никто не ловил, и сами новости так и не
+  // появлялись. Теперь новости на месте, а повтор спрашивает только филиалы.
+  it('отказ филиалов не прячет новости и повторяет только филиалы', async () => {
+    const c = client([{
+      id: 'x1', branchId: 'b1', title: 'Турнир', body: 'B', imageUrl: null,
+      isPublished: true, publishAtUtc: null, expiresAtUtc: null,
+      createdAtUtc: '2026-06-01T00:00:00Z', updatedAtUtc: '2026-06-01T00:00:00Z'
+    }]);
+    const list = mock(c.list);
+    const listBranches = mock()
+      .mockRejectedValueOnce(new PlatformApiError('boom', 500, 'Internal Server Error', ''))
+      .mockResolvedValue([{ branchId: 'b1', name: 'Центр' }]);
+    renderWorkspace({ ...c, list, listBranches });
+
+    expect(await screen.findByText('Турнир')).toBeInTheDocument();
+    expect(screen.getByText(/Не удалось загрузить филиалы/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByText('Центр')).toBeInTheDocument();
+    expect(listBranches).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenCalledTimes(1);
+  });
+
+  it('отказ самих новостей называет причину вместо вечной загрузки', async () => {
+    const c = client();
+    const list = mock()
+      .mockRejectedValueOnce(new PlatformApiError('boom', 500, 'Internal Server Error', ''))
+      .mockResolvedValue([]);
+    renderWorkspace({ ...c, list });
+
+    expect(await screen.findByText('Сервер вернул ошибку. Повторите позже.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByText('Новостей пока нет')).toBeInTheDocument();
+    expect(list).toHaveBeenCalledTimes(2);
   });
 });

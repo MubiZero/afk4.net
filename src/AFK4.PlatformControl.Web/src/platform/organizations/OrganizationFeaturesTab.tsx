@@ -31,7 +31,7 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode, canM
     return <ErrorState title={t('platform.organization.features.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   }
   if (state.status === 'loading') return <LoadingCards count={3} />;
-  if (state.data.length === 0) return <EmptyState message={t('platform.organization.features.empty')} />;
+  if (state.data.length === 0) return <EmptyState message={t('platform.organization.features.empty')} next="elsewhere" />;
 
   const { data: features, apply } = state;
 

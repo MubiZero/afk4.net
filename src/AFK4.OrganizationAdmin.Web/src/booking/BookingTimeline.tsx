@@ -326,7 +326,9 @@ export function BookingTimeline({
   } else if (!hasRows) {
     body = (
       <div className="booking-grid-body">
-        <EmptyState title={t('op.booking.empty.dayTitle')} description={t('op.booking.empty.dayHint')} className="booking-empty" />
+        {/* Строк нет только тогда, когда в филиале нет ни одного ПК: пустой день рисуется пустыми
+            дорожками, и бронь ставится кликом по ним. Звать «создайте бронь» здесь некуда. */}
+        <EmptyState title={t('op.booking.empty.title')} next={{ kind: 'elsewhere', hint: t('op.booking.empty.hint') }} className="booking-empty" />
       </div>
     );
   } else {

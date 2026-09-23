@@ -85,12 +85,20 @@ export function HistorySection({
         </div>
       ) : visibleEntries.length === 0 ? (
         isMini ? (
-          <p className="recent-empty">{t('op.players.wallet.recentEmpty')}</p>
+          <EmptyState
+            inline
+            className="recent-empty"
+            title={t('op.players.wallet.recentEmpty')}
+            next={{ kind: 'calm', hint: t('op.players.history.emptyDescription') }}
+          />
         ) : (
           <EmptyState
             icon={<History size={20} aria-hidden="true" />}
             title={t('op.players.history.emptyTitle')}
-            description={t('op.players.history.emptyDescription')}
+            // Пустая выборка по типу — не «у клиента ничего не было»: снимается одной кнопкой.
+            next={activeFilter !== null
+              ? { kind: 'action', label: t('op.empty.resetFilter'), onClick: () => onFilterChange(null) }
+              : { kind: 'calm', hint: t('op.players.history.emptyDescription') }}
           />
         )
       ) : (

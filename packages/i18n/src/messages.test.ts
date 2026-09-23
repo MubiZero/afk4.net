@@ -59,13 +59,13 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.management.tariffs.col.bonus', 'op.management.staff.col.login', 'op.management.goods.col.sku', 'op.map.panel.packageLabel',
     'op.map.panel.tariffLabel', 'op.news.col.branch', 'op.news.fieldBranch', 'op.players.editProfile.phoneLabel',
     'op.players.profile.packageFallback', 'op.pos.catalog.categoryFallback', 'op.pos.catalog.title', 'op.pos.fixture.cola',
-    'op.pos.fixture.hotdog', 'op.pos.receipts.emptyPlatform', 'op.pos.receipts.receiptFallback', 'op.settings.devices.detail.agent',
+    'op.pos.fixture.hotdog', 'op.pos.receipts.receiptFallback', 'op.settings.devices.detail.agent',
     'op.settings.devices.detail.shell', 'op.settings.devices.offline', 'op.settings.devices.online',
     'op.settings.layout.seatCount', 'op.settings.layout.seatFallback', 'op.settings.packages.packageFallback', 'op.settings.pos.category',
     'op.settings.pos.sku', 'op.settings.tariffs.tariffFallback',
     'op.stock.journal.csv.sku', 'platform.billing.column.number', 'platform.billing.column.plan',
     'platform.billing.column.organization', 'platform.newOrganization.field.planCode', 'platform.newOrganization.section.plan', 'platform.plan.growth',
-    'platform.plan.scale', 'platform.plan.starter', 'platform.organization.subscriptionForm.plan', 'op.helper.update.component.organizationAdmin',
+    'platform.plan.scale', 'platform.plan.starter', 'platform.organization.subscriptionForm.plan',
     'setup.wizard.finished.summary.branch', 'setup.wizard.stepper.branch', 'platform.organization.tab.history', 'platform.settings.column.twoFactor',
     // Чистый шаблон склейки «{day}, {time}» — переводить в нём нечего.
     'customer.common.dayAtTime',
@@ -205,7 +205,7 @@ it('includes the platform admin keys', () => {
   for (const key of [
     'nav.platform.clubs', 'nav.platform.money', 'nav.platform.journal',
     'platform.clubs.title', 'platform.clubs.view.label', 'platform.clubs.view.now',
-    'platform.clubs.view.all', 'platform.clubs.view.debt', 'platform.clubs.empty.now',
+    'platform.clubs.view.all', 'platform.clubs.view.debt', 'platform.clubs.empty.create',
     'platform.clubs.empty.all', 'platform.clubs.empty.debt', 'platform.plan.starter',
     'platform.plan.growth', 'platform.plan.scale'
   ] as const) {

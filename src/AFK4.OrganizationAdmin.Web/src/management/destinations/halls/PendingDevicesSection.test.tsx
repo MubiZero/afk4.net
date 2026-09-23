@@ -146,7 +146,8 @@ describe('PendingDevicesSection', () => {
     listPendingDevices.mockImplementationOnce(async () => { throw new Error('boom'); });
     renderSection();
 
-    await screen.findByText('Не удалось загрузить очередь новых ПК.');
+    // Причина едет рядом: без неё не понять, ждать сервер или идти за правами.
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось загрузить очередь новых ПК. boom');
     expect(screen.queryByText('Никто не ждёт подтверждения.')).toBeNull();
   });
 });

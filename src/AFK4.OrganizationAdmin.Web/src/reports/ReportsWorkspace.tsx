@@ -21,7 +21,7 @@ export function ReportsWorkspace({ backend, currencyCode, onNavigate }: {
   const [active, setActive] = useState<ReportsDestinationId>('summary');
 
   if (destinations.length === 0) {
-    return <section className="workspace-screen"><EmptyState title={t('op.reports.noAccess')} /></section>;
+    return <section className="workspace-screen"><EmptyState title={t('op.reports.noAccess')} next={{ kind: 'denied', hint: t('op.error.accessHint') }} /></section>;
   }
 
   const current = destinations.some((destination) => destination.id === active) ? active : destinations[0].id;

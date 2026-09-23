@@ -29,6 +29,12 @@ class BrandMark extends StatelessWidget {
   /// Цвет словесного знака на тёмном.
   static const Color wordmark = Color(0xFFE2F1EC);
 
+  /// Словесный знак на светлых поверхностях — светлая раскладка бренда
+  /// (`brand/afk4-logo-horizontal-light.svg`). Тёмный вариант на светлом фоне сливается с ним:
+  /// «AFK4» цвета #E2F1EC на почти белом холсте не видно вовсе.
+  static const Color wordmarkOnLight = Color(0xFF0B1F18);
+  static const Color accentOnLight = Color(0xFF0B9E74);
+
   /// Активны ячейки по диагонали: слева сверху, центр, справа снизу.
   static bool isActive(int row, int column) => row == column;
 
@@ -42,6 +48,10 @@ class BrandMark extends StatelessWidget {
 
     if (!showWordmark) return grid;
 
+    // Сам знак — на своей тёмной плитке и одинаков везде; слово стоит прямо на фоне экрана,
+    // поэтому у него два набора цветов, как в мастер-файлах бренда.
+    final onLight = Theme.of(context).brightness == Brightness.light;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -50,12 +60,15 @@ class BrandMark extends StatelessWidget {
         // Словесный знак всегда заглавными, `.NET` — акцентом. Правило бренда, не оформление.
         Text.rich(
           TextSpan(
-            children: const [
-              TextSpan(text: 'AFK4'),
-              TextSpan(text: '.NET', style: TextStyle(color: accent)),
+            children: [
+              const TextSpan(text: 'AFK4'),
+              TextSpan(
+                text: '.NET',
+                style: TextStyle(color: onLight ? accentOnLight : accent),
+              ),
             ],
             style: TextStyle(
-              color: wordmark,
+              color: onLight ? wordmarkOnLight : wordmark,
               fontSize: size * 0.44,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,

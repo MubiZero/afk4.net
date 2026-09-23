@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
+import type { OperatorErrorProjection } from './apiErrors';
 import type { CriticalConfirmationTone, Feedback } from './operatorTypes';
 import { feedbackText } from './operatorHelpers';
 import { formatMinorUnits } from './currencyFormat';
@@ -89,16 +90,108 @@ export function Skeleton({
   return <div className={`skeleton-block${shape}${className ? ` ${className}` : ''}`} aria-hidden="true" />;
 }
 
+// Часть экрана не загрузилась, а остальное уже на виду: что не пришло и почему — одной строкой,
+// и «Повторить», который перезапрашивает только эту часть. Панель, которую отказ заменяет целиком,
+// рисуется через LoadFailureState; эта строка — для подписи рядом с тем, что показано.
+//
+// Кнопка есть, только когда повтор может помочь (`failure.retryCanHelp`): под отказом по правам
+// она обещала бы то, чего не будет. Вместо неё там названо, к кому идти за доступом.
+export function PartialLoadFailure({ text, failure, onRetry }: { text: string; failure: OperatorErrorProjection; onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <p className="ui-alert ui-alert--spaced" role="alert">
+      {text}
+      {failure.accessHint ? ` ${failure.accessHint}` : null}
+      {failure.retryCanHelp ? (
+        <>
+          {' '}
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={onRetry}>
+            {t('op.management.state.retry')}
+          </button>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+// Панель или весь экран, которые отказ загрузки заменяет целиком: что не загрузилось, почему и
+// что делать дальше. «Повторить» — по тому же признаку, что и у строки выше.
+export function LoadFailureState({ title, failure, onRetry }: { title: string; failure: OperatorErrorProjection; onRetry?: () => void }) {
+  const { t } = useI18n();
+  return (
+    <StatePanel
+      title={title}
+      description={failure.detail}
+      hint={failure.accessHint}
+      action={failure.retryCanHelp && onRetry ? { label: t('op.management.state.retry'), onClick: onRetry } : undefined}
+    />
+  );
+}
+
+// Что человеку делать перед пустым списком. Выбор обязателен, и у каждого варианта без кнопки
+// есть свои слова: «Нет товаров» без следующего шага оставляет кассира перед стеной, и `tsc` не
+// пропустит новый список, где решение забыли.
+export type EmptyStateNext =
+  // Следующий шаг — кнопка здесь же: создать, пригласить, сбросить фильтр.
+  | { kind: 'action'; label: string; onClick: () => void }
+  // Шаг делается не здесь (в другом разделе, выше на экране, в Мастере настройки) — hint называет где.
+  | { kind: 'elsewhere'; hint: string }
+  // Шаг есть, но не у этого человека — кнопки нет, hint называет, у кого право.
+  | { kind: 'denied'; hint: string }
+  // Пусто — и это нормально: делать нечего, hint говорит, что здесь появится.
+  | { kind: 'calm'; hint: string };
+
+// Пустой набор — это реальность, а не ошибка. `inline` — одна строка в классе вызывающего, для
+// панелей, где под пустой список места на одну фразу; решение о следующем шаге то же самое.
 export function EmptyState({
   icon,
   title,
   description,
+  next,
+  inline = false,
+  className
+}: {
+  icon?: ReactNode;
+  title: string;
+  description?: string;
+  next: EmptyStateNext;
+  inline?: boolean;
+  className?: string;
+}) {
+  const hint = next.kind === 'action' ? undefined : next.hint;
+  const action = next.kind === 'action' ? { label: next.label, onClick: next.onClick } : undefined;
+  if (inline) {
+    return (
+      <p className={className}>
+        {[title, description, hint].filter(Boolean).map((line, index) => (
+          <span key={index}>{index > 0 ? ' ' : null}{line}</span>
+        ))}
+        {action ? (
+          <>
+            {' '}
+            <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={action.onClick}>{action.label}</button>
+          </>
+        ) : null}
+      </p>
+    );
+  }
+  return <StatePanel icon={icon} title={title} description={description} hint={hint} action={action} className={className} />;
+}
+
+// Общая вёрстка пустой панели и панели отказа. Наружу не отдаётся: пустоту рисует EmptyState, где
+// следующий шаг обязателен, отказ — LoadFailureState.
+function StatePanel({
+  icon,
+  title,
+  description,
+  hint,
   action,
   className
 }: {
   icon?: ReactNode;
   title: string;
   description?: string;
+  hint?: string;
   action?: { label: string; onClick: () => void };
   className?: string;
 }) {
@@ -107,6 +200,7 @@ export function EmptyState({
       {icon ? <div className="empty-state-icon" aria-hidden="true">{icon}</div> : null}
       <strong>{title}</strong>
       {description ? <span>{description}</span> : null}
+      {hint ? <span>{hint}</span> : null}
       {action ? (
         <button type="button" className="ui-btn ui-btn--primary ui-btn--sm empty-state-action" onClick={action.onClick}>{action.label}</button>
       ) : null}

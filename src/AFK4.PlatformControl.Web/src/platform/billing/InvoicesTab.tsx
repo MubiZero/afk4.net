@@ -76,8 +76,10 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
         </Select>
       </div>
 
-      {rows.length === 0 ? (
-        <EmptyState message={t('platform.billing.empty.invoices')} />
+      {state.data.length === 0 ? (
+        <EmptyState message={t('platform.billing.empty.invoices')} next="elsewhere" />
+      ) : rows.length === 0 ? (
+        <EmptyState message={t('state.empty.filtered')} next={{ label: t('state.empty.resetFilter'), onClick: () => { setQuery(''); setStatus('all'); } }} />
       ) : (
         <Table>
           <TableHeader>

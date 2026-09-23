@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { formatMinorUnits } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import type { OrganizationAdminSummaryReportDto } from '../api/clients/reports';
 import type { OperatorBackendContext, WorkspaceId } from '../operatorTypes';
 import { ReportRangeControls } from './ReportRangeControls';
@@ -16,10 +16,10 @@ export function SummaryReport({ backend, onNavigate }: { backend: OperatorBacken
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
   const [data, setData] = useState<OrganizationAdminSummaryReportDto | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<OperatorErrorProjection | undefined>();
 
   const load = useCallback(async () => {
-    if (!backend) { setState('error'); setError(t('op.reports.backendRequired')); return; }
+    if (!backend) { setState('error'); setError(projectOperatorError(t('op.reports.backendRequired'), t)); return; }
     setState('loading');
     try {
       const reports = createReportClients(backend);
@@ -27,14 +27,14 @@ export function SummaryReport({ backend, onNavigate }: { backend: OperatorBacken
       setData(await reports.getWorkspaceSummary(backend.branchId, query));
       setState('ready');
     } catch (reason) {
-      setError(projectOperatorError(reason, t).detail);
+      setError(projectOperatorError(reason, t));
       setState('error');
     }
   }, [backend, range, t]);
 
   useEffect(() => { void load(); }, [load]);
   return (
-    <ManagementScreen title={t('op.reports.summary.title')} subtitle={t('op.reports.summary.subtitle')} contentWidth="full" state={state} errorDetail={error} onRetry={() => void load()}>
+    <ManagementScreen title={t('op.reports.summary.title')} subtitle={t('op.reports.summary.subtitle')} contentWidth="full" state={state} failure={error} onRetry={() => void load()}>
       <ReportRangeControls range={range} onChange={setRange} onRefresh={() => void load()} />
       {data ? <div className="reports-summary">
         <section className={`reports-day-state ${data.attentionTotalCount ? 'warning' : 'ok'}`}>

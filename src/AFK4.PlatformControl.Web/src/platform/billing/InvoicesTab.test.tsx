@@ -64,4 +64,32 @@ describe('InvoicesTab', () => {
 
     await waitFor(() => expect(screen.getByText('Счёт уже оплачен.')).toBeInTheDocument());
   });
+
+  // Фильтр, под который ничего не подошло, выглядел как «Счетов пока нет.» — будто счетов нет
+  // вовсе. Это разные ответы: здесь счета есть, их скрыл фильтр, и выход из него — одна кнопка.
+  it('пустой результат фильтра не выдаёт себя за пустой реестр и сбрасывается кнопкой', async () => {
+    render(
+      <I18nProvider><ToastProvider><InvoicesTab client={fakeClient()} /></ToastProvider></I18nProvider>
+    );
+    await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Поиск по организации' }), 'нет такой');
+
+    expect(screen.getByText('Под эти условия ничего не подошло.')).toBeInTheDocument();
+    expect(screen.queryByText(/Счетов пока нет/u)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
+
+    expect(screen.getByText('Acme')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Поиск по организации' })).toHaveValue('');
+  });
+
+  it('пустой реестр говорит, откуда берутся счета', async () => {
+    const client = { ...(fakeClient() as object), listInvoices: mock().mockResolvedValue([]) };
+    render(
+      <I18nProvider><ToastProvider><InvoicesTab client={client as never} /></ToastProvider></I18nProvider>
+    );
+
+    expect(await screen.findByText(/^Счетов пока нет\. Счёт по подписке выставляется сам/u)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Сбросить фильтр' })).toBeNull();
+  });
 });

@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { AlertTriangle, Boxes, Plus, Trash2 } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
-import { EmptyState, Money } from '../operatorPrimitives';
+import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { projectOperatorError } from '../apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
+import type { PosProductCategoryDto, PosProductDto } from '../operatorApiClients';
 import type { OperatorAuthSession } from '../authClient';
 import { readCategoryDirectory } from '../posCategoryDirectory';
 import {
@@ -19,6 +20,7 @@ import {
 } from './stockLevels';
 import { StockHero } from './StockHero';
 import { WriteOffDialog } from './WriteOffDialog';
+import { useBlockedReason } from '../components/BlockedReason';
 
 type FilterMode = 'all' | 'low' | 'out';
 
@@ -38,6 +40,9 @@ export function StockLevelsWorkspace({
   refreshNonce?: number;
 }) {
   const { t } = useI18n();
+  // Приёмку открывает тот, у кого есть на неё право; без него кнопка «Заказать» гасла молча. Строки
+  // списка с тем же «+» не повторяют причину — хватит одной под итогом.
+  const receiveBlocked = useBlockedReason(onReceive ? null : t('op.stock.receiveNoPermission'));
 
   const canView = hasPermission(session, permissionNames.viewInventory);
 
@@ -47,9 +52,12 @@ export function StockLevelsWorkspace({
     [backend?.config, backend?.session, canView]
   );
 
-  const [items, setItems] = useState<StockItem[]>([]);
+  const [catalog, setCatalog] = useState<PosProductDto[]>([]);
+  const [categories, setCategories] = useState<PosProductCategoryDto[]>([]);
+  const items = useMemo<StockItem[]>(() => mapCatalogToStock(catalog, readCategoryDirectory(categories)), [catalog, categories]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [categoriesError, setCategoriesError] = useState<OperatorErrorProjection | null>(null);
   const [filter, setFilter] = useState<FilterMode>('all');
   const [search, setSearch] = useState('');
   const [writeOffItem, setWriteOffItem] = useState<StockItem | null>(null);
@@ -61,18 +69,21 @@ export function StockLevelsWorkspace({
     let alive = true;
     setLoading(true);
     setLoadError(null);
+    setCategoriesError(null);
     // Каталог и справочник категорий берутся вместе: без второго у товара есть только
-    // `categoryId`, и подпись категории на карточке не появлялась вовсе.
-    Promise.all([
+    // `categoryId`, и подпись категории на карточке не появлялась вовсе. Но остатки справочнику
+    // не принадлежат: его отказ не прячет их, а называется рядом — раньше он молча становился
+    // пустым справочником, и подписи пропадали без объяснения.
+    Promise.allSettled([
       clients.pos.getCatalog(backend.branchId),
-      clients.settings.listProductCategories(backend.branchId).catch(() => [])
+      clients.settings.listProductCategories(backend.branchId)
     ])
-      .then(([catalog, categories]) => {
+      .then(([loadedCatalog, loadedCategories]) => {
         if (!alive) return;
-        setItems(mapCatalogToStock(catalog, readCategoryDirectory(categories)));
-      })
-      .catch((error) => {
-        if (alive) setLoadError(projectOperatorError(error, t).detail);
+        if (loadedCatalog.status === 'fulfilled') setCatalog(loadedCatalog.value);
+        else setLoadError(projectOperatorError(loadedCatalog.reason, t).detail);
+        if (loadedCategories.status === 'fulfilled') setCategories(loadedCategories.value);
+        else setCategoriesError(projectOperatorError(loadedCategories.reason, t));
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -80,6 +91,14 @@ export function StockLevelsWorkspace({
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, backend?.branchId, canView, reloadNonce, refreshNonce]);
+
+  const retryCategories = () => {
+    if (clients === null || backend === null) return;
+    setCategoriesError(null);
+    clients.settings.listProductCategories(backend.branchId)
+      .then(setCategories)
+      .catch((error) => setCategoriesError(projectOperatorError(error, t)));
+  };
 
   const showSkeleton = useDeferredFlag(loading);
 
@@ -164,6 +183,10 @@ export function StockLevelsWorkspace({
           </div>
         </div>
 
+        {categoriesError !== null && (
+          <PartialLoadFailure text={t('op.stock.levels.categoriesFailed', { reason: categoriesError.detail })} failure={categoriesError} onRetry={retryCategories} />
+        )}
+
         {/* Заголовки колонок */}
         <div className="cash-stock-cols srow" aria-hidden="true">
           <span />
@@ -178,13 +201,19 @@ export function StockLevelsWorkspace({
         </div>
 
         {items.length === 0 ? (
+          // Склад считает только товары с учётом остатков. Приёмка их же и принимает, так что
+          // звать туда отсюда — тупик: следующий шаг в карточке товара.
           <EmptyState
             icon={<Boxes size={28} aria-hidden="true" />}
             title={t('op.stock.levels.empty')}
-            action={onReceive ? { label: t('op.stock.summary.orderBtn'), onClick: () => onReceive() } : undefined}
+            next={{ kind: 'elsewhere', hint: t('op.empty.trackStockWhere') }}
           />
         ) : filtered.length === 0 ? (
-          <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.levels.emptyFiltered')} />
+          <EmptyState
+            icon={<Boxes size={28} aria-hidden="true" />}
+            title={t('op.stock.levels.emptyFiltered')}
+            next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => { setFilter('all'); setSearch(''); } }}
+          />
         ) : (
           <ul className="cash-stock-list">
             {filtered.map((item) => {
@@ -302,9 +331,10 @@ export function StockLevelsWorkspace({
                 </div>
               );
             })}
-            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={!onReceive} onClick={() => onReceive?.()}>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={!onReceive} aria-describedby={receiveBlocked.describedBy} onClick={() => onReceive?.()}>
               {t('op.stock.summary.orderBtn')}
             </button>
+            {receiveBlocked.hint}
           </section>
         )}
       </aside>

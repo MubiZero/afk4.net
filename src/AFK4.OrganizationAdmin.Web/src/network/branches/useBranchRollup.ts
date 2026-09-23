@@ -10,7 +10,7 @@ export interface RollupClient {
 
 export type BranchRollupState =
   | { status: 'loading'; retry: () => void }
-  | { status: 'error'; retry: () => void }
+  | { status: 'error'; error: unknown; retry: () => void }
   // profiles carries the raw profile per branch (null if that branch's profile fetch failed) —
   // BranchesDestination needs the FULL profile, not just name/city, because updateBranchProfile
   // is a full-record PATCH (see branchProfileRequest.ts); the rollup only aggregates KPIs.
@@ -24,6 +24,7 @@ export type BranchRollupState =
 export function useBranchRollup(client: RollupClient | null, unnamedLabel: string): BranchRollupState {
   const [tick, setTick] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [error, setError] = useState<unknown>(null);
   const [data, setData] = useState<BranchRollupViewModel | null>(null);
   const [profiles, setProfiles] = useState<Record<string, BranchProfileDto | null>>({});
   const clientRef = useRef(client);
@@ -55,11 +56,16 @@ export function useBranchRollup(client: RollupClient | null, unnamedLabel: strin
         setProfiles(Object.fromEntries(fetched.map((f) => [f.entry.branchId, f.profile])));
         setPhase('ready');
       }
-    })().catch(() => { if (!cancelled) setPhase('error'); });
+    })().catch((reason: unknown) => {
+      if (!cancelled) {
+        setError(reason);
+        setPhase('error');
+      }
+    });
     return () => { cancelled = true; };
   }, [tick, unnamedLabel]);
 
-  if (phase === 'error') return { status: 'error', retry };
+  if (phase === 'error') return { status: 'error', error, retry };
   if (phase === 'loading' || data === null) return { status: 'loading', retry };
   return { status: 'ready', data, profiles, retry };
 }

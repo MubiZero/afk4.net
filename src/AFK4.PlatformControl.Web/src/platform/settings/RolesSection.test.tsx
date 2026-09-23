@@ -172,4 +172,27 @@ describe('RolesSection', () => {
 
     expect(await screen.findByText(/потеряете доступ к платформе/)).toBeInTheDocument();
   });
+
+  // Перечень прав нужен только редактору состава. Его отказ не должен прятать сами роли: кто
+  // какую носит и сколько человек — видно и без него, а повтор перезапрашивает только перечень.
+  it('отказ перечня прав не прячет роли и повторяет только перечень', async () => {
+    const listPermissions = mock()
+      .mockRejectedValueOnce(new PlatformApiError(500, 'boom'))
+      .mockResolvedValue(PERMISSIONS);
+    const client = makeClient({ listPermissions });
+    renderSection(client);
+
+    expect(await screen.findByText('Поддержка')).toBeInTheDocument();
+    expect(screen.getByText('2 администратора')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    expect(await screen.findByText('Не удалось загрузить перечень прав — без него состав роли не выбрать')).toBeInTheDocument();
+    expect(screen.getByText('Сервер платформы вернул ошибку. Повторите позже.')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByLabelText('Видеть список клубов и их карточки')).toBeInTheDocument();
+    expect(listPermissions).toHaveBeenCalledTimes(2);
+    expect(client.listRoles).toHaveBeenCalledTimes(1);
+  });
 });

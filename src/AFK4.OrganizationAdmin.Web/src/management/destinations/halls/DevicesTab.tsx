@@ -5,7 +5,7 @@ import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
 import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
-import { CriticalActionConfirmation, Skeleton } from '../../../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
 import {
@@ -28,6 +28,7 @@ import type {
   RotateDeviceCredentialResponse
 } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
+import { useBlockedReason } from '../../../components/BlockedReason';
 
 // Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
 // сервера, и поле, которого в ответе нет, теперь заметит компилятор.
@@ -80,6 +81,8 @@ export function DevicesTab({
   onFeedback
 }: DevicesTabProps) {
   const { t } = useI18n();
+  // Привязать ПК некуда, пока в филиале нет мест, — и кнопка гасла без слова о том, где их завести.
+  const assignBlocked = useBlockedReason(layoutSeatOptions.length === 0 ? t('op.settings.devices.noSeatsHint') : null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<DeviceDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -385,7 +388,8 @@ export function DevicesTab({
           empty={{
             icon: <MonitorSmartphone size={22} aria-hidden="true" />,
             title: t('op.management.halls.devicesEmpty.title'),
-            description: t('op.management.halls.devicesEmpty.description')
+            // Устройство здесь не создаётся: ПК встаёт в список сам, когда его подключили Мастером.
+            next: { kind: 'elsewhere', hint: t('op.management.halls.devicesEmpty.description') }
           }}
         />
 
@@ -430,7 +434,12 @@ export function DevicesTab({
                     ))}
                   </ul>
                 ) : (
-                  <p className="mgmt-drawer-hint">{t('op.settings.devices.commands.empty')}</p>
+                  <EmptyState
+                    inline
+                    className="mgmt-drawer-hint"
+                    title={t('op.settings.devices.commands.empty')}
+                    next={{ kind: 'calm', hint: t('op.settings.devices.commands.emptyHint') }}
+                  />
                 )}
               </div>
             )}
@@ -460,10 +469,11 @@ export function DevicesTab({
                     </select>
                   </label>
                   <div className="mgmt-form-actions">
-                    <button type="button" className="ui-btn ui-btn--primary" disabled={busy || layoutSeatOptions.length === 0} onClick={() => void assignSeat()}>
+                    <button type="button" className="ui-btn ui-btn--primary" disabled={busy || layoutSeatOptions.length === 0} aria-describedby={assignBlocked.describedBy} onClick={() => void assignSeat()}>
                       {t('op.settings.action.assignDevice')}
                     </button>
                   </div>
+                  {assignBlocked.hint}
                 </div>
               </div>
             )}

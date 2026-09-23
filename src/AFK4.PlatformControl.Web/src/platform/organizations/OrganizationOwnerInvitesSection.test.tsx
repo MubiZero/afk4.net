@@ -52,7 +52,7 @@ it('creates a code and reveals the full code', async () => {
   };
   client.listOrganizationOwnerInvites.mockResolvedValueOnce([]).mockResolvedValueOnce([summary({ organizationOwnerInviteId: 'i9', codeSuffix: 'DE-9', ownerUserName: null })]);
   renderSection(client);
-  await screen.findByText('Кодов настройки пока нет.');
+  await screen.findByText('Кодов пока нет. Создайте код формой выше — по нему владелец заведёт себе вход.');
 
   fireEvent.click(screen.getByRole('button', { name: 'Создать код' }));
   await waitFor(() => expect(client.createOrganizationOwnerInvite).toHaveBeenCalledWith('o1', 'b1', null, null, null, null));
@@ -90,7 +90,7 @@ it('sends the invite to the owner email typed in the form', async () => {
     revokeOrganizationOwnerInvite: mock()
   };
   renderSection(client);
-  await screen.findByText('Кодов настройки пока нет.');
+  await screen.findByText('Кодов пока нет. Создайте код формой выше — по нему владелец заведёт себе вход.');
 
   fireEvent.change(screen.getByLabelText('Почта владельца'), { target: { value: ' owner@club.tj ' } });
   fireEvent.click(screen.getByRole('button', { name: 'Создать код' }));

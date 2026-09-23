@@ -15,8 +15,10 @@ export type PlatformCapability =
   | 'billing.manage'
   | 'billing.invoices.manage'
   | 'billing.subscriptions.manage'
+  | 'billing.plans.manage'
   | 'updates.read'
   | 'updates.manage'
+  | 'updates.packages.manage'
   | 'audit.read'
   | 'admins.manage'
   | 'announcements.manage'
@@ -65,11 +67,18 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   // (`billing.manage` даёт true и на такого) не должен видеть эти кнопки активными.
   'billing.invoices.manage': ['platform.billing.invoices.manage'],
   'billing.subscriptions.manage': ['platform.billing.subscriptions.manage'],
+  // Отдельно от `billing.manage`: тариф заводится и правится ровно по
+  // `platform.billing.plans.manage`. Сотрудник с правом только на счета видел «Новый тариф», и
+  // единственным ответом на нажатие был отказ.
+  'billing.plans.manage': ['platform.billing.plans.manage'],
   'updates.read': ['platform.updates.view'],
   'updates.manage': [
     'platform.updates.packages.manage',
     'platform.updates.rollouts.manage'
   ],
+  // Отдельно от `updates.read`: раздел открыт по праву на просмотр, а регистрацию пакета бэкенд
+  // спрашивает ровно по `platform.updates.packages.manage`.
+  'updates.packages.manage': ['platform.updates.packages.manage'],
   'audit.read': ['platform.audit.view'],
   'admins.manage': ['platform.admins.manage'],
   'announcements.manage': ['platform.announcements.manage'],

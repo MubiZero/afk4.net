@@ -216,7 +216,21 @@ export function MapWorkspace({
             </div>
           ) : null
         ) : visibleSeats.length === 0 ? (
-          <EmptyState title={t('op.map.emptyTitle')} description={t('op.map.emptyHint')} className="map-empty-state" />
+          // Отбор, под который ничего не подошло, и пустой филиал — разные беды: первое снимается
+          // одной кнопкой, второе чинится в Управлении. Сбой загрузки уже назван строкой выше.
+          activeFilter !== 'all' ? (
+            <EmptyState
+              title={t('op.map.emptyTitle')}
+              next={{ kind: 'action', label: t('op.empty.resetFilter'), onClick: () => onFilterChange('all') }}
+              className="map-empty-state"
+            />
+          ) : floorMap.loadStatus === 'failed' ? null : (
+            <EmptyState
+              title={t('op.map.noSeats.emptyTitle')}
+              next={{ kind: 'elsewhere', hint: t('op.map.noSeats.emptyHint') }}
+              className="map-empty-state"
+            />
+          )
         ) : (
           <div className="seat-zones">
             {zoneGroups.map((group) => (

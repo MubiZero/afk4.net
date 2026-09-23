@@ -77,7 +77,7 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
         ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
         ) : state.data.length === 0 ? (
-          <EmptyState message={t('platform.organization.notes.empty')} />
+          <EmptyState message={t('platform.organization.notes.empty')} next="formAbove" />
         ) : (
           <ul>
             {state.data.map(n => (

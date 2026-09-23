@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Inbox } from 'lucide-react';
 import { Button } from './button';
 import { Skeleton } from './skeleton';
@@ -49,13 +49,33 @@ export function ErrorState({ title, message, retryLabel, onRetry }: {
   );
 }
 
-export function EmptyState({ title, message, action }: { title?: string; message: string; action?: ReactNode }) {
+/// Что пустой список предлагает человеку дальше. Проп обязателен, и в этом весь смысл: «Нет
+/// приглашений» без следующего шага оставляет человека гадать, что делать, — а пока проп был
+/// необязательным, его не передал ни один список панели. Молчание тоже бывает верным ответом,
+/// но теперь это решение с названной причиной, а не забытый аргумент.
+export type EmptyNext =
+  /// Кнопка следующего шага: завести первое или сбросить фильтр, под который ничего не подошло.
+  | { label: string; onClick: () => void }
+  /// Завести можно, но не этому сотруднику. Строка говорит, у кого есть право, — вместо кнопки,
+  /// на которую сервер ответил бы отказом.
+  | { noPermission: string }
+  /// Пусто — и это хорошо, или список пополняется сам. Текст говорит, что всё в порядке и что
+  /// появится здесь, когда случится.
+  | 'calm'
+  /// Здесь это не заводится. Текст называет место, где заводится.
+  | 'elsewhere'
+  /// Форма или поле, которые решают дело, стоят прямо над списком; кнопка их только повторила бы.
+  | 'formAbove';
+
+export function EmptyState({ title, message, next }: { title?: string; message: string; next: EmptyNext }) {
   return (
     <div className="empty-state">
       <Inbox className="empty-state-icon" size={22} aria-hidden="true" />
       {title !== undefined ? <h2>{title}</h2> : null}
       <p>{message}</p>
-      {action}
+      {typeof next === 'string' ? null
+        : 'noPermission' in next ? <p className="mgmt-drawer-hint">{next.noPermission}</p>
+        : <Button size="sm" className="empty-state-action" onClick={next.onClick}>{next.label}</Button>}
     </div>
   );
 }

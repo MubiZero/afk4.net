@@ -13,6 +13,8 @@ import 'package:afk4_customer_app/organization/organization.dart';
 import 'package:afk4_customer_app/profile/profile_screen.dart';
 import 'package:afk4_customer_app/organization/organization_directory.dart';
 
+import 'support/real_fonts.dart';
+
 class _StubDirectory extends OrganizationDirectory {
   _StubDirectory(this.clubs) : super(baseUrl: 'https://stub');
 
@@ -139,16 +141,18 @@ Future<void> openProfile(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Нажимает кнопку в профиле. На невысоком экране до неё надо доскроллить, и с запасом:
-/// прокрутка «до видимости» оставляет кнопку под прилипшей шапкой. Список указывается
-/// явно — разделы живут в IndexedStack, и «первый Scrollable» это главная.
+/// Нажимает кнопку в профиле. На невысоком экране до неё надо доскроллить, и кнопка ставится
+/// в середину списка: прокрутка «до видимости» оставляет её под прилипшей шапкой, а рывок на
+/// фиксированное расстояние разгоняет список по инерции и уносит её за край, как только ниже
+/// появляется ещё одна карточка. Список указывается явно — разделы живут в IndexedStack, и
+/// «первый Scrollable» это главная.
 Future<void> tapInProfile(WidgetTester tester, Finder target) async {
   final profileList = find.descendant(
     of: find.byType(ProfileScreen),
     matching: find.byType(Scrollable),
   );
   await tester.scrollUntilVisible(target, 200, scrollable: profileList);
-  await tester.drag(profileList, const Offset(0, -160));
+  await Scrollable.ensureVisible(tester.element(target), alignment: 0.5);
   await tester.pumpAndSettle();
   await tester.tap(target);
   await tester.pumpAndSettle();
@@ -313,5 +317,57 @@ void main() {
 
     expect(find.text('Главная'), findsOneWidget);
     await unmount(tester);
+  });
+
+  // Крупный системный шрифт — настройка доступности, и приложение её слышит. Но у вёрстки есть
+  // потолок: на двукратном шрифте суммы и кнопки перестают помещаться в строку, и экран
+  // разваливается раньше, чем становится удобнее.
+  group('системный размер шрифта', () {
+    Future<double> scaleOf(WidgetTester tester, double system) async {
+      tester.platformDispatcher.textScaleFactorTestValue = system;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+      final context = tester.element(find.text('Выберите клуб'));
+      return MediaQuery.textScalerOf(context).scale(10) / 10;
+    }
+
+    testWidgets('крупнее потолка упирается в потолок', (tester) async {
+      expect(await scaleOf(tester, 2.0), closeTo(maxTextScale, 0.001));
+    });
+
+    // Потолок не выключает масштаб: умеренное увеличение и уменьшение доходят как есть.
+    testWidgets('в пределах потолка доходит как есть', (tester) async {
+      expect(await scaleOf(tester, 1.15), closeTo(1.15, 0.001));
+    });
+
+    testWidgets('мелкий шрифт тоже доходит как есть', (tester) async {
+      expect(await scaleOf(tester, 0.85), closeTo(0.85, 0.001));
+    });
+
+    // Узкий телефон и самый крупный шрифт системы: витрина, вход, главная и профиль не
+    // переполняются. Переполнение строки тест фиксирует как ошибку сам. Меряется настоящим
+    // Roboto: тестовый шрифт вдвое шире и переполнял бы то, что на телефоне помещается.
+    // Загруженный шрифт остаётся до конца файла, поэтому эта проверка стоит в нём последней.
+    testWidgets('на узком телефоне с крупным шрифтом экраны не переполняются', (tester) async {
+      await tester.runAsync(loadRealFonts);
+      tester.view.physicalSize = const Size(360 * 3, 780 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+      await signIn(tester);
+      expect(find.text('Иван'), findsOneWidget);
+
+      await tester.tap(find.text('Кошелёк'));
+      await tester.pumpAndSettle();
+
+      await openProfile(tester);
+      expect(find.byType(ProfileScreen), findsOneWidget);
+      await unmount(tester);
+    });
   });
 }

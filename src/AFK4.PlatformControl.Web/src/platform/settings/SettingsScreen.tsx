@@ -36,7 +36,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
 }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
-  const state = useAdmins(client);
+  const { admins: adminsState, invitations: invitationsState } = useAdmins(client);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<PlatformAdminInvitation | null>(null);
   const [resetTarget, setResetTarget] = useState<PlatformAdminListItem | null>(null);
@@ -47,8 +47,14 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
   const [resetting, setResetting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  function refresh() {
-    if (state.status === 'ready') state.retry();
+  // Действие над сотрудником меняет только список сотрудников, над приглашением — только
+  // приглашения: перечитывать соседний список незачем.
+  function refreshAdmins() {
+    if (adminsState.status === 'ready') adminsState.retry();
+  }
+
+  function refreshInvitations() {
+    if (invitationsState.status === 'ready') invitationsState.retry();
   }
 
   async function toggleActive(item: PlatformAdminListItem) {
@@ -56,7 +62,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
     try {
       await client.updateAdmin(item.platformAdminUserId, { isActive: !item.isActive });
       toast({ title: item.isActive ? t('platform.settings.disabled') : t('platform.settings.enabled'), variant: 'success' });
-      refresh();
+      refreshAdmins();
     } catch (cause) {
       toast({ title: describeAdminActionError(cause, t), variant: 'error' });
     } finally {
@@ -70,7 +76,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
     try {
       await client.updateAdmin(item.platformAdminUserId, { role: nextRole });
       toast({ title: t('platform.settings.roleChanged'), variant: 'success' });
-      refresh();
+      refreshAdmins();
     } catch (cause) {
       toast({ title: describeAdminActionError(cause, t), variant: 'error' });
     } finally {
@@ -85,7 +91,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
       await twoFactorClient.reset(resetTarget.platformAdminUserId);
       toast({ title: t('platform.settings.resetTwoFactor.done'), variant: 'success' });
       setResetTarget(null);
-      refresh();
+      refreshAdmins();
     } catch (cause) {
       toast({ title: describeAdminActionError(cause, t), variant: 'error' });
     } finally {
@@ -99,7 +105,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
       await client.revokeInvitation(invitation.invitationId);
       toast({ title: t('platform.settings.invite.revoked'), variant: 'success' });
       setRevokeTarget(null);
-      refresh();
+      refreshInvitations();
     } catch (cause) {
       toast({ title: describeAdminActionError(cause, t), variant: 'error' });
     } finally {
@@ -107,12 +113,17 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
     }
   }
 
-  if (state.status === 'loading') return <LoadingCards count={2} />;
-  if (state.status === 'error') return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
+  if (adminsState.status === 'loading') return <LoadingCards count={2} />;
 
-  const { admins, invitations } = state.data;
-  const pendingInvitations = invitations.filter(invitation => invitation.status === 'pending');
-  const isEmpty = admins.length === 0 && pendingInvitations.length === 0;
+  const admins = adminsState.status === 'ready' ? adminsState.data : [];
+  const pendingInvitations = invitationsState.status === 'ready'
+    ? invitationsState.data.filter(invitation => invitation.status === 'pending')
+    : [];
+  // «Сотрудников пока нет» — только когда оба списка пришли пустыми. Про список, который не
+  // пришёл, пустотой не врём: у него своя причина рядом.
+  const isEmpty = adminsState.status === 'ready' && invitationsState.status === 'ready'
+    && admins.length === 0 && pendingInvitations.length === 0;
+  const hasRows = admins.length > 0 || pendingInvitations.length > 0;
 
   return (
     <>
@@ -122,9 +133,17 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
         <Button onClick={() => setInviteOpen(true)}>{t('platform.settings.action.invite')}</Button>
       </CardHeader>
       <CardContent>
+        {adminsState.status === 'error' ? (
+          <ErrorState
+            title={t('platform.settings.admins.error.load')}
+            message={adminsState.message}
+            retryLabel={adminsState.canRetry ? t('state.retry') : undefined}
+            onRetry={adminsState.canRetry ? adminsState.retry : undefined}
+          />
+        ) : null}
         {isEmpty ? (
-          <EmptyState message={t('platform.settings.empty')} />
-        ) : (
+          <EmptyState message={t('platform.settings.empty')} next={{ label: t('platform.settings.inviteFirst'), onClick: () => setInviteOpen(true) }} />
+        ) : hasRows ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -215,10 +234,18 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
               ))}
             </TableBody>
           </Table>
-        )}
+        ) : null}
+        {invitationsState.status === 'error' ? (
+          <ErrorState
+            title={t('platform.settings.invitations.error.load')}
+            message={invitationsState.message}
+            retryLabel={invitationsState.canRetry ? t('state.retry') : undefined}
+            onRetry={invitationsState.canRetry ? invitationsState.retry : undefined}
+          />
+        ) : null}
       </CardContent>
 
-      <AdminInviteDialog open={inviteOpen} client={client} onOpenChange={setInviteOpen} onCreated={refresh} />
+      <AdminInviteDialog open={inviteOpen} client={client} onOpenChange={setInviteOpen} onCreated={refreshInvitations} />
 
       <ConfirmDialog
         open={confirmTarget !== null}

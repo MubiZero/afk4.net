@@ -136,7 +136,7 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
         ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
         ) : state.data.length === 0 ? (
-          <EmptyState message={t('platform.organization.invites.empty')} />
+          <EmptyState message={t('platform.organization.invites.empty')} next="formAbove" />
         ) : (
           <Table>
             <TableHeader>
