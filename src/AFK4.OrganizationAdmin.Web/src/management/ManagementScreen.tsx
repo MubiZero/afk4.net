@@ -25,6 +25,10 @@ interface ManagementScreenBaseProps {
   // Смотреть экран можно, менять — нет: одна строка «только просмотр» и кто может менять, вместо
   // погашенных без объяснения полей и кнопок.
   viewOnly?: string | null;
+  // То, что от ответа не зависит и нужно в любом состоянии: панель периода отчёта. Стоит над
+  // телом и при загрузке, и при отказе — иначе поле, в котором только что выбрали дату, пропадало
+  // из-под курсора, а после отказа за новый период к рабочему было не вернуться.
+  controls?: ReactNode;
   save?: {
     // omit for read-only destinations
     state: SaveState;
@@ -57,6 +61,7 @@ export function ManagementScreen({
   failure,
   onRetry,
   viewOnly,
+  controls,
   save
 }: ManagementScreenProps): JSX.Element {
   const { t } = useI18n();
@@ -70,20 +75,18 @@ export function ManagementScreen({
 
       <div className="management-screen-body">
         <div className={`management-content management-content--${contentWidth}`}>
+          {/* Право известно до ответа, и строка «только просмотр» стоит над заглушкой так же,
+              как встанет над содержимым, — иначе она вдвигалась бы сверху в момент подмены. */}
+          {state !== 'error' && <ViewOnlyNotice reason={viewOnly} />}
+          {controls}
           {state === 'loading' ? (
-            <>
-              {/* Право известно до ответа, и строка «только просмотр» стоит над заглушкой так же,
-                  как встанет над содержимым, — иначе она вдвигалась бы сверху в момент подмены. */}
-              <ViewOnlyNotice reason={viewOnly} />
-              <DeferredSkeleton>{skeleton}</DeferredSkeleton>
-            </>
+            <DeferredSkeleton>{skeleton}</DeferredSkeleton>
           ) : state === 'error' ? (
             <div className="management-error-state">
               <LoadFailureState title={t('op.management.state.errorTitle')} failure={failure ?? projectOperatorError(undefined, t)} onRetry={onRetry} />
             </div>
           ) : (
             <>
-              <ViewOnlyNotice reason={viewOnly} />
               {children}
 
               {save && (

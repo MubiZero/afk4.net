@@ -13,6 +13,10 @@ import type {
   TournamentParticipantDto,
   UpdateTournamentRequest
 } from './operatorApiClients';
+import { DeferredSkeleton, SkeletonTable } from './LoadingSkeleton';
+
+// Колонки списка — одни на таблицу и её заглушку.
+const EVENTS_GRID = '1.6fr 1.2fr 0.8fr 0.8fr';
 
 interface TournamentClient {
   list(branchId: string): Promise<TournamentDto[]>;
@@ -220,7 +224,13 @@ export function EventsWorkspace({
   };
 
   if (!ready) {
-    return <p className="workspace-loading">{t('state.loading')}</p>;
+    return (
+      <DeferredSkeleton>
+        <div className="mgmt-master-detail">
+          <SkeletonTable gridTemplate={EVENTS_GRID} toolbar={{ action: canManage }} />
+        </div>
+      </DeferredSkeleton>
+    );
   }
 
   const stateChip = (item: TournamentDto) => {
@@ -251,7 +261,7 @@ export function EventsWorkspace({
         ]}
         rows={items}
         rowKey={(item) => item.tournamentId}
-        gridTemplate="1.6fr 1.2fr 0.8fr 0.8fr"
+        gridTemplate={EVENTS_GRID}
         selectedKey={isCreate ? null : selectedId}
         onSelectRow={(item) => edit(item)}
         toolbar={{
