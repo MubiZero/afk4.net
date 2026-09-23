@@ -10,7 +10,10 @@ import {
   bookingStateLabelKey,
   bookingDetailActions,
   respondCountdown,
-  type SessionDtoLike
+  moveTargetSeats,
+  sessionClashesWithWindow,
+  type SessionDtoLike,
+  type SessionItem
 } from './bookingModel';
 
 it('bookingDetailActions: pending confirms, confirmed starts, terminal states expose neither', () => {
@@ -275,5 +278,53 @@ describe('mapReservationsToItems · срок ответа', () => {
 
     expect(withDeadline.respondByMs).toBe(Date.parse('2026-08-20T17:15:00Z'));
     expect(without.respondByMs).toBeNull();
+  });
+});
+
+// Куда переносить бронь, решает сервер на окно самой брони. Живой зал важен, только когда это
+// окно уже идёт: место без связи или на обслуживании сесть не даст, а завтра его, скорее всего,
+// включат.
+describe('moveTargetSeats', () => {
+  const nowMs = Date.parse('2026-07-14T14:00:00Z');
+  const place = (id: string, tone: SeatSummary['tone'], activeSessionId: string | null = null): SeatSummary => ({
+    id, zone: 'Зал A', name: id, tone, stateLabel: '', player: '', remaining: '', device: '', command: '', app: '',
+    activeSessionId
+  });
+  const hall = [place('own', 'ready'), place('busy-now', 'active', 's1'), place('ready-now', 'ready'), place('offline', 'offline')];
+
+  it('для брони на завтра берёт свободные на завтра места, а не свободные сейчас', () => {
+    const booking = { seatId: 'own', startMs: nowMs + 28 * 3_600_000 };
+    const free = new Set(['own', 'busy-now', 'offline']);
+    expect(moveTargetSeats(hall, free, booking, nowMs).map((s) => s.id)).toEqual(['busy-now', 'offline']);
+  });
+
+  it('для брони, которая уже идёт, оставляет только места, за которые можно сесть сейчас', () => {
+    const booking = { seatId: 'own', startMs: nowMs - 60_000 };
+    const free = new Set(['own', 'busy-now', 'ready-now', 'offline']);
+    expect(moveTargetSeats(hall, free, booking, nowMs).map((s) => s.id)).toEqual(['ready-now']);
+  });
+});
+
+// То же правило, что у сервера: бессрочная сессия держит место только в окне, которое уже
+// началось, — иначе сегодняшний гость без конца сессии закрывал бы место для брони на завтра.
+describe('sessionClashesWithWindow', () => {
+  const nowMs = Date.parse('2026-07-14T14:00:00Z');
+  const session = (startMs: number, endMs: number | null): SessionItem => ({
+    sessionId: 's', seatId: 'a', startMs, endMs, open: endMs === null, playerName: '', tariffName: null
+  });
+
+  it('бессрочная сессия не держит место завтра', () => {
+    const tomorrow = nowMs + 28 * 3_600_000;
+    expect(sessionClashesWithWindow(session(nowMs - 3_600_000, null), tomorrow, tomorrow + 3_600_000, nowMs)).toBe(false);
+  });
+
+  it('бессрочная сессия держит место в окне, которое уже началось', () => {
+    expect(sessionClashesWithWindow(session(nowMs - 3_600_000, null), nowMs - 60_000, nowMs + 3_600_000, nowMs)).toBe(true);
+  });
+
+  it('сессия с концом держит место до конца', () => {
+    const s = session(nowMs - 3_600_000, nowMs + 3_600_000);
+    expect(sessionClashesWithWindow(s, nowMs + 1_800_000, nowMs + 5_400_000, nowMs)).toBe(true);
+    expect(sessionClashesWithWindow(s, nowMs + 3_600_000, nowMs + 7_200_000, nowMs)).toBe(false);
   });
 });

@@ -70,6 +70,23 @@ describe('CashTopUpRequests', () => {
     expect(await screen.findByText('Заявок на пополнение нет')).toBeInTheDocument();
   });
 
+  // Перечитывание после «Принять оплату» идёт тихо: очередь, которую кассир только что читал,
+  // остаётся на месте, пока не придёт новый ответ, — а не пропадает под заглушкой.
+  it('после приёма оплаты очередь не пропадает, пока идёт перечитывание', async () => {
+    let call = 0;
+    renderQueue({
+      listPending: () => {
+        call += 1;
+        return call === 1 ? Promise.resolve([intent(), intent({ paymentIntentId: 'intent-2', displayName: 'Дилшод Р.' })]) : new Promise(() => {});
+      },
+      confirm: async () => ({})
+    });
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Принять оплату' }))[0]);
+    await waitFor(() => expect(call).toBe(2));
+    expect(screen.getByText('Дилшод Р.')).toBeInTheDocument();
+  });
+
   it('пустая очередь объясняет, что здесь появится', async () => {
     renderQueue({ listPending: async () => [], confirm: async () => ({}) });
 

@@ -63,7 +63,7 @@ export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branc
       <button type="button" onClick={() => setView('extend')} disabled={!sessionId}>Продлить</button>
       {hasFeature('online_topup') && <button type="button" onClick={() => setView('topup')}>Пополнить</button>}
       {hasFeature('player_shop') && <button type="button" onClick={() => setView('shop')} disabled={!sessionId}>Магазин</button>}
-      {hasFeature('loyalty') && <button type="button" onClick={() => setView('loyalty')}>Кэшбэк</button>}
+      {hasFeature('loyalty') && <button type="button" onClick={() => setView('loyalty')}>Кэшбек</button>}
       <button type="button" onClick={() => setView('news')}>Новости</button>
     </nav>
   );

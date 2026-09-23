@@ -6,6 +6,7 @@ import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorTopUpIntentDto } from '../operatorApiClients';
 import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
+import { useShownFor } from '../useShownFor';
 
 interface TopUpQueueClient {
   listPending(branchId: string): Promise<OperatorTopUpIntentDto[]>;
@@ -51,16 +52,16 @@ export function CashTopUpRequests({
   const [loadError, setLoadError] = useState<OperatorErrorProjection | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const shown = useShownFor(branchId);
 
   useEffect(() => {
     if (client === null) return undefined;
     let active = true;
-    setLoading(true);
-    setLoadError(null);
+    if (!shown.isShown()) setLoading(true);
     client.listPending(branchId)
-      .then((rows) => { if (active) setRequests(rows); })
+      .then((rows) => { if (active) { setRequests(rows); setLoadError(null); } })
       .catch((error) => { if (active) setLoadError(projectOperatorError(error, t)); })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active) { setLoading(false); shown.markShown(); } });
     return () => { active = false; };
   }, [client, branchId, reloadNonce]);
 

@@ -3,9 +3,9 @@ import { useI18n } from '@afk4/i18n';
 import { Trophy } from 'lucide-react';
 import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
-import { CriticalActionConfirmation, EmptyState } from './operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, LoadFailureState } from './operatorPrimitives';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
-import { projectOperatorError } from './apiErrors';
+import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type {
   CreateTournamentRequest,
@@ -86,6 +86,8 @@ export function EventsWorkspace({
   const [form, setForm] = useState({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [loadFailure, setLoadFailure] = useState<OperatorErrorProjection | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null); // id или '__new__' для создания
   const [cancelTarget, setCancelTarget] = useState<TournamentDto | null>(null);
   const isDrawerOpen = selectedId !== null;
@@ -95,13 +97,24 @@ export function EventsWorkspace({
   useEffect(() => {
     if (client === null || branchId === '') return undefined;
     let active = true;
+    // Отказ списка раньше никто не ловил, и экран оставался в ожидании навсегда — ни причины,
+    // ни повтора. Теперь он говорит, что случилось, и «Повторить» стоит, только где поможет.
     client.list(branchId).then((list) => {
       if (!active) return;
       setItems(list);
+      setLoadFailure(null);
       setReady(true);
+    }).catch((reason: unknown) => {
+      if (active) setLoadFailure(projectOperatorError(reason, t));
     });
     return () => { active = false; };
-  }, [client, branchId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, branchId, loadAttempt]);
+
+  const retryLoad = () => {
+    setLoadFailure(null);
+    setLoadAttempt((value) => value + 1);
+  };
 
   const reload = async () => {
     if (client === null || branchId === '') return;
@@ -222,6 +235,10 @@ export function EventsWorkspace({
       setError(projectOperatorError(failure, t).detail ?? t('op.events.errorGeneric'));
     }
   };
+
+  if (loadFailure !== null) {
+    return <LoadFailureState title={t('op.management.state.errorTitle')} failure={loadFailure} onRetry={retryLoad} />;
+  }
 
   if (!ready) {
     return (

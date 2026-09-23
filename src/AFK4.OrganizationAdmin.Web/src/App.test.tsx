@@ -1130,7 +1130,7 @@ describe('App', () => {
     // «Платежи и лояльность» owns the page heading; with only loyalty permission there's no tab
     // strip — the cashback form mounts directly once loyalty-settings load, so wait for a toggle.
     expect(await screen.findByRole('heading', { name: 'Платежи и лояльность' })).toBeInTheDocument();
-    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/кэшбек с пополнений/i)).toBeInTheDocument();
   });
 
   it('downloads the Revenue source export without dashboard copy', async () => {
