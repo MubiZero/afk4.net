@@ -709,10 +709,17 @@ Closed on 2026-09-23 night (#425, #431–#436), after the owner's answers:
 - **Web tests hanging for minutes under load** (#433) — a failed element assertion made bun print
   the DOM node with its whole document (2.1 MB for a bare button). Nodes now print as short HTML.
 
+Closed right after (#438–#440):
+- **Staff across branches** (#439) — the owner adds a person from the network to a branch, removes
+  them from a branch, and returns someone left with no branch; saving roles no longer strips an
+  owner's own role in that branch; a dangerous-action confirmation scrolls into view and focuses
+  «Отмена» (it rendered below the fold in list-and-card screens — all 12 uses).
+- **Wizard WPF windows** (#438) say «мастер установки», guarded by `voice.test.ts`.
+- **Dart dictionaries** (#440) — every `*Names` dictionary is a constants class in
+  `contracts.dart`; the player app compares reservation, tournament, bar-order states and club
+  features through them.
+
 Still open, named:
-- no way to return a staff member with no assignments to a branch from the panel;
-- two «Мастер настройки» strings hardcoded in the WPF fallback windows of the wizard;
-- Dart gets only a comment for dictionary-typed fields, not a type;
 - **Looking with eyes** — the passes read markup, styles and states rather than running the
   product: the live stand is frozen by decision.
 
@@ -1030,15 +1037,13 @@ thrown away rather than polished.
    of how a rollout is going: device-level counts exist in `DeviceUpdateStatuses`,
    but no endpoint exposes them, and a wave nobody widens leaves part of the fleet
    behind silently.
-3. **The rest of the "named, not done" list** (section above) — returning an unassigned staff
-   member to a branch, the two hardcoded wizard strings.
-4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
+3. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
    checklist.
-5. **iOS does not ship yet** (owner, 2026-09-23) — no Apple account, no APNs
+4. **iOS does not ship yet** (owner, 2026-09-23) — no Apple account, no APNs
    key, no `ios` folder; revisit before launch.
-6. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
+5. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
    `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
    smoke.
 
