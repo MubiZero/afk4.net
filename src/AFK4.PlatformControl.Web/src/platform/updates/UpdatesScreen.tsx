@@ -29,12 +29,16 @@ type OrganizationsClient = Pick<OrganizationsApi, 'listOrganizations'>;
 // на все организации сразу (100%), поэтому тревога «обновление не установилось» продолжает
 // считаться по реальным отчётам устройств. Точечный рычаг остался один — закрепить версию
 // конкретному клиенту в его карточке, когда у него что-то сломалось.
-export function UpdatesScreen({ client, organizationsClient, canRegisterPackages }: {
+export function UpdatesScreen({ client, organizationsClient, canManagePackages, canManageRollouts }: {
   client: UpdatesClient;
   organizationsClient: OrganizationsClient;
   /// Раздел открыт по праву на просмотр, а регистрацию сервер спрашивает по праву на пакеты. Без
   /// него кнопки нет: единственным ответом на неё был бы отказ.
-  canRegisterPackages: boolean;
+  /// Зарегистрировать, проверить и отозвать пакет сервер даёт по праву на пакеты.
+  canManagePackages: boolean;
+  /// Опубликовать (создать раскатку), приостановить, возобновить и откатить — по праву на раскатки.
+  /// Раньше эти кнопки видел каждый, кто открыл раздел, и ответом на нажатие был отказ.
+  canManageRollouts: boolean;
 }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
@@ -132,7 +136,7 @@ export function UpdatesScreen({ client, organizationsClient, canRegisterPackages
     <Page
       title={t('nav.platform.updates')}
       description={t('platform.updates.packages.description')}
-      actions={canRegisterPackages ? <Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button> : undefined}
+      actions={canManagePackages ? <Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button> : undefined}
     >
       {rolloutsState.status === 'error' ? (
         <ErrorState
@@ -145,7 +149,7 @@ export function UpdatesScreen({ client, organizationsClient, canRegisterPackages
       {packages.length === 0 ? (
         <EmptyState
           message={t('platform.updates.packages.empty')}
-          next={canRegisterPackages
+          next={canManagePackages
             ? { label: t('platform.updates.packages.registerFirst'), onClick: () => setPackageFormOpen(true) }
             : { noPermission: t('state.empty.noPermission', { permission: t('platform.permission.updates.packages.manage') }) }}
         />
@@ -174,19 +178,21 @@ export function UpdatesScreen({ client, organizationsClient, canRegisterPackages
                 <TableCell>{formatDate(row.createdAtUtc)}</TableCell>
                 <TableCell>
                   <span className="pc-cell-actions">
-                    {row.state === 'registered' ? (
+                    {canManagePackages && row.state === 'registered' ? (
                       <Button size="sm" variant="outline" onClick={() => setStateTarget({ id: row.updatePackageId, state: 'validated' })}>
                         {t('platform.updates.package.validate')}
                       </Button>
                     ) : null}
-                    {rolloutsKnown && row.state === 'validated' && rolloutByPackageId.get(row.updatePackageId) === undefined ? (
+                    {canManageRollouts && rolloutsKnown && row.state === 'validated' && rolloutByPackageId.get(row.updatePackageId) === undefined ? (
                       <Button size="sm" onClick={() => setPublishTarget(row)}>{t('platform.updates.publish.action')}</Button>
                     ) : null}
-                    <RolloutActions
-                      rollout={rolloutByPackageId.get(row.updatePackageId)}
-                      onAct={setRolloutAction}
-                    />
-                    {row.state === 'validated' ? (
+                    {canManageRollouts ? (
+                      <RolloutActions
+                        rollout={rolloutByPackageId.get(row.updatePackageId)}
+                        onAct={setRolloutAction}
+                      />
+                    ) : null}
+                    {canManagePackages && row.state === 'validated' ? (
                       <Button size="sm" variant="outline" onClick={() => setStateTarget({ id: row.updatePackageId, state: 'retired' })}>
                         {t('platform.updates.package.retire')}
                       </Button>

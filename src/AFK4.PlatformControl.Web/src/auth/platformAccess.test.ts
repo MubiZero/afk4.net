@@ -64,4 +64,22 @@ describe('platformAccess', () => {
     expect(can(session(['platform.organizations.manage']), 'organizations.features.manage')).toBe(false);
     expect(can(session([]), 'organizations.features.manage')).toBe(false);
   });
+
+  // Кнопка спрашивает ровно то право, которое проверяет сервер. Широкие группы («любое из
+  // create/status/limits», «любое денежное») показывали кнопку тому, кому сервер откажет.
+  it.each([
+    ['organizations.limits.manage', 'platform.organizations.limits.update', 'platform.organizations.status.update'],
+    ['updates.rollouts.manage', 'platform.updates.rollouts.manage', 'platform.updates.packages.manage'],
+    ['support.access', 'platform.support.access', 'platform.organizations.support_notes.manage'],
+    ['organizations.support_notes.manage', 'platform.organizations.support_notes.manage', 'platform.organizations.support_notes.view'],
+  ] as const)('%s — ровно по %s, а не по %s', (capability, exact, neighbour) => {
+    expect(can(session([exact]), capability)).toBe(true);
+    expect(can(session([neighbour]), capability)).toBe(false);
+  });
+
+  it('lets notes be read with either the view or the manage permission', () => {
+    expect(can(session(['platform.organizations.support_notes.view']), 'organizations.support_notes.view')).toBe(true);
+    expect(can(session(['platform.organizations.support_notes.manage']), 'organizations.support_notes.view')).toBe(true);
+    expect(can(session([]), 'organizations.support_notes.view')).toBe(false);
+  });
 });

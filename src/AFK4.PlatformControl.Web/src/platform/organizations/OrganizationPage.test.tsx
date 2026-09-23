@@ -23,12 +23,15 @@ function client() {
 }
 
 const allAccess = {
-  canManageOrganization: true,
+  canManageStatus: true,
+    canManageLimits: true,
   canAddBranch: true,
   canManageAccess: true,
-  canViewSupport: true,
+  canViewSupportNotes: true,
+    canManageSupportNotes: true,
+    canUseSupportAccess: true,
   canViewBilling: true,
-  canManageBilling: true, canManageInvoices: true,
+  canManageSubscriptions: true, canManageInvoices: true,
   canManageProfile: true,
   canManageUpdateChannel: true,
   canTransferOwner: true,
@@ -72,12 +75,15 @@ it('keeps clubs available when health fails', async () => {
 it('shows a forbidden state for a forbidden direct tab URL', async () => {
   const onTabChange = mock();
   setup('history', onTabChange, {
-    canManageOrganization: false,
+    canManageStatus: false,
+    canManageLimits: false,
     canAddBranch: false,
     canManageAccess: false,
-    canViewSupport: false,
+    canViewSupportNotes: false,
+    canManageSupportNotes: false,
+    canUseSupportAccess: false,
     canViewBilling: false,
-    canManageBilling: false, canManageInvoices: false,
+    canManageSubscriptions: false, canManageInvoices: false,
     canManageProfile: false,
     canManageUpdateChannel: false,
     canTransferOwner: false,
@@ -89,4 +95,17 @@ it('shows a forbidden state for a forbidden direct tab URL', async () => {
   expect(screen.queryByRole('heading', { name: 'Orion Gaming' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Клубы' }));
   expect(onTabChange).toHaveBeenCalledWith('clubs');
+});
+
+// Вкладки открываются ровно по праву, которое сервер спрашивает на их запросы: «Лимиты» — по
+// праву на лимиты (не по праву на статус), «Доступ» — и тому, у кого есть только режим поддержки.
+it('opens the limits tab by the limits right alone', async () => {
+  setup('clubs', mock(), { ...allAccess, canManageLimits: false, canManageStatus: true });
+  await screen.findByRole('tab', { name: 'Клубы' });
+  expect(screen.queryByRole('tab', { name: 'Лимиты' })).toBeNull();
+});
+
+it('opens the access tab for someone who may only use support access', async () => {
+  setup('clubs', mock(), { ...allAccess, canManageAccess: false, canViewSupportNotes: false, canManageSupportNotes: false, canUseSupportAccess: true });
+  expect(await screen.findByRole('tab', { name: 'Доступ' })).toBeInTheDocument();
 });

@@ -17,7 +17,7 @@ function fakeClient() {
 
 describe('BillingScreen', () => {
   it('renders the three tab triggers', async () => {
-    render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="subscriptions" onTabChange={() => {}} canManage canManagePlans debtAccess={{ canMarkPaid: true, canGrantGrace: true, canToggleStatus: true, canAddNote: true }} /></ToastProvider></I18nProvider>);
+    render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="subscriptions" onTabChange={() => {}} canManageInvoices canManagePlans debtAccess={{ canMarkPaid: true, canGrantGrace: true, canToggleStatus: true, canAddNote: true }} /></ToastProvider></I18nProvider>);
     expect(screen.getByText('Подписки')).toBeInTheDocument();
     expect(screen.getByText('Счета')).toBeInTheDocument();
     expect(screen.getByText('Тарифы')).toBeInTheDocument();
@@ -25,7 +25,7 @@ describe('BillingScreen', () => {
   });
 
   it('keeps plan mutations out of a read-only billing session', async () => {
-    render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="plans" onTabChange={() => {}} canManage={false} canManagePlans={false} debtAccess={{ canMarkPaid: false, canGrantGrace: false, canToggleStatus: false, canAddNote: false }} /></ToastProvider></I18nProvider>);
+    render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="plans" onTabChange={() => {}} canManageInvoices={false} canManagePlans={false} debtAccess={{ canMarkPaid: false, canGrantGrace: false, canToggleStatus: false, canAddNote: false }} /></ToastProvider></I18nProvider>);
     await waitFor(() => expect(screen.getByText('Тарифов пока нет. Без тарифа организации не назначить подписку.')).toBeVisible());
     expect(screen.queryByRole('button', { name: 'Создать тариф' })).not.toBeInTheDocument();
   });

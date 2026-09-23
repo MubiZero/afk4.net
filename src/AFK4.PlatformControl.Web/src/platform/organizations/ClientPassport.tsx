@@ -193,7 +193,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
       {/* Иерархия действий явная: главный рычаг — условия обслуживания, остальное вторично,
           приостановка отдельно и красным. Прошлая версия давала шесть одинаковых серых кнопок. */}
       <div className="pc-passport-actions">
-        {access.canManageBilling ? (
+        {access.canManageSubscriptions ? (
           // Диалог условий строится вокруг текущей подписки: пока её нет в руках, открывать
           // нечего. Мёртвая на вид кнопка без объяснения хуже погашенной — рядом стоит полоса,
           // которая говорит, что сведения не загрузились, и предлагает повторить.
@@ -201,12 +201,12 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
             {t('platform.organization.passport.action.editSubscription')}
           </Button>
         ) : null}
-        {access.canManageBilling ? (
+        {access.canManageInvoices ? (
           <Button variant="outline" size="sm" disabled={invoicePending} onClick={() => void generateInvoice()}>
             {t('platform.organization.passport.action.generateInvoice')}
           </Button>
         ) : null}
-        {access.canManageBilling ? (
+        {access.canManageSubscriptions ? (
           <Button variant="outline" size="sm" onClick={() => setOpenDialog('grace')}>
             {t('platform.organization.passport.action.paymentGrace')}
           </Button>
@@ -221,7 +221,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
             {t('platform.organization.passport.action.transferOwner')}
           </Button>
         ) : null}
-        {access.canManageOrganization ? (
+        {access.canManageStatus ? (
           <Button
             variant={nextStatus === 'suspended' ? 'destructive' : 'default'}
             size="sm"
