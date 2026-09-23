@@ -60,7 +60,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(_loyaltyJson())));
     await tester.pumpAndSettle();
 
-    expect(find.text('Накоплено кешбэком'), findsOneWidget);
+    expect(find.text('Накоплено кэшбеком'), findsOneWidget);
     expect(find.textContaining('45,00'), findsOneWidget);
   });
 
@@ -75,8 +75,8 @@ void main() {
     expect(find.textContaining('с оплаченного времени'), findsNothing);
   });
 
-  // Главное о кешбэке: это не баллы, а деньги на кошельке.
-  testWidgets('сказано, что кешбэк можно тратить', (tester) async {
+  // Главное о кэшбеке: это не баллы, а деньги на кошельке.
+  testWidgets('сказано, что кэшбек можно тратить', (tester) async {
     await tester.pumpWidget(harness(clientWith(_loyaltyJson())));
     await tester.pumpAndSettle();
 
@@ -96,11 +96,11 @@ void main() {
     expect(find.textContaining('+'), findsWidgets);
   });
 
-  testWidgets('пустая история объясняет, откуда возьмётся кешбэк', (tester) async {
+  testWidgets('пустая история объясняет, откуда возьмётся кэшбек', (tester) async {
     await tester.pumpWidget(harness(clientWith(_loyaltyJson())));
     await tester.pumpAndSettle();
 
-    expect(find.text('Кешбэк ещё не начислялся'), findsOneWidget);
+    expect(find.text('Кэшбек ещё не начислялся'), findsOneWidget);
     expect(find.textContaining('после первого пополнения'), findsOneWidget);
   });
 
@@ -109,15 +109,15 @@ void main() {
     await tester.pumpWidget(harness(clientWith(_loyaltyJson(topUp: false, topUpBp: 0))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Клуб пока не начисляет кешбэк'), findsOneWidget);
+    expect(find.text('Клуб пока не начисляет кэшбек'), findsOneWidget);
     expect(find.textContaining('с пополнения кошелька'), findsNothing);
   });
 
-  testWidgets('сбой загрузки не притворяется нулевым кешбэком', (tester) async {
+  testWidgets('сбой загрузки не притворяется нулевым кэшбеком', (tester) async {
     await tester.pumpWidget(harness(clientWith('{"error":"boom"}', status: 500)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Не удалось загрузить кешбэк'), findsOneWidget);
+    expect(find.text('Не удалось загрузить кэшбек'), findsOneWidget);
     expect(find.textContaining('0,00'), findsNothing);
   });
 }

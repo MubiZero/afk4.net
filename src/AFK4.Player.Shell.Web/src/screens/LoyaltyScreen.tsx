@@ -26,7 +26,7 @@ export function LoyaltyScreen({ api, onDone }: { api: ShellApi; onDone: () => vo
   if (error) {
     return (
       <section>
-        <h2>Кэшбэк</h2>
+        <h2>Кэшбек</h2>
         <p>Не удалось загрузить лояльность. Попробуйте позже.</p>
         <button type="button" onClick={onDone}>Назад</button>
       </section>
@@ -34,21 +34,21 @@ export function LoyaltyScreen({ api, onDone }: { api: ShellApi; onDone: () => vo
   }
 
   if (!data) {
-    return <section><h2>Кэшбэк</h2><p>Загрузка…</p></section>;
+    return <section><h2>Кэшбек</h2><p>Загрузка…</p></section>;
   }
 
   const anyEnabled = data.topUpEnabled || data.shopEnabled;
 
   return (
     <section>
-      <h2>Кэшбэк</h2>
-      {!anyEnabled && <p>Кэшбэк пока недоступен в этом клубе.</p>}
+      <h2>Кэшбек</h2>
+      {!anyEnabled && <p>Кэшбек пока недоступен в этом клубе.</p>}
       {anyEnabled && (
         <>
-          <p>Кэшбэк падает прямо в кошелёк и тратится как обычные деньги.</p>
+          <p>Кэшбек падает прямо в кошелёк и тратится как обычные деньги.</p>
           <ul>
-            {data.topUpEnabled && <li>Пополнение: {formatPercent(data.topUpPercentBasisPoints)} кэшбэка</li>}
-            {data.shopEnabled && <li>Магазин: {formatPercent(data.shopPercentBasisPoints)} кэшбэка</li>}
+            {data.topUpEnabled && <li>Пополнение: {formatPercent(data.topUpPercentBasisPoints)} кэшбека</li>}
+            {data.shopEnabled && <li>Магазин: {formatPercent(data.shopPercentBasisPoints)} кэшбека</li>}
           </ul>
         </>
       )}

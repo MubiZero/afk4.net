@@ -11,7 +11,7 @@ public static class FeatureCatalog
     [
         new(PlatformFeatureNames.OnlineBooking, "Онлайн-бронирование",
             "Игрок сам бронирует место через личный кабинет.", EnabledByDefault: true),
-        new(PlatformFeatureNames.Loyalty, "Лояльность и кэшбэк",
+        new(PlatformFeatureNames.Loyalty, "Лояльность и кэшбек",
             "Начисление бонусов игрокам за игру и покупки.", EnabledByDefault: true),
         new(PlatformFeatureNames.OnlineTopUp, "Онлайн-пополнение",
             "Пополнение кошелька банковской картой.", EnabledByDefault: true),

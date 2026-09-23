@@ -44,8 +44,8 @@ describe('SelfServiceMenu loyalty entry', () => {
   it('opens loyalty from the menu', async () => {
     render(<SelfServiceMenu authenticated onSignIn={async () => true} api={api()}
       sessionId="s1" branchId="b1" features={null} onReloadState={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /кэшбэк/i }));
-    await waitFor(() => expect(screen.getByText(/падает прямо в кошелёк|кэшбэк пока недоступен/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /кэшбек/i }));
+    await waitFor(() => expect(screen.getByText(/падает прямо в кошелёк|кэшбек пока недоступен/i)).toBeInTheDocument());
   });
 });
 
@@ -54,14 +54,14 @@ describe('SelfServiceMenu feature toggles', () => {
     render(<SelfServiceMenu authenticated onSignIn={async () => true} api={api()}
       sessionId="s1" branchId="b1" features={['online_booking', 'loyalty', 'online_topup']} onReloadState={() => {}} />);
     expect(screen.queryByRole('button', { name: /магазин/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /кэшбэк/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /кэшбек/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /пополнить/i })).toBeInTheDocument();
   });
 
   it('прячет пункт «Бонусы», когда лояльность выключена', () => {
     render(<SelfServiceMenu authenticated onSignIn={async () => true} api={api()}
       sessionId="s1" branchId="b1" features={['online_booking', 'online_topup', 'player_shop']} onReloadState={() => {}} />);
-    expect(screen.queryByRole('button', { name: /кэшбэк/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /кэшбек/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /магазин/i })).toBeInTheDocument();
   });
 
@@ -76,7 +76,7 @@ describe('SelfServiceMenu feature toggles', () => {
     render(<SelfServiceMenu authenticated onSignIn={async () => true} api={api()}
       sessionId="s1" branchId="b1" features={['online_booking', 'loyalty', 'online_topup', 'player_shop']} onReloadState={() => {}} />);
     expect(screen.getByRole('button', { name: /магазин/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /кэшбэк/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /кэшбек/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /пополнить/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /продлить/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /новости/i })).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe('SelfServiceMenu feature toggles', () => {
     render(<SelfServiceMenu authenticated onSignIn={async () => true} api={api()}
       sessionId="s1" branchId="b1" features={null} onReloadState={() => {}} />);
     expect(screen.getByRole('button', { name: /магазин/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /кэшбэк/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /кэшбек/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /пополнить/i })).toBeInTheDocument();
   });
 });
