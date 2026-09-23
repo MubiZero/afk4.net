@@ -8,8 +8,8 @@ const LOCALES: Locale[] = ['ru', 'en', 'tg'];
 // A Cyrillic ALL-CAPS word of 4+ letters is shouting (brand tone forbids caps).
 // Short acronyms like «ПК» (2 letters) are intentionally allowed.
 const SHOUT = /[А-ЯЁ]{4,}/;
-// The gaming machine is «ПК», never «компьютер».
-const FORBIDDEN_COMPUTER = /компьютер/i;
+// The gaming machine is «ПК», never «компьютер» (tg spells it «компютер» — same word, same ban).
+const FORBIDDEN_COMPUTER = /компь?ютер/i;
 // «Код доступа» is reserved: the glossary gives that meaning to the six-digit PIN, so a
 // one-time invitation code must not borrow the phrase — the two are entered in different
 // places and confusing them is a support call.
@@ -102,6 +102,35 @@ it('мастер зовёт Панель AFK4.net одним полным име
 // читал «подключите ПК через Мастер настройки» и не находил такой программы. Имя одно, как в
 // заголовке мастера: «мастер установки», «setup wizard», «устоди насб». Английское «AFK4.NET
 // Setup Wizard» допустимо только в кавычках — так подписаны окно и ярлык в меню «Пуск».
+// Таджикский каталог звал одно понятие двумя-тремя словами, а местами — русским словом с
+// таджикским окончанием: «Калиди организацию», «блокировка шудааст», «Аккаунти ман». Филиал был
+// то «филиал», то «шӯъба», клиент — то «муштарӣ», то «мизоҷ» на соседних строках одного экрана,
+// ПК — ещё «КМ» и «компютер», игрок — «бозигар» и «бозингар», тариф — «тариф» и «таъриф».
+// Выбран вариант, которого в каталоге было больше; слева — чего больше нет, справа — что вместо.
+const TG_ONE_WORD: { name: string; forbidden: RegExp; instead: string }[] = [
+  { name: 'организация', forbidden: /организац/i, instead: 'ташкилот' },
+  { name: 'созмон', forbidden: /созмон/i, instead: 'ташкилот' },
+  { name: 'шӯъба', forbidden: /ш[ӯу]ъба/i, instead: 'филиал' },
+  { name: 'КМ', forbidden: /(?<![а-яӣӯҳқғҷ])КМ(?![а-яӣӯҳқғҷ])/, instead: 'ПК' },
+  { name: 'бозингар', forbidden: /бозингар/i, instead: 'бозигар' },
+  { name: 'бошгоҳ', forbidden: /бошгоҳ/i, instead: 'клуб' },
+  { name: 'мизоҷ', forbidden: /мизоҷ/i, instead: 'муштарӣ' },
+  { name: 'ҷаласа', forbidden: /ҷаласа|сеанс/i, instead: 'сессия' },
+  { name: 'таъриф', forbidden: /таъриф/i, instead: 'тариф' },
+  { name: 'кешбэк', forbidden: /кешбэк/i, instead: 'кэшбэк' },
+  { name: 'ПИН-код', forbidden: /ПИН/, instead: 'PIN' },
+  { name: 'аккаунт', forbidden: /аккаунт/i, instead: 'ҳисоби корбарӣ' },
+  { name: 'блокировка', forbidden: /блокировк/i, instead: 'қулф' },
+  { name: 'списание', forbidden: /списани/i, instead: 'аз ҳисоб баровардан' }
+];
+
+it.each(TG_ONE_WORD)('таджикский: вместо $name — $instead', ({ forbidden }) => {
+  const hits = Object.entries(messages.tg)
+    .filter(([, value]) => forbidden.test(value))
+    .map(([key, value]) => `tg:${key} = "${value}"`);
+  expect(hits).toEqual([]);
+});
+
 it('мастер установки зовётся одним именем во всех поверхностях', () => {
   const hits: string[] = [];
   const check = (loc: Locale, bad: RegExp) => {
