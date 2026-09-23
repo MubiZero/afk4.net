@@ -60,7 +60,7 @@ describe('AnalyticsTab', () => {
     render(<I18nProvider><AnalyticsTab client={client} /></I18nProvider>);
 
     await waitFor(() => expect(screen.getByText(
-      'История клубов ведётся с момента включения этой аналитики: в первом месяце окна все платящие клубы показаны как «пришедшие» — это не всплеск роста, а старт учёта.'
+      'История организаций ведётся с момента включения этой аналитики: в первом месяце окна все платящие организации показаны как «пришедшие» — это не всплеск роста, а старт учёта.'
     )).toBeInTheDocument());
   });
 
@@ -73,7 +73,7 @@ describe('AnalyticsTab', () => {
     // The label calls t() without `count`; if it reused the plural message key,
     // IntlMessageFormat.format({}) throws and createTranslator's catch falls back to the
     // raw "{count, plural, ...}" source string instead of a formatted label.
-    const label = await screen.findByText('Платящие клубы');
+    const label = await screen.findByText('Платящие организации');
     expect(label.textContent).not.toContain('{');
     expect(label.textContent).not.toContain('plural');
   });

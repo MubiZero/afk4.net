@@ -11,7 +11,7 @@ it('loads server-filtered audit and reports filters to the route owner', async (
   fireEvent.change(screen.getByLabelText('Действие'), { target: { value: 'updates.rollout.create' } });
   fireEvent.click(screen.getByRole('button', { name: 'Применить фильтры' }));
   expect(onFiltersChange).toHaveBeenCalledWith(expect.objectContaining({ action: 'updates.rollout.create' }));
-  expect(screen.getByText('Журнал пока пуст. Сюда сами попадают действия сотрудников платформы и клубов.')).toBeVisible();
+  expect(screen.getByText('Журнал пока пуст. Сюда сами попадают действия сотрудников платформы и организаций.')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Сбросить фильтр' })).toBeNull();
 });
 

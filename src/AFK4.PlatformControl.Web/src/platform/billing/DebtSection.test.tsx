@@ -57,7 +57,7 @@ describe('DebtSection', () => {
     render(
       <I18nProvider><ToastProvider><DebtSection client={fakeClient([])} access={fullAccess} /></ToastProvider></I18nProvider>
     );
-    await waitFor(() => expect(screen.getByText('Никто не должен, все клубы включены — хорошая новость.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Никто не должен, все организации включены — хорошая новость.')).toBeInTheDocument());
   });
 
   it('marks a row under active grace as calm, not alarming', async () => {
@@ -79,7 +79,7 @@ describe('DebtSection', () => {
       </ToastProvider></I18nProvider>
     );
     await waitFor(() => expect(screen.getByTestId('debt-row')).toBeInTheDocument());
-    expect(screen.getByTestId('debt-row').textContent).toContain('Долг погашен, клуб отключён');
+    expect(screen.getByTestId('debt-row').textContent).toContain('Долг погашен, организация отключена');
     // Debt is already settled — a reminder to reactivate isn't an alarm either.
     expect(screen.getByTestId('debt-stage-badge').className).not.toContain('is-danger');
   });
@@ -126,7 +126,7 @@ describe('DebtSection', () => {
       <I18nProvider><ToastProvider><DebtSection client={fakeClient([row()])} access={fullAccess} /></ToastProvider></I18nProvider>
     );
     await waitFor(() => expect(screen.getByTestId('debt-row')).toBeInTheDocument());
-    expect(screen.getByText('1 клуб')).toBeInTheDocument();
+    expect(screen.getByText('1 организация')).toBeInTheDocument();
   });
 
   it('shows a description even when the only queue rows are settled-but-suspended (no totals to sum)', async () => {
