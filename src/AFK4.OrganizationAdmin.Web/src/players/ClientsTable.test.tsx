@@ -170,7 +170,7 @@ describe('ClientsTable', () => {
     it('no right to add clients: no button, and it says who adds them', () => {
       const { container } = renderTable({ clients: [], canCreatePlayer: false });
       expect(container.querySelector('.empty-state button')).toBeNull();
-      expect(screen.getByText('Клиентов заводят на стойке: оператор, старший смены или управляющий.')).toBeInTheDocument();
+      expect(screen.getByText('Клиентов заводят на стойке: администратор, старший смены или управляющий.')).toBeInTheDocument();
     });
 
     it('search or segment found nobody: «Сбросить фильтр» clears both', () => {
