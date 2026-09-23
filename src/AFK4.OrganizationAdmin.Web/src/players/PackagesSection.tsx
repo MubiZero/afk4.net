@@ -17,16 +17,16 @@ export function PackagesSection({ packages, loading, errorDetail, canSellPackage
   if (loading) {
     return (
       <section className="clients-packages-section">
-        <strong>{t('op.players.profile.packagesLabel')}</strong>
+        <span className="eyebrow">{t('op.players.profile.packagesLabel')}</span>
         <DeferredSkeleton><article data-skeleton="list" aria-hidden="true"><SkeletonLine width="90%" /><SkeletonLine width="45%" /></article></DeferredSkeleton>
       </section>
     );
   }
-  if (errorDetail) return <section><strong>{t('op.players.profile.packagesLabel')}</strong><p role="alert">{errorDetail}</p></section>;
+  if (errorDetail) return <section className="clients-packages-section"><span className="eyebrow">{t('op.players.profile.packagesLabel')}</span><p role="alert">{errorDetail}</p></section>;
   if (packages.length === 0) {
     return (
-      <section>
-        <strong>{t('op.players.profile.packagesLabel')}</strong>
+      <section className="clients-packages-section">
+        <span className="eyebrow">{t('op.players.profile.packagesLabel')}</span>
         <EmptyState
           inline
           title={t('op.players.packages.emptyTitle')}
@@ -39,15 +39,17 @@ export function PackagesSection({ packages, loading, errorDetail, canSellPackage
   }
   return (
     <section className="clients-packages-section">
-      <strong>{t('op.players.profile.packagesLabel')}</strong>
+      <span className="eyebrow">{t('op.players.profile.packagesLabel')}</span>
       {packages.map((pkg) => {
         const view = projectPlayerPackage(pkg, t, locale);
         return <article key={view.id}>
           <b>{view.name}</b>
-          <span>{t('op.players.packages.includedMinutes', { minutes: view.remainingIncludedMinutes })}</span>
-          <span>{t('op.players.packages.bonusMinutes', { minutes: view.remainingBonusMinutes })}</span>
-          <span>{view.expiryLabel ? t('op.players.packages.expiresOn', { date: view.expiryLabel }) : t('op.players.packages.perpetual')}</span>
           <em>{view.isExpired ? t('op.players.packages.expired') : t('op.players.status.active')}</em>
+          <p>
+            <span>{t('op.players.packages.includedMinutes', { minutes: view.remainingIncludedMinutes })}</span>
+            <span>{t('op.players.packages.bonusMinutes', { minutes: view.remainingBonusMinutes })}</span>
+            <span>{view.expiryLabel ? t('op.players.packages.expiresOn', { date: view.expiryLabel }) : t('op.players.packages.perpetual')}</span>
+          </p>
         </article>;
       })}
     </section>

@@ -136,6 +136,7 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
           <label htmlFor="client-session-seat">{t('op.players.session.seatLabel')}</label>
           <select
             id="client-session-seat"
+          className="ui-select"
             value={seatId}
             disabled={busy}
             onChange={(event) => setSeatId(event.currentTarget.value)}

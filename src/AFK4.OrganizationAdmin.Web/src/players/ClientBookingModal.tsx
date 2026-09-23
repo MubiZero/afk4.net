@@ -62,6 +62,7 @@ export function ClientBookingModal({ clientName, draft, seats, busy, onChange, o
         <label htmlFor="client-booking-seat">{t('op.booking.create.seat')}</label>
         <select
           id="client-booking-seat"
+          className="ui-select"
           value={draft.seatId}
           disabled={busy}
           onChange={(event) => onChange({ ...draft, seatId: event.currentTarget.value })}

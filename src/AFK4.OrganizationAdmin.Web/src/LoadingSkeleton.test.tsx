@@ -266,7 +266,7 @@ describe('cash, news, events and client screens wait in the shape of their conte
 
   it('client packages: the real heading over a package placeholder', async () => {
     const { container } = renderRu(<PackagesSection packages={[]} loading />);
-    expect(container.querySelector('.clients-packages-section > strong')).toHaveTextContent('Пакеты клиента');
+    expect(container.querySelector('.clients-packages-section > .eyebrow')).toHaveTextContent('Пакеты клиента');
     await waitFor(() => expect(container.querySelector('.clients-packages-section article[data-skeleton="list"]')).toBeTruthy());
     noLoadingText();
   });

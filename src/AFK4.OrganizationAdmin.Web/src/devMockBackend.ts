@@ -491,6 +491,15 @@ function tariffOptions() {
   ];
 }
 
+// Пакеты на продажу: без них покупку пакета в Кассе и в карточке клиента в превью было не увидеть,
+// хотя сама покупка (POST /packages/purchases) здесь давно отвечает.
+function packageOptions() {
+  return [
+    { packageDefinitionId: '8b0e5d7a-1111-4c3e-9d2a-000000000001', name: 'Ночной 5ч', currencyCode: 'TJS', priceMinorUnits: 25000, includedSeconds: 5 * 3600, bonusSeconds: 30 * 60, expiresAfterDays: 30 },
+    { packageDefinitionId: '8b0e5d7a-1111-4c3e-9d2a-000000000002', name: 'Дневной абонемент', currencyCode: 'TJS', priceMinorUnits: 12000, includedSeconds: 3 * 3600, bonusSeconds: 0, expiresAfterDays: 7 }
+  ];
+}
+
 // Настройки приглашений: те же правила превью, что у лояльности рядом.
 let mutableReferralSettings: Record<string, unknown> | null = null;
 function referralSettings(): Record<string, unknown> {
@@ -555,6 +564,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
+  if (pathname.endsWith('/packages/options')) return packageOptions();
   if (pathname.endsWith('/floor-map')) return currentPreviewFloorMap();
   if (pathname.endsWith('/layout/zones')) return previewLayoutZones();
   if (pathname.endsWith('/staff')) return previewStaff();

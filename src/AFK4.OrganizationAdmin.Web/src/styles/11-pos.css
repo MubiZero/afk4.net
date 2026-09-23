@@ -969,3 +969,34 @@
   font-size: 12px;
   text-align: center;
 }
+
+/* Продажа пакета — в Кассе и в карточке клиента. Раньше у панели не было ни одного правила:
+   выбор пакета стоял браузерным 22px рядом с полями 36px, а текст шёл вплотную к кнопке. */
+.pos-package-purchase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.pos-package-purchase > strong {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pos-package-purchase > select {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.pos-package-purchase > p {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.pos-package-purchase > p[role="alert"] {
+  color: var(--danger-text);
+}
