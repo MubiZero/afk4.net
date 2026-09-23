@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { majorToMinor } from '@afk4/money';
@@ -48,7 +48,8 @@ export function TariffScreen({
   const canCreate = name.trim() !== '' && Number.isFinite(parsedPrice) && parsedPrice > 0 && !saving;
   const draft: TariffDraft = { name, pricePerHour, created };
 
-  async function create(): Promise<void> {
+  async function create(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
     if (!canCreate) return;
     setSaving(true);
     setFailure(null);
@@ -77,31 +78,36 @@ export function TariffScreen({
         <p>{t('setup.wizard.tariff.subtitle')}</p>
       </div>
 
-      <div className="ui-field">
-        <label className="ui-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
-        <input
-          id="tariff-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-      </div>
+      {/* Форма — ради Enter: набрал цену и жмёт Enter, как на входе и на экране устройства.
+          Поля вне формы Enter молча проглатывали. «Дальше» в форму не входит: Enter в поле
+          создаёт тариф, а не уводит со шага. */}
+      <form className="wizard-form" onSubmit={create} noValidate>
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="tariff-name">{t('setup.wizard.tariff.name')}</label>
+          <input
+            id="tariff-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
 
-      <div className="ui-field">
-        <label className="ui-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
-        <input
-          id="tariff-price"
-          type="number"
-          min={1}
-          step="0.5"
-          value={pricePerHour}
-          onChange={(event) => setPricePerHour(event.target.value)}
-        />
-      </div>
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="tariff-price">{t('setup.wizard.tariff.price')}</label>
+          <input
+            id="tariff-price"
+            type="number"
+            min={1}
+            step="0.5"
+            value={pricePerHour}
+            onChange={(event) => setPricePerHour(event.target.value)}
+          />
+        </div>
 
-      <button type="button" className="ui-btn" onClick={() => void create()} disabled={!canCreate}>
-        {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
-        {t('setup.wizard.tariff.create')}
-      </button>
+        <button type="submit" className="ui-btn" disabled={!canCreate}>
+          {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
+          {t('setup.wizard.tariff.create')}
+        </button>
+      </form>
 
       {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
       {created === null ? null : <p className="ui-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}

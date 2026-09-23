@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { WizardZone } from './wizardApi';
@@ -69,7 +69,8 @@ export function HallScreen({
     && !creating;
   const draft: HallDraft = { zoneId, namePrefix, count, createdNames };
 
-  async function create(): Promise<void> {
+  async function create(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
     if (!canCreate) return;
     setCreating(true);
     setFailure(null);
@@ -100,55 +101,59 @@ export function HallScreen({
         <div role="alert" className="ui-alert">{t('setup.wizard.hall.noZone')}</div>
       )}
 
-      <div className="ui-field">
-        <label className="ui-field-label" htmlFor="hall-zone">{t('setup.wizard.hall.zone')}</label>
-        <select
-          id="hall-zone"
-          value={zoneId}
-          onChange={(event) => setZoneId(event.target.value)}
+      {/* Форма — ради Enter: набрал число мест и жмёт Enter, как на входе и на экране
+          устройства. Поля вне формы Enter молча проглатывали. «Дальше» в форму не входит: Enter
+          в поле заводит места, а не уводит со шага. */}
+      <form className="wizard-form" onSubmit={create} noValidate>
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="hall-zone">{t('setup.wizard.hall.zone')}</label>
+          <select
+            id="hall-zone"
+            value={zoneId}
+            onChange={(event) => setZoneId(event.target.value)}
+          >
+            {zones.map((zone) => (
+              <option key={zone.zoneId} value={zone.zoneId}>{zone.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="hall-prefix">{t('setup.wizard.hall.prefix')}</label>
+          <input
+            id="hall-prefix"
+            value={namePrefix}
+            onChange={(event) => setNamePrefix(event.target.value)}
+          />
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="hall-count">{t('setup.wizard.hall.count')}</label>
+          <input
+            id="hall-count"
+            type="number"
+            min={1}
+            max={MAX_SEATS_PER_RUN}
+            value={count}
+            onChange={(event) => setCount(event.target.value)}
+          />
+          <small>
+            {t('setup.wizard.hall.example', {
+              name: `${namePrefix.trim() || defaultPrefix}-1`,
+              name2: `${namePrefix.trim() || defaultPrefix}-2`,
+            })}
+          </small>
+        </div>
+
+        <button
+          type="submit"
+          className={createdNames.length > 0 ? 'ui-btn' : 'ui-btn ui-btn--primary'}
+          disabled={!canCreate}
         >
-          {zones.map((zone) => (
-            <option key={zone.zoneId} value={zone.zoneId}>{zone.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="ui-field">
-        <label className="ui-field-label" htmlFor="hall-prefix">{t('setup.wizard.hall.prefix')}</label>
-        <input
-          id="hall-prefix"
-          value={namePrefix}
-          onChange={(event) => setNamePrefix(event.target.value)}
-        />
-      </div>
-
-      <div className="ui-field">
-        <label className="ui-field-label" htmlFor="hall-count">{t('setup.wizard.hall.count')}</label>
-        <input
-          id="hall-count"
-          type="number"
-          min={1}
-          max={MAX_SEATS_PER_RUN}
-          value={count}
-          onChange={(event) => setCount(event.target.value)}
-        />
-        <small>
-          {t('setup.wizard.hall.example', {
-            name: `${namePrefix.trim() || defaultPrefix}-1`,
-            name2: `${namePrefix.trim() || defaultPrefix}-2`,
-          })}
-        </small>
-      </div>
-
-      <button
-        type="button"
-        className={createdNames.length > 0 ? 'ui-btn' : 'ui-btn ui-btn--primary'}
-        onClick={() => void create()}
-        disabled={!canCreate}
-      >
-        {creating ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
-        {t('setup.wizard.hall.create')}
-      </button>
+          {creating ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <Check size={16} aria-hidden />}
+          {t('setup.wizard.hall.create')}
+        </button>
+      </form>
 
       {countTooBig && (
         <p className="ui-field-hint">{t('setup.wizard.hall.tooMany', { max: MAX_SEATS_PER_RUN })}</p>

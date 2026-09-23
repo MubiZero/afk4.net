@@ -2,6 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 import { HostBridgeRequestError } from './hostBridge';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { pressEnter } from './test/pressEnter';
 import { HallScreen, type HallClient } from './HallScreen';
 
 const ZONES = [
@@ -127,5 +128,45 @@ describe('HallScreen', () => {
 
     expect(screen.getByRole('button', { name: /Завести места/ }).className).toContain('ui-btn--primary');
     expect(screen.getByRole('button', { name: /Пропустить/ }).className).not.toContain('ui-btn--primary');
+  });
+});
+
+// Enter в поле формы отправляет её — так человек привык везде, и так уже работают вход и
+// экран устройства. Здесь поля лежали вне формы, и Enter не делал ничего.
+describe('HallScreen · Enter', () => {
+  for (const label of ['Как называть места', 'Сколько мест']) {
+    it(`Enter в поле «${label}» заводит места`, async () => {
+      const createSeats = mock().mockResolvedValue({ names: ['ПК-1', 'ПК-2'] });
+      renderScreen({ createSeats });
+      fireEvent.change(screen.getByLabelText('Сколько мест'), { target: { value: '2' } });
+
+      pressEnter(screen.getByLabelText(label));
+
+      await waitFor(() => expect(createSeats).toHaveBeenCalledTimes(1));
+      expect(createSeats).toHaveBeenCalledWith('z-1', 'ПК', 2);
+    });
+  }
+
+  it('Enter при неактивной кнопке не заводит мест', () => {
+    const createSeats = mock();
+    renderScreen({ createSeats });
+    fireEvent.change(screen.getByLabelText('Сколько мест'), { target: { value: '61' } });
+
+    pressEnter(screen.getByLabelText('Сколько мест'));
+    // И мимо кнопки: сама отправка тоже не пускает число сверх предела.
+    fireEvent.submit(screen.getByLabelText('Сколько мест').closest('form') as HTMLFormElement);
+
+    expect(createSeats).not.toHaveBeenCalled();
+  });
+
+  it('двойной Enter не заводит места дважды', () => {
+    const createSeats = mock(() => new Promise<never>(() => {}));
+    renderScreen({ createSeats });
+
+    pressEnter(screen.getByLabelText('Сколько мест'));
+    pressEnter(screen.getByLabelText('Сколько мест'));
+    fireEvent.submit(screen.getByLabelText('Сколько мест').closest('form') as HTMLFormElement);
+
+    expect(createSeats).toHaveBeenCalledTimes(1);
   });
 });

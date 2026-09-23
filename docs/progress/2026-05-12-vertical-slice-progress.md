@@ -644,6 +644,9 @@ have no interface for this pass to look at beyond words that reach a human.
   creation again — and the server refuses the same tariff twice. Six screens, not four: device
   name and the sign-in number had the same hole. Drafts now live in `App`, in memory only; the
   PIN is deliberately not brought back, and branch-owned drafts do not follow a branch change.
+- #387 — six fields on the staff, hall and tariff screens lay outside any form, so Enter did
+  nothing, while sign-in and the device screen right next to them submit on Enter. They now
+  follow that pattern; a disabled button and a request in flight both swallow Enter.
 
 **Along the way:** #376 — `WorkerTests.RotationRequest_...` waited for a ten-second heartbeat
 inside a twenty-second budget and fell over on a loaded runner; it painted the CSS-token PR red.
@@ -663,8 +666,9 @@ stated so the next person does not rediscover them:
   card grids, forms, tiles and charts, so the layout jumps when content replaces it.
 - **Partial failure swallowed silently** — 8 places in Organization Admin, 2 in Platform Control
   (`Promise.all` pairs where one refusal wipes a screen that has half its data).
-- **Setup wizard**: inverted weight of actions on two more screens, Enter does not submit on six
-  fields, and one destination called four different names.
+- **Setup wizard**: inverted weight of actions on two more screens, one destination called four
+  different names, and the staff phone input drawn past the kit (no `ui-phone-input`: a second
+  frame inside the field, and a click on its right half does not focus it).
 - **Player app**: 30 raw colours outside the theme, three touch targets under 48dp, the light
   theme written and unreachable, and no clamp on the system font scale.
 - **Looking with eyes** — this pass read markup, styles and states rather than running the
