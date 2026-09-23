@@ -99,8 +99,20 @@ it('shows a forbidden state for a forbidden direct tab URL', async () => {
 
 // Вкладки открываются ровно по праву, которое сервер спрашивает на их запросы: «Лимиты» — по
 // праву на лимиты (не по праву на статус), «Доступ» — и тому, у кого есть только режим поддержки.
-it('opens the limits tab by the limits right alone', async () => {
-  setup('clubs', mock(), { ...allAccess, canManageLimits: false, canManageStatus: true });
+it('shows the status block only with the status right and the limits block only with the limits right', async () => {
+  setup('limits', mock(), { ...allAccess, canManageLimits: true, canManageStatus: false });
+  await screen.findByRole('tab', { name: 'Лимиты' });
+  expect(screen.queryByText('Изменить статус')).toBeNull();
+});
+
+it('opens the limits tab with the status right alone, without the limits form', async () => {
+  setup('limits', mock(), { ...allAccess, canManageLimits: false, canManageStatus: true });
+  expect(await screen.findByRole('tab', { name: 'Лимиты' })).toBeInTheDocument();
+  expect(await screen.findByText('Изменить статус')).toBeInTheDocument();
+});
+
+it('hides the limits tab with neither right', async () => {
+  setup('clubs', mock(), { ...allAccess, canManageLimits: false, canManageStatus: false });
   await screen.findByRole('tab', { name: 'Клубы' });
   expect(screen.queryByRole('tab', { name: 'Лимиты' })).toBeNull();
 });

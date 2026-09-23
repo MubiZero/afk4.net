@@ -27,7 +27,7 @@ const TABS: { value: OrganizationTab; labelKey: MessageKey; allowed: (access: Or
   { value: 'dynamics', labelKey: 'platform.organization.tab.dynamics', allowed: () => true },
   { value: 'features', labelKey: 'platform.organization.features.tab', allowed: () => true },
   { value: 'invoices', labelKey: 'platform.organization.tab.invoices', allowed: access => access.canViewBilling },
-  { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageLimits },
+  { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageLimits || access.canManageStatus },
   { value: 'updates', labelKey: 'platform.organization.tab.updates', allowed: access => access.canManageUpdateChannel },
   { value: 'access', labelKey: 'platform.organization.tab.access', allowed: access => access.canManageAccess || access.canViewSupportNotes || access.canUseSupportAccess },
   { value: 'history', labelKey: 'platform.organization.tab.history', allowed: access => access.canViewAudit },
@@ -134,8 +134,11 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             /></TabBoundary> : null}
             {tab === 'limits' ? (
               <>
-                <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
-                <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
+                {/* На вкладке два блока, и сервер спрашивает на них разные права: статус — своё, лимиты —
+                    своё. Вкладка открывается по любому из них, блок — только по своему: иначе у
+                    сотрудника с правом на лимиты смена статуса была живой, а ответом был отказ. */}
+                {access.canManageStatus ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
+                {access.canManageLimits ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
               </>
             ) : null}
             {tab === 'updates' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationUpdateChannelSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
