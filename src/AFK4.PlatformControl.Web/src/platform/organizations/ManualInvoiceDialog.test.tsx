@@ -75,4 +75,22 @@ describe('ManualInvoiceDialog', () => {
     fill('50', 'Разовая услуга');
     expect(screen.getByRole('button', { name: 'Выставить' })).not.toBeDisabled();
   });
+
+  // Пустое поле видно и так, а «0» или «сто» в поле выглядят заполненными — кнопка серая молча.
+  it('сумму, которая не годится, называет словами у кнопки', () => {
+    renderDialog(mock());
+    const reasonText = 'Введите сумму числом больше нуля.';
+
+    fill('', 'Разовая услуга');
+    expect(screen.queryByText(reasonText)).toBeNull();
+
+    fill('0', 'Разовая услуга');
+    const submit = screen.getByRole('button', { name: 'Выставить' });
+    expect(submit).toBeDisabled();
+    expect(submit.getAttribute('aria-describedby')).toBe(screen.getByText(reasonText).id);
+
+    fill('50', 'Разовая услуга');
+    expect(submit.getAttribute('aria-describedby')).toBeNull();
+    expect(screen.queryByText(reasonText)).toBeNull();
+  });
 });

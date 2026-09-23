@@ -240,7 +240,19 @@ it('несостоявшуюся загрузку сведений видно с
 
   await waitFor(() => expect(screen.getAllByText('Не удалось узнать').length).toBeGreaterThan(0));
   expect(screen.getByText('Часть сведений о клиенте не загрузилась.')).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Изменить подписку' })).toBeDisabled();
+  const edit = screen.getByRole('button', { name: 'Изменить подписку' });
+  expect(edit).toBeDisabled();
+  // Полоса сверху говорит «что-то не загрузилось», а какая из кнопок из-за этого серая — нет.
+  expect(edit.getAttribute('aria-describedby')).toBe(screen.getByText('Подписка не загрузилась — нажмите «Повторить» выше.').id);
+});
+
+it('пока подписка загружается или уже пришла, причину у кнопки не пишет', async () => {
+  setup();
+  // В пути — это запрос, о нём говорит скелетон цены, а не подпись у кнопки.
+  expect(screen.queryByText('Подписка не загрузилась — нажмите «Повторить» выше.')).toBeNull();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Изменить подписку' })).toBeEnabled());
+  expect(screen.getByRole('button', { name: 'Изменить подписку' }).getAttribute('aria-describedby')).toBeNull();
+  expect(screen.queryByText('Подписка не загрузилась — нажмите «Повторить» выше.')).toBeNull();
 });
 
 it('владелец, которого не удалось узнать, не выдаётся за отсутствующего', async () => {

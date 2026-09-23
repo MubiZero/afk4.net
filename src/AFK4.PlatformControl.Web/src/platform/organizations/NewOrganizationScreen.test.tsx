@@ -89,3 +89,19 @@ it('auto-fills the organization slug from the name until the slug is edited', ()
   fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'AFK4 Душанбе v2' } });
   expect((screen.getByLabelText('Ключ организации') as HTMLInputElement).value).toBe('custom-slug');
 });
+
+// Форма длинная: обязательные поля в двух верхних карточках, кнопка — под лимитами и владельцем.
+// Серая кнопка внизу не говорила, чего ей не хватает.
+it('пока обязательные поля пусты, называет их у кнопки', () => {
+  renderScreen({ createOrganization: mock() });
+
+  const submit = screen.getByRole('button', { name: 'Создать организацию' });
+  expect(submit).toBeDisabled();
+  const reason = screen.getByText('Заполните ключ и название организации, а также ключ, название и город филиала.');
+  expect(submit.getAttribute('aria-describedby')).toBe(reason.id);
+
+  fillRequired();
+  expect(submit).toBeEnabled();
+  expect(submit.getAttribute('aria-describedby')).toBeNull();
+  expect(screen.queryByText(/Заполните ключ и название организации/)).toBeNull();
+});

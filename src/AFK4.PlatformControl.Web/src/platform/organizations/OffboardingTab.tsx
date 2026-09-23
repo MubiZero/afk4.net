@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OffboardingApi } from '@/api/platformClients/offboarding';
 import { purgeBlockReasonKey } from './offboardingModel';
@@ -28,6 +29,9 @@ export function OffboardingTab({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const offboarding = state.status === 'ready' ? state.data : null;
+  // Стёртому клубу рычаг не показывается вовсе, так что и объяснять его отказ незачем.
+  const blockReason = offboarding === null || offboarding.status === 'purged' ? null : purgeBlockReasonKey(offboarding);
+  const blocked = useBlockedReason(blockReason === null ? null : t(blockReason));
 
   async function download() {
     if (pending) return;
@@ -68,8 +72,6 @@ export function OffboardingTab({
     return <ErrorState title={t('platform.offboarding.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
   }
   if (offboarding === null) return <LoadingCards count={1} />;
-
-  const blockReason = purgeBlockReasonKey(offboarding);
 
   return (
     <Card>
@@ -115,7 +117,7 @@ export function OffboardingTab({
             <Button
               variant="destructive"
               disabled={pending || blockReason !== null}
-              title={blockReason !== null ? t(blockReason) : undefined}
+              aria-describedby={blocked.describedBy}
               onClick={() => setConfirmOpen(true)}
             >
               {t('platform.offboarding.purge')}
@@ -123,11 +125,9 @@ export function OffboardingTab({
           </div>
         )}
 
-        {/* Причина недоступности показывается текстом, а не только подсказкой курсора: рычаг,
-            который заведомо ответит отказом, обязан объяснить себя без наведения мыши. */}
-        {blockReason !== null && offboarding.status !== 'purged'
-          ? <p className="mgmt-drawer-hint">{t(blockReason)}</p>
-          : null}
+        {/* Причина недоступности — текстом, а не подсказкой курсора: рычаг, который заведомо
+            ответит отказом, обязан объяснить себя без наведения мыши. */}
+        {blocked.hint}
 
         <ConfirmDialog
           open={confirmOpen}

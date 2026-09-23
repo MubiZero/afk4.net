@@ -4,6 +4,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
@@ -28,6 +29,10 @@ export function OwnerTransferDialog({ client, organizationId, onClose, onTransfe
 
   const emailValid = EMAIL_PATTERN.test(newOwnerEmail.trim());
   const canSubmit = emailValid && reason.trim().length > 0;
+  // Пустое поле видно и так, а адрес без домена выглядит заполненным — его и называем.
+  const emailBlocked = useBlockedReason(newOwnerEmail.trim() !== '' && !emailValid
+    ? t('platform.organization.ownerTransferDialog.blocked.emailInvalid')
+    : null);
 
   async function submit() {
     if (!canSubmit) return;
@@ -53,7 +58,7 @@ export function OwnerTransferDialog({ client, organizationId, onClose, onTransfe
       footer={
         <>
           <Button variant="outline" disabled={pending} onClick={onClose}>{t('platform.organization.ownerTransferDialog.cancel')}</Button>
-          <Button variant="destructive" disabled={pending || !canSubmit} onClick={() => void submit()}>{t('platform.organization.ownerTransferDialog.save')}</Button>
+          <Button variant="destructive" disabled={pending || !canSubmit} aria-describedby={emailBlocked.describedBy} onClick={() => void submit()}>{t('platform.organization.ownerTransferDialog.save')}</Button>
         </>
       }
     >
@@ -61,6 +66,7 @@ export function OwnerTransferDialog({ client, organizationId, onClose, onTransfe
         <Field label={t('platform.organization.ownerTransferDialog.newOwnerEmail')} htmlFor="owner-email">
           <Input id="owner-email" type="email" value={newOwnerEmail} onChange={event => setNewOwnerEmail(event.target.value)} />
         </Field>
+        {emailBlocked.hint}
         <Field label={t('platform.organization.ownerTransferDialog.reason')} htmlFor="owner-reason">
           <Input id="owner-reason" value={reason} onChange={event => setReason(event.target.value)} />
         </Field>

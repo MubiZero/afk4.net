@@ -69,8 +69,12 @@ describe('OffboardingTab', () => {
     renderTab(client);
     await screen.findByText('leaving-club');
 
-    expect(screen.getByRole('button', { name: 'Стереть данные' })).toBeDisabled();
-    expect(screen.getByText(/Срок ещё не наступил/)).toBeInTheDocument();
+    const purge = screen.getByRole('button', { name: 'Стереть данные' });
+    expect(purge).toBeDisabled();
+    // Причина — строкой рядом, и кнопка ссылается на неё: всплывающая подсказка на неактивной
+    // кнопке не показывается, а экранный диктор без ссылки прочитал бы только «недоступно».
+    expect(purge.getAttribute('aria-describedby')).toBe(screen.getByText(/Срок ещё не наступил/).id);
+    expect(purge.getAttribute('title')).toBeNull();
   });
 
   it('у клуба вне заявки на уход стирание выключено', async () => {
@@ -80,8 +84,19 @@ describe('OffboardingTab', () => {
     renderTab(client);
     await screen.findByText('leaving-club');
 
-    expect(screen.getByRole('button', { name: 'Стереть данные' })).toBeDisabled();
-    expect(screen.getByText(/только после заявки на уход/)).toBeInTheDocument();
+    const purge = screen.getByRole('button', { name: 'Стереть данные' });
+    expect(purge).toBeDisabled();
+    expect(purge.getAttribute('aria-describedby')).toBe(screen.getByText(/только после заявки на уход/).id);
+  });
+
+  it('когда срок наступил, стирание доступно и ничего не объясняет', async () => {
+    renderTab(makeClient());
+    await screen.findByText('leaving-club');
+
+    const purge = screen.getByRole('button', { name: 'Стереть данные' });
+    expect(purge).toBeEnabled();
+    expect(purge.getAttribute('aria-describedby')).toBeNull();
+    expect(screen.queryByText(/Срок ещё не наступил/)).not.toBeInTheDocument();
   });
 
   it('у стёртого клуба не предлагает ни выгрузки, ни стирания', async () => {

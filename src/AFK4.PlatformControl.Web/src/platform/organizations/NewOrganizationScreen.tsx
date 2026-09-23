@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -68,6 +69,9 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
   // имя филиала отвечает ошибкой уже после запроса. Кнопка, погашенная заранее, честнее:
   // видно, что заполнено не всё, до того как что-то произошло.
   const canSubmit = REQUIRED_FIELDS.every(field => form[field].trim() !== '');
+  // Обязательные поля — в двух верхних карточках, а кнопка — под лимитами и владельцем: пустое
+  // поле от неё не видно, поэтому у кнопки сказано, что заполнить.
+  const requiredBlocked = useBlockedReason(canSubmit ? null : t('platform.newOrganization.blocked.required'));
 
   function update(field: keyof FormState, value: string) {
     setForm(current => ({ ...current, [field]: value }));
@@ -177,8 +181,9 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         </CardContent>
       </Card>
 
+      {requiredBlocked.hint}
       <div className="pc-cell-actions">
-        <Button type="submit" disabled={submitting || !canSubmit}>
+        <Button type="submit" disabled={submitting || !canSubmit} aria-describedby={requiredBlocked.describedBy}>
           {submitting ? t('platform.newOrganization.submitting') : t('platform.newOrganization.submit')}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>

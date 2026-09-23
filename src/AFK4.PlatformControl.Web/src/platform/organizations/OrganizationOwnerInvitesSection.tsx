@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { describeApiError } from '@/api/describeApiError';
 import { organizationOwnerActivationUrl } from './organizationsModel';
 import { AccessCodeHandoff } from '@/components/shared/AccessCodeHandoff';
@@ -46,6 +47,9 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
   const [handoff, setHandoff] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
+  // Код выдаётся на филиал. У организации без филиала список пуст, и серая кнопка без слов не
+  // говорила, что сначала нужен филиал.
+  const noBranch = useBlockedReason(branchId === '' ? t('platform.organization.invites.blocked.noBranch') : null);
 
   async function create() {
     if (branchId === '') return;
@@ -117,7 +121,8 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
             <small>{t('platform.organization.invites.ownerEmailHint')}</small>
           </label>
           <div>
-            <Button onClick={() => void create()} disabled={creating || branchId === ''}>{t('platform.organization.invites.create')}</Button>
+            <Button onClick={() => void create()} disabled={creating || branchId === ''} aria-describedby={noBranch.describedBy}>{t('platform.organization.invites.create')}</Button>
+            {noBranch.hint}
           </div>
         </div>
 

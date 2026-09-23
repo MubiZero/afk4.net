@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
@@ -26,6 +27,8 @@ export function OrganizationStatusSection({ client, organization, onUpdated }: P
   const [pending, setPending] = useState(false);
 
   const requiresReason = status !== 'active';
+  // Поле «Новый статус» открывается с текущим, и серая кнопка рядом читалась как сбой.
+  const sameStatus = useBlockedReason(status === organization.status ? t('platform.organization.statusForm.blocked.sameStatus') : null);
 
   async function submit(reason: string) {
     setPending(true);
@@ -52,9 +55,10 @@ export function OrganizationStatusSection({ client, organization, onUpdated }: P
           </Select>
         </label>
         <div>
-          <Button onClick={() => setConfirmOpen(true)} disabled={status === organization.status}>
+          <Button onClick={() => setConfirmOpen(true)} disabled={status === organization.status} aria-describedby={sameStatus.describedBy}>
             {t('platform.organization.statusForm.apply')}
           </Button>
+          {sameStatus.hint}
         </div>
       </CardContent>
       <ConfirmDialog

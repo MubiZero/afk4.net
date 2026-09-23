@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select } from '@/components/ui/select';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor, majorToMinor } from '@/lib/money';
 import { validatePlanForm, type PlanForm } from './billingModel';
@@ -21,6 +22,9 @@ interface Props {
 export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, onOpenChange }: Props) {
   const { t } = useI18n();
   const valid = validatePlanForm(form);
+  // Код — ключ, по которому тариф записан у организаций, поэтому в правке он закрыт. Серое поле
+  // без слов читалось как сбой формы.
+  const codeLocked = useBlockedReason(mode === 'edit' ? t('platform.billing.planForm.codeLocked') : null);
 
   const numberField = (id: string, label: string, value: number | null, set: (next: number | null) => void) => (
     <Field key={id} label={label} htmlFor={id}>
@@ -48,8 +52,9 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
     >
       <div className="mgmt-form">
         <Field label={t('platform.billing.planForm.code')} htmlFor="plan-code">
-          <Input id="plan-code" value={form.planCode} disabled={mode === 'edit'} onChange={event => onChange({ ...form, planCode: event.target.value })} />
+          <Input id="plan-code" value={form.planCode} disabled={mode === 'edit'} aria-describedby={codeLocked.describedBy} onChange={event => onChange({ ...form, planCode: event.target.value })} />
         </Field>
+        {codeLocked.hint}
         <Field label={t('platform.billing.planForm.name')} htmlFor="plan-name">
           <Input id="plan-name" value={form.name} onChange={event => onChange({ ...form, name: event.target.value })} />
         </Field>

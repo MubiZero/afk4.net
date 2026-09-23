@@ -7,6 +7,7 @@ import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { Dialog } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { useBlockedReason } from '@/components/ui/blockedReason';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdminsApi } from '@/api/platformClients/admins';
 import type { TwoFactorApi } from '@/api/platformClients/twoFactor';
@@ -18,7 +19,6 @@ import { useAdmins } from './useAdmins';
 import { AdminInviteDialog } from './AdminInviteDialog';
 import {
   ROLE_PLATFORM_ADMIN,
-  canDisable,
   changeRoleBlockReasonKey,
   describeAdminActionError,
   disableBlockReasonKey,
@@ -179,36 +179,15 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
                         : <Badge variant="outline">{t('platform.settings.status.inactive')}</Badge>}
                     </TableCell>
                     <TableCell>
-                      <span className="pc-cell-actions">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busy || roleReason !== null}
-                          title={roleReason !== null ? t(roleReason) : undefined}
-                          onClick={() => setConfirmTarget({ kind: 'role', admin: item })}
-                        >
-                          {item.role === ROLE_PLATFORM_ADMIN ? t('platform.settings.action.makeSupport') : t('platform.settings.action.makeAdmin')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={item.isActive ? 'destructive' : 'outline'}
-                          disabled={busy || (item.isActive && !canDisable(item, session.platformAdminId, admins))}
-                          title={item.isActive && disableReason !== null ? t(disableReason) : undefined}
-                          onClick={() => setConfirmTarget({ kind: 'active', admin: item })}
-                        >
-                          {item.isActive ? t('platform.settings.action.disable') : t('platform.settings.action.enable')}
-                        </Button>
-                        {item.twoFactorEnabled ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() => setResetTarget(item)}
-                          >
-                            {t('platform.settings.action.resetTwoFactor')}
-                          </Button>
-                        ) : null}
-                      </span>
+                      <AdminActions
+                        item={item}
+                        busy={busy}
+                        roleReason={roleReason === null ? null : t(roleReason)}
+                        disableReason={disableReason === null ? null : t(disableReason)}
+                        onChangeRole={() => setConfirmTarget({ kind: 'role', admin: item })}
+                        onToggleActive={() => setConfirmTarget({ kind: 'active', admin: item })}
+                        onResetTwoFactor={() => setResetTarget(item)}
+                      />
                     </TableCell>
                   </TableRow>
                 );
@@ -308,6 +287,63 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
       />
     </Card>
     <RolesSection client={rolesClient} />
+    </>
+  );
+}
+
+/// Действия над сотрудником в строке таблицы. Причина, по которой роль или отключение недоступны,
+/// раньше жила во всплывающей подсказке — на неактивной кнопке браузер её не показывает. Теперь
+/// это строка в ячейке. Обе кнопки гасит одно и то же правило (своя учётная запись, последний
+/// администратор с полным доступом), поэтому одинаковую причину пишем один раз.
+function AdminActions({ item, busy, roleReason, disableReason, onChangeRole, onToggleActive, onResetTwoFactor }: {
+  item: PlatformAdminListItem;
+  busy: boolean;
+  roleReason: string | null;
+  /// Только для активного сотрудника: включить обратно можно всегда.
+  disableReason: string | null;
+  onChangeRole: () => void;
+  onToggleActive: () => void;
+  onResetTwoFactor: () => void;
+}) {
+  const { t } = useI18n();
+  const role = useBlockedReason(roleReason);
+  const disable = useBlockedReason(disableReason === roleReason ? null : disableReason);
+  const disableDescribedBy = disableReason === null ? undefined : disableReason === roleReason ? role.describedBy : disable.describedBy;
+
+  return (
+    <>
+      <span className="pc-cell-actions">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy || roleReason !== null}
+          aria-describedby={role.describedBy}
+          onClick={onChangeRole}
+        >
+          {item.role === ROLE_PLATFORM_ADMIN ? t('platform.settings.action.makeSupport') : t('platform.settings.action.makeAdmin')}
+        </Button>
+        <Button
+          size="sm"
+          variant={item.isActive ? 'destructive' : 'outline'}
+          disabled={busy || disableReason !== null}
+          aria-describedby={disableDescribedBy}
+          onClick={onToggleActive}
+        >
+          {item.isActive ? t('platform.settings.action.disable') : t('platform.settings.action.enable')}
+        </Button>
+        {item.twoFactorEnabled ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={onResetTwoFactor}
+          >
+            {t('platform.settings.action.resetTwoFactor')}
+          </Button>
+        ) : null}
+      </span>
+      {role.hint}
+      {disable.hint}
     </>
   );
 }

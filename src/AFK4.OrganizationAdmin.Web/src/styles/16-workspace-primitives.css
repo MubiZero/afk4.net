@@ -373,11 +373,3 @@
 .critical-confirmation-actions button:disabled {
   opacity: 0.6;
 }
-
-/* Почему кнопка неактивна — тихим текстом рядом с ней (components/BlockedReason.tsx). */
-.ui-blocked-reason {
-  margin: var(--space-1) 0 0;
-  color: var(--text-tertiary);
-  font-size: 12px;
-  line-height: 1.4;
-}
