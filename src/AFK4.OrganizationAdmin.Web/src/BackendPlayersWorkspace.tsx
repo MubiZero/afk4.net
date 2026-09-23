@@ -727,12 +727,14 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     setBookingDraft({ startsAt: nextQuarterHour(), durationMinutes: 60, seatId: '' });
     const nextBackend = backend;
     if (nextBackend === null) return;
-    // Свободные места подтягиваем рядом с диалогом: без них бронь получалась «без места», и её
-    // приходилось дозаполнять в другом разделе.
+    // Места подтягиваем рядом с диалогом: без них бронь получалась «без места», и её приходилось
+    // дозаполнять в другом разделе. Все места, а не «свободные сейчас», — бронь бывает и на
+    // завтра, а пересечение по времени проверяет сервер, как у создания брони на экране «Брони».
+    // Прежний фильтр сравнивал сырое состояние с 'free', а сервер отдаёт «Free» и «Locked»: список
+    // на живом сервере был пуст всегда.
     void createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).floorMap
       .getFloorMap(nextBackend.branchId)
       .then((map) => setBookingSeats(map.seats
-        .filter((seat) => seat.state === 'free' || seat.state === 'ready')
         .map((seat) => ({ seatId: seat.seatId, label: seat.seatName }))))
       .catch(() => setBookingSeats([]));
   };
