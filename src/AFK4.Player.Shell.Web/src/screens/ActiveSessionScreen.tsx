@@ -45,7 +45,7 @@ export function ActiveSessionScreen({ state, onLaunch, onRequestOperator }: Prop
 
       <footer style={{ padding: '14px 24px', borderTop: '1px solid #1f3a5f' }}>
         <button type="button" onClick={() => onRequestOperator()} style={{ background: 'none', border: '1px solid #2b5b84', color: '#9ca3af', borderRadius: 8, padding: '8px 14px' }}>
-          Позвать оператора
+          Позвать администратора
         </button>
       </footer>
     </div>

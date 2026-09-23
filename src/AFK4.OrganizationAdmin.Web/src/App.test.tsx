@@ -120,7 +120,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
     // Имя оператора из восстановленной сессии живёт в меню аккаунта (рейл показывает ярлык «Аккаунт»).
     fireEvent.click(screen.getByRole('button', { name: 'Мой аккаунт' }));
-    expect(screen.getByText(/Оператор смены/)).toBeInTheDocument();
+    expect(screen.getByText(/Администратор смены/)).toBeInTheDocument();
   });
 
   it('renders the authoritative system status footer', async () => {
@@ -148,7 +148,7 @@ describe('App', () => {
     // и краснела в чужом PR.
     expect(await within(footer as HTMLElement).findByText('AFK4 Dushanbe · зал A')).toBeInTheDocument();
     expect(within(footer as HTMLElement).getByText('Иванов И.И.')).toBeInTheDocument();
-    expect(within(footer as HTMLElement).getByText('Оператор')).toBeInTheDocument();
+    expect(within(footer as HTMLElement).getByText('Администратор')).toBeInTheDocument();
     expect(within(footer as HTMLElement).getByText('2.45.1')).toBeInTheDocument();
     expect(within(footer as HTMLElement).queryByText(/Касса:/)).toBeNull();
   });
@@ -266,7 +266,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(screen.getByText('Войдите, чтобы открыть смену и управлять залом.')).toBeInTheDocument();
     // Phone-first by default: the primary field is the phone number (local part after +992).
     fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '937380070' } });
@@ -370,7 +370,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     // The fallback path (login/email) lives behind a quiet switch, not on the default screen.
     expect(screen.queryByLabelText(/логин или email/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Вход по логину или почте' }));
@@ -408,7 +408,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     await waitFor(() => expect(sessionStorage.getItem('afk4.staff.session')).toBeNull());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/floor-map'))).toBe(false);
@@ -428,7 +428,7 @@ describe('App', () => {
     // Heading выходит на экран сразу при монтировании (ещё в статусе "checking") — она не
     // сигнализирует, что silent-refresh (реальный fetch) уже осядет. Настоящий наблюдаемый
     // сигнал завершения — сам alert, его и ждём (как соседний тест ждёт очистку sessionStorage).
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(sessionStorage.getItem('afk4.staff.session')).not.toBeNull();
   });
@@ -458,7 +458,7 @@ describe('App', () => {
 
     // No window.chrome bridge installed at all — auth restore reads sessionStorage directly and
     // finds nothing, so the sign-in screen renders cleanly with no "bridge unavailable" alert.
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -471,7 +471,7 @@ describe('App', () => {
     expect(screen.getByLabelText('Ключ клуба')).toBeInTheDocument();
     expect(screen.getByLabelText('Ключ филиала')).toBeInTheDocument();
     expect(screen.queryByText(/Connect to your club|Club key|Branch key|Setup code|Continue/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Вход оператора' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Вход администратора' })).not.toBeInTheDocument();
   });
 
   // CRIT-1: an owner opening the production browser build (no WebView2 host, nothing injected,
@@ -488,7 +488,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Подключение клуба' })).not.toBeInTheDocument();
   });
 
@@ -497,7 +497,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Подключение клуба' })).not.toBeInTheDocument();
   });
 
@@ -529,7 +529,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Ключ филиала'), { target: { value: 'central' } });
     fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
 
-    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(localStorage.getItem('afk4.organization-admin.connection')).toBeNull();
     expect(bridge.connectionSaves.length).toBe(1);
     expect(bridge.connectionSaves[0].organizationId).toBe('0c04d6c0-bfa8-4e26-9263-fc0d307d0f08');
@@ -586,7 +586,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Не удалось настроить подключение оператора.');
+    expect(alert).toHaveTextContent('Не удалось подключить Панель AFK4.net к клубу.');
     expect(alert).not.toHaveTextContent(/OrganizationSlug|lowercase/);
   });
 
@@ -853,7 +853,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByRole('alert')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Вход оператора' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Вход администратора' })).not.toBeInTheDocument();
     expect(sessionStorage.getItem('afk4.staff.session')).not.toBeNull();
   });
 
@@ -2198,7 +2198,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   }
 
   if (pathname.includes('/reservations/') && pathname.endsWith('/cancel')) {
-    return jsonResponse(createReservation({ state: 'cancelled', source: 'online', cancelReason: 'Отменено оператором' }));
+    return jsonResponse(createReservation({ state: 'cancelled', source: 'online', cancelReason: 'Отменено администратором' }));
   }
 
   if (pathname.includes('/reservations/') && pathname.endsWith('/seat')) {

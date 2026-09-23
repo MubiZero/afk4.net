@@ -21,7 +21,7 @@ describe('ShellStatusBar', () => {
     );
 
     expect(screen.getByText('Иванов И.И.')).toBeInTheDocument();
-    expect(screen.getByText('Оператор')).toBeInTheDocument();
+    expect(screen.getByText('Администратор')).toBeInTheDocument();
     expect(screen.getByText('Арена')).toBeInTheDocument();
     expect(screen.getByText('Онлайн')).toBeInTheDocument();
     expect(screen.getByText('OK')).toBeInTheDocument();

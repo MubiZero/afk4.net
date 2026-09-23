@@ -91,7 +91,7 @@ describe('сообщения платформы в Операторе', () => {
 
   it('кривой ответ не роняет шелл, а просто прячет полосу', async () => {
     // Некорректная форма 200-ответа обязана вести себя как отказ: иначе `undefined` доезжает до
-    // `.filter` и весь Оператор уходит в белый экран (ErrorBoundary в шелле нет).
+    // `.filter` и вся Панель AFK4.net уходит в белый экран (ErrorBoundary в шелле нет).
     const client = {
       list: mock(async () => (undefined as unknown as PlatformMessageDto[])),
       markRead: mock(async () => {})

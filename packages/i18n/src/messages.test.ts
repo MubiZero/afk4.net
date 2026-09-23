@@ -33,7 +33,7 @@ it('ru, en and tg have identical key sets (catalog parity)', () => {
 const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Кешбэк» и «Тариф» — заимствования, в таджикском пишутся так же; переводить их нечем.
     'customer.loyalty.title', 'customer.reservations.tariff',
-    'roles.operator', 'roles.technician',
+    'roles.technician',
     'op.network.billing.col.number',
     'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone', 'op.network.billing.plan',
     'platform.health.queue.billing_outbox', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
@@ -41,7 +41,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
     'op.management.dest.club', 'platform.dynamics.branch.label',
     'op.eskhata.title', 'op.eskhata.baseUrl', 'op.eskhata.companyId', 'op.eskhata.merchantId',
-    'op.eskhata.hashKey', 'op.dc.title', 'op.auth.operator', 'op.booking.source.operator',
+    'op.eskhata.hashKey', 'op.dc.title',
     'op.cash.title', 'op.club.field.telegram', 'op.club.field.instagram', 'op.club.ph.city',
     'op.club.ph.phone', 'op.club.ph.telegram', 'op.club.ph.website', 'op.club.ph.instagram',
     // Координаты — числа: у широты Душанбе нет таджикского написания.
@@ -53,7 +53,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',
     'op.helper.appVer.shell', 'op.helper.audit.system', 'op.helper.billing.package', 'op.helper.deviceStatus.online',
     'op.helper.player.packageCount', 'op.helper.player.packageFallback', 'op.helper.player.platform', 'op.helper.player.tariffFallback',
-    'op.helper.pos.receiptNumber', 'op.helper.pos.receiptType.fallback', 'op.helper.pos.saleState.fallback', 'op.helper.staff.operator',
+    'op.helper.pos.receiptNumber', 'op.helper.pos.receiptType.fallback', 'op.helper.pos.saleState.fallback',
     'op.helper.staff.technician', 'op.helper.update.channel.beta', 'op.helper.update.channel.fallback', 'op.helper.zone.bootcamp',
     'op.management.halls.addSeatCta', 'op.management.halls.col.seatName', 'op.management.tariffs.addTariffCta', 'op.management.tariffs.addPackageCta',
     'op.management.tariffs.col.bonus', 'op.management.staff.col.login', 'op.management.goods.col.sku', 'op.map.panel.packageLabel',

@@ -227,7 +227,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(http)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Оператор несёт заказ'), findsOneWidget);
+    expect(find.text('Администратор несёт заказ'), findsOneWidget);
     expect(find.text('Кола'), findsNothing);
     await unmount(tester);
   });

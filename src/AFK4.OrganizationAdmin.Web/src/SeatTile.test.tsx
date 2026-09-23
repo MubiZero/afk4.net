@@ -129,13 +129,13 @@ describe('SeatTile: вызов оператора', () => {
     const calledAt = new Date(Date.now() - 5 * 60_000).toISOString();
     const { getByLabelText } = renderTile(seat({ assistanceRequestedAtUtc: calledAt }));
 
-    const badge = getByLabelText('Зовёт оператора');
+    const badge = getByLabelText('Зовёт администратора');
     expect(badge.textContent).toContain('5');
   });
 
   it('молчащее место значка не несёт', () => {
     const { queryByLabelText } = renderTile(seat({}));
-    expect(queryByLabelText('Зовёт оператора')).toBeNull();
+    expect(queryByLabelText('Зовёт администратора')).toBeNull();
   });
 });
 

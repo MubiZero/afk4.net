@@ -545,7 +545,7 @@
     }
   },
   "customerPlayDuration": "Сколько играем",
-  "customerPlayErrDeviceGone": "Этот ПК не подключён к платформе — позовите оператора",
+  "customerPlayErrDeviceGone": "Этот ПК не подключён к платформе — позовите администратора",
   "customerPlayErrFunds": "На кошельке не хватает денег на это время",
   "customerPlayErrGeneric": "Не удалось начать сессию. Попробуйте ещё раз.",
   "customerPlayErrTaken": "Место только что заняли — выберите другое",
@@ -566,7 +566,7 @@
     }
   },
   "customerPlayStart": "Сесть за ПК",
-  "customerPlayStartHint": "Начните игру без оператора",
+  "customerPlayStartHint": "Начните игру без администратора",
   "customerPlayStarted": "Сессия началась — садитесь за {seat}",
   "@customerPlayStarted": {
     "placeholders": {
@@ -884,7 +884,7 @@
   "customerSessionEndBody": "Место освободится сразу. Оплаченное, но неигранное время вернётся на кошелёк.",
   "customerSessionEndCancel": "Остаться",
   "customerSessionEndConfirm": "Закончить",
-  "customerSessionEndFailed": "Не удалось закончить сессию. Попробуйте ещё раз или позовите оператора.",
+  "customerSessionEndFailed": "Не удалось закончить сессию. Попробуйте ещё раз или позовите администратора.",
   "customerSessionEndNoRefund": "Сессия закончена",
   "customerSessionEndRefunded": "Вернули {amount} за неигранное время",
   "@customerSessionEndRefunded": {
@@ -975,7 +975,7 @@
     }
   },
   "customerShopPlacing": "Оформляем…",
-  "customerShopStatusAccepted": "Оператор несёт заказ",
+  "customerShopStatusAccepted": "Администратор несёт заказ",
   "customerShopStatusCancelled": "Заказ отменён",
   "customerShopStatusDelivered": "Заказ принесли",
   "customerShopStatusPlaced": "Заказ принят, готовим",

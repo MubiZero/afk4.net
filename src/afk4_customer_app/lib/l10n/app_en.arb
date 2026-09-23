@@ -545,7 +545,7 @@
     }
   },
   "customerPlayDuration": "How long",
-  "customerPlayErrDeviceGone": "This PC is not connected to the platform — ask an operator",
+  "customerPlayErrDeviceGone": "This PC is not connected to the platform — ask an admin",
   "customerPlayErrFunds": "Your wallet doesn't cover this time",
   "customerPlayErrGeneric": "Couldn't start the session. Try again.",
   "customerPlayErrTaken": "That seat was just taken; pick another",
@@ -566,7 +566,7 @@
     }
   },
   "customerPlayStart": "Take a PC",
-  "customerPlayStartHint": "Start playing without the operator",
+  "customerPlayStartHint": "Start playing without an admin",
   "customerPlayStarted": "Session started; take {seat}",
   "@customerPlayStarted": {
     "placeholders": {
@@ -884,7 +884,7 @@
   "customerSessionEndBody": "The seat frees up right away. Paid time you did not use comes back to your wallet.",
   "customerSessionEndCancel": "Stay",
   "customerSessionEndConfirm": "Finish",
-  "customerSessionEndFailed": "Could not finish the session. Try again or ask an operator.",
+  "customerSessionEndFailed": "Could not finish the session. Try again or ask an admin.",
   "customerSessionEndNoRefund": "Session finished",
   "customerSessionEndRefunded": "Refunded {amount} for the time you did not use",
   "@customerSessionEndRefunded": {
@@ -975,7 +975,7 @@
     }
   },
   "customerShopPlacing": "Placing the order…",
-  "customerShopStatusAccepted": "The operator is bringing it",
+  "customerShopStatusAccepted": "An admin is bringing it",
   "customerShopStatusCancelled": "Order cancelled",
   "customerShopStatusDelivered": "Order delivered",
   "customerShopStatusPlaced": "Order received, preparing it",

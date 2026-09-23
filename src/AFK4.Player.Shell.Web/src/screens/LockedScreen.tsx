@@ -24,7 +24,7 @@ export function LockedScreen({ state, onRequestOperator }: Props) {
         </div>
       )}
       <button type="button" onClick={() => onRequestOperator()} style={{ background: 'none', border: '1px solid #2b5b84', color: '#9ca3af', borderRadius: 8, padding: '10px 18px' }}>
-        Позвать оператора
+        Позвать администратора
       </button>
     </div>
   );

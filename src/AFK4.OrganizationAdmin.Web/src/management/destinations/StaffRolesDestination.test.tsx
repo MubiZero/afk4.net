@@ -75,7 +75,7 @@ describe('StaffRolesDestination', () => {
     wrap(<StaffRolesDestination backend={null} session={session([])} currencyCode="TJS" staffUsers={staffUsers} />);
     expect(screen.getByText('Марина Сидорова')).toBeTruthy();
     expect(screen.getByText('operator1')).toBeTruthy();
-    expect(screen.getByText('Оператор')).toBeTruthy();
+    expect(screen.getByText('Администратор')).toBeTruthy();
     expect(screen.getByText('активен')).toBeTruthy();
   });
 
@@ -166,7 +166,7 @@ describe('StaffRolesDestination', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Имя в смене' }), { target: { value: 'Новый сотрудник' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Телефон для приглашения' }), { target: { value: '+992937380070' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Email (необязательно)' }), { target: { value: 'new@club.tj' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Оператор' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Администратор' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Управляющий' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить сотрудника' }));
@@ -216,7 +216,7 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Оператор' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Администратор' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
     fireEvent.click(screen.getByRole('button', { name: 'Обновить роль' }));
 
@@ -236,7 +236,7 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    expect(screen.getByRole('checkbox', { name: 'Оператор' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Администратор' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
   });
 
