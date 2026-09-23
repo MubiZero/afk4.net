@@ -6,6 +6,7 @@ import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '
 import { formatLocal, localPhoneDigits } from '../phoneFormat';
 import { Skeleton } from '../operatorPrimitives';
 import { useBlockedReason } from '../components/BlockedReason';
+import { useDeferredFlag } from '../useDeferredFlag';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
@@ -26,10 +27,17 @@ export interface BookingDraft {
   seatIds: string[];         // непусто = массовая (групповая) бронь на несколько ПК
 }
 
+// Куда перенести открытую бронь: места, свободные на её время, — считает сервер.
+export interface MoveTargets {
+  status: 'loading' | 'ready' | 'failed';
+  seats: SeatSummary[];
+}
+
 export interface BookingDrawerProps {
   mode: 'detail' | 'create';
   selected: BookingItem | null;
   freeSeats: SeatSummary[];
+  moveTargets: MoveTargets;
   allSeats: SeatSummary[];
   draft: BookingDraft;
   busy: boolean;
@@ -108,7 +116,7 @@ export function BookingDrawer(props: BookingDrawerProps) {
   // способом, что и отказ: прямо в карточке, где видно, кому и на какое время её ставят.
   const [confirmingNoShow, setConfirmingNoShow] = useState(false);
   const { t } = useI18n();
-  const { mode, selected, freeSeats, allSeats, draft, busy, canManage, canStartSessions, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
+  const { mode, selected, freeSeats, moveTargets, allSeats, draft, busy, canManage, canStartSessions, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
   // «Уже началась» считается от текущего момента — ровно как на сервере: человек не опоздал, пока
   // его время не наступило.
   const actions = bookingDetailActions(
@@ -121,9 +129,15 @@ export function BookingDrawer(props: BookingDrawerProps) {
   // Заявка из приложения может прийти без места: открыть её на карте, посадить или запустить
   // сессию не на что, пока место не выбрано.
   const unassigned = useBlockedReason(mode === 'detail' && selected !== null && !selected.seatId ? t('op.booking.unassignedHint') : null);
-  // Перенести можно только на место, свободное прямо сейчас; прочерк в сером списке не говорил,
-  // что таких мест нет.
-  const moveTargets = freeSeats.filter((seat) => seat.id !== selected?.seatId);
+  // Прочерк в сером списке не говорил, почему переносить некуда. Пока сервер считает, пустой
+  // список — ещё не «мест нет»: подпись о загрузке появляется с задержкой, чтобы быстрый ответ не
+  // мигал ею.
+  const showMoveLoading = useDeferredFlag(moveTargets.status === 'loading');
+  const movePlaceholder = moveTargets.status === 'failed'
+    ? t('op.booking.move.failed')
+    : moveTargets.status === 'loading'
+      ? (showMoveLoading ? t('op.booking.move.loading') : '—')
+      : moveTargets.seats.length === 0 ? t('op.booking.move.noFreeSeats') : '—';
 
   // Массовая бронь: непустой seatIds. Резолвим выбранные места в порядке списка.
   const isGroup = draft.seatIds.length > 0;
@@ -376,9 +390,9 @@ export function BookingDrawer(props: BookingDrawerProps) {
             <PanelSelect
               ariaLabel={t('op.booking.move.seat')}
               value=""
-              placeholder={moveTargets.length === 0 ? t('op.booking.move.noFreeSeats') : '—'}
-              disabled={!canManage || busy || moveTargets.length === 0}
-              options={groupSeatsByZone(moveTargets).map((seat) => ({
+              placeholder={movePlaceholder}
+              disabled={!canManage || busy || moveTargets.status !== 'ready' || moveTargets.seats.length === 0}
+              options={groupSeatsByZone(moveTargets.seats).map((seat) => ({
                 value: seat.id,
                 label: `${zoneLabel(seat.zone, t)} · ${seat.name}`
               }))}

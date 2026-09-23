@@ -12217,6 +12217,36 @@ class ReservationSearchResultDto {
       };
 }
 
+/// Места филиала, на которые бронь в окне [StartsAtUtc, EndsAtUtc)
+/// встанет без конфликта — тем же правилом, которым сервер эту бронь примет или отклонит.
+/// Окно возвращается вместе с ответом: панель спрашивает его для конкретной брони, и ответ на
+/// окно, которое уже сменилось, не должен тихо стать списком для нового.
+///
+/// Контракт: Reservations/ReservationSeatAvailabilityDto.cs
+class ReservationSeatAvailabilityDto {
+  const ReservationSeatAvailabilityDto({
+    required this.startsAtUtc,
+    required this.endsAtUtc,
+    required this.freeSeatIds,
+  });
+
+  final DateTime startsAtUtc;
+  final DateTime endsAtUtc;
+  final List<String> freeSeatIds;
+
+  factory ReservationSeatAvailabilityDto.fromJson(Map<String, dynamic> json) => ReservationSeatAvailabilityDto(
+        startsAtUtc: DateTime.parse(json['startsAtUtc'] as String),
+        endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
+        freeSeatIds: (json['freeSeatIds'] as List<dynamic>).map((item) => item as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'startsAtUtc': startsAtUtc.toIso8601String(),
+        'endsAtUtc': endsAtUtc.toIso8601String(),
+        'freeSeatIds': freeSeatIds.map((item) => item).toList(),
+      };
+}
+
 /// Контракт: Identity/ResetStaffUserPasswordRequest.cs
 class ResetStaffUserPasswordRequest {
   const ResetStaffUserPasswordRequest({

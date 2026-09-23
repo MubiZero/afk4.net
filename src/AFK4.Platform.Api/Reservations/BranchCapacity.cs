@@ -1,7 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Reservations;
-using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Reservations;
@@ -36,13 +35,6 @@ internal static class BranchCapacity
         ReservationStateNames.Pending,
         ReservationStateNames.Confirmed,
         ReservationStateNames.Seated
-    ];
-
-    private static readonly string[] BlockingSessionStates =
-    [
-        SessionStateNames.Active,
-        SessionStateNames.Paused,
-        SessionStateNames.Ending
     ];
 
     /// <summary>
@@ -112,12 +104,8 @@ internal static class BranchCapacity
     /// считаются один раз — иначе один человек занимал бы две машины и зал закрывался бы раньше,
     /// чем кончались компьютеры.
     ///
-    /// Сессия без запланированного конца в будущее не переносится: она длится «пока играет», и
-    /// счесть сегодняшний полный зал занятым и завтра значит запретить бронировать вообще. Поэтому
-    /// такая сессия занимает машину только по текущий момент. Остаётся честная разница с проверкой
-    /// по конкретному месту (<c>HasBlockingSessionAsync</c>), которая считает бессрочную сессию
-    /// блокирующей всегда: там вопрос «свободна ли вот эта машина сейчас», здесь — «сколько машин
-    /// будет свободно в будущем окне», и ответы у них законно разные.
+    /// Сессия без запланированного конца в будущее не переносится — правило общее с проверкой по
+    /// конкретному месту и живёт в <see cref="SeatOccupancy"/>.
     /// </summary>
     public static async Task<int> CountOccupiedAsync(
         PlatformDbContext dbContext,
@@ -147,18 +135,8 @@ internal static class BranchCapacity
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var busySeatIds = await dbContext.Sessions
-            .AsNoTracking()
-            .Where(session =>
-                session.OrganizationId == organizationId &&
-                session.BranchId == branchId &&
-                BlockingSessionStates.Contains(session.State) &&
-                // Сессия держит машину до своего запланированного конца; если конца нет или он уже
-                // прошёл (играют дольше оплаченного) — до текущего момента. Второе слагаемое от
-                // строки не зависит: у окна, которое уже началось, считаются все живые сессии, а в
-                // будущее бессрочная сессия не переносится.
-                (session.EndsAtUtc > startsAtUtc || now > startsAtUtc) &&
-                session.RequestedAtUtc < endsAtUtc)
+        var busySeatIds = await SeatOccupancy
+            .BlockingSessions(dbContext.Sessions.AsNoTracking(), organizationId, branchId, startsAtUtc, endsAtUtc, now)
             .Select(session => session.SeatId)
             .Distinct()
             .ToListAsync(cancellationToken);

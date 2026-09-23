@@ -4059,6 +4059,20 @@ export interface ReservationSearchResultDto {
   limit: number;
 }
 
+/**
+ * Места филиала, на которые бронь в окне [StartsAtUtc, EndsAtUtc)
+ * встанет без конфликта — тем же правилом, которым сервер эту бронь примет или отклонит.
+ * Окно возвращается вместе с ответом: панель спрашивает его для конкретной брони, и ответ на
+ * окно, которое уже сменилось, не должен тихо стать списком для нового.
+ *
+ * Контракт: Reservations/ReservationSeatAvailabilityDto.cs
+ */
+export interface ReservationSeatAvailabilityDto {
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  freeSeatIds: Guid[];
+}
+
 /** Контракт: Identity/ResetStaffUserPasswordRequest.cs */
 export interface ResetStaffUserPasswordRequest {
   organizationId: Guid;

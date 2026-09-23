@@ -136,6 +136,74 @@ internal static class ReservationEndpoints
             return Results.Ok(result);
         });
 
+        // Куда можно поставить бронь в её окне. Панель брала места, свободные прямо сейчас, и под
+        // перенос завтрашней брони предлагала не тот зал: занятое сейчас, но свободное завтра место
+        // пряталось, а свободное сейчас и занятое завтра чужой бронью — предлагалось и отклонялось.
+        app.MapGet("branches/{branchId:guid}/reservations/free-seats", async (
+            Guid branchId,
+            DateTimeOffset startsAtUtc,
+            DateTimeOffset endsAtUtc,
+            Guid? excludeReservationId,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IReservationService reservationService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ViewReservations,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.ViewReservations,
+                    "Reservation",
+                    excludeReservationId?.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { startsAtUtc, endsAtUtc, excludeReservationId, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (endsAtUtc <= startsAtUtc)
+            {
+                return Results.BadRequest(new { Error = "endsAtUtc must be later than startsAtUtc." });
+            }
+
+            var result = await reservationService.FindFreeSeatsAsync(
+                authorization.StaffContext!.OrganizationId,
+                branchId,
+                startsAtUtc,
+                endsAtUtc,
+                excludeReservationId,
+                cancellationToken);
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.ViewReservations,
+                "Reservation",
+                excludeReservationId?.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { startsAtUtc, endsAtUtc, excludeReservationId, ResultCount = result.FreeSeatIds.Count },
+                cancellationToken);
+
+            return Results.Ok(result);
+        });
+
         app.MapPost("branches/{branchId:guid}/reservations", async (
             Guid branchId,
             CreateReservationRequest request,
