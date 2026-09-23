@@ -10,11 +10,13 @@ import { InvoicesTab } from './InvoicesTab';
 import { PlansTab } from './PlansTab';
 import { AnalyticsTab } from './AnalyticsTab';
 
-export function BillingScreen({ client, tab, onTabChange, canManage, canManagePlans, debtAccess }: {
+export function BillingScreen({ client, tab, onTabChange, canManageInvoices, canManagePlans, debtAccess }: {
   client: PlatformApiClient;
   tab: BillingTab;
   onTabChange: (tab: BillingTab) => void;
-  canManage: boolean;
+  /// «Отметить оплаченным» и «Аннулировать» сервер спрашивает по праву на счета, а не по любому
+  /// из трёх денежных: с правом только на тарифы эти кнопки обещали бы отказ.
+  canManageInvoices: boolean;
   /// Тарифы сервер правит по своему праву, а не по любому из трёх денежных.
   canManagePlans: boolean;
   debtAccess: DebtSectionAccess;
@@ -23,7 +25,7 @@ export function BillingScreen({ client, tab, onTabChange, canManage, canManagePl
   return (
     <Page title={t('nav.platform.money')} description={t('platform.billing.subtitle')}>
       <DebtSection client={client} access={debtAccess} />
-      <PayableQueue client={client.invoices} canManage={canManage} />
+      <PayableQueue client={client.invoices} canManage={canManageInvoices} />
 
       <Tabs
         label={t('platform.billing.tabs.label')}
@@ -39,7 +41,7 @@ export function BillingScreen({ client, tab, onTabChange, canManage, canManagePl
 
       <div role="tabpanel">
         {tab === 'subscriptions' ? <SubscriptionsTab client={client.subscriptions} /> : null}
-        {tab === 'invoices' ? <InvoicesTab client={client.invoices} canManage={canManage} /> : null}
+        {tab === 'invoices' ? <InvoicesTab client={client.invoices} canManage={canManageInvoices} /> : null}
         {tab === 'plans' ? <PlansTab client={client.plans} canManage={canManagePlans} /> : null}
         {tab === 'analytics' ? <AnalyticsTab client={client.analytics} /> : null}
       </div>

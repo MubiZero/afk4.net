@@ -12,7 +12,9 @@ import { useLoadable } from '../useLoadable';
 
 type Client = Pick<SupportNotesApi, 'listSupportNotes' | 'createSupportNote' | 'updateSupportNote'>;
 
-export function OrganizationSupportNotesSection({ client, organizationId }: { client: Client; organizationId: string }) {
+/// `canWrite` — право писать и править заметки. Смотреть их можно и без него: форма у такого
+/// сотрудника обещала бы действие, на которое сервер ответит отказом.
+export function OrganizationSupportNotesSection({ client, organizationId, canWrite = true }: { client: Client; organizationId: string; canWrite?: boolean }) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useLoadable(() => client.listSupportNotes(organizationId), [organizationId]);
@@ -61,7 +63,7 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
     <Card>
       <CardHeader><CardTitle>{t('platform.organization.section.notes')}</CardTitle></CardHeader>
       <CardContent>
-        <div>
+        {canWrite ? <div>
           <label className="ui-field">
             <span>{t('platform.organization.notes.newNote')}</span>
             <Textarea aria-label={t('platform.organization.notes.newNote')} rows={3} maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} />
@@ -70,14 +72,14 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
           <div>
             <Button onClick={() => void create()} disabled={creating || draft.trim().length === 0}>{t('platform.organization.notes.add')}</Button>
           </div>
-        </div>
+        </div> : null}
 
         {state.status === 'error' ? (
           <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
         ) : state.status === 'loading' ? (
           <LoadingCards count={1} />
         ) : state.data.length === 0 ? (
-          <EmptyState message={t('platform.organization.notes.empty')} next="formAbove" />
+          <EmptyState message={t('platform.organization.notes.empty')} next={canWrite ? 'formAbove' : 'calm'} />
         ) : (
           <ul>
             {state.data.map(n => (
@@ -97,9 +99,9 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
                 ) : (
                   <div>
                     <p className="pc-note-body">{n.body}</p>
-                    <div>
+                    {canWrite ? <div>
                       <Button variant="ghost" size="sm" onClick={() => startEdit(n)}>{t('platform.organization.notes.edit')}</Button>
-                    </div>
+                    </div> : null}
                   </div>
                 )}
               </li>

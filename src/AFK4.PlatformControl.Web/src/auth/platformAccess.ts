@@ -5,12 +5,15 @@ export type PlatformCapability =
   | 'organizations.create'
   | 'organizations.manage'
   | 'organizations.status.manage'
+  | 'organizations.limits.manage'
   | 'organizations.profile.manage'
   | 'organizations.update_channel.manage'
   | 'organizations.owner_transfer.manage'
   | 'organizations.features.manage'
+  | 'organizations.support_notes.view'
   | 'organizations.support_notes.manage'
   | 'support.manage'
+  | 'support.access'
   | 'billing.read'
   | 'billing.manage'
   | 'billing.invoices.manage'
@@ -19,6 +22,7 @@ export type PlatformCapability =
   | 'updates.read'
   | 'updates.manage'
   | 'updates.packages.manage'
+  | 'updates.rollouts.manage'
   | 'audit.read'
   | 'admins.manage'
   | 'announcements.manage'
@@ -42,6 +46,10 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   // «Приостановить» доступной ровно по тому праву, которое реально проверяет бэкенд
   // (`platform.organizations.status.update`) — не по любому из create/status/limits.
   'organizations.status.manage': ['platform.organizations.status.update'],
+  // Вкладка «Лимиты» открывалась по любому из create/status/limits, а сохраняет их сервер ровно по
+  // `platform.organizations.limits.update`: сотрудник с правом только на статус видел форму, и
+  // ответом на сохранение был отказ.
+  'organizations.limits.manage': ['platform.organizations.limits.update'],
   'organizations.profile.manage': ['platform.organizations.profile.update'],
   'organizations.update_channel.manage': ['platform.organizations.update_channel.update'],
   'organizations.owner_transfer.manage': ['platform.organizations.owner.transfer'],
@@ -49,12 +57,20 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   // Отдельно от `support.manage`: заметка в разделе «Задолженность» проверяется бэкендом
   // ровно по `platform.organizations.support_notes.manage`, а не по любому из
   // support_notes/owner_invites/support.access.
+  // Смотреть заметки можно по праву на просмотр или на правку; писать — только по праву на правку.
+  'organizations.support_notes.view': [
+    'platform.organizations.support_notes.view',
+    'platform.organizations.support_notes.manage'
+  ],
   'organizations.support_notes.manage': ['platform.organizations.support_notes.manage'],
   'support.manage': [
     'platform.organizations.support_notes.manage',
     'platform.organizations.owner_invites.manage',
     'platform.support.access'
   ],
+  // Выданные доступы поддержки сервер показывает и выдаёт только по `platform.support.access`;
+  // раздел открывался по праву смотреть заметки, и у такого сотрудника он встречал отказом.
+  'support.access': ['platform.support.access'],
   'billing.read': ['platform.billing.view'],
   'billing.manage': [
     'platform.billing.plans.manage',
@@ -79,6 +95,9 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   // Отдельно от `updates.read`: раздел открыт по праву на просмотр, а регистрацию пакета бэкенд
   // спрашивает ровно по `platform.updates.packages.manage`.
   'updates.packages.manage': ['platform.updates.packages.manage'],
+  // «Опубликовать» создаёт раскатку, а пауза, возобновление и откат меняют её — сервер спрашивает
+  // на это `platform.updates.rollouts.manage`, а не право на пакеты.
+  'updates.rollouts.manage': ['platform.updates.rollouts.manage'],
   'audit.read': ['platform.audit.view'],
   'admins.manage': ['platform.admins.manage'],
   'announcements.manage': ['platform.announcements.manage'],

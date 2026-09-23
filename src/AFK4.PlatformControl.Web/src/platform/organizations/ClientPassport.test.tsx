@@ -58,12 +58,15 @@ function client(): ClientPassportClients {
 }
 
 const fullAccess: OrganizationPageAccess = {
-  canManageOrganization: true,
+  canManageStatus: true,
+  canManageLimits: true,
   canAddBranch: true,
   canManageAccess: true,
-  canViewSupport: true,
+  canViewSupportNotes: true,
+  canManageSupportNotes: true,
+  canUseSupportAccess: true,
   canViewBilling: true,
-  canManageBilling: true, canManageInvoices: true,
+  canManageSubscriptions: true, canManageInvoices: true,
   canManageProfile: true,
   canManageUpdateChannel: true,
   canTransferOwner: true,
@@ -187,12 +190,15 @@ it('shows the outstanding debt amount from the debt queue without leaving the pa
 
 it('hides billing and organization-management levers without the matching rights', () => {
   setup({
-    canManageOrganization: false,
+    canManageStatus: false,
+  canManageLimits: false,
     canAddBranch: false,
     canManageAccess: false,
-    canViewSupport: false,
+    canViewSupportNotes: false,
+  canManageSupportNotes: false,
+  canUseSupportAccess: false,
     canViewBilling: false,
-    canManageBilling: false, canManageInvoices: false,
+    canManageSubscriptions: false, canManageInvoices: false,
     canManageProfile: false,
     canManageUpdateChannel: false,
     canTransferOwner: false,
@@ -250,4 +256,21 @@ it('владелец, которого не удалось узнать, не в
 
   await waitFor(() => expect(screen.getByText('Не удалось узнать')).toBeVisible());
   expect(screen.queryByText('Alice Owner')).toBeNull();
+});
+
+// Каждая кнопка паспорта видна ровно по праву, которое сервер спрашивает на её запрос: с правом
+// только на счета нельзя менять подписку, с правом только на лимиты — приостанавливать клуб.
+it('shows each passport lever by the exact right the server checks', async () => {
+  setup({ ...fullAccess, canManageSubscriptions: false, canManageStatus: false });
+  expect(await screen.findByRole('button', { name: 'Выставить счёт' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Изменить подписку' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Отсрочка' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Приостановить' })).toBeNull();
+});
+
+it('offers subscription and grace without the invoice right', async () => {
+  setup({ ...fullAccess, canManageInvoices: false });
+  expect(await screen.findByRole('button', { name: 'Изменить подписку' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Отсрочка' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Выставить счёт' })).toBeNull();
 });

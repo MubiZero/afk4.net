@@ -27,21 +27,29 @@ const TABS: { value: OrganizationTab; labelKey: MessageKey; allowed: (access: Or
   { value: 'dynamics', labelKey: 'platform.organization.tab.dynamics', allowed: () => true },
   { value: 'features', labelKey: 'platform.organization.features.tab', allowed: () => true },
   { value: 'invoices', labelKey: 'platform.organization.tab.invoices', allowed: access => access.canViewBilling },
-  { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageOrganization },
+  { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageLimits },
   { value: 'updates', labelKey: 'platform.organization.tab.updates', allowed: access => access.canManageUpdateChannel },
-  { value: 'access', labelKey: 'platform.organization.tab.access', allowed: access => access.canManageAccess || access.canViewSupport },
+  { value: 'access', labelKey: 'platform.organization.tab.access', allowed: access => access.canManageAccess || access.canViewSupportNotes || access.canUseSupportAccess },
   { value: 'history', labelKey: 'platform.organization.tab.history', allowed: access => access.canViewAudit },
   { value: 'offboarding', labelKey: 'platform.organization.tab.offboarding', allowed: access => access.canManageOffboarding }
 ];
 
 export interface OrganizationPageAccess {
-  canManageOrganization: boolean;
+  /// Приостановить или вернуть клуб сервер даёт по праву на статус, лимиты — по праву на лимиты.
+  /// Раньше оба стерегло «любое из create/status/limits».
+  canManageStatus: boolean;
+  canManageLimits: boolean;
   /// Филиал сервер заводит по праву на заведение организаций, а не по общему «управлению».
   canAddBranch: boolean;
   canManageAccess: boolean;
-  canViewSupport: boolean;
+  canViewSupportNotes: boolean;
+  /// Писать и править заметки — отдельное право; смотреть можно и без него.
+  canManageSupportNotes: boolean;
+  /// Выданные доступы поддержки сервер показывает только по `platform.support.access`.
+  canUseSupportAccess: boolean;
   canViewBilling: boolean;
-  canManageBilling: boolean;
+  /// Условия обслуживания и отсрочку сервер правит по праву на подписки.
+  canManageSubscriptions: boolean;
   /// Отметить счёт оплаченным и аннулировать его сервер спрашивает по отдельному праву на счета.
   canManageInvoices: boolean;
   canManageProfile: boolean;
@@ -121,7 +129,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             {tab === 'invoices' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationInvoicesSection
               client={client.invoices}
               organizationId={organizationId}
-              canManage={access.canManageBilling}
+              canManage={access.canManageInvoices}
               canManageInvoices={access.canManageInvoices}
             /></TabBoundary> : null}
             {tab === 'limits' ? (
@@ -134,8 +142,8 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             {tab === 'access' ? (
               <>
                 {access.canManageAccess ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationOwnerInvitesSection client={client.organizationOwnerInvites} organizationId={organizationId} branches={organization.branches} initialInvite={initialInvite} /></TabBoundary> : null}
-                {access.canViewSupport ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationSupportNotesSection client={client.supportNotes} organizationId={organizationId} /></TabBoundary> : null}
-                {access.canViewSupport ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><SupportAccessSection client={client.supportAccess} organizationId={organizationId} /></TabBoundary> : null}
+                {access.canViewSupportNotes ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationSupportNotesSection client={client.supportNotes} organizationId={organizationId} canWrite={access.canManageSupportNotes} /></TabBoundary> : null}
+                {access.canUseSupportAccess ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><SupportAccessSection client={client.supportAccess} organizationId={organizationId} /></TabBoundary> : null}
               </>
             ) : null}
             {tab === 'history' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary> : null}

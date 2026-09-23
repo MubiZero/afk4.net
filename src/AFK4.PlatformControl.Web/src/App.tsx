@@ -86,12 +86,15 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
   const openOrganization = (organizationId: string, initialInvite: OrganizationOwnerInvite | null = null) =>
     navigate({ kind: 'organization', organizationId, tab: initialInvite === null ? 'clubs' : 'access' }, { initialInvite });
   const organizationAccess = {
-    canManageOrganization: can(session, 'organizations.manage'),
+    canManageStatus: can(session, 'organizations.status.manage'),
+    canManageLimits: can(session, 'organizations.limits.manage'),
     canAddBranch: can(session, 'organizations.create'),
     canManageAccess: session.permissions.includes('platform.organizations.owner_invites.manage'),
-    canViewSupport: session.permissions.some(permission => permission === 'platform.organizations.support_notes.view' || permission === 'platform.organizations.support_notes.manage'),
+    canViewSupportNotes: can(session, 'organizations.support_notes.view'),
+    canManageSupportNotes: can(session, 'organizations.support_notes.manage'),
+    canUseSupportAccess: can(session, 'support.access'),
     canViewBilling: can(session, 'billing.read'),
-    canManageBilling: can(session, 'billing.manage'),
+    canManageSubscriptions: can(session, 'billing.subscriptions.manage'),
     canManageProfile: can(session, 'organizations.profile.manage'),
     canManageUpdateChannel: can(session, 'organizations.update_channel.manage'),
     canManageInvoices: can(session, 'billing.invoices.manage'),
@@ -132,7 +135,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
             client={client}
             tab={route.tab}
             onTabChange={tab => navigate({ ...route, tab })}
-            canManage={can(session, 'billing.manage')}
+            canManageInvoices={can(session, 'billing.invoices.manage')}
             canManagePlans={can(session, 'billing.plans.manage')}
             debtAccess={{
               canMarkPaid: can(session, 'billing.invoices.manage'),
@@ -141,7 +144,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
               canAddNote: can(session, 'organizations.support_notes.manage')
             }}
           />
-        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} organizationsClient={client.organizations} canRegisterPackages={can(session, 'updates.packages.manage')} />
+        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} organizationsClient={client.organizations} canManagePackages={can(session, 'updates.packages.manage')} canManageRollouts={can(session, 'updates.rollouts.manage')} />
         : route.kind === 'audit' ? <AuditScreen client={client.audit} organizationsClient={client.organizations} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'overview', view: 'now' })} />
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onBack={() => navigate({ kind: 'overview', view: 'now' })} onChanged={() => {}} />

@@ -27,8 +27,8 @@ const packageRow = {
 function setup(
   state: string = 'registered',
   rollouts: unknown[] = [],
-  { packages = [{ ...packageRow, state }], canRegisterPackages = true, listRollouts = mock().mockResolvedValue(rollouts) }:
-    { packages?: unknown[]; canRegisterPackages?: boolean; listRollouts?: ReturnType<typeof mock> } = {}
+  { packages = [{ ...packageRow, state }], canRegisterPackages = true, canManageRollouts = true, listRollouts = mock().mockResolvedValue(rollouts) }:
+    { packages?: unknown[]; canRegisterPackages?: boolean; canManageRollouts?: boolean; listRollouts?: ReturnType<typeof mock> } = {}
 ) {
   const updates = {
     listPackages: mock().mockResolvedValue(packages),
@@ -46,7 +46,7 @@ function setup(
   };
   render(
     <I18nProvider><ToastProvider>
-      <UpdatesScreen client={updates as never} organizationsClient={organizations as never} canRegisterPackages={canRegisterPackages} />
+      <UpdatesScreen client={updates as never} organizationsClient={organizations as never} canManagePackages={canRegisterPackages} canManageRollouts={canManageRollouts} />
     </ToastProvider></I18nProvider>
   );
   return { updates, organizations };
@@ -191,5 +191,19 @@ describe('UpdatesScreen', () => {
     expect(await screen.findByText('Это может сотрудник платформы с правом «Загружать и отзывать пакеты обновлений».')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Зарегистрировать первый пакет' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Зарегистрировать пакет' })).toBeNull();
+  });
+
+  // «Проверить» и «Снять» — право на пакеты, «Опубликовать» и рычаги раскатки — право на
+  // раскатки. Раньше их видел каждый, кто открыл раздел.
+  it('без права на раскатки не предлагает публиковать', async () => {
+    setup('validated', [], { canManageRollouts: false });
+    expect(await screen.findByRole('button', { name: 'Снять пакет' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Опубликовать' })).toBeNull();
+  });
+
+  it('без права на пакеты не предлагает проверять и снимать пакет', async () => {
+    setup('registered', [], { canRegisterPackages: false });
+    await screen.findByText('Панель AFK4.net');
+    expect(screen.queryByRole('button', { name: 'Проверить пакет' })).toBeNull();
   });
 });
