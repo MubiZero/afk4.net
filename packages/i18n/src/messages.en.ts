@@ -2164,6 +2164,8 @@ export const en = {
   "op.pos.heading": "Sales · receipt and cashier operations",
   "op.pos.order.positions": "{count, plural, one {# item} other {# items}}",
   "op.pos.packages.purchase": "Buy package",
+  "op.pos.packages.purchased": "Package “{name}” purchased.",
+  "op.pos.packages.purchasedRefreshFailed": "Package “{name}” purchased, but the balance on screen did not refresh — do not buy it again. {reason}",
   "op.pos.packages.selectLabel": "Package",
   "op.pos.packages.shiftRequired": "Open a shift to sell a package.",
   "op.pos.packages.title": "Client package",

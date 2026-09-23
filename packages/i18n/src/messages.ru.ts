@@ -2164,6 +2164,8 @@ export const ru = {
   "op.pos.heading": "Продажи · чек и кассовые операции",
   "op.pos.order.positions": "{count, plural, one {# поз.} few {# поз.} many {# поз.} other {# поз.}}",
   "op.pos.packages.purchase": "Купить пакет",
+  "op.pos.packages.purchased": "Пакет «{name}» куплен.",
+  "op.pos.packages.purchasedRefreshFailed": "Пакет «{name}» куплен, но баланс на экране не обновился — покупать ещё раз не нужно. {reason}",
   "op.pos.packages.selectLabel": "Пакет",
   "op.pos.packages.shiftRequired": "Для продажи пакета откройте смену.",
   "op.pos.packages.title": "Пакет клиенту",

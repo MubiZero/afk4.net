@@ -346,10 +346,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const refreshPurchasedPackage = async () => {
     if (backend === null || selectedPosPlayerId === null) return;
     const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    const [wallet] = await Promise.all([
-      clients.players.getWalletSummary(selectedPosPlayerId),
-      clients.players.getPlayerPackages(selectedPosPlayerId)
-    ]);
+    const wallet = await clients.players.getWalletSummary(selectedPosPlayerId);
     const walletBalance = readMoney(wallet, 'walletBalance');
     const debtBalance = readMoney(wallet, 'debtBalance');
     setPosPlayers((players) => players.map((player) => player.playerAccountId === selectedPosPlayerId
@@ -777,6 +774,9 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               {packageOptionsError && <p role="alert">{packageOptionsError}</p>}
               {!packageOptionsLoading && !packageOptionsError && (
                 <PackagePurchasePanel
+                  // Своя панель на каждого клиента: «куплен» и ключ попытки принадлежат тому, кому
+                  // продавали, и переходить на следующего клиента не должны.
+                  key={selectedPosPlayerId}
                   backend={backend}
                   player={selectedPosPlayer as PlayerClientItem & { playerAccountId: string }}
                   options={packageOptions}

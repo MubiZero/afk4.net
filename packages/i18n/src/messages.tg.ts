@@ -2164,6 +2164,8 @@ export const tg = {
   "op.pos.heading": "Фурӯш · чек ва амалиёти касса",
   "op.pos.order.positions": "{count, plural, one {# ҷузъ} other {# ҷузъ}}",
   "op.pos.packages.purchase": "Харидани пакет",
+  "op.pos.packages.purchased": "Пакети «{name}» харида шуд.",
+  "op.pos.packages.purchasedRefreshFailed": "Пакети «{name}» харида шуд, аммо тавозун дар экран нав нашуд — бори дигар харидан лозим нест. {reason}",
   "op.pos.packages.selectLabel": "Интихоби пакет",
   "op.pos.packages.shiftRequired": "Барои фурӯши пакет навбатро кушоед.",
   "op.pos.packages.title": "Пакет барои муштарӣ",
