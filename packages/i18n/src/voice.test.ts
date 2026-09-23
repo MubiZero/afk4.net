@@ -31,15 +31,21 @@ const GLOSSARY: { name: string; forbidden: RegExp; instead: string }[] = [
   // Пароля в системе нет вовсе — вход везде шестизначный ПИН. Слово на экране заставляет
   // человека искать поле, которого не существует.
   { name: 'пароль', forbidden: /парол[ья]/i, instead: 'ПИН-код' },
-  // Панель клуба у человека одна, и имя у неё одно. Мастер звал её четырьмя: «панель клуба»,
-  // «приложение клуба», «панель управляющего» и просто «панель» — а по-английски ещё
+  // Программа клуба у человека одна, и имя у неё одно — «Панель AFK4.net», как на ярлыке
+  // (решение владельца 2026-09-23). Мастер звал её четырьмя именами: «панель клуба»,
+  // «приложение клуба», «панель управляющего» и просто «панель», — а по-английски ещё
   // «dashboard», «admin panel», «club app» и «Organization Admin». Человек читал «создайте зал
-  // в приложении клуба» и открывал приложение игрока. Эти слова в каталоге не нужны нигде.
-  { name: 'приложение клуба', forbidden: /приложени[а-я]*\s+клуба/i, instead: 'панель клуба' },
-  { name: 'панель управляющего', forbidden: /панел[а-я]*\s+управляющ/i, instead: 'панель клуба' },
-  { name: 'админка', forbidden: /админк/i, instead: 'панель клуба' },
-  { name: 'барномаи клуб', forbidden: /барномаи\s+клуб/i, instead: 'панели клуб' },
-  { name: 'панели идора', forbidden: /панели\s+идора/i, instead: 'панели клуб' }
+  // в приложении клуба» и открывал приложение игрока. «Панель клуба» тоже ушла: рядом с
+  // ярлыком «Панель AFK4.net» она читается как вторая программа.
+  { name: 'панель клуба', forbidden: /панел[а-я]*\s+клуба/i, instead: 'Панель AFK4.net' },
+  { name: 'панели клуб', forbidden: /панели\s+клуб/i, instead: 'Панели AFK4.net' },
+  { name: 'club panel', forbidden: /club panel/i, instead: 'AFK4.net Panel' },
+  { name: 'Organization Admin', forbidden: /Organization Admin/, instead: 'Панель AFK4.net' },
+  { name: 'приложение клуба', forbidden: /приложени[а-я]*\s+клуба/i, instead: 'Панель AFK4.net' },
+  { name: 'панель управляющего', forbidden: /панел[а-я]*\s+управляющ/i, instead: 'Панель AFK4.net' },
+  { name: 'админка', forbidden: /админк/i, instead: 'Панель AFK4.net' },
+  { name: 'барномаи клуб', forbidden: /барномаи\s+клуб/i, instead: 'Панели AFK4.net' },
+  { name: 'панели идора', forbidden: /панели\s+идора/i, instead: 'Панели AFK4.net' }
 ];
 
 const offenders = (match: RegExp): string[] => {
@@ -68,19 +74,19 @@ it.each(GLOSSARY)('keeps «$name» out of the catalog (use «$instead»)', ({ fo
   expect(offenders(forbidden)).toEqual([]);
 });
 
-// В мастере «панель» — всегда панель клуба, и названа она полностью. Голое «в панели» рядом со
-// строкой «в панели клуба» читается как второе место: какой панели? В других поверхностях
+// В мастере «панель» — всегда Панель AFK4.net, и названа она полностью. Голое «в панели» рядом
+// со строкой «в Панели AFK4.net» читается как второе место: какой панели? В других поверхностях
 // бывают «панель платформы» и «панель кассы», поэтому правило держится только за мастер.
-it('мастер зовёт панель клуба одним полным именем', () => {
+it('мастер зовёт Панель AFK4.net одним полным именем', () => {
   const wizard = (loc: Locale) =>
     Object.entries(messages[loc]).filter(([key]) => key.startsWith('setup.wizard.'));
   const hits: string[] = [];
   const check = (loc: Locale, bad: RegExp) => {
     for (const [key, value] of wizard(loc)) if (bad.test(value)) hits.push(`${loc}:${key} = "${value}"`);
   };
-  check('ru', /панел[а-я]*(?!\s+клуба)(?![а-я])/i);
-  check('tg', /панел[а-яӣӯҳқғҷ]*(?!\s+клуб)(?![а-яӣӯҳқғҷ])/i);
-  check('en', /(?<!club )panel|dashboard|club app|Organization Admin/i);
+  check('ru', /панел[а-я]*(?!\s+AFK4\.net)(?![а-я])/i);
+  check('tg', /панел[а-яӣӯҳқғҷ]*(?!\s+AFK4\.net)(?![а-яӣӯҳқғҷ])/i);
+  check('en', /(?<!AFK4\.net )panel|dashboard|club app|Organization Admin/i);
 
   expect(hits).toEqual([]);
 });
