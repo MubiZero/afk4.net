@@ -29,6 +29,7 @@ import { SupportModeBanner } from './support/SupportModeBanner';
 import { BillingStatusBanner } from './billing/BillingStatusBanner';
 import { useBillingStatus } from './billing/useBillingStatus';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
+import { NoActiveBranchScreen } from './NoActiveBranchScreen';
 import { ShellHeader } from './ShellHeader';
 import {
   PlatformMessageBanner,
@@ -320,6 +321,14 @@ function AppInner() {
     }
   };
 
+  // «Проверить снова» на экране без филиала: сервер отдаёт филиалы сотрудника при обновлении
+  // сессии, так что назначение, сделанное владельцем, подхватывается без повторного входа.
+  const handleRecheckBranch = async () => {
+    const refreshedSession = await refreshOperatorSession();
+    setAuthSession(refreshedSession);
+    return refreshedSession.branchIds.length > 0;
+  };
+
   // Клик по кнопке раздела в рельсе. Если мы уже внутри раздела — ничего не делаем (вкладки сами
   // переключают экраны). Иначе открываем первую доступную вкладку; если прав нет ни на одну —
   // прогоняем через handleWorkspaceNavigation, чтобы сработал refresh-прав + понятный feedback.
@@ -381,6 +390,17 @@ function AppInner() {
         onForgotPassword={() => setAuthView('forgot')}
         onAcceptInvite={() => setAuthView('invite')}
       />
+    );
+  }
+
+  // Без активного филиала оболочке нечего показать: зал, касса, брони и настройки клуба живут
+  // внутри филиала. Причину называет один экран, а не каждая форма по отдельности. Стоит до
+  // ворот смены: смену открывают в филиале.
+  if (activeBranchId === null) {
+    return activeSupportSession !== null ? (
+      <NoActiveBranchScreen mode="support" onLeave={handleExitSupportMode} />
+    ) : (
+      <NoActiveBranchScreen mode="staff" onRecheck={handleRecheckBranch} onLeave={handleSignOut} />
     );
   }
 
