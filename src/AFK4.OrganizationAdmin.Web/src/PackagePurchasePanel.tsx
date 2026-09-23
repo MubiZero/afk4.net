@@ -69,7 +69,7 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
 
   return <section className="pos-package-purchase">
     <strong>{t('op.pos.packages.title')}</strong>
-    <select aria-label={t('op.pos.packages.selectLabel')} value={selected?.packageDefinitionId ?? ''} disabled={busy || options.length === 0} onChange={(event) => setSelectedId(event.currentTarget.value)}>
+    <select className="ui-select" aria-label={t('op.pos.packages.selectLabel')} value={selected?.packageDefinitionId ?? ''} disabled={busy || options.length === 0} onChange={(event) => setSelectedId(event.currentTarget.value)}>
       {options.map((option) => <option key={option.packageDefinitionId} value={option.packageDefinitionId}>{option.name} · {formatMinorUnits(option.priceMinorUnits, option.currencyCode)}</option>)}
     </select>
     {shiftOpen === false && <p>{t('op.pos.packages.shiftRequired')}</p>}
@@ -82,12 +82,12 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
 }
 
 // Та же панель, пока варианты пакетов в пути: заголовок от ответа не зависит и стоит настоящим
-// текстом, выбор пакета и кнопка покупки — полосами высоты контрола. Своей раскладки у панели нет
-// (заголовок, выбор и кнопка идут одной строкой), и заглушка держит ту же строку флексом.
+// текстом, выбор пакета и кнопка покупки — полосами высоты контрола, в той же строке, что и
+// настоящая панель (.pos-package-purchase в 11-pos.css).
 export function PackagePurchaseSkeleton() {
   const { t } = useI18n();
   return (
-    <section className="pos-package-purchase" data-skeleton="form" aria-hidden="true" style={{ display: 'flex', alignItems: 'center' }}>
+    <section className="pos-package-purchase" data-skeleton="form" aria-hidden="true">
       <strong>{t('op.pos.packages.title')}</strong>
       <SkeletonControl width="8rem" size="sm" />
       <SkeletonControl width="6rem" />
