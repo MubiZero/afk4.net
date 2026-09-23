@@ -121,7 +121,10 @@ const TG_ONE_WORD: { name: string; forbidden: RegExp; instead: string }[] = [
   { name: 'ПИН-код', forbidden: /ПИН/, instead: 'PIN' },
   { name: 'аккаунт', forbidden: /аккаунт/i, instead: 'ҳисоби корбарӣ' },
   { name: 'блокировка', forbidden: /блокировк/i, instead: 'қулф' },
-  { name: 'списание', forbidden: /списани/i, instead: 'аз ҳисоб баровардан' }
+  { name: 'списание', forbidden: /списани/i, instead: 'аз ҳисоб баровардан' },
+  // «Сармуҳосиб» — главный бухгалтер, а рядом в том же списке ролей стоит «Муҳосиб» — бухгалтер.
+  // Старший смены читался как начальник бухгалтера. Старший смены — «сардори навбат».
+  { name: 'сармуҳосиб', forbidden: /сармуҳосиб/i, instead: 'сардори навбат' }
 ];
 
 it.each(TG_ONE_WORD)('таджикский: вместо $name — $instead', ({ forbidden }) => {
