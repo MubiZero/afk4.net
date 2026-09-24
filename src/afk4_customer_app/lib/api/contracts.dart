@@ -35,6 +35,21 @@ abstract final class CashMovementTypeNames {
   static const String cashOut = 'cash_out';
 }
 
+/// Почему сервер не принял команду администратора.
+///
+/// Словарь: Devices/DeviceCommandErrorCodeNames.cs
+abstract final class DeviceCommandErrorCodeNames {
+  /// Такой команды нет — раньше сервер принимал любую строку, и агент отвечал «не умею».
+  static const String unknownType = 'unknown_command_type';
+  /// На ПК идёт сессия: перезагружать, выключать и уводить в обслуживание нельзя.
+  static const String activeSession = 'device_has_active_session';
+  static const String invalidPayload = 'invalid_command_payload';
+  /// Разбудить нельзя: ПК ещё ни разу не сообщил свой сетевой адрес.
+  static const String wakeTargetUnknown = 'wake_target_unknown';
+  /// Разбудить некому: в подсети этого ПК нет ни одного включённого соседа.
+  static const String noWakeHelper = 'no_wake_helper';
+}
+
 /// Чем закончилась команда на устройстве — машинным именем, а не фразой.
 /// Журнал команд читает администратор клуба на своём языке. Агент до этого присылал только
 /// человеческую строку и присылал её по-английски («Workstation locked (nothing)»), и она
@@ -73,6 +88,23 @@ abstract final class DeviceCommandOutcomeNames {
   static const String leaseInvalid = 'lease-invalid';
 }
 
+/// Где команда: ждёт, отдана агенту, устарела или агент уже ответил.
+///
+/// Словарь: Devices/DeviceCommandStatusNames.cs
+abstract final class DeviceCommandStatusNames {
+  static const String pending = 'Pending';
+  /// Отдана агенту и больше не отдаётся — у неповторяемых команд (перезагрузка, выключение,
+  /// пробуждение). Повторная выдача той же перезагрузки после перезапуска агента была бы петлёй.
+  static const String delivered = 'Delivered';
+  /// Неповторяемая команда пролежала дольше срока и не отдана: перезагрузка, пришедшая через три
+  /// дня после просьбы, хуже потерянной.
+  static const String expired = 'Expired';
+  static const String accepted = 'Accepted';
+  static const String rejected = 'Rejected';
+  static const String failed = 'Failed';
+  static const String completed = 'Completed';
+}
+
 /// Словарь: Devices/DeviceCommandTypeNames.cs
 abstract final class DeviceCommandTypeNames {
   static const String lock = 'lock';
@@ -81,6 +113,27 @@ abstract final class DeviceCommandTypeNames {
   /// A non-blocking warning overlay pushed to the shell (e.g. fixed time almost
   /// up, or an open tab approaching its credit limit).
   static const String warn = 'warn';
+  /// Перезагрузить ПК. Только без живой сессии; отдаётся агенту один раз.
+  static const String reboot = 'reboot';
+  /// Выключить ПК. Только без живой сессии; отдаётся агенту один раз.
+  static const String shutdown = 'shutdown';
+  /// «Разбудить этот ПК» — так просит администратор, называя спящую машину. Выключенный ПК
+  /// команду не получит, поэтому сервер передаёт её соседу по подсети как WakeNeighbor.
+  static const String wake = 'wake';
+  /// Агенту: отправь волшебный пакет (6×FF + 16×MAC, UDP 9) в свою подсеть. В теле — mac,
+  /// broadcast и targetDeviceId. Администратор эту команду не шлёт — её собирает сервер из
+  /// Wake.
+  static const String wakeNeighbor = 'wake-neighbor';
+  /// Хост выходит из аккаунта игрока; сессия, если идёт, продолжается.
+  static const String signOut = 'sign-out';
+  /// Сообщение игроку: окно поверх игры или полоса на экране блокировки. В теле — text.
+  static const String message = 'message';
+  /// Режим обслуживания: игрокам вход закрыт. Право organization.devices.maintenance.
+  static const String maintenanceOn = 'maintenance-on';
+  /// Вернуть ПК в зал из обслуживания.
+  static const String maintenanceOff = 'maintenance-off';
+  /// Перечитать профиль защиты.
+  static const String policyRefresh = 'policy-refresh';
 }
 
 /// Словарь: Install/DeviceEnrollmentStateNames.cs
@@ -238,6 +291,9 @@ abstract final class OrganizationOwnerInviteStatusNames {
 abstract final class OrganizationPermissionNames {
   static const String createDeviceEnrollmentCode = 'organization.devices.enrollment_codes.create';
   static const String dispatchDeviceCommand = 'organization.devices.commands.dispatch';
+  /// Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает
+  /// машину для игроков, и решать это — не каждому, кто может её перезапереть.
+  static const String maintainDevice = 'organization.devices.maintenance';
   static const String viewDeviceCommandStatus = 'organization.devices.commands.status.view';
   static const String rotateDeviceCredential = 'organization.devices.credentials.rotate';
   static const String revokeDeviceCredential = 'organization.devices.credentials.revoke';
@@ -4501,6 +4557,9 @@ class DeviceHeartbeatRequest {
     this.activeSessionId,
     this.activeSessionLeaseExpiresAtUtc,
     this.activeSessionLeaseSequence,
+    this.networkMacAddress,
+    this.networkSubnet,
+    this.networkBroadcastAddress,
   });
 
   final String organizationId;
@@ -4515,6 +4574,16 @@ class DeviceHeartbeatRequest {
   final DateTime? activeSessionLeaseExpiresAtUtc;
   final int? activeSessionLeaseSequence;
 
+  /// MAC проводного адаптера со шлюзом («AA-BB-CC-DD-EE-FF»): по нему этот ПК будит сосед, когда
+  /// он выключен. Пусто — агент ещё не умеет его сообщать.
+  final String? networkMacAddress;
+
+  /// Подсеть этого адаптера («192.168.1.0/24»): будить можно только из той же подсети.
+  final String? networkSubnet;
+
+  /// Широковещательный адрес подсети — куда сосед шлёт волшебный пакет.
+  final String? networkBroadcastAddress;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -4527,6 +4596,9 @@ class DeviceHeartbeatRequest {
         activeSessionId: json['activeSessionId'] == null ? null : json['activeSessionId'] as String,
         activeSessionLeaseExpiresAtUtc: json['activeSessionLeaseExpiresAtUtc'] == null ? null : DateTime.parse(json['activeSessionLeaseExpiresAtUtc'] as String),
         activeSessionLeaseSequence: json['activeSessionLeaseSequence'] == null ? null : (json['activeSessionLeaseSequence'] as num).toInt(),
+        networkMacAddress: json['networkMacAddress'] == null ? null : json['networkMacAddress'] as String,
+        networkSubnet: json['networkSubnet'] == null ? null : json['networkSubnet'] as String,
+        networkBroadcastAddress: json['networkBroadcastAddress'] == null ? null : json['networkBroadcastAddress'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -4541,6 +4613,9 @@ class DeviceHeartbeatRequest {
         'activeSessionId': activeSessionId,
         'activeSessionLeaseExpiresAtUtc': activeSessionLeaseExpiresAtUtc?.toIso8601String(),
         'activeSessionLeaseSequence': activeSessionLeaseSequence,
+        'networkMacAddress': networkMacAddress,
+        'networkSubnet': networkSubnet,
+        'networkBroadcastAddress': networkBroadcastAddress,
       };
 }
 

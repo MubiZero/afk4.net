@@ -46,6 +46,15 @@ public sealed class DeviceHeartbeatService(
             device.LastHeartbeatAtUtc = request.ObservedAtUtc;
             device.IsOnline = true;
             device.IsLocked = request.IsLocked;
+            // Сетевой адрес помнится, пока агент не сообщит другой: по нему этот ПК будет будить
+            // сосед, когда сам он выключен и сказать ничего не может.
+            if (!string.IsNullOrWhiteSpace(request.NetworkMacAddress))
+            {
+                device.NetworkMacAddress = request.NetworkMacAddress;
+                device.NetworkSubnet = request.NetworkSubnet;
+                device.NetworkBroadcastAddress = request.NetworkBroadcastAddress;
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
@@ -109,20 +118,33 @@ public sealed class DeviceHeartbeatService(
         if (allowOperationalCommands)
         {
             var pendingCommands = await dbContext.DeviceCommands
-                .AsNoTracking()
-                .Where(command => command.DeviceId == deviceId && command.Status == "Pending")
+                .Where(command => command.DeviceId == deviceId && command.Status == DeviceCommandStatusNames.Pending)
                 .OrderBy(command => command.CreatedAtUtc)
                 .ThenBy(command => command.CommandId)
-                .Select(command => new
-                {
-                    command.CommandId,
-                    command.Type,
-                    command.CreatedAtUtc,
-                    command.PayloadJson
-                })
                 .ToListAsync(cancellationToken);
 
+            // Неповторяемые команды — перезагрузка, выключение, пробуждение — отдаются один раз и
+            // только свежими. Раньше команда оставалась «ожидающей», пока агент не ответит, и
+            // сердцебиение отдавало её снова: для перезагрузки это петля. А пролежавшая дни
+            // перезагрузка на только что включённом ПК хуже потерянной.
+            var now = timeProvider.GetUtcNow();
+            var handedOut = false;
+            foreach (var command in pendingCommands.Where(command => DeviceCommandPolicy.IsOneShot(command.Type)))
+            {
+                command.Status = now - command.CreatedAtUtc > DeviceCommandPolicy.OneShotLifetime
+                    ? DeviceCommandStatusNames.Expired
+                    : DeviceCommandStatusNames.Delivered;
+                command.UpdatedAtUtc = now;
+                handedOut = true;
+            }
+
+            if (handedOut)
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
             commands = pendingCommands
+                .Where(command => command.Status != DeviceCommandStatusNames.Expired)
                 .Select(command => new DeviceCommandDto(
                     command.CommandId,
                     command.Type,

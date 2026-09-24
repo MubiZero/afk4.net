@@ -54,6 +54,24 @@ export const CashMovementTypeNames = {
 export type CashMovementTypeName = (typeof CashMovementTypeNames)[keyof typeof CashMovementTypeNames];
 
 /**
+ * Почему сервер не принял команду администратора.
+ *
+ * Словарь: Devices/DeviceCommandErrorCodeNames.cs
+ */
+export const DeviceCommandErrorCodeNames = {
+  /** Такой команды нет — раньше сервер принимал любую строку, и агент отвечал «не умею». */
+  UnknownType: 'unknown_command_type',
+  /** На ПК идёт сессия: перезагружать, выключать и уводить в обслуживание нельзя. */
+  ActiveSession: 'device_has_active_session',
+  InvalidPayload: 'invalid_command_payload',
+  /** Разбудить нельзя: ПК ещё ни разу не сообщил свой сетевой адрес. */
+  WakeTargetUnknown: 'wake_target_unknown',
+  /** Разбудить некому: в подсети этого ПК нет ни одного включённого соседа. */
+  NoWakeHelper: 'no_wake_helper',
+} as const;
+export type DeviceCommandErrorCodeName = (typeof DeviceCommandErrorCodeNames)[keyof typeof DeviceCommandErrorCodeNames];
+
+/**
  * Чем закончилась команда на устройстве — машинным именем, а не фразой.
  * Журнал команд читает администратор клуба на своём языке. Агент до этого присылал только
  * человеческую строку и присылал её по-английски («Workstation locked (nothing)»), и она
@@ -98,6 +116,30 @@ export const DeviceCommandOutcomeNames = {
 } as const;
 export type DeviceCommandOutcomeName = (typeof DeviceCommandOutcomeNames)[keyof typeof DeviceCommandOutcomeNames];
 
+/**
+ * Где команда: ждёт, отдана агенту, устарела или агент уже ответил.
+ *
+ * Словарь: Devices/DeviceCommandStatusNames.cs
+ */
+export const DeviceCommandStatusNames = {
+  Pending: 'Pending',
+  /**
+   * Отдана агенту и больше не отдаётся — у неповторяемых команд (перезагрузка, выключение,
+   * пробуждение). Повторная выдача той же перезагрузки после перезапуска агента была бы петлёй.
+   */
+  Delivered: 'Delivered',
+  /**
+   * Неповторяемая команда пролежала дольше срока и не отдана: перезагрузка, пришедшая через три
+   * дня после просьбы, хуже потерянной.
+   */
+  Expired: 'Expired',
+  Accepted: 'Accepted',
+  Rejected: 'Rejected',
+  Failed: 'Failed',
+  Completed: 'Completed',
+} as const;
+export type DeviceCommandStatusName = (typeof DeviceCommandStatusNames)[keyof typeof DeviceCommandStatusNames];
+
 /** Словарь: Devices/DeviceCommandTypeNames.cs */
 export const DeviceCommandTypeNames = {
   Lock: 'lock',
@@ -108,6 +150,31 @@ export const DeviceCommandTypeNames = {
    * up, or an open tab approaching its credit limit).
    */
   Warn: 'warn',
+  /** Перезагрузить ПК. Только без живой сессии; отдаётся агенту один раз. */
+  Reboot: 'reboot',
+  /** Выключить ПК. Только без живой сессии; отдаётся агенту один раз. */
+  Shutdown: 'shutdown',
+  /**
+   * «Разбудить этот ПК» — так просит администратор, называя спящую машину. Выключенный ПК
+   * команду не получит, поэтому сервер передаёт её соседу по подсети как WakeNeighbor.
+   */
+  Wake: 'wake',
+  /**
+   * Агенту: отправь волшебный пакет (6×FF + 16×MAC, UDP 9) в свою подсеть. В теле — mac,
+   * broadcast и targetDeviceId. Администратор эту команду не шлёт — её собирает сервер из
+   * Wake.
+   */
+  WakeNeighbor: 'wake-neighbor',
+  /** Хост выходит из аккаунта игрока; сессия, если идёт, продолжается. */
+  SignOut: 'sign-out',
+  /** Сообщение игроку: окно поверх игры или полоса на экране блокировки. В теле — text. */
+  Message: 'message',
+  /** Режим обслуживания: игрокам вход закрыт. Право organization.devices.maintenance. */
+  MaintenanceOn: 'maintenance-on',
+  /** Вернуть ПК в зал из обслуживания. */
+  MaintenanceOff: 'maintenance-off',
+  /** Перечитать профиль защиты. */
+  PolicyRefresh: 'policy-refresh',
 } as const;
 export type DeviceCommandTypeName = (typeof DeviceCommandTypeNames)[keyof typeof DeviceCommandTypeNames];
 
@@ -295,6 +362,11 @@ export type OrganizationOwnerInviteStatusName = (typeof OrganizationOwnerInviteS
 export const OrganizationPermissionNames = {
   CreateDeviceEnrollmentCode: 'organization.devices.enrollment_codes.create',
   DispatchDeviceCommand: 'organization.devices.commands.dispatch',
+  /**
+   * Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает
+   * машину для игроков, и решать это — не каждому, кто может её перезапереть.
+   */
+  MaintainDevice: 'organization.devices.maintenance',
   ViewDeviceCommandStatus: 'organization.devices.commands.status.view',
   RotateDeviceCredential: 'organization.devices.credentials.rotate',
   RevokeDeviceCredential: 'organization.devices.credentials.revoke',
@@ -2228,6 +2300,15 @@ export interface DeviceHeartbeatRequest {
   activeSessionId: Guid | null;
   activeSessionLeaseExpiresAtUtc: IsoDateTime | null;
   activeSessionLeaseSequence: number | null;
+  /**
+   * MAC проводного адаптера со шлюзом («AA-BB-CC-DD-EE-FF»): по нему этот ПК будит сосед, когда
+   * он выключен. Пусто — агент ещё не умеет его сообщать.
+   */
+  networkMacAddress?: string | null;
+  /** Подсеть этого адаптера («192.168.1.0/24»): будить можно только из той же подсети. */
+  networkSubnet?: string | null;
+  /** Широковещательный адрес подсети — куда сосед шлёт волшебный пакет. */
+  networkBroadcastAddress?: string | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */

@@ -11,4 +11,11 @@ public sealed record DeviceHeartbeatRequest(
     bool IsLocked,
     Guid? ActiveSessionId,
     DateTimeOffset? ActiveSessionLeaseExpiresAtUtc,
-    int? ActiveSessionLeaseSequence);
+    int? ActiveSessionLeaseSequence,
+    // MAC проводного адаптера со шлюзом («AA-BB-CC-DD-EE-FF»): по нему этот ПК будит сосед, когда
+    // он выключен. Пусто — агент ещё не умеет его сообщать.
+    string? NetworkMacAddress = null,
+    // Подсеть этого адаптера («192.168.1.0/24»): будить можно только из той же подсети.
+    string? NetworkSubnet = null,
+    // Широковещательный адрес подсети — куда сосед шлёт волшебный пакет.
+    string? NetworkBroadcastAddress = null);

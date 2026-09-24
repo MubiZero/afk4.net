@@ -957,9 +957,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   "code invalid". Since P2c the choose-time screen gets its prices in one call
   (`start-offers`, `extend-offers`, `end-quote`, all priced by `TariffBilling`), a
   player can start from their own package, and an early exit no longer charges
-  the admin's pause or burns the unplayed package minutes. The shell host still
-  signs in through the public route with unbound tokens and does not pick up
-  claims; P3 moves it onto the agent.
+  the admin's pause or burns the unplayed package minutes. Since P2d the server
+  knows the device commands (reboot, shutdown, wake through a neighbour in the
+  same subnet, sign-out, message, maintenance on/off, policy refresh), refuses
+  unknown types, keeps power and maintenance away from a running session, and
+  hands a reboot, shutdown or wake to the agent once and never after ten minutes.
+  The agent does not execute the new commands yet (it answers "not implemented")
+  and does not report its MAC; that lands after P1. The shell host still signs
+  in through the public route with unbound tokens and does not pick up claims;
+  P3 moves it onto the agent.
 
 - **Rendered Reports QA** — the redesigned Organization Admin Reports views
   have automated component/App coverage and a green production build, but still

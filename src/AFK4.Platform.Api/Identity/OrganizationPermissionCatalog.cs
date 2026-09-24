@@ -11,6 +11,7 @@ public static class OrganizationPermissionCatalog
             {
                 OrganizationPermissionNames.CreateDeviceEnrollmentCode,
                 OrganizationPermissionNames.DispatchDeviceCommand,
+                OrganizationPermissionNames.MaintainDevice,
                 OrganizationPermissionNames.ViewDeviceCommandStatus,
                 OrganizationPermissionNames.RotateDeviceCredential,
                 OrganizationPermissionNames.RevokeDeviceCredential,
@@ -76,6 +77,7 @@ public static class OrganizationPermissionCatalog
             {
                 OrganizationPermissionNames.CreateDeviceEnrollmentCode,
                 OrganizationPermissionNames.DispatchDeviceCommand,
+                OrganizationPermissionNames.MaintainDevice,
                 OrganizationPermissionNames.ViewDeviceCommandStatus,
                 OrganizationPermissionNames.RotateDeviceCredential,
                 OrganizationPermissionNames.RevokeDeviceCredential,
@@ -207,6 +209,7 @@ public static class OrganizationPermissionCatalog
             {
                 OrganizationPermissionNames.CreateDeviceEnrollmentCode,
                 OrganizationPermissionNames.DispatchDeviceCommand,
+                OrganizationPermissionNames.MaintainDevice,
                 OrganizationPermissionNames.ViewDeviceCommandStatus,
                 OrganizationPermissionNames.RotateDeviceCredential,
                 OrganizationPermissionNames.RevokeDeviceCredential,
