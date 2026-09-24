@@ -966,14 +966,22 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   shell in front need a hook on the interactive desktop, and the agent sits in
   session 0. So a player can still Alt+Tab out of a "locked" PC — the difference
   is that the server no longer claims otherwise. That half belongs to the Player
-  Shell rewrite. Two shell buttons are still stubs in the host bridge
-  (`PlayerShellWebHostBridge`), but only on the shell side: «позвать оператора»
-  has its whole path below the button — the agent's `IAssistanceRequestReporter`,
-  `POST /api/devices/{id}/assistance-request`, the bell on the seat tile and
-  «Я подошёл» (#278); «пауза» is an operator action on the session
-  (`sessions/{id}/pause` and `/resume`, #279). Whether a player may pause
-  themselves from the shell is a product question for the rewrite. Clock drift is still detected and only logged — a deliberate
-  deferral until real fleets show whether they drift.
+  Shell rewrite (plan P5). Plan P1 of the rewrite (2026-09-24,
+  `docs/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
+  tell the shell the truth: one persistent pipe `afk4-shell-v2` with an ACL
+  instead of two open per-message pipes, state pushed on change instead of
+  polled, `offline` and `ending` actually produced, `IsOnline` from the last
+  contact instead of a constant, the seating code hidden when offline or
+  expired, grace no longer called a credit limit, games refused outside a
+  session and started in the player's session instead of session 0. «Позвать
+  оператора» now reaches the counter through the agent; the shell's «пауза» is
+  gone — pause stays the admin's (#279). **The agent and the shell must be
+  updated together:** the old and the new pipe do not talk, and until the first
+  club this is cheaper than a compatibility bridge. Not proven by any automated
+  check: the pipe ACL against a real standard user and a game appearing on the
+  player's screen — that is P5 acceptance on a live PC. Clock drift is still
+  detected and only logged — a deliberate deferral until real fleets show
+  whether they drift.
 
 - **Release registration needs a human.** Registering an update package is a
   platform-admin action behind two-factor, so CI cannot do it: `Package Smoke`
@@ -1033,28 +1041,37 @@ money pass all wait until the code of every part is finished and satisfies the
 owner. The Player Shell is last of all, and its current implementation is to be
 thrown away rather than polished.
 
-1. **The Player Shell, rewritten.** It is the least finished part of the
-   product: nine screens, ~1100 lines, its own inline styles instead of the kit
-   and tokens, and hardcoded Russian in every screen although `@afk4/i18n` is a
-   declared dependency and the agent already sends the branch's `Locale` (which
-   nothing reads). A Tajik club sees a Russian kiosk. The rewrite carries the
-   work that has to live in an interactive process: kiosk input blocking,
-   wiring «позвать оператора» to the agent's existing reporter (the server path
-   is done, #278), empty states in shop/extend. The player does not pause
-   themselves: pause stays the admin's (owner, 2026-09-23; admin pause is #279).
-2. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
+1. **The Player Shell, rewritten — started 2026-09-24.** The owner decided: a
+   player signs in on the PC itself (phone and PIN, or QR from the app) and
+   starts from the wallet; the shell replaces explorer for a dedicated player
+   account; the free PC is a club showcase, and on the free plan it also shows
+   platform ads; the session ends with a visit rating and optional tips. The
+   player does not pause themselves (owner, 2026-09-23). Scope and order are in
+   `docs/roadmap/production-readiness.md` → «Launch Scope»; requirements in the
+   PRD §6. Reading the current code found holes the rewrite has to close: the
+   next player inherits the previous sign-in (nothing signs out on lock, tokens
+   are never revoked); games are likely started from the service in session 0;
+   the command pipe has no ACL for a standard user; `IsOnline` is hardcoded and
+   `offline`/`ending`/`maintenance` are never produced; the shell's API address
+   is set by nobody, so it would call production from staging. None of this was
+   seen on a PC — reading only.
+2. **Pricing was never set in somoni.** The seeded Starter price of 2 900 TJS
+   was a ruble figure relabelled; the owner set free up to 10 PCs, then 10 TJS
+   per PC (billing spec §6a). Until the plans are reworked, do not show the old
+   prices to a club.
+3. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
    There are no clubs yet, so a package still reaches everyone at once, on purpose
    and guarded by a test. Before the first clubs, decide waves together with a view
    of how a rollout is going: device-level counts exist in `DeviceUpdateStatuses`,
    but no endpoint exposes them, and a wave nobody widens leaves part of the fleet
    behind silently.
-3. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
+4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
    checklist.
-4. **iOS does not ship yet** (owner, 2026-09-23) — no Apple account, no APNs
+5. **iOS does not ship yet** (owner, 2026-09-23) — no Apple account, no APNs
    key, no `ios` folder; revisit before launch.
-5. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
+6. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
    `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
    smoke.
 

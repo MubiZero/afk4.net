@@ -1,6 +1,6 @@
 # Wave B — Billing Dunning and Flexible Pricing
 
-**Status:** approved design, 2026-08-07
+**Status:** approved design, 2026-08-07. **Prices in §6 superseded on 2026-09-24 — see §6a.**
 **Epic:** platform admin gaps, wave B (money). Wave A (platform staff directory,
 mandatory TOTP, support mode) is closed — see
 `2026-08-04-platform-access-and-support-mode-design.md`.
@@ -171,6 +171,37 @@ test environment and must be stated in the runbook so nobody reads it as a
 conversion. The plan seeder only adds known plan codes that are missing; it never
 touches a code that already exists (custom plans included) — the currency rebase
 for existing rows is the migration's job, not the seeder's.
+
+## 6a. Pricing amendment (2026-09-24)
+
+The seeded prices above were never re-decided for somoni. §6 rebased the
+currency code and kept the digits — the same move it describes for staging
+data, "2 900 rubles becomes 2 900 somoni" — so the Starter plan asks
+2 900 TJS a month (about $315) where 2 900 ₽ is about 320 TJS. Against
+competitors this is three to nine times their price for a 10–30 PC club
+(SmartShell Starter ≈ 31 TJS per PC, Langame Basic ≈ 88, iCafeCloud ≈ 23).
+
+Owner's decision:
+
+- **Free plan:** up to 10 PCs, 1 branch, up to 3 staff, platform ads on the
+  lock screen (feature on the plan, see `PlanFeatureEntity`).
+- **Paid:** 10 TJS per PC per month above the first 10.
+- An unpaid subscription falls back to the free plan instead of blocking; a
+  club starts a 30-day trial and a 7-day promised payment
+  (`PaymentGraceUntilUtc`) itself.
+
+To be settled in the implementing plan, stated here so nobody guesses:
+
+- Current reading: only PCs beyond ten are billed, counted across the
+  organization (devices in `Approved` or `Pending`, as `EfPlanLimitGuard`
+  counts them); on the paid plan the free-plan limits and the ads are off.
+  If the owner meant "from the 11th PC every PC is billed", the formula changes
+  and nothing else does.
+- The invoice becomes quantity × unit price instead of a flat plan price; the
+  device count is fixed at the start of the billing period and a mid-period
+  increase is billed from the next one.
+- Growth and Scale stop being separate price points; network features stay
+  plan features.
 
 ## 7. Platform panel
 

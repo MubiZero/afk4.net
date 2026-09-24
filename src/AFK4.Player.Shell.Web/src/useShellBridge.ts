@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { onShellStateChanged } from './shellBridge';
-import { launchApp, loadShellState, pauseSession, requestOperator } from './shellClient';
+import { launchApp, loadShellState, requestOperator } from './shellClient';
 import type { PlayerShellState } from './shellContracts';
 
 export interface ShellBridge {
   state: PlayerShellState | null;
   launch: (appId: string) => Promise<{ status: string }>;
   requestOperator: () => Promise<{ requested: boolean }>;
-  pause: () => Promise<{ paused: boolean }>;
 }
 
 export function useShellBridge(): ShellBridge {
@@ -30,5 +29,5 @@ export function useShellBridge(): ShellBridge {
     };
   }, []);
 
-  return { state, launch: launchApp, requestOperator, pause: pauseSession };
+  return { state, launch: launchApp, requestOperator };
 }

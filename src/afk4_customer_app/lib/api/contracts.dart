@@ -629,6 +629,45 @@ abstract final class SessionStateNames {
   static const String reconciled = 'reconciled';
 }
 
+/// Словарь: Shell/ShellPipeProtocol.cs
+abstract final class ShellPipeErrorCodeNames {
+  static const String protocolMismatch = 'protocol_mismatch';
+  /// Хост подключился не из консольной сессии — например, по удалённому рабочему столу.
+  /// Состояние этого ПК и запуск игр принадлежат тому, кто сидит за монитором.
+  static const String wrongSession = 'wrong_session';
+  static const String invalidPayload = 'invalid_payload';
+  static const String unknownRequest = 'unknown_request';
+  /// Игры запускаются только во время сессии.
+  static const String noSession = 'no_session';
+  static const String appNotAllowed = 'app_not_allowed';
+  /// Игра в списке клуба, но её файла на этом ПК нет.
+  static const String appMissing = 'app_missing';
+  static const String launchFailed = 'launch_failed';
+  /// До платформы не достучались — стойка о вызове не узнала.
+  static const String platformUnreachable = 'platform_unreachable';
+  /// Хосту некуда отправить запрос: агента нет на другом конце канала.
+  static const String agentUnavailable = 'agent_unavailable';
+}
+
+/// Словарь: Shell/ShellPipeProtocol.cs
+abstract final class ShellPipeMessageTypeNames {
+  /// Хост представляется первым; без этого агент ничего не шлёт.
+  static const String hello = 'hello';
+  /// Агент прощается: версия протокола не та или хост не из той сессии.
+  static const String bye = 'bye';
+  static const String state = 'state';
+  static const String request = 'request';
+  static const String reply = 'reply';
+}
+
+/// Словарь: Shell/ShellPipeProtocol.cs
+abstract final class ShellPipeRequestTypeNames {
+  /// Запустить игру из списка клуба. В теле — `appId`.
+  static const String launch = 'launch';
+  /// Позвать администратора к этому ПК.
+  static const String assist = 'assist';
+}
+
 /// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
 /// причина: у кассы эти отказы самые частые, а без кода до кассира доезжала английская фраза
 /// сервера вместе с сырым телом ответа.
@@ -11194,64 +11233,6 @@ class PlayerSelfStartRequest {
       };
 }
 
-/// Контракт: Shell/PlayerShellCommandDto.cs
-class PlayerShellCommandDto {
-  const PlayerShellCommandDto({
-    required this.commandId,
-    required this.type,
-    required this.createdAtUtc,
-    required this.payload,
-  });
-
-  final String commandId;
-  final String type;
-  final DateTime createdAtUtc;
-  final Map<String, String> payload;
-
-  factory PlayerShellCommandDto.fromJson(Map<String, dynamic> json) => PlayerShellCommandDto(
-        commandId: json['commandId'] as String,
-        type: json['type'] as String,
-        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
-        payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'commandId': commandId,
-        'type': type,
-        'createdAtUtc': createdAtUtc.toIso8601String(),
-        'payload': payload.map((key, value) => MapEntry(key, value)),
-      };
-}
-
-/// Контракт: Shell/PlayerShellCommandResultDto.cs
-class PlayerShellCommandResultDto {
-  const PlayerShellCommandResultDto({
-    required this.commandId,
-    required this.status,
-    required this.message,
-    required this.observedAtUtc,
-  });
-
-  final String commandId;
-  final String status;
-  final String message;
-  final DateTime observedAtUtc;
-
-  factory PlayerShellCommandResultDto.fromJson(Map<String, dynamic> json) => PlayerShellCommandResultDto(
-        commandId: json['commandId'] as String,
-        status: json['status'] as String,
-        message: json['message'] as String,
-        observedAtUtc: DateTime.parse(json['observedAtUtc'] as String),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'commandId': commandId,
-        'status': status,
-        'message': message,
-        'observedAtUtc': observedAtUtc.toIso8601String(),
-      };
-}
-
 /// Контракт: Shell/PlayerShellStateDto.cs
 class PlayerShellStateDto {
   const PlayerShellStateDto({
@@ -11271,6 +11252,10 @@ class PlayerShellStateDto {
     this.warningKind,
     this.branding,
     this.seatingCode,
+    this.seatingCodeExpiresAtUtc,
+    this.observedAtUtc,
+    this.lastContactUtc,
+    this.apiBaseUrl,
   });
 
   final String organizationId;
@@ -11294,6 +11279,19 @@ class PlayerShellStateDto {
   /// позвать человека к машине, которую сервер ему не отдаст.
   final String? seatingCode;
 
+  /// Когда код сменится: оболочка показывает, сколько ему осталось, а просроченный не рисует.
+  final DateTime? seatingCodeExpiresAtUtc;
+
+  /// Время платформы в момент, когда агент собрал это состояние. Срок аренды — тоже время
+  /// платформы, а часы ПК могут от неё отставать: поправку хост считает по этому полю.
+  final DateTime? observedAtUtc;
+
+  /// Когда агент в последний раз достучался до платформы. Пусто — ни разу с запуска службы.
+  final DateTime? lastContactUtc;
+
+  /// Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить.
+  final String? apiBaseUrl;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -11311,6 +11309,10 @@ class PlayerShellStateDto {
         warningKind: json['warningKind'] == null ? null : json['warningKind'] as String,
         branding: json['branding'] == null ? null : ShellBrandingDto.fromJson(json['branding'] as Map<String, dynamic>),
         seatingCode: json['seatingCode'] == null ? null : json['seatingCode'] as String,
+        seatingCodeExpiresAtUtc: json['seatingCodeExpiresAtUtc'] == null ? null : DateTime.parse(json['seatingCodeExpiresAtUtc'] as String),
+        observedAtUtc: json['observedAtUtc'] == null ? null : DateTime.parse(json['observedAtUtc'] as String),
+        lastContactUtc: json['lastContactUtc'] == null ? null : DateTime.parse(json['lastContactUtc'] as String),
+        apiBaseUrl: json['apiBaseUrl'] == null ? null : json['apiBaseUrl'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -11330,6 +11332,10 @@ class PlayerShellStateDto {
         'warningKind': warningKind,
         'branding': branding?.toJson(),
         'seatingCode': seatingCode,
+        'seatingCodeExpiresAtUtc': seatingCodeExpiresAtUtc?.toIso8601String(),
+        'observedAtUtc': observedAtUtc?.toIso8601String(),
+        'lastContactUtc': lastContactUtc?.toIso8601String(),
+        'apiBaseUrl': apiBaseUrl,
       };
 }
 
@@ -14455,6 +14461,136 @@ class ShellBrandingDto {
         'clubName': clubName,
         'logoUrl': logoUrl,
         'accentColor': accentColor,
+      };
+}
+
+/// Контракт: Shell/ShellPipeMessage.cs
+class ShellPipeHelloDto {
+  const ShellPipeHelloDto({
+    required this.protocol,
+    required this.hostVersion,
+    required this.sessionId,
+  });
+
+  final int protocol;
+  final String hostVersion;
+
+  /// Сессия Windows, в которой живёт хост. Агент сверяет её с консольной: хост из чужой
+  /// сессии получать состояние этого ПК не должен.
+  final int sessionId;
+
+  factory ShellPipeHelloDto.fromJson(Map<String, dynamic> json) => ShellPipeHelloDto(
+        protocol: (json['protocol'] as num).toInt(),
+        hostVersion: json['hostVersion'] as String,
+        sessionId: (json['sessionId'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'protocol': protocol,
+        'hostVersion': hostVersion,
+        'sessionId': sessionId,
+      };
+}
+
+/// Один кадр канала агент ↔ хост. Заполнено ровно то поле, которое называет Type:
+/// так кадр читается одним типом, без второго разбора по виду сообщения.
+///
+/// Контракт: Shell/ShellPipeMessage.cs
+class ShellPipeMessage {
+  const ShellPipeMessage({
+    required this.type,
+    this.hello,
+    this.state,
+    this.request,
+    this.reply,
+    this.reason,
+  });
+
+
+  /// Одно из ShellPipeMessageTypeNames.
+  final String type;
+  final ShellPipeHelloDto? hello;
+  final PlayerShellStateDto? state;
+  final ShellPipeRequestDto? request;
+  final ShellPipeReplyDto? reply;
+
+  /// Почему агент попрощался; только у bye.
+  final String? reason;
+
+  factory ShellPipeMessage.fromJson(Map<String, dynamic> json) => ShellPipeMessage(
+        type: json['type'] as String,
+        hello: json['hello'] == null ? null : ShellPipeHelloDto.fromJson(json['hello'] as Map<String, dynamic>),
+        state: json['state'] == null ? null : PlayerShellStateDto.fromJson(json['state'] as Map<String, dynamic>),
+        request: json['request'] == null ? null : ShellPipeRequestDto.fromJson(json['request'] as Map<String, dynamic>),
+        reply: json['reply'] == null ? null : ShellPipeReplyDto.fromJson(json['reply'] as Map<String, dynamic>),
+        reason: json['reason'] == null ? null : json['reason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'hello': hello?.toJson(),
+        'state': state?.toJson(),
+        'request': request?.toJson(),
+        'reply': reply?.toJson(),
+        'reason': reason,
+      };
+}
+
+/// Контракт: Shell/ShellPipeMessage.cs
+class ShellPipeReplyDto {
+  const ShellPipeReplyDto({
+    required this.requestId,
+    required this.ok,
+    this.errorCode,
+    this.message,
+  });
+
+  final String requestId;
+  final bool ok;
+
+  /// Одно из ShellPipeErrorCodeNames; пусто при успехе.
+  final String? errorCode;
+  final String? message;
+
+  factory ShellPipeReplyDto.fromJson(Map<String, dynamic> json) => ShellPipeReplyDto(
+        requestId: json['requestId'] as String,
+        ok: json['ok'] as bool,
+        errorCode: json['errorCode'] == null ? null : json['errorCode'] as String,
+        message: json['message'] == null ? null : json['message'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'requestId': requestId,
+        'ok': ok,
+        'errorCode': errorCode,
+        'message': message,
+      };
+}
+
+/// Контракт: Shell/ShellPipeMessage.cs
+class ShellPipeRequestDto {
+  const ShellPipeRequestDto({
+    required this.requestId,
+    required this.type,
+    required this.payload,
+  });
+
+  final String requestId;
+
+  /// Одно из ShellPipeRequestTypeNames.
+  final String type;
+  final Map<String, String> payload;
+
+  factory ShellPipeRequestDto.fromJson(Map<String, dynamic> json) => ShellPipeRequestDto(
+        requestId: json['requestId'] as String,
+        type: json['type'] as String,
+        payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'requestId': requestId,
+        'type': type,
+        'payload': payload.map((key, value) => MapEntry(key, value)),
       };
 }
 

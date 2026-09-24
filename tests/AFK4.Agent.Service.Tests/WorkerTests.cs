@@ -48,7 +48,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -56,7 +56,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -92,7 +92,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: false),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -100,7 +100,7 @@ public sealed class WorkerTests
             graceState,
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -137,7 +137,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: false),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -145,7 +145,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -183,7 +183,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector(
@@ -199,7 +199,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -238,7 +238,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new NoOpDeviceCommandHandler(options.Value),
             new RecordingSessionReconciliationReporter(calls),
             new StaticInstalledAppInventoryCollector(
@@ -254,7 +254,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -300,7 +300,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             commandHandler,
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -308,7 +308,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             commandResultOutbox,
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -358,7 +358,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             commandHandler,
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -366,7 +366,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             commandResultOutbox,
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -410,7 +410,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new RecordingDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -418,7 +418,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             commandResultOutbox,
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -429,6 +429,88 @@ public sealed class WorkerTests
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Empty(commandResultOutbox.Pending);
+    }
+
+    // Код посадки, оформление и интервал приезжают сердцебиением, а на экран их отдаёт канал.
+    // Работник только кладёт их в снимок и будит канал — сам состояние он больше не собирает.
+    [Fact]
+    public async Task ExecuteAsync_OnSuccessfulHeartbeat_FeedsTheShellSnapshotAndWakesThePipe()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var branding = new ShellBrandingDto("Клуб «Орион»", null, "#C8FF00");
+        var codeExpiresAtUtc = DateTimeOffset.Parse("2026-09-24T20:05:00Z");
+        using var handler = new ShellFeedHeartbeatHandler("418207", codeExpiresAtUtc, branding, intervalSeconds: 7);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001"
+        });
+        var snapshot = new ShellHeartbeatSnapshot();
+        var signal = new RecordingShellStateSignal(stopping);
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(handler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            snapshot,
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            signal,
+            TimeProvider.System);
+
+        await worker.StartAsync(stopping.Token);
+        await signal.Notified.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal("418207", snapshot.SeatingCode);
+        Assert.Equal(codeExpiresAtUtc, snapshot.SeatingCodeExpiresAtUtc);
+        Assert.Equal(branding, snapshot.Branding);
+        Assert.Equal(7, snapshot.IntervalSeconds);
+    }
+
+    private sealed class RecordingShellStateSignal(CancellationTokenSource stopping) : IShellStateSignal
+    {
+        public TaskCompletionSource Notified { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Notify()
+        {
+            Notified.TrySetResult();
+            stopping.Cancel();
+        }
+
+        public Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class ShellFeedHeartbeatHandler(
+        string seatingCode,
+        DateTimeOffset seatingCodeExpiresAtUtc,
+        ShellBrandingDto branding,
+        int intervalSeconds) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new DeviceHeartbeatResponse(
+                    ServerTimeUtc: DateTimeOffset.UtcNow,
+                    HeartbeatIntervalSeconds: intervalSeconds,
+                    Commands: [],
+                    SeatingCode: seatingCode,
+                    SeatingCodeExpiresAtUtc: seatingCodeExpiresAtUtc,
+                    Branding: branding))
+            });
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
@@ -468,7 +550,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -476,7 +558,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -535,14 +617,6 @@ public sealed class WorkerTests
     private sealed class NoOpPlayerShellProcessSupervisor : IPlayerShellProcessSupervisor
     {
         public Task EnsureRunningAsync(AgentRuntimeState runtimeState, CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class NoOpPlayerShellStatePublisher : IPlayerShellStatePublisher
-    {
-        public Task PublishAsync(PlayerShellStateDto state, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
         }
@@ -735,7 +809,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new RecordingDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -743,7 +817,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System,
             new ProcessPolicyEnforcer(options, terminator, NullLogger<ProcessPolicyEnforcer>.Instance));
 
@@ -811,7 +885,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new RecordingDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -819,7 +893,7 @@ public sealed class WorkerTests
             new SignalingGraceState(synchronized),
             new InMemoryCommandResultOutbox(),
             new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             clock,
             processPolicyEnforcer: null,
             clock);
@@ -1075,7 +1149,7 @@ public sealed class WorkerTests
             new RecordingRuntimeStateStore(isLocked: false),
             new NoOpGraceModeMonitor(),
             new NoOpPlayerShellProcessSupervisor(),
-            new NoOpPlayerShellStatePublisher(),
+            new ShellHeartbeatSnapshot(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -1083,7 +1157,7 @@ public sealed class WorkerTests
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
             credentialStore,
-            new ShellWarningStore(),
+            new ShellStateSignal(),
             TimeProvider.System);
 
     // Ради этого всё и делается: просьба пришла сердцебиением — ключ сменился без человека.
