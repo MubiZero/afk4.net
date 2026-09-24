@@ -174,4 +174,33 @@ public class TariffScheduleTests
         Assert.Null(TariffSchedule.Validate(TariffSchedule.EveryDayMask, 8 * 60, 16 * 60));
         Assert.Null(TariffSchedule.Validate(Saturday | Sunday, 22 * 60, 6 * 60));
     }
+
+    [Fact]
+    public void NextStart_OfAMorningTariffInTheEvening_IsTomorrowMorningByClubTime()
+    {
+        // Понедельник 20:00 в клубе (+5) — утренний 08:00–16:00 откроется во вторник в 08:00.
+        var eveningUtc = new DateTimeOffset(2026, 8, 17, 15, 0, 0, TimeSpan.Zero);
+
+        var next = TariffSchedule.NextStartUtc(TariffSchedule.EveryDayMask, 8 * 60, 16 * 60, eveningUtc, Plus5);
+
+        Assert.Equal(new DateTimeOffset(2026, 8, 18, 3, 0, 0, TimeSpan.Zero), next);
+    }
+
+    [Fact]
+    public void NextStart_OfAWeekendTariffOnMonday_IsSaturday()
+    {
+        var mondayUtc = Utc0(17, 10);
+
+        var next = TariffSchedule.NextStartUtc(Saturday | Sunday, null, null, mondayUtc, Utc);
+
+        Assert.Equal(Utc0(22, 0), next);
+    }
+
+    [Fact]
+    public void NextStart_OfATariffThatAppliesNow_IsNow()
+    {
+        var now = Utc0(17, 10);
+
+        Assert.Equal(now, TariffSchedule.NextStartUtc(TariffSchedule.EveryDayMask, null, null, now, Utc));
+    }
 }

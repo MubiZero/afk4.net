@@ -69,6 +69,45 @@ public static class TariffSchedule
     }
 
     /// <summary>
+    /// Когда тариф откроется в ближайший раз, начиная с <paramref name="instant"/>: экран выбора
+    /// показывает «Утренний — с 08:00» вместо того, чтобы молча прятать его вечером. Если тариф
+    /// действует уже сейчас — сам момент; <c>null</c> — в ближайшую неделю не откроется.
+    /// </summary>
+    public static DateTimeOffset? NextStartUtc(
+        int daysMask,
+        int? fromMinuteOfDay,
+        int? toMinuteOfDay,
+        DateTimeOffset instant,
+        TimeZoneInfo zone)
+    {
+        if (AppliesAt(daysMask, fromMinuteOfDay, toMinuteOfDay, instant, zone))
+        {
+            return instant;
+        }
+
+        var hasHours = fromMinuteOfDay is int from && toMinuteOfDay is int to && from != to;
+        var startMinute = hasHours ? fromMinuteOfDay!.Value : 0;
+        var localToday = TimeZoneInfo.ConvertTime(instant, zone).Date;
+        for (var dayOffset = 0; dayOffset <= 7; dayOffset++)
+        {
+            var localDate = localToday.AddDays(dayOffset);
+            if (!MatchesDay(daysMask, localDate.DayOfWeek))
+            {
+                continue;
+            }
+
+            var localStart = DateTime.SpecifyKind(localDate.AddMinutes(startMinute), DateTimeKind.Unspecified);
+            var startUtc = new DateTimeOffset(localStart, zone.GetUtcOffset(localStart));
+            if (startUtc > instant)
+            {
+                return startUtc;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Проверяет расписание при записи. Возвращает машинный код ошибки или <c>null</c>.
     /// </summary>
     public static string? Validate(int daysMask, int? fromMinuteOfDay, int? toMinuteOfDay)
