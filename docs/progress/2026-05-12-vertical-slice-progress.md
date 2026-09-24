@@ -943,7 +943,7 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 ## Known Gaps
 
 - **The PC does not use its own sign-in yet.** Since P2a (2026-09-24,
-  `docs/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
+  `docs/archive/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
   sign in on a gaming PC through the agent (`/api/devices/{id}/player-sign-in`):
   attempts are counted per machine, a player never gets into someone else's
   session, and the tokens are bound to the PC and revoked by the server — five
@@ -985,7 +985,7 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   session 0. So a player can still Alt+Tab out of a "locked" PC — the difference
   is that the server no longer claims otherwise. That half belongs to the Player
   Shell rewrite (plan P5). Plan P1 of the rewrite (2026-09-24,
-  `docs/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
+  `docs/archive/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
   tell the shell the truth: one persistent pipe `afk4-shell-v2` with an ACL
   instead of two open per-message pipes, state pushed on change instead of
   polled, `offline` and `ending` actually produced, `IsOnline` from the last
@@ -1066,13 +1066,16 @@ thrown away rather than polished.
    platform ads; the session ends with a visit rating and optional tips. The
    player does not pause themselves (owner, 2026-09-23). Scope and order are in
    `docs/roadmap/production-readiness.md` → «Launch Scope»; requirements in the
-   PRD §6. Reading the current code found holes the rewrite has to close: the
-   next player inherits the previous sign-in (nothing signs out on lock, tokens
-   are never revoked); games are likely started from the service in session 0;
-   the command pipe has no ACL for a standard user; `IsOnline` is hardcoded and
-   `offline`/`ending`/`maintenance` are never produced; the shell's API address
-   is set by nobody, so it would call production from staging. None of this was
-   seen on a PC — reading only.
+   PRD §6; design in `docs/superpowers/specs/2026-09-24-player-shell-rewrite-design.md`.
+   **Merged on 2026-09-24:** P1 — the agent tells the truth (#443: one ACL'd pipe,
+   pushed state, real `offline`/`ending`, games in the player's session) and P2 —
+   the server side (#444–#448: sign-in on the PC with device-bound tokens revoked by
+   the server, QR sign-in and a single-use seating code, prices before the click,
+   package starts, device commands, and a refund of the unplayed time on every early
+   end). **Next:** P3 — the host (bridge v2, sign-in through the agent, the agent
+   filling seat/owner/features into the state, executing the new commands and
+   reporting its MAC); the new UI (#449–#450, P4) ships together with it in one MSI.
+   Nothing of this has run on a real PC yet — that is P5 acceptance.
 2. **Pricing was never set in somoni.** The seeded Starter price of 2 900 TJS
    was a ruble figure relabelled; the owner set free up to 10 PCs, then 10 TJS
    per PC (billing spec §6a). Until the plans are reworked, do not show the old
