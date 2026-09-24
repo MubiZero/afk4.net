@@ -608,6 +608,60 @@ abstract final class SessionStateNames {
   static const String reconciled = 'reconciled';
 }
 
+/// Словарь: Shell/ShellBridgeContracts.cs
+abstract final class ShellBridgeErrorCodeNames {
+  /// Номер или ПИН-код не подошли.
+  static const String signInRefused = 'sign_in_refused';
+  /// С этого ПК слишком много неудачных входов.
+  static const String tooManyAttempts = 'too_many_attempts';
+  /// На ПК идёт чужая сессия.
+  static const String sessionNotYours = 'session_not_yours';
+  /// Агента нет на связи — войти и запустить игру сейчас нельзя.
+  static const String agentUnavailable = 'agent_unavailable';
+}
+
+/// Словарь: Shell/ShellBridgeContracts.cs
+abstract final class ShellBridgeEventTypeNames {
+  /// Состояние ПК от агента — PlayerShellStateDto.
+  static const String stateChanged = 'state.changed';
+  /// Вошёл ли игрок на этом ПК — ShellAuthStateDto.
+  static const String authChanged = 'auth.changed';
+  /// Мышь или клавиатура тронуты: витрина уступает место окну входа.
+  static const String inputActivity = 'input.activity';
+  /// Тишина дольше порога: окно входа закрывается, вошедший выходит.
+  static const String inputIdle = 'input.idle';
+  /// Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр.
+  static const String gameForeground = 'game.foreground';
+  /// Громкость, микрофон, раскладка — ShellSystemStateDto.
+  static const String systemChanged = 'system.changed';
+  static const String showcaseChanged = 'showcase.changed';
+}
+
+/// Мост хост ↔ интерфейс оболочки, версия 2 (спека оболочки, §4.4). Конверт запроса и ответа —
+/// общий, из @afk4/host-bridge; здесь — имена и тела. Записи C# дают типы и хосту, и странице:
+/// две руками написанные копии однажды разошлись бы.
+///
+/// Словарь: Shell/ShellBridgeContracts.cs
+abstract final class ShellBridgeRequestTypeNames {
+  /// Страница загрузилась и слушает. Ответ — ShellSnapshotDto: всё, что хост уже знает. Без
+  /// этого состояние, отправленное до того, как React подписался, терялось бы, и экран ждал бы
+  /// следующего пульса агента.
+  static const String shellReady = 'shell.ready';
+  /// Войти номером и ПИН-кодом — через агента, токены привязаны к этому ПК.
+  static const String authSignIn = 'auth.signIn';
+  static const String authSignOut = 'auth.signOut';
+  /// Запустить игру из библиотеки клуба.
+  static const String appLaunch = 'app.launch';
+  /// Позвать администратора к этому ПК.
+  static const String assistCall = 'assist.call';
+  static const String systemSetVolume = 'system.setVolume';
+  static const String systemSetMicMuted = 'system.setMicMuted';
+  static const String systemSetLayout = 'system.setLayout';
+  /// Язык интерфейса выбран на экране: хост запоминает его до выхода игрока.
+  static const String uiSetLocale = 'ui.setLocale';
+  static const String showcaseImpression = 'showcase.impression';
+}
+
 /// Словарь: Shell/ShellPipeProtocol.cs
 abstract final class ShellPipeErrorCodeNames {
   static const String protocolMismatch = 'protocol_mismatch';
@@ -11099,6 +11153,11 @@ class PlayerShellStateDto {
     this.observedAtUtc,
     this.lastContactUtc,
     this.apiBaseUrl,
+    this.seatLabel,
+    this.zoneName,
+    this.sessionOwnerKind,
+    this.sessionOwnerPlayerAccountId,
+    this.features,
   });
 
   final String organizationId;
@@ -11135,6 +11194,22 @@ class PlayerShellStateDto {
   /// Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить.
   final String? apiBaseUrl;
 
+  /// Место этого ПК — «ПК 07»: первое, что читается на экране, и видно от стойки.
+  final String? seatLabel;
+
+  /// Зона места — «Общий зал».
+  final String? zoneName;
+
+  /// Чья сессия идёт: none, guest или player. Вошедшему не владельцу экран говорит «эта сессия
+  /// не ваша» и ничего не открывает.
+  final String? sessionOwnerKind;
+
+  /// Счёт владельца сессии — только у player.
+  final String? sessionOwnerPlayerAccountId;
+
+  /// Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека.
+  final List<String>? features;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -11156,6 +11231,11 @@ class PlayerShellStateDto {
         observedAtUtc: json['observedAtUtc'] == null ? null : DateTime.parse(json['observedAtUtc'] as String),
         lastContactUtc: json['lastContactUtc'] == null ? null : DateTime.parse(json['lastContactUtc'] as String),
         apiBaseUrl: json['apiBaseUrl'] == null ? null : json['apiBaseUrl'] as String,
+        seatLabel: json['seatLabel'] == null ? null : json['seatLabel'] as String,
+        zoneName: json['zoneName'] == null ? null : json['zoneName'] as String,
+        sessionOwnerKind: json['sessionOwnerKind'] == null ? null : json['sessionOwnerKind'] as String,
+        sessionOwnerPlayerAccountId: json['sessionOwnerPlayerAccountId'] == null ? null : json['sessionOwnerPlayerAccountId'] as String,
+        features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -11179,6 +11259,11 @@ class PlayerShellStateDto {
         'observedAtUtc': observedAtUtc?.toIso8601String(),
         'lastContactUtc': lastContactUtc?.toIso8601String(),
         'apiBaseUrl': apiBaseUrl,
+        'seatLabel': seatLabel,
+        'zoneName': zoneName,
+        'sessionOwnerKind': sessionOwnerKind,
+        'sessionOwnerPlayerAccountId': sessionOwnerPlayerAccountId,
+        'features': features?.map((item) => item).toList(),
       };
 }
 
@@ -14282,6 +14367,54 @@ class SettlePosSaleRequest {
       };
 }
 
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellAuthSignInRequest {
+  const ShellAuthSignInRequest({
+    required this.phone,
+    required this.pin,
+  });
+
+  final String phone;
+  final String pin;
+
+  factory ShellAuthSignInRequest.fromJson(Map<String, dynamic> json) => ShellAuthSignInRequest(
+        phone: json['phone'] as String,
+        pin: json['pin'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'phone': phone,
+        'pin': pin,
+      };
+}
+
+/// Кто вошёл на этом ПК. Токены страница не видит: их держит хост.
+///
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellAuthStateDto {
+  const ShellAuthStateDto({
+    required this.signedIn,
+    this.displayName,
+    this.playerAccountId,
+  });
+
+  final bool signedIn;
+  final String? displayName;
+  final String? playerAccountId;
+
+  factory ShellAuthStateDto.fromJson(Map<String, dynamic> json) => ShellAuthStateDto(
+        signedIn: json['signedIn'] as bool,
+        displayName: json['displayName'] == null ? null : json['displayName'] as String,
+        playerAccountId: json['playerAccountId'] == null ? null : json['playerAccountId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'signedIn': signedIn,
+        'displayName': displayName,
+        'playerAccountId': playerAccountId,
+      };
+}
+
 /// Контракт: Shell/ShellBrandingDto.cs
 class ShellBrandingDto {
   const ShellBrandingDto({
@@ -14304,6 +14437,40 @@ class ShellBrandingDto {
         'clubName': clubName,
         'logoUrl': logoUrl,
         'accentColor': accentColor,
+      };
+}
+
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellGameForegroundDto {
+  const ShellGameForegroundDto({
+    required this.active,
+  });
+
+  final bool active;
+
+  factory ShellGameForegroundDto.fromJson(Map<String, dynamic> json) => ShellGameForegroundDto(
+        active: json['active'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'active': active,
+      };
+}
+
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellLaunchRequest {
+  const ShellLaunchRequest({
+    required this.appId,
+  });
+
+  final String appId;
+
+  factory ShellLaunchRequest.fromJson(Map<String, dynamic> json) => ShellLaunchRequest(
+        appId: json['appId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'appId': appId,
       };
 }
 
@@ -14434,6 +14601,64 @@ class ShellPipeRequestDto {
         'requestId': requestId,
         'type': type,
         'payload': payload.map((key, value) => MapEntry(key, value)),
+      };
+}
+
+/// Всё, что хост знает к моменту, когда страница загрузилась.
+///
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellSnapshotDto {
+  const ShellSnapshotDto({
+    this.state,
+    required this.auth,
+    this.system,
+  });
+
+
+  /// Пусто — агент ещё не прислал состояния: экран говорит «подключаемся к ПК».
+  final PlayerShellStateDto? state;
+  final ShellAuthStateDto auth;
+  final ShellSystemStateDto? system;
+
+  factory ShellSnapshotDto.fromJson(Map<String, dynamic> json) => ShellSnapshotDto(
+        state: json['state'] == null ? null : PlayerShellStateDto.fromJson(json['state'] as Map<String, dynamic>),
+        auth: ShellAuthStateDto.fromJson(json['auth'] as Map<String, dynamic>),
+        system: json['system'] == null ? null : ShellSystemStateDto.fromJson(json['system'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'state': state?.toJson(),
+        'auth': auth.toJson(),
+        'system': system?.toJson(),
+      };
+}
+
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellSystemStateDto {
+  const ShellSystemStateDto({
+    required this.volume,
+    required this.micMuted,
+    required this.layout,
+  });
+
+
+  /// 0–100.
+  final int volume;
+  final bool micMuted;
+
+  /// Раскладка клавиатуры: «RU», «EN», «TG».
+  final String layout;
+
+  factory ShellSystemStateDto.fromJson(Map<String, dynamic> json) => ShellSystemStateDto(
+        volume: (json['volume'] as num).toInt(),
+        micMuted: json['micMuted'] as bool,
+        layout: json['layout'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'volume': volume,
+        'micMuted': micMuted,
+        'layout': layout,
       };
 }
 

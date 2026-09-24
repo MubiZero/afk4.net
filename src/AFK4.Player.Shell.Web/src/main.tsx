@@ -2,12 +2,22 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@afk4/i18n';
 import { App } from './App';
-import './styles.css';
+import './styles/shell.css';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <I18nProvider>
-      <App />
-    </I18nProvider>
-  </StrictMode>
-);
+async function start() {
+  // Учебный хост — только в dev-сборке: без WPF и агента экран листается сценариями.
+  if (import.meta.env.DEV && !window.chrome?.webview) {
+    const { installDevHost } = await import('./host/devHost');
+    installDevHost();
+  }
+
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <I18nProvider>
+        <App />
+      </I18nProvider>
+    </StrictMode>
+  );
+}
+
+void start();

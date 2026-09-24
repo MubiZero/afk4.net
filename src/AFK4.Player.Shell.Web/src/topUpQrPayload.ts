@@ -1,4 +1,4 @@
-import type { PlayerTopUpIntentDto } from './apiTypes';
+import type { PlayerTopUpIntentDto } from '@afk4/contracts';
 
 /**
  * Что кодировать в QR на экране пополнения.

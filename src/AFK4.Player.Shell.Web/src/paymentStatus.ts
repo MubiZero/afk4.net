@@ -1,4 +1,4 @@
-import type { PlayerTopUpIntentDto } from './apiTypes';
+import type { PlayerTopUpIntentDto } from '@afk4/contracts';
 
 export type PaymentStatus = 'pending' | 'fulfilled' | 'expired' | 'disputed';
 

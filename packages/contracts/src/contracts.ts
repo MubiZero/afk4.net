@@ -726,6 +726,67 @@ export const SessionStateNames = {
 } as const;
 export type SessionStateName = (typeof SessionStateNames)[keyof typeof SessionStateNames];
 
+/** Словарь: Shell/ShellBridgeContracts.cs */
+export const ShellBridgeErrorCodeNames = {
+  /** Номер или ПИН-код не подошли. */
+  SignInRefused: 'sign_in_refused',
+  /** С этого ПК слишком много неудачных входов. */
+  TooManyAttempts: 'too_many_attempts',
+  /** На ПК идёт чужая сессия. */
+  SessionNotYours: 'session_not_yours',
+  /** Агента нет на связи — войти и запустить игру сейчас нельзя. */
+  AgentUnavailable: 'agent_unavailable',
+} as const;
+export type ShellBridgeErrorCodeName = (typeof ShellBridgeErrorCodeNames)[keyof typeof ShellBridgeErrorCodeNames];
+
+/** Словарь: Shell/ShellBridgeContracts.cs */
+export const ShellBridgeEventTypeNames = {
+  /** Состояние ПК от агента — PlayerShellStateDto. */
+  StateChanged: 'state.changed',
+  /** Вошёл ли игрок на этом ПК — ShellAuthStateDto. */
+  AuthChanged: 'auth.changed',
+  /** Мышь или клавиатура тронуты: витрина уступает место окну входа. */
+  InputActivity: 'input.activity',
+  /** Тишина дольше порога: окно входа закрывается, вошедший выходит. */
+  InputIdle: 'input.idle',
+  /** Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр. */
+  GameForeground: 'game.foreground',
+  /** Громкость, микрофон, раскладка — ShellSystemStateDto. */
+  SystemChanged: 'system.changed',
+  ShowcaseChanged: 'showcase.changed',
+} as const;
+export type ShellBridgeEventTypeName = (typeof ShellBridgeEventTypeNames)[keyof typeof ShellBridgeEventTypeNames];
+
+/**
+ * Мост хост ↔ интерфейс оболочки, версия 2 (спека оболочки, §4.4). Конверт запроса и ответа —
+ * общий, из @afk4/host-bridge; здесь — имена и тела. Записи C# дают типы и хосту, и странице:
+ * две руками написанные копии однажды разошлись бы.
+ *
+ * Словарь: Shell/ShellBridgeContracts.cs
+ */
+export const ShellBridgeRequestTypeNames = {
+  /**
+   * Страница загрузилась и слушает. Ответ — ShellSnapshotDto: всё, что хост уже знает. Без
+   * этого состояние, отправленное до того, как React подписался, терялось бы, и экран ждал бы
+   * следующего пульса агента.
+   */
+  ShellReady: 'shell.ready',
+  /** Войти номером и ПИН-кодом — через агента, токены привязаны к этому ПК. */
+  AuthSignIn: 'auth.signIn',
+  AuthSignOut: 'auth.signOut',
+  /** Запустить игру из библиотеки клуба. */
+  AppLaunch: 'app.launch',
+  /** Позвать администратора к этому ПК. */
+  AssistCall: 'assist.call',
+  SystemSetVolume: 'system.setVolume',
+  SystemSetMicMuted: 'system.setMicMuted',
+  SystemSetLayout: 'system.setLayout',
+  /** Язык интерфейса выбран на экране: хост запоминает его до выхода игрока. */
+  UiSetLocale: 'ui.setLocale',
+  ShowcaseImpression: 'showcase.impression',
+} as const;
+export type ShellBridgeRequestTypeName = (typeof ShellBridgeRequestTypeNames)[keyof typeof ShellBridgeRequestTypeNames];
+
 /** Словарь: Shell/ShellPipeProtocol.cs */
 export const ShellPipeErrorCodeNames = {
   ProtocolMismatch: 'protocol_mismatch',
@@ -4369,6 +4430,19 @@ export interface PlayerShellStateDto {
   lastContactUtc?: IsoDateTime | null;
   /** Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить. */
   apiBaseUrl?: string | null;
+  /** Место этого ПК — «ПК 07»: первое, что читается на экране, и видно от стойки. */
+  seatLabel?: string | null;
+  /** Зона места — «Общий зал». */
+  zoneName?: string | null;
+  /**
+   * Чья сессия идёт: none, guest или player. Вошедшему не владельцу экран говорит «эта сессия
+   * не ваша» и ничего не открывает.
+   */
+  sessionOwnerKind?: string | null;
+  /** Счёт владельца сессии — только у player. */
+  sessionOwnerPlayerAccountId?: Guid | null;
+  /** Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека. */
+  features?: string[] | null;
 }
 
 /**
@@ -5443,11 +5517,38 @@ export interface SettlePosSaleRequest {
   idempotencyKey: string;
 }
 
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellAuthSignInRequest {
+  phone: string;
+  pin: string;
+}
+
+/**
+ * Кто вошёл на этом ПК. Токены страница не видит: их держит хост.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
+export interface ShellAuthStateDto {
+  signedIn: boolean;
+  displayName?: string | null;
+  playerAccountId?: Guid | null;
+}
+
 /** Контракт: Shell/ShellBrandingDto.cs */
 export interface ShellBrandingDto {
   clubName: string;
   logoUrl: string | null;
   accentColor: string | null;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellGameForegroundDto {
+  active: boolean;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellLaunchRequest {
+  appId: string;
 }
 
 /** Контракт: Shell/ShellPipeMessage.cs */
@@ -5493,6 +5594,27 @@ export interface ShellPipeRequestDto {
   /** Одно из ShellPipeRequestTypeNames. */
   type: ShellPipeRequestTypeName;
   payload: Record<string, string>;
+}
+
+/**
+ * Всё, что хост знает к моменту, когда страница загрузилась.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
+export interface ShellSnapshotDto {
+  /** Пусто — агент ещё не прислал состояния: экран говорит «подключаемся к ПК». */
+  state: PlayerShellStateDto | null;
+  auth: ShellAuthStateDto;
+  system?: ShellSystemStateDto | null;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellSystemStateDto {
+  /** 0–100. */
+  volume: number;
+  micMuted: boolean;
+  /** Раскладка клавиатуры: «RU», «EN», «TG». */
+  layout: string;
 }
 
 /** Контракт: Shifts/ShiftDto.cs */

@@ -23,3 +23,19 @@ export const currencySymbols: Readonly<Record<string, string>> = {
 export function currencySymbol(currencyCode: string): string {
   return currencySymbols[currencyCode.toUpperCase()] ?? currencyCode;
 }
+
+/**
+ * Сумма из минорных единиц — как её читает человек: «12 с.», «12,50 с.», «1 200 с.». Целые суммы
+ * без дробной части, остальные — до двух знаков; знак валюты — короткий, а не ISO-код.
+ *
+ * Жила в Панели своей функцией, а оболочка игрока считала деньги руками в каждом экране. Одна
+ * сумма на телефоне, на ПК и в кассе обязана выглядеть одинаково.
+ */
+export function formatMoney(minorUnits: number, currencyCode: string, locale = 'ru-RU'): string {
+  const majorUnits = minorToMajor(minorUnits);
+  const formatted = new Intl.NumberFormat(locale, {
+    maximumFractionDigits: Number.isInteger(majorUnits) ? 0 : 2,
+    minimumFractionDigits: 0
+  }).format(majorUnits);
+  return `${formatted} ${currencySymbol(currencyCode)}`;
+}

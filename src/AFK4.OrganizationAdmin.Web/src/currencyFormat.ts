@@ -1,15 +1,9 @@
-import { minorToMajor, currencySymbol } from '@afk4/money';
-import { formatNumber as formatLocaleNumber } from '@afk4/formatting';
+import { formatMoney } from '@afk4/money';
 
 /** Formats integer minor units as a human-facing money string with the localized
  * currency sign (e.g. 1200, 'TJS' -> '12 с.'). Whole amounts drop the fraction;
- * non-whole amounts keep up to 2 digits. Single source for all Operator money text. */
+ * non-whole amounts keep up to 2 digits. The rule itself lives in @afk4/money so the
+ * player's PC and the Panel show one amount the same way. */
 export function formatMinorUnits(minorUnits: number, currencyCode: string): string {
-  const majorUnits = minorToMajor(minorUnits);
-  const formatted = formatLocaleNumber(majorUnits, 'ru-RU', {
-    maximumFractionDigits: Number.isInteger(majorUnits) ? 0 : 2,
-    minimumFractionDigits: 0
-  });
-
-  return `${formatted} ${currencySymbol(currencyCode)}`;
+  return formatMoney(minorUnits, currencyCode, 'ru-RU');
 }

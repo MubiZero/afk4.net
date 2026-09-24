@@ -1,66 +1,103 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AuthProvider, useAuth } from './useAuth';
-import { ActiveSessionScreen } from './screens/ActiveSessionScreen';
-import { LockedScreen } from './screens/LockedScreen';
-import { SelfServiceMenu } from './screens/SelfServiceMenu';
-import { PlayerShellStateNames } from './shellContracts';
-import { useShellBridge } from './useShellBridge';
-import { createShellApi } from './shellApi';
-import { API_BASE } from './apiBase';
-
-function ShellRouter() {
-  const { state, launch, requestOperator } = useShellBridge();
-  const { auth, signIn } = useAuth();
-  const api = useMemo(() => createShellApi(API_BASE), []);
-
-  // null means "not loaded yet, or failed to load" — every feature is treated as enabled in that
-  // state. This list only drives what the menu shows: it's convenience, not a security boundary,
-  // since the server rejects a disabled feature (403 feature_disabled) regardless of what the
-  // client renders. Hiding a working section because of a network hiccup would be worse than
-  // briefly showing one that then 403s, so we fail open here.
-  const [features, setFeatures] = useState<string[] | null>(null);
-  const featuresFetchedRef = useRef(false);
-  useEffect(() => {
-    if (!auth.authenticated) {
-      featuresFetchedRef.current = false;
-      setFeatures(null);
-      return;
-    }
-    if (featuresFetchedRef.current) return;
-    featuresFetchedRef.current = true;
-    api.getFeatures().then(setFeatures).catch(() => { /* fail open, see comment above */ });
-  }, [auth.authenticated, api]);
-
-  const locked =
-    state === null ||
-    state.state === PlayerShellStateNames.Locked ||
-    state.state === PlayerShellStateNames.Offline ||
-    state.state === PlayerShellStateNames.Error;
-
-  if (locked) {
-    return <LockedScreen state={state} onRequestOperator={requestOperator} />;
-  }
-
-  return (
-    <>
-      <ActiveSessionScreen state={state} onLaunch={launch} onRequestOperator={requestOperator} />
-      <SelfServiceMenu
-        authenticated={auth.authenticated}
-        onSignIn={(p, pw) => signIn(p, pw).then((s) => s.authenticated)}
-        api={api}
-        sessionId={state.sessionId}
-        branchId={state.branchId}
-        features={features}
-        onReloadState={() => { /* state re-renders from bridge pushes; no-op reload */ }}
-      />
-    </>
-  );
-}
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useI18n, isLocale } from '@afk4/i18n';
+import { AlertOctagon, Loader2, WifiOff, Wrench } from 'lucide-react';
+import { useShellHost } from './host/shellHost';
+import { clubAccent } from './model/branding';
+import { selectScreen } from './model/screen';
+import { IdleScreen } from './screens/IdleScreen';
+import { SessionScreen } from './screens/SessionScreen';
+import { StatusScreen } from './screens/StatusScreen';
+import { AssistButton } from './ui/AssistButton';
+import { SeatBadge } from './ui/SeatBadge';
+import { SystemBar } from './ui/SystemBar';
 
 export function App() {
+  const { t, setLocale } = useI18n();
+  const host = useShellHost();
+  const { state } = host;
+  const [approached, setApproached] = useState(false);
+
+  // Подошли к свободному ПК — витрина уступает место окну входа; отошли — возвращается.
+  const lastActivity = useRef(host.activity);
+  useEffect(() => {
+    if (host.activity !== lastActivity.current) {
+      lastActivity.current = host.activity;
+      setApproached(true);
+    }
+  }, [host.activity]);
+  useEffect(() => {
+    if (host.idle > 0) setApproached(false);
+  }, [host.idle]);
+
+  // Язык филиала — пока человек не выбрал свой. Снимок от хоста может прийти уже после того, как
+  // человек нажал «Тоҷ», и язык филиала не должен перебить выбор.
+  const [localeChosen, setLocaleChosen] = useState(false);
+  const branchLocale = state?.locale;
+  useEffect(() => {
+    if (!localeChosen && branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
+  }, [branchLocale, localeChosen, setLocale]);
+
+  // Цвет клуба — поверх палитры, если его можно читать; иначе остаётся фирменный зелёный.
+  const accent = clubAccent(state?.branding?.accentColor);
+  const shellStyle = accent ? ({ '--club-accent': accent } as CSSProperties) : undefined;
+
+  const screen = selectScreen({ state, signedIn: host.auth.signedIn, approached });
+  const online = state?.isOnline ?? false;
+
   return (
-    <AuthProvider>
-      <ShellRouter />
-    </AuthProvider>
+    <div className="shell" data-screen={screen} style={shellStyle}>
+      {renderScreen()}
+      {screen === 'session' || screen === 'ending' || screen === 'grace'
+        ? null
+        : <SystemBar online={online} onLocaleChosen={() => setLocaleChosen(true)} />}
+    </div>
   );
+
+  function renderScreen() {
+    const seat = state ? <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} /> : null;
+    switch (screen) {
+      case 'connecting':
+        return (
+          <StatusScreen icon={<Loader2 className="spin" />} title={t('playerShell.connecting.title')} />
+        );
+      case 'offline':
+        return (
+          <StatusScreen
+            tone="warning"
+            top={seat}
+            icon={<WifiOff />}
+            title={t('playerShell.offline.title')}
+            body={t('playerShell.offline.body')}
+          />
+        );
+      case 'maintenance':
+        return (
+          <StatusScreen
+            top={seat}
+            icon={<Wrench />}
+            title={t('playerShell.maintenance.title')}
+            body={t('playerShell.maintenance.body')}
+          />
+        );
+      case 'error':
+        return (
+          <StatusScreen
+            tone="danger"
+            top={seat}
+            icon={<AlertOctagon />}
+            title={t('playerShell.error.title')}
+            body={t('playerShell.error.body')}
+          >
+            <AssistButton />
+          </StatusScreen>
+        );
+      case 'session':
+      case 'ending':
+      case 'grace':
+        return <SessionScreen state={state!} receivedAtMs={host.stateReceivedAtMs} variant={screen} />;
+      default:
+        // Окно входа и выбор времени — срез P4b; до него подошедший видит ту же витрину.
+        return <IdleScreen state={state!} />;
+    }
+  }
 }
