@@ -1,7 +1,7 @@
 # AFK4.NET MVP Product Requirements Document
 
 Status: Draft for product review  
-Last updated: 2026-05-23
+Last updated: 2026-09-24
 
 ## 1. Product Summary
 
@@ -146,15 +146,19 @@ Primary needs:
 
 ### Player / Guest
 
-Uses a gaming PC through a controlled Player Shell. May be anonymous for guest
-sessions or registered with account balance, packages, bonuses, and history.
+Uses a gaming PC through a controlled Player Shell and a phone through the
+player app. May be anonymous (a guest seated by an admin) or a registered
+platform account with a per-club wallet, packages, cashback, and history.
 
 Primary needs:
 
-- clear locked and active session state;
-- visible remaining time and warnings;
-- basic launcher for allowed apps;
-- simple session start/login flow in later releases.
+- sit down without the counter: phone number and PIN, or a QR scanned with the
+  player app, on the free PC; choose the time and start from the club wallet;
+- clear locked and active session state, remaining time, and warnings;
+- a game library that works as the desktop of the gaming PC;
+- extend, top up, order from the bar, call an admin, and stand up early from
+  the PC itself;
+- rate the visit when the session ends.
 
 ## 4. MVP Goals And Non-Goals
 
@@ -202,13 +206,26 @@ The first MVP intentionally excludes:
 - local club server;
 - Linux or macOS agents;
 - kernel-level anti-bypass driver;
-- full Steam, Epic, or Battle.net game library management and auto-updates;
+- full Steam, Epic, or Battle.net game library management and auto-updates
+  (the club's game list with covers from a platform catalog is in scope;
+  installing and updating games is not);
 - country-specific fiscal integrations;
-- SMS, Telegram, or email integrations;
-- mobile player app;
+- Telegram integrations (owner alerts are planned right after launch);
 - microservices;
 - full-domain event sourcing;
-- advanced CRM and loyalty beyond basic bonuses and packages.
+- discounts, promo codes, client groups, and gift certificates before the first
+  club (planned right after it; loyalty today is cashback, referral, and
+  packages);
+- own hardware: console controllers, locker relays, room sensors, cash
+  acceptors;
+- disk freezing and diskless boot servers (clubs keep their own tools; the
+  agent must tolerate them);
+- remote desktop to gaming PCs;
+- sessions without an account paid by QR at the PC (without an account only an
+  admin seats a guest).
+
+SMS, email, push, and the mobile player app were non-goals of the May draft;
+they have since been built and are part of the product.
 
 ## 5. Core User Journeys
 
@@ -463,8 +480,20 @@ Success criteria:
 - Branches must contain zones and seats.
 - Seats must be separate from physical devices.
 - A Windows device must be enrollable and attachable to a seat.
+- A seat may have no device: console and TV seats are agentless. Admins start
+  and end their sessions by hand; tariffs, cash, reports, and the floor map
+  treat them like PC seats, and nothing is enforced on the console.
 - Device state must include online/offline, lock state, Agent version, Shell
   version, and last heartbeat.
+- Device commands for gaming PCs include lock/unlock, reboot, shutdown,
+  wake-on-LAN (sent by another online agent in the same LAN, since the cloud
+  cannot reach a sleeping PC), sign-out, and a message on the player's screen.
+  The Organization Admin can select several seats at once.
+- The Organization Admin can put a PC into maintenance: the agent opens the
+  Windows desktop for staff and the seat shows as in service until it is
+  returned.
+- Agents report a hardware snapshot; a change against the accepted
+  configuration alerts the club.
 - Backend must store command status for device actions.
 - Device identity must be separate from staff identity.
 
@@ -477,6 +506,11 @@ Success criteria:
 - Session commands must be idempotent.
 - Session must preserve tariff rule version used at start or extension time.
 - Critical session actions must require backend confirmation.
+- A registered player can start a session from the gaming PC itself: sign in
+  on the PC, choose the time, pay from the club wallet. The tariff in force at
+  the start moment prices the whole session, extensions included.
+- Players do not pause their own sessions (pause is an admin action). They may
+  end early and get unused prepaid time back by the tariff's rules.
 
 ### Billing, Ledger, Tariffs, And Packages
 
@@ -563,11 +597,66 @@ Success criteria:
 - Agent Service must execute backend-approved commands.
 - Agent Service must enforce lock/unlock state and restore expected state after
   reboot.
-- Agent Service must supervise Player Shell.
-- Player Shell must show locked/session state, remaining time, warnings, and
-  launcher UI.
+- Agent Service must supervise Player Shell and restart it; the Windows
+  service itself must restart on failure.
+- The Player Shell replaces explorer.exe for a dedicated Windows player account
+  with autologon: players get no Windows desktop, taskbar, or Start menu.
+- Player Shell must show the free PC as a club showcase with the PC number, a
+  sign-in window (phone and PIN, or QR from the player app), time selection,
+  the session with a game library, bar, top-up, extend, call-an-admin and
+  stand-up actions, warnings over games, and an end-of-session summary with a
+  visit rating and optional tips to the admin.
+- Player Shell must provide a system bar (interface language, keyboard layout,
+  volume, microphone, network, clock), because there is no taskbar.
+- Locking the PC signs the player out and revokes their tokens on the server.
+- The agent applies server-driven security profiles (removable storage, browser
+  downloads, blocked windows, lock and user switching), wipes launcher and
+  browser sign-ins after a session, and reports what it actually enforced.
+- The shell hides and suspends its web view while a game is in the foreground,
+  and its animations use compositor-only properties so they never cost the
+  game a frame.
 - Player Shell must not be trusted for billing, authorization, or session
   rights.
+
+### Club Showcase And Platform Advertising
+
+- The free PC shows a showcase: club news marked for the PC screen, tariffs
+  and products the owner marks as featured, and automatic cards (packages,
+  bar, the next tournament).
+- On the free plan every third showcase card is a platform ad sold by AFK4.
+  Ads are labelled «Реклама» and name the advertiser; they never advertise
+  another club, alcohol, tobacco, or betting; they are targeted by city and
+  club only, never by player; and they appear only on the lock screen and the
+  end-of-session summary, never during a paid session.
+- Platform Control manages advertisers, campaigns, creatives, moderation, and
+  impression reports. The agent counts impressions in aggregate, without
+  linking them to players.
+
+### SaaS Plans And Onboarding
+
+- Free plan: up to 10 PCs, 1 branch, up to 3 staff, with platform ads.
+- Paid: 10 TJS per PC per month above the first 10. Current reading, to be
+  confirmed in the billing spec: only PCs beyond ten are billed, counted across
+  the organization; the free-plan limits are lifted and platform ads are off.
+- A club starts a 30-day trial and a 7-day promised payment itself. An unpaid
+  subscription falls back to the free plan instead of blocking the club.
+- A club moving from other software imports its guests with balances and
+  bonuses as opening balances in the ledger; the club owner provides the export
+  under a data-processing agreement.
+- A referred club that starts paying earns the referring club a free month.
+- A public demo of the Organization Admin runs on sample data and resets
+  nightly.
+
+### Player App
+
+- The player app (Flutter, Android and web) is the player-facing product: club
+  catalogue, booking, top-up, packages, shop orders, cashback, referral,
+  reviews, friends, tournaments, and remote session control.
+- The app signs a gaming PC in by scanning the QR on its sign-in window.
+- Clubs may run a monthly leaderboard (club-scoped and opt-in, never across
+  clubs) and quests with rewards.
+- Booking a specific PC is a club setting; by default the club assigns the
+  seat.
 
 ## 7. Non-Functional Requirements
 
@@ -711,6 +800,15 @@ Candidate measurable targets for later validation:
 - successful staged update status reported for every targeted device.
 
 ## 10. Risks And Open Decisions
+
+### Pricing And Platform Advertising
+
+At 10 TJS per PC above ten, one club brings little money, and if most clubs in
+the market run ten PCs or fewer the free plan takes almost all of them. Ads on
+a club's own screen may annoy owners, and the Tajik advertising law (labelling,
+banned categories, an audience with many teenagers) must be checked before the
+first campaign. Langame already operates in Dushanbe through the Colizeum
+chain; the first targets are independent clubs.
 
 ### Windows Enforcement Complexity
 

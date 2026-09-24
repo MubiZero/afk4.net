@@ -18,7 +18,8 @@ The platform is designed to compete architecturally with systems such as Senet, 
 - The MVP includes an internal browser-based Platform Control for platform
   owner/support organization lifecycle management.
 - The operator experience is a native Windows desktop application.
-- The first supported gaming PCs are Windows 10/11 only.
+- The first supported gaming PCs are Windows 10/11 only. Console and TV seats
+  are agentless: staff start and end their sessions by hand (2026-09-24).
 - The backend is a .NET ASP.NET Core modular monolith.
 - The database is PostgreSQL.
 - The Organization Admin is a native .NET Windows desktop shell with WebView2 and a
@@ -78,7 +79,11 @@ The Agent Service is the local enforcement component, but it is not the business
 
 ### Player Shell
 
-The Player Shell is a separate WPF UI process on the gaming PC. It displays lock state, player login or session code entry, remaining time, warnings, notifications, and a basic launcher for allowed games and applications.
+The Player Shell is a separate WPF process hosting a WebView2 React UI. Since the rewrite decided on 2026-09-24 it is the Windows shell of a dedicated player account: the per-user Winlogon `Shell` value points at it and the account signs in by autologon, with the password kept as an LSA secret. Players get no explorer, taskbar, or Start menu; the shell is both the lock screen and the game library, and it carries the system bar (language, keyboard layout, volume, microphone, network, clock) that the taskbar would otherwise provide.
+
+Sign-in happens in the host, not in the page. Player tokens live only in host memory, are attached to API requests by the host, and are revoked on the server when the PC locks. Signing in by QR reuses the device's seating code: the shell shows it as a QR, the player app confirms it with the player's own session, the server issues tokens bound to that device, and the host redeems them. The shell never receives tokens from the phone directly.
+
+The free PC shows a showcase whose manifest the device fetches and the host caches on disk, so it works without a connection. While a game is in the foreground the host hides the web view (`IsVisible = false`), suspends it, and lowers its memory target; warnings over games come from a separate small window. Animations touch only transform and opacity.
 
 The Shell is not trusted as an authority. It cannot start, extend, or authorize sessions without the Agent Service and Cloud Backend.
 
@@ -112,7 +117,7 @@ must not require direct PostgreSQL edits in staging or production.
 
 ### Club Layout And Devices
 
-`Zone` groups seats inside a branch, such as main hall, VIP, bootcamp, or console area. `Seat` is the business-level place shown on the floor map. `Device` is the registered Windows PC agent attached to a seat.
+`Zone` groups seats inside a branch, such as main hall, VIP, bootcamp, or console area. `Seat` is the business-level place shown on the floor map. `Device` is the registered Windows PC agent attached to a seat. A seat without a device is valid: console and TV seats run sessions that staff start and end by hand, and nothing is enforced on the console.
 
 The separation between seat and device allows a club to replace a PC, move hardware, or mark a seat as maintenance without corrupting session history.
 
@@ -285,17 +290,31 @@ Agent Service responsibilities:
 - Apply configured Windows restrictions.
 - Manage allow and deny process policies.
 - Restore expected state after reboot.
-- Report installed applications.
-- Install signed updates safely.
+- Report installed applications, including per-user installs of the player
+  account, and a hardware snapshot compared against the accepted configuration.
+- Execute power commands: reboot and shutdown after the server has closed the
+  session, sign-out, and wake-on-LAN relayed to a sleeping neighbour in the
+  same LAN.
+- Enter and leave maintenance: open explorer for staff in the player session
+  and restore the kiosk afterwards.
+- Apply server-driven security profiles and report what was enforced.
+- Wipe launcher and browser sign-ins from exact paths after a session.
+- Install signed updates safely, and come back after a crash through Windows
+  service recovery.
 
 Player Shell responsibilities:
 
-- Show locked or unlocked state.
-- Show guest or player session entry.
-- Show remaining time and warnings.
-- Show notifications.
-- Provide basic launcher for allowed games and applications.
-- Request actions through Agent Service rather than making authoritative decisions.
+- Act as the Windows shell of the player account (no explorer).
+- Show the free PC as a club showcase, and a sign-in window with phone and PIN
+  or QR from the player app.
+- Let a signed-in player choose time and start from the club wallet.
+- Show the session: game library, remaining time, balance, bar, top-up,
+  extend, call an admin, step away, stand up.
+- Show warnings over games and an end-of-session summary with a visit rating
+  and optional tips.
+- Provide the system bar in place of the taskbar.
+- Request actions through Agent Service and the backend rather than making
+  authoritative decisions.
 
 Security approach:
 
