@@ -170,6 +170,8 @@ builder.Services.AddScoped<IDeviceEnrollmentService>(provider => provider.GetReq
 builder.Services.AddScoped<IDeviceCredentialValidator>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
 builder.Services.AddScoped<EfSeatingCodeService>();
 builder.Services.AddScoped<IDevicePlayerSignInService, DevicePlayerSignInService>();
+builder.Services.AddScoped<SeatingCodeAttemptGuard>();
+builder.Services.AddScoped<PlayerSignInClaimService>();
 builder.Services.AddScoped<IDeviceCredentialLifecycleService, EfDeviceCredentialLifecycleService>();
 builder.Services.AddScoped<IDeviceCommandStore, EfDeviceCommandStore>();
 builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectionRegistry>();

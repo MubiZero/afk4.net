@@ -372,6 +372,11 @@ public sealed class DeviceHeartbeatServicePersistenceTests
             new CachedOrganizationFeatures(
                 new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
                 new EfOrganizationEntitlements(dbContext)),
+            new PlayerSignInClaimService(
+                dbContext,
+                new OpaquePlatformPersonTokenService(dbContext, TimeProvider.System),
+                new EfDeviceBoundPlayerTokens(dbContext, TimeProvider.System),
+                TimeProvider.System),
             TimeProvider.System);
     }
 

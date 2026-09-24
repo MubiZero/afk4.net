@@ -210,6 +210,82 @@ public class PlayerSelfSessionEndpointTests
         Assert.False(await db.Sessions.AnyAsync(session => session.PlayerAccountId == ctx.PlayerId));
     }
 
+    /// <summary>
+    /// Код одноразовый: сели — и подсмотревший его через плечо уже не воспользуется им, даже
+    /// если сессия кончится раньше, чем код истёк бы сам.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_ConsumesTheCode()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var code = await SeatingCodeAsync(factory, ctx);
+
+        var response = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(code, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Null(await new EfSeatingCodeService(db, TimeProvider.System)
+            .FindDeviceAsync(ctx.OrgId, code, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Отказ по деньгам код не сжигает: человек пополнит счёт или выберет меньше времени и
+    /// попробует тем же кодом, не дожидаясь нового.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_RefusedForMoney_KeepsTheCode()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var code = await SeatingCodeAsync(factory, ctx);
+
+        var response = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(code, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(ctx.DeviceId, await new EfSeatingCodeService(db, TimeProvider.System)
+            .FindDeviceAsync(ctx.OrgId, code, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Ответ потерялся в сети, приложение повторило старт с тем же ключом. Код уже погашен
+    /// удачным стартом — повтор всё равно получает свою сессию, а не «код неверен» и не вторую.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_RepeatedWithTheSameKey_ReturnsTheSameSession()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var request = new PlayerSelfStartRequest(
+            await SeatingCodeAsync(factory, ctx), ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N"));
+
+        var first = await client.PostAsJsonAsync("/api/me/sessions/start", request);
+        var repeat = await client.PostAsJsonAsync("/api/me/sessions/start", request);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, repeat.StatusCode);
+        var firstSession = (await first.Content.ReadFromJsonAsync<SessionCommandResponse>())!.Session.SessionId;
+        var repeatSession = (await repeat.Content.ReadFromJsonAsync<SessionCommandResponse>())!.Session.SessionId;
+        Assert.Equal(firstSession, repeatSession);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(1, await db.Sessions.CountAsync(session => session.PlayerAccountId == ctx.PlayerId));
+        // Денег списано один раз: повтор не прошёл второй раз мимо кассы.
+        Assert.Equal(100_000 - 60_000, await WalletBalanceAsync(factory, ctx.PlayerId));
+    }
+
     /// <summary>Код живёт минуты — состарить его в тесте дешевле, чем ждать.</summary>
     private static async Task ExpireSeatingCodesAsync(PlatformApiFactory factory)
     {

@@ -488,6 +488,26 @@ abstract final class PlayerShellStateNames {
   static const String error = 'error';
 }
 
+/// Словарь: Devices/PlayerSignInClaimDeviceContracts.cs
+abstract final class PlayerSignInClaimErrorCodeNames {
+  /// Заявки нет или она для другого ПК.
+  static const String notFound = 'claim_not_found';
+  /// ПК не успел забрать заявку за отведённое время.
+  static const String expired = 'claim_expired';
+  /// Заявку уже забрали: одна заявка — один вход.
+  static const String alreadyRedeemed = 'claim_already_redeemed';
+}
+
+/// Словарь: Players/PlayerSignInClaimContracts.cs
+abstract final class PlayerSignInClaimStatusNames {
+  /// ПК ещё не забрал заявку.
+  static const String pending = 'pending';
+  /// ПК забрал заявку — человек вошёл.
+  static const String redeemed = 'redeemed';
+  /// ПК не забрал заявку за отведённое время.
+  static const String expired = 'expired';
+}
+
 /// Словарь: Pos/PosSaleStateNames.cs
 abstract final class PosSaleStateNames {
   static const String draft = 'draft';
@@ -581,6 +601,19 @@ abstract final class ScheduledReportTypeNames {
   static const String gameplayTime = 'gameplay_time';
   static const String cashOperations = 'cash_operations';
   static const String operatorActions = 'operator_actions';
+}
+
+/// Почему код посадки не приняли. Одни и те же у старта с телефона и у заявки на вход.
+///
+/// Словарь: Players/PlayerSignInClaimContracts.cs
+abstract final class SeatingCodeErrorCodeNames {
+  /// Код не подошёл. Чужой клуб, истёкший код и опечатка снаружи неразличимы: иначе перебор
+  /// шестизначных цифр становится осмысленным.
+  static const String invalid = 'seating_code_invalid';
+  /// Слишком много неверных кодов — у человека или у всего клуба; ответ несёт, когда можно снова.
+  static const String attemptsExceeded = 'seating_code_attempts_exceeded';
+  /// Заявке нужен аккаунт AFK4, а у входа — только клубная карточка старого образца.
+  static const String platformAccountRequired = 'platform_account_required';
 }
 
 /// Состояние места на карте зала — то, что сервер кладёт в SeatStatusDto.State.
@@ -3141,6 +3174,31 @@ class CreatePlayerReservationRequest {
       };
 }
 
+/// Войти на ПК с телефона (спека оболочки, §5.4): приложение сканирует QR с монитора — в нём код
+/// посадки — и просит сервер впустить своего человека на эту машину. Номер и ПИН-код у ПК при
+/// этом не набираются вовсе.
+///
+/// Контракт: Players/PlayerSignInClaimContracts.cs
+class CreatePlayerSignInClaimRequest {
+  const CreatePlayerSignInClaimRequest({
+    required this.seatingCode,
+    required this.idempotencyKey,
+  });
+
+  final String seatingCode;
+  final String idempotencyKey;
+
+  factory CreatePlayerSignInClaimRequest.fromJson(Map<String, dynamic> json) => CreatePlayerSignInClaimRequest(
+        seatingCode: json['seatingCode'] as String,
+        idempotencyKey: json['idempotencyKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'seatingCode': seatingCode,
+        'idempotencyKey': idempotencyKey,
+      };
+}
+
 /// Строка чека в запросе на его создание: товар и сколько штук.
 /// Это НЕ PosSaleLineDto. Имя товара, цену за штуку и сумму строки сервер берёт из
 /// каталога и присланному не верит (см. EfPosService.CreateSaleAsync) — а раз так, требовать их в
@@ -4492,6 +4550,7 @@ class DeviceHeartbeatResponse {
     this.seat,
     this.sessionOwner,
     this.features,
+    this.pendingSignInClaim,
   });
 
   final DateTime serverTimeUtc;
@@ -4531,6 +4590,10 @@ class DeviceHeartbeatResponse {
   /// нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
   final List<String>? features;
 
+  /// Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
+  /// потерялся. null — ждать нечего.
+  final PlayerSignInClaimedDto? pendingSignInClaim;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -4543,6 +4606,7 @@ class DeviceHeartbeatResponse {
         seat: json['seat'] == null ? null : DeviceSeatDto.fromJson(json['seat'] as Map<String, dynamic>),
         sessionOwner: json['sessionOwner'] == null ? null : DeviceSessionOwnerDto.fromJson(json['sessionOwner'] as Map<String, dynamic>),
         features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
+        pendingSignInClaim: json['pendingSignInClaim'] == null ? null : PlayerSignInClaimedDto.fromJson(json['pendingSignInClaim'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4557,6 +4621,7 @@ class DeviceHeartbeatResponse {
         'seat': seat?.toJson(),
         'sessionOwner': sessionOwner?.toJson(),
         'features': features?.map((item) => item).toList(),
+        'pendingSignInClaim': pendingSignInClaim?.toJson(),
       };
 }
 
@@ -4716,6 +4781,33 @@ class DevicePlayerSignInRequest {
         'deviceId': deviceId,
         'phoneNumber': phoneNumber,
         'pin': pin,
+      };
+}
+
+/// ПК забирает заявку ключом устройства — в ответ токены, привязанные к этому ПК.
+///
+/// Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+class DeviceRedeemSignInClaimRequest {
+  const DeviceRedeemSignInClaimRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+
+  factory DeviceRedeemSignInClaimRequest.fromJson(Map<String, dynamic> json) => DeviceRedeemSignInClaimRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
       };
 }
 
@@ -11336,6 +11428,65 @@ class PlayerShellStateDto {
         'observedAtUtc': observedAtUtc?.toIso8601String(),
         'lastContactUtc': lastContactUtc?.toIso8601String(),
         'apiBaseUrl': apiBaseUrl,
+      };
+}
+
+/// Заявка на вход и что с ней стало: приложение показывает «Вы вошли на ПК 07».
+///
+/// Контракт: Players/PlayerSignInClaimContracts.cs
+class PlayerSignInClaimDto {
+  const PlayerSignInClaimDto({
+    required this.claimId,
+    required this.status,
+    required this.expiresAtUtc,
+    this.seatLabel,
+  });
+
+  final String claimId;
+
+  /// Одно из PlayerSignInClaimStatusNames.
+  final String status;
+  final DateTime expiresAtUtc;
+
+  /// Имя места: «ПК 07». Пусто, если ПК не привязан к месту.
+  final String? seatLabel;
+
+  factory PlayerSignInClaimDto.fromJson(Map<String, dynamic> json) => PlayerSignInClaimDto(
+        claimId: json['claimId'] as String,
+        status: json['status'] as String,
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+        seatLabel: json['seatLabel'] == null ? null : json['seatLabel'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'claimId': claimId,
+        'status': status,
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
+        'seatLabel': seatLabel,
+      };
+}
+
+/// ПК должен забрать заявку на вход: человек отсканировал QR с его монитора. Приходит в группу
+/// устройства по SignalR и, на случай обрыва, в ответе на сердцебиение.
+///
+/// Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+class PlayerSignInClaimedDto {
+  const PlayerSignInClaimedDto({
+    required this.claimId,
+    required this.expiresAtUtc,
+  });
+
+  final String claimId;
+  final DateTime expiresAtUtc;
+
+  factory PlayerSignInClaimedDto.fromJson(Map<String, dynamic> json) => PlayerSignInClaimedDto(
+        claimId: json['claimId'] as String,
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'claimId': claimId,
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
       };
 }
 

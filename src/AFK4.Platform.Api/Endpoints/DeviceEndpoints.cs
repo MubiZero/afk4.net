@@ -765,6 +765,53 @@ internal static class DeviceEndpoints
             };
         });
 
+        // ПК забирает заявку на вход с телефона (спека оболочки, §5.4) и получает токены,
+        // привязанные к себе. Ключом устройства: заявку может забрать только та машина, к монитору
+        // которой человек поднёс телефон.
+        app.MapPost("/api/devices/{deviceId:guid}/sign-in-claims/{claimId:guid}/redeem", async (
+            Guid deviceId,
+            Guid claimId,
+            DeviceRedeemSignInClaimRequest request,
+            HttpContext httpContext,
+            PlatformDbContext dbContext,
+            IDeviceCredentialValidator credentialValidator,
+            IOrganizationStatusGuard organizationStatusGuard,
+            PlayerSignInClaimService claims,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var suspended = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            if (suspended is not null)
+            {
+                return suspended;
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(
+                candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            var result = await claims.RedeemAsync(device, claimId, cancellationToken);
+            return result.Error switch
+            {
+                null => Results.Ok(result.Session),
+                PlayerSignInClaimErrorCodeNames.NotFound => Results.NotFound(new { error = result.Error }),
+                _ => Results.Conflict(new { error = result.Error })
+            };
+        });
+
         // Оператор подошёл — вызов снят. Право то же, что у «отдать заказ»: это работа зала.
         organizations.MapPost("devices/{deviceId:guid}/assistance-request/resolve", async (
             Guid deviceId,
