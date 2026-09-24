@@ -671,8 +671,29 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<DateTimeOffset?>("MaintenanceSinceUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NetworkBroadcastAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("NetworkMacAddress")
+                        .HasMaxLength(17)
+                        .HasColumnType("character varying(17)");
+
+                    b.Property<string>("NetworkSubnet")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("PlayerSignInFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("PlayerSignInWindowStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -792,6 +813,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("OrganizationId")
@@ -2566,6 +2588,12 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeviceSignedInAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2583,6 +2611,8 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("bytea");
 
                     b.HasKey("PlatformPersonAccessTokenId");
+
+                    b.HasIndex("DeviceId");
 
                     b.HasIndex("TokenHash");
 
@@ -2668,6 +2698,12 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeviceSignedInAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2685,6 +2721,8 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("bytea");
 
                     b.HasKey("PlatformPersonRefreshTokenId");
+
+                    b.HasIndex("DeviceId");
 
                     b.HasIndex("TokenHash");
 
@@ -3206,6 +3244,52 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("PlayerAccountId", "ExpiresAtUtc");
 
                     b.ToTable("player_refresh_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlayerSignInClaimEntity", b =>
+                {
+                    b.Property<Guid>("ClaimId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IdempotencyKeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlatformPersonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RedeemedAtUtc")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ClaimId");
+
+                    b.HasIndex("DeviceId", "ExpiresAtUtc");
+
+                    b.HasIndex("PlatformPersonId", "OrganizationId", "IdempotencyKeyHash")
+                        .IsUnique();
+
+                    b.ToTable("player_sign_in_claims", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.PosProductCategoryEntity", b =>
@@ -3744,6 +3828,26 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "ZoneId", "SortOrder");
 
                     b.ToTable("seats", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.SeatingCodeAttemptCounterEntity", b =>
+                {
+                    b.Property<string>("Scope")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("ScopeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("WindowStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Scope", "ScopeId");
+
+                    b.ToTable("seating_code_attempt_counters", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.SessionCommandIdempotencyEntity", b =>

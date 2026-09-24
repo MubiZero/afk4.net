@@ -210,6 +210,82 @@ public class PlayerSelfSessionEndpointTests
         Assert.False(await db.Sessions.AnyAsync(session => session.PlayerAccountId == ctx.PlayerId));
     }
 
+    /// <summary>
+    /// Код одноразовый: сели — и подсмотревший его через плечо уже не воспользуется им, даже
+    /// если сессия кончится раньше, чем код истёк бы сам.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_ConsumesTheCode()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var code = await SeatingCodeAsync(factory, ctx);
+
+        var response = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(code, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Null(await new EfSeatingCodeService(db, TimeProvider.System)
+            .FindDeviceAsync(ctx.OrgId, code, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Отказ по деньгам код не сжигает: человек пополнит счёт или выберет меньше времени и
+    /// попробует тем же кодом, не дожидаясь нового.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_RefusedForMoney_KeepsTheCode()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var code = await SeatingCodeAsync(factory, ctx);
+
+        var response = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(code, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(ctx.DeviceId, await new EfSeatingCodeService(db, TimeProvider.System)
+            .FindDeviceAsync(ctx.OrgId, code, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Ответ потерялся в сети, приложение повторило старт с тем же ключом. Код уже погашен
+    /// удачным стартом — повтор всё равно получает свою сессию, а не «код неверен» и не вторую.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_RepeatedWithTheSameKey_ReturnsTheSameSession()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var request = new PlayerSelfStartRequest(
+            await SeatingCodeAsync(factory, ctx), ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N"));
+
+        var first = await client.PostAsJsonAsync("/api/me/sessions/start", request);
+        var repeat = await client.PostAsJsonAsync("/api/me/sessions/start", request);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, repeat.StatusCode);
+        var firstSession = (await first.Content.ReadFromJsonAsync<SessionCommandResponse>())!.Session.SessionId;
+        var repeatSession = (await repeat.Content.ReadFromJsonAsync<SessionCommandResponse>())!.Session.SessionId;
+        Assert.Equal(firstSession, repeatSession);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(1, await db.Sessions.CountAsync(session => session.PlayerAccountId == ctx.PlayerId));
+        // Денег списано один раз: повтор не прошёл второй раз мимо кассы.
+        Assert.Equal(100_000 - 60_000, await WalletBalanceAsync(factory, ctx.PlayerId));
+    }
+
     /// <summary>Код живёт минуты — состарить его в тесте дешевле, чем ждать.</summary>
     private static async Task ExpireSeatingCodesAsync(PlatformApiFactory factory)
     {
@@ -296,6 +372,28 @@ public class PlayerSelfSessionEndpointTests
             new PlayerSelfExtendRequest(30, Guid.NewGuid().ToString("N")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Ответ на продление потерялся, приложение повторило с тем же ключом. Денег было ровно на
+    /// одно продление — повтор получает свой ответ, а не «не хватает денег», и второй раз не платит.
+    /// </summary>
+    [Fact]
+    public async Task SelfExtend_RepeatedWithTheSameKey_ReturnsTheSameAnswer()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 120_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        var extend = new PlayerSelfExtendRequest(60, Guid.NewGuid().ToString("N"));
+
+        var first = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/extend", extend);
+        var repeat = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/extend", extend);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, repeat.StatusCode);
+        Assert.Equal(0, await WalletBalanceAsync(factory, ctx.PlayerId));
     }
 
     [Fact]
@@ -450,6 +548,248 @@ public class PlayerSelfSessionEndpointTests
         Assert.Equal(1, body!.BilledMinutes);
         Assert.Equal(59_000, body.Refunded.MinorUnits);
         Assert.Equal(afterStart + 59_000, await WalletBalanceAsync(factory, ctx.PlayerId));
+    }
+
+    /// <summary>
+    /// Пауза не игра. Её ставит администратор (#279), и раньше расчёт брал «сейчас минус старт» —
+    /// игрок платил за время, когда ПК стоял запертым.
+    /// </summary>
+    [Fact]
+    public async Task SelfEnd_DoesNotChargeForTimeOnPause()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        // Полчаса назад сел, двадцать минут из них ПК стоял на паузе: сыграно десять.
+        await ShiftSessionAsync(factory, sessionId, startedMinutesAgo: 30, pausedMinutes: 20);
+
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+
+        var body = await response.Content.ReadFromJsonAsync<PlayerSelfEndSessionResponse>();
+        Assert.Equal(10, body!.BilledMinutes);
+        Assert.Equal(50_000, body.Refunded.MinorUnits);
+    }
+
+    /// <summary>Экран обещает ровно то, что вернёт выход, — и ничего не пишет, пока не нажали.</summary>
+    [Fact]
+    public async Task EndQuote_PromisesWhatTheExitWillReturn_AndMovesNoMoney()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        await ShiftSessionAsync(factory, sessionId, startedMinutesAgo: 30, pausedMinutes: 20);
+        var beforeQuote = await WalletBalanceAsync(factory, ctx.PlayerId);
+
+        var quote = await client.GetFromJsonAsync<PlayerEndQuoteDto>($"/api/me/sessions/{sessionId}/end-quote");
+
+        Assert.Equal(10, quote!.BilledMinutes);
+        Assert.Equal(50_000, quote.Refund.MinorUnits);
+        Assert.Equal(beforeQuote, await WalletBalanceAsync(factory, ctx.PlayerId));
+
+        var end = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+        var ended = await end.Content.ReadFromJsonAsync<PlayerSelfEndSessionResponse>();
+        Assert.Equal(quote.Refund.MinorUnits, ended!.Refunded.MinorUnits);
+    }
+
+    [Fact]
+    public async Task EndQuote_ForeignSession_Returns404()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var response = await client.GetAsync($"/api/me/sessions/{Guid.NewGuid()}/end-quote");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    private static async Task ShiftSessionAsync(PlatformApiFactory factory, Guid sessionId, int startedMinutesAgo, int pausedMinutes)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var session = await db.Sessions.SingleAsync(candidate => candidate.SessionId == sessionId);
+        // Чуть меньше названного: часы идут, пока тест дойдёт до выхода, а тариф округляет минуты
+        // вверх — без запаса «десять минут» превратились бы в одиннадцать.
+        session.StartedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-startedMinutesAgo).AddSeconds(30);
+        session.TotalPausedSeconds = pausedMinutes * 60;
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Экран выбора получает готовые суммы одним запросом: тарифы филиала с вариантами и пакеты
+    /// игрока с остатком. Клиент цену не считает.
+    /// </summary>
+    [Fact]
+    public async Task StartOffers_PriceTheHours_AndListThePlayersPackages()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        await AddTariffCardAsync(factory, ctx, "Общий");
+        var packageId = await SeedPackageAsync(factory, ctx, includedSeconds: 3 * 3600);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var offers = await client.GetFromJsonAsync<PlayerStartOffersDto>(
+            $"/api/me/devices/{await SeatingCodeAsync(factory, ctx)}/start-offers");
+
+        Assert.Equal(100_000, offers!.Balance.MinorUnits);
+        var tariff = Assert.Single(offers.Tariffs);
+        Assert.Equal("Общий", tariff.Name);
+        Assert.Equal(60_000, tariff.PricePerHour.MinorUnits);
+        var hour = tariff.Options.Single(option => option.Minutes == 60);
+        Assert.Equal(60_000, hour.Amount.MinorUnits);
+        Assert.Equal(40_000, hour.BalanceAfter.MinorUnits);
+        Assert.False(tariff.Options.Single(option => option.Minutes == 120).Affordable);
+        var package = Assert.Single(offers.Packages);
+        Assert.Equal(packageId, package.PlayerPackageId);
+        Assert.Equal(180, package.RemainingMinutes);
+    }
+
+    [Fact]
+    public async Task StartOffers_WithAWrongCode_CountLikeAWrongStart()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var response = await client.GetAsync("/api/me/devices/000000/start-offers");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(1, await db.SeatingCodeAttemptCounters
+            .Where(counter => counter.Scope == SeatingCodeAttemptScopes.Player)
+            .Select(counter => counter.FailedCount)
+            .SingleAsync());
+    }
+
+    [Fact]
+    public async Task ExtendOffers_MoveTheEndFromTheCurrentEnd()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+
+        var offers = await client.GetFromJsonAsync<PlayerExtendOffersDto>($"/api/me/sessions/{sessionId}/extend-offers");
+
+        Assert.Null(offers!.UnavailableReason);
+        var halfHour = offers.Options.Single(option => option.Minutes == 30);
+        Assert.Equal(30_000, halfHour.Amount.MinorUnits);
+        Assert.Equal(10_000, halfHour.BalanceAfter.MinorUnits);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var endsAt = (await db.Sessions.SingleAsync(session => session.SessionId == sessionId)).EndsAtUtc!.Value;
+        Assert.Equal(endsAt.AddMinutes(30), halfHour.EndsAtUtc);
+    }
+
+    /// <summary>
+    /// Сесть по своему пакету: минуты уходят из пакета, кошелёк не трогается. Встал раньше —
+    /// неиграное возвращается в пакет, а не сгорает, как раньше.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_ByPackage_ThenAnEarlyExit_ReturnsTheUnplayedMinutesToThePackage()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        var packageId = await SeedPackageAsync(factory, ctx, includedSeconds: 3 * 3600);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var start = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(await SeatingCodeAsync(factory, ctx), string.Empty, 120, Guid.NewGuid().ToString("N"), packageId));
+        Assert.Equal(HttpStatusCode.OK, start.StatusCode);
+        var sessionId = (await start.Content.ReadFromJsonAsync<SessionCommandResponse>())!.Session.SessionId;
+        Assert.Equal(100_000, await WalletBalanceAsync(factory, ctx.PlayerId));
+        Assert.Equal(60, await PackageRemainingMinutesAsync(factory, packageId));
+
+        // Сорок минут сыграно, из них десять — на паузе: списывается тридцать.
+        await ShiftSessionAsync(factory, sessionId, startedMinutesAgo: 40, pausedMinutes: 10);
+        var quote = await client.GetFromJsonAsync<PlayerEndQuoteDto>($"/api/me/sessions/{sessionId}/end-quote");
+        Assert.Equal(90, quote!.PackageMinutesReturned);
+
+        var end = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+        var ended = await end.Content.ReadFromJsonAsync<PlayerSelfEndSessionResponse>();
+        Assert.Equal(90, ended!.PackageMinutesReturned);
+        Assert.Equal(150, await PackageRemainingMinutesAsync(factory, packageId));
+        Assert.Equal(100_000, await WalletBalanceAsync(factory, ctx.PlayerId));
+    }
+
+    /// <summary>Карточка тарифа к версии из сида: без неё тариф не попадает в список для игрока.</summary>
+    private static async Task AddTariffCardAsync(PlatformApiFactory factory, SelfStartContext ctx, string name)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var version = await db.TariffVersions.SingleAsync(
+            candidate => candidate.TariffVersionId == Guid.Parse(ctx.TariffRuleVersionId));
+        db.Tariffs.Add(new TariffEntity
+        {
+            TariffId = version.TariffId,
+            OrganizationId = ctx.OrgId,
+            BranchId = ctx.BranchId,
+            Name = name,
+            IsActive = true,
+            CreatedAtUtc = Now.AddYears(-1)
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<Guid> SeedPackageAsync(PlatformApiFactory factory, SelfStartContext ctx, int includedSeconds)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var packageId = Guid.NewGuid();
+        db.PlayerPackages.Add(new PlayerPackageEntity
+        {
+            PlayerPackageId = packageId,
+            PackageDefinitionId = Guid.NewGuid(),
+            OrganizationId = ctx.OrgId,
+            BranchId = ctx.BranchId,
+            PlayerAccountId = ctx.PlayerId,
+            Name = "Пакет 3 часа",
+            CurrencyCode = "TJS",
+            PurchasedPriceMinorUnits = 100_000,
+            IncludedSeconds = includedSeconds,
+            PurchasedAtUtc = Now,
+            ExpiresAtUtc = Now.AddDays(30)
+        });
+        db.LedgerEntries.Add(AFK4.Platform.Api.Billing.BillingEntryFactory.Create(
+            ctx.OrgId,
+            ctx.BranchId,
+            ctx.PlayerId,
+            sessionId: null,
+            packageId,
+            AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.PackagePurchase,
+            AFK4.Shared.Contracts.Billing.LedgerAccountTypeNames.PackageTime,
+            amountMinorUnits: 0,
+            includedSeconds,
+            "TJS",
+            "package purchase",
+            "package purchase",
+            reversesLedgerEntryId: null,
+            Guid.Empty,
+            Now));
+        await db.SaveChangesAsync();
+        return packageId;
+    }
+
+    private static async Task<int> PackageRemainingMinutesAsync(PlatformApiFactory factory, Guid packageId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var remaining = await AFK4.Platform.Api.Billing.LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
+            db, packageId, CancellationToken.None);
+        return (remaining.IncludedSeconds + remaining.BonusSeconds) / 60;
     }
 
     [Fact]

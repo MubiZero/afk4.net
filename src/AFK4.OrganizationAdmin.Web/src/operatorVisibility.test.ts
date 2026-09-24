@@ -26,7 +26,7 @@ const rolePermissions: Record<string, string[]> = {
     'organization.receipts.view', 'organization.updates.status.view'
   ],
   branch_manager: [
-    'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.commands.status.view',
+    'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.maintenance', 'organization.devices.commands.status.view',
     'organization.devices.credentials.rotate', 'organization.devices.credentials.revoke', 'organization.devices.seat_assignment.assign',
     'organization.devices.detail.view', 'organization.devices.install', 'organization.floor_map.view', 'organization.layout.manage', 'organization.sessions.start',
     'organization.sessions.extend', 'organization.sessions.transfer', 'organization.sessions.end', 'organization.sessions.view', 'organization.players.create',
@@ -40,7 +40,7 @@ const rolePermissions: Record<string, string[]> = {
     'organization.diagnostics.view', 'organization.identity.branch_staff.manage', 'organization.audit.view', 'organization.branches.settings.manage'
   ],
   technician: [
-    'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.commands.status.view',
+    'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.maintenance', 'organization.devices.commands.status.view',
     'organization.devices.credentials.rotate', 'organization.devices.credentials.revoke', 'organization.devices.seat_assignment.assign',
     'organization.devices.detail.view', 'organization.devices.install', 'organization.floor_map.view', 'organization.inventory.view',
     'organization.updates.status.view', 'organization.diagnostics.view'

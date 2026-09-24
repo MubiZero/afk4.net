@@ -35,6 +35,21 @@ abstract final class CashMovementTypeNames {
   static const String cashOut = 'cash_out';
 }
 
+/// Почему сервер не принял команду администратора.
+///
+/// Словарь: Devices/DeviceCommandErrorCodeNames.cs
+abstract final class DeviceCommandErrorCodeNames {
+  /// Такой команды нет — раньше сервер принимал любую строку, и агент отвечал «не умею».
+  static const String unknownType = 'unknown_command_type';
+  /// На ПК идёт сессия: перезагружать, выключать и уводить в обслуживание нельзя.
+  static const String activeSession = 'device_has_active_session';
+  static const String invalidPayload = 'invalid_command_payload';
+  /// Разбудить нельзя: ПК ещё ни разу не сообщил свой сетевой адрес.
+  static const String wakeTargetUnknown = 'wake_target_unknown';
+  /// Разбудить некому: в подсети этого ПК нет ни одного включённого соседа.
+  static const String noWakeHelper = 'no_wake_helper';
+}
+
 /// Чем закончилась команда на устройстве — машинным именем, а не фразой.
 /// Журнал команд читает администратор клуба на своём языке. Агент до этого присылал только
 /// человеческую строку и присылал её по-английски («Workstation locked (nothing)»), и она
@@ -71,6 +86,41 @@ abstract final class DeviceCommandOutcomeNames {
   static const String leaseUnreadable = 'lease-unreadable';
   /// Аренда не прошла проверку подписи или срока.
   static const String leaseInvalid = 'lease-invalid';
+  /// Windows перезагрузит ПК через десять секунд: ответ ушёл раньше.
+  static const String rebootScheduled = 'reboot-scheduled';
+  /// Windows выключит ПК через десять секунд.
+  static const String shutdownScheduled = 'shutdown-scheduled';
+  /// На ПК идёт сессия: чужую игру агент не выключает и в обслуживание не уводит.
+  static const String sessionInProgress = 'session-in-progress';
+  /// Сосед отправил волшебный пакет. Проснулся ли ПК, скажет его сердцебиение.
+  static const String wakePacketSent = 'wake-packet-sent';
+  /// MAC или широковещательный адрес не годятся — или сосед уже в другой подсети.
+  static const String wakeTargetInvalid = 'wake-target-invalid';
+  static const String maintenanceStarted = 'maintenance-started';
+  static const String maintenanceEnded = 'maintenance-ended';
+  /// Выход игрока или сообщение переданы на экран ПК.
+  static const String deliveredToShell = 'delivered-to-shell';
+  /// Экран игрока не запущен или не отвечает — передать некому.
+  static const String shellNotConnected = 'shell-not-connected';
+  /// Профиля защиты у ПК пока нет — обновлять нечего.
+  static const String nothingToRefresh = 'nothing-to-refresh';
+}
+
+/// Где команда: ждёт, отдана агенту, устарела или агент уже ответил.
+///
+/// Словарь: Devices/DeviceCommandStatusNames.cs
+abstract final class DeviceCommandStatusNames {
+  static const String pending = 'Pending';
+  /// Отдана агенту и больше не отдаётся — у неповторяемых команд (перезагрузка, выключение,
+  /// пробуждение). Повторная выдача той же перезагрузки после перезапуска агента была бы петлёй.
+  static const String delivered = 'Delivered';
+  /// Неповторяемая команда пролежала дольше срока и не отдана: перезагрузка, пришедшая через три
+  /// дня после просьбы, хуже потерянной.
+  static const String expired = 'Expired';
+  static const String accepted = 'Accepted';
+  static const String rejected = 'Rejected';
+  static const String failed = 'Failed';
+  static const String completed = 'Completed';
 }
 
 /// Словарь: Devices/DeviceCommandTypeNames.cs
@@ -81,6 +131,27 @@ abstract final class DeviceCommandTypeNames {
   /// A non-blocking warning overlay pushed to the shell (e.g. fixed time almost
   /// up, or an open tab approaching its credit limit).
   static const String warn = 'warn';
+  /// Перезагрузить ПК. Только без живой сессии; отдаётся агенту один раз.
+  static const String reboot = 'reboot';
+  /// Выключить ПК. Только без живой сессии; отдаётся агенту один раз.
+  static const String shutdown = 'shutdown';
+  /// «Разбудить этот ПК» — так просит администратор, называя спящую машину. Выключенный ПК
+  /// команду не получит, поэтому сервер передаёт её соседу по подсети как WakeNeighbor.
+  static const String wake = 'wake';
+  /// Агенту: отправь волшебный пакет (6×FF + 16×MAC, UDP 9) в свою подсеть. В теле — mac,
+  /// broadcast и targetDeviceId. Администратор эту команду не шлёт — её собирает сервер из
+  /// Wake.
+  static const String wakeNeighbor = 'wake-neighbor';
+  /// Хост выходит из аккаунта игрока; сессия, если идёт, продолжается.
+  static const String signOut = 'sign-out';
+  /// Сообщение игроку: окно поверх игры или полоса на экране блокировки. В теле — text.
+  static const String message = 'message';
+  /// Режим обслуживания: игрокам вход закрыт. Право organization.devices.maintenance.
+  static const String maintenanceOn = 'maintenance-on';
+  /// Вернуть ПК в зал из обслуживания.
+  static const String maintenanceOff = 'maintenance-off';
+  /// Перечитать профиль защиты.
+  static const String policyRefresh = 'policy-refresh';
 }
 
 /// Словарь: Install/DeviceEnrollmentStateNames.cs
@@ -91,10 +162,33 @@ abstract final class DeviceEnrollmentStateNames {
   static const String removed = 'removed';
 }
 
+/// Словарь: Devices/DevicePlayerSignInContracts.cs
+abstract final class DevicePlayerSignInErrorCodeNames {
+  /// Номер или ПИН-код не подошли. Причина не уточняется: «нет такого номера» — это ответ на
+  /// вопрос, кто в этой сети играет.
+  static const String signInRefused = 'sign_in_refused';
+  /// С этого ПК слишком много неудачных попыток; ответ несёт, когда можно снова.
+  static const String tooManyAttempts = 'too_many_attempts';
+  /// На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего.
+  static const String sessionNotYours = 'session_not_yours';
+  /// Клуб закрыл этот ПК на обслуживание: входить на нём некуда.
+  static const String deviceInMaintenance = 'device_in_maintenance';
+}
+
 /// Словарь: Install/DeviceRoleNames.cs
 abstract final class DeviceRoleNames {
   static const String gamingPc = 'gaming_pc';
   static const String managerWorkstation = 'manager_workstation';
+}
+
+/// Словарь: Devices/DeviceShellContextContracts.cs
+abstract final class DeviceSessionOwnerKindNames {
+  /// Живой сессии на ПК нет.
+  static const String none = 'none';
+  /// Сессия без счёта игрока — посадили у стойки.
+  static const String guest = 'guest';
+  /// Сессия на счёте игрока.
+  static const String player = 'player';
 }
 
 /// Что с дружбой прямо сейчас.
@@ -217,6 +311,9 @@ abstract final class OrganizationOwnerInviteStatusNames {
 abstract final class OrganizationPermissionNames {
   static const String createDeviceEnrollmentCode = 'organization.devices.enrollment_codes.create';
   static const String dispatchDeviceCommand = 'organization.devices.commands.dispatch';
+  /// Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает
+  /// машину для игроков, и решать это — не каждому, кто может её перезапереть.
+  static const String maintainDevice = 'organization.devices.maintenance';
   static const String viewDeviceCommandStatus = 'organization.devices.commands.status.view';
   static const String rotateDeviceCredential = 'organization.devices.credentials.rotate';
   static const String revokeDeviceCredential = 'organization.devices.credentials.revoke';
@@ -456,6 +553,14 @@ abstract final class PlatformUpdateTargetKindNames {
   static const String device = 'device';
 }
 
+/// Словарь: Players/PlayerOfferContracts.cs
+abstract final class PlayerOfferUnavailableReasonNames {
+  /// Сессия начата по пакету: её продлевают новым стартом по пакету, а не деньгами.
+  static const String packageSession = 'package_session';
+  /// Сессия не предоплаченная — у стойки или открытым счётом; продлевает администратор.
+  static const String notPrepaid = 'not_prepaid';
+}
+
 /// Словарь: Shell/PlayerShellStateNames.cs
 abstract final class PlayerShellStateNames {
   static const String locked = 'locked';
@@ -465,6 +570,28 @@ abstract final class PlayerShellStateNames {
   static const String maintenance = 'maintenance';
   static const String offline = 'offline';
   static const String error = 'error';
+}
+
+/// Словарь: Devices/PlayerSignInClaimDeviceContracts.cs
+abstract final class PlayerSignInClaimErrorCodeNames {
+  /// Заявки нет или она для другого ПК.
+  static const String notFound = 'claim_not_found';
+  /// ПК не успел забрать заявку за отведённое время.
+  static const String expired = 'claim_expired';
+  /// Заявку уже забрали: одна заявка — один вход.
+  static const String alreadyRedeemed = 'claim_already_redeemed';
+  /// Клуб закрыл этот ПК на обслуживание, пока заявка ждала.
+  static const String deviceInMaintenance = 'device_in_maintenance';
+}
+
+/// Словарь: Players/PlayerSignInClaimContracts.cs
+abstract final class PlayerSignInClaimStatusNames {
+  /// ПК ещё не забрал заявку.
+  static const String pending = 'pending';
+  /// ПК забрал заявку — человек вошёл.
+  static const String redeemed = 'redeemed';
+  /// ПК не забрал заявку за отведённое время.
+  static const String expired = 'expired';
 }
 
 /// Словарь: Pos/PosSaleStateNames.cs
@@ -560,6 +687,19 @@ abstract final class ScheduledReportTypeNames {
   static const String gameplayTime = 'gameplay_time';
   static const String cashOperations = 'cash_operations';
   static const String operatorActions = 'operator_actions';
+}
+
+/// Почему код посадки не приняли. Одни и те же у старта с телефона и у заявки на вход.
+///
+/// Словарь: Players/PlayerSignInClaimContracts.cs
+abstract final class SeatingCodeErrorCodeNames {
+  /// Код не подошёл. Чужой клуб, истёкший код и опечатка снаружи неразличимы: иначе перебор
+  /// шестизначных цифр становится осмысленным.
+  static const String invalid = 'seating_code_invalid';
+  /// Слишком много неверных кодов — у человека или у всего клуба; ответ несёт, когда можно снова.
+  static const String attemptsExceeded = 'seating_code_attempts_exceeded';
+  /// Заявке нужен аккаунт AFK4, а у входа — только клубная карточка старого образца.
+  static const String platformAccountRequired = 'platform_account_required';
 }
 
 /// Состояние места на карте зала — то, что сервер кладёт в SeatStatusDto.State.
@@ -680,6 +820,13 @@ abstract final class ShellPipeErrorCodeNames {
   static const String platformUnreachable = 'platform_unreachable';
   /// Хосту некуда отправить запрос: агента нет на другом конце канала.
   static const String agentUnavailable = 'agent_unavailable';
+  /// Номер или ПИН-код не подошли. Те же имена, что у сервера и моста к странице.
+  static const String signInRefused = 'sign_in_refused';
+  static const String tooManyAttempts = 'too_many_attempts';
+  /// На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего.
+  static const String sessionNotYours = 'session_not_yours';
+  /// Клуб закрыл этот ПК на обслуживание — вход на нём закрыт.
+  static const String deviceInMaintenance = 'device_in_maintenance';
 }
 
 /// Словарь: Shell/ShellPipeProtocol.cs
@@ -691,6 +838,11 @@ abstract final class ShellPipeMessageTypeNames {
   static const String state = 'state';
   static const String request = 'request';
   static const String reply = 'reply';
+  /// Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение.
+  static const String command = 'command';
+  /// Игрок вошёл: агент отдаёт хосту токены. Один кадр на оба пути — ПИН-код и QR: вход по QR
+  /// приходит без запроса хоста, и отвечать на него нечем, кроме отдельного кадра.
+  static const String auth = 'auth';
 }
 
 /// Словарь: Shell/ShellPipeProtocol.cs
@@ -699,6 +851,9 @@ abstract final class ShellPipeRequestTypeNames {
   static const String launch = 'launch';
   /// Позвать администратора к этому ПК.
   static const String assist = 'assist';
+  /// Войти номером и ПИН-кодом. В теле — `phone` и `pin`. Удачный ответ пуст: токены
+  /// приходят кадром ShellPipeMessageTypeNames.Auth.
+  static const String signInPin = 'signIn.pin';
 }
 
 /// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
@@ -3174,6 +3329,31 @@ class CreatePlayerReservationRequest {
       };
 }
 
+/// Войти на ПК с телефона (спека оболочки, §5.4): приложение сканирует QR с монитора — в нём код
+/// посадки — и просит сервер впустить своего человека на эту машину. Номер и ПИН-код у ПК при
+/// этом не набираются вовсе.
+///
+/// Контракт: Players/PlayerSignInClaimContracts.cs
+class CreatePlayerSignInClaimRequest {
+  const CreatePlayerSignInClaimRequest({
+    required this.seatingCode,
+    required this.idempotencyKey,
+  });
+
+  final String seatingCode;
+  final String idempotencyKey;
+
+  factory CreatePlayerSignInClaimRequest.fromJson(Map<String, dynamic> json) => CreatePlayerSignInClaimRequest(
+        seatingCode: json['seatingCode'] as String,
+        idempotencyKey: json['idempotencyKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'seatingCode': seatingCode,
+        'idempotencyKey': idempotencyKey,
+      };
+}
+
 /// Строка чека в запросе на его создание: товар и сколько штук.
 /// Это НЕ PosSaleLineDto. Имя товара, цену за штуку и сумму строки сервер берёт из
 /// каталога и присланному не верит (см. EfPosService.CreateSaleAsync) — а раз так, требовать их в
@@ -4468,6 +4648,9 @@ class DeviceHeartbeatRequest {
     this.activeSessionId,
     this.activeSessionLeaseExpiresAtUtc,
     this.activeSessionLeaseSequence,
+    this.networkMacAddress,
+    this.networkSubnet,
+    this.networkBroadcastAddress,
   });
 
   final String organizationId;
@@ -4482,6 +4665,16 @@ class DeviceHeartbeatRequest {
   final DateTime? activeSessionLeaseExpiresAtUtc;
   final int? activeSessionLeaseSequence;
 
+  /// MAC проводного адаптера со шлюзом («AA-BB-CC-DD-EE-FF»): по нему этот ПК будит сосед, когда
+  /// он выключен. Пусто — агент ещё не умеет его сообщать.
+  final String? networkMacAddress;
+
+  /// Подсеть этого адаптера («192.168.1.0/24»): будить можно только из той же подсети.
+  final String? networkSubnet;
+
+  /// Широковещательный адрес подсети — куда сосед шлёт волшебный пакет.
+  final String? networkBroadcastAddress;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -4494,6 +4687,9 @@ class DeviceHeartbeatRequest {
         activeSessionId: json['activeSessionId'] == null ? null : json['activeSessionId'] as String,
         activeSessionLeaseExpiresAtUtc: json['activeSessionLeaseExpiresAtUtc'] == null ? null : DateTime.parse(json['activeSessionLeaseExpiresAtUtc'] as String),
         activeSessionLeaseSequence: json['activeSessionLeaseSequence'] == null ? null : (json['activeSessionLeaseSequence'] as num).toInt(),
+        networkMacAddress: json['networkMacAddress'] == null ? null : json['networkMacAddress'] as String,
+        networkSubnet: json['networkSubnet'] == null ? null : json['networkSubnet'] as String,
+        networkBroadcastAddress: json['networkBroadcastAddress'] == null ? null : json['networkBroadcastAddress'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -4508,6 +4704,9 @@ class DeviceHeartbeatRequest {
         'activeSessionId': activeSessionId,
         'activeSessionLeaseExpiresAtUtc': activeSessionLeaseExpiresAtUtc?.toIso8601String(),
         'activeSessionLeaseSequence': activeSessionLeaseSequence,
+        'networkMacAddress': networkMacAddress,
+        'networkSubnet': networkSubnet,
+        'networkBroadcastAddress': networkBroadcastAddress,
       };
 }
 
@@ -4522,6 +4721,11 @@ class DeviceHeartbeatResponse {
     this.seatingCodeExpiresAtUtc,
     this.rotateCredential,
     this.branding,
+    this.seat,
+    this.sessionOwner,
+    this.features,
+    this.pendingSignInClaim,
+    this.maintenance,
   });
 
   final DateTime serverTimeUtc;
@@ -4551,6 +4755,24 @@ class DeviceHeartbeatResponse {
   /// null, когда оформление не задано, — оболочка показывает нейтральный экран.
   final ShellBrandingDto? branding;
 
+  /// Место этого ПК: оболочка пишет его в шапке. null — ПК ни к какому месту не привязан.
+  final DeviceSeatDto? seat;
+
+  /// Чья сессия идёт на ПК: вошедшему не владельцу оболочка чужую сессию не откроет.
+  final DeviceSessionOwnerDto? sessionOwner;
+
+  /// Права организации по тарифу (PlatformFeatureNames): оболочка прячет разделы, которых у клуба
+  /// нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
+  final List<String>? features;
+
+  /// Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
+  /// потерялся. null — ждать нечего.
+  final PlayerSignInClaimedDto? pendingSignInClaim;
+
+  /// ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+  /// догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+  final bool? maintenance;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -4560,6 +4782,11 @@ class DeviceHeartbeatResponse {
         seatingCodeExpiresAtUtc: json['seatingCodeExpiresAtUtc'] == null ? null : DateTime.parse(json['seatingCodeExpiresAtUtc'] as String),
         rotateCredential: json['rotateCredential'] == null ? null : json['rotateCredential'] as bool,
         branding: json['branding'] == null ? null : ShellBrandingDto.fromJson(json['branding'] as Map<String, dynamic>),
+        seat: json['seat'] == null ? null : DeviceSeatDto.fromJson(json['seat'] as Map<String, dynamic>),
+        sessionOwner: json['sessionOwner'] == null ? null : DeviceSessionOwnerDto.fromJson(json['sessionOwner'] as Map<String, dynamic>),
+        features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
+        pendingSignInClaim: json['pendingSignInClaim'] == null ? null : PlayerSignInClaimedDto.fromJson(json['pendingSignInClaim'] as Map<String, dynamic>),
+        maintenance: json['maintenance'] == null ? null : json['maintenance'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -4571,6 +4798,11 @@ class DeviceHeartbeatResponse {
         'seatingCodeExpiresAtUtc': seatingCodeExpiresAtUtc?.toIso8601String(),
         'rotateCredential': rotateCredential,
         'branding': branding?.toJson(),
+        'seat': seat?.toJson(),
+        'sessionOwner': sessionOwner?.toJson(),
+        'features': features?.map((item) => item).toList(),
+        'pendingSignInClaim': pendingSignInClaim?.toJson(),
+        'maintenance': maintenance,
       };
 }
 
@@ -4671,6 +4903,95 @@ class DeviceInventoryItemDto {
       };
 }
 
+/// Отказ входа на ПК. RetryAfterUtc — только у too_many_attempts.
+///
+/// Контракт: Devices/DevicePlayerSignInContracts.cs
+class DevicePlayerSignInErrorDto {
+  const DevicePlayerSignInErrorDto({
+    required this.error,
+    this.retryAfterUtc,
+  });
+
+
+  /// Одно из DevicePlayerSignInErrorCodeNames.
+  final String error;
+  final DateTime? retryAfterUtc;
+
+  factory DevicePlayerSignInErrorDto.fromJson(Map<String, dynamic> json) => DevicePlayerSignInErrorDto(
+        error: json['error'] as String,
+        retryAfterUtc: json['retryAfterUtc'] == null ? null : DateTime.parse(json['retryAfterUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'error': error,
+        'retryAfterUtc': retryAfterUtc?.toIso8601String(),
+      };
+}
+
+/// Игрок входит на самом ПК: номер и ПИН-код. Идёт от агента с ключом устройства, а не с
+/// публичного входа: сервер знает, на каком ПК вошли, привязывает токены к этому ПК и считает
+/// попытки на устройство, а не на адрес всего клуба за одним роутером.
+///
+/// Контракт: Devices/DevicePlayerSignInContracts.cs
+class DevicePlayerSignInRequest {
+  const DevicePlayerSignInRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+    required this.phoneNumber,
+    required this.pin,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+  final String phoneNumber;
+  final String pin;
+
+  factory DevicePlayerSignInRequest.fromJson(Map<String, dynamic> json) => DevicePlayerSignInRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+        phoneNumber: json['phoneNumber'] as String,
+        pin: json['pin'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+        'phoneNumber': phoneNumber,
+        'pin': pin,
+      };
+}
+
+/// ПК забирает заявку ключом устройства — в ответ токены, привязанные к этому ПК.
+///
+/// Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+class DeviceRedeemSignInClaimRequest {
+  const DeviceRedeemSignInClaimRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+
+  factory DeviceRedeemSignInClaimRequest.fromJson(Map<String, dynamic> json) => DeviceRedeemSignInClaimRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+      };
+}
+
 /// Контракт: Devices/DeviceSeatAssignmentDto.cs
 class DeviceSeatAssignmentDto {
   const DeviceSeatAssignmentDto({
@@ -4709,6 +5030,61 @@ class DeviceSeatAssignmentDto {
         'deviceId': deviceId,
         'attachedAtUtc': attachedAtUtc.toIso8601String(),
         'detachedAtUtc': detachedAtUtc?.toIso8601String(),
+      };
+}
+
+/// Место, к которому привязан ПК, — то, что оболочка пишет в шапке: «ПК 07 · Общий зал». Имя
+/// места клуб набирает сам, номера отдельно от имени нет.
+///
+/// Контракт: Devices/DeviceShellContextContracts.cs
+class DeviceSeatDto {
+  const DeviceSeatDto({
+    required this.label,
+    this.zoneName,
+  });
+
+  final String label;
+
+  /// Пусто — место без зоны или зона удалена.
+  final String? zoneName;
+
+  factory DeviceSeatDto.fromJson(Map<String, dynamic> json) => DeviceSeatDto(
+        label: json['label'] as String,
+        zoneName: json['zoneName'] == null ? null : json['zoneName'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'label': label,
+        'zoneName': zoneName,
+      };
+}
+
+/// Чья сессия идёт на ПК. Оболочке это нужно, чтобы не открыть вошедшему чужую сессию: посаженный
+/// у стойки гость и игрок со своим счётом выглядят по-разному, а вошедший не владелец видит «эта
+/// сессия не ваша».
+///
+/// Контракт: Devices/DeviceShellContextContracts.cs
+class DeviceSessionOwnerDto {
+  const DeviceSessionOwnerDto({
+    required this.kind,
+    this.playerAccountId,
+  });
+
+
+  /// Одно из DeviceSessionOwnerKindNames.
+  final String kind;
+
+  /// Счёт игрока; только у Kind = player.
+  final String? playerAccountId;
+
+  factory DeviceSessionOwnerDto.fromJson(Map<String, dynamic> json) => DeviceSessionOwnerDto(
+        kind: json['kind'] as String,
+        playerAccountId: json['playerAccountId'] == null ? null : json['playerAccountId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'playerAccountId': playerAccountId,
       };
 }
 
@@ -10159,6 +10535,110 @@ class PlayerDebtPaymentRequest {
       };
 }
 
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerDurationOfferDto {
+  const PlayerDurationOfferDto({
+    required this.minutes,
+    required this.billableMinutes,
+    required this.endsAtUtc,
+    required this.amount,
+    required this.balanceAfter,
+    required this.affordable,
+  });
+
+
+  /// Сколько времени берёт игрок.
+  final int minutes;
+
+  /// Сколько минут будет оплачено: минимум и шаг округления тарифа уже применены.
+  final int billableMinutes;
+  final DateTime endsAtUtc;
+  final MoneyDto amount;
+  final MoneyDto balanceAfter;
+  final bool affordable;
+
+  factory PlayerDurationOfferDto.fromJson(Map<String, dynamic> json) => PlayerDurationOfferDto(
+        minutes: (json['minutes'] as num).toInt(),
+        billableMinutes: (json['billableMinutes'] as num).toInt(),
+        endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
+        amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
+        balanceAfter: MoneyDto.fromJson(json['balanceAfter'] as Map<String, dynamic>),
+        affordable: json['affordable'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'minutes': minutes,
+        'billableMinutes': billableMinutes,
+        'endsAtUtc': endsAtUtc.toIso8601String(),
+        'amount': amount.toJson(),
+        'balanceAfter': balanceAfter.toJson(),
+        'affordable': affordable,
+      };
+}
+
+/// «Сколько вернётся, если встать сейчас» — до нажатия. Тот же расчёт, что у самого выхода: экран
+/// не обещает одну сумму, чтобы вернуть другую.
+///
+/// Контракт: Players/PlayerSelfEndSessionContracts.cs
+class PlayerEndQuoteDto {
+  const PlayerEndQuoteDto({
+    required this.billedMinutes,
+    required this.refund,
+    required this.packageMinutesReturned,
+  });
+
+
+  /// Сколько минут будет списано: сыгранное за вычетом пауз, с правилами тарифа.
+  final int billedMinutes;
+  final MoneyDto refund;
+  final int packageMinutesReturned;
+
+  factory PlayerEndQuoteDto.fromJson(Map<String, dynamic> json) => PlayerEndQuoteDto(
+        billedMinutes: (json['billedMinutes'] as num).toInt(),
+        refund: MoneyDto.fromJson(json['refund'] as Map<String, dynamic>),
+        packageMinutesReturned: (json['packageMinutesReturned'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'billedMinutes': billedMinutes,
+        'refund': refund.toJson(),
+        'packageMinutesReturned': packageMinutesReturned,
+      };
+}
+
+/// Чем можно продлить идущую сессию — по тарифу, на котором она началась.
+///
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerExtendOffersDto {
+  const PlayerExtendOffersDto({
+    required this.sessionId,
+    required this.balance,
+    required this.options,
+    this.unavailableReason,
+  });
+
+  final String sessionId;
+  final MoneyDto balance;
+  final List<PlayerDurationOfferDto> options;
+
+  /// Одно из PlayerOfferUnavailableReasonNames; пусто, если продлить можно.
+  final String? unavailableReason;
+
+  factory PlayerExtendOffersDto.fromJson(Map<String, dynamic> json) => PlayerExtendOffersDto(
+        sessionId: json['sessionId'] as String,
+        balance: MoneyDto.fromJson(json['balance'] as Map<String, dynamic>),
+        options: (json['options'] as List<dynamic>).map((item) => PlayerDurationOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+        unavailableReason: json['unavailableReason'] == null ? null : json['unavailableReason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'sessionId': sessionId,
+        'balance': balance.toJson(),
+        'options': options.map((item) => item.toJson()).toList(),
+        'unavailableReason': unavailableReason,
+      };
+}
+
 /// Строка выписки глазами игрока: что случилось с его деньгами и когда.
 /// Не то же самое, что LedgerEntryDto у стойки, и не должно им быть: там есть
 /// табельный номер проведшего сотрудника и служебная причина вида
@@ -10444,6 +10924,35 @@ class PlayerPackageDto {
         'remainingIncludedSeconds': remainingIncludedSeconds,
         'remainingBonusSeconds': remainingBonusSeconds,
         'purchasedAtUtc': purchasedAtUtc.toIso8601String(),
+        'expiresAtUtc': expiresAtUtc?.toIso8601String(),
+      };
+}
+
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerPackageOfferDto {
+  const PlayerPackageOfferDto({
+    required this.playerPackageId,
+    required this.name,
+    required this.remainingMinutes,
+    this.expiresAtUtc,
+  });
+
+  final String playerPackageId;
+  final String name;
+  final int remainingMinutes;
+  final DateTime? expiresAtUtc;
+
+  factory PlayerPackageOfferDto.fromJson(Map<String, dynamic> json) => PlayerPackageOfferDto(
+        playerPackageId: json['playerPackageId'] as String,
+        name: json['name'] as String,
+        remainingMinutes: (json['remainingMinutes'] as num).toInt(),
+        expiresAtUtc: json['expiresAtUtc'] == null ? null : DateTime.parse(json['expiresAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'playerPackageId': playerPackageId,
+        'name': name,
+        'remainingMinutes': remainingMinutes,
         'expiresAtUtc': expiresAtUtc?.toIso8601String(),
       };
 }
@@ -11056,6 +11565,7 @@ class PlayerSelfEndSessionResponse {
   const PlayerSelfEndSessionResponse({
     required this.billedMinutes,
     required this.refunded,
+    this.packageMinutesReturned,
   });
 
   final int billedMinutes;
@@ -11063,14 +11573,19 @@ class PlayerSelfEndSessionResponse {
   /// Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью.
   final MoneyDto refunded;
 
+  /// Сколько минут вернулось в пакет — у сессии, начатой по пакету.
+  final int? packageMinutesReturned;
+
   factory PlayerSelfEndSessionResponse.fromJson(Map<String, dynamic> json) => PlayerSelfEndSessionResponse(
         billedMinutes: (json['billedMinutes'] as num).toInt(),
         refunded: MoneyDto.fromJson(json['refunded'] as Map<String, dynamic>),
+        packageMinutesReturned: json['packageMinutesReturned'] == null ? null : (json['packageMinutesReturned'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'billedMinutes': billedMinutes,
         'refunded': refunded.toJson(),
+        'packageMinutesReturned': packageMinutesReturned,
       };
 }
 
@@ -11108,6 +11623,7 @@ class PlayerSelfStartRequest {
     required this.tariffRuleVersionId,
     required this.durationMinutes,
     required this.idempotencyKey,
+    this.playerPackageId,
   });
 
   final String seatingCode;
@@ -11115,11 +11631,16 @@ class PlayerSelfStartRequest {
   final int durationMinutes;
   final String idempotencyKey;
 
+  /// Сесть по своему пакету: минуты списываются из пакета, а не с кошелька. Тариф при этом не
+  /// нужен — у пакета своя цена, уже заплаченная; минуты — сколько взять из остатка.
+  final String? playerPackageId;
+
   factory PlayerSelfStartRequest.fromJson(Map<String, dynamic> json) => PlayerSelfStartRequest(
         seatingCode: json['seatingCode'] as String,
         tariffRuleVersionId: json['tariffRuleVersionId'] as String,
         durationMinutes: (json['durationMinutes'] as num).toInt(),
         idempotencyKey: json['idempotencyKey'] as String,
+        playerPackageId: json['playerPackageId'] == null ? null : json['playerPackageId'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -11127,6 +11648,7 @@ class PlayerSelfStartRequest {
         'tariffRuleVersionId': tariffRuleVersionId,
         'durationMinutes': durationMinutes,
         'idempotencyKey': idempotencyKey,
+        'playerPackageId': playerPackageId,
       };
 }
 
@@ -11267,6 +11789,65 @@ class PlayerShellStateDto {
       };
 }
 
+/// Заявка на вход и что с ней стало: приложение показывает «Вы вошли на ПК 07».
+///
+/// Контракт: Players/PlayerSignInClaimContracts.cs
+class PlayerSignInClaimDto {
+  const PlayerSignInClaimDto({
+    required this.claimId,
+    required this.status,
+    required this.expiresAtUtc,
+    this.seatLabel,
+  });
+
+  final String claimId;
+
+  /// Одно из PlayerSignInClaimStatusNames.
+  final String status;
+  final DateTime expiresAtUtc;
+
+  /// Имя места: «ПК 07». Пусто, если ПК не привязан к месту.
+  final String? seatLabel;
+
+  factory PlayerSignInClaimDto.fromJson(Map<String, dynamic> json) => PlayerSignInClaimDto(
+        claimId: json['claimId'] as String,
+        status: json['status'] as String,
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+        seatLabel: json['seatLabel'] == null ? null : json['seatLabel'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'claimId': claimId,
+        'status': status,
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
+        'seatLabel': seatLabel,
+      };
+}
+
+/// ПК должен забрать заявку на вход: человек отсканировал QR с его монитора. Приходит в группу
+/// устройства по SignalR и, на случай обрыва, в ответе на сердцебиение.
+///
+/// Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+class PlayerSignInClaimedDto {
+  const PlayerSignInClaimedDto({
+    required this.claimId,
+    required this.expiresAtUtc,
+  });
+
+  final String claimId;
+  final DateTime expiresAtUtc;
+
+  factory PlayerSignInClaimedDto.fromJson(Map<String, dynamic> json) => PlayerSignInClaimedDto(
+        claimId: json['claimId'] as String,
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'claimId': claimId,
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
+      };
+}
+
 /// Самопосадка за игровой ПК: клуб, номер и сетевой PIN. Поле называется `Password` с тех
 /// времён, когда PIN был клубным паролем, — переименование сломало бы установленные в поле
 /// оболочки ради одного слова.
@@ -11364,6 +11945,94 @@ class PlayerSignOutRequest {
 
   Map<String, dynamic> toJson() => {
         'refreshToken': refreshToken,
+      };
+}
+
+/// Что можно купить, сев за этот ПК, — одним запросом, с готовыми суммами (спека оболочки,
+/// §5.5). Клиент цену не считает: суммы считает тот же расчёт, что и списание, иначе экран
+/// однажды пообещал бы одну цифру, а касса списала бы другую.
+///
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerStartOffersDto {
+  const PlayerStartOffersDto({
+    this.seatLabel,
+    this.zoneName,
+    required this.timeZone,
+    required this.balance,
+    required this.tariffs,
+    required this.packages,
+  });
+
+  final String? seatLabel;
+  final String? zoneName;
+
+  /// Часовой пояс клуба (IANA): «до скольки» показывается по времени клуба, а не телефона.
+  final String timeZone;
+  final MoneyDto balance;
+  final List<PlayerTariffOfferDto> tariffs;
+  final List<PlayerPackageOfferDto> packages;
+
+  factory PlayerStartOffersDto.fromJson(Map<String, dynamic> json) => PlayerStartOffersDto(
+        seatLabel: json['seatLabel'] == null ? null : json['seatLabel'] as String,
+        zoneName: json['zoneName'] == null ? null : json['zoneName'] as String,
+        timeZone: json['timeZone'] as String,
+        balance: MoneyDto.fromJson(json['balance'] as Map<String, dynamic>),
+        tariffs: (json['tariffs'] as List<dynamic>).map((item) => PlayerTariffOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+        packages: (json['packages'] as List<dynamic>).map((item) => PlayerPackageOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'seatLabel': seatLabel,
+        'zoneName': zoneName,
+        'timeZone': timeZone,
+        'balance': balance.toJson(),
+        'tariffs': tariffs.map((item) => item.toJson()).toList(),
+        'packages': packages.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerTariffOfferDto {
+  const PlayerTariffOfferDto({
+    required this.tariffVersionId,
+    required this.tariffRuleVersionId,
+    required this.name,
+    required this.pricePerHour,
+    required this.appliesNow,
+    this.startsAtUtc,
+    required this.options,
+  });
+
+  final String tariffVersionId;
+
+  /// То, что передаётся в старт как TariffRuleVersionId.
+  final String tariffRuleVersionId;
+  final String name;
+  final MoneyDto pricePerHour;
+  final bool appliesNow;
+
+  /// Когда тариф откроется, если сейчас он не действует; вариантов у такого тарифа нет.
+  final DateTime? startsAtUtc;
+  final List<PlayerDurationOfferDto> options;
+
+  factory PlayerTariffOfferDto.fromJson(Map<String, dynamic> json) => PlayerTariffOfferDto(
+        tariffVersionId: json['tariffVersionId'] as String,
+        tariffRuleVersionId: json['tariffRuleVersionId'] as String,
+        name: json['name'] as String,
+        pricePerHour: MoneyDto.fromJson(json['pricePerHour'] as Map<String, dynamic>),
+        appliesNow: json['appliesNow'] as bool,
+        startsAtUtc: json['startsAtUtc'] == null ? null : DateTime.parse(json['startsAtUtc'] as String),
+        options: (json['options'] as List<dynamic>).map((item) => PlayerDurationOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'tariffVersionId': tariffVersionId,
+        'tariffRuleVersionId': tariffRuleVersionId,
+        'name': name,
+        'pricePerHour': pricePerHour.toJson(),
+        'appliesNow': appliesNow,
+        'startsAtUtc': startsAtUtc?.toIso8601String(),
+        'options': options.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -14474,6 +15143,37 @@ class ShellLaunchRequest {
       };
 }
 
+/// Команда клуба, которую исполняет хост: у агента нет ни окна, ни аккаунта игрока.
+///
+/// Контракт: Shell/ShellPipeMessage.cs
+class ShellPipeCommandDto {
+  const ShellPipeCommandDto({
+    required this.commandId,
+    required this.type,
+    this.text,
+  });
+
+  final String commandId;
+
+  /// DeviceCommandTypeNames.SignOut или DeviceCommandTypeNames.Message.
+  final String type;
+
+  /// Текст сообщения; только у message.
+  final String? text;
+
+  factory ShellPipeCommandDto.fromJson(Map<String, dynamic> json) => ShellPipeCommandDto(
+        commandId: json['commandId'] as String,
+        type: json['type'] as String,
+        text: json['text'] == null ? null : json['text'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'commandId': commandId,
+        'type': type,
+        'text': text,
+      };
+}
+
 /// Контракт: Shell/ShellPipeMessage.cs
 class ShellPipeHelloDto {
   const ShellPipeHelloDto({
@@ -14514,6 +15214,8 @@ class ShellPipeMessage {
     this.request,
     this.reply,
     this.reason,
+    this.command,
+    this.auth,
   });
 
 
@@ -14526,6 +15228,11 @@ class ShellPipeMessage {
 
   /// Почему агент попрощался; только у bye.
   final String? reason;
+  final ShellPipeCommandDto? command;
+
+  /// Игрок вошёл на этом ПК — номером и ПИН-кодом или по QR с телефона. Токены привязаны к ПК;
+  /// хост держит их в памяти и странице не отдаёт.
+  final PlatformPersonSessionResponse? auth;
 
   factory ShellPipeMessage.fromJson(Map<String, dynamic> json) => ShellPipeMessage(
         type: json['type'] as String,
@@ -14534,6 +15241,8 @@ class ShellPipeMessage {
         request: json['request'] == null ? null : ShellPipeRequestDto.fromJson(json['request'] as Map<String, dynamic>),
         reply: json['reply'] == null ? null : ShellPipeReplyDto.fromJson(json['reply'] as Map<String, dynamic>),
         reason: json['reason'] == null ? null : json['reason'] as String,
+        command: json['command'] == null ? null : ShellPipeCommandDto.fromJson(json['command'] as Map<String, dynamic>),
+        auth: json['auth'] == null ? null : PlatformPersonSessionResponse.fromJson(json['auth'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -14543,6 +15252,8 @@ class ShellPipeMessage {
         'request': request?.toJson(),
         'reply': reply?.toJson(),
         'reason': reason,
+        'command': command?.toJson(),
+        'auth': auth?.toJson(),
       };
 }
 

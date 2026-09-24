@@ -26,4 +26,17 @@ public sealed record DeviceHeartbeatResponse(
     /// меняет логотип в панели, а не обходом всех ПК с переустановкой.
     ///
     /// null, когда оформление не задано, — оболочка показывает нейтральный экран.
-    ShellBrandingDto? Branding = null);
+    ShellBrandingDto? Branding = null,
+    /// Место этого ПК: оболочка пишет его в шапке. null — ПК ни к какому месту не привязан.
+    DeviceSeatDto? Seat = null,
+    /// Чья сессия идёт на ПК: вошедшему не владельцу оболочка чужую сессию не откроет.
+    DeviceSessionOwnerDto? SessionOwner = null,
+    /// Права организации по тарифу (PlatformFeatureNames): оболочка прячет разделы, которых у клуба
+    /// нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
+    IReadOnlyList<string>? Features = null,
+    /// Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
+    /// потерялся. null — ждать нечего.
+    PlayerSignInClaimedDto? PendingSignInClaim = null,
+    /// ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+    /// догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+    bool Maintenance = false);

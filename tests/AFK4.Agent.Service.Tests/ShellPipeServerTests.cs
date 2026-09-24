@@ -111,6 +111,23 @@ public sealed class ShellPipeServerTests
     }
 
     [Fact]
+    public async Task AClubCommand_IsForwardedToTheConnectedHost()
+    {
+        await using var harness = await Harness.StartAsync();
+        await using var host = await harness.ConnectAsync();
+        _ = await host.ReadAsync();
+
+        var commandId = Guid.NewGuid();
+        Assert.True(harness.HostChannel.TryPost(new ShellPipeMessage(
+            ShellPipeMessageTypeNames.Command,
+            Command: new ShellPipeCommandDto(commandId, "message", "Через пять минут закрываемся"))));
+
+        var frame = await host.ReadUntilAsync(ShellPipeMessageTypeNames.Command);
+        Assert.Equal(commandId, frame.Command!.CommandId);
+        Assert.Equal("Через пять минут закрываемся", frame.Command.Text);
+    }
+
+    [Fact]
     public async Task AfterTheHostLeaves_TheNextHostIsServed()
     {
         // Оболочку перезапускают — обновление, падение WebView2. Канал не должен умереть с ней.
@@ -140,8 +157,11 @@ public sealed class ShellPipeServerTests
                 new FixedLaunchContext(consoleSession),
                 TimeProvider.System,
                 NullLogger<ShellPipeServer>.Instance,
-                timings);
+                timings,
+                HostChannel);
         }
+
+        public ShellHostChannel HostChannel { get; } = new();
 
         public string PipeName { get; }
 

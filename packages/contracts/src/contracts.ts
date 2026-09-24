@@ -54,6 +54,24 @@ export const CashMovementTypeNames = {
 export type CashMovementTypeName = (typeof CashMovementTypeNames)[keyof typeof CashMovementTypeNames];
 
 /**
+ * Почему сервер не принял команду администратора.
+ *
+ * Словарь: Devices/DeviceCommandErrorCodeNames.cs
+ */
+export const DeviceCommandErrorCodeNames = {
+  /** Такой команды нет — раньше сервер принимал любую строку, и агент отвечал «не умею». */
+  UnknownType: 'unknown_command_type',
+  /** На ПК идёт сессия: перезагружать, выключать и уводить в обслуживание нельзя. */
+  ActiveSession: 'device_has_active_session',
+  InvalidPayload: 'invalid_command_payload',
+  /** Разбудить нельзя: ПК ещё ни разу не сообщил свой сетевой адрес. */
+  WakeTargetUnknown: 'wake_target_unknown',
+  /** Разбудить некому: в подсети этого ПК нет ни одного включённого соседа. */
+  NoWakeHelper: 'no_wake_helper',
+} as const;
+export type DeviceCommandErrorCodeName = (typeof DeviceCommandErrorCodeNames)[keyof typeof DeviceCommandErrorCodeNames];
+
+/**
  * Чем закончилась команда на устройстве — машинным именем, а не фразой.
  * Журнал команд читает администратор клуба на своём языке. Агент до этого присылал только
  * человеческую строку и присылал её по-английски («Workstation locked (nothing)»), и она
@@ -95,8 +113,50 @@ export const DeviceCommandOutcomeNames = {
   LeaseUnreadable: 'lease-unreadable',
   /** Аренда не прошла проверку подписи или срока. */
   LeaseInvalid: 'lease-invalid',
+  /** Windows перезагрузит ПК через десять секунд: ответ ушёл раньше. */
+  RebootScheduled: 'reboot-scheduled',
+  /** Windows выключит ПК через десять секунд. */
+  ShutdownScheduled: 'shutdown-scheduled',
+  /** На ПК идёт сессия: чужую игру агент не выключает и в обслуживание не уводит. */
+  SessionInProgress: 'session-in-progress',
+  /** Сосед отправил волшебный пакет. Проснулся ли ПК, скажет его сердцебиение. */
+  WakePacketSent: 'wake-packet-sent',
+  /** MAC или широковещательный адрес не годятся — или сосед уже в другой подсети. */
+  WakeTargetInvalid: 'wake-target-invalid',
+  MaintenanceStarted: 'maintenance-started',
+  MaintenanceEnded: 'maintenance-ended',
+  /** Выход игрока или сообщение переданы на экран ПК. */
+  DeliveredToShell: 'delivered-to-shell',
+  /** Экран игрока не запущен или не отвечает — передать некому. */
+  ShellNotConnected: 'shell-not-connected',
+  /** Профиля защиты у ПК пока нет — обновлять нечего. */
+  NothingToRefresh: 'nothing-to-refresh',
 } as const;
 export type DeviceCommandOutcomeName = (typeof DeviceCommandOutcomeNames)[keyof typeof DeviceCommandOutcomeNames];
+
+/**
+ * Где команда: ждёт, отдана агенту, устарела или агент уже ответил.
+ *
+ * Словарь: Devices/DeviceCommandStatusNames.cs
+ */
+export const DeviceCommandStatusNames = {
+  Pending: 'Pending',
+  /**
+   * Отдана агенту и больше не отдаётся — у неповторяемых команд (перезагрузка, выключение,
+   * пробуждение). Повторная выдача той же перезагрузки после перезапуска агента была бы петлёй.
+   */
+  Delivered: 'Delivered',
+  /**
+   * Неповторяемая команда пролежала дольше срока и не отдана: перезагрузка, пришедшая через три
+   * дня после просьбы, хуже потерянной.
+   */
+  Expired: 'Expired',
+  Accepted: 'Accepted',
+  Rejected: 'Rejected',
+  Failed: 'Failed',
+  Completed: 'Completed',
+} as const;
+export type DeviceCommandStatusName = (typeof DeviceCommandStatusNames)[keyof typeof DeviceCommandStatusNames];
 
 /** Словарь: Devices/DeviceCommandTypeNames.cs */
 export const DeviceCommandTypeNames = {
@@ -108,6 +168,31 @@ export const DeviceCommandTypeNames = {
    * up, or an open tab approaching its credit limit).
    */
   Warn: 'warn',
+  /** Перезагрузить ПК. Только без живой сессии; отдаётся агенту один раз. */
+  Reboot: 'reboot',
+  /** Выключить ПК. Только без живой сессии; отдаётся агенту один раз. */
+  Shutdown: 'shutdown',
+  /**
+   * «Разбудить этот ПК» — так просит администратор, называя спящую машину. Выключенный ПК
+   * команду не получит, поэтому сервер передаёт её соседу по подсети как WakeNeighbor.
+   */
+  Wake: 'wake',
+  /**
+   * Агенту: отправь волшебный пакет (6×FF + 16×MAC, UDP 9) в свою подсеть. В теле — mac,
+   * broadcast и targetDeviceId. Администратор эту команду не шлёт — её собирает сервер из
+   * Wake.
+   */
+  WakeNeighbor: 'wake-neighbor',
+  /** Хост выходит из аккаунта игрока; сессия, если идёт, продолжается. */
+  SignOut: 'sign-out',
+  /** Сообщение игроку: окно поверх игры или полоса на экране блокировки. В теле — text. */
+  Message: 'message',
+  /** Режим обслуживания: игрокам вход закрыт. Право organization.devices.maintenance. */
+  MaintenanceOn: 'maintenance-on',
+  /** Вернуть ПК в зал из обслуживания. */
+  MaintenanceOff: 'maintenance-off',
+  /** Перечитать профиль защиты. */
+  PolicyRefresh: 'policy-refresh',
 } as const;
 export type DeviceCommandTypeName = (typeof DeviceCommandTypeNames)[keyof typeof DeviceCommandTypeNames];
 
@@ -120,12 +205,39 @@ export const DeviceEnrollmentStateNames = {
 } as const;
 export type DeviceEnrollmentStateName = (typeof DeviceEnrollmentStateNames)[keyof typeof DeviceEnrollmentStateNames];
 
+/** Словарь: Devices/DevicePlayerSignInContracts.cs */
+export const DevicePlayerSignInErrorCodeNames = {
+  /**
+   * Номер или ПИН-код не подошли. Причина не уточняется: «нет такого номера» — это ответ на
+   * вопрос, кто в этой сети играет.
+   */
+  SignInRefused: 'sign_in_refused',
+  /** С этого ПК слишком много неудачных попыток; ответ несёт, когда можно снова. */
+  TooManyAttempts: 'too_many_attempts',
+  /** На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего. */
+  SessionNotYours: 'session_not_yours',
+  /** Клуб закрыл этот ПК на обслуживание: входить на нём некуда. */
+  DeviceInMaintenance: 'device_in_maintenance',
+} as const;
+export type DevicePlayerSignInErrorCodeName = (typeof DevicePlayerSignInErrorCodeNames)[keyof typeof DevicePlayerSignInErrorCodeNames];
+
 /** Словарь: Install/DeviceRoleNames.cs */
 export const DeviceRoleNames = {
   GamingPc: 'gaming_pc',
   ManagerWorkstation: 'manager_workstation',
 } as const;
 export type DeviceRoleName = (typeof DeviceRoleNames)[keyof typeof DeviceRoleNames];
+
+/** Словарь: Devices/DeviceShellContextContracts.cs */
+export const DeviceSessionOwnerKindNames = {
+  /** Живой сессии на ПК нет. */
+  None: 'none',
+  /** Сессия без счёта игрока — посадили у стойки. */
+  Guest: 'guest',
+  /** Сессия на счёте игрока. */
+  Player: 'player',
+} as const;
+export type DeviceSessionOwnerKindName = (typeof DeviceSessionOwnerKindNames)[keyof typeof DeviceSessionOwnerKindNames];
 
 /**
  * Что с дружбой прямо сейчас.
@@ -270,6 +382,11 @@ export type OrganizationOwnerInviteStatusName = (typeof OrganizationOwnerInviteS
 export const OrganizationPermissionNames = {
   CreateDeviceEnrollmentCode: 'organization.devices.enrollment_codes.create',
   DispatchDeviceCommand: 'organization.devices.commands.dispatch',
+  /**
+   * Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает
+   * машину для игроков, и решать это — не каждому, кто может её перезапереть.
+   */
+  MaintainDevice: 'organization.devices.maintenance',
   ViewDeviceCommandStatus: 'organization.devices.commands.status.view',
   RotateDeviceCredential: 'organization.devices.credentials.rotate',
   RevokeDeviceCredential: 'organization.devices.credentials.revoke',
@@ -546,6 +663,15 @@ export const PlatformUpdateTargetKindNames = {
 } as const;
 export type PlatformUpdateTargetKindName = (typeof PlatformUpdateTargetKindNames)[keyof typeof PlatformUpdateTargetKindNames];
 
+/** Словарь: Players/PlayerOfferContracts.cs */
+export const PlayerOfferUnavailableReasonNames = {
+  /** Сессия начата по пакету: её продлевают новым стартом по пакету, а не деньгами. */
+  PackageSession: 'package_session',
+  /** Сессия не предоплаченная — у стойки или открытым счётом; продлевает администратор. */
+  NotPrepaid: 'not_prepaid',
+} as const;
+export type PlayerOfferUnavailableReasonName = (typeof PlayerOfferUnavailableReasonNames)[keyof typeof PlayerOfferUnavailableReasonNames];
+
 /** Словарь: Shell/PlayerShellStateNames.cs */
 export const PlayerShellStateNames = {
   Locked: 'locked',
@@ -557,6 +683,30 @@ export const PlayerShellStateNames = {
   Error: 'error',
 } as const;
 export type PlayerShellStateName = (typeof PlayerShellStateNames)[keyof typeof PlayerShellStateNames];
+
+/** Словарь: Devices/PlayerSignInClaimDeviceContracts.cs */
+export const PlayerSignInClaimErrorCodeNames = {
+  /** Заявки нет или она для другого ПК. */
+  NotFound: 'claim_not_found',
+  /** ПК не успел забрать заявку за отведённое время. */
+  Expired: 'claim_expired',
+  /** Заявку уже забрали: одна заявка — один вход. */
+  AlreadyRedeemed: 'claim_already_redeemed',
+  /** Клуб закрыл этот ПК на обслуживание, пока заявка ждала. */
+  DeviceInMaintenance: 'device_in_maintenance',
+} as const;
+export type PlayerSignInClaimErrorCodeName = (typeof PlayerSignInClaimErrorCodeNames)[keyof typeof PlayerSignInClaimErrorCodeNames];
+
+/** Словарь: Players/PlayerSignInClaimContracts.cs */
+export const PlayerSignInClaimStatusNames = {
+  /** ПК ещё не забрал заявку. */
+  Pending: 'pending',
+  /** ПК забрал заявку — человек вошёл. */
+  Redeemed: 'redeemed',
+  /** ПК не забрал заявку за отведённое время. */
+  Expired: 'expired',
+} as const;
+export type PlayerSignInClaimStatusName = (typeof PlayerSignInClaimStatusNames)[keyof typeof PlayerSignInClaimStatusNames];
 
 /** Словарь: Pos/PosSaleStateNames.cs */
 export const PosSaleStateNames = {
@@ -670,6 +820,24 @@ export const ScheduledReportTypeNames = {
   OperatorActions: 'operator_actions',
 } as const;
 export type ScheduledReportTypeName = (typeof ScheduledReportTypeNames)[keyof typeof ScheduledReportTypeNames];
+
+/**
+ * Почему код посадки не приняли. Одни и те же у старта с телефона и у заявки на вход.
+ *
+ * Словарь: Players/PlayerSignInClaimContracts.cs
+ */
+export const SeatingCodeErrorCodeNames = {
+  /**
+   * Код не подошёл. Чужой клуб, истёкший код и опечатка снаружи неразличимы: иначе перебор
+   * шестизначных цифр становится осмысленным.
+   */
+  Invalid: 'seating_code_invalid',
+  /** Слишком много неверных кодов — у человека или у всего клуба; ответ несёт, когда можно снова. */
+  AttemptsExceeded: 'seating_code_attempts_exceeded',
+  /** Заявке нужен аккаунт AFK4, а у входа — только клубная карточка старого образца. */
+  PlatformAccountRequired: 'platform_account_required',
+} as const;
+export type SeatingCodeErrorCodeName = (typeof SeatingCodeErrorCodeNames)[keyof typeof SeatingCodeErrorCodeNames];
 
 /**
  * Состояние места на карте зала — то, что сервер кладёт в SeatStatusDto.State.
@@ -807,6 +975,13 @@ export const ShellPipeErrorCodeNames = {
   PlatformUnreachable: 'platform_unreachable',
   /** Хосту некуда отправить запрос: агента нет на другом конце канала. */
   AgentUnavailable: 'agent_unavailable',
+  /** Номер или ПИН-код не подошли. Те же имена, что у сервера и моста к странице. */
+  SignInRefused: 'sign_in_refused',
+  TooManyAttempts: 'too_many_attempts',
+  /** На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего. */
+  SessionNotYours: 'session_not_yours',
+  /** Клуб закрыл этот ПК на обслуживание — вход на нём закрыт. */
+  DeviceInMaintenance: 'device_in_maintenance',
 } as const;
 export type ShellPipeErrorCodeName = (typeof ShellPipeErrorCodeNames)[keyof typeof ShellPipeErrorCodeNames];
 
@@ -819,6 +994,13 @@ export const ShellPipeMessageTypeNames = {
   State: 'state',
   Request: 'request',
   Reply: 'reply',
+  /** Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение. */
+  Command: 'command',
+  /**
+   * Игрок вошёл: агент отдаёт хосту токены. Один кадр на оба пути — ПИН-код и QR: вход по QR
+   * приходит без запроса хоста, и отвечать на него нечем, кроме отдельного кадра.
+   */
+  Auth: 'auth',
 } as const;
 export type ShellPipeMessageTypeName = (typeof ShellPipeMessageTypeNames)[keyof typeof ShellPipeMessageTypeNames];
 
@@ -828,6 +1010,11 @@ export const ShellPipeRequestTypeNames = {
   Launch: 'launch',
   /** Позвать администратора к этому ПК. */
   Assist: 'assist',
+  /**
+   * Войти номером и ПИН-кодом. В теле — `phone` и `pin`. Удачный ответ пуст: токены
+   * приходят кадром ShellPipeMessageTypeNames.Auth.
+   */
+  SignInPin: 'signIn.pin',
 } as const;
 export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
 
@@ -1800,6 +1987,18 @@ export interface CreatePlayerReservationRequest {
 }
 
 /**
+ * Войти на ПК с телефона (спека оболочки, §5.4): приложение сканирует QR с монитора — в нём код
+ * посадки — и просит сервер впустить своего человека на эту машину. Номер и ПИН-код у ПК при
+ * этом не набираются вовсе.
+ *
+ * Контракт: Players/PlayerSignInClaimContracts.cs
+ */
+export interface CreatePlayerSignInClaimRequest {
+  seatingCode: string;
+  idempotencyKey: string;
+}
+
+/**
  * Строка чека в запросе на его создание: товар и сколько штук.
  * Это НЕ PosSaleLineDto. Имя товара, цену за штуку и сумму строки сервер берёт из
  * каталога и присланному не верит (см. EfPosService.CreateSaleAsync) — а раз так, требовать их в
@@ -2203,6 +2402,15 @@ export interface DeviceHeartbeatRequest {
   activeSessionId: Guid | null;
   activeSessionLeaseExpiresAtUtc: IsoDateTime | null;
   activeSessionLeaseSequence: number | null;
+  /**
+   * MAC проводного адаптера со шлюзом («AA-BB-CC-DD-EE-FF»): по нему этот ПК будит сосед, когда
+   * он выключен. Пусто — агент ещё не умеет его сообщать.
+   */
+  networkMacAddress?: string | null;
+  /** Подсеть этого адаптера («192.168.1.0/24»): будить можно только из той же подсети. */
+  networkSubnet?: string | null;
+  /** Широковещательный адрес подсети — куда сосед шлёт волшебный пакет. */
+  networkBroadcastAddress?: string | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */
@@ -2237,6 +2445,25 @@ export interface DeviceHeartbeatResponse {
    * null, когда оформление не задано, — оболочка показывает нейтральный экран.
    */
   branding?: ShellBrandingDto | null;
+  /** Место этого ПК: оболочка пишет его в шапке. null — ПК ни к какому месту не привязан. */
+  seat?: DeviceSeatDto | null;
+  /** Чья сессия идёт на ПК: вошедшему не владельцу оболочка чужую сессию не откроет. */
+  sessionOwner?: DeviceSessionOwnerDto | null;
+  /**
+   * Права организации по тарифу (PlatformFeatureNames): оболочка прячет разделы, которых у клуба
+   * нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
+   */
+  features?: string[] | null;
+  /**
+   * Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
+   * потерялся. null — ждать нечего.
+   */
+  pendingSignInClaim?: PlayerSignInClaimedDto | null;
+  /**
+   * ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+   * догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+   */
+  maintenance?: boolean;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -2264,6 +2491,43 @@ export interface DeviceInventoryItemDto {
   enrollmentState?: string;
 }
 
+/**
+ * Отказ входа на ПК. RetryAfterUtc — только у too_many_attempts.
+ *
+ * Контракт: Devices/DevicePlayerSignInContracts.cs
+ */
+export interface DevicePlayerSignInErrorDto {
+  /** Одно из DevicePlayerSignInErrorCodeNames. */
+  error: DevicePlayerSignInErrorCodeName;
+  retryAfterUtc?: IsoDateTime | null;
+}
+
+/**
+ * Игрок входит на самом ПК: номер и ПИН-код. Идёт от агента с ключом устройства, а не с
+ * публичного входа: сервер знает, на каком ПК вошли, привязывает токены к этому ПК и считает
+ * попытки на устройство, а не на адрес всего клуба за одним роутером.
+ *
+ * Контракт: Devices/DevicePlayerSignInContracts.cs
+ */
+export interface DevicePlayerSignInRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  phoneNumber: string;
+  pin: string;
+}
+
+/**
+ * ПК забирает заявку ключом устройства — в ответ токены, привязанные к этому ПК.
+ *
+ * Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+ */
+export interface DeviceRedeemSignInClaimRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+}
+
 /** Контракт: Devices/DeviceSeatAssignmentDto.cs */
 export interface DeviceSeatAssignmentDto {
   deviceSeatAssignmentId: Guid;
@@ -2273,6 +2537,32 @@ export interface DeviceSeatAssignmentDto {
   deviceId: Guid;
   attachedAtUtc: IsoDateTime;
   detachedAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Место, к которому привязан ПК, — то, что оболочка пишет в шапке: «ПК 07 · Общий зал». Имя
+ * места клуб набирает сам, номера отдельно от имени нет.
+ *
+ * Контракт: Devices/DeviceShellContextContracts.cs
+ */
+export interface DeviceSeatDto {
+  label: string;
+  /** Пусто — место без зоны или зона удалена. */
+  zoneName: string | null;
+}
+
+/**
+ * Чья сессия идёт на ПК. Оболочке это нужно, чтобы не открыть вошедшему чужую сессию: посаженный
+ * у стойки гость и игрок со своим счётом выглядят по-разному, а вошедший не владелец видит «эта
+ * сессия не ваша».
+ *
+ * Контракт: Devices/DeviceShellContextContracts.cs
+ */
+export interface DeviceSessionOwnerDto {
+  /** Одно из DeviceSessionOwnerKindNames. */
+  kind: DeviceSessionOwnerKindName;
+  /** Счёт игрока; только у Kind = player. */
+  playerAccountId?: Guid | null;
 }
 
 /** Контракт: Sessions/DeviceSessionSnapshotRequest.cs */
@@ -3989,6 +4279,44 @@ export interface PlayerDebtPaymentRequest {
   idempotencyKey: string;
 }
 
+/** Контракт: Players/PlayerOfferContracts.cs */
+export interface PlayerDurationOfferDto {
+  /** Сколько времени берёт игрок. */
+  minutes: number;
+  /** Сколько минут будет оплачено: минимум и шаг округления тарифа уже применены. */
+  billableMinutes: number;
+  endsAtUtc: IsoDateTime;
+  amount: MoneyDto;
+  balanceAfter: MoneyDto;
+  affordable: boolean;
+}
+
+/**
+ * «Сколько вернётся, если встать сейчас» — до нажатия. Тот же расчёт, что у самого выхода: экран
+ * не обещает одну сумму, чтобы вернуть другую.
+ *
+ * Контракт: Players/PlayerSelfEndSessionContracts.cs
+ */
+export interface PlayerEndQuoteDto {
+  /** Сколько минут будет списано: сыгранное за вычетом пауз, с правилами тарифа. */
+  billedMinutes: number;
+  refund: MoneyDto;
+  packageMinutesReturned: number;
+}
+
+/**
+ * Чем можно продлить идущую сессию — по тарифу, на котором она началась.
+ *
+ * Контракт: Players/PlayerOfferContracts.cs
+ */
+export interface PlayerExtendOffersDto {
+  sessionId: Guid;
+  balance: MoneyDto;
+  options: PlayerDurationOfferDto[];
+  /** Одно из PlayerOfferUnavailableReasonNames; пусто, если продлить можно. */
+  unavailableReason?: PlayerOfferUnavailableReasonName | null;
+}
+
 /**
  * Строка выписки глазами игрока: что случилось с его деньгами и когда.
  * Не то же самое, что LedgerEntryDto у стойки, и не должно им быть: там есть
@@ -4109,6 +4437,14 @@ export interface PlayerPackageDto {
   remainingIncludedSeconds: number;
   remainingBonusSeconds: number;
   purchasedAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Players/PlayerOfferContracts.cs */
+export interface PlayerPackageOfferDto {
+  playerPackageId: Guid;
+  name: string;
+  remainingMinutes: number;
   expiresAtUtc: IsoDateTime | null;
 }
 
@@ -4372,6 +4708,8 @@ export interface PlayerSelfEndSessionResponse {
   billedMinutes: number;
   /** Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью. */
   refunded: MoneyDto;
+  /** Сколько минут вернулось в пакет — у сессии, начатой по пакету. */
+  packageMinutesReturned?: number;
 }
 
 /** Контракт: Players/PlayerSelfExtendRequest.cs */
@@ -4394,6 +4732,11 @@ export interface PlayerSelfStartRequest {
   tariffRuleVersionId: string;
   durationMinutes: number;
   idempotencyKey: string;
+  /**
+   * Сесть по своему пакету: минуты списываются из пакета, а не с кошелька. Тариф при этом не
+   * нужен — у пакета своя цена, уже заплаченная; минуты — сколько взять из остатка.
+   */
+  playerPackageId?: Guid | null;
 }
 
 /** Контракт: Shell/PlayerShellStateDto.cs */
@@ -4446,6 +4789,31 @@ export interface PlayerShellStateDto {
 }
 
 /**
+ * Заявка на вход и что с ней стало: приложение показывает «Вы вошли на ПК 07».
+ *
+ * Контракт: Players/PlayerSignInClaimContracts.cs
+ */
+export interface PlayerSignInClaimDto {
+  claimId: Guid;
+  /** Одно из PlayerSignInClaimStatusNames. */
+  status: PlayerSignInClaimStatusName;
+  expiresAtUtc: IsoDateTime;
+  /** Имя места: «ПК 07». Пусто, если ПК не привязан к месту. */
+  seatLabel: string | null;
+}
+
+/**
+ * ПК должен забрать заявку на вход: человек отсканировал QR с его монитора. Приходит в группу
+ * устройства по SignalR и, на случай обрыва, в ответе на сердцебиение.
+ *
+ * Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+ */
+export interface PlayerSignInClaimedDto {
+  claimId: Guid;
+  expiresAtUtc: IsoDateTime;
+}
+
+/**
  * Самопосадка за игровой ПК: клуб, номер и сетевой PIN. Поле называется `Password` с тех
  * времён, когда PIN был клубным паролем, — переименование сломало бы установленные в поле
  * оболочки ради одного слова.
@@ -4479,6 +4847,36 @@ export interface PlayerSignInResponse {
 /** Контракт: Players/PlayerSignOutRequest.cs */
 export interface PlayerSignOutRequest {
   refreshToken: string;
+}
+
+/**
+ * Что можно купить, сев за этот ПК, — одним запросом, с готовыми суммами (спека оболочки,
+ * §5.5). Клиент цену не считает: суммы считает тот же расчёт, что и списание, иначе экран
+ * однажды пообещал бы одну цифру, а касса списала бы другую.
+ *
+ * Контракт: Players/PlayerOfferContracts.cs
+ */
+export interface PlayerStartOffersDto {
+  seatLabel: string | null;
+  zoneName: string | null;
+  /** Часовой пояс клуба (IANA): «до скольки» показывается по времени клуба, а не телефона. */
+  timeZone: string;
+  balance: MoneyDto;
+  tariffs: PlayerTariffOfferDto[];
+  packages: PlayerPackageOfferDto[];
+}
+
+/** Контракт: Players/PlayerOfferContracts.cs */
+export interface PlayerTariffOfferDto {
+  tariffVersionId: Guid;
+  /** То, что передаётся в старт как TariffRuleVersionId. */
+  tariffRuleVersionId: string;
+  name: string;
+  pricePerHour: MoneyDto;
+  appliesNow: boolean;
+  /** Когда тариф откроется, если сейчас он не действует; вариантов у такого тарифа нет. */
+  startsAtUtc: IsoDateTime | null;
+  options: PlayerDurationOfferDto[];
 }
 
 /**
@@ -5551,6 +5949,19 @@ export interface ShellLaunchRequest {
   appId: string;
 }
 
+/**
+ * Команда клуба, которую исполняет хост: у агента нет ни окна, ни аккаунта игрока.
+ *
+ * Контракт: Shell/ShellPipeMessage.cs
+ */
+export interface ShellPipeCommandDto {
+  commandId: Guid;
+  /** DeviceCommandTypeNames.SignOut или DeviceCommandTypeNames.Message. */
+  type: DeviceCommandTypeName;
+  /** Текст сообщения; только у message. */
+  text?: string | null;
+}
+
 /** Контракт: Shell/ShellPipeMessage.cs */
 export interface ShellPipeHelloDto {
   protocol: number;
@@ -5577,6 +5988,12 @@ export interface ShellPipeMessage {
   reply?: ShellPipeReplyDto | null;
   /** Почему агент попрощался; только у bye. */
   reason?: string | null;
+  command?: ShellPipeCommandDto | null;
+  /**
+   * Игрок вошёл на этом ПК — номером и ПИН-кодом или по QR с телефона. Токены привязаны к ПК;
+   * хост держит их в памяти и странице не отдаёт.
+   */
+  auth?: PlatformPersonSessionResponse | null;
 }
 
 /** Контракт: Shell/ShellPipeMessage.cs */

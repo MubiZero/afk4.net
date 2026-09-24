@@ -73,7 +73,7 @@ public sealed class SeatingCodeTests
         var issued = await NewService(db, Now).IssueAsync(OrgId, DeviceId, CancellationToken.None);
 
         var found = await NewService(db, Now.AddSeconds(20))
-            .RedeemAsync(OrgId, issued!.Code, CancellationToken.None);
+            .FindDeviceAsync(OrgId, issued!.Code, CancellationToken.None);
 
         Assert.Equal(DeviceId, found);
     }
@@ -89,7 +89,7 @@ public sealed class SeatingCodeTests
         var issued = await NewService(db, Now).IssueAsync(OrgId, DeviceId, CancellationToken.None);
 
         var found = await NewService(db, Now.Add(SeatingCodePolicy.Lifetime).AddSeconds(1))
-            .RedeemAsync(OrgId, issued!.Code, CancellationToken.None);
+            .FindDeviceAsync(OrgId, issued!.Code, CancellationToken.None);
 
         Assert.Null(found);
     }
@@ -105,7 +105,7 @@ public sealed class SeatingCodeTests
         var issued = await NewService(db, Now).IssueAsync(OrgId, DeviceId, CancellationToken.None);
 
         var found = await NewService(db, Now.AddSeconds(20))
-            .RedeemAsync(Guid.NewGuid(), issued!.Code, CancellationToken.None);
+            .FindDeviceAsync(Guid.NewGuid(), issued!.Code, CancellationToken.None);
 
         Assert.Null(found);
     }
@@ -131,7 +131,7 @@ public sealed class SeatingCodeTests
         var issued = await NewService(db, Now).IssueAsync(OrgId, DeviceId, CancellationToken.None);
         var typed = $" {issued!.Code[..3]}-{issued.Code[3..]} ";
 
-        var found = await NewService(db, Now.AddSeconds(20)).RedeemAsync(OrgId, typed, CancellationToken.None);
+        var found = await NewService(db, Now.AddSeconds(20)).FindDeviceAsync(OrgId, typed, CancellationToken.None);
 
         Assert.Equal(DeviceId, found);
     }

@@ -334,6 +334,15 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid("Target seat has no active approved device assignment.");
         }
 
+        if (await dbContext.Devices.AnyAsync(
+            device => device.DeviceId == assignment.DeviceId && device.MaintenanceSinceUtc != null,
+            cancellationToken))
+        {
+            return SessionCommandServiceResult.RequestConflict(
+                "The PC at the target seat is under maintenance.",
+                "device_in_maintenance");
+        }
+
         if (await HasBlockingSessionAsync(
             session.OrganizationId,
             session.BranchId,
@@ -662,6 +671,23 @@ public sealed class EfSessionCommandService(
         var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
         {
             var now = timeProvider.GetUtcNow();
+
+            // Ранний выход возвращает неиграное — кто бы ни нажал «Закончить»: игрок, стойка или
+            // автозащита на слишком долгой паузе. Раньше возвращал только выход самого игрока, и
+            // та же ситуация стоила по-разному в зависимости от того, чья рука нажала кнопку.
+            //
+            // Записи возврата ложатся в ту же транзакцию, что и смена состояния, и только в этой
+            // ветке — той, что сессию и закрывает. Повтор и завершение уже заканчивающейся сессии
+            // сюда не доходят, а два одновременных завершения разводит версия сессии: проигравший
+            // откатывается вместе со своими записями. Раньше записи добавлял вызывающий до вызова, и
+            // ветка «уже заканчивается» сохраняла их второй раз — деньги возвращались дважды.
+            PlayerEarlyEndQuote? earlyEnd = null;
+            if (session.PlayerAccountId is { } playerAccountId)
+            {
+                earlyEnd = await PlayerEarlyEnd.QuoteAsync(dbContext, session, playerAccountId, now, cancellationToken);
+                PlayerEarlyEnd.AppendEntries(dbContext, session, playerAccountId, earlyEnd, actorStaffUserId, now);
+            }
+
             session.State = SessionStateNames.Ending;
             session.UpdatedAtUtc = now;
             session.Version += 1;
@@ -692,7 +718,7 @@ public sealed class EfSessionCommandService(
                 now);
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            return SessionCommandServiceResult.Ok(response);
+            return SessionCommandServiceResult.Ended(response, earlyEnd);
         }, isolationLevel: null, cancellationToken);
 
         if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)

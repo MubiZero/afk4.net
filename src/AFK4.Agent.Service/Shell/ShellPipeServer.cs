@@ -37,10 +37,12 @@ public sealed class ShellPipeServer(
     IPlayerShellLaunchContext launchContext,
     TimeProvider timeProvider,
     ILogger<ShellPipeServer> logger,
-    ShellPipeTimings? timings = null) : BackgroundService
+    ShellPipeTimings? timings = null,
+    ShellHostChannel? hostChannel = null) : BackgroundService
 {
     private static readonly JsonSerializerOptions SignatureJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ShellPipeTimings timings = timings ?? ShellPipeTimings.Default;
+    private readonly ShellHostChannel hostChannel = hostChannel ?? new ShellHostChannel();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -114,15 +116,18 @@ public sealed class ShellPipeServer(
         logger.LogInformation("Shell host {HostVersion} connected from session {SessionId}.", hello.HostVersion, clientSessionId);
 
         using var connection = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        var frames = hostChannel.Attach();
         var pushing = PushStatesAsync(pipe, writeLock, connection.Token);
         var reading = ReadRequestsAsync(pipe, writeLock, connection.Token);
+        var forwarding = ForwardFramesAsync(pipe, writeLock, frames, connection.Token);
 
         // Кто первым закончил — хост закрылся или запись упала, — тот и закрывает соединение.
-        var finished = await Task.WhenAny(pushing, reading);
+        var finished = await Task.WhenAny(pushing, reading, forwarding);
+        hostChannel.Detach(frames);
         await connection.CancelAsync();
         try
         {
-            await Task.WhenAll(pushing, reading);
+            await Task.WhenAll(pushing, reading, forwarding);
         }
         catch (OperationCanceledException) when (connection.IsCancellationRequested)
         {
@@ -171,6 +176,22 @@ public sealed class ShellPipeServer(
 
             await stateSignal.WaitAsync(timings.RebuildInterval, cancellationToken);
         }
+    }
+
+    /// <summary>Кадры без запроса хоста: команды клуба и вход игрока.</summary>
+    private async Task ForwardFramesAsync(
+        Stream pipe,
+        SemaphoreSlim writeLock,
+        System.Threading.Channels.ChannelReader<ShellPipeMessage> frames,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var frame in frames.ReadAllAsync(cancellationToken))
+        {
+            await SendAsync(pipe, writeLock, frame, cancellationToken);
+        }
+
+        // Очередь закрыли — соединение кончается. Ждём отмены вместе с остальными, а не закрываем его сами.
+        await Task.Delay(Timeout.Infinite, cancellationToken);
     }
 
     private async Task ReadRequestsAsync(Stream pipe, SemaphoreSlim writeLock, CancellationToken cancellationToken)

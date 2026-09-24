@@ -12,4 +12,7 @@ public sealed record PlayerSelfStartRequest(
     string SeatingCode,
     string TariffRuleVersionId,
     int DurationMinutes,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    // Сесть по своему пакету: минуты списываются из пакета, а не с кошелька. Тариф при этом не
+    // нужен — у пакета своя цена, уже заплаченная; минуты — сколько взять из остатка.
+    Guid? PlayerPackageId = null);

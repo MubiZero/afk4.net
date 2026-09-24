@@ -708,6 +708,110 @@ internal static class DeviceEndpoints
             return Results.Ok(new DeviceAssistanceStateDto(deviceId, device.AssistanceRequestedAtUtc));
         });
 
+        // Игрок входит на самом ПК — номером и ПИН-кодом, через агента с ключом устройства
+        // (спека оболочки, §5.2). Публичный вход здесь не годится: он не знает машины, не может
+        // привязать к ней токены и считает попытки на адрес всего клуба за одним роутером.
+        app.MapPost("/api/devices/{deviceId:guid}/player-sign-in", async (
+            Guid deviceId,
+            DevicePlayerSignInRequest request,
+            HttpContext httpContext,
+            PlatformDbContext dbContext,
+            IDeviceCredentialValidator credentialValidator,
+            IOrganizationStatusGuard organizationStatusGuard,
+            IDevicePlayerSignInService signInService,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            if (request.OrganizationId == Guid.Empty || request.BranchId == Guid.Empty)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId and BranchId are required." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var suspended = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            if (suspended is not null)
+            {
+                return suspended;
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(
+                candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            var result = await signInService.SignInAsync(device, request.PhoneNumber, request.Pin, cancellationToken);
+            return result.Error switch
+            {
+                null => Results.Ok(result.Session),
+                DevicePlayerSignInErrorCodeNames.TooManyAttempts => Results.Json(
+                    new DevicePlayerSignInErrorDto(result.Error, result.RetryAfterUtc),
+                    statusCode: StatusCodes.Status429TooManyRequests),
+                DevicePlayerSignInErrorCodeNames.SessionNotYours or DevicePlayerSignInErrorCodeNames.DeviceInMaintenance =>
+                    Results.Conflict(new DevicePlayerSignInErrorDto(result.Error)),
+                _ => Results.Json(
+                    new DevicePlayerSignInErrorDto(result.Error),
+                    statusCode: StatusCodes.Status401Unauthorized)
+            };
+        });
+
+        // ПК забирает заявку на вход с телефона (спека оболочки, §5.4) и получает токены,
+        // привязанные к себе. Ключом устройства: заявку может забрать только та машина, к монитору
+        // которой человек поднёс телефон.
+        app.MapPost("/api/devices/{deviceId:guid}/sign-in-claims/{claimId:guid}/redeem", async (
+            Guid deviceId,
+            Guid claimId,
+            DeviceRedeemSignInClaimRequest request,
+            HttpContext httpContext,
+            PlatformDbContext dbContext,
+            IDeviceCredentialValidator credentialValidator,
+            IOrganizationStatusGuard organizationStatusGuard,
+            PlayerSignInClaimService claims,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var suspended = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            if (suspended is not null)
+            {
+                return suspended;
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(
+                candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            var result = await claims.RedeemAsync(device, claimId, cancellationToken);
+            return result.Error switch
+            {
+                null => Results.Ok(result.Session),
+                PlayerSignInClaimErrorCodeNames.NotFound => Results.NotFound(new { error = result.Error }),
+                _ => Results.Conflict(new { error = result.Error })
+            };
+        });
+
         // Оператор подошёл — вызов снят. Право то же, что у «отдать заказ»: это работа зала.
         organizations.MapPost("devices/{deviceId:guid}/assistance-request/resolve", async (
             Guid deviceId,
@@ -1032,6 +1136,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
+            IDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1079,6 +1184,8 @@ internal static class DeviceEndpoints
 
             var changedDeviceIds = await DetachActiveDeviceAssignmentsAsync(dbContext, device, now, cancellationToken);
             var revokedCredentialCount = await RevokeActiveDeviceCredentialsAsync(dbContext, device, now, cancellationToken);
+            // Машины больше нет в зале — и вход игрока на ней не должен пережить её.
+            await deviceTokens.RevokeForDeviceAsync(device.DeviceId, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1194,6 +1301,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
+            IDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1237,6 +1345,8 @@ internal static class DeviceEndpoints
 
             var changedDeviceIds = await DetachActiveDeviceAssignmentsAsync(dbContext, device, now, cancellationToken);
             var revokedCredentialCount = await RevokeActiveDeviceCredentialsAsync(dbContext, device, now, cancellationToken);
+            // Машины больше нет в зале — и вход игрока на ней не должен пережить её.
+            await deviceTokens.RevokeForDeviceAsync(device.DeviceId, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1272,6 +1382,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
+            IDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -1403,6 +1514,19 @@ internal static class DeviceEndpoints
                 dbContext.DeviceSeatAssignments.Add(currentAssignment);
             }
 
+            // Машина переехала на другое место (или место отдали другой машине): вход игрока,
+            // сделанный у прежнего места, к новому не переезжает.
+            var movedDeviceIds = activeAssignments
+                .Where(assignment => assignment.DetachedAtUtc == now)
+                .Select(assignment => assignment.DeviceId)
+                .Append(currentAssignment.AttachedAtUtc == now ? deviceId : Guid.Empty)
+                .Where(candidate => candidate != Guid.Empty)
+                .Distinct();
+            foreach (var movedDeviceId in movedDeviceIds)
+            {
+                await deviceTokens.RevokeForDeviceAsync(movedDeviceId, cancellationToken);
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
@@ -1433,6 +1557,8 @@ internal static class DeviceEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IDeviceCommandDispatchService commandDispatchService,
+            IDeviceBoundPlayerTokens deviceTokens,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -1441,7 +1567,6 @@ internal static class DeviceEndpoints
             }
 
             var device = await dbContext.Devices
-                .AsNoTracking()
                 .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
 
             if (device is null)
@@ -1449,9 +1574,11 @@ internal static class DeviceEndpoints
                 return Results.NotFound();
             }
 
+            // Обслуживание — своим правом: оно закрывает машину для игроков, и решать это — не
+            // каждому, кто может её перезапереть.
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 device.BranchId,
-                OrganizationPermissionNames.DispatchDeviceCommand,
+                DeviceCommandPolicy.RequiredPermission(request.Type),
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1485,6 +1612,23 @@ internal static class DeviceEndpoints
                 return Results.BadRequest(new { Error = "Command payload is required." });
             }
 
+            // Опечатка в типе раньше доезжала до агента и возвращалась «не умею» — в журнале
+            // команда висела отправленной.
+            if (!DeviceCommandPolicy.IsStaffCommand(request.Type))
+            {
+                return Results.BadRequest(new
+                {
+                    Error = $"Unknown device command type '{request.Type}'.",
+                    Code = DeviceCommandErrorCodeNames.UnknownType
+                });
+            }
+
+            var payloadError = DeviceCommandPolicy.ValidatePayload(request.Type, request.Payload);
+            if (payloadError is not null)
+            {
+                return Results.BadRequest(new { Error = payloadError, Code = DeviceCommandErrorCodeNames.InvalidPayload });
+            }
+
             if (device.EnrollmentState != DeviceEnrollmentStateNames.Approved)
             {
                 await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
@@ -1507,7 +1651,55 @@ internal static class DeviceEndpoints
                 return Results.Conflict(new { Error = "Device enrollment is not approved." });
             }
 
-            var command = await commandDispatchService.DispatchAsync(deviceId, request, cancellationToken);
+            // Чужую игру не выключают, не перезагружают и не уводят в обслуживание: сначала
+            // закончить сессию, потом трогать машину.
+            if (DeviceCommandPolicy.RequiresFreeDevice(request.Type)
+                && await HasActiveDeviceSessionAsync(dbContext, device, cancellationToken))
+            {
+                return Results.Conflict(new
+                {
+                    Error = "Device has an active, paused, or ending session.",
+                    Code = DeviceCommandErrorCodeNames.ActiveSession
+                });
+            }
+
+            var targetDeviceId = deviceId;
+            var commandRequest = request;
+            if (request.Type == DeviceCommandTypeNames.Wake)
+            {
+                // Спящему ПК команду не отдать: будит сосед по подсети волшебным пакетом.
+                var wake = await PlanWakeAsync(dbContext, device, timeProvider, cancellationToken);
+                if (wake.Error is not null)
+                {
+                    return Results.Conflict(new { Error = wake.Error.Value.Message, Code = wake.Error.Value.Code });
+                }
+
+                targetDeviceId = wake.HelperDeviceId;
+                commandRequest = wake.Command!;
+            }
+
+            // Обслуживание запоминает сервер: по нему стойка не начнёт сессию, карта покажет машину
+            // закрытой, а агент, пропустивший команду, догонит по сердцебиению.
+            if (request.Type is DeviceCommandTypeNames.MaintenanceOn or DeviceCommandTypeNames.MaintenanceOff)
+            {
+                device.MaintenanceSinceUtc = request.Type == DeviceCommandTypeNames.MaintenanceOn
+                    ? device.MaintenanceSinceUtc ?? timeProvider.GetUtcNow()
+                    : null;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            // Выход игрока гарантирует сервер, а не хост: погасшие токены не откроют аккаунт, даже
+            // если хост команду не получил или её проигнорировал.
+            if (request.Type == DeviceCommandTypeNames.SignOut)
+            {
+                await deviceTokens.RevokeForDeviceAsync(deviceId, cancellationToken);
+            }
+
+            // Неповторяемые команды едут только сердцебиением: оно же помечает их отданными. Через
+            // SignalR и сердцебиение сразу агент получил бы перезагрузку дважды.
+            var command = DeviceCommandPolicy.IsOneShot(commandRequest.Type)
+                ? await commandDispatchService.EnqueueAsync(targetDeviceId, commandRequest, cancellationToken)
+                : await commandDispatchService.DispatchAsync(targetDeviceId, commandRequest, cancellationToken);
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
                 OrganizationId: authorization.StaffContext!.OrganizationId,
@@ -1521,7 +1713,9 @@ internal static class DeviceEndpoints
                 DetailsJson: JsonSerializer.Serialize(new
                 {
                     DeviceId = deviceId,
-                    command.Type
+                    command.Type,
+                    // У пробуждения команду исполняет сосед — в журнале видно, кто именно.
+                    ExecutedByDeviceId = targetDeviceId == deviceId ? (Guid?)null : targetDeviceId
                 })),
                 cancellationToken);
 
@@ -1996,5 +2190,58 @@ internal static class DeviceEndpoints
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.RevokeDeviceCredential);
 
+    }
+
+    private readonly record struct WakePlan(
+        Guid HelperDeviceId,
+        CreateDeviceCommandRequest? Command,
+        (string Code, string Message)? Error);
+
+    /// <summary>
+    /// Кто разбудит спящий ПК: включённый сосед той же подсети, недавно подававший сердцебиение.
+    /// Волшебный пакет не проходит маршрутизаторы — сосед из другой подсети не разбудит никого.
+    /// </summary>
+    private static async Task<WakePlan> PlanWakeAsync(
+        PlatformDbContext dbContext,
+        DeviceEntity target,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(target.NetworkMacAddress) || string.IsNullOrWhiteSpace(target.NetworkSubnet))
+        {
+            return new WakePlan(Guid.Empty, null, (DeviceCommandErrorCodeNames.WakeTargetUnknown,
+                "This PC has never reported its network address, so it cannot be woken."));
+        }
+
+        var aliveSince = timeProvider.GetUtcNow().AddMinutes(-1);
+        var helper = await dbContext.Devices
+            .AsNoTracking()
+            .Where(candidate => candidate.OrganizationId == target.OrganizationId
+                && candidate.BranchId == target.BranchId
+                && candidate.DeviceId != target.DeviceId
+                && candidate.EnrollmentState == DeviceEnrollmentStateNames.Approved
+                && candidate.NetworkSubnet == target.NetworkSubnet
+                && candidate.LastHeartbeatAtUtc != null
+                && candidate.LastHeartbeatAtUtc >= aliveSince)
+            .OrderByDescending(candidate => candidate.LastHeartbeatAtUtc)
+            .Select(candidate => candidate.DeviceId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (helper == Guid.Empty)
+        {
+            return new WakePlan(Guid.Empty, null, (DeviceCommandErrorCodeNames.NoWakeHelper,
+                "No powered-on PC in the same network can wake this one."));
+        }
+
+        return new WakePlan(
+            helper,
+            new CreateDeviceCommandRequest(
+                DeviceCommandTypeNames.WakeNeighbor,
+                new Dictionary<string, string>
+                {
+                    ["mac"] = target.NetworkMacAddress!,
+                    ["broadcast"] = target.NetworkBroadcastAddress ?? string.Empty,
+                    ["targetDeviceId"] = target.DeviceId.ToString("D")
+                }),
+            null);
     }
 }

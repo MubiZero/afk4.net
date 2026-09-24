@@ -54,4 +54,32 @@ public static class DeviceCommandOutcomeNames
 
     /// <summary>Аренда не прошла проверку подписи или срока.</summary>
     public const string LeaseInvalid = "lease-invalid";
+
+    /// <summary>Windows перезагрузит ПК через десять секунд: ответ ушёл раньше.</summary>
+    public const string RebootScheduled = "reboot-scheduled";
+
+    /// <summary>Windows выключит ПК через десять секунд.</summary>
+    public const string ShutdownScheduled = "shutdown-scheduled";
+
+    /// <summary>На ПК идёт сессия: чужую игру агент не выключает и в обслуживание не уводит.</summary>
+    public const string SessionInProgress = "session-in-progress";
+
+    /// <summary>Сосед отправил волшебный пакет. Проснулся ли ПК, скажет его сердцебиение.</summary>
+    public const string WakePacketSent = "wake-packet-sent";
+
+    /// <summary>MAC или широковещательный адрес не годятся — или сосед уже в другой подсети.</summary>
+    public const string WakeTargetInvalid = "wake-target-invalid";
+
+    public const string MaintenanceStarted = "maintenance-started";
+
+    public const string MaintenanceEnded = "maintenance-ended";
+
+    /// <summary>Выход игрока или сообщение переданы на экран ПК.</summary>
+    public const string DeliveredToShell = "delivered-to-shell";
+
+    /// <summary>Экран игрока не запущен или не отвечает — передать некому.</summary>
+    public const string ShellNotConnected = "shell-not-connected";
+
+    /// <summary>Профиля защиты у ПК пока нет — обновлять нечего.</summary>
+    public const string NothingToRefresh = "nothing-to-refresh";
 }

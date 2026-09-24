@@ -21,4 +21,16 @@ public sealed class PlatformPersonAccessTokenEntity
     public DateTimeOffset ExpiresAtUtc { get; set; }
 
     public DateTimeOffset? RevokedAtUtc { get; set; }
+
+    /// <summary>
+    /// ПК, на котором человек вошёл, — у входа с игрового ПК. null — телефон или веб. Токены ПК
+    /// сервер гасит сам, когда за машиной больше некому сидеть (<see cref="DeviceSignedInAtUtc"/>).
+    /// </summary>
+    public Guid? DeviceId { get; set; }
+
+    /// <summary>
+    /// Когда человек вошёл на этом ПК. Переживает обновление токена: иначе хост, обновляющий
+    /// токен каждые пять минут, навсегда оставался бы «только что вошедшим».
+    /// </summary>
+    public DateTimeOffset? DeviceSignedInAtUtc { get; set; }
 }

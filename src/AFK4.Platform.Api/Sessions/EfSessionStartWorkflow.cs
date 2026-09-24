@@ -122,6 +122,11 @@ public sealed class EfSessionStartWorkflow(
             return Invalid("Seat has no active approved device assignment.");
         }
 
+        if (await IsInMaintenanceAsync(assignment.DeviceId, cancellationToken))
+        {
+            return Conflict("The PC at this seat is under maintenance.", "device_in_maintenance");
+        }
+
         if (await HasBlockingSessionAsync(
             request.OrganizationId,
             branchId,
@@ -313,6 +318,11 @@ public sealed class EfSessionStartWorkflow(
             orderby assignment.AttachedAtUtc descending
             select assignment)
         .FirstOrDefaultAsync(cancellationToken);
+
+    private Task<bool> IsInMaintenanceAsync(Guid deviceId, CancellationToken cancellationToken) =>
+        dbContext.Devices.AnyAsync(
+            device => device.DeviceId == deviceId && device.MaintenanceSinceUtc != null,
+            cancellationToken);
 
     private Task<bool> HasBlockingSessionAsync(
         Guid organizationId,

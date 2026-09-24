@@ -28,6 +28,21 @@ public sealed class HeartbeatPayloadFactoryTests
     }
 
     [Fact]
+    public void Create_CarriesTheNetworkAddress_SoANeighbourCanWakeThisPc()
+    {
+        var request = HeartbeatPayloadFactory.Create(
+            new AgentOptions(),
+            isLocked: true,
+            DateTimeOffset.Parse("2026-09-25T00:00:00Z"),
+            leaseStore: null,
+            new AFK4.Agent.Service.Network.NetworkIdentity("AA-BB-CC-DD-EE-01", "192.168.1.0/24", "192.168.1.255"));
+
+        Assert.Equal("AA-BB-CC-DD-EE-01", request.NetworkMacAddress);
+        Assert.Equal("192.168.1.0/24", request.NetworkSubnet);
+        Assert.Equal("192.168.1.255", request.NetworkBroadcastAddress);
+    }
+
+    [Fact]
     public void Create_IncludesCurrentSessionLeaseSnapshot()
     {
         var options = new AgentOptions

@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Network;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.Extensions.Options;
@@ -27,7 +28,10 @@ public sealed class Worker(
     IShellStateSignal shellStateSignal,
     TimeProvider timeProvider,
     IProcessPolicyEnforcer? processPolicyEnforcer = null,
-    IPlatformClockSynchronizer? platformClockSynchronizer = null) : BackgroundService
+    IPlatformClockSynchronizer? platformClockSynchronizer = null,
+    INetworkIdentityProvider? networkIdentity = null,
+    IMaintenanceMode? maintenanceMode = null,
+    IPlayerSignIn? playerSignIn = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -96,7 +100,8 @@ public sealed class Worker(
                 agentOptions,
                 runtimeState.IsLocked,
                 timeProvider.GetUtcNow(),
-                leaseStore);
+                leaseStore,
+                networkIdentity?.Current);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -131,6 +136,12 @@ public sealed class Worker(
                     heartbeat.SeatingCodeExpiresAtUtc,
                     heartbeat.Branding,
                     heartbeat.HeartbeatIntervalSeconds);
+                shellHeartbeatSnapshot.RecordPlace(heartbeat.Seat, heartbeat.SessionOwner, heartbeat.Features);
+                if (maintenanceMode is not null)
+                {
+                    await maintenanceMode.ReconcileAsync(heartbeat.Maintenance, cancellationToken);
+                }
+
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
                 {
@@ -138,6 +149,12 @@ public sealed class Worker(
                 }
 
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
+
+                // Страховка на случай, если событие хаба о заявке QR потерялось.
+                if (heartbeat.PendingSignInClaim is { } claim && playerSignIn is not null)
+                {
+                    await playerSignIn.RedeemClaimAsync(claim.ClaimId, cancellationToken);
+                }
             }
 
             var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? HeartbeatRetryIntervalSeconds;

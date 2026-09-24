@@ -17,4 +17,16 @@ public sealed record PlayerSelfEndSessionRequest(string IdempotencyKey);
 public sealed record PlayerSelfEndSessionResponse(
     int BilledMinutes,
     // Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью.
-    MoneyDto Refunded);
+    MoneyDto Refunded,
+    // Сколько минут вернулось в пакет — у сессии, начатой по пакету.
+    int PackageMinutesReturned = 0);
+
+/// <summary>
+/// «Сколько вернётся, если встать сейчас» — до нажатия. Тот же расчёт, что у самого выхода: экран
+/// не обещает одну сумму, чтобы вернуть другую.
+/// </summary>
+public sealed record PlayerEndQuoteDto(
+    // Сколько минут будет списано: сыгранное за вычетом пауз, с правилами тарифа.
+    int BilledMinutes,
+    MoneyDto Refund,
+    int PackageMinutesReturned);

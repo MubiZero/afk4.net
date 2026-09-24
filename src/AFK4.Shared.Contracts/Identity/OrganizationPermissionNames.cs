@@ -6,6 +6,12 @@ public static class OrganizationPermissionNames
 
     public const string DispatchDeviceCommand = "organization.devices.commands.dispatch";
 
+    /// <summary>
+    /// Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает
+    /// машину для игроков, и решать это — не каждому, кто может её перезапереть.
+    /// </summary>
+    public const string MaintainDevice = "organization.devices.maintenance";
+
     public const string ViewDeviceCommandStatus = "organization.devices.commands.status.view";
 
     public const string RotateDeviceCredential = "organization.devices.credentials.rotate";

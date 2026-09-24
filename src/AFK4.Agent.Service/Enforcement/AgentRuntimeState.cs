@@ -1,4 +1,5 @@
-﻿using AFK4.Shared.Contracts.Sessions;
+﻿using System.Text.Json.Serialization;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Agent.Service.Enforcement;
@@ -39,6 +40,24 @@ public sealed record AgentRuntimeState(
             leaseExpiresAtUtc,
             updatedAtUtc);
     }
+
+    /// <summary>
+    /// ПК на обслуживании: заперт, игрокам вход закрыт. Состояние живёт файлом, как и остальные, —
+    /// перезапуск службы не возвращает машину в зал.
+    /// </summary>
+    public static AgentRuntimeState Maintenance(DateTimeOffset updatedAtUtc)
+    {
+        return new AgentRuntimeState(
+            PlayerShellStateNames.Maintenance,
+            IsLocked: true,
+            ActiveSessionId: null,
+            LeaseExpiresAtUtc: null,
+            updatedAtUtc);
+    }
+
+    /// <summary>За ПК играют: по аренде или в льготном окне после обрыва связи.</summary>
+    [JsonIgnore]
+    public bool SessionRuns => State is PlayerShellStateNames.Active or PlayerShellStateNames.Grace;
 
     public static AgentRuntimeState Active(SessionLeaseDto lease, DateTimeOffset updatedAtUtc)
     {

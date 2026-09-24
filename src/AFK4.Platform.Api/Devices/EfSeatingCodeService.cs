@@ -58,8 +58,12 @@ public sealed class EfSeatingCodeService(PlatformDbContext dbContext, TimeProvid
     /// Машина, показывающая этот код прямо сейчас, или <c>null</c>. Клуб проверяется вместе с
     /// кодом: шестизначных кодов немного, и в сети из двадцати клубов совпадения — вопрос
     /// времени, а не удачи.
+    ///
+    /// Только находит: код гасит <see cref="TryConsumeAsync"/>, когда дело по нему сделано.
+    /// Отказ в старте — нехватка денег, неверный тариф — не должен сжигать код, иначе человеку
+    /// пришлось бы ждать новый, чтобы просто исправить выбор.
     /// </summary>
-    public async Task<Guid?> RedeemAsync(
+    public async Task<Guid?> FindDeviceAsync(
         Guid organizationId, string? typedCode, CancellationToken cancellationToken)
     {
         var code = SeatingCodePolicy.Normalize(typedCode);
@@ -78,6 +82,40 @@ public sealed class EfSeatingCodeService(PlatformDbContext dbContext, TimeProvid
                 cancellationToken);
 
         return match?.DeviceId;
+    }
+
+    /// <summary>
+    /// Погасить код: он одноразовый на любое дело — старт с телефона или заявку на вход (спека
+    /// оболочки, §5.4). Раньше код жил две минуты и принимался сколько угодно раз: подсмотревший
+    /// его через плечо успевал им воспользоваться. Машина получает новый код на ближайшем
+    /// сердцебиении.
+    ///
+    /// <c>false</c> — код уже не жив или его только что погасил другой запрос: два погашения
+    /// одного кода сталкиваются на токене конкурентности, и выигрывает одно.
+    /// </summary>
+    public async Task<bool> TryConsumeAsync(Guid deviceId, string? typedCode, CancellationToken cancellationToken)
+    {
+        var code = SeatingCodePolicy.Normalize(typedCode);
+        var now = timeProvider.GetUtcNow();
+        var row = await dbContext.DeviceSeatingCodes.FirstOrDefaultAsync(
+            candidate => candidate.DeviceId == deviceId && candidate.Code == code && candidate.ExpiresAtUtc > now,
+            cancellationToken);
+        if (row is null)
+        {
+            return false;
+        }
+
+        row.ExpiresAtUtc = now;
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.Entry(row).State = EntityState.Detached;
+            return false;
+        }
     }
 
     /// <summary>

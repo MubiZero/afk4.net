@@ -46,6 +46,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<DeviceSeatingCodeEntity> DeviceSeatingCodes => Set<DeviceSeatingCodeEntity>();
 
+    public DbSet<PlayerSignInClaimEntity> PlayerSignInClaims => Set<PlayerSignInClaimEntity>();
+
+    public DbSet<SeatingCodeAttemptCounterEntity> SeatingCodeAttemptCounters => Set<SeatingCodeAttemptCounterEntity>();
+
     public DbSet<DeviceSeatAssignmentEntity> DeviceSeatAssignments => Set<DeviceSeatAssignmentEntity>();
 
     public DbSet<DeviceCredentialEntity> DeviceCredentials => Set<DeviceCredentialEntity>();
@@ -487,6 +491,27 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(code => code.Code).HasMaxLength(16).IsRequired();
             // По коду ищут внутри клуба — этой парой и ищут.
             entity.HasIndex(code => new { code.OrganizationId, code.Code });
+            // Код одноразовый: гасится сдвигом срока на «сейчас». Два одновременных погашения одного
+            // кода — старт и заявка, две заявки — сталкиваются здесь, и выигрывает одно.
+            entity.Property(code => code.ExpiresAtUtc).IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<PlayerSignInClaimEntity>(entity =>
+        {
+            entity.ToTable("player_sign_in_claims");
+            entity.HasKey(claim => claim.ClaimId);
+            entity.Property(claim => claim.IdempotencyKeyHash).HasMaxLength(64).IsRequired();
+            entity.Property(claim => claim.RedeemedAtUtc).IsConcurrencyToken();
+            // Сердцебиение каждого ПК спрашивает, нет ли для него живой заявки.
+            entity.HasIndex(claim => new { claim.DeviceId, claim.ExpiresAtUtc });
+            entity.HasIndex(claim => new { claim.PlatformPersonId, claim.OrganizationId, claim.IdempotencyKeyHash }).IsUnique();
+        });
+
+        modelBuilder.Entity<SeatingCodeAttemptCounterEntity>(entity =>
+        {
+            entity.ToTable("seating_code_attempt_counters");
+            entity.HasKey(counter => new { counter.Scope, counter.ScopeId });
+            entity.Property(counter => counter.Scope).HasMaxLength(32).IsRequired();
         });
 
         modelBuilder.Entity<DeviceEntity>(entity =>
@@ -500,6 +525,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(device => device.EnrollmentState).HasMaxLength(32).IsRequired();
             entity.Property(device => device.AgentVersion).HasMaxLength(64).IsRequired();
             entity.Property(device => device.ShellVersion).HasMaxLength(64).IsRequired();
+            entity.Property(device => device.NetworkMacAddress).HasMaxLength(17);
+            entity.Property(device => device.NetworkSubnet).HasMaxLength(64);
+            entity.Property(device => device.NetworkBroadcastAddress).HasMaxLength(64);
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId });
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId, device.EnrollmentState });
         });
@@ -1507,6 +1535,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(accessToken => accessToken.TokenHash).IsRequired();
             entity.HasIndex(accessToken => accessToken.TokenHash);
             entity.HasIndex(accessToken => new { accessToken.PlatformPersonId, accessToken.ExpiresAtUtc });
+            // Сердцебиение каждого ПК спрашивает «есть ли живые токены этой машины».
+            entity.HasIndex(accessToken => accessToken.DeviceId);
         });
 
         modelBuilder.Entity<PlatformPersonRefreshTokenEntity>(entity =>
@@ -1516,6 +1546,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
             entity.HasIndex(refreshToken => refreshToken.TokenHash);
             entity.HasIndex(refreshToken => new { refreshToken.PlatformPersonId, refreshToken.ExpiresAtUtc });
+            // Сердцебиение каждого ПК спрашивает «есть ли живые токены этой машины».
+            entity.HasIndex(refreshToken => refreshToken.DeviceId);
         });
 
         modelBuilder.Entity<PlatformPhoneOtpEntity>(entity =>

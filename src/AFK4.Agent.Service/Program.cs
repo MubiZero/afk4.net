@@ -1,6 +1,8 @@
 ﻿using AFK4.Agent.Service;
+using AFK4.Agent.Service.Commands;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Logging;
+using AFK4.Agent.Service.Network;
 using AFK4.Agent.Service.Shell;
 using AFK4.Agent.Service.Updates;
 using Microsoft.Extensions.Hosting.WindowsServices;
@@ -84,8 +86,17 @@ builder.Services.AddSingleton<IShellHeartbeatSnapshot, ShellHeartbeatSnapshot>()
 builder.Services.AddSingleton<IShellStateSignal, ShellStateSignal>();
 builder.Services.AddSingleton<IPlayerShellStateBuilder, PlayerShellStateBuilder>();
 builder.Services.AddSingleton<IAssistanceRequestReporter, HttpAssistanceRequestReporter>();
+builder.Services.AddSingleton<IPlayerSignInClient, HttpPlayerSignInClient>();
+builder.Services.AddSingleton<IPlayerSignIn, PlayerSignIn>();
 builder.Services.AddSingleton<IPlayerShellRequestHandler, PlayerShellRequestHandler>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
+builder.Services.AddSingleton<IMaintenanceMode, MaintenanceMode>();
+builder.Services.AddSingleton<IMachinePowerController, WindowsMachinePowerController>();
+builder.Services.AddSingleton<IWakeOnLanSender, UdpWakeOnLanSender>();
+builder.Services.AddSingleton<INetworkIdentityProvider, SystemNetworkIdentityProvider>();
+builder.Services.AddSingleton<ShellHostChannel>();
+builder.Services.AddSingleton<IShellHostChannel>(provider => provider.GetRequiredService<ShellHostChannel>());
+builder.Services.AddSingleton<IMachineCommandHandler, MachineCommandHandler>();
 builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler>();
 builder.Services.AddSingleton<IDeviceRealtimeClient, DeviceRealtimeClient>();
 builder.Services.AddSingleton<IInstalledAppInventoryCollector, WindowsInstalledAppInventoryCollector>();

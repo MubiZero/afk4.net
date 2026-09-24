@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Platform.Api.Identity;
@@ -17,6 +18,18 @@ public interface IPlatformPinService
     /// отказа — это ответ на вопрос «есть ли у этого номера аккаунт», и его никто не получает.
     /// </summary>
     Task<PinSignInResult> SignInAsync(
+        Guid organizationId,
+        string? rawPhone,
+        string? pin,
+        Guid? branchId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// То же, что <see cref="SignInAsync"/>, но без выдачи токенов: вход на игровом ПК сначала
+    /// проверяет, что вошедшему есть что открыть на этой машине, и только потом выдаёт токены,
+    /// привязанные к ней. Отказ — тот же единый <see cref="PinSignInStatus.Refused"/>.
+    /// </summary>
+    Task<PinAuthenticationResult> AuthenticateAsync(
         Guid organizationId,
         string? rawPhone,
         string? pin,
@@ -46,4 +59,15 @@ public sealed record PinSignInResult(PinSignInStatus Status, PlatformPersonSessi
 
     public static PinSignInResult SignedIn(PlatformPersonSessionResponse session) =>
         new(PinSignInStatus.SignedIn, session);
+}
+
+public sealed record PinAuthenticationResult(
+    PinSignInStatus Status,
+    PlatformPersonEntity? Person,
+    PlayerAccountEntity? Account)
+{
+    public static readonly PinAuthenticationResult Refused = new(PinSignInStatus.Refused, null, null);
+
+    public static PinAuthenticationResult Authenticated(PlatformPersonEntity person, PlayerAccountEntity account) =>
+        new(PinSignInStatus.SignedIn, person, account);
 }

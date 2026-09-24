@@ -15,7 +15,17 @@ const OUTCOME_LABELS: Record<string, MessageKey> = {
   'command-execution-failed': 'op.helper.cmdOutcome.commandExecutionFailed',
   'lease-missing': 'op.helper.cmdOutcome.leaseMissing',
   'lease-unreadable': 'op.helper.cmdOutcome.leaseUnreadable',
-  'lease-invalid': 'op.helper.cmdOutcome.leaseInvalid'
+  'lease-invalid': 'op.helper.cmdOutcome.leaseInvalid',
+  'reboot-scheduled': 'op.helper.cmdOutcome.rebootScheduled',
+  'shutdown-scheduled': 'op.helper.cmdOutcome.shutdownScheduled',
+  'session-in-progress': 'op.helper.cmdOutcome.sessionInProgress',
+  'wake-packet-sent': 'op.helper.cmdOutcome.wakePacketSent',
+  'wake-target-invalid': 'op.helper.cmdOutcome.wakeTargetInvalid',
+  'maintenance-started': 'op.helper.cmdOutcome.maintenanceStarted',
+  'maintenance-ended': 'op.helper.cmdOutcome.maintenanceEnded',
+  'delivered-to-shell': 'op.helper.cmdOutcome.deliveredToShell',
+  'shell-not-connected': 'op.helper.cmdOutcome.shellNotConnected',
+  'nothing-to-refresh': 'op.helper.cmdOutcome.nothingToRefresh'
 };
 
 export function commandOutcomeLabelKey(outcome: string | null | undefined): MessageKey | null {
