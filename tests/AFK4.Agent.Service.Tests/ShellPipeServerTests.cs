@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Pipes;
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Shell;
@@ -14,7 +15,10 @@ namespace AFK4.Agent.Service.Tests;
 /// </summary>
 public sealed class ShellPipeServerTests
 {
-    private const int ConsoleSession = 1;
+    // Сессия процесса теста. На Windows сервер узнаёт сессию хоста у самой системы, а не из
+    // приветствия, поэтому «консолью» в тестах служит настоящая сессия, а чужого хоста изображает
+    // консоль в соседней.
+    private static readonly int CurrentSession = CurrentProcessSession();
     private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(10);
 
     [Fact]
@@ -46,8 +50,8 @@ public sealed class ShellPipeServerTests
     public async Task AHostFromAnotherSession_IsTurnedAway()
     {
         // Удалённый рабочий стол к игровому ПК не должен получать его состояние и запускать игры.
-        await using var harness = await Harness.StartAsync();
-        await using var host = await harness.ConnectAsync(sessionId: ConsoleSession + 1);
+        await using var harness = await Harness.StartAsync(consoleSession: CurrentSession + 1);
+        await using var host = await harness.ConnectAsync();
 
         var frame = await host.ReadAsync();
 
@@ -125,7 +129,7 @@ public sealed class ShellPipeServerTests
     {
         private readonly ShellPipeServer server;
 
-        private Harness(string pipeName, ShellPipeTimings timings)
+        private Harness(string pipeName, ShellPipeTimings timings, int consoleSession)
         {
             PipeName = pipeName;
             server = new ShellPipeServer(
@@ -133,7 +137,7 @@ public sealed class ShellPipeServerTests
                 Builder,
                 Signal,
                 Requests,
-                new FixedLaunchContext(ConsoleSession),
+                new FixedLaunchContext(consoleSession),
                 TimeProvider.System,
                 NullLogger<ShellPipeServer>.Instance,
                 timings);
@@ -147,7 +151,7 @@ public sealed class ShellPipeServerTests
 
         public RecordingRequestHandler Requests { get; } = new();
 
-        public static async Task<Harness> StartAsync(TimeSpan? keepAlive = null)
+        public static async Task<Harness> StartAsync(TimeSpan? keepAlive = null, int? consoleSession = null)
         {
             // Коротко: на macOS канал — это Unix-сокет во временной папке, а путь к нему не длиннее
             // 104 символов.
@@ -156,12 +160,13 @@ public sealed class ShellPipeServerTests
                 new ShellPipeTimings(
                     HelloTimeout: TimeSpan.FromSeconds(5),
                     RebuildInterval: TimeSpan.FromMilliseconds(50),
-                    KeepAliveInterval: keepAlive ?? TimeSpan.FromMinutes(1)));
+                    KeepAliveInterval: keepAlive ?? TimeSpan.FromMinutes(1)),
+                consoleSession ?? CurrentSession);
             await harness.server.StartAsync(CancellationToken.None);
             return harness;
         }
 
-        public async Task<HostConnection> ConnectAsync(int protocol = ShellPipeProtocol.Version, int sessionId = ConsoleSession)
+        public async Task<HostConnection> ConnectAsync(int protocol = ShellPipeProtocol.Version)
         {
             var pipe = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
             using var timeout = new CancellationTokenSource(FrameTimeout);
@@ -169,7 +174,7 @@ public sealed class ShellPipeServerTests
             var connection = new HostConnection(pipe);
             await connection.WriteAsync(new ShellPipeMessage(
                 ShellPipeMessageTypeNames.Hello,
-                Hello: new ShellPipeHelloDto(protocol, "test-host", sessionId)));
+                Hello: new ShellPipeHelloDto(protocol, "test-host", CurrentSession)));
             return connection;
         }
 
@@ -260,6 +265,12 @@ public sealed class ShellPipeServerTests
 
             return Task.FromResult(new ShellPipeReplyDto(request.RequestId, Ok: true));
         }
+    }
+
+    private static int CurrentProcessSession()
+    {
+        using var self = Process.GetCurrentProcess();
+        return self.SessionId;
     }
 
     private sealed class FixedLaunchContext(int sessionId) : IPlayerShellLaunchContext
