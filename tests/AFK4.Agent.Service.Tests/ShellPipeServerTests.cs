@@ -118,7 +118,9 @@ public sealed class ShellPipeServerTests
         _ = await host.ReadAsync();
 
         var commandId = Guid.NewGuid();
-        Assert.True(harness.HostChannel.TryPost(new ShellPipeCommandDto(commandId, "message", "Через пять минут закрываемся")));
+        Assert.True(harness.HostChannel.TryPost(new ShellPipeMessage(
+            ShellPipeMessageTypeNames.Command,
+            Command: new ShellPipeCommandDto(commandId, "message", "Через пять минут закрываемся"))));
 
         var frame = await host.ReadUntilAsync(ShellPipeMessageTypeNames.Command);
         Assert.Equal(commandId, frame.Command!.CommandId);

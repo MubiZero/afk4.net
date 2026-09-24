@@ -5,34 +5,48 @@ namespace AFK4.Agent.Service.Shell;
 
 public interface IShellHostChannel
 {
-    /// <summary>Передать команду подключённому хосту. false — хоста нет или он не успевает: сказать некому.</summary>
-    bool TryPost(ShellPipeCommandDto command);
+    /// <summary>Передать кадр подключённому хосту. false — хоста нет или он не успевает: сказать некому.</summary>
+    bool TryPost(ShellPipeMessage frame);
+
+    /// <summary>Подключён ли сейчас хост. Вход по QR без хоста выдал бы токены в пустоту.</summary>
+    bool HostConnected { get; }
 }
 
 /// <summary>
-/// Очередь команд клуба к хосту на одно подключение канала. Хост ушёл — очередь закрывается: команда,
-/// отданная пустоте, в журнале значилась бы переданной.
+/// Очередь кадров к хосту без его запроса — команды клуба и вход игрока — на одно подключение канала.
+/// Хост ушёл — очередь закрывается: команда, отданная пустоте, в журнале значилась бы переданной.
 /// </summary>
 public sealed class ShellHostChannel : IShellHostChannel
 {
     private const int Capacity = 16;
     private readonly Lock gate = new();
-    private Channel<ShellPipeCommandDto>? current;
+    private Channel<ShellPipeMessage>? current;
 
-    public bool TryPost(ShellPipeCommandDto command)
+    public bool HostConnected
     {
-        lock (gate)
+        get
         {
-            return current?.Writer.TryWrite(command) ?? false;
+            lock (gate)
+            {
+                return current is not null;
+            }
         }
     }
 
-    public ChannelReader<ShellPipeCommandDto> Attach()
+    public bool TryPost(ShellPipeMessage frame)
+    {
+        lock (gate)
+        {
+            return current?.Writer.TryWrite(frame) ?? false;
+        }
+    }
+
+    public ChannelReader<ShellPipeMessage> Attach()
     {
         lock (gate)
         {
             current?.Writer.TryComplete();
-            current = Channel.CreateBounded<ShellPipeCommandDto>(new BoundedChannelOptions(Capacity)
+            current = Channel.CreateBounded<ShellPipeMessage>(new BoundedChannelOptions(Capacity)
             {
                 SingleReader = true,
                 FullMode = BoundedChannelFullMode.Wait
@@ -41,7 +55,7 @@ public sealed class ShellHostChannel : IShellHostChannel
         }
     }
 
-    public void Detach(ChannelReader<ShellPipeCommandDto> reader)
+    public void Detach(ChannelReader<ShellPipeMessage> reader)
     {
         lock (gate)
         {

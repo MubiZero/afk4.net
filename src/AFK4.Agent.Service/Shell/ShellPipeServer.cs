@@ -116,14 +116,14 @@ public sealed class ShellPipeServer(
         logger.LogInformation("Shell host {HostVersion} connected from session {SessionId}.", hello.HostVersion, clientSessionId);
 
         using var connection = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        var commands = hostChannel.Attach();
+        var frames = hostChannel.Attach();
         var pushing = PushStatesAsync(pipe, writeLock, connection.Token);
         var reading = ReadRequestsAsync(pipe, writeLock, connection.Token);
-        var forwarding = ForwardCommandsAsync(pipe, writeLock, commands, connection.Token);
+        var forwarding = ForwardFramesAsync(pipe, writeLock, frames, connection.Token);
 
         // Кто первым закончил — хост закрылся или запись упала, — тот и закрывает соединение.
         var finished = await Task.WhenAny(pushing, reading, forwarding);
-        hostChannel.Detach(commands);
+        hostChannel.Detach(frames);
         await connection.CancelAsync();
         try
         {
@@ -178,15 +178,16 @@ public sealed class ShellPipeServer(
         }
     }
 
-    private async Task ForwardCommandsAsync(
+    /// <summary>Кадры без запроса хоста: команды клуба и вход игрока.</summary>
+    private async Task ForwardFramesAsync(
         Stream pipe,
         SemaphoreSlim writeLock,
-        System.Threading.Channels.ChannelReader<ShellPipeCommandDto> commands,
+        System.Threading.Channels.ChannelReader<ShellPipeMessage> frames,
         CancellationToken cancellationToken)
     {
-        await foreach (var command in commands.ReadAllAsync(cancellationToken))
+        await foreach (var frame in frames.ReadAllAsync(cancellationToken))
         {
-            await SendAsync(pipe, writeLock, new ShellPipeMessage(ShellPipeMessageTypeNames.Command, Command: command), cancellationToken);
+            await SendAsync(pipe, writeLock, frame, cancellationToken);
         }
 
         // Очередь закрыли — соединение кончается. Ждём отмены вместе с остальными, а не закрываем его сами.

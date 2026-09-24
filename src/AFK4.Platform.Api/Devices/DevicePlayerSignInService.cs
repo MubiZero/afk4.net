@@ -49,6 +49,12 @@ public sealed class DevicePlayerSignInService(
         string? pin,
         CancellationToken cancellationToken)
     {
+        // До проверки ПИН-кода: закрытый ПК не должен ни впускать, ни тратить попытки.
+        if (device.MaintenanceSinceUtc is not null)
+        {
+            return new DevicePlayerSignInResult(null, DevicePlayerSignInErrorCodeNames.DeviceInMaintenance);
+        }
+
         var now = timeProvider.GetUtcNow();
         if (device.PlayerSignInWindowStartedAtUtc is { } windowStarted && now - windowStarted >= AttemptWindow)
         {

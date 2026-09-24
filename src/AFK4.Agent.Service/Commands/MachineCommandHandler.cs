@@ -119,7 +119,7 @@ public sealed class MachineCommandHandler(
 
     private SessionEnforcementResult PostToHost(ShellPipeCommandDto command)
     {
-        return hostChannel.TryPost(command)
+        return hostChannel.TryPost(new ShellPipeMessage(ShellPipeMessageTypeNames.Command, Command: command))
             ? SessionEnforcementResult.Accepted("Passed to the player screen.", DeviceCommandOutcomeNames.DeliveredToShell)
             : SessionEnforcementResult.Rejected("The player screen is not connected.", DeviceCommandOutcomeNames.ShellNotConnected);
     }

@@ -30,7 +30,8 @@ public sealed class Worker(
     IProcessPolicyEnforcer? processPolicyEnforcer = null,
     IPlatformClockSynchronizer? platformClockSynchronizer = null,
     INetworkIdentityProvider? networkIdentity = null,
-    IMaintenanceMode? maintenanceMode = null) : BackgroundService
+    IMaintenanceMode? maintenanceMode = null,
+    IPlayerSignIn? playerSignIn = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -148,6 +149,12 @@ public sealed class Worker(
                 }
 
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
+
+                // Страховка на случай, если событие хаба о заявке QR потерялось.
+                if (heartbeat.PendingSignInClaim is { } claim && playerSignIn is not null)
+                {
+                    await playerSignIn.RedeemClaimAsync(claim.ClaimId, cancellationToken);
+                }
             }
 
             var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? HeartbeatRetryIntervalSeconds;

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,6 +94,54 @@ public sealed class DeviceMaintenanceEndpointTests
         Assert.Equal(HttpStatusCode.OK, (await fixture.CommandAsync(DeviceCommandTypeNames.SignOut)).StatusCode);
 
         // Хост мог команду не получить; погасшие токены аккаунт всё равно не откроют.
+        Assert.Empty(await fixture.LiveTokensAsync());
+    }
+
+    [Fact]
+    public async Task SigningIn_OnAPcUnderMaintenance_IsRefused_BeforeThePinIsChecked()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        await fixture.CommandAsync(DeviceCommandTypeNames.MaintenanceOn);
+
+        var refused = await fixture.SignInAsync(fixture.Pin);
+
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal(
+            DevicePlayerSignInErrorCodeNames.DeviceInMaintenance,
+            (await refused.Content.ReadFromJsonAsync<DevicePlayerSignInErrorDto>())!.Error);
+        Assert.Empty(await fixture.LiveTokensAsync());
+
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        // Закрытый ПК не тратит попытки входа: после обслуживания счёт не должен стоять у порога.
+        Assert.Equal(0, (await db.Devices.SingleAsync(device => device.DeviceId == fixture.Device.DeviceId)).PlayerSignInFailedCount);
+    }
+
+    [Fact]
+    public async Task AQrClaimMadeBeforeMaintenance_DoesNotOpenThePc()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        using var phone = await fixture.PhoneClientAsync();
+        var code = (await fixture.HeartbeatAsync()).SeatingCode!;
+        var created = await phone.PostAsJsonAsync(
+            "/api/me/devices/sign-in-claims",
+            new CreatePlayerSignInClaimRequest(code, Guid.NewGuid().ToString("N")));
+        var claim = (await created.Content.ReadFromJsonAsync<PlayerSignInClaimDto>())!;
+
+        await fixture.CommandAsync(DeviceCommandTypeNames.MaintenanceOn);
+        using var message = new HttpRequestMessage(
+            HttpMethod.Post, $"/api/devices/{fixture.Device.DeviceId}/sign-in-claims/{claim.ClaimId}/redeem")
+        {
+            Content = JsonContent.Create(new DeviceRedeemSignInClaimRequest(
+                fixture.Device.OrganizationId, fixture.Device.BranchId, fixture.Device.DeviceId))
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, fixture.Device.CredentialSecret);
+        var redeemed = await fixture.Client.SendAsync(message);
+
+        Assert.Equal(HttpStatusCode.Conflict, redeemed.StatusCode);
+        Assert.Contains(PlayerSignInClaimErrorCodeNames.DeviceInMaintenance, await redeemed.Content.ReadAsStringAsync(), StringComparison.Ordinal);
         Assert.Empty(await fixture.LiveTokensAsync());
     }
 

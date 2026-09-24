@@ -150,9 +150,10 @@ public sealed class MachineCommandHandlerTests
         var result = await fixture.HandleAsync(DeviceCommandTypeNames.Message, new() { ["text"] = "Через пять минут закрываемся" });
 
         Assert.Equal(DeviceCommandOutcomeNames.DeliveredToShell, result.Outcome);
-        Assert.True(reader.TryRead(out var passed));
-        Assert.Equal(DeviceCommandTypeNames.Message, passed.Type);
-        Assert.Equal("Через пять минут закрываемся", passed.Text);
+        Assert.True(reader.TryRead(out var frame));
+        Assert.Equal(ShellPipeMessageTypeNames.Command, frame.Type);
+        Assert.Equal(DeviceCommandTypeNames.Message, frame.Command!.Type);
+        Assert.Equal("Через пять минут закрываемся", frame.Command.Text);
     }
 
     [Theory]

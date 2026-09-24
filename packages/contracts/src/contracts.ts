@@ -216,6 +216,8 @@ export const DevicePlayerSignInErrorCodeNames = {
   TooManyAttempts: 'too_many_attempts',
   /** На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего. */
   SessionNotYours: 'session_not_yours',
+  /** Клуб закрыл этот ПК на обслуживание: входить на нём некуда. */
+  DeviceInMaintenance: 'device_in_maintenance',
 } as const;
 export type DevicePlayerSignInErrorCodeName = (typeof DevicePlayerSignInErrorCodeNames)[keyof typeof DevicePlayerSignInErrorCodeNames];
 
@@ -690,6 +692,8 @@ export const PlayerSignInClaimErrorCodeNames = {
   Expired: 'claim_expired',
   /** Заявку уже забрали: одна заявка — один вход. */
   AlreadyRedeemed: 'claim_already_redeemed',
+  /** Клуб закрыл этот ПК на обслуживание, пока заявка ждала. */
+  DeviceInMaintenance: 'device_in_maintenance',
 } as const;
 export type PlayerSignInClaimErrorCodeName = (typeof PlayerSignInClaimErrorCodeNames)[keyof typeof PlayerSignInClaimErrorCodeNames];
 
@@ -910,6 +914,13 @@ export const ShellPipeErrorCodeNames = {
   PlatformUnreachable: 'platform_unreachable',
   /** Хосту некуда отправить запрос: агента нет на другом конце канала. */
   AgentUnavailable: 'agent_unavailable',
+  /** Номер или ПИН-код не подошли. Те же имена, что у сервера и моста к странице. */
+  SignInRefused: 'sign_in_refused',
+  TooManyAttempts: 'too_many_attempts',
+  /** На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего. */
+  SessionNotYours: 'session_not_yours',
+  /** Клуб закрыл этот ПК на обслуживание — вход на нём закрыт. */
+  DeviceInMaintenance: 'device_in_maintenance',
 } as const;
 export type ShellPipeErrorCodeName = (typeof ShellPipeErrorCodeNames)[keyof typeof ShellPipeErrorCodeNames];
 
@@ -924,6 +935,11 @@ export const ShellPipeMessageTypeNames = {
   Reply: 'reply',
   /** Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение. */
   Command: 'command',
+  /**
+   * Игрок вошёл: агент отдаёт хосту токены. Один кадр на оба пути — ПИН-код и QR: вход по QR
+   * приходит без запроса хоста, и отвечать на него нечем, кроме отдельного кадра.
+   */
+  Auth: 'auth',
 } as const;
 export type ShellPipeMessageTypeName = (typeof ShellPipeMessageTypeNames)[keyof typeof ShellPipeMessageTypeNames];
 
@@ -933,6 +949,11 @@ export const ShellPipeRequestTypeNames = {
   Launch: 'launch',
   /** Позвать администратора к этому ПК. */
   Assist: 'assist',
+  /**
+   * Войти номером и ПИН-кодом. В теле — `phone` и `pin`. Удачный ответ пуст: токены
+   * приходят кадром ShellPipeMessageTypeNames.Auth.
+   */
+  SignInPin: 'signIn.pin',
 } as const;
 export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
 
@@ -5880,6 +5901,11 @@ export interface ShellPipeMessage {
   /** Почему агент попрощался; только у bye. */
   reason?: string | null;
   command?: ShellPipeCommandDto | null;
+  /**
+   * Игрок вошёл на этом ПК — номером и ПИН-кодом или по QR с телефона. Токены привязаны к ПК;
+   * хост держит их в памяти и странице не отдаёт.
+   */
+  auth?: PlatformPersonSessionResponse | null;
 }
 
 /** Контракт: Shell/ShellPipeMessage.cs */

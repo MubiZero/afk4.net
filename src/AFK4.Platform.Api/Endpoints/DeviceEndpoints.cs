@@ -757,8 +757,8 @@ internal static class DeviceEndpoints
                 DevicePlayerSignInErrorCodeNames.TooManyAttempts => Results.Json(
                     new DevicePlayerSignInErrorDto(result.Error, result.RetryAfterUtc),
                     statusCode: StatusCodes.Status429TooManyRequests),
-                DevicePlayerSignInErrorCodeNames.SessionNotYours => Results.Conflict(
-                    new DevicePlayerSignInErrorDto(result.Error)),
+                DevicePlayerSignInErrorCodeNames.SessionNotYours or DevicePlayerSignInErrorCodeNames.DeviceInMaintenance =>
+                    Results.Conflict(new DevicePlayerSignInErrorDto(result.Error)),
                 _ => Results.Json(
                     new DevicePlayerSignInErrorDto(result.Error),
                     statusCode: StatusCodes.Status401Unauthorized)

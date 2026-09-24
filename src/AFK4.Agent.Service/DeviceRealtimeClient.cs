@@ -1,4 +1,5 @@
-﻿using AFK4.Shared.Contracts.Devices;
+﻿using AFK4.Agent.Service.Shell;
+using AFK4.Shared.Contracts.Devices;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Options;
 
@@ -38,7 +39,8 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         ILogger<DeviceRealtimeClient> logger,
         ISessionLeaseStore leaseStore,
         ICommandResultOutbox commandResultOutbox,
-        IDeviceCredentialStore credentialStore)
+        IDeviceCredentialStore credentialStore,
+        IPlayerSignIn playerSignIn)
         : this(
             options,
             commandHandler,
@@ -50,7 +52,8 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
                     .WithUrl(new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"))
                     .WithAutomaticReconnect()
                     .Build()),
-            credentialStore)
+            credentialStore,
+            playerSignIn)
     {
     }
 
@@ -70,7 +73,8 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         ISessionLeaseStore? leaseStore,
         ICommandResultOutbox? commandResultOutbox,
         IDeviceHubConnection connection,
-        IDeviceCredentialStore? credentialStore = null)
+        IDeviceCredentialStore? credentialStore = null,
+        IPlayerSignIn? playerSignIn = null)
     {
         this.credentialStore = credentialStore;
         this.options = options.Value;
@@ -81,6 +85,13 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         this.connection = connection;
 
         this.connection.On<DeviceCommandDto>(DeviceRealtimeEvents.DeviceCommand, HandleCommandAsync);
+        if (playerSignIn is not null)
+        {
+            // Человек поднёс телефон к QR на мониторе: забрать заявку сразу, не дожидаясь сердцебиения.
+            this.connection.On<PlayerSignInClaimedDto>(
+                DeviceRealtimeEvents.PlayerSignInClaimed,
+                claim => playerSignIn.RedeemClaimAsync(claim.ClaimId, CancellationToken.None));
+        }
         this.connection.Reconnected += HandleReconnectedAsync;
     }
 

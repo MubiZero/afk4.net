@@ -171,6 +171,8 @@ abstract final class DevicePlayerSignInErrorCodeNames {
   static const String tooManyAttempts = 'too_many_attempts';
   /// На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего.
   static const String sessionNotYours = 'session_not_yours';
+  /// Клуб закрыл этот ПК на обслуживание: входить на нём некуда.
+  static const String deviceInMaintenance = 'device_in_maintenance';
 }
 
 /// Словарь: Install/DeviceRoleNames.cs
@@ -578,6 +580,8 @@ abstract final class PlayerSignInClaimErrorCodeNames {
   static const String expired = 'claim_expired';
   /// Заявку уже забрали: одна заявка — один вход.
   static const String alreadyRedeemed = 'claim_already_redeemed';
+  /// Клуб закрыл этот ПК на обслуживание, пока заявка ждала.
+  static const String deviceInMaintenance = 'device_in_maintenance';
 }
 
 /// Словарь: Players/PlayerSignInClaimContracts.cs
@@ -762,6 +766,13 @@ abstract final class ShellPipeErrorCodeNames {
   static const String platformUnreachable = 'platform_unreachable';
   /// Хосту некуда отправить запрос: агента нет на другом конце канала.
   static const String agentUnavailable = 'agent_unavailable';
+  /// Номер или ПИН-код не подошли. Те же имена, что у сервера и моста к странице.
+  static const String signInRefused = 'sign_in_refused';
+  static const String tooManyAttempts = 'too_many_attempts';
+  /// На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего.
+  static const String sessionNotYours = 'session_not_yours';
+  /// Клуб закрыл этот ПК на обслуживание — вход на нём закрыт.
+  static const String deviceInMaintenance = 'device_in_maintenance';
 }
 
 /// Словарь: Shell/ShellPipeProtocol.cs
@@ -775,6 +786,9 @@ abstract final class ShellPipeMessageTypeNames {
   static const String reply = 'reply';
   /// Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение.
   static const String command = 'command';
+  /// Игрок вошёл: агент отдаёт хосту токены. Один кадр на оба пути — ПИН-код и QR: вход по QR
+  /// приходит без запроса хоста, и отвечать на него нечем, кроме отдельного кадра.
+  static const String auth = 'auth';
 }
 
 /// Словарь: Shell/ShellPipeProtocol.cs
@@ -783,6 +797,9 @@ abstract final class ShellPipeRequestTypeNames {
   static const String launch = 'launch';
   /// Позвать администратора к этому ПК.
   static const String assist = 'assist';
+  /// Войти номером и ПИН-кодом. В теле — `phone` и `pin`. Удачный ответ пуст: токены
+  /// приходят кадром ShellPipeMessageTypeNames.Auth.
+  static const String signInPin = 'signIn.pin';
 }
 
 /// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
@@ -15062,6 +15079,7 @@ class ShellPipeMessage {
     this.reply,
     this.reason,
     this.command,
+    this.auth,
   });
 
 
@@ -15076,6 +15094,10 @@ class ShellPipeMessage {
   final String? reason;
   final ShellPipeCommandDto? command;
 
+  /// Игрок вошёл на этом ПК — номером и ПИН-кодом или по QR с телефона. Токены привязаны к ПК;
+  /// хост держит их в памяти и странице не отдаёт.
+  final PlatformPersonSessionResponse? auth;
+
   factory ShellPipeMessage.fromJson(Map<String, dynamic> json) => ShellPipeMessage(
         type: json['type'] as String,
         hello: json['hello'] == null ? null : ShellPipeHelloDto.fromJson(json['hello'] as Map<String, dynamic>),
@@ -15084,6 +15106,7 @@ class ShellPipeMessage {
         reply: json['reply'] == null ? null : ShellPipeReplyDto.fromJson(json['reply'] as Map<String, dynamic>),
         reason: json['reason'] == null ? null : json['reason'] as String,
         command: json['command'] == null ? null : ShellPipeCommandDto.fromJson(json['command'] as Map<String, dynamic>),
+        auth: json['auth'] == null ? null : PlatformPersonSessionResponse.fromJson(json['auth'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -15094,6 +15117,7 @@ class ShellPipeMessage {
         'reply': reply?.toJson(),
         'reason': reason,
         'command': command?.toJson(),
+        'auth': auth?.toJson(),
       };
 }
 

@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Identity;
+
 namespace AFK4.Shared.Contracts.Shell;
 
 /// <summary>
@@ -13,7 +15,10 @@ public sealed record ShellPipeMessage(
     ShellPipeReplyDto? Reply = null,
     // Почему агент попрощался; только у bye.
     string? Reason = null,
-    ShellPipeCommandDto? Command = null);
+    ShellPipeCommandDto? Command = null,
+    // Игрок вошёл на этом ПК — номером и ПИН-кодом или по QR с телефона. Токены привязаны к ПК;
+    // хост держит их в памяти и странице не отдаёт.
+    PlatformPersonSessionResponse? Auth = null);
 
 public sealed record ShellPipeHelloDto(
     int Protocol,

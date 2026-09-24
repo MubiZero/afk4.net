@@ -86,6 +86,8 @@ builder.Services.AddSingleton<IShellHeartbeatSnapshot, ShellHeartbeatSnapshot>()
 builder.Services.AddSingleton<IShellStateSignal, ShellStateSignal>();
 builder.Services.AddSingleton<IPlayerShellStateBuilder, PlayerShellStateBuilder>();
 builder.Services.AddSingleton<IAssistanceRequestReporter, HttpAssistanceRequestReporter>();
+builder.Services.AddSingleton<IPlayerSignInClient, HttpPlayerSignInClient>();
+builder.Services.AddSingleton<IPlayerSignIn, PlayerSignIn>();
 builder.Services.AddSingleton<IPlayerShellRequestHandler, PlayerShellRequestHandler>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
 builder.Services.AddSingleton<IMaintenanceMode, MaintenanceMode>();
