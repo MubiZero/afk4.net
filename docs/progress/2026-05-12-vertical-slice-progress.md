@@ -954,8 +954,12 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   app (`/api/me/devices/sign-in-claims`, redeemed by the PC with its key); the
   seating code is single-use, wrong codes are counted per player and per club,
   and a self-start repeated with the same key returns its session instead of
-  "code invalid". The shell host still signs in through the public route with
-  unbound tokens and does not pick up claims; P3 moves it onto the agent.
+  "code invalid". Since P2c the choose-time screen gets its prices in one call
+  (`start-offers`, `extend-offers`, `end-quote`, all priced by `TariffBilling`), a
+  player can start from their own package, and an early exit no longer charges
+  the admin's pause or burns the unplayed package minutes. The shell host still
+  signs in through the public route with unbound tokens and does not pick up
+  claims; P3 moves it onto the agent.
 
 - **Rendered Reports QA** — the redesigned Organization Admin Reports views
   have automated component/App coverage and a green production build, but still
