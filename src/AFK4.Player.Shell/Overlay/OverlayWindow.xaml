@@ -1,0 +1,48 @@
+<Window x:Class="AFK4.Player.Shell.Overlay.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AFK4.NET"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        SizeToContent="WidthAndHeight"
+        Focusable="False">
+    <!-- Три строки поверх игры: без анимаций и без теней — окно не должно стоить игре кадра. -->
+    <Border CornerRadius="14"
+            Background="#F20B1220"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="1"
+            Padding="22,16"
+            MinWidth="360"
+            MaxWidth="560">
+        <StackPanel>
+            <TextBlock x:Name="HeadingText"
+                       Foreground="#9CA3AF"
+                       FontSize="15"
+                       FontWeight="SemiBold" />
+            <TextBlock x:Name="BodyText"
+                       Margin="0,6,0,0"
+                       Foreground="#F9FAFB"
+                       FontSize="20"
+                       TextWrapping="Wrap" />
+            <!-- Кнопка ничего не списывает: выводит оболочку вперёд, где продление подтверждают. -->
+            <Button x:Name="ExtendButton"
+                    Margin="0,14,0,0"
+                    Padding="18,10"
+                    HorizontalAlignment="Left"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Foreground="#0B1220"
+                    Background="#34D399"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Focusable="False"
+                    Visibility="Collapsed"
+                    Click="OnExtendClick" />
+        </StackPanel>
+    </Border>
+</Window>

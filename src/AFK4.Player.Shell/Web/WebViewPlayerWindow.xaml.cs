@@ -1,10 +1,15 @@
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Windows;
+using System.Windows.Threading;
+using AFK4.Localization;
 using AFK4.Player.Shell.Configuration;
 using AFK4.Player.Shell.Identity;
+using AFK4.Player.Shell.Input;
+using AFK4.Player.Shell.Overlay;
 using AFK4.Player.Shell.Realtime;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shell;
@@ -20,8 +25,15 @@ public partial class WebViewPlayerWindow : Window
     private readonly ShellBridgeHost bridge;
     private readonly DevicePlayerSession session;
     private readonly HttpClient apiHttp;
+    private readonly InputActivityTracker input = new(InputActivityTracker.DefaultIdleAfter, InputActivityTracker.DefaultActivityEvery);
+    private readonly GameForegroundTracker game = new(GameForegroundTracker.DefaultSettle);
+    private readonly LocalizationService localization = LocalizationService.LoadEmbedded("ru");
+    private readonly DispatcherTimer tick = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
     private PlayerShellStateDto? latestState;
+    private long stateReceivedAt;
     private string? appSource;
+    private OverlayWindow? overlay;
+    private ClubMessage? clubMessage;
     private int webViewRestartCount;
     private const int MaxWebViewRestarts = 5;
 
@@ -101,6 +113,11 @@ public partial class WebViewPlayerWindow : Window
             _ = ListenForStateAsync(lifetime.Token);
             _ = ListenForPushesAsync(lifetime.Token);
             _ = RefreshAuthLoopAsync(lifetime.Token);
+
+            overlay = new OverlayWindow(localization);
+            overlay.ExtendRequested += BringShellForward;
+            tick.Tick += OnTick;
+            tick.Start();
         }
         catch (Exception exception)
         {
@@ -208,7 +225,7 @@ public partial class WebViewPlayerWindow : Window
 
     /// <summary>
     /// Кадры агента без запроса: вход игрока (ПИН-код или QR) и команды клуба. Сообщение клуба
-    /// показывает окно поверх игры — это следующий срез хоста; до него оно только в журнале.
+    /// показывает окно поверх игры.
     /// </summary>
     private async Task ListenForPushesAsync(CancellationToken cancellationToken)
     {
@@ -228,9 +245,10 @@ public partial class WebViewPlayerWindow : Window
                         session.Forget();
                         PostToPage(ShellBridgeEventTypeNames.AuthChanged, session.Current);
                     }
-                    else
+                    else if (command.Type == DeviceCommandTypeNames.Message && !string.IsNullOrWhiteSpace(command.Text))
                     {
-                        PlayerShellStartupLog.Write($"Club command '{command.Type}' reached the shell; the overlay that shows it comes with the next host slice.");
+                        var message = new ClubMessage(command.Text, DateTimeOffset.UtcNow);
+                        await Dispatcher.InvokeAsync(() => clubMessage = message);
                     }
                 }
             }
@@ -246,8 +264,13 @@ public partial class WebViewPlayerWindow : Window
         {
             await foreach (var state in agentPipe.ReadStatesAsync(cancellationToken))
             {
-                latestState = state;
                 PostToPage(ShellBridgeEventTypeNames.StateChanged, state);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    latestState = state;
+                    stateReceivedAt = Stopwatch.GetTimestamp();
+                    ApplyWindowLayer(state);
+                });
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -255,8 +278,105 @@ public partial class WebViewPlayerWindow : Window
         }
     }
 
+    /// <summary>
+    /// Четыре раза в секунду: ввод, переднее окно и окно поверх игры. Опрос дешевле хука и не
+    /// зависит от того, в каком потоке Windows решит его вызвать; решения — в чистых классах.
+    /// </summary>
+    private async void OnTick(object? sender, EventArgs e)
+    {
+        try
+        {
+            switch (input.Observe(NativeInput.LastInputTick(), NativeInput.NowTick()))
+            {
+                case InputSignal.Activity:
+                    PostToPage(ShellBridgeEventTypeNames.InputActivity, null);
+                    break;
+                case InputSignal.Idle:
+                    PostToPage(ShellBridgeEventTypeNames.InputIdle, null);
+                    break;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var shellInFront = NativeInput.ShellInFront();
+            if (game.Observe(shellInFront, latestState, now) is { } gameActive)
+            {
+                await SetPageAsleepAsync(gameActive);
+            }
+
+            localization.SetLocale(bridge.Locale ?? latestState?.Locale ?? "ru");
+            overlay?.Present(OverlayPresenter.Decide(latestState, RemainingSecondsNow(), shellInFront, clubMessage, now));
+        }
+        catch (Exception exception)
+        {
+            // Таймер — async void: сбой одного круга не должен уронить киоск.
+            PlayerShellStartupLog.Write("Player Shell tick failed.", exception);
+        }
+    }
+
+    /// <summary>Остаток по часам хоста: сколько прошло с прихода состояния, а не по часам платформы.</summary>
+    private int? RemainingSecondsNow() =>
+        latestState?.RemainingSeconds is { } remaining
+            ? remaining - (int)Stopwatch.GetElapsedTime(stateReceivedAt).TotalSeconds
+            : null;
+
+    /// <summary>«Поверх всех» только на запертом экране; при блокировке окно возвращается наверх.</summary>
+    private void ApplyWindowLayer(PlayerShellStateDto state)
+    {
+        var onTop = ShellWindowPolicy.ShouldStayOnTop(state);
+        if (Topmost == onTop)
+        {
+            return;
+        }
+
+        Topmost = onTop;
+        if (onTop)
+        {
+            Activate();
+        }
+    }
+
+    /// <summary>«Продлить» в окне поверх игры: оболочка выходит вперёд, продление подтверждают там.</summary>
+    private void BringShellForward()
+    {
+        Topmost = true;
+        Activate();
+        Topmost = ShellWindowPolicy.ShouldStayOnTop(latestState);
+    }
+
+    /// <summary>
+    /// Игра впереди — страница засыпает (спека оболочки, §8): невидима, приостановлена, память —
+    /// на минимуме. Вернулись — просыпается до того, как игрок её увидит.
+    /// </summary>
+    private async Task SetPageAsleepAsync(bool asleep)
+    {
+        var core = Browser.CoreWebView2;
+        if (asleep)
+        {
+            PostToPage(ShellBridgeEventTypeNames.GameForeground, new ShellGameForegroundDto(true));
+            Browser.Visibility = Visibility.Hidden;
+            if (core is not null)
+            {
+                core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
+                await core.TrySuspendAsync();
+            }
+
+            return;
+        }
+
+        if (core is not null)
+        {
+            core.Resume();
+            core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Normal;
+        }
+
+        Browser.Visibility = Visibility.Visible;
+        PostToPage(ShellBridgeEventTypeNames.GameForeground, new ShellGameForegroundDto(false));
+    }
+
     private void OnClosed(object? sender, EventArgs e)
     {
+        tick.Stop();
+        overlay?.Close();
         lifetime.Cancel();
         lifetime.Dispose();
         apiHttp.Dispose();
