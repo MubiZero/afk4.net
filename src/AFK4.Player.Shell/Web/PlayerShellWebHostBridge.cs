@@ -1,13 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.Player.Shell.Identity;
-using AFK4.Player.Shell.Launcher;
+using AFK4.Player.Shell.Realtime;
 using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Player.Shell.Web;
 
 public sealed class PlayerShellWebHostBridge(
-    ILauncherCommandClient launcher,
+    IShellAgentRequests agent,
     Func<PlayerShellStateDto?> getLatestState,
     IPlayerApiAuthClient auth)
 {
@@ -21,7 +21,6 @@ public sealed class PlayerShellWebHostBridge(
         "shell:loadState",
         "launcher:launch",
         "shell:requestOperator",
-        "shell:pause",
         "auth:signIn",
         "auth:signOut",
         "auth:loadState"
@@ -45,8 +44,7 @@ public sealed class PlayerShellWebHostBridge(
         {
             "shell:loadState" => Ok(requestId, getLatestState()),
             "launcher:launch" => await HandleLaunchAsync(requestId, payload, cancellationToken),
-            "shell:requestOperator" => Ok(requestId, new { requested = true }),
-            "shell:pause" => Ok(requestId, new { paused = true }),
+            "shell:requestOperator" => await HandleRequestOperatorAsync(requestId, cancellationToken),
             "auth:signIn" => await HandleSignInAsync(requestId, payload, cancellationToken),
             "auth:signOut" => HandleSignOut(requestId),
             "auth:loadState" => Ok(requestId, Snapshot()),
@@ -113,8 +111,25 @@ public sealed class PlayerShellWebHostBridge(
             return Error(requestId, "invalid_payload", "launcher:launch requires a non-empty appId.");
         }
 
-        var result = await launcher.LaunchAsync(appIdEl.GetString()!, ct);
-        return Ok(requestId, result);
+        var reply = await agent.RequestAsync(
+            ShellPipeRequestTypeNames.Launch,
+            new Dictionary<string, string> { ["appId"] = appIdEl.GetString()! },
+            ct);
+        return reply.Ok
+            ? Ok(requestId, new { status = "accepted" })
+            : Error(requestId, reply.ErrorCode ?? ShellPipeErrorCodeNames.LaunchFailed, reply.Message ?? "The app could not be started.");
+    }
+
+    /// <summary>
+    /// Раньше мост отвечал «позвали» и не звал никого. Теперь «позвали» — только когда агент
+    /// подтвердил, что стойка узнала; иначе игрок видит, что вызов не ушёл, и может подойти сам.
+    /// </summary>
+    private async Task<string> HandleRequestOperatorAsync(string requestId, CancellationToken ct)
+    {
+        var reply = await agent.RequestAsync(ShellPipeRequestTypeNames.Assist, new Dictionary<string, string>(), ct);
+        return reply.Ok
+            ? Ok(requestId, new { requested = true })
+            : Error(requestId, reply.ErrorCode ?? ShellPipeErrorCodeNames.PlatformUnreachable, reply.Message ?? "The counter could not be reached.");
     }
 
     private static string Ok(string requestId, object? payload) =>

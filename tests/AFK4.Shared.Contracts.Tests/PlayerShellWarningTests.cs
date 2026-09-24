@@ -5,12 +5,23 @@ namespace AFK4.Shared.Contracts.Tests;
 public sealed class PlayerShellWarningTests
 {
     [Fact]
-    public void GraceState_ClassifiesAsCreditLimit()
+    public void GraceState_ClassifiesAsConnectivity()
     {
+        // Грейс у агента — это «связь пропала, оплаченная сессия идёт по аренде», а не лимит
+        // долга: игроку с упавшим Wi-Fi клуба говорили, что его долг достиг предела.
         var kind = PlayerShellWarning.Classify(
             PlayerShellStateNames.Grace, remainingSeconds: null, warningThresholdSeconds: 300, isGraceMode: true);
 
-        Assert.Equal(PlayerShellWarningKinds.CreditLimit, kind);
+        Assert.Equal(PlayerShellWarningKinds.Connectivity, kind);
+    }
+
+    [Fact]
+    public void EndingState_BelowThreshold_ClassifiesAsLowTime()
+    {
+        var kind = PlayerShellWarning.Classify(
+            PlayerShellStateNames.Ending, remainingSeconds: 40, warningThresholdSeconds: 300, isGraceMode: false);
+
+        Assert.Equal(PlayerShellWarningKinds.LowTime, kind);
     }
 
     [Fact]

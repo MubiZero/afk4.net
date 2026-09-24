@@ -1,14 +1,21 @@
+using AFK4.Shared.Contracts.Shell;
+
 namespace AFK4.Player.Shell.Configuration;
 
 public sealed class PlayerShellOptions
 {
-    public string PipeName { get; init; } = "afk4-player-shell";
+    public string ShellPipeName { get; init; } = ShellPipeProtocol.DefaultPipeName;
 
-    public string CommandPipeName { get; init; } = "afk4-player-shell-commands";
+    public int ConnectTimeoutMilliseconds { get; init; } = 2000;
 
-    public int PipeConnectionTimeoutMilliseconds { get; init; } = 500;
+    /// <summary>Три пульса агента: тишина дольше — связь мёртвая, даже если канал открыт.</summary>
+    public int SilenceTimeoutMilliseconds { get; init; } = 15_000;
 
-    public int ReconnectDelayMilliseconds { get; init; } = 500;
+    /// <summary>
+    /// Сколько ждать ответа агента. Меньше, чем веб-слой ждёт хост (15 с): игрок должен получить
+    /// ответ «агент не ответил», а не безымянный таймаут интерфейса.
+    /// </summary>
+    public int RequestTimeoutMilliseconds { get; init; } = 12_000;
 
     public string ApiBaseUrl { get; init; } =
         Environment.GetEnvironmentVariable("AFK4_PLATFORM_API_BASE_URL") ?? "https://api.afk4.net";

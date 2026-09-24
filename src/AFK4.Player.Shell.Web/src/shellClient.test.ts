@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { launchApp, loadShellState, pauseSession, requestOperator } from './shellClient';
+import { launchApp, loadShellState, requestOperator } from './shellClient';
 
 function installWebview(onPost: (message: any) => void) {
   const listeners: Array<(event: { data: unknown }) => void> = [];
@@ -51,7 +51,7 @@ describe('shellClient', () => {
     expect(sent.type).toBe('shell:loadState');
   });
 
-  it('requestOperator and pauseSession send their types', async () => {
+  it('requestOperator sends its type', async () => {
     const posts: any[] = [];
     const harness = installWebview((message) => posts.push(message));
 
@@ -59,10 +59,6 @@ describe('shellClient', () => {
     harness.reply({ type: 'host:response', requestId: posts[0].requestId, ok: true, payload: { requested: true } });
     await op;
 
-    const pause = pauseSession();
-    harness.reply({ type: 'host:response', requestId: posts[1].requestId, ok: true, payload: { paused: true } });
-    await pause;
-
-    expect(posts.map((p) => p.type)).toEqual(['shell:requestOperator', 'shell:pause']);
+    expect(posts.map((p) => p.type)).toEqual(['shell:requestOperator']);
   });
 });

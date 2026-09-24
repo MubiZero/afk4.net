@@ -5,7 +5,6 @@ using System.Threading;
 using System.Windows;
 using AFK4.Player.Shell.Configuration;
 using AFK4.Player.Shell.Identity;
-using AFK4.Player.Shell.Launcher;
 using AFK4.Player.Shell.Realtime;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Web.WebView2.Core;
@@ -15,7 +14,7 @@ namespace AFK4.Player.Shell.Web;
 public partial class WebViewPlayerWindow : Window
 {
     private readonly PlayerShellOptions options;
-    private readonly IPlayerShellStateClient stateClient;
+    private readonly ShellPipeClient agentPipe;
     private readonly CancellationTokenSource lifetime = new();
     private readonly PlayerShellWebHostBridge bridge;
     private readonly PlayerApiAuthClient authClient;
@@ -28,8 +27,7 @@ public partial class WebViewPlayerWindow : Window
         : this(
             new PlayerShellOptions
             {
-                PipeName = Environment.GetEnvironmentVariable("AFK4_PLAYER_SHELL_PIPE_NAME") ?? "afk4-player-shell",
-                CommandPipeName = Environment.GetEnvironmentVariable("AFK4_PLAYER_SHELL_COMMAND_PIPE_NAME") ?? "afk4-player-shell-commands"
+                ShellPipeName = Environment.GetEnvironmentVariable("AFK4_PLAYER_SHELL_PIPE_NAME") ?? ShellPipeProtocol.DefaultPipeName
             })
     {
     }
@@ -37,10 +35,10 @@ public partial class WebViewPlayerWindow : Window
     internal WebViewPlayerWindow(PlayerShellOptions options)
     {
         this.options = options;
-        stateClient = new NamedPipePlayerShellStateClient(options);
+        agentPipe = new ShellPipeClient(options);
         apiHttp = new HttpClient { BaseAddress = new Uri(options.ApiBaseUrl) };
         authClient = new PlayerApiAuthClient(apiHttp);
-        bridge = new PlayerShellWebHostBridge(new LauncherCommandClient(options), getLatestState: () => latestState, authClient);
+        bridge = new PlayerShellWebHostBridge(agentPipe, getLatestState: () => latestState, authClient);
         InitializeComponent();
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -90,6 +88,7 @@ public partial class WebViewPlayerWindow : Window
             Browser.Source = new Uri(target.Source);
 
             Browser.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+            _ = agentPipe.RunAsync(lifetime.Token);
             _ = ListenForStateAsync(lifetime.Token);
             _ = RefreshAuthLoopAsync(lifetime.Token);
         }
@@ -212,7 +211,7 @@ public partial class WebViewPlayerWindow : Window
     {
         try
         {
-            await foreach (var state in stateClient.ReadStatesAsync(cancellationToken))
+            await foreach (var state in agentPipe.ReadStatesAsync(cancellationToken))
             {
                 latestState = state;
                 await Dispatcher.InvokeAsync(() =>

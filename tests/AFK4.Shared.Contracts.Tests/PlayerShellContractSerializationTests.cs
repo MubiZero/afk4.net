@@ -141,32 +141,38 @@ public sealed class PlayerShellContractSerializationTests
         Assert.Equal("#c8ff00", copy.Branding.AccentColor);
     }
 
+    // Новые поля v2 читают хост и веб-слой по их JSON-именам: переименование в C# без
+    // перегенерации контрактов молча оставило бы экран без отсчёта кода и поправки часов.
     [Fact]
-    public void LauncherCommand_RoundTripsRequestAndResultCorrelation()
+    public void StateV2_NewFields_TravelUnderTheirWebNames()
     {
-        var command = new PlayerShellCommandDto(
-            CommandId: Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"),
-            Type: "launch-app",
-            CreatedAtUtc: DateTimeOffset.Parse("2026-05-14T10:00:00Z"),
-            Payload: new Dictionary<string, string>
-            {
-                ["appId"] = "counter-strike-2"
-            });
-        var result = new PlayerShellCommandResultDto(
-            CommandId: command.CommandId,
-            Status: "Accepted",
-            Message: "Launch request accepted.",
-            ObservedAtUtc: DateTimeOffset.Parse("2026-05-14T10:00:01Z"));
+        var observedAt = DateTimeOffset.Parse("2026-09-24T20:00:00Z");
+        var state = new PlayerShellStateDto(
+            OrganizationId: Guid.Empty,
+            BranchId: Guid.Empty,
+            DeviceId: Guid.Empty,
+            State: PlayerShellStateNames.Locked,
+            SessionId: null,
+            LeaseExpiresAtUtc: null,
+            RemainingSeconds: null,
+            IsOnline: true,
+            IsGraceMode: false,
+            WarningThresholdSeconds: 300,
+            Message: "This PC is locked.",
+            LauncherApps: [],
+            SeatingCode: "418207",
+            SeatingCodeExpiresAtUtc: observedAt.AddMinutes(1),
+            ObservedAtUtc: observedAt,
+            LastContactUtc: observedAt.AddSeconds(-4),
+            ApiBaseUrl: "https://api.afk4.net/");
 
-        var commandCopy = JsonSerializer.Deserialize<PlayerShellCommandDto>(JsonSerializer.Serialize(command));
-        var resultCopy = JsonSerializer.Deserialize<PlayerShellCommandResultDto>(JsonSerializer.Serialize(result));
+        var json = JsonSerializer.Serialize(state, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
 
-        Assert.NotNull(commandCopy);
-        Assert.NotNull(resultCopy);
-        Assert.Equal(command.CommandId, commandCopy.CommandId);
-        Assert.Equal("launch-app", commandCopy.Type);
-        Assert.Equal("counter-strike-2", commandCopy.Payload["appId"]);
-        Assert.Equal(command.CommandId, resultCopy.CommandId);
-        Assert.Equal("Accepted", resultCopy.Status);
+        Assert.Equal(observedAt.AddMinutes(1), root.GetProperty("seatingCodeExpiresAtUtc").GetDateTimeOffset());
+        Assert.Equal(observedAt, root.GetProperty("observedAtUtc").GetDateTimeOffset());
+        Assert.Equal(observedAt.AddSeconds(-4), root.GetProperty("lastContactUtc").GetDateTimeOffset());
+        Assert.Equal("https://api.afk4.net/", root.GetProperty("apiBaseUrl").GetString());
     }
 }

@@ -80,9 +80,11 @@ builder.Services.AddSingleton<IPlayerShellProcessStarter, PlayerShellProcessStar
 builder.Services.AddSingleton<IPlayerShellLaunchContext, PlayerShellLaunchContext>();
 builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
 builder.Services.AddSingleton<IShellWarningStore, ShellWarningStore>();
-builder.Services.AddSingleton<IPlayerShellStatePublisher, NamedPipePlayerShellStateServer>();
+builder.Services.AddSingleton<IShellHeartbeatSnapshot, ShellHeartbeatSnapshot>();
+builder.Services.AddSingleton<IShellStateSignal, ShellStateSignal>();
+builder.Services.AddSingleton<IPlayerShellStateBuilder, PlayerShellStateBuilder>();
 builder.Services.AddSingleton<IAssistanceRequestReporter, HttpAssistanceRequestReporter>();
-builder.Services.AddSingleton<IPlayerShellCommandHandler, PlayerShellCommandHandler>();
+builder.Services.AddSingleton<IPlayerShellRequestHandler, PlayerShellRequestHandler>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
 builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler>();
 builder.Services.AddSingleton<IDeviceRealtimeClient, DeviceRealtimeClient>();
@@ -106,7 +108,7 @@ builder.Services.AddSingleton<IOrganizationAdminUpdateReadiness, OrganizationAdm
 builder.Services.AddSingleton<IOrganizationAdminProcessLauncher, OrganizationAdminProcessLauncher>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<AgentUpdateWorker>();
-builder.Services.AddHostedService<NamedPipePlayerShellCommandServer>();
+builder.Services.AddHostedService<ShellPipeServer>();
 
 var host = builder.Build();
 host.Run();
