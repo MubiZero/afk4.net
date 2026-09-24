@@ -726,6 +726,50 @@ export const SessionStateNames = {
 } as const;
 export type SessionStateName = (typeof SessionStateNames)[keyof typeof SessionStateNames];
 
+/** Словарь: Shell/ShellPipeProtocol.cs */
+export const ShellPipeErrorCodeNames = {
+  ProtocolMismatch: 'protocol_mismatch',
+  /**
+   * Хост подключился не из консольной сессии — например, по удалённому рабочему столу.
+   * Состояние этого ПК и запуск игр принадлежат тому, кто сидит за монитором.
+   */
+  WrongSession: 'wrong_session',
+  InvalidPayload: 'invalid_payload',
+  UnknownRequest: 'unknown_request',
+  /** Игры запускаются только во время сессии. */
+  NoSession: 'no_session',
+  AppNotAllowed: 'app_not_allowed',
+  /** Игра в списке клуба, но её файла на этом ПК нет. */
+  AppMissing: 'app_missing',
+  LaunchFailed: 'launch_failed',
+  /** До платформы не достучались — стойка о вызове не узнала. */
+  PlatformUnreachable: 'platform_unreachable',
+  /** Хосту некуда отправить запрос: агента нет на другом конце канала. */
+  AgentUnavailable: 'agent_unavailable',
+} as const;
+export type ShellPipeErrorCodeName = (typeof ShellPipeErrorCodeNames)[keyof typeof ShellPipeErrorCodeNames];
+
+/** Словарь: Shell/ShellPipeProtocol.cs */
+export const ShellPipeMessageTypeNames = {
+  /** Хост представляется первым; без этого агент ничего не шлёт. */
+  Hello: 'hello',
+  /** Агент прощается: версия протокола не та или хост не из той сессии. */
+  Bye: 'bye',
+  State: 'state',
+  Request: 'request',
+  Reply: 'reply',
+} as const;
+export type ShellPipeMessageTypeName = (typeof ShellPipeMessageTypeNames)[keyof typeof ShellPipeMessageTypeNames];
+
+/** Словарь: Shell/ShellPipeProtocol.cs */
+export const ShellPipeRequestTypeNames = {
+  /** Запустить игру из списка клуба. В теле — `appId`. */
+  Launch: 'launch',
+  /** Позвать администратора к этому ПК. */
+  Assist: 'assist',
+} as const;
+export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
+
 /**
  * Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
  * причина: у кассы эти отказы самые частые, а без кода до кассира доезжала английская фраза
@@ -4291,22 +4335,6 @@ export interface PlayerSelfStartRequest {
   idempotencyKey: string;
 }
 
-/** Контракт: Shell/PlayerShellCommandDto.cs */
-export interface PlayerShellCommandDto {
-  commandId: Guid;
-  type: string;
-  createdAtUtc: IsoDateTime;
-  payload: Record<string, string>;
-}
-
-/** Контракт: Shell/PlayerShellCommandResultDto.cs */
-export interface PlayerShellCommandResultDto {
-  commandId: Guid;
-  status: string;
-  message: string;
-  observedAtUtc: IsoDateTime;
-}
-
 /** Контракт: Shell/PlayerShellStateDto.cs */
 export interface PlayerShellStateDto {
   organizationId: Guid;
@@ -4330,6 +4358,17 @@ export interface PlayerShellStateDto {
    * позвать человека к машине, которую сервер ему не отдаст.
    */
   seatingCode?: string | null;
+  /** Когда код сменится: оболочка показывает, сколько ему осталось, а просроченный не рисует. */
+  seatingCodeExpiresAtUtc?: IsoDateTime | null;
+  /**
+   * Время платформы в момент, когда агент собрал это состояние. Срок аренды — тоже время
+   * платформы, а часы ПК могут от неё отставать: поправку хост считает по этому полю.
+   */
+  observedAtUtc?: IsoDateTime | null;
+  /** Когда агент в последний раз достучался до платформы. Пусто — ни разу с запуска службы. */
+  lastContactUtc?: IsoDateTime | null;
+  /** Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить. */
+  apiBaseUrl?: string | null;
 }
 
 /**
@@ -5409,6 +5448,51 @@ export interface ShellBrandingDto {
   clubName: string;
   logoUrl: string | null;
   accentColor: string | null;
+}
+
+/** Контракт: Shell/ShellPipeMessage.cs */
+export interface ShellPipeHelloDto {
+  protocol: number;
+  hostVersion: string;
+  /**
+   * Сессия Windows, в которой живёт хост. Агент сверяет её с консольной: хост из чужой
+   * сессии получать состояние этого ПК не должен.
+   */
+  sessionId: number;
+}
+
+/**
+ * Один кадр канала агент ↔ хост. Заполнено ровно то поле, которое называет Type:
+ * так кадр читается одним типом, без второго разбора по виду сообщения.
+ *
+ * Контракт: Shell/ShellPipeMessage.cs
+ */
+export interface ShellPipeMessage {
+  /** Одно из ShellPipeMessageTypeNames. */
+  type: ShellPipeMessageTypeName;
+  hello?: ShellPipeHelloDto | null;
+  state?: PlayerShellStateDto | null;
+  request?: ShellPipeRequestDto | null;
+  reply?: ShellPipeReplyDto | null;
+  /** Почему агент попрощался; только у bye. */
+  reason?: string | null;
+}
+
+/** Контракт: Shell/ShellPipeMessage.cs */
+export interface ShellPipeReplyDto {
+  requestId: Guid;
+  ok: boolean;
+  /** Одно из ShellPipeErrorCodeNames; пусто при успехе. */
+  errorCode?: ShellPipeErrorCodeName | null;
+  message?: string | null;
+}
+
+/** Контракт: Shell/ShellPipeMessage.cs */
+export interface ShellPipeRequestDto {
+  requestId: Guid;
+  /** Одно из ShellPipeRequestTypeNames. */
+  type: ShellPipeRequestTypeName;
+  payload: Record<string, string>;
 }
 
 /** Контракт: Shifts/ShiftDto.cs */

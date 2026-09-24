@@ -1,4 +1,5 @@
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Agent.Service;
 
@@ -70,11 +71,15 @@ public sealed class AgentOptions
 
     public bool PlayerShellAutoStartEnabled { get; init; } = true;
 
-    public string PlayerShellPipeName { get; init; } = "afk4-player-shell";
+    /// <summary>Канал агент ↔ оболочка: один постоянный, состояние и запросы идут по нему.</summary>
+    public string ShellPipeName { get; init; } = ShellPipeProtocol.DefaultPipeName;
 
-    public string PlayerShellCommandPipeName { get; init; } = "afk4-player-shell-commands";
-
-    public int PlayerShellPipeConnectionTimeoutMilliseconds { get; init; } = 250;
+    /// <summary>
+    /// SID учётной записи игрока, которой разрешено подключаться к каналу. Пусто — любой
+    /// интерактивный пользователь: так работает машина без киоска. С киоском (P5) сюда ставят
+    /// игровую учётку, и чужой процесс в сессии канал не откроет.
+    /// </summary>
+    public string? ShellPipeClientSid { get; init; }
 
     public List<AgentLauncherAppOptions> LauncherApps { get; init; } = [];
 
@@ -145,4 +150,10 @@ public sealed class AgentLauncherAppOptions
     public string Arguments { get; init; } = string.Empty;
 
     public bool IsEnabled { get; init; } = true;
+
+    /// <summary>
+    /// Можно запускать и без сессии — например, браузер для входа в клубный аккаунт. По умолчанию
+    /// нельзя: игра на запертом ПК — это бесплатное время.
+    /// </summary>
+    public bool AllowWithoutSession { get; init; }
 }

@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
-using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service;
@@ -17,7 +16,7 @@ public sealed class Worker(
     IAgentRuntimeStateStore runtimeStateStore,
     IGraceModeMonitor graceModeMonitor,
     IPlayerShellProcessSupervisor playerShellProcessSupervisor,
-    IPlayerShellStatePublisher playerShellStatePublisher,
+    IShellHeartbeatSnapshot shellHeartbeatSnapshot,
     IDeviceCommandHandler commandHandler,
     ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
@@ -25,7 +24,7 @@ public sealed class Worker(
     IOfflineGraceState offlineGraceState,
     ICommandResultOutbox commandResultOutbox,
     IDeviceCredentialStore credentialStore,
-    IShellWarningStore shellWarningStore,
+    IShellStateSignal shellStateSignal,
     TimeProvider timeProvider,
     IProcessPolicyEnforcer? processPolicyEnforcer = null,
     IPlatformClockSynchronizer? platformClockSynchronizer = null) : BackgroundService
@@ -124,15 +123,15 @@ public sealed class Worker(
                 // when the network actually dropped, robust to absolute-clock drift on the gaming PC.
                 var agentNowUtc = timeProvider.GetUtcNow();
                 offlineGraceState.RecordSuccessfulContact(agentNowUtc, heartbeat.EffectiveGraceMinutes);
-                // Код для монитора приезжает с сердцебиением — оболочка покажет его, пока за ПК
-                // никто не сидит. Пустой он у занятой машины: звать к ней некого.
-                seatingCode = heartbeat.SeatingCode;
-                // Последнее известное оформление переживает обрыв связи: логотип на экране не
-                // должен мигать оттого, что сеть моргнула.
-                if (heartbeat.Branding is not null)
-                {
-                    branding = heartbeat.Branding;
-                }
+                // Код для монитора, оформление клуба и интервал, по которому оболочка судит о
+                // связи, — всё приезжает с сердцебиением. Канал отдаст их экрану сразу, не дожидаясь
+                // своего круга.
+                shellHeartbeatSnapshot.Record(
+                    heartbeat.SeatingCode,
+                    heartbeat.SeatingCodeExpiresAtUtc,
+                    heartbeat.Branding,
+                    heartbeat.HeartbeatIntervalSeconds);
+                shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
                 {
                     await TryRotateCredentialAsync(client, agentOptions, cancellationToken);
@@ -395,7 +394,6 @@ public sealed class Worker(
         {
             var runtimeState = runtimeStateStore.Current;
             await playerShellProcessSupervisor.EnsureRunningAsync(runtimeState, cancellationToken);
-            await playerShellStatePublisher.PublishAsync(CreatePlayerShellState(runtimeState), cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -403,93 +401,8 @@ public sealed class Worker(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Player Shell supervision or state publishing failed. Continuing with heartbeat loop.");
+            logger.LogWarning(exception, "Player Shell supervision failed. Continuing with heartbeat loop.");
         }
-    }
-
-    /// <summary>Код, который оболочка показывает на простаивающем экране. Приезжает с сердцебиением.</summary>
-    private string? seatingCode;
-
-    private ShellBrandingDto? branding;
-
-    private PlayerShellStateDto CreatePlayerShellState(AgentRuntimeState runtimeState)
-    {
-        var agentOptions = options.Value;
-        var lease = leaseStore.Current;
-        int? remainingSeconds = lease is null
-            ? null
-            : Math.Max(0, (int)(lease.ExpiresAtUtc - timeProvider.GetUtcNow()).TotalSeconds);
-
-        var isGraceMode = string.Equals(runtimeState.State, PlayerShellStateNames.Grace, StringComparison.Ordinal);
-        var threshold = agentOptions.ShellWarningThresholdSeconds;
-        var sessionId = lease?.SessionId ?? runtimeState.ActiveSessionId;
-
-        // Предупреждение живёт ровно столько, сколько сессия, к которой оно пришло.
-        shellWarningStore.ForgetUnless(sessionId);
-
-        // Локальная оценка сильнее: связь пропала или время на исходе — это состояние самой машины,
-        // и оно важнее того, что сервер знал минуту назад. А вот когда локально «всё спокойно»
-        // (открытый счёт: остатка секунд нет вовсе), на экран идёт предупреждение сервера — иначе
-        // игрок узнаёт о долге по погасшему экрану.
-        var localWarning = PlayerShellWarning.Classify(runtimeState.State, remainingSeconds, threshold, isGraceMode);
-        var warningKind = string.Equals(localWarning, PlayerShellWarningKinds.None, StringComparison.Ordinal)
-            ? shellWarningStore.Current?.Kind ?? PlayerShellWarningKinds.None
-            : localWarning;
-
-        return new PlayerShellStateDto(
-            OrganizationId: agentOptions.OrganizationId,
-            BranchId: agentOptions.BranchId,
-            DeviceId: agentOptions.DeviceId,
-            State: runtimeState.State,
-            SessionId: sessionId,
-            LeaseExpiresAtUtc: lease?.ExpiresAtUtc ?? runtimeState.LeaseExpiresAtUtc,
-            RemainingSeconds: remainingSeconds,
-            IsOnline: true,
-            IsGraceMode: isGraceMode,
-            WarningThresholdSeconds: threshold,
-            Message: CreatePlayerShellMessage(runtimeState),
-            SeatingCode: seatingCode,
-            LauncherApps: CreateLauncherApps(agentOptions),
-            Locale: agentOptions.PreferredLocale,
-            WarningKind: warningKind,
-            // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом
-            // для первого запуска, пока сервер ещё не ответил ни разу.
-            Branding: branding ?? (string.IsNullOrWhiteSpace(agentOptions.ClubName)
-                ? null
-                : new ShellBrandingDto(agentOptions.ClubName!, agentOptions.LogoUrl, agentOptions.AccentColor)));
-    }
-
-    /// <summary>
-    /// Список игр, который видит игрок. Берётся из той же настройки, по которой агент решает,
-    /// что ему разрешено запускать: два разных списка разошлись бы в первый же день. Пункт,
-    /// исполняемого файла которого на машине нет, показывается недоступным, а не прячется —
-    /// «игра была вчера, а сегодня её нет» должно быть видно и игроку, и клубу.
-    /// </summary>
-    private static IReadOnlyList<LauncherAppDto> CreateLauncherApps(AgentOptions agentOptions) =>
-        agentOptions.LauncherApps
-            .Where(app => app.IsEnabled
-                && !string.IsNullOrWhiteSpace(app.AppId)
-                && !string.IsNullOrWhiteSpace(app.ExecutablePath))
-            .Select(app => new LauncherAppDto(
-                AppId: app.AppId,
-                DisplayName: string.IsNullOrWhiteSpace(app.DisplayName) ? app.AppId : app.DisplayName,
-                Category: string.IsNullOrWhiteSpace(app.Category) ? "Games" : app.Category,
-                IconUri: null,
-                IsAvailable: File.Exists(app.ExecutablePath)))
-            .ToList();
-
-    private static string CreatePlayerShellMessage(AgentRuntimeState runtimeState)
-    {
-        return runtimeState.State switch
-        {
-            PlayerShellStateNames.Active => "Session is active.",
-            PlayerShellStateNames.Grace => "Connection lost. Active session continues within the signed lease.",
-            PlayerShellStateNames.Ending => "Session is ending.",
-            PlayerShellStateNames.Maintenance => "This PC is under maintenance.",
-            PlayerShellStateNames.Offline => "Agent is offline.",
-            PlayerShellStateNames.Error => "This PC needs operator attention.",
-            _ => "This PC is locked."
-        };
     }
 
     /// <summary>

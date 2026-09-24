@@ -12,7 +12,3 @@ export function launchApp(appId: string): Promise<{ status: string }> {
 export function requestOperator(): Promise<{ requested: boolean }> {
   return postShellRequest<{ requested: boolean }>('shell:requestOperator');
 }
-
-export function pauseSession(): Promise<{ paused: boolean }> {
-  return postShellRequest<{ paused: boolean }>('shell:pause');
-}

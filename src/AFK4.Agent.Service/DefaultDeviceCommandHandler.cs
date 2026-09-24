@@ -12,7 +12,8 @@ public sealed class DefaultDeviceCommandHandler(
     IOptions<AgentOptions> options,
     ISessionEnforcementCoordinator enforcementCoordinator,
     IShellWarningStore shellWarningStore,
-    ILogger<DefaultDeviceCommandHandler> logger) : IDeviceCommandHandler
+    ILogger<DefaultDeviceCommandHandler> logger,
+    IShellStateSignal? shellStateSignal = null) : IDeviceCommandHandler
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -54,6 +55,12 @@ public sealed class DefaultDeviceCommandHandler(
                 status: "Failed",
                 message: $"Agent could not carry out the command: {exception.Message}",
                 outcome: DeviceCommandOutcomeNames.CommandExecutionFailed);
+        }
+        finally
+        {
+            // Разблокировка, продление, предупреждение — экран узнаёт о них сразу, а не через
+            // секунду-другую на следующем круге канала.
+            shellStateSignal?.Notify();
         }
     }
 

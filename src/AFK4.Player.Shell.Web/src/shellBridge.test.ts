@@ -35,11 +35,11 @@ describe('postShellRequest', () => {
       sent = message;
     });
 
-    const promise = postShellRequest<{ paused: boolean }>('shell:pause');
-    harness.emit({ type: 'host:response', requestId: sent.requestId, ok: true, payload: { paused: true } });
+    const promise = postShellRequest<{ requested: boolean }>('shell:requestOperator');
+    harness.emit({ type: 'host:response', requestId: sent.requestId, ok: true, payload: { requested: true } });
 
-    await expect(promise).resolves.toEqual({ paused: true });
-    expect(sent.type).toBe('shell:pause');
+    await expect(promise).resolves.toEqual({ requested: true });
+    expect(sent.type).toBe('shell:requestOperator');
   });
 
   it('rejects when the host responds with ok=false', async () => {
