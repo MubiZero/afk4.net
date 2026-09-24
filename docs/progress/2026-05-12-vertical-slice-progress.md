@@ -964,8 +964,14 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   expired, grace no longer called a credit limit, games refused outside a
   session and started in the player's session instead of session 0. «Позвать
   оператора» now reaches the counter through the agent; the shell's «пауза» is
-  gone — pause stays the admin's (#279). **The agent and the shell must be
-  updated together:** the old and the new pipe do not talk, and until the first
+  gone — pause stays the admin's (#279). Plan P4a replaced the shell's web UI with
+  a new foundation: the `player` token theme under the contrast gate, bundled
+  Golos Text and JetBrains Mono, all text in `locales/*` under `playerShell.*`,
+  the screen chosen from the agent state by one function, a practice host for
+  the browser (`?scenario=`), and the idle, offline, maintenance, error and
+  basic session screens; sign-in, choose-time and the full session follow in
+  P4b–P4d. The new UI speaks bridge v2 and must ship with the P3 host. **The
+  agent and the shell must be updated together:** the old and the new pipe do not talk, and until the first
   club this is cheaper than a compatibility bridge. Not proven by any automated
   check: the pipe ACL against a real standard user and a game appearing on the
   player's screen — that is P5 acceptance on a live PC. Clock drift is still
