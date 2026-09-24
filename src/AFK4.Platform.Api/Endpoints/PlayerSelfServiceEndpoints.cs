@@ -1614,7 +1614,6 @@ internal static class PlayerSelfServiceEndpoints
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             ISessionCommandService sessionCommandService,
-            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -1636,17 +1635,8 @@ internal static class PlayerSelfServiceEndpoints
                 return Results.NotFound();
             }
 
-            var now = timeProvider.GetUtcNow();
-
-            // Дважды вернуть одни и те же деньги не получится по двум причинам, и обе выше по коду,
-            // а не здесь. Повторный вызов упирается в проверку состояния: после первого закрытия
-            // сессия уже не Active. Одновременные вызовы разводит оптимистичная версия сессии —
-            // записи возврата попадают в ТУ ЖЕ транзакцию, что и смена состояния
-            // (EndSessionAsync сохраняет их своим SaveChanges), и проигравший откатывается целиком.
-            var quote = await PlayerEarlyEnd.QuoteAsync(dbContext, session, player.PlayerAccountId, now, cancellationToken);
-            PlayerEarlyEnd.AppendEntries(
-                dbContext, session, player.PlayerAccountId, quote, SystemActorIds.PlayerSelfService, now);
-
+            // Возврат считает и записывает само завершение — в той же транзакции, что закрывает
+            // сессию (EfSessionCommandService.EndSessionAsync): так он не может случиться дважды.
             var endResult = await sessionCommandService.EndSessionAsync(
                 sessionId,
                 SystemActorIds.PlayerSelfService,
@@ -1657,10 +1647,7 @@ internal static class PlayerSelfServiceEndpoints
             if (endResult.Conflict) return Results.Conflict(new { error = endResult.Error });
             if (!endResult.Succeeded) return Results.BadRequest(new { error = endResult.Error });
 
-            // Возвратные записи сохраняются тем же SaveChanges, что и закрытие сессии: иначе
-            // существовал бы момент, когда сессия закрыта, а деньги не вернулись.
-            await dbContext.SaveChangesAsync(cancellationToken);
-
+            var quote = endResult.EarlyEnd ?? PlayerEarlyEndQuote.Nothing("TJS");
             return Results.Ok(new PlayerSelfEndSessionResponse(
                 quote.BilledMinutes,
                 new MoneyDto(quote.CurrencyCode, quote.Money.RefundMinorUnits),
