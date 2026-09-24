@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 ## Purpose
 
@@ -955,14 +955,22 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   shell in front need a hook on the interactive desktop, and the agent sits in
   session 0. So a player can still Alt+Tab out of a "locked" PC — the difference
   is that the server no longer claims otherwise. That half belongs to the Player
-  Shell rewrite. Two shell buttons are still stubs in the host bridge
-  (`PlayerShellWebHostBridge`), but only on the shell side: «позвать оператора»
-  has its whole path below the button — the agent's `IAssistanceRequestReporter`,
-  `POST /api/devices/{id}/assistance-request`, the bell on the seat tile and
-  «Я подошёл» (#278); «пауза» is an operator action on the session
-  (`sessions/{id}/pause` and `/resume`, #279). Whether a player may pause
-  themselves from the shell is a product question for the rewrite. Clock drift is still detected and only logged — a deliberate
-  deferral until real fleets show whether they drift.
+  Shell rewrite (plan P5). Plan P1 of the rewrite (2026-09-24,
+  `docs/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
+  tell the shell the truth: one persistent pipe `afk4-shell-v2` with an ACL
+  instead of two open per-message pipes, state pushed on change instead of
+  polled, `offline` and `ending` actually produced, `IsOnline` from the last
+  contact instead of a constant, the seating code hidden when offline or
+  expired, grace no longer called a credit limit, games refused outside a
+  session and started in the player's session instead of session 0. «Позвать
+  оператора» now reaches the counter through the agent; the shell's «пауза» is
+  gone — pause stays the admin's (#279). **The agent and the shell must be
+  updated together:** the old and the new pipe do not talk, and until the first
+  club this is cheaper than a compatibility bridge. Not proven by any automated
+  check: the pipe ACL against a real standard user and a game appearing on the
+  player's screen — that is P5 acceptance on a live PC. Clock drift is still
+  detected and only logged — a deliberate deferral until real fleets show
+  whether they drift.
 
 - **Release registration needs a human.** Registering an update package is a
   platform-admin action behind two-factor, so CI cannot do it: `Package Smoke`
