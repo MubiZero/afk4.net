@@ -1249,7 +1249,9 @@ internal static class PlayerSelfServiceEndpoints
                 SessionOriginNames.SelfService,
                 cancellationToken);
 
-            if (result.Conflict) return Results.Conflict(new { error = result.Error });
+            // Код отказа, если он есть, а не английская фраза: приложение отличает «место заняли»
+            // от «ПК на обслуживании» по нему.
+            if (result.Conflict) return Results.Conflict(new { error = result.Code ?? result.Error });
             if (result.NotFound) return Results.NotFound(new { error = result.Error });
             if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
 

@@ -86,6 +86,24 @@ abstract final class DeviceCommandOutcomeNames {
   static const String leaseUnreadable = 'lease-unreadable';
   /// Аренда не прошла проверку подписи или срока.
   static const String leaseInvalid = 'lease-invalid';
+  /// Windows перезагрузит ПК через десять секунд: ответ ушёл раньше.
+  static const String rebootScheduled = 'reboot-scheduled';
+  /// Windows выключит ПК через десять секунд.
+  static const String shutdownScheduled = 'shutdown-scheduled';
+  /// На ПК идёт сессия: чужую игру агент не выключает и в обслуживание не уводит.
+  static const String sessionInProgress = 'session-in-progress';
+  /// Сосед отправил волшебный пакет. Проснулся ли ПК, скажет его сердцебиение.
+  static const String wakePacketSent = 'wake-packet-sent';
+  /// MAC или широковещательный адрес не годятся — или сосед уже в другой подсети.
+  static const String wakeTargetInvalid = 'wake-target-invalid';
+  static const String maintenanceStarted = 'maintenance-started';
+  static const String maintenanceEnded = 'maintenance-ended';
+  /// Выход игрока или сообщение переданы на экран ПК.
+  static const String deliveredToShell = 'delivered-to-shell';
+  /// Экран игрока не запущен или не отвечает — передать некому.
+  static const String shellNotConnected = 'shell-not-connected';
+  /// Профиля защиты у ПК пока нет — обновлять нечего.
+  static const String nothingToRefresh = 'nothing-to-refresh';
 }
 
 /// Где команда: ждёт, отдана агенту, устарела или агент уже ответил.
@@ -755,6 +773,8 @@ abstract final class ShellPipeMessageTypeNames {
   static const String state = 'state';
   static const String request = 'request';
   static const String reply = 'reply';
+  /// Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение.
+  static const String command = 'command';
 }
 
 /// Словарь: Shell/ShellPipeProtocol.cs
@@ -4634,6 +4654,7 @@ class DeviceHeartbeatResponse {
     this.sessionOwner,
     this.features,
     this.pendingSignInClaim,
+    this.maintenance,
   });
 
   final DateTime serverTimeUtc;
@@ -4677,6 +4698,10 @@ class DeviceHeartbeatResponse {
   /// потерялся. null — ждать нечего.
   final PlayerSignInClaimedDto? pendingSignInClaim;
 
+  /// ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+  /// догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+  final bool? maintenance;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -4690,6 +4715,7 @@ class DeviceHeartbeatResponse {
         sessionOwner: json['sessionOwner'] == null ? null : DeviceSessionOwnerDto.fromJson(json['sessionOwner'] as Map<String, dynamic>),
         features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
         pendingSignInClaim: json['pendingSignInClaim'] == null ? null : PlayerSignInClaimedDto.fromJson(json['pendingSignInClaim'] as Map<String, dynamic>),
+        maintenance: json['maintenance'] == null ? null : json['maintenance'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -4705,6 +4731,7 @@ class DeviceHeartbeatResponse {
         'sessionOwner': sessionOwner?.toJson(),
         'features': features?.map((item) => item).toList(),
         'pendingSignInClaim': pendingSignInClaim?.toJson(),
+        'maintenance': maintenance,
       };
 }
 
@@ -11577,6 +11604,11 @@ class PlayerShellStateDto {
     this.observedAtUtc,
     this.lastContactUtc,
     this.apiBaseUrl,
+    this.seatLabel,
+    this.zoneName,
+    this.sessionOwnerKind,
+    this.sessionOwnerPlayerAccountId,
+    this.features,
   });
 
   final String organizationId;
@@ -11613,6 +11645,22 @@ class PlayerShellStateDto {
   /// Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить.
   final String? apiBaseUrl;
 
+  /// Место этого ПК — «ПК 07»: первое, что читается на экране, и видно от стойки.
+  final String? seatLabel;
+
+  /// Зона места — «Общий зал».
+  final String? zoneName;
+
+  /// Чья сессия идёт: none, guest или player. Вошедшему не владельцу экран говорит «эта сессия
+  /// не ваша» и ничего не открывает.
+  final String? sessionOwnerKind;
+
+  /// Счёт владельца сессии — только у player.
+  final String? sessionOwnerPlayerAccountId;
+
+  /// Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека.
+  final List<String>? features;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -11634,6 +11682,11 @@ class PlayerShellStateDto {
         observedAtUtc: json['observedAtUtc'] == null ? null : DateTime.parse(json['observedAtUtc'] as String),
         lastContactUtc: json['lastContactUtc'] == null ? null : DateTime.parse(json['lastContactUtc'] as String),
         apiBaseUrl: json['apiBaseUrl'] == null ? null : json['apiBaseUrl'] as String,
+        seatLabel: json['seatLabel'] == null ? null : json['seatLabel'] as String,
+        zoneName: json['zoneName'] == null ? null : json['zoneName'] as String,
+        sessionOwnerKind: json['sessionOwnerKind'] == null ? null : json['sessionOwnerKind'] as String,
+        sessionOwnerPlayerAccountId: json['sessionOwnerPlayerAccountId'] == null ? null : json['sessionOwnerPlayerAccountId'] as String,
+        features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -11657,6 +11710,11 @@ class PlayerShellStateDto {
         'observedAtUtc': observedAtUtc?.toIso8601String(),
         'lastContactUtc': lastContactUtc?.toIso8601String(),
         'apiBaseUrl': apiBaseUrl,
+        'seatLabel': seatLabel,
+        'zoneName': zoneName,
+        'sessionOwnerKind': sessionOwnerKind,
+        'sessionOwnerPlayerAccountId': sessionOwnerPlayerAccountId,
+        'features': features?.map((item) => item).toList(),
       };
 }
 
@@ -14932,6 +14990,37 @@ class ShellBrandingDto {
       };
 }
 
+/// Команда клуба, которую исполняет хост: у агента нет ни окна, ни аккаунта игрока.
+///
+/// Контракт: Shell/ShellPipeMessage.cs
+class ShellPipeCommandDto {
+  const ShellPipeCommandDto({
+    required this.commandId,
+    required this.type,
+    this.text,
+  });
+
+  final String commandId;
+
+  /// DeviceCommandTypeNames.SignOut или DeviceCommandTypeNames.Message.
+  final String type;
+
+  /// Текст сообщения; только у message.
+  final String? text;
+
+  factory ShellPipeCommandDto.fromJson(Map<String, dynamic> json) => ShellPipeCommandDto(
+        commandId: json['commandId'] as String,
+        type: json['type'] as String,
+        text: json['text'] == null ? null : json['text'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'commandId': commandId,
+        'type': type,
+        'text': text,
+      };
+}
+
 /// Контракт: Shell/ShellPipeMessage.cs
 class ShellPipeHelloDto {
   const ShellPipeHelloDto({
@@ -14972,6 +15061,7 @@ class ShellPipeMessage {
     this.request,
     this.reply,
     this.reason,
+    this.command,
   });
 
 
@@ -14984,6 +15074,7 @@ class ShellPipeMessage {
 
   /// Почему агент попрощался; только у bye.
   final String? reason;
+  final ShellPipeCommandDto? command;
 
   factory ShellPipeMessage.fromJson(Map<String, dynamic> json) => ShellPipeMessage(
         type: json['type'] as String,
@@ -14992,6 +15083,7 @@ class ShellPipeMessage {
         request: json['request'] == null ? null : ShellPipeRequestDto.fromJson(json['request'] as Map<String, dynamic>),
         reply: json['reply'] == null ? null : ShellPipeReplyDto.fromJson(json['reply'] as Map<String, dynamic>),
         reason: json['reason'] == null ? null : json['reason'] as String,
+        command: json['command'] == null ? null : ShellPipeCommandDto.fromJson(json['command'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -15001,6 +15093,7 @@ class ShellPipeMessage {
         'request': request?.toJson(),
         'reply': reply?.toJson(),
         'reason': reason,
+        'command': command?.toJson(),
       };
 }
 

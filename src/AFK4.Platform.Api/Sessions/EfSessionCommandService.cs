@@ -334,6 +334,15 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid("Target seat has no active approved device assignment.");
         }
 
+        if (await dbContext.Devices.AnyAsync(
+            device => device.DeviceId == assignment.DeviceId && device.MaintenanceSinceUtc != null,
+            cancellationToken))
+        {
+            return SessionCommandServiceResult.RequestConflict(
+                "The PC at the target seat is under maintenance.",
+                "device_in_maintenance");
+        }
+
         if (await HasBlockingSessionAsync(
             session.OrganizationId,
             session.BranchId,

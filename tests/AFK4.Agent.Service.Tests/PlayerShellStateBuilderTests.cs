@@ -252,6 +252,40 @@ public sealed class PlayerShellStateBuilderTests
         Assert.False(ShellConnectivity.IsOnline(null, intervalSeconds: 10, Now));
     }
 
+    [Fact]
+    public void SeatOwnerAndFeatures_FromTheHeartbeat_ReachTheScreen()
+    {
+        var fixture = new Fixture();
+        fixture.Contact(Now.AddSeconds(-2), intervalSeconds: 10);
+        var owner = Guid.NewGuid();
+        fixture.Heartbeat.RecordPlace(
+            new AFK4.Shared.Contracts.Devices.DeviceSeatDto("ПК 07", "Общий зал"),
+            new AFK4.Shared.Contracts.Devices.DeviceSessionOwnerDto(AFK4.Shared.Contracts.Devices.DeviceSessionOwnerKindNames.Player, owner),
+            ["player_shop"]);
+
+        var state = fixture.Build();
+
+        Assert.Equal("ПК 07", state.SeatLabel);
+        Assert.Equal("Общий зал", state.ZoneName);
+        Assert.Equal(AFK4.Shared.Contracts.Devices.DeviceSessionOwnerKindNames.Player, state.SessionOwnerKind);
+        Assert.Equal(owner, state.SessionOwnerPlayerAccountId);
+        Assert.Equal(["player_shop"], state.Features);
+    }
+
+    [Fact]
+    public void Maintenance_StaysMaintenanceWithoutConnection_AndShowsNoSeatingCode()
+    {
+        // «Нет связи» позвало бы разбираться с сетью; клуб закрыл машину сам, и код к ней звать не должен.
+        var fixture = new Fixture();
+        fixture.Heartbeat.Record("418207", Now.AddMinutes(1), branding: null, intervalSeconds: 10);
+        fixture.RuntimeState.Save(AgentRuntimeState.Maintenance(Now));
+
+        var state = fixture.Build();
+
+        Assert.Equal(PlayerShellStateNames.Maintenance, state.State);
+        Assert.Null(state.SeatingCode);
+    }
+
     private sealed class Fixture(string? clubName = null)
     {
         public AgentOptions Options { get; } = new()

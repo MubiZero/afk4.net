@@ -1,3 +1,4 @@
+using AFK4.Agent.Service.Network;
 using AFK4.Shared.Contracts.Devices;
 
 namespace AFK4.Agent.Service;
@@ -13,7 +14,8 @@ public static class HeartbeatPayloadFactory
         AgentOptions options,
         bool isLocked,
         DateTimeOffset observedAtUtc,
-        ISessionLeaseStore? leaseStore)
+        ISessionLeaseStore? leaseStore,
+        NetworkIdentity? network = null)
     {
         var lease = leaseStore?.Current;
 
@@ -28,6 +30,9 @@ public static class HeartbeatPayloadFactory
             IsLocked: isLocked,
             ActiveSessionId: lease?.SessionId,
             ActiveSessionLeaseExpiresAtUtc: lease?.ExpiresAtUtc,
-            ActiveSessionLeaseSequence: lease?.Sequence);
+            ActiveSessionLeaseSequence: lease?.Sequence,
+            NetworkMacAddress: network?.MacAddress,
+            NetworkSubnet: network?.Subnet,
+            NetworkBroadcastAddress: network?.BroadcastAddress);
     }
 }

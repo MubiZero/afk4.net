@@ -285,6 +285,13 @@ public sealed class EfFloorMapReadService(
             return SeatStateNames.Maintenance;
         }
 
+        // Выключенный ПК на обслуживании — всё равно обслуживание: клуб закрыл его сам, и «офлайн»
+        // звал бы идти разбираться с сетью.
+        if (device.MaintenanceSinceUtc is not null)
+        {
+            return SeatStateNames.Maintenance;
+        }
+
         if (isDeviceOnline != true)
         {
             return SeatStateNames.Offline;

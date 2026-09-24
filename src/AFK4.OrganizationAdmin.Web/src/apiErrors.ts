@@ -42,6 +42,8 @@ const codeMessageKeys = {
   reservation_already_started: 'op.error.code.reservationAlreadyStarted',
   reservation_expired: 'op.error.code.reservationExpired',
   seat_unavailable: 'op.error.code.seatUnavailable',
+  // Клуб сам закрыл этот ПК на обслуживание: «место недоступно» не сказало бы, что делать дальше.
+  device_in_maintenance: 'op.error.code.deviceInMaintenance',
   version_conflict: 'op.error.code.versionConflict',
   // Сессию изменили с тех пор, как оператор её открыл. Отдельно от version_conflict: там речь про
   // бронь, и оператору полезно знать, что именно устарело.

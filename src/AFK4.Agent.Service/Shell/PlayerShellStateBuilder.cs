@@ -72,7 +72,13 @@ public sealed class PlayerShellStateBuilder(
             SeatingCodeExpiresAtUtc: seatingCodeExpiresAtUtc,
             ObservedAtUtc: now,
             LastContactUtc: lastContactUtc,
-            ApiBaseUrl: agentOptions.PlatformBaseUrl.ToString());
+            ApiBaseUrl: agentOptions.PlatformBaseUrl.ToString(),
+            // Место и права — последние, что сервер назвал: без связи экран всё равно пишет «ПК 07».
+            SeatLabel: heartbeatSnapshot.Seat?.Label,
+            ZoneName: heartbeatSnapshot.Seat?.ZoneName,
+            SessionOwnerKind: heartbeatSnapshot.SessionOwner?.Kind,
+            SessionOwnerPlayerAccountId: heartbeatSnapshot.SessionOwner?.PlayerAccountId,
+            Features: heartbeatSnapshot.Features);
     }
 
     private static string ResolveState(string runtimeState, int? remainingSeconds, bool isOnline) => runtimeState switch

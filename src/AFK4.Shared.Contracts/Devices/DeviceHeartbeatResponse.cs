@@ -36,4 +36,7 @@ public sealed record DeviceHeartbeatResponse(
     IReadOnlyList<string>? Features = null,
     /// Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
     /// потерялся. null — ждать нечего.
-    PlayerSignInClaimedDto? PendingSignInClaim = null);
+    PlayerSignInClaimedDto? PendingSignInClaim = null,
+    /// ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+    /// догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+    bool Maintenance = false);

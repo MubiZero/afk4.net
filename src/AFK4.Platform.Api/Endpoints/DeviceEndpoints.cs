@@ -1557,6 +1557,7 @@ internal static class DeviceEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IDeviceCommandDispatchService commandDispatchService,
+            IDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -1566,7 +1567,6 @@ internal static class DeviceEndpoints
             }
 
             var device = await dbContext.Devices
-                .AsNoTracking()
                 .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
 
             if (device is null)
@@ -1676,6 +1676,23 @@ internal static class DeviceEndpoints
 
                 targetDeviceId = wake.HelperDeviceId;
                 commandRequest = wake.Command!;
+            }
+
+            // Обслуживание запоминает сервер: по нему стойка не начнёт сессию, карта покажет машину
+            // закрытой, а агент, пропустивший команду, догонит по сердцебиению.
+            if (request.Type is DeviceCommandTypeNames.MaintenanceOn or DeviceCommandTypeNames.MaintenanceOff)
+            {
+                device.MaintenanceSinceUtc = request.Type == DeviceCommandTypeNames.MaintenanceOn
+                    ? device.MaintenanceSinceUtc ?? timeProvider.GetUtcNow()
+                    : null;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            // Выход игрока гарантирует сервер, а не хост: погасшие токены не откроют аккаунт, даже
+            // если хост команду не получил или её проигнорировал.
+            if (request.Type == DeviceCommandTypeNames.SignOut)
+            {
+                await deviceTokens.RevokeForDeviceAsync(deviceId, cancellationToken);
             }
 
             // Неповторяемые команды едут только сердцебиением: оно же помечает их отданными. Через

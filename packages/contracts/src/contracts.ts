@@ -113,6 +113,24 @@ export const DeviceCommandOutcomeNames = {
   LeaseUnreadable: 'lease-unreadable',
   /** Аренда не прошла проверку подписи или срока. */
   LeaseInvalid: 'lease-invalid',
+  /** Windows перезагрузит ПК через десять секунд: ответ ушёл раньше. */
+  RebootScheduled: 'reboot-scheduled',
+  /** Windows выключит ПК через десять секунд. */
+  ShutdownScheduled: 'shutdown-scheduled',
+  /** На ПК идёт сессия: чужую игру агент не выключает и в обслуживание не уводит. */
+  SessionInProgress: 'session-in-progress',
+  /** Сосед отправил волшебный пакет. Проснулся ли ПК, скажет его сердцебиение. */
+  WakePacketSent: 'wake-packet-sent',
+  /** MAC или широковещательный адрес не годятся — или сосед уже в другой подсети. */
+  WakeTargetInvalid: 'wake-target-invalid',
+  MaintenanceStarted: 'maintenance-started',
+  MaintenanceEnded: 'maintenance-ended',
+  /** Выход игрока или сообщение переданы на экран ПК. */
+  DeliveredToShell: 'delivered-to-shell',
+  /** Экран игрока не запущен или не отвечает — передать некому. */
+  ShellNotConnected: 'shell-not-connected',
+  /** Профиля защиты у ПК пока нет — обновлять нечего. */
+  NothingToRefresh: 'nothing-to-refresh',
 } as const;
 export type DeviceCommandOutcomeName = (typeof DeviceCommandOutcomeNames)[keyof typeof DeviceCommandOutcomeNames];
 
@@ -904,6 +922,8 @@ export const ShellPipeMessageTypeNames = {
   State: 'state',
   Request: 'request',
   Reply: 'reply',
+  /** Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение. */
+  Command: 'command',
 } as const;
 export type ShellPipeMessageTypeName = (typeof ShellPipeMessageTypeNames)[keyof typeof ShellPipeMessageTypeNames];
 
@@ -2357,6 +2377,11 @@ export interface DeviceHeartbeatResponse {
    * потерялся. null — ждать нечего.
    */
   pendingSignInClaim?: PlayerSignInClaimedDto | null;
+  /**
+   * ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+   * догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+   */
+  maintenance?: boolean;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -4666,6 +4691,19 @@ export interface PlayerShellStateDto {
   lastContactUtc?: IsoDateTime | null;
   /** Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить. */
   apiBaseUrl?: string | null;
+  /** Место этого ПК — «ПК 07»: первое, что читается на экране, и видно от стойки. */
+  seatLabel?: string | null;
+  /** Зона места — «Общий зал». */
+  zoneName?: string | null;
+  /**
+   * Чья сессия идёт: none, guest или player. Вошедшему не владельцу экран говорит «эта сессия
+   * не ваша» и ничего не открывает.
+   */
+  sessionOwnerKind?: string | null;
+  /** Счёт владельца сессии — только у player. */
+  sessionOwnerPlayerAccountId?: Guid | null;
+  /** Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека. */
+  features?: string[] | null;
 }
 
 /**
@@ -5802,6 +5840,19 @@ export interface ShellBrandingDto {
   accentColor: string | null;
 }
 
+/**
+ * Команда клуба, которую исполняет хост: у агента нет ни окна, ни аккаунта игрока.
+ *
+ * Контракт: Shell/ShellPipeMessage.cs
+ */
+export interface ShellPipeCommandDto {
+  commandId: Guid;
+  /** DeviceCommandTypeNames.SignOut или DeviceCommandTypeNames.Message. */
+  type: DeviceCommandTypeName;
+  /** Текст сообщения; только у message. */
+  text?: string | null;
+}
+
 /** Контракт: Shell/ShellPipeMessage.cs */
 export interface ShellPipeHelloDto {
   protocol: number;
@@ -5828,6 +5879,7 @@ export interface ShellPipeMessage {
   reply?: ShellPipeReplyDto | null;
   /** Почему агент попрощался; только у bye. */
   reason?: string | null;
+  command?: ShellPipeCommandDto | null;
 }
 
 /** Контракт: Shell/ShellPipeMessage.cs */

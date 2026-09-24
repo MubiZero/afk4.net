@@ -88,7 +88,7 @@ public sealed class PlayerShellRequestHandler(
         return new ShellPipeReplyDto(request.RequestId, Ok: true);
     }
 
-    private bool SessionRuns() => runtimeStateStore.Current.State is PlayerShellStateNames.Active or PlayerShellStateNames.Grace;
+    private bool SessionRuns() => runtimeStateStore.Current.SessionRuns;
 
     private static ShellPipeReplyDto Rejected(ShellPipeRequestDto request, string errorCode, string message) =>
         new(request.RequestId, Ok: false, errorCode, message);

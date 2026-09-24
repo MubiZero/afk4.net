@@ -186,7 +186,10 @@ public sealed class DeviceHeartbeatService(
             .FirstOrDefaultAsync(cancellationToken);
         var busy = liveSession is not null;
 
-        var seatingCode = busy || !allowOperationalCommands
+        // На обслуживании ПК закрыт для игроков: код посадки звал бы к нему человека.
+        var inMaintenance = device?.MaintenanceSinceUtc is not null;
+
+        var seatingCode = busy || inMaintenance || !allowOperationalCommands
             ? null
             : await seatingCodes.IssueAsync(request.OrganizationId, request.DeviceId, cancellationToken);
 
@@ -202,7 +205,7 @@ public sealed class DeviceHeartbeatService(
             : null;
 
         // Заявку на вход с телефона ПК получает по SignalR; сердцебиение — страховка на обрыв.
-        var pendingSignInClaim = allowOperationalCommands
+        var pendingSignInClaim = allowOperationalCommands && !inMaintenance
             ? await signInClaims.PendingForDeviceAsync(deviceId, cancellationToken)
             : null;
 
@@ -228,7 +231,8 @@ public sealed class DeviceHeartbeatService(
                 _ => new DeviceSessionOwnerDto(DeviceSessionOwnerKindNames.Guest)
             },
             Features: features,
-            PendingSignInClaim: pendingSignInClaim);
+            PendingSignInClaim: pendingSignInClaim,
+            Maintenance: allowOperationalCommands && inMaintenance);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

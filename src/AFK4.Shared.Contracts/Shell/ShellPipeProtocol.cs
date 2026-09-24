@@ -34,6 +34,9 @@ public static class ShellPipeMessageTypeNames
     public const string Request = "request";
 
     public const string Reply = "reply";
+
+    /// <summary>Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение.</summary>
+    public const string Command = "command";
 }
 
 public static class ShellPipeRequestTypeNames
