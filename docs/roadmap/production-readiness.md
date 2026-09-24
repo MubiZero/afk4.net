@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-09-22
+Last updated: 2026-09-24
 
 ## Purpose
 
@@ -46,6 +46,14 @@ run history belongs in the progress snapshot or archive notes.
 > unknown commands are refused, the launcher list is real, lock disables Task
 > Manager and reports what it enforced (#274, #275); OS-level kiosk input
 > blocking is still missing and belongs to the Player Shell rewrite.
+>
+> **Update 2026-09-24.** The Player Shell rewrite started, and a pass over
+> competitors (SmartShell, Langame, Senet, ggLeap, Gizmo, iCafeCloud) set the
+> launch scope. The decisions live in the PRD (§6: Agent Service and Player
+> Shell, Club Showcase And Platform Advertising, SaaS Plans And Onboarding,
+> Player App) and the billing spec (§6a: the seeded prices were ruble figures;
+> now free up to 10 PCs, then 10 TJS per PC). The order of work is under
+> «Launch scope» below.
 
 The product scope and architecture decisions remain in:
 
@@ -563,6 +571,52 @@ and the progress snapshot). The remaining path to production is operational:
    through the Stalwart server in Coolify as `no-reply@afk4.net`; SMS and Android
    push were proven earlier. A production environment repeats the same steps:
    `docs/operations/email-delivery.md`.
+
+## Launch Scope (2026-09-24)
+
+Set by the owner after the competitor pass. Each group is its own set of plans.
+
+**With the Player Shell rewrite** — this is the «last part» the owner froze
+live runs for:
+
+- Shell: showcase on the free PC, sign-in window (phone and PIN, or QR from
+  the player app), start from the wallet, session with game library and bar,
+  system bar, end-of-session rating and tips, motion that never costs the game
+  a frame.
+- Agent: autologon and the shell instead of explorer, server-driven security
+  profiles, power commands and wake-on-LAN through a neighbour, hardware
+  snapshot and reconciliation, silent enrollment by code, wiping sign-ins after
+  a session, service recovery after a crash.
+- Organization Admin: power commands and multi-seat selection, the full
+  right-click seat menu, shell and security settings per club, the game library
+  from a platform catalog, maintenance mode, the reviews and tips page.
+- Free plan with platform ads: showcase manifest, featured tariffs and
+  products, product photos, the advertising section in Platform Control,
+  impression counting. Blocked on the media bucket and on the owner checking
+  the advertising law.
+
+**To launch — so clubs can be sold to:**
+
+- Per-PC pricing (billing spec §6a), self-started trial and promised payment,
+  free-plan fallback instead of blocking.
+- Import of guests with balances from other software.
+- A public demo of the Organization Admin on sample data; «refer a club».
+- Agentless console and TV seats.
+
+**After the first club — by what it asks for:**
+
+- Organization Admin: Telegram alerts to the owner (one platform bot), staff
+  notes on guests and PCs, holiday dates in tariffs, a «PC utilization» report,
+  counter hotkeys; discounts, promo codes and client groups; bar combos; custom
+  roles and staff tasks; gift certificates; a club stop-list; a fault journal
+  per seat; payroll data.
+- Player app: «my clubs» with balances, nickname and avatar, a club leaderboard
+  and quests, booking a specific PC as a club setting.
+- Self-service kiosk at the entrance, a TV screen for consoles (needs a PRD and
+  architecture change first).
+
+Not taken: remote desktop, disk freezing and diskless servers, own hardware,
+MLM, a marketplace between clubs, sessions without an account paid at the PC.
 
 ## Decision Rules
 

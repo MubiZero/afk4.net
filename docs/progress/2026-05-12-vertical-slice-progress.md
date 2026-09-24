@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 ## Purpose
 
@@ -1022,28 +1022,37 @@ money pass all wait until the code of every part is finished and satisfies the
 owner. The Player Shell is last of all, and its current implementation is to be
 thrown away rather than polished.
 
-1. **The Player Shell, rewritten.** It is the least finished part of the
-   product: nine screens, ~1100 lines, its own inline styles instead of the kit
-   and tokens, and hardcoded Russian in every screen although `@afk4/i18n` is a
-   declared dependency and the agent already sends the branch's `Locale` (which
-   nothing reads). A Tajik club sees a Russian kiosk. The rewrite carries the
-   work that has to live in an interactive process: kiosk input blocking,
-   wiring «позвать оператора» to the agent's existing reporter (the server path
-   is done, #278), empty states in shop/extend. The player does not pause
-   themselves: pause stays the admin's (owner, 2026-09-23; admin pause is #279).
-2. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
+1. **The Player Shell, rewritten — started 2026-09-24.** The owner decided: a
+   player signs in on the PC itself (phone and PIN, or QR from the app) and
+   starts from the wallet; the shell replaces explorer for a dedicated player
+   account; the free PC is a club showcase, and on the free plan it also shows
+   platform ads; the session ends with a visit rating and optional tips. The
+   player does not pause themselves (owner, 2026-09-23). Scope and order are in
+   `docs/roadmap/production-readiness.md` → «Launch Scope»; requirements in the
+   PRD §6. Reading the current code found holes the rewrite has to close: the
+   next player inherits the previous sign-in (nothing signs out on lock, tokens
+   are never revoked); games are likely started from the service in session 0;
+   the command pipe has no ACL for a standard user; `IsOnline` is hardcoded and
+   `offline`/`ending`/`maintenance` are never produced; the shell's API address
+   is set by nobody, so it would call production from staging. None of this was
+   seen on a PC — reading only.
+2. **Pricing was never set in somoni.** The seeded Starter price of 2 900 TJS
+   was a ruble figure relabelled; the owner set free up to 10 PCs, then 10 TJS
+   per PC (billing spec §6a). Until the plans are reworked, do not show the old
+   prices to a club.
+3. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
    There are no clubs yet, so a package still reaches everyone at once, on purpose
    and guarded by a test. Before the first clubs, decide waves together with a view
    of how a rollout is going: device-level counts exist in `DeviceUpdateStatuses`,
    but no endpoint exposes them, and a wave nobody widens leaves part of the fleet
    behind silently.
-3. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
+4. **Pre-production decisions** in `docs/roadmap/production-readiness.md`:
    Authenticode custody, production object store/CDN, package-registration
    credentials, backup encryption/retention/ownership, incident and rollback
    checklist.
-4. **iOS does not ship yet** (owner, 2026-09-23) — no Apple account, no APNs
+5. **iOS does not ship yet** (owner, 2026-09-23) — no Apple account, no APNs
    key, no `ios` folder; revisit before launch.
-5. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
+6. **Then, and only then, the frozen evidence**: the live revenue-wave pass, the clean
    `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
    smoke.
 
