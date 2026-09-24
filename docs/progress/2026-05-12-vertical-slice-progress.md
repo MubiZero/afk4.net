@@ -950,8 +950,12 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   minutes after a sign-in that never started a session, thirty seconds after the
   session ends, and at once on a new sign-in, a seat move, removal or a forced key
   rotation. The heartbeat now carries the seat, the session owner and the club's
-  features. The shell host still signs in through the public route with unbound
-  tokens; P3 moves it onto the agent.
+  features. Since P2b a player can also sign in by scanning the PC's QR with the
+  app (`/api/me/devices/sign-in-claims`, redeemed by the PC with its key); the
+  seating code is single-use, wrong codes are counted per player and per club,
+  and a self-start repeated with the same key returns its session instead of
+  "code invalid". The shell host still signs in through the public route with
+  unbound tokens and does not pick up claims; P3 moves it onto the agent.
 
 - **Rendered Reports QA** — the redesigned Organization Admin Reports views
   have automated component/App coverage and a green production build, but still
