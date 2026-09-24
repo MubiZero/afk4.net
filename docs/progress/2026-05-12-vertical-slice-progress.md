@@ -942,6 +942,17 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Known Gaps
 
+- **The PC does not use its own sign-in yet.** Since P2a (2026-09-24,
+  `docs/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
+  sign in on a gaming PC through the agent (`/api/devices/{id}/player-sign-in`):
+  attempts are counted per machine, a player never gets into someone else's
+  session, and the tokens are bound to the PC and revoked by the server — five
+  minutes after a sign-in that never started a session, thirty seconds after the
+  session ends, and at once on a new sign-in, a seat move, removal or a forced key
+  rotation. The heartbeat now carries the seat, the session owner and the club's
+  features. The shell host still signs in through the public route with unbound
+  tokens; P3 moves it onto the agent.
+
 - **Rendered Reports QA** — the redesigned Organization Admin Reports views
   have automated component/App coverage and a green production build, but still
   need a native WebView2 visual pass at 100%/125% scaling in dark and light

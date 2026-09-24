@@ -120,12 +120,37 @@ export const DeviceEnrollmentStateNames = {
 } as const;
 export type DeviceEnrollmentStateName = (typeof DeviceEnrollmentStateNames)[keyof typeof DeviceEnrollmentStateNames];
 
+/** Словарь: Devices/DevicePlayerSignInContracts.cs */
+export const DevicePlayerSignInErrorCodeNames = {
+  /**
+   * Номер или ПИН-код не подошли. Причина не уточняется: «нет такого номера» — это ответ на
+   * вопрос, кто в этой сети играет.
+   */
+  SignInRefused: 'sign_in_refused',
+  /** С этого ПК слишком много неудачных попыток; ответ несёт, когда можно снова. */
+  TooManyAttempts: 'too_many_attempts',
+  /** На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего. */
+  SessionNotYours: 'session_not_yours',
+} as const;
+export type DevicePlayerSignInErrorCodeName = (typeof DevicePlayerSignInErrorCodeNames)[keyof typeof DevicePlayerSignInErrorCodeNames];
+
 /** Словарь: Install/DeviceRoleNames.cs */
 export const DeviceRoleNames = {
   GamingPc: 'gaming_pc',
   ManagerWorkstation: 'manager_workstation',
 } as const;
 export type DeviceRoleName = (typeof DeviceRoleNames)[keyof typeof DeviceRoleNames];
+
+/** Словарь: Devices/DeviceShellContextContracts.cs */
+export const DeviceSessionOwnerKindNames = {
+  /** Живой сессии на ПК нет. */
+  None: 'none',
+  /** Сессия без счёта игрока — посадили у стойки. */
+  Guest: 'guest',
+  /** Сессия на счёте игрока. */
+  Player: 'player',
+} as const;
+export type DeviceSessionOwnerKindName = (typeof DeviceSessionOwnerKindNames)[keyof typeof DeviceSessionOwnerKindNames];
 
 /**
  * Что с дружбой прямо сейчас.
@@ -2176,6 +2201,15 @@ export interface DeviceHeartbeatResponse {
    * null, когда оформление не задано, — оболочка показывает нейтральный экран.
    */
   branding?: ShellBrandingDto | null;
+  /** Место этого ПК: оболочка пишет его в шапке. null — ПК ни к какому месту не привязан. */
+  seat?: DeviceSeatDto | null;
+  /** Чья сессия идёт на ПК: вошедшему не владельцу оболочка чужую сессию не откроет. */
+  sessionOwner?: DeviceSessionOwnerDto | null;
+  /**
+   * Права организации по тарифу (PlatformFeatureNames): оболочка прячет разделы, которых у клуба
+   * нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
+   */
+  features?: string[] | null;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -2203,6 +2237,32 @@ export interface DeviceInventoryItemDto {
   enrollmentState?: string;
 }
 
+/**
+ * Отказ входа на ПК. RetryAfterUtc — только у too_many_attempts.
+ *
+ * Контракт: Devices/DevicePlayerSignInContracts.cs
+ */
+export interface DevicePlayerSignInErrorDto {
+  /** Одно из DevicePlayerSignInErrorCodeNames. */
+  error: DevicePlayerSignInErrorCodeName;
+  retryAfterUtc?: IsoDateTime | null;
+}
+
+/**
+ * Игрок входит на самом ПК: номер и ПИН-код. Идёт от агента с ключом устройства, а не с
+ * публичного входа: сервер знает, на каком ПК вошли, привязывает токены к этому ПК и считает
+ * попытки на устройство, а не на адрес всего клуба за одним роутером.
+ *
+ * Контракт: Devices/DevicePlayerSignInContracts.cs
+ */
+export interface DevicePlayerSignInRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  phoneNumber: string;
+  pin: string;
+}
+
 /** Контракт: Devices/DeviceSeatAssignmentDto.cs */
 export interface DeviceSeatAssignmentDto {
   deviceSeatAssignmentId: Guid;
@@ -2212,6 +2272,32 @@ export interface DeviceSeatAssignmentDto {
   deviceId: Guid;
   attachedAtUtc: IsoDateTime;
   detachedAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Место, к которому привязан ПК, — то, что оболочка пишет в шапке: «ПК 07 · Общий зал». Имя
+ * места клуб набирает сам, номера отдельно от имени нет.
+ *
+ * Контракт: Devices/DeviceShellContextContracts.cs
+ */
+export interface DeviceSeatDto {
+  label: string;
+  /** Пусто — место без зоны или зона удалена. */
+  zoneName: string | null;
+}
+
+/**
+ * Чья сессия идёт на ПК. Оболочке это нужно, чтобы не открыть вошедшему чужую сессию: посаженный
+ * у стойки гость и игрок со своим счётом выглядят по-разному, а вошедший не владелец видит «эта
+ * сессия не ваша».
+ *
+ * Контракт: Devices/DeviceShellContextContracts.cs
+ */
+export interface DeviceSessionOwnerDto {
+  /** Одно из DeviceSessionOwnerKindNames. */
+  kind: DeviceSessionOwnerKindName;
+  /** Счёт игрока; только у Kind = player. */
+  playerAccountId?: Guid | null;
 }
 
 /** Контракт: Sessions/DeviceSessionSnapshotRequest.cs */

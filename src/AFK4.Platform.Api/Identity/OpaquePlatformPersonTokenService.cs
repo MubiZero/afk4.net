@@ -17,17 +17,40 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
     private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(1);
     private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
 
-    public async Task<PlatformPersonSessionResponse> IssueAsync(
+    // У ПК клуба сроки короче: машиной пользуется следующий, и токен, живущий месяц, пережил бы
+    // десяток чужих сессий. Настоящую границу держит гашение на сервере, срок — запасная.
+    private static readonly TimeSpan DeviceAccessTokenLifetime = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan DeviceRefreshTokenLifetime = TimeSpan.FromHours(12);
+
+    public Task<PlatformPersonSessionResponse> IssueAsync(
         PlatformPersonEntity person,
         PlayerAccountEntity? pinnedAccount,
+        CancellationToken cancellationToken) =>
+        IssueCoreAsync(person, pinnedAccount, device: null, cancellationToken);
+
+    public Task<PlatformPersonSessionResponse> IssueOnDeviceAsync(
+        PlatformPersonEntity person,
+        PlayerAccountEntity pinnedAccount,
+        Guid deviceId,
+        CancellationToken cancellationToken) =>
+        IssueCoreAsync(
+            person,
+            pinnedAccount,
+            new DeviceBinding(deviceId, timeProvider.GetUtcNow()),
+            cancellationToken);
+
+    private async Task<PlatformPersonSessionResponse> IssueCoreAsync(
+        PlatformPersonEntity person,
+        PlayerAccountEntity? pinnedAccount,
+        DeviceBinding? device,
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
 
         var (accessTokenId, accessToken) = CreateToken();
         var (refreshTokenId, refreshToken) = CreateToken();
-        var accessExpires = now.Add(AccessTokenLifetime);
-        var refreshExpires = now.Add(RefreshTokenLifetime);
+        var accessExpires = now.Add(device is null ? AccessTokenLifetime : DeviceAccessTokenLifetime);
+        var refreshExpires = now.Add(device is null ? RefreshTokenLifetime : DeviceRefreshTokenLifetime);
 
         dbContext.PlatformPersonAccessTokens.Add(new PlatformPersonAccessTokenEntity
         {
@@ -36,7 +59,9 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
             PinnedOrganizationId = pinnedAccount?.OrganizationId,
             TokenHash = HashToken(accessToken),
             CreatedAtUtc = now,
-            ExpiresAtUtc = accessExpires
+            ExpiresAtUtc = accessExpires,
+            DeviceId = device?.DeviceId,
+            DeviceSignedInAtUtc = device?.SignedInAtUtc
         });
         dbContext.PlatformPersonRefreshTokens.Add(new PlatformPersonRefreshTokenEntity
         {
@@ -45,7 +70,9 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
             PinnedOrganizationId = pinnedAccount?.OrganizationId,
             TokenHash = HashToken(refreshToken),
             CreatedAtUtc = now,
-            ExpiresAtUtc = refreshExpires
+            ExpiresAtUtc = refreshExpires,
+            DeviceId = device?.DeviceId,
+            DeviceSignedInAtUtc = device?.SignedInAtUtc
         });
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -108,7 +135,12 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
         }
 
         stored.RevokedAtUtc = now;
-        return await IssueAsync(person, account, cancellationToken);
+        // Привязка к ПК переживает обновление вместе со временем входа: иначе хост обновлял бы
+        // токен и каждый раз оказывался «только что вошедшим», а сервер не погасил бы его никогда.
+        var device = stored.DeviceId is { } deviceId
+            ? new DeviceBinding(deviceId, stored.DeviceSignedInAtUtc ?? stored.CreatedAtUtc)
+            : null;
+        return await IssueCoreAsync(person, account, device, cancellationToken);
     }
 
     public async Task<PlatformPersonContext?> ValidateAsync(string? bearerToken, CancellationToken cancellationToken)
@@ -221,4 +253,6 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
     }
 
     private static byte[] HashToken(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
+
+    private sealed record DeviceBinding(Guid DeviceId, DateTimeOffset SignedInAtUtc);
 }

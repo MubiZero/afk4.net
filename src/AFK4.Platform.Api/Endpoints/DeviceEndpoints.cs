@@ -708,6 +708,63 @@ internal static class DeviceEndpoints
             return Results.Ok(new DeviceAssistanceStateDto(deviceId, device.AssistanceRequestedAtUtc));
         });
 
+        // Игрок входит на самом ПК — номером и ПИН-кодом, через агента с ключом устройства
+        // (спека оболочки, §5.2). Публичный вход здесь не годится: он не знает машины, не может
+        // привязать к ней токены и считает попытки на адрес всего клуба за одним роутером.
+        app.MapPost("/api/devices/{deviceId:guid}/player-sign-in", async (
+            Guid deviceId,
+            DevicePlayerSignInRequest request,
+            HttpContext httpContext,
+            PlatformDbContext dbContext,
+            IDeviceCredentialValidator credentialValidator,
+            IOrganizationStatusGuard organizationStatusGuard,
+            IDevicePlayerSignInService signInService,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            if (request.OrganizationId == Guid.Empty || request.BranchId == Guid.Empty)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId and BranchId are required." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var suspended = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            if (suspended is not null)
+            {
+                return suspended;
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(
+                candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            var result = await signInService.SignInAsync(device, request.PhoneNumber, request.Pin, cancellationToken);
+            return result.Error switch
+            {
+                null => Results.Ok(result.Session),
+                DevicePlayerSignInErrorCodeNames.TooManyAttempts => Results.Json(
+                    new DevicePlayerSignInErrorDto(result.Error, result.RetryAfterUtc),
+                    statusCode: StatusCodes.Status429TooManyRequests),
+                DevicePlayerSignInErrorCodeNames.SessionNotYours => Results.Conflict(
+                    new DevicePlayerSignInErrorDto(result.Error)),
+                _ => Results.Json(
+                    new DevicePlayerSignInErrorDto(result.Error),
+                    statusCode: StatusCodes.Status401Unauthorized)
+            };
+        });
+
         // Оператор подошёл — вызов снят. Право то же, что у «отдать заказ»: это работа зала.
         organizations.MapPost("devices/{deviceId:guid}/assistance-request/resolve", async (
             Guid deviceId,
@@ -1032,6 +1089,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
+            IDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1079,6 +1137,8 @@ internal static class DeviceEndpoints
 
             var changedDeviceIds = await DetachActiveDeviceAssignmentsAsync(dbContext, device, now, cancellationToken);
             var revokedCredentialCount = await RevokeActiveDeviceCredentialsAsync(dbContext, device, now, cancellationToken);
+            // Машины больше нет в зале — и вход игрока на ней не должен пережить её.
+            await deviceTokens.RevokeForDeviceAsync(device.DeviceId, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1194,6 +1254,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
+            IDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1237,6 +1298,8 @@ internal static class DeviceEndpoints
 
             var changedDeviceIds = await DetachActiveDeviceAssignmentsAsync(dbContext, device, now, cancellationToken);
             var revokedCredentialCount = await RevokeActiveDeviceCredentialsAsync(dbContext, device, now, cancellationToken);
+            // Машины больше нет в зале — и вход игрока на ней не должен пережить её.
+            await deviceTokens.RevokeForDeviceAsync(device.DeviceId, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1272,6 +1335,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
+            IDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -1401,6 +1465,19 @@ internal static class DeviceEndpoints
                     AttachedAtUtc = now
                 };
                 dbContext.DeviceSeatAssignments.Add(currentAssignment);
+            }
+
+            // Машина переехала на другое место (или место отдали другой машине): вход игрока,
+            // сделанный у прежнего места, к новому не переезжает.
+            var movedDeviceIds = activeAssignments
+                .Where(assignment => assignment.DetachedAtUtc == now)
+                .Select(assignment => assignment.DeviceId)
+                .Append(currentAssignment.AttachedAtUtc == now ? deviceId : Guid.Empty)
+                .Where(candidate => candidate != Guid.Empty)
+                .Distinct();
+            foreach (var movedDeviceId in movedDeviceIds)
+            {
+                await deviceTokens.RevokeForDeviceAsync(movedDeviceId, cancellationToken);
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);

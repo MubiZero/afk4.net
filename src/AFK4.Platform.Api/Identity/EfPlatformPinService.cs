@@ -64,10 +64,24 @@ public sealed class EfPlatformPinService(
         Guid? branchId,
         CancellationToken cancellationToken)
     {
+        var authentication = await AuthenticateAsync(organizationId, rawPhone, pin, branchId, cancellationToken);
+        return authentication.Status == PinSignInStatus.SignedIn
+            ? PinSignInResult.SignedIn(
+                await tokenService.IssueAsync(authentication.Person!, authentication.Account, cancellationToken))
+            : PinSignInResult.Refused;
+    }
+
+    public async Task<PinAuthenticationResult> AuthenticateAsync(
+        Guid organizationId,
+        string? rawPhone,
+        string? pin,
+        Guid? branchId,
+        CancellationToken cancellationToken)
+    {
         var normalizedPhone = PhoneNumberNormalizer.Normalize(rawPhone);
         if (normalizedPhone is null || string.IsNullOrEmpty(pin))
         {
-            return PinSignInResult.Refused;
+            return PinAuthenticationResult.Refused;
         }
 
         var phoneNumber = "+" + normalizedPhone;
@@ -86,13 +100,13 @@ public sealed class EfPlatformPinService(
             || !person.IsActive
             || person.PinHash is null)
         {
-            return PinSignInResult.Refused;
+            return PinAuthenticationResult.Refused;
         }
 
         var now = timeProvider.GetUtcNow();
         if (person.PinLockedUntilUtc is { } lockedUntil && lockedUntil > now)
         {
-            return PinSignInResult.Refused;
+            return PinAuthenticationResult.Refused;
         }
 
         var verification = passwordHasher.VerifyHashedPassword(person, person.PinHash, pin);
@@ -106,7 +120,7 @@ public sealed class EfPlatformPinService(
 
             person.UpdatedAtUtc = now;
             await dbContext.SaveChangesAsync(cancellationToken);
-            return PinSignInResult.Refused;
+            return PinAuthenticationResult.Refused;
         }
 
         person.PinFailedCount = 0;
@@ -127,10 +141,9 @@ public sealed class EfPlatformPinService(
                 "PIN accepted but the club account could not be opened for organization {OrganizationId}: {Error}.",
                 organizationId,
                 membership.Error);
-            return PinSignInResult.Refused;
+            return PinAuthenticationResult.Refused;
         }
 
-        return PinSignInResult.SignedIn(
-            await tokenService.IssueAsync(person, membership.Account, cancellationToken));
+        return PinAuthenticationResult.Authenticated(person, membership.Account);
     }
 }
