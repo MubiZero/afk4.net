@@ -1557,6 +1557,7 @@ internal static class DeviceEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IDeviceCommandDispatchService commandDispatchService,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -1573,9 +1574,11 @@ internal static class DeviceEndpoints
                 return Results.NotFound();
             }
 
+            // Обслуживание — своим правом: оно закрывает машину для игроков, и решать это — не
+            // каждому, кто может её перезапереть.
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 device.BranchId,
-                OrganizationPermissionNames.DispatchDeviceCommand,
+                DeviceCommandPolicy.RequiredPermission(request.Type),
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1609,6 +1612,23 @@ internal static class DeviceEndpoints
                 return Results.BadRequest(new { Error = "Command payload is required." });
             }
 
+            // Опечатка в типе раньше доезжала до агента и возвращалась «не умею» — в журнале
+            // команда висела отправленной.
+            if (!DeviceCommandPolicy.IsStaffCommand(request.Type))
+            {
+                return Results.BadRequest(new
+                {
+                    Error = $"Unknown device command type '{request.Type}'.",
+                    Code = DeviceCommandErrorCodeNames.UnknownType
+                });
+            }
+
+            var payloadError = DeviceCommandPolicy.ValidatePayload(request.Type, request.Payload);
+            if (payloadError is not null)
+            {
+                return Results.BadRequest(new { Error = payloadError, Code = DeviceCommandErrorCodeNames.InvalidPayload });
+            }
+
             if (device.EnrollmentState != DeviceEnrollmentStateNames.Approved)
             {
                 await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
@@ -1631,7 +1651,38 @@ internal static class DeviceEndpoints
                 return Results.Conflict(new { Error = "Device enrollment is not approved." });
             }
 
-            var command = await commandDispatchService.DispatchAsync(deviceId, request, cancellationToken);
+            // Чужую игру не выключают, не перезагружают и не уводят в обслуживание: сначала
+            // закончить сессию, потом трогать машину.
+            if (DeviceCommandPolicy.RequiresFreeDevice(request.Type)
+                && await HasActiveDeviceSessionAsync(dbContext, device, cancellationToken))
+            {
+                return Results.Conflict(new
+                {
+                    Error = "Device has an active, paused, or ending session.",
+                    Code = DeviceCommandErrorCodeNames.ActiveSession
+                });
+            }
+
+            var targetDeviceId = deviceId;
+            var commandRequest = request;
+            if (request.Type == DeviceCommandTypeNames.Wake)
+            {
+                // Спящему ПК команду не отдать: будит сосед по подсети волшебным пакетом.
+                var wake = await PlanWakeAsync(dbContext, device, timeProvider, cancellationToken);
+                if (wake.Error is not null)
+                {
+                    return Results.Conflict(new { Error = wake.Error.Value.Message, Code = wake.Error.Value.Code });
+                }
+
+                targetDeviceId = wake.HelperDeviceId;
+                commandRequest = wake.Command!;
+            }
+
+            // Неповторяемые команды едут только сердцебиением: оно же помечает их отданными. Через
+            // SignalR и сердцебиение сразу агент получил бы перезагрузку дважды.
+            var command = DeviceCommandPolicy.IsOneShot(commandRequest.Type)
+                ? await commandDispatchService.EnqueueAsync(targetDeviceId, commandRequest, cancellationToken)
+                : await commandDispatchService.DispatchAsync(targetDeviceId, commandRequest, cancellationToken);
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
                 OrganizationId: authorization.StaffContext!.OrganizationId,
@@ -1645,7 +1696,9 @@ internal static class DeviceEndpoints
                 DetailsJson: JsonSerializer.Serialize(new
                 {
                     DeviceId = deviceId,
-                    command.Type
+                    command.Type,
+                    // У пробуждения команду исполняет сосед — в журнале видно, кто именно.
+                    ExecutedByDeviceId = targetDeviceId == deviceId ? (Guid?)null : targetDeviceId
                 })),
                 cancellationToken);
 
@@ -2120,5 +2173,58 @@ internal static class DeviceEndpoints
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.RevokeDeviceCredential);
 
+    }
+
+    private readonly record struct WakePlan(
+        Guid HelperDeviceId,
+        CreateDeviceCommandRequest? Command,
+        (string Code, string Message)? Error);
+
+    /// <summary>
+    /// Кто разбудит спящий ПК: включённый сосед той же подсети, недавно подававший сердцебиение.
+    /// Волшебный пакет не проходит маршрутизаторы — сосед из другой подсети не разбудит никого.
+    /// </summary>
+    private static async Task<WakePlan> PlanWakeAsync(
+        PlatformDbContext dbContext,
+        DeviceEntity target,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(target.NetworkMacAddress) || string.IsNullOrWhiteSpace(target.NetworkSubnet))
+        {
+            return new WakePlan(Guid.Empty, null, (DeviceCommandErrorCodeNames.WakeTargetUnknown,
+                "This PC has never reported its network address, so it cannot be woken."));
+        }
+
+        var aliveSince = timeProvider.GetUtcNow().AddMinutes(-1);
+        var helper = await dbContext.Devices
+            .AsNoTracking()
+            .Where(candidate => candidate.OrganizationId == target.OrganizationId
+                && candidate.BranchId == target.BranchId
+                && candidate.DeviceId != target.DeviceId
+                && candidate.EnrollmentState == DeviceEnrollmentStateNames.Approved
+                && candidate.NetworkSubnet == target.NetworkSubnet
+                && candidate.LastHeartbeatAtUtc != null
+                && candidate.LastHeartbeatAtUtc >= aliveSince)
+            .OrderByDescending(candidate => candidate.LastHeartbeatAtUtc)
+            .Select(candidate => candidate.DeviceId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (helper == Guid.Empty)
+        {
+            return new WakePlan(Guid.Empty, null, (DeviceCommandErrorCodeNames.NoWakeHelper,
+                "No powered-on PC in the same network can wake this one."));
+        }
+
+        return new WakePlan(
+            helper,
+            new CreateDeviceCommandRequest(
+                DeviceCommandTypeNames.WakeNeighbor,
+                new Dictionary<string, string>
+                {
+                    ["mac"] = target.NetworkMacAddress!,
+                    ["broadcast"] = target.NetworkBroadcastAddress ?? string.Empty,
+                    ["targetDeviceId"] = target.DeviceId.ToString("D")
+                }),
+            null);
     }
 }

@@ -525,6 +525,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(device => device.EnrollmentState).HasMaxLength(32).IsRequired();
             entity.Property(device => device.AgentVersion).HasMaxLength(64).IsRequired();
             entity.Property(device => device.ShellVersion).HasMaxLength(64).IsRequired();
+            entity.Property(device => device.NetworkMacAddress).HasMaxLength(17);
+            entity.Property(device => device.NetworkSubnet).HasMaxLength(64);
+            entity.Property(device => device.NetworkBroadcastAddress).HasMaxLength(64);
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId });
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId, device.EnrollmentState });
         });

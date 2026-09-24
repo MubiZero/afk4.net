@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Tests.Identity;
 using AFK4.Shared.Contracts.Devices;
@@ -82,14 +83,19 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
         return Client.SendAsync(message);
     }
 
-    public async Task<DeviceHeartbeatResponse> HeartbeatAsync(Guid? activeSessionId = null)
+    public async Task<DeviceHeartbeatResponse> HeartbeatAsync(
+        Guid? activeSessionId = null,
+        DeviceEnrollmentResponse? device = null,
+        string? macAddress = null,
+        string? subnet = null)
     {
-        using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{Device.DeviceId}/heartbeat")
+        device ??= Device;
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{device.DeviceId}/heartbeat")
         {
             Content = JsonContent.Create(new DeviceHeartbeatRequest(
-                Device.OrganizationId,
-                Device.BranchId,
-                Device.DeviceId,
+                device.OrganizationId,
+                device.BranchId,
+                device.DeviceId,
                 MachineName: "PC-007",
                 AgentVersion: "0.1.0",
                 ShellVersion: "0.1.0",
@@ -97,13 +103,22 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
                 IsLocked: activeSessionId is null,
                 ActiveSessionId: activeSessionId,
                 ActiveSessionLeaseExpiresAtUtc: null,
-                ActiveSessionLeaseSequence: null))
+                ActiveSessionLeaseSequence: null,
+                NetworkMacAddress: macAddress,
+                NetworkSubnet: subnet,
+                NetworkBroadcastAddress: subnet is null ? null : "192.168.1.255"))
         };
-        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, Device.CredentialSecret);
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, device.CredentialSecret);
         var response = await Client.SendAsync(message);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>())!;
     }
+
+    /// <summary>Команда администратора этому ПК — тем же маршрутом, что у Панели.</summary>
+    public Task<HttpResponseMessage> CommandAsync(string type, Dictionary<string, string>? payload = null, Guid? deviceId = null) =>
+        Client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{(deviceId ?? Device.DeviceId):D}/commands",
+            new CreateDeviceCommandRequest(type, payload ?? []));
 
     /// <summary>
     /// Живые токены ПК обоих видов. Доступ живёт 15 минут и истекает сам, а обновление старый

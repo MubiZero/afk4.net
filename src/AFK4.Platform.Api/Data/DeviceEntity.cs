@@ -54,4 +54,16 @@ public sealed class DeviceEntity
 
     /// <summary>Когда началось окно счёта неудачных входов. null — неудач ещё не было.</summary>
     public DateTimeOffset? PlayerSignInWindowStartedAtUtc { get; set; }
+
+    /// <summary>
+    /// MAC проводного адаптера со шлюзом — последний, что агент сообщил. По нему выключенный ПК
+    /// будит сосед: самой машине, пока она спит, команду не отдать.
+    /// </summary>
+    public string? NetworkMacAddress { get; set; }
+
+    /// <summary>Подсеть этого адаптера: будить можно только из той же подсети.</summary>
+    public string? NetworkSubnet { get; set; }
+
+    /// <summary>Широковещательный адрес подсети — куда сосед шлёт волшебный пакет.</summary>
+    public string? NetworkBroadcastAddress { get; set; }
 }
