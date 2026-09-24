@@ -7,16 +7,19 @@ import { SeatBadge } from '../ui/SeatBadge';
  * номер ПК — наверху слева, читается первым. Карусель карточек витрины — в срезе P4d; пока на её
  * месте — оформление клуба.
  */
-export function IdleScreen({ state }: { state: PlayerShellStateDto }) {
+export function IdleScreen({ state, dimmed = false }: { state: PlayerShellStateDto; dimmed?: boolean }) {
   const { t } = useI18n();
   const branding = state.branding;
 
   return (
-    <main className="idle-screen">
+    <main className={dimmed ? 'idle-screen idle-screen--dimmed' : 'idle-screen'} aria-hidden={dimmed || undefined}>
       <div className="idle-screen__showcase" aria-hidden="true" />
-      <header className="idle-screen__top">
-        <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} free />
-      </header>
+      {/* Подошли — знак ПК уезжает в шапку окна входа, витрина притушается фоном. */}
+      {dimmed ? null : (
+        <header className="idle-screen__top">
+          <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} free />
+        </header>
+      )}
       <div className="idle-screen__club">
         {branding?.logoUrl ? <img className="idle-screen__logo" src={branding.logoUrl} alt="" /> : null}
         {branding?.clubName ? <p className="idle-screen__club-name">{branding.clubName}</p> : null}

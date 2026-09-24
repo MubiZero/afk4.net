@@ -4,8 +4,10 @@ import { AlertOctagon, Loader2, WifiOff, Wrench } from 'lucide-react';
 import { useShellHost } from './host/shellHost';
 import { clubAccent } from './model/branding';
 import { selectScreen } from './model/screen';
+import { ChooseTimeScreen } from './screens/ChooseTimeScreen';
 import { IdleScreen } from './screens/IdleScreen';
 import { SessionScreen } from './screens/SessionScreen';
+import { SignInPanel } from './screens/SignInPanel';
 import { StatusScreen } from './screens/StatusScreen';
 import { AssistButton } from './ui/AssistButton';
 import { SeatBadge } from './ui/SeatBadge';
@@ -29,13 +31,14 @@ export function App() {
     if (host.idle > 0) setApproached(false);
   }, [host.idle]);
 
-  // Язык филиала — пока человек не выбрал свой. Снимок от хоста может прийти уже после того, как
-  // человек нажал «Тоҷ», и язык филиала не должен перебить выбор.
-  const [localeChosen, setLocaleChosen] = useState(false);
+  // Язык филиала — пока человек не выбрал свой. Флаг выбора — ref, а не состояние: эффект от
+  // пришедшего состояния может выполниться уже после клика «Тоҷ» (React откладывает эффекты), и
+  // со значением из замыкания он вернул бы язык филиала поверх выбора человека.
+  const localeChosen = useRef(false);
   const branchLocale = state?.locale;
   useEffect(() => {
-    if (!localeChosen && branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
-  }, [branchLocale, localeChosen, setLocale]);
+    if (!localeChosen.current && branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
+  }, [branchLocale, setLocale]);
 
   // Цвет клуба — поверх палитры, если его можно читать; иначе остаётся фирменный зелёный.
   const accent = clubAccent(state?.branding?.accentColor);
@@ -49,7 +52,7 @@ export function App() {
       {renderScreen()}
       {screen === 'session' || screen === 'ending' || screen === 'grace'
         ? null
-        : <SystemBar online={online} onLocaleChosen={() => setLocaleChosen(true)} />}
+        : <SystemBar online={online} onLocaleChosen={() => { localeChosen.current = true; }} />}
     </div>
   );
 
@@ -95,8 +98,16 @@ export function App() {
       case 'ending':
       case 'grace':
         return <SessionScreen state={state!} receivedAtMs={host.stateReceivedAtMs} variant={screen} />;
+      case 'chooseTime':
+        return <ChooseTimeScreen state={state!} auth={host.auth} />;
+      case 'approach':
+        return (
+          <>
+            <IdleScreen state={state!} dimmed />
+            <SignInPanel state={state!} onClose={() => setApproached(false)} />
+          </>
+        );
       default:
-        // Окно входа и выбор времени — срез P4b; до него подошедший видит ту же витрину.
         return <IdleScreen state={state!} />;
     }
   }

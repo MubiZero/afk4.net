@@ -109,7 +109,7 @@ export function installDevHost(): void {
   const emit = (data: unknown) => queueMicrotask(() => {
     for (const listener of listeners) listener({ data });
   });
-  const auth: ShellAuthStateDto = { signedIn: false, displayName: null, playerAccountId: null };
+  let auth: ShellAuthStateDto = { signedIn: false, displayName: null, playerAccountId: null };
 
   window.chrome = {
     webview: {
@@ -120,6 +120,28 @@ export function installDevHost(): void {
         switch (request.type) {
           case ShellBridgeRequestTypeNames.ShellReady:
             reply({ state: devScenarioState(scenario), auth, system: { volume: 60, micMuted: false, layout: 'RU' } } satisfies ShellSnapshotDto);
+            break;
+          case ShellBridgeRequestTypeNames.AuthSignIn: {
+            // Учебный вход: ПИН-код 123456 пускает, остальные — нет, как ответил бы сервер.
+            const { pin } = (message as { payload?: { pin?: string } }).payload ?? {};
+            if (pin === '123456') {
+              reply({});
+              auth = { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' };
+              emit({ type: ShellBridgeEventTypeNames.AuthChanged, payload: auth });
+            } else {
+              emit({
+                type: 'host:response',
+                requestId: request.requestId,
+                ok: false,
+                error: { code: 'sign_in_refused', message: 'refused' }
+              });
+            }
+            break;
+          }
+          case ShellBridgeRequestTypeNames.AuthSignOut:
+            reply({});
+            auth = { signedIn: false, displayName: null, playerAccountId: null };
+            emit({ type: ShellBridgeEventTypeNames.AuthChanged, payload: auth });
             break;
           default:
             // Запуск игры, вызов администратора, язык — учебный хост со всем соглашается.

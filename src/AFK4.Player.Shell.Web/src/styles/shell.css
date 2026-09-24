@@ -281,6 +281,193 @@ button {
   color: var(--text-secondary);
 }
 
+/* Подошли: витрина притушается — прозрачностью заранее нарисованного слоя, без размытия в кадре. */
+.idle-screen--dimmed .idle-screen__showcase {
+  opacity: 0.35;
+  animation: none;
+  transition: opacity var(--shell-duration-open) var(--ease-out-emphasized);
+}
+
+.idle-screen--dimmed .idle-screen__hint,
+.idle-screen--dimmed .idle-screen__club {
+  opacity: 0;
+  transition: opacity var(--shell-duration-small) var(--ease-standard);
+}
+
+/* Окно входа (кадр 01a): раскрывается из угла знака ПК — масштаб плоской подложки, текст
+   проявляется после. Двигаем только transform и opacity. */
+.sign-in {
+  position: absolute;
+  top: var(--shell-gutter);
+  left: var(--shell-gutter);
+  right: var(--shell-gutter);
+  bottom: calc(3.4rem + var(--shell-gutter));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 1.6rem 2.4rem;
+  padding: 2rem;
+  border-radius: 1.6rem;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-elevated);
+  transform-origin: top left;
+  animation: sign-in-open var(--shell-duration-open) var(--ease-out-emphasized);
+}
+
+.sign-in > * {
+  animation: sign-in-content 360ms var(--ease-standard) 140ms both;
+}
+
+@keyframes sign-in-open {
+  from { opacity: 0; transform: scale(0.35); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sign-in-content {
+  from { opacity: 0; transform: translateY(0.6rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.sign-in__head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.sign-in__back {
+  min-height: 2.6rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.sign-in__back:hover,
+.sign-in__back:focus-visible {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.sign-in__column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.sign-in__column--phone {
+  padding-left: 2.4rem;
+  border-left: 1px solid var(--border-soft);
+}
+
+.sign-in__title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.sign-in__error {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-radius: 0.8rem;
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.sign-in__qr {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+.sign-in__qr p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.qr {
+  flex: none;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 0.8rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field__label {
+  color: var(--text-secondary);
+}
+
+.field__phone {
+  display: flex;
+  align-items: stretch;
+}
+
+.field__prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.9rem;
+  border: 1px solid var(--border-control);
+  border-right: 0;
+  border-radius: var(--shell-radius) 0 0 var(--shell-radius);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+}
+
+.field__input {
+  width: 100%;
+  min-height: var(--shell-control);
+  padding: 0 1rem;
+  border: 1px solid var(--border-control);
+  border-radius: var(--shell-radius);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 1.4rem;
+}
+
+.field__phone .field__input {
+  border-radius: 0 var(--shell-radius) var(--shell-radius) 0;
+}
+
+.field__input--pin {
+  letter-spacing: 0.6em;
+}
+
+.field__input:focus-visible {
+  outline: 3px solid var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.btn--wide {
+  width: 100%;
+}
+
+/* Вошли: выбор времени (кадр 02) — предложения придут следующим срезом. */
+.choose-time {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: var(--shell-gutter);
+}
+
+.choose-time__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.choose-time__greeting {
+  margin: 0;
+  font-size: 2.6rem;
+}
+
 /* Экран-объяснение */
 
 .status-screen {
