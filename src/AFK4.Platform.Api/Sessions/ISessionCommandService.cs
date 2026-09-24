@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Sessions;
 
@@ -15,9 +16,15 @@ public sealed record SessionCommandServiceResult(
     int? CurrentVersion = null,
     // Заполняется только при отказе по лимиту тарифа: клиент собирает из этих чисел фразу
     // «сеансов 40 из 40», а не показывает голое «нельзя».
-    PlanLimitExceededDto? PlanLimit = null)
+    PlanLimitExceededDto? PlanLimit = null,
+    // Что вернулось игроку при раннем выходе — только у того завершения, которое сессию и
+    // закрыло. Повтор и завершение уже заканчивающейся сессии не возвращают ничего.
+    PlayerEarlyEndQuote? EarlyEnd = null)
 {
     public static SessionCommandServiceResult Ok(SessionCommandResponse response) => new(true, false, false, null, response);
+
+    public static SessionCommandServiceResult Ended(SessionCommandResponse response, PlayerEarlyEndQuote? earlyEnd) =>
+        new(true, false, false, null, response, EarlyEnd: earlyEnd);
 
     public static SessionCommandServiceResult RequestConflict(string error, string? code = null) =>
         new(false, true, false, error, null, code);

@@ -619,7 +619,10 @@ internal static class SessionEndpoints
                 "PlatformApi",
                 JsonSerializer.Serialize(new
                 {
-                    request.Reason
+                    request.Reason,
+                    // Ранний выход у стойки возвращает игроку неиграное — в журнале видно, сколько.
+                    RefundedMinorUnits = result.EarlyEnd?.Money.RefundMinorUnits,
+                    PackageMinutesReturned = result.EarlyEnd?.PackageSecondsReturned / 60
                 })),
                 cancellationToken);
 

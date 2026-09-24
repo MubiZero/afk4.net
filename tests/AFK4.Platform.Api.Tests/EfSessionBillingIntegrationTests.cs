@@ -94,6 +94,123 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.Single(dispatcher.Calls);
     }
 
+    /// <summary>
+    /// Стойка закончила сессию раньше — игрок получает неиграное назад, как если бы встал сам.
+    /// Раньше возвращал только выход самого игрока, и одна и та же ситуация стоила по-разному.
+    /// </summary>
+    [Fact]
+    public async Task EndSessionAsync_ByTheCounter_RefundsTheUnplayedPrepaidTime()
+    {
+        await using var db = CreateDbContext();
+        var (service, sessionId) = await StartPrepaidHourAsync(db);
+        // Сыграно двадцать минут; тариф: минимум полчаса, шаг — четверть часа, 50 дирамов в минуту.
+        await PlayedMinutesAsync(db, sessionId, 20);
+
+        var end = await service.EndSessionAsync(
+            sessionId, ActorStaffUserId, new EndSessionRequest("operator-end", "end-counter-1"), CancellationToken.None);
+
+        Assert.True(end.Succeeded);
+        Assert.Equal(1_500, end.EarlyEnd!.Money.RefundMinorUnits);
+        var refund = Assert.Single(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.Refund);
+        Assert.Equal(1_500, refund.AmountMinorUnits);
+        Assert.Equal(sessionId, refund.SessionId);
+        Assert.Equal(ActorStaffUserId, refund.CreatedByStaffUserId);
+    }
+
+    /// <summary>
+    /// Два завершения подряд — возврат один. Второе застаёт сессию уже заканчивающейся, и раньше
+    /// именно эта ветка сохраняла записи возврата второй раз.
+    /// </summary>
+    [Fact]
+    public async Task EndSessionAsync_Twice_RefundsOnce()
+    {
+        await using var db = CreateDbContext();
+        var (service, sessionId) = await StartPrepaidHourAsync(db);
+        await PlayedMinutesAsync(db, sessionId, 20);
+
+        await service.EndSessionAsync(
+            sessionId, ActorStaffUserId, new EndSessionRequest("operator-end", "end-twice-1"), CancellationToken.None);
+        var second = await service.EndSessionAsync(
+            sessionId, ActorStaffUserId, new EndSessionRequest("operator-end", "end-twice-2"), CancellationToken.None);
+
+        Assert.True(second.Succeeded);
+        Assert.Null(second.EarlyEnd);
+        Assert.Single(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.Refund);
+    }
+
+    [Fact]
+    public async Task EndSessionAsync_OfAPackageSession_ReturnsTheUnplayedMinutesToThePackage()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedPlayerPackageAsync(db, includedSeconds: 7200, bonusSeconds: 0);
+        await SeedPackageGrantAsync(db, LedgerEntryTypeNames.PackagePurchase, LedgerAccountTypeNames.PackageTime, 7200);
+        await SeedOpenShiftAsync(db);
+        var service = CreateService(db, new RecordingCommandDispatchService(db));
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Fixed,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-package-end-001",
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.Package,
+                TariffVersionId: null,
+                PlayerPackageId: PlayerPackageId),
+            SessionOriginNames.Operator,
+            CancellationToken.None);
+        var sessionId = start.Response!.Session.SessionId;
+        await PlayedMinutesAsync(db, sessionId, 20);
+
+        var end = await service.EndSessionAsync(
+            sessionId, ActorStaffUserId, new EndSessionRequest("operator-end", "end-package-001"), CancellationToken.None);
+
+        Assert.Equal(40 * 60, end.EarlyEnd!.PackageSecondsReturned);
+        var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(db, PlayerPackageId, CancellationToken.None);
+        Assert.Equal(7200 - 20 * 60, remaining.IncludedSeconds);
+    }
+
+    private static async Task<(EfSessionCommandService Service, Guid SessionId)> StartPrepaidHourAsync(PlatformDbContext db)
+    {
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
+        var service = CreateService(db, new RecordingCommandDispatchService(db));
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Fixed,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: $"start-prepaid-{Guid.NewGuid():N}",
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            SessionOriginNames.Operator,
+            CancellationToken.None);
+        Assert.True(start.Succeeded);
+        return (service, start.Response!.Session.SessionId);
+    }
+
+    /// <summary>Часы сервиса стоят; «сыграно N минут» — это старт, сдвинутый на N минут назад.</summary>
+    private static async Task PlayedMinutesAsync(PlatformDbContext db, Guid sessionId, int minutes)
+    {
+        var session = await db.Sessions.SingleAsync(candidate => candidate.SessionId == sessionId);
+        session.StartedAtUtc = Now.AddMinutes(-minutes);
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task StartGuestSessionAsync_WithPrepaidWallet_RejectsInsufficientFundsAndDispatchesNoDeviceCommand()
     {
