@@ -29,13 +29,14 @@ export function App() {
     if (host.idle > 0) setApproached(false);
   }, [host.idle]);
 
-  // Язык филиала — пока человек не выбрал свой. Снимок от хоста может прийти уже после того, как
-  // человек нажал «Тоҷ», и язык филиала не должен перебить выбор.
-  const [localeChosen, setLocaleChosen] = useState(false);
+  // Язык филиала — пока человек не выбрал свой. Флаг выбора — ref, а не состояние: эффект от
+  // пришедшего состояния может выполниться уже после клика «Тоҷ» (React откладывает эффекты), и
+  // со значением из замыкания он вернул бы язык филиала поверх выбора человека.
+  const localeChosen = useRef(false);
   const branchLocale = state?.locale;
   useEffect(() => {
-    if (!localeChosen && branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
-  }, [branchLocale, localeChosen, setLocale]);
+    if (!localeChosen.current && branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
+  }, [branchLocale, setLocale]);
 
   // Цвет клуба — поверх палитры, если его можно читать; иначе остаётся фирменный зелёный.
   const accent = clubAccent(state?.branding?.accentColor);
@@ -49,7 +50,7 @@ export function App() {
       {renderScreen()}
       {screen === 'session' || screen === 'ending' || screen === 'grace'
         ? null
-        : <SystemBar online={online} onLocaleChosen={() => setLocaleChosen(true)} />}
+        : <SystemBar online={online} onLocaleChosen={() => { localeChosen.current = true; }} />}
     </div>
   );
 
