@@ -571,6 +571,15 @@ export const PlatformUpdateTargetKindNames = {
 } as const;
 export type PlatformUpdateTargetKindName = (typeof PlatformUpdateTargetKindNames)[keyof typeof PlatformUpdateTargetKindNames];
 
+/** Словарь: Players/PlayerOfferContracts.cs */
+export const PlayerOfferUnavailableReasonNames = {
+  /** Сессия начата по пакету: её продлевают новым стартом по пакету, а не деньгами. */
+  PackageSession: 'package_session',
+  /** Сессия не предоплаченная — у стойки или открытым счётом; продлевает администратор. */
+  NotPrepaid: 'not_prepaid',
+} as const;
+export type PlayerOfferUnavailableReasonName = (typeof PlayerOfferUnavailableReasonNames)[keyof typeof PlayerOfferUnavailableReasonNames];
+
 /** Словарь: Shell/PlayerShellStateNames.cs */
 export const PlayerShellStateNames = {
   Locked: 'locked',
@@ -4082,6 +4091,44 @@ export interface PlayerDebtPaymentRequest {
   idempotencyKey: string;
 }
 
+/** Контракт: Players/PlayerOfferContracts.cs */
+export interface PlayerDurationOfferDto {
+  /** Сколько времени берёт игрок. */
+  minutes: number;
+  /** Сколько минут будет оплачено: минимум и шаг округления тарифа уже применены. */
+  billableMinutes: number;
+  endsAtUtc: IsoDateTime;
+  amount: MoneyDto;
+  balanceAfter: MoneyDto;
+  affordable: boolean;
+}
+
+/**
+ * «Сколько вернётся, если встать сейчас» — до нажатия. Тот же расчёт, что у самого выхода: экран
+ * не обещает одну сумму, чтобы вернуть другую.
+ *
+ * Контракт: Players/PlayerSelfEndSessionContracts.cs
+ */
+export interface PlayerEndQuoteDto {
+  /** Сколько минут будет списано: сыгранное за вычетом пауз, с правилами тарифа. */
+  billedMinutes: number;
+  refund: MoneyDto;
+  packageMinutesReturned: number;
+}
+
+/**
+ * Чем можно продлить идущую сессию — по тарифу, на котором она началась.
+ *
+ * Контракт: Players/PlayerOfferContracts.cs
+ */
+export interface PlayerExtendOffersDto {
+  sessionId: Guid;
+  balance: MoneyDto;
+  options: PlayerDurationOfferDto[];
+  /** Одно из PlayerOfferUnavailableReasonNames; пусто, если продлить можно. */
+  unavailableReason?: PlayerOfferUnavailableReasonName | null;
+}
+
 /**
  * Строка выписки глазами игрока: что случилось с его деньгами и когда.
  * Не то же самое, что LedgerEntryDto у стойки, и не должно им быть: там есть
@@ -4202,6 +4249,14 @@ export interface PlayerPackageDto {
   remainingIncludedSeconds: number;
   remainingBonusSeconds: number;
   purchasedAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Players/PlayerOfferContracts.cs */
+export interface PlayerPackageOfferDto {
+  playerPackageId: Guid;
+  name: string;
+  remainingMinutes: number;
   expiresAtUtc: IsoDateTime | null;
 }
 
@@ -4465,6 +4520,8 @@ export interface PlayerSelfEndSessionResponse {
   billedMinutes: number;
   /** Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью. */
   refunded: MoneyDto;
+  /** Сколько минут вернулось в пакет — у сессии, начатой по пакету. */
+  packageMinutesReturned?: number;
 }
 
 /** Контракт: Players/PlayerSelfExtendRequest.cs */
@@ -4487,6 +4544,11 @@ export interface PlayerSelfStartRequest {
   tariffRuleVersionId: string;
   durationMinutes: number;
   idempotencyKey: string;
+  /**
+   * Сесть по своему пакету: минуты списываются из пакета, а не с кошелька. Тариф при этом не
+   * нужен — у пакета своя цена, уже заплаченная; минуты — сколько взять из остатка.
+   */
+  playerPackageId?: Guid | null;
 }
 
 /** Контракт: Shell/PlayerShellStateDto.cs */
@@ -4584,6 +4646,36 @@ export interface PlayerSignInResponse {
 /** Контракт: Players/PlayerSignOutRequest.cs */
 export interface PlayerSignOutRequest {
   refreshToken: string;
+}
+
+/**
+ * Что можно купить, сев за этот ПК, — одним запросом, с готовыми суммами (спека оболочки,
+ * §5.5). Клиент цену не считает: суммы считает тот же расчёт, что и списание, иначе экран
+ * однажды пообещал бы одну цифру, а касса списала бы другую.
+ *
+ * Контракт: Players/PlayerOfferContracts.cs
+ */
+export interface PlayerStartOffersDto {
+  seatLabel: string | null;
+  zoneName: string | null;
+  /** Часовой пояс клуба (IANA): «до скольки» показывается по времени клуба, а не телефона. */
+  timeZone: string;
+  balance: MoneyDto;
+  tariffs: PlayerTariffOfferDto[];
+  packages: PlayerPackageOfferDto[];
+}
+
+/** Контракт: Players/PlayerOfferContracts.cs */
+export interface PlayerTariffOfferDto {
+  tariffVersionId: Guid;
+  /** То, что передаётся в старт как TariffRuleVersionId. */
+  tariffRuleVersionId: string;
+  name: string;
+  pricePerHour: MoneyDto;
+  appliesNow: boolean;
+  /** Когда тариф откроется, если сейчас он не действует; вариантов у такого тарифа нет. */
+  startsAtUtc: IsoDateTime | null;
+  options: PlayerDurationOfferDto[];
 }
 
 /**

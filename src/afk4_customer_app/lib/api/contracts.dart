@@ -477,6 +477,14 @@ abstract final class PlatformUpdateTargetKindNames {
   static const String device = 'device';
 }
 
+/// Словарь: Players/PlayerOfferContracts.cs
+abstract final class PlayerOfferUnavailableReasonNames {
+  /// Сессия начата по пакету: её продлевают новым стартом по пакету, а не деньгами.
+  static const String packageSession = 'package_session';
+  /// Сессия не предоплаченная — у стойки или открытым счётом; продлевает администратор.
+  static const String notPrepaid = 'not_prepaid';
+}
+
 /// Словарь: Shell/PlayerShellStateNames.cs
 abstract final class PlayerShellStateNames {
   static const String locked = 'locked';
@@ -10354,6 +10362,110 @@ class PlayerDebtPaymentRequest {
       };
 }
 
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerDurationOfferDto {
+  const PlayerDurationOfferDto({
+    required this.minutes,
+    required this.billableMinutes,
+    required this.endsAtUtc,
+    required this.amount,
+    required this.balanceAfter,
+    required this.affordable,
+  });
+
+
+  /// Сколько времени берёт игрок.
+  final int minutes;
+
+  /// Сколько минут будет оплачено: минимум и шаг округления тарифа уже применены.
+  final int billableMinutes;
+  final DateTime endsAtUtc;
+  final MoneyDto amount;
+  final MoneyDto balanceAfter;
+  final bool affordable;
+
+  factory PlayerDurationOfferDto.fromJson(Map<String, dynamic> json) => PlayerDurationOfferDto(
+        minutes: (json['minutes'] as num).toInt(),
+        billableMinutes: (json['billableMinutes'] as num).toInt(),
+        endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
+        amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
+        balanceAfter: MoneyDto.fromJson(json['balanceAfter'] as Map<String, dynamic>),
+        affordable: json['affordable'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'minutes': minutes,
+        'billableMinutes': billableMinutes,
+        'endsAtUtc': endsAtUtc.toIso8601String(),
+        'amount': amount.toJson(),
+        'balanceAfter': balanceAfter.toJson(),
+        'affordable': affordable,
+      };
+}
+
+/// «Сколько вернётся, если встать сейчас» — до нажатия. Тот же расчёт, что у самого выхода: экран
+/// не обещает одну сумму, чтобы вернуть другую.
+///
+/// Контракт: Players/PlayerSelfEndSessionContracts.cs
+class PlayerEndQuoteDto {
+  const PlayerEndQuoteDto({
+    required this.billedMinutes,
+    required this.refund,
+    required this.packageMinutesReturned,
+  });
+
+
+  /// Сколько минут будет списано: сыгранное за вычетом пауз, с правилами тарифа.
+  final int billedMinutes;
+  final MoneyDto refund;
+  final int packageMinutesReturned;
+
+  factory PlayerEndQuoteDto.fromJson(Map<String, dynamic> json) => PlayerEndQuoteDto(
+        billedMinutes: (json['billedMinutes'] as num).toInt(),
+        refund: MoneyDto.fromJson(json['refund'] as Map<String, dynamic>),
+        packageMinutesReturned: (json['packageMinutesReturned'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'billedMinutes': billedMinutes,
+        'refund': refund.toJson(),
+        'packageMinutesReturned': packageMinutesReturned,
+      };
+}
+
+/// Чем можно продлить идущую сессию — по тарифу, на котором она началась.
+///
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerExtendOffersDto {
+  const PlayerExtendOffersDto({
+    required this.sessionId,
+    required this.balance,
+    required this.options,
+    this.unavailableReason,
+  });
+
+  final String sessionId;
+  final MoneyDto balance;
+  final List<PlayerDurationOfferDto> options;
+
+  /// Одно из PlayerOfferUnavailableReasonNames; пусто, если продлить можно.
+  final String? unavailableReason;
+
+  factory PlayerExtendOffersDto.fromJson(Map<String, dynamic> json) => PlayerExtendOffersDto(
+        sessionId: json['sessionId'] as String,
+        balance: MoneyDto.fromJson(json['balance'] as Map<String, dynamic>),
+        options: (json['options'] as List<dynamic>).map((item) => PlayerDurationOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+        unavailableReason: json['unavailableReason'] == null ? null : json['unavailableReason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'sessionId': sessionId,
+        'balance': balance.toJson(),
+        'options': options.map((item) => item.toJson()).toList(),
+        'unavailableReason': unavailableReason,
+      };
+}
+
 /// Строка выписки глазами игрока: что случилось с его деньгами и когда.
 /// Не то же самое, что LedgerEntryDto у стойки, и не должно им быть: там есть
 /// табельный номер проведшего сотрудника и служебная причина вида
@@ -10639,6 +10751,35 @@ class PlayerPackageDto {
         'remainingIncludedSeconds': remainingIncludedSeconds,
         'remainingBonusSeconds': remainingBonusSeconds,
         'purchasedAtUtc': purchasedAtUtc.toIso8601String(),
+        'expiresAtUtc': expiresAtUtc?.toIso8601String(),
+      };
+}
+
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerPackageOfferDto {
+  const PlayerPackageOfferDto({
+    required this.playerPackageId,
+    required this.name,
+    required this.remainingMinutes,
+    this.expiresAtUtc,
+  });
+
+  final String playerPackageId;
+  final String name;
+  final int remainingMinutes;
+  final DateTime? expiresAtUtc;
+
+  factory PlayerPackageOfferDto.fromJson(Map<String, dynamic> json) => PlayerPackageOfferDto(
+        playerPackageId: json['playerPackageId'] as String,
+        name: json['name'] as String,
+        remainingMinutes: (json['remainingMinutes'] as num).toInt(),
+        expiresAtUtc: json['expiresAtUtc'] == null ? null : DateTime.parse(json['expiresAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'playerPackageId': playerPackageId,
+        'name': name,
+        'remainingMinutes': remainingMinutes,
         'expiresAtUtc': expiresAtUtc?.toIso8601String(),
       };
 }
@@ -11251,6 +11392,7 @@ class PlayerSelfEndSessionResponse {
   const PlayerSelfEndSessionResponse({
     required this.billedMinutes,
     required this.refunded,
+    this.packageMinutesReturned,
   });
 
   final int billedMinutes;
@@ -11258,14 +11400,19 @@ class PlayerSelfEndSessionResponse {
   /// Сколько вернулось на кошелёк. Ноль — значит время было отыграно полностью.
   final MoneyDto refunded;
 
+  /// Сколько минут вернулось в пакет — у сессии, начатой по пакету.
+  final int? packageMinutesReturned;
+
   factory PlayerSelfEndSessionResponse.fromJson(Map<String, dynamic> json) => PlayerSelfEndSessionResponse(
         billedMinutes: (json['billedMinutes'] as num).toInt(),
         refunded: MoneyDto.fromJson(json['refunded'] as Map<String, dynamic>),
+        packageMinutesReturned: json['packageMinutesReturned'] == null ? null : (json['packageMinutesReturned'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'billedMinutes': billedMinutes,
         'refunded': refunded.toJson(),
+        'packageMinutesReturned': packageMinutesReturned,
       };
 }
 
@@ -11303,6 +11450,7 @@ class PlayerSelfStartRequest {
     required this.tariffRuleVersionId,
     required this.durationMinutes,
     required this.idempotencyKey,
+    this.playerPackageId,
   });
 
   final String seatingCode;
@@ -11310,11 +11458,16 @@ class PlayerSelfStartRequest {
   final int durationMinutes;
   final String idempotencyKey;
 
+  /// Сесть по своему пакету: минуты списываются из пакета, а не с кошелька. Тариф при этом не
+  /// нужен — у пакета своя цена, уже заплаченная; минуты — сколько взять из остатка.
+  final String? playerPackageId;
+
   factory PlayerSelfStartRequest.fromJson(Map<String, dynamic> json) => PlayerSelfStartRequest(
         seatingCode: json['seatingCode'] as String,
         tariffRuleVersionId: json['tariffRuleVersionId'] as String,
         durationMinutes: (json['durationMinutes'] as num).toInt(),
         idempotencyKey: json['idempotencyKey'] as String,
+        playerPackageId: json['playerPackageId'] == null ? null : json['playerPackageId'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -11322,6 +11475,7 @@ class PlayerSelfStartRequest {
         'tariffRuleVersionId': tariffRuleVersionId,
         'durationMinutes': durationMinutes,
         'idempotencyKey': idempotencyKey,
+        'playerPackageId': playerPackageId,
       };
 }
 
@@ -11587,6 +11741,94 @@ class PlayerSignOutRequest {
 
   Map<String, dynamic> toJson() => {
         'refreshToken': refreshToken,
+      };
+}
+
+/// Что можно купить, сев за этот ПК, — одним запросом, с готовыми суммами (спека оболочки,
+/// §5.5). Клиент цену не считает: суммы считает тот же расчёт, что и списание, иначе экран
+/// однажды пообещал бы одну цифру, а касса списала бы другую.
+///
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerStartOffersDto {
+  const PlayerStartOffersDto({
+    this.seatLabel,
+    this.zoneName,
+    required this.timeZone,
+    required this.balance,
+    required this.tariffs,
+    required this.packages,
+  });
+
+  final String? seatLabel;
+  final String? zoneName;
+
+  /// Часовой пояс клуба (IANA): «до скольки» показывается по времени клуба, а не телефона.
+  final String timeZone;
+  final MoneyDto balance;
+  final List<PlayerTariffOfferDto> tariffs;
+  final List<PlayerPackageOfferDto> packages;
+
+  factory PlayerStartOffersDto.fromJson(Map<String, dynamic> json) => PlayerStartOffersDto(
+        seatLabel: json['seatLabel'] == null ? null : json['seatLabel'] as String,
+        zoneName: json['zoneName'] == null ? null : json['zoneName'] as String,
+        timeZone: json['timeZone'] as String,
+        balance: MoneyDto.fromJson(json['balance'] as Map<String, dynamic>),
+        tariffs: (json['tariffs'] as List<dynamic>).map((item) => PlayerTariffOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+        packages: (json['packages'] as List<dynamic>).map((item) => PlayerPackageOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'seatLabel': seatLabel,
+        'zoneName': zoneName,
+        'timeZone': timeZone,
+        'balance': balance.toJson(),
+        'tariffs': tariffs.map((item) => item.toJson()).toList(),
+        'packages': packages.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Контракт: Players/PlayerOfferContracts.cs
+class PlayerTariffOfferDto {
+  const PlayerTariffOfferDto({
+    required this.tariffVersionId,
+    required this.tariffRuleVersionId,
+    required this.name,
+    required this.pricePerHour,
+    required this.appliesNow,
+    this.startsAtUtc,
+    required this.options,
+  });
+
+  final String tariffVersionId;
+
+  /// То, что передаётся в старт как TariffRuleVersionId.
+  final String tariffRuleVersionId;
+  final String name;
+  final MoneyDto pricePerHour;
+  final bool appliesNow;
+
+  /// Когда тариф откроется, если сейчас он не действует; вариантов у такого тарифа нет.
+  final DateTime? startsAtUtc;
+  final List<PlayerDurationOfferDto> options;
+
+  factory PlayerTariffOfferDto.fromJson(Map<String, dynamic> json) => PlayerTariffOfferDto(
+        tariffVersionId: json['tariffVersionId'] as String,
+        tariffRuleVersionId: json['tariffRuleVersionId'] as String,
+        name: json['name'] as String,
+        pricePerHour: MoneyDto.fromJson(json['pricePerHour'] as Map<String, dynamic>),
+        appliesNow: json['appliesNow'] as bool,
+        startsAtUtc: json['startsAtUtc'] == null ? null : DateTime.parse(json['startsAtUtc'] as String),
+        options: (json['options'] as List<dynamic>).map((item) => PlayerDurationOfferDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'tariffVersionId': tariffVersionId,
+        'tariffRuleVersionId': tariffRuleVersionId,
+        'name': name,
+        'pricePerHour': pricePerHour.toJson(),
+        'appliesNow': appliesNow,
+        'startsAtUtc': startsAtUtc?.toIso8601String(),
+        'options': options.map((item) => item.toJson()).toList(),
       };
 }
 
