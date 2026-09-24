@@ -17,7 +17,8 @@ public sealed class EfInstallService(
     IFloorMapReadService floorMapReadService,
     IOptions<InstallOptions> options,
     IOptions<SessionLeaseOptions> sessionLeaseOptions,
-    TimeProvider timeProvider) : IInstallService
+    TimeProvider timeProvider,
+    IDeviceBoundPlayerTokens? deviceTokens = null) : IInstallService
 {
     private const int MaxMachineNameLength = 128;
     private const int MinDisplayNameLength = 3;
@@ -210,6 +211,11 @@ public sealed class EfInstallService(
             // Прежний ключ мог утечь — тем и опасен повтор после неудачи. Отзываем его: с этого
             // момента машина говорит только новым.
             await RevokeActiveCredentialsAsync(deviceId, now, cancellationToken);
+            // Вход игрока, выданный этой машине до переустановки, не переживает её.
+            if (deviceTokens is not null)
+            {
+                await deviceTokens.RevokeForDeviceAsync(deviceId, cancellationToken);
+            }
         }
 
         dbContext.DeviceCredentials.Add(new DeviceCredentialEntity

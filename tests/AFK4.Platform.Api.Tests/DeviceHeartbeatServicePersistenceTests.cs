@@ -1,3 +1,5 @@
+using AFK4.Platform.Api.Platform.Entitlements;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
@@ -366,6 +368,10 @@ public sealed class DeviceHeartbeatServicePersistenceTests
             Microsoft.Extensions.Options.Options.Create(new SessionLeaseOptions { LeaseMinutes = 15 }),
             Microsoft.Extensions.Options.Options.Create(heartbeatOptions ?? new HeartbeatOptions()),
             new EfSeatingCodeService(dbContext, TimeProvider.System),
+            new EfDeviceBoundPlayerTokens(dbContext, TimeProvider.System),
+            new CachedOrganizationFeatures(
+                new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
+                new EfOrganizationEntitlements(dbContext)),
             TimeProvider.System);
     }
 

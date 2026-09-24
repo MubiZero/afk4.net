@@ -1507,6 +1507,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(accessToken => accessToken.TokenHash).IsRequired();
             entity.HasIndex(accessToken => accessToken.TokenHash);
             entity.HasIndex(accessToken => new { accessToken.PlatformPersonId, accessToken.ExpiresAtUtc });
+            // Сердцебиение каждого ПК спрашивает «есть ли живые токены этой машины».
+            entity.HasIndex(accessToken => accessToken.DeviceId);
         });
 
         modelBuilder.Entity<PlatformPersonRefreshTokenEntity>(entity =>
@@ -1516,6 +1518,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
             entity.HasIndex(refreshToken => refreshToken.TokenHash);
             entity.HasIndex(refreshToken => new { refreshToken.PlatformPersonId, refreshToken.ExpiresAtUtc });
+            // Сердцебиение каждого ПК спрашивает «есть ли живые токены этой машины».
+            entity.HasIndex(refreshToken => refreshToken.DeviceId);
         });
 
         modelBuilder.Entity<PlatformPhoneOtpEntity>(entity =>

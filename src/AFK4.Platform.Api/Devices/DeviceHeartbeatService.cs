@@ -1,5 +1,7 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
@@ -18,6 +20,8 @@ public sealed class DeviceHeartbeatService(
     IOptions<SessionLeaseOptions> leaseOptions,
     IOptions<HeartbeatOptions> heartbeatOptions,
     EfSeatingCodeService seatingCodes,
+    IDeviceBoundPlayerTokens deviceTokens,
+    IOrganizationFeatureSnapshot featureSnapshot,
     TimeProvider timeProvider) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
@@ -44,17 +48,32 @@ public sealed class DeviceHeartbeatService(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        Guid? seatId = null;
+        // Место и его зона — тем же запросом, что и само место: оболочке нужно «ПК 07 · Общий зал»,
+        // и отдельный запрос за именами на каждое сердцебиение стоил бы столько же, сколько место.
+        SeatOfDevice? seat = null;
         if (device is not null)
         {
-            seatId = await dbContext.DeviceSeatAssignments
+            seat = await dbContext.DeviceSeatAssignments
                 .AsNoTracking()
                 .Where(assignment => assignment.DeviceId == deviceId && assignment.DetachedAtUtc == null)
                 .OrderByDescending(assignment => assignment.AttachedAtUtc)
                 .ThenByDescending(assignment => assignment.DeviceSeatAssignmentId)
-                .Select(assignment => (Guid?)assignment.SeatId)
+                .Select(assignment => new SeatOfDevice(
+                    assignment.SeatId,
+                    dbContext.Seats
+                        .Where(candidate => candidate.SeatId == assignment.SeatId)
+                        .Select(candidate => candidate.Name)
+                        .FirstOrDefault(),
+                    dbContext.Seats
+                        .Where(candidate => candidate.SeatId == assignment.SeatId)
+                        .SelectMany(candidate => dbContext.Zones
+                            .Where(zone => zone.ZoneId == candidate.ZoneId)
+                            .Select(zone => zone.Name))
+                        .FirstOrDefault()))
                 .FirstOrDefaultAsync(cancellationToken);
         }
+
+        var seatId = seat?.SeatId;
 
         var status = new DeviceStatusChangedDto(
             OrganizationId: request.OrganizationId,
@@ -132,18 +151,32 @@ public sealed class DeviceHeartbeatService(
 
         // Код показывает только свободная машина: звать человека к занятой незачем, а показать
         // код поверх чужой игры значит позвать к ней постороннего.
-        var busy = await dbContext.Sessions
+        //
+        // Тот же запрос говорит и чья сессия: вошедшему не владельцу оболочка её не откроет.
+        var liveSession = await dbContext.Sessions
             .AsNoTracking()
-            .AnyAsync(
-                session => session.DeviceId == request.DeviceId
-                    && (session.State == SessionStateNames.Active
-                        || session.State == SessionStateNames.Paused
-                        || session.State == SessionStateNames.Ending),
-                cancellationToken);
+            .Where(session => session.DeviceId == request.DeviceId
+                && (session.State == SessionStateNames.Active
+                    || session.State == SessionStateNames.Paused
+                    || session.State == SessionStateNames.Ending))
+            .Select(session => new { session.PlayerAccountId })
+            .FirstOrDefaultAsync(cancellationToken);
+        var busy = liveSession is not null;
 
         var seatingCode = busy || !allowOperationalCommands
             ? null
             : await seatingCodes.IssueAsync(request.OrganizationId, request.DeviceId, cancellationToken);
+
+        // Свободная машина: вход, от которого не осталось сессии, гаснет здесь, а не по доброй
+        // воле хоста (спека оболочки, §5.3).
+        if (!busy && device is not null)
+        {
+            await deviceTokens.ExpireIdleAsync(deviceId, cancellationToken);
+        }
+
+        var features = allowOperationalCommands
+            ? await featureSnapshot.GetEnabledAsync(request.OrganizationId, cancellationToken)
+            : null;
 
         var rotationRequested = device?.CredentialRotationRequestedAtUtc is not null;
 
@@ -157,6 +190,17 @@ public sealed class DeviceHeartbeatService(
             // Просьбу видит только машина, которую клуб уже принял: незаверенному ПК менять
             // нечего, а просьба на нём выглядела бы как разрешение.
             RotateCredential: allowOperationalCommands && rotationRequested,
-            Branding: branchInfo?.Branding);
+            Branding: branchInfo?.Branding,
+            Seat: seat is null ? null : new DeviceSeatDto(seat.Label ?? string.Empty, seat.ZoneName),
+            SessionOwner: liveSession switch
+            {
+                null => new DeviceSessionOwnerDto(DeviceSessionOwnerKindNames.None),
+                { PlayerAccountId: { } playerAccountId } => new DeviceSessionOwnerDto(
+                    DeviceSessionOwnerKindNames.Player, playerAccountId),
+                _ => new DeviceSessionOwnerDto(DeviceSessionOwnerKindNames.Guest)
+            },
+            Features: features);
     }
+
+    private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);
 }

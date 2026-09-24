@@ -45,4 +45,13 @@ public sealed class DeviceEntity
     /// должна видеть, сколько человек уже ждёт.
     /// </summary>
     public DateTimeOffset? AssistanceRequestedAtUtc { get; set; }
+
+    /// <summary>
+    /// Неудачные входы игроков с этого ПК в текущем окне. Предел ПИН-кода живёт на человеке и
+    /// не мешает перебирать чужие номера по пять попыток на каждый — этот считает саму машину.
+    /// </summary>
+    public int PlayerSignInFailedCount { get; set; }
+
+    /// <summary>Когда началось окно счёта неудачных входов. null — неудач ещё не было.</summary>
+    public DateTimeOffset? PlayerSignInWindowStartedAtUtc { get; set; }
 }

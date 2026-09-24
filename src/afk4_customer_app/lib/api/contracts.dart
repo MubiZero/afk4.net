@@ -91,10 +91,31 @@ abstract final class DeviceEnrollmentStateNames {
   static const String removed = 'removed';
 }
 
+/// Словарь: Devices/DevicePlayerSignInContracts.cs
+abstract final class DevicePlayerSignInErrorCodeNames {
+  /// Номер или ПИН-код не подошли. Причина не уточняется: «нет такого номера» — это ответ на
+  /// вопрос, кто в этой сети играет.
+  static const String signInRefused = 'sign_in_refused';
+  /// С этого ПК слишком много неудачных попыток; ответ несёт, когда можно снова.
+  static const String tooManyAttempts = 'too_many_attempts';
+  /// На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего.
+  static const String sessionNotYours = 'session_not_yours';
+}
+
 /// Словарь: Install/DeviceRoleNames.cs
 abstract final class DeviceRoleNames {
   static const String gamingPc = 'gaming_pc';
   static const String managerWorkstation = 'manager_workstation';
+}
+
+/// Словарь: Devices/DeviceShellContextContracts.cs
+abstract final class DeviceSessionOwnerKindNames {
+  /// Живой сессии на ПК нет.
+  static const String none = 'none';
+  /// Сессия без счёта игрока — посадили у стойки.
+  static const String guest = 'guest';
+  /// Сессия на счёте игрока.
+  static const String player = 'player';
 }
 
 /// Что с дружбой прямо сейчас.
@@ -4429,6 +4450,9 @@ class DeviceHeartbeatResponse {
     this.seatingCodeExpiresAtUtc,
     this.rotateCredential,
     this.branding,
+    this.seat,
+    this.sessionOwner,
+    this.features,
   });
 
   final DateTime serverTimeUtc;
@@ -4458,6 +4482,16 @@ class DeviceHeartbeatResponse {
   /// null, когда оформление не задано, — оболочка показывает нейтральный экран.
   final ShellBrandingDto? branding;
 
+  /// Место этого ПК: оболочка пишет его в шапке. null — ПК ни к какому месту не привязан.
+  final DeviceSeatDto? seat;
+
+  /// Чья сессия идёт на ПК: вошедшему не владельцу оболочка чужую сессию не откроет.
+  final DeviceSessionOwnerDto? sessionOwner;
+
+  /// Права организации по тарифу (PlatformFeatureNames): оболочка прячет разделы, которых у клуба
+  /// нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
+  final List<String>? features;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -4467,6 +4501,9 @@ class DeviceHeartbeatResponse {
         seatingCodeExpiresAtUtc: json['seatingCodeExpiresAtUtc'] == null ? null : DateTime.parse(json['seatingCodeExpiresAtUtc'] as String),
         rotateCredential: json['rotateCredential'] == null ? null : json['rotateCredential'] as bool,
         branding: json['branding'] == null ? null : ShellBrandingDto.fromJson(json['branding'] as Map<String, dynamic>),
+        seat: json['seat'] == null ? null : DeviceSeatDto.fromJson(json['seat'] as Map<String, dynamic>),
+        sessionOwner: json['sessionOwner'] == null ? null : DeviceSessionOwnerDto.fromJson(json['sessionOwner'] as Map<String, dynamic>),
+        features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4478,6 +4515,9 @@ class DeviceHeartbeatResponse {
         'seatingCodeExpiresAtUtc': seatingCodeExpiresAtUtc?.toIso8601String(),
         'rotateCredential': rotateCredential,
         'branding': branding?.toJson(),
+        'seat': seat?.toJson(),
+        'sessionOwner': sessionOwner?.toJson(),
+        'features': features?.map((item) => item).toList(),
       };
 }
 
@@ -4578,6 +4618,68 @@ class DeviceInventoryItemDto {
       };
 }
 
+/// Отказ входа на ПК. RetryAfterUtc — только у too_many_attempts.
+///
+/// Контракт: Devices/DevicePlayerSignInContracts.cs
+class DevicePlayerSignInErrorDto {
+  const DevicePlayerSignInErrorDto({
+    required this.error,
+    this.retryAfterUtc,
+  });
+
+
+  /// Одно из DevicePlayerSignInErrorCodeNames.
+  final String error;
+  final DateTime? retryAfterUtc;
+
+  factory DevicePlayerSignInErrorDto.fromJson(Map<String, dynamic> json) => DevicePlayerSignInErrorDto(
+        error: json['error'] as String,
+        retryAfterUtc: json['retryAfterUtc'] == null ? null : DateTime.parse(json['retryAfterUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'error': error,
+        'retryAfterUtc': retryAfterUtc?.toIso8601String(),
+      };
+}
+
+/// Игрок входит на самом ПК: номер и ПИН-код. Идёт от агента с ключом устройства, а не с
+/// публичного входа: сервер знает, на каком ПК вошли, привязывает токены к этому ПК и считает
+/// попытки на устройство, а не на адрес всего клуба за одним роутером.
+///
+/// Контракт: Devices/DevicePlayerSignInContracts.cs
+class DevicePlayerSignInRequest {
+  const DevicePlayerSignInRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+    required this.phoneNumber,
+    required this.pin,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+  final String phoneNumber;
+  final String pin;
+
+  factory DevicePlayerSignInRequest.fromJson(Map<String, dynamic> json) => DevicePlayerSignInRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+        phoneNumber: json['phoneNumber'] as String,
+        pin: json['pin'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+        'phoneNumber': phoneNumber,
+        'pin': pin,
+      };
+}
+
 /// Контракт: Devices/DeviceSeatAssignmentDto.cs
 class DeviceSeatAssignmentDto {
   const DeviceSeatAssignmentDto({
@@ -4616,6 +4718,61 @@ class DeviceSeatAssignmentDto {
         'deviceId': deviceId,
         'attachedAtUtc': attachedAtUtc.toIso8601String(),
         'detachedAtUtc': detachedAtUtc?.toIso8601String(),
+      };
+}
+
+/// Место, к которому привязан ПК, — то, что оболочка пишет в шапке: «ПК 07 · Общий зал». Имя
+/// места клуб набирает сам, номера отдельно от имени нет.
+///
+/// Контракт: Devices/DeviceShellContextContracts.cs
+class DeviceSeatDto {
+  const DeviceSeatDto({
+    required this.label,
+    this.zoneName,
+  });
+
+  final String label;
+
+  /// Пусто — место без зоны или зона удалена.
+  final String? zoneName;
+
+  factory DeviceSeatDto.fromJson(Map<String, dynamic> json) => DeviceSeatDto(
+        label: json['label'] as String,
+        zoneName: json['zoneName'] == null ? null : json['zoneName'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'label': label,
+        'zoneName': zoneName,
+      };
+}
+
+/// Чья сессия идёт на ПК. Оболочке это нужно, чтобы не открыть вошедшему чужую сессию: посаженный
+/// у стойки гость и игрок со своим счётом выглядят по-разному, а вошедший не владелец видит «эта
+/// сессия не ваша».
+///
+/// Контракт: Devices/DeviceShellContextContracts.cs
+class DeviceSessionOwnerDto {
+  const DeviceSessionOwnerDto({
+    required this.kind,
+    this.playerAccountId,
+  });
+
+
+  /// Одно из DeviceSessionOwnerKindNames.
+  final String kind;
+
+  /// Счёт игрока; только у Kind = player.
+  final String? playerAccountId;
+
+  factory DeviceSessionOwnerDto.fromJson(Map<String, dynamic> json) => DeviceSessionOwnerDto(
+        kind: json['kind'] as String,
+        playerAccountId: json['playerAccountId'] == null ? null : json['playerAccountId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'playerAccountId': playerAccountId,
       };
 }
 

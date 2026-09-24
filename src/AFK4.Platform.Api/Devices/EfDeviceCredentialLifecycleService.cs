@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +7,8 @@ namespace AFK4.Platform.Api.Devices;
 
 public sealed class EfDeviceCredentialLifecycleService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IDeviceCredentialLifecycleService
+    TimeProvider timeProvider,
+    IDeviceBoundPlayerTokens? deviceTokens = null) : IDeviceCredentialLifecycleService
 {
     /// <summary>
     /// Сколько ещё принимается старый ключ после самоперевыпуска. Пятнадцать минут — это запас
@@ -34,6 +36,13 @@ public sealed class EfDeviceCredentialLifecycleService(
         foreach (var credential in activeCredentials)
         {
             credential.RevokedAtUtc = now;
+        }
+
+        // Принудительная смена ключа — это «машине больше не верим как прежде». Вход игрока,
+        // выданный под старым ключом, гаснет вместе с ним.
+        if (deviceTokens is not null)
+        {
+            await deviceTokens.RevokeForDeviceAsync(deviceId, cancellationToken);
         }
 
         var credentialId = Guid.NewGuid();
@@ -150,6 +159,11 @@ public sealed class EfDeviceCredentialLifecycleService(
 
         var now = timeProvider.GetUtcNow();
         credential.RevokedAtUtc ??= now;
+        if (deviceTokens is not null)
+        {
+            await deviceTokens.RevokeForDeviceAsync(deviceId, cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return new RevokeDeviceCredentialResponse(

@@ -22,6 +22,17 @@ public interface IPlatformPersonTokenService
         PlayerAccountEntity? pinnedAccount,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Выдаёт пару токенов, привязанную к игровому ПК: сроки короче, а гасит их сервер сам, когда
+    /// за машиной больше некому сидеть (<see cref="IDeviceBoundPlayerTokens"/>). Обновление
+    /// сохраняет привязку и время входа.
+    /// </summary>
+    Task<PlatformPersonSessionResponse> IssueOnDeviceAsync(
+        PlatformPersonEntity person,
+        PlayerAccountEntity pinnedAccount,
+        Guid deviceId,
+        CancellationToken cancellationToken);
+
     Task<PlatformPersonSessionResponse?> RefreshAsync(string? refreshToken, CancellationToken cancellationToken);
 
     Task<PlatformPersonContext?> ValidateAsync(string? bearerToken, CancellationToken cancellationToken);
