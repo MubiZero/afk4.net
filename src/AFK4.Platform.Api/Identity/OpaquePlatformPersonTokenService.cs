@@ -178,7 +178,8 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
             person.PlatformPersonId,
             stored.PinnedOrganizationId,
             person.PhoneVerifiedAtUtc is not null,
-            NetworkBanned: person.NetworkBanAtUtc is not null);
+            NetworkBanned: person.NetworkBanAtUtc is not null,
+            DeviceId: stored.DeviceId);
     }
 
     public async Task<bool> RevokeAsync(

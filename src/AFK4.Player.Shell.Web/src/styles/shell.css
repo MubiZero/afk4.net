@@ -100,6 +100,7 @@ button {
 }
 
 .btn:focus-visible,
+.offer-tile:focus-visible,
 .system-bar__language:focus-visible,
 .system-controls__button:focus-visible,
 .system-controls__volume input:focus-visible {
@@ -450,24 +451,182 @@ button {
   width: 100%;
 }
 
-/* Вошли: выбор времени (кадр 02) — предложения придут следующим срезом. */
+/* Вошли: выбор времени (кадр 02) */
 .choose-time {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.6rem;
   padding: var(--shell-gutter);
 }
 
 .choose-time__top {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  gap: 1.6rem;
+}
+
+.choose-time__top > :first-child {
+  margin-right: auto;
+}
+
+.choose-time__balance {
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.choose-time__heading {
+  display: grid;
+  gap: 0.3rem;
 }
 
 .choose-time__greeting {
   margin: 0;
+  color: var(--text-secondary);
+  font-size: 1.3rem;
+}
+
+.choose-time__title {
+  margin: 0;
   font-size: 2.6rem;
+  text-wrap: balance;
+}
+
+.offers {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 2rem;
+}
+
+.offer-group {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.offer-group__head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.offer-group__name {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.offer-group__price,
+.offer-group__later,
+.offer-package__left {
+  color: var(--text-secondary);
+}
+
+.offer-group__later {
+  margin: 0;
+}
+
+.offer-group__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.8rem;
+}
+
+.offer-tile {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: start;
+  min-height: 6.4rem;
+  padding: 0.9rem 1.1rem;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--shell-radius);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--shell-duration-small) var(--ease-standard);
+}
+
+.offer-tile:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+}
+
+.offer-tile[aria-pressed='true'] {
+  border-color: var(--shell-accent);
+}
+
+.offer-tile:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.offer-tile__duration {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.offer-tile__until {
+  color: var(--text-secondary);
+}
+
+.offer-tile__amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.offer-package {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.offer-package__name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.offers__empty,
+.offers__failed p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.offers__failed {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.choose-time__action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.2rem;
+}
+
+.choose-time__error {
+  margin: 0 auto 0 0;
+  color: var(--danger-text);
+}
+
+.choose-time__start {
+  min-width: 18rem;
+}
+
+.skeleton {
+  display: block;
+  background: var(--surface-card);
+  border-color: transparent;
+}
+
+.skeleton--title {
+  width: 12rem;
+  height: 1.6rem;
+  border-radius: var(--radius-sm);
 }
 
 /* Экран-объяснение */

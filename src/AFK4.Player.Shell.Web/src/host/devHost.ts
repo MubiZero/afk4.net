@@ -4,6 +4,7 @@ import {
   ShellBridgeRequestTypeNames,
   type PlayerShellStateDto,
   type ShellAuthStateDto,
+  type PlayerStartOffersDto,
   type ShellSnapshotDto,
   type ShellSystemStateDto
 } from '@afk4/contracts';
@@ -163,8 +164,81 @@ export function installDevHost(): void {
     }
   };
 
+  installDevApi(() => emit({ type: ShellBridgeEventTypeNames.StateChanged, payload: devScenarioState('session') }));
+
   // «Подошли к ПК» — через полсекунды после загрузки, как если бы тронули мышь.
   if (scenario === 'approach') {
     setTimeout(() => emit({ type: ShellBridgeEventTypeNames.InputActivity, payload: {} }), 500);
   }
+}
+
+/**
+ * Учебный сервер клуба: цены для «Сколько играем» и старт. Настоящий адрес из учебного состояния
+ * никуда не ведёт, поэтому запросы к нему отвечаются здесь; остальные уходят как есть.
+ */
+function installDevApi(onStarted: () => void): void {
+  const realFetch = window.fetch.bind(window);
+  const devFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+    if (url.pathname === '/api/me/this-pc/start-offers') {
+      return json(devStartOffers(Date.now()));
+    }
+    if (url.pathname === '/api/me/sessions/start' && init?.method === 'POST') {
+      setTimeout(onStarted, 600);
+      return json({});
+    }
+    return realFetch(input, init);
+  };
+  // Тип fetch у Bun шире браузерного (preconnect): учебному хосту в браузере нужен только вызов.
+  window.fetch = devFetch as typeof fetch;
+}
+
+function json(body: unknown): Response {
+  return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+const TJS = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
+
+export function devStartOffers(nowMs: number): PlayerStartOffersDto {
+  const balance = 4_500;
+  const perHour = 1_000;
+  return {
+    seatLabel: 'ПК 07',
+    zoneName: 'Общий зал',
+    timeZone: 'Asia/Dushanbe',
+    balance: TJS(balance),
+    tariffs: [
+      {
+        tariffVersionId: '00000000-0000-4000-8000-000000000101',
+        tariffRuleVersionId: '00000000-0000-4000-8000-000000000101',
+        name: 'Стандарт',
+        pricePerHour: TJS(perHour),
+        appliesNow: true,
+        startsAtUtc: null,
+        options: [60, 120, 180, 300].map((minutes) => {
+          const amount = (minutes / 60) * perHour;
+          return {
+            minutes,
+            billableMinutes: minutes,
+            endsAtUtc: new Date(nowMs + minutes * 60_000).toISOString(),
+            amount: TJS(amount),
+            balanceAfter: TJS(balance - amount),
+            affordable: amount <= balance
+          };
+        })
+      },
+      {
+        tariffVersionId: '00000000-0000-4000-8000-000000000102',
+        tariffRuleVersionId: '00000000-0000-4000-8000-000000000102',
+        name: 'Ночь',
+        pricePerHour: TJS(600),
+        appliesNow: false,
+        startsAtUtc: new Date(nowMs + 3 * 3_600_000).toISOString(),
+        options: []
+      }
+    ],
+    packages: [
+      { playerPackageId: '00000000-0000-4000-8000-000000000201', name: 'Пакет «5 часов»', remainingMinutes: 200, expiresAtUtc: null }
+    ]
+  };
 }

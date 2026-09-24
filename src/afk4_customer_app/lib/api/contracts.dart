@@ -11628,6 +11628,8 @@ class PlayerSelfExtendRequest {
 /// что занять свободный ПК можно было не приходя в клуб: сервер видел «игрок назвал устройство» и
 /// доказательства присутствия не имел никакого. Код видно только с экрана — он и есть
 /// доказательство, и живёт минуты, чтобы снятая на телефон цифра никому не пригодилась.
+/// Оболочка ПК кода не шлёт: её токен привязан к машине и сам доказывает, где человек сидит
+/// (спека оболочки, §5.3). Код ей и не годится — вход по QR его гасит.
 ///
 /// Контракт: Players/PlayerSelfStartRequest.cs
 class PlayerSelfStartRequest {
@@ -11639,6 +11641,8 @@ class PlayerSelfStartRequest {
     this.playerPackageId,
   });
 
+
+  /// Код с монитора; пусто — только с токеном, привязанным к ПК.
   final String seatingCode;
   final String tariffRuleVersionId;
   final int durationMinutes;
