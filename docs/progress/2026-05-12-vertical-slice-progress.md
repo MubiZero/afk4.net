@@ -962,6 +962,10 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   same subnet, sign-out, message, maintenance on/off, policy refresh), refuses
   unknown types, keeps power and maintenance away from a running session, and
   hands a reboot, shutdown or wake to the agent once and never after ten minutes.
+  Since P2e every early end returns the unplayed prepaid time and package
+  minutes — the counter and auto-protection as well as the player (owner,
+  2026-09-24) — inside the same transaction that ends the session, which also
+  closes a double refund on two near-simultaneous player exits.
   The agent does not execute the new commands yet (it answers "not implemented")
   and does not report its MAC; that lands after P1. The shell host still signs
   in through the public route with unbound tokens and does not pick up claims;
