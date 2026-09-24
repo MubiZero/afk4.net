@@ -758,6 +758,10 @@ abstract final class ShellBridgeErrorCodeNames {
   static const String sessionNotYours = 'session_not_yours';
   /// Агента нет на связи — войти и запустить игру сейчас нельзя.
   static const String agentUnavailable = 'agent_unavailable';
+  /// Агент на месте, а до сервера клуба не достучался.
+  static const String platformUnreachable = 'platform_unreachable';
+  /// Такого хост пока не умеет: запрос из более новой страницы или раздел следующего этапа.
+  static const String notSupported = 'not_supported';
 }
 
 /// Словарь: Shell/ShellBridgeContracts.cs

@@ -136,6 +136,22 @@ describe('окно входа на свободном ПК', () => {
 
     expect(await screen.findByText('ПК не отвечает. Позовите администратора.')).toBeInTheDocument();
   });
+
+  // ПК на месте, оборвалась дорога до клуба: «ПК не отвечает» отправило бы администратора чинить не то.
+  it('нет связи с клубом — так и говорит', async () => {
+    await approach({
+      state: devScenarioState('idle'),
+      reply: (type) =>
+        type === ShellBridgeRequestTypeNames.AuthSignIn
+          ? { ok: false, error: { code: 'platform_unreachable', message: 'offline' } }
+          : { ok: true, payload: {} }
+    });
+    fillIn('93 555 12 40', '123456');
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Войти' })));
+
+    expect(await screen.findByText(/Нет связи с клубом/)).toBeInTheDocument();
+  });
 });
 
 describe('вошедший', () => {

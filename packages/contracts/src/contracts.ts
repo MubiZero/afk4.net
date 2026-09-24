@@ -904,6 +904,10 @@ export const ShellBridgeErrorCodeNames = {
   SessionNotYours: 'session_not_yours',
   /** Агента нет на связи — войти и запустить игру сейчас нельзя. */
   AgentUnavailable: 'agent_unavailable',
+  /** Агент на месте, а до сервера клуба не достучался. */
+  PlatformUnreachable: 'platform_unreachable',
+  /** Такого хост пока не умеет: запрос из более новой страницы или раздел следующего этапа. */
+  NotSupported: 'not_supported',
 } as const;
 export type ShellBridgeErrorCodeName = (typeof ShellBridgeErrorCodeNames)[keyof typeof ShellBridgeErrorCodeNames];
 

@@ -73,6 +73,12 @@ public static class ShellBridgeErrorCodeNames
 
     /// <summary>Агента нет на связи — войти и запустить игру сейчас нельзя.</summary>
     public const string AgentUnavailable = "agent_unavailable";
+
+    /// <summary>Агент на месте, а до сервера клуба не достучался.</summary>
+    public const string PlatformUnreachable = "platform_unreachable";
+
+    /// <summary>Такого хост пока не умеет: запрос из более новой страницы или раздел следующего этапа.</summary>
+    public const string NotSupported = "not_supported";
 }
 
 public sealed record ShellAuthSignInRequest(

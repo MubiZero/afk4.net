@@ -3727,6 +3727,7 @@ export const ru = {
   "playerShell.signIn.back": "Esc — назад",
   "playerShell.signIn.error.generic": "Не получилось войти. Попробуйте ещё раз.",
   "playerShell.signIn.error.notYours": "На этом ПК сейчас играет другой человек",
+  "playerShell.signIn.error.offline": "Нет связи с клубом. Попробуйте через минуту или позовите администратора.",
   "playerShell.signIn.error.refused": "Номер или ПИН-код не подошли",
   "playerShell.signIn.error.tooMany": "Слишком много неудачных попыток с этого ПК. Попробуйте через 15 минут или позовите администратора.",
   "playerShell.signIn.error.unavailable": "ПК не отвечает. Позовите администратора.",

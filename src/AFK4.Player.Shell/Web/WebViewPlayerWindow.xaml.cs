@@ -6,6 +6,7 @@ using System.Windows;
 using AFK4.Player.Shell.Configuration;
 using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Realtime;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Web.WebView2.Core;
 
@@ -16,10 +17,11 @@ public partial class WebViewPlayerWindow : Window
     private readonly PlayerShellOptions options;
     private readonly ShellPipeClient agentPipe;
     private readonly CancellationTokenSource lifetime = new();
-    private readonly PlayerShellWebHostBridge bridge;
-    private readonly PlayerApiAuthClient authClient;
+    private readonly ShellBridgeHost bridge;
+    private readonly DevicePlayerSession session;
     private readonly HttpClient apiHttp;
     private PlayerShellStateDto? latestState;
+    private string? appSource;
     private int webViewRestartCount;
     private const int MaxWebViewRestarts = 5;
 
@@ -36,9 +38,10 @@ public partial class WebViewPlayerWindow : Window
     {
         this.options = options;
         agentPipe = new ShellPipeClient(options);
-        apiHttp = new HttpClient { BaseAddress = new Uri(options.ApiBaseUrl) };
-        authClient = new PlayerApiAuthClient(apiHttp);
-        bridge = new PlayerShellWebHostBridge(agentPipe, getLatestState: () => latestState, authClient);
+        apiHttp = new HttpClient();
+        session = new DevicePlayerSession(apiHttp, ApiBaseUrl, TimeProvider.System);
+        bridge = new ShellBridgeHost(agentPipe, session, () => latestState);
+        bridge.AuthChanged += auth => PostToPage(ShellBridgeEventTypeNames.AuthChanged, auth);
         InitializeComponent();
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -54,8 +57,13 @@ public partial class WebViewPlayerWindow : Window
             HardenForKiosk(Browser.CoreWebView2);
 
             var apiBase = options.ApiBaseUrl.TrimEnd('/');
-            Browser.CoreWebView2.AddWebResourceRequestedFilter(apiBase + "/*", CoreWebView2WebResourceContext.All);
+            // Адрес API назовёт агент в состоянии — он может отличаться от адреса из конфига хоста.
+            // Поэтому смотрим все запросы страницы к серверу, а решает политика по текущему адресу.
+            Browser.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.Fetch);
+            Browser.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.XmlHttpRequest);
             Browser.CoreWebView2.WebResourceRequested += OnApiResourceRequested;
+            Browser.CoreWebView2.NavigationStarting += OnNavigationStarting;
+            Browser.CoreWebView2.NewWindowRequested += (_, windowArgs) => windowArgs.Handled = true;
 
             // Hand the web layer the SAME origin the host signs tokens for, at runtime. Otherwise the
             // web's build-time VITE_PLATFORM_API_BASE_URL can point at a different API than the host
@@ -85,11 +93,13 @@ public partial class WebViewPlayerWindow : Window
             }
 
             Browser.CoreWebView2.ProcessFailed += OnProcessFailed;
+            appSource = target.Source;
             Browser.Source = new Uri(target.Source);
 
             Browser.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
             _ = agentPipe.RunAsync(lifetime.Token);
             _ = ListenForStateAsync(lifetime.Token);
+            _ = ListenForPushesAsync(lifetime.Token);
             _ = RefreshAuthLoopAsync(lifetime.Token);
         }
         catch (Exception exception)
@@ -169,41 +179,64 @@ public partial class WebViewPlayerWindow : Window
         try
         {
             var responseJson = await bridge.HandleAsync(e.WebMessageAsJson, lifetime.Token);
-            if (responseJson is not null && Browser.CoreWebView2 is not null)
-            {
-                Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
-
-                // Only a sign-in/sign-out changes auth state, so only those warrant a push; pushing on
-                // every message (e.g. loadState, launch) would spam shell:authChanged with no change.
-                if (IsAuthMutation(e.WebMessageAsJson))
-                {
-                    Browser.CoreWebView2.PostWebMessageAsJson(PlayerShellWebHostBridge.CreateAuthPush(authClient.Current));
-                }
-            }
+            Browser.CoreWebView2?.PostWebMessageAsJson(responseJson);
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
         {
-            // The bridge can throw on a transient network blip (auth HttpRequestException) or a
-            // launcher pipe failure. This is an async-void handler with no global backstop, so an
-            // escape crashes the kiosk and the agent relaunches it in a loop. Log and stay up.
+            // Обработчик async void без общей страховки: исключение отсюда уронило бы киоск, и агент
+            // перезапускал бы его по кругу. Пишем в журнал и живём дальше.
             PlayerShellStartupLog.Write("Player Shell host bridge message failed.", exception);
         }
     }
 
-    private static bool IsAuthMutation(string requestJson)
+    private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (!ShellNavigationPolicy.IsAllowed(e.Uri, appSource))
+        {
+            e.Cancel = true;
+        }
+    }
+
+    private void PostToPage(string eventType, object? payload)
+    {
+        var message = ShellBridgeHost.Event(eventType, payload);
+        Dispatcher.InvokeAsync(() => Browser.CoreWebView2?.PostWebMessageAsJson(message));
+    }
+
+    /// <summary>
+    /// Кадры агента без запроса: вход игрока (ПИН-код или QR) и команды клуба. Сообщение клуба
+    /// показывает окно поверх игры — это следующий срез хоста; до него оно только в журнале.
+    /// </summary>
+    private async Task ListenForPushesAsync(CancellationToken cancellationToken)
     {
         try
         {
-            using var doc = JsonDocument.Parse(requestJson);
-            var type = doc.RootElement.TryGetProperty("type", out var t) ? t.GetString() : null;
-            return type is "auth:signIn" or "auth:signOut";
+            await foreach (var frame in agentPipe.ReadPushesAsync(cancellationToken))
+            {
+                if (frame is { Type: ShellPipeMessageTypeNames.Auth, Auth: { } signedIn })
+                {
+                    PostToPage(ShellBridgeEventTypeNames.AuthChanged, session.Accept(signedIn));
+                }
+                else if (frame is { Type: ShellPipeMessageTypeNames.Command, Command: { } command })
+                {
+                    if (command.Type == DeviceCommandTypeNames.SignOut)
+                    {
+                        // Сервер уже погасил токены — идти к нему незачем, только забыть и сказать странице.
+                        session.Forget();
+                        PostToPage(ShellBridgeEventTypeNames.AuthChanged, session.Current);
+                    }
+                    else
+                    {
+                        PlayerShellStartupLog.Write($"Club command '{command.Type}' reached the shell; the overlay that shows it comes with the next host slice.");
+                    }
+                }
+            }
         }
-        catch (JsonException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return false;
         }
     }
 
@@ -214,10 +247,7 @@ public partial class WebViewPlayerWindow : Window
             await foreach (var state in agentPipe.ReadStatesAsync(cancellationToken))
             {
                 latestState = state;
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    Browser.CoreWebView2?.PostWebMessageAsJson(PlayerShellWebHostBridge.CreateStatePush(state));
-                });
+                PostToPage(ShellBridgeEventTypeNames.StateChanged, state);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -234,12 +264,16 @@ public partial class WebViewPlayerWindow : Window
 
     private void OnApiResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
     {
-        var decision = AuthorizationHeaderPolicy.Decide(e.Request.Uri, options.ApiBaseUrl, authClient.CurrentAccessToken);
+        var decision = AuthorizationHeaderPolicy.Decide(e.Request.Uri, ApiBaseUrl(), session.AccessToken);
         if (decision.ShouldInject)
         {
             e.Request.Headers.SetHeader("Authorization", decision.HeaderValue!);
         }
     }
+
+    /// <summary>Адрес API — тот, что назвал агент; до первого состояния — из конфига хоста.</summary>
+    private string ApiBaseUrl() =>
+        string.IsNullOrWhiteSpace(latestState?.ApiBaseUrl) ? options.ApiBaseUrl : latestState.ApiBaseUrl;
 
     private async Task RefreshAuthLoopAsync(CancellationToken ct)
     {
@@ -247,18 +281,13 @@ public partial class WebViewPlayerWindow : Window
         {
             while (!ct.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromMinutes(1), ct);
-                var wasAuthenticated = authClient.Current.Authenticated;
-                await authClient.EnsureFreshTokenAsync(ct);
+                await Task.Delay(TimeSpan.FromSeconds(30), ct);
 
-                // If a definitive 401 just signed the player out, tell the web app so it drops to
-                // the login screen. Without this push the UI keeps showing a signed-in player whose
-                // every /api/me/* call silently 401s.
-                if (wasAuthenticated && !authClient.Current.Authenticated)
+                // Сервер отказал в обновлении — вход кончился (сессия закончилась, клуб вывел игрока).
+                // Без этого события страница рисовала бы вошедшего, чьи запросы сыплют 401.
+                if (await session.EnsureFreshAsync(ct))
                 {
-                    await Dispatcher.InvokeAsync(() =>
-                        Browser.CoreWebView2?.PostWebMessageAsJson(
-                            PlayerShellWebHostBridge.CreateAuthPush(authClient.Current)));
+                    PostToPage(ShellBridgeEventTypeNames.AuthChanged, session.Current);
                 }
             }
         }

@@ -3727,6 +3727,7 @@ export const en = {
   "playerShell.signIn.back": "Esc — back",
   "playerShell.signIn.error.generic": "Couldn't sign in. Try again.",
   "playerShell.signIn.error.notYours": "Someone else is playing on this PC",
+  "playerShell.signIn.error.offline": "No connection to the club. Try again in a minute or call the admin.",
   "playerShell.signIn.error.refused": "The number or PIN didn't match",
   "playerShell.signIn.error.tooMany": "Too many failed attempts on this PC. Try again in 15 minutes or call the admin.",
   "playerShell.signIn.error.unavailable": "The PC isn't responding. Call the admin.",

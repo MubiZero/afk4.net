@@ -3727,6 +3727,7 @@ export const tg = {
   "playerShell.signIn.back": "Esc — бозгашт",
   "playerShell.signIn.error.generic": "Ворид шудан нашуд. Боз кӯшиш кунед.",
   "playerShell.signIn.error.notYours": "Дар ин ПК ҳоло шахси дигар бозӣ мекунад",
+  "playerShell.signIn.error.offline": "Бо клуб алоқа нест. Пас аз як дақиқа боз кӯшиш кунед ё маъмурро даъват кунед.",
   "playerShell.signIn.error.refused": "Рақам ё PIN мувофиқ наомад",
   "playerShell.signIn.error.tooMany": "Аз ин ПК кӯшишҳои нобарор хеле зиёданд. Пас аз 15 дақиқа боз кӯшиш кунед ё маъмурро даъват кунед.",
   "playerShell.signIn.error.unavailable": "ПК ҷавоб намедиҳад. Маъмурро даъват кунед.",

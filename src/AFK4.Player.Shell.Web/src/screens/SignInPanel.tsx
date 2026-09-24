@@ -137,6 +137,9 @@ export function signInErrorKey(reason: unknown): MessageKey {
     case ShellBridgeErrorCodeNames.AgentUnavailable:
     case hostBridgeTimeoutCode:
       return 'playerShell.signIn.error.unavailable';
+    // «ПК не отвечает» здесь было бы неправдой: ПК на месте, оборвалась дорога до клуба.
+    case ShellBridgeErrorCodeNames.PlatformUnreachable:
+      return 'playerShell.signIn.error.offline';
     default:
       return 'playerShell.signIn.error.generic';
   }

@@ -43,6 +43,10 @@ public sealed class ShellPipeClient(PlayerShellOptions options, bool verifyAgent
     private readonly Channel<PlayerShellStateDto> states = Channel.CreateBounded<PlayerShellStateDto>(
         new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
 
+    // Вход игрока и команды клуба теряться не должны: каждая — отдельное событие, а не снимок.
+    private readonly Channel<ShellPipeMessage> pushes = Channel.CreateUnbounded<ShellPipeMessage>(
+        new UnboundedChannelOptions { SingleReader = true });
+
     private readonly ConcurrentDictionary<Guid, TaskCompletionSource<ShellPipeReplyDto>> pending = new();
     private readonly SemaphoreSlim writeLock = new(1, 1);
     private volatile Stream? connection;
@@ -99,6 +103,10 @@ public sealed class ShellPipeClient(PlayerShellOptions options, bool verifyAgent
 
     public IAsyncEnumerable<PlayerShellStateDto> ReadStatesAsync(CancellationToken cancellationToken) =>
         states.Reader.ReadAllAsync(cancellationToken);
+
+    /// <summary>Кадры, которые агент шлёт без запроса: вход игрока (auth) и команды клуба (command).</summary>
+    public IAsyncEnumerable<ShellPipeMessage> ReadPushesAsync(CancellationToken cancellationToken) =>
+        pushes.Reader.ReadAllAsync(cancellationToken);
 
     public async Task<ShellPipeReplyDto> RequestAsync(
         string type,
@@ -174,6 +182,10 @@ public sealed class ShellPipeClient(PlayerShellOptions options, bool verifyAgent
                         waiter.TrySetResult(message.Reply);
                     }
 
+                    break;
+                case ShellPipeMessageTypeNames.Auth when message.Auth is not null:
+                case ShellPipeMessageTypeNames.Command when message.Command is not null:
+                    pushes.Writer.TryWrite(message);
                     break;
                 case ShellPipeMessageTypeNames.Bye:
                     PlayerShellStartupLog.Write($"Agent closed the shell pipe: {message.Reason ?? "no reason given"}.");
