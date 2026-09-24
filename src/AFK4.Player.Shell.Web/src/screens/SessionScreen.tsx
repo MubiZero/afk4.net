@@ -1,28 +1,37 @@
 import { useState } from 'react';
-import { ShellBridgeRequestTypeNames, type LauncherAppDto, type PlayerShellStateDto } from '@afk4/contracts';
+import {
+  ShellBridgeRequestTypeNames,
+  type LauncherAppDto,
+  type PlayerShellStateDto,
+  type ShellSystemStateDto
+} from '@afk4/contracts';
 import { useI18n } from '@afk4/i18n';
 import { AlertTriangle, WifiOff } from 'lucide-react';
 import { requestHost } from '../host/shellHost';
 import { Countdown } from '../ui/Countdown';
 import { SeatBadge } from '../ui/SeatBadge';
+import { SystemControls } from '../ui/SystemControls';
 
 interface SessionScreenProps {
   state: PlayerShellStateDto;
   receivedAtMs: number | null;
   variant: 'session' | 'ending' | 'grace';
+  /** Звук, микрофон, раскладка: системной строки в сессии нет, кнопки живут в шапке. */
+  system?: ShellSystemStateDto | null;
 }
 
 /**
  * Идёт оплаченная сессия: сколько осталось и игры клуба. Вкладки бара, пополнения, продления и
  * «Встать раньше» — срез P4c; здесь — то, без чего сессия не сессия.
  */
-export function SessionScreen({ state, receivedAtMs, variant }: SessionScreenProps) {
+export function SessionScreen({ state, receivedAtMs, variant, system = null }: SessionScreenProps) {
   const { t } = useI18n();
 
   return (
     <main className="session-screen">
       <header className="session-screen__top">
         <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} />
+        <SystemControls system={system} />
         <div className="session-screen__time">
           <span className="session-screen__time-label">{t('playerShell.session.remaining')}</span>
           <Countdown

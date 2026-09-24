@@ -1,5 +1,10 @@
 import type { HostBridgeMessageEvent } from '@afk4/host-bridge';
-import { ShellBridgeRequestTypeNames, type PlayerShellStateDto, type ShellAuthStateDto } from '@afk4/contracts';
+import {
+  ShellBridgeRequestTypeNames,
+  type PlayerShellStateDto,
+  type ShellAuthStateDto,
+  type ShellSystemStateDto
+} from '@afk4/contracts';
 
 /**
  * Хост для тестов: отвечает на снимок, записывает запросы и умеет прислать событие сам.
@@ -8,6 +13,7 @@ import { ShellBridgeRequestTypeNames, type PlayerShellStateDto, type ShellAuthSt
 export function installFakeHost(options: {
   state: PlayerShellStateDto | null;
   auth?: ShellAuthStateDto;
+  system?: ShellSystemStateDto | null;
   reply?: (type: string, payload: unknown) => { ok: boolean; payload?: unknown; error?: { code: string; message: string } };
 }) {
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
@@ -26,7 +32,7 @@ export function installFakeHost(options: {
             type: 'host:response',
             requestId: request.requestId,
             ok: true,
-            payload: { state: options.state, auth: options.auth ?? { signedIn: false } }
+            payload: { state: options.state, auth: options.auth ?? { signedIn: false }, system: options.system ?? null }
           });
           return;
         }

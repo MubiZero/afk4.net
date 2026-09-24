@@ -10,6 +10,7 @@ using AFK4.Player.Shell.Configuration;
 using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Input;
 using AFK4.Player.Shell.Overlay;
+using AFK4.Player.Shell.Workstation;
 using AFK4.Player.Shell.Realtime;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shell;
@@ -32,8 +33,11 @@ public partial class WebViewPlayerWindow : Window
     private PlayerShellStateDto? latestState;
     private long stateReceivedAt;
     private string? appSource;
+    private readonly WindowsSystemControls systemControls = new();
     private OverlayWindow? overlay;
     private ClubMessage? clubMessage;
+    private ShellSystemStateDto? lastSystem;
+    private int tickCount;
     private int webViewRestartCount;
     private const int MaxWebViewRestarts = 5;
 
@@ -52,7 +56,7 @@ public partial class WebViewPlayerWindow : Window
         agentPipe = new ShellPipeClient(options);
         apiHttp = new HttpClient();
         session = new DevicePlayerSession(apiHttp, ApiBaseUrl, TimeProvider.System);
-        bridge = new ShellBridgeHost(agentPipe, session, () => latestState);
+        bridge = new ShellBridgeHost(agentPipe, session, () => latestState, systemControls);
         bridge.AuthChanged += auth => PostToPage(ShellBridgeEventTypeNames.AuthChanged, auth);
         InitializeComponent();
         Loaded += OnLoaded;
@@ -279,7 +283,7 @@ public partial class WebViewPlayerWindow : Window
     }
 
     /// <summary>
-    /// Четыре раза в секунду: ввод, переднее окно и окно поверх игры. Опрос дешевле хука и не
+    /// Четыре раза в секунду: ввод, переднее окно и окно поверх игры; раз в секунду — звук и раскладка. Опрос дешевле хука и не
     /// зависит от того, в каком потоке Windows решит его вызвать; решения — в чистых классах.
     /// </summary>
     private async void OnTick(object? sender, EventArgs e)
@@ -301,6 +305,17 @@ public partial class WebViewPlayerWindow : Window
             if (game.Observe(shellInFront, latestState, now) is { } gameActive)
             {
                 await SetPageAsleepAsync(gameActive);
+            }
+
+            // Звук, микрофон и раскладку игрок мог поменять клавишами — раз в секунду сверяемся.
+            if (++tickCount % 4 == 0)
+            {
+                var systemNow = systemControls.Read();
+                if (systemNow != lastSystem)
+                {
+                    lastSystem = systemNow;
+                    PostToPage(ShellBridgeEventTypeNames.SystemChanged, systemNow);
+                }
             }
 
             localization.SetLocale(bridge.Locale ?? latestState?.Locale ?? "ru");

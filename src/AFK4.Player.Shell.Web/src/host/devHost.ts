@@ -4,7 +4,8 @@ import {
   ShellBridgeRequestTypeNames,
   type PlayerShellStateDto,
   type ShellAuthStateDto,
-  type ShellSnapshotDto
+  type ShellSnapshotDto,
+  type ShellSystemStateDto
 } from '@afk4/contracts';
 import type { HostBridgeMessageEvent } from '@afk4/host-bridge';
 
@@ -110,6 +111,7 @@ export function installDevHost(): void {
     for (const listener of listeners) listener({ data });
   });
   let auth: ShellAuthStateDto = { signedIn: false, displayName: null, playerAccountId: null };
+  let system: ShellSystemStateDto = { volume: 60, micMuted: false, layout: 'RU' };
 
   window.chrome = {
     webview: {
@@ -119,7 +121,7 @@ export function installDevHost(): void {
         const reply = (payload: unknown) => emit({ type: 'host:response', requestId: request.requestId, ok: true, payload });
         switch (request.type) {
           case ShellBridgeRequestTypeNames.ShellReady:
-            reply({ state: devScenarioState(scenario), auth, system: { volume: 60, micMuted: false, layout: 'RU' } } satisfies ShellSnapshotDto);
+            reply({ state: devScenarioState(scenario), auth, system } satisfies ShellSnapshotDto);
             break;
           case ShellBridgeRequestTypeNames.AuthSignIn: {
             // Учебный вход: ПИН-код 123456 пускает, остальные — нет, как ответил бы сервер.
@@ -142,6 +144,14 @@ export function installDevHost(): void {
             reply({});
             auth = { signedIn: false, displayName: null, playerAccountId: null };
             emit({ type: ShellBridgeEventTypeNames.AuthChanged, payload: auth });
+            break;
+          case ShellBridgeRequestTypeNames.SystemSetVolume:
+          case ShellBridgeRequestTypeNames.SystemSetMicMuted:
+          case ShellBridgeRequestTypeNames.SystemSetLayout:
+            // Учебный хост помнит звук и раскладку, как запомнила бы Windows.
+            system = { ...system, ...((message as { payload?: Partial<ShellSystemStateDto> }).payload ?? {}) };
+            reply(system);
+            emit({ type: ShellBridgeEventTypeNames.SystemChanged, payload: system });
             break;
           default:
             // Запуск игры, вызов администратора, язык — учебный хост со всем соглашается.

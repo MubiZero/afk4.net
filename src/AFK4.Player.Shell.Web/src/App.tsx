@@ -52,7 +52,7 @@ export function App() {
       {renderScreen()}
       {screen === 'session' || screen === 'ending' || screen === 'grace'
         ? null
-        : <SystemBar online={online} onLocaleChosen={() => { localeChosen.current = true; }} />}
+        : <SystemBar online={online} system={host.system} onLocaleChosen={() => { localeChosen.current = true; }} />}
     </div>
   );
 
@@ -97,7 +97,7 @@ export function App() {
       case 'session':
       case 'ending':
       case 'grace':
-        return <SessionScreen state={state!} receivedAtMs={host.stateReceivedAtMs} variant={screen} />;
+        return <SessionScreen state={state!} receivedAtMs={host.stateReceivedAtMs} variant={screen} system={host.system} />;
       case 'chooseTime':
         return <ChooseTimeScreen state={state!} auth={host.auth} />;
       case 'approach':

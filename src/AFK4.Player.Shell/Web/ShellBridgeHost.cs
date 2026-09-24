@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Realtime;
+using AFK4.Player.Shell.Workstation;
 using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Player.Shell.Web;
@@ -14,7 +15,8 @@ namespace AFK4.Player.Shell.Web;
 public sealed class ShellBridgeHost(
     IShellAgentRequests agent,
     DevicePlayerSession session,
-    Func<PlayerShellStateDto?> latestState)
+    Func<PlayerShellStateDto?> latestState,
+    ISystemControls? system = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -47,15 +49,16 @@ public sealed class ShellBridgeHost(
 
         return type switch
         {
-            ShellBridgeRequestTypeNames.ShellReady => Ok(requestId, new ShellSnapshotDto(latestState(), session.Current)),
+            ShellBridgeRequestTypeNames.ShellReady => Ok(requestId, new ShellSnapshotDto(latestState(), session.Current, system?.Read())),
             ShellBridgeRequestTypeNames.AuthSignIn => await SignInAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AuthSignOut => await SignOutAsync(requestId, cancellationToken),
             ShellBridgeRequestTypeNames.AppLaunch => await LaunchAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AssistCall => await AskAgentAsync(
                 requestId, ShellPipeRequestTypeNames.Assist, new Dictionary<string, string>(), cancellationToken),
             ShellBridgeRequestTypeNames.UiSetLocale => SetLocale(requestId, payload),
-            // Звук, микрофон и раскладка — следующий срез хоста (P3c-2), показы витрины — P7. Честный
-            // отказ лучше «да», за которым ничего не случилось.
+            ShellBridgeRequestTypeNames.SystemSetVolume or ShellBridgeRequestTypeNames.SystemSetMicMuted
+                or ShellBridgeRequestTypeNames.SystemSetLayout when system is not null => ChangeSystem(requestId, type, payload),
+            // Показы витрины — P7. Честный отказ лучше «да», за которым ничего не случилось.
             _ => Error(requestId, ShellBridgeErrorCodeNames.NotSupported, $"The shell host does not handle '{type}' yet.")
         };
     }
@@ -111,6 +114,40 @@ public sealed class ShellBridgeHost(
         return Ok(requestId, null);
     }
 
+    /// <summary>Ответ — что стало на ПК после изменения: страница сверяет с тем, что показала заранее.</summary>
+    private string ChangeSystem(string requestId, string type, JsonElement payload)
+    {
+        var controls = system!;
+        try
+        {
+            switch (type)
+            {
+                case ShellBridgeRequestTypeNames.SystemSetVolume when ReadInt(payload, "volume") is { } volume:
+                    controls.SetVolume(volume);
+                    break;
+                case ShellBridgeRequestTypeNames.SystemSetMicMuted when ReadBool(payload, "micMuted") is { } muted:
+                    controls.SetMicMuted(muted);
+                    break;
+                case ShellBridgeRequestTypeNames.SystemSetLayout when ReadString(payload, "layout") is { } layout
+                                                                    && KeyboardLayouts.KlidFor(layout) is not null:
+                    controls.SetLayout(layout);
+                    // Windows меняет раскладку сообщением окну — чтение сразу вернуло бы старую. Отвечаем
+                    // запрошенной, а настоящую подтвердит опрос через секунду.
+                    return Ok(requestId, controls.Read() with { Layout = layout });
+                default:
+                    return Error(requestId, ShellPipeErrorCodeNames.InvalidPayload, $"{type} has an invalid payload.");
+            }
+        }
+        catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException or InvalidOperationException
+                                              or InvalidCastException)
+        {
+            PlayerShellStartupLog.Write($"{type} failed.", exception);
+            return Error(requestId, ShellBridgeErrorCodeNames.SystemUnavailable, "Windows did not allow the change.");
+        }
+
+        return Ok(requestId, controls.Read());
+    }
+
     /// <summary>Коды отказов агента идут на страницу как есть: у канала и моста они общие.</summary>
     private async Task<string> AskAgentAsync(
         string requestId,
@@ -123,6 +160,21 @@ public sealed class ShellBridgeHost(
             ? Ok(requestId, null)
             : Error(requestId, reply.ErrorCode ?? ShellBridgeErrorCodeNames.AgentUnavailable, reply.Message ?? "The PC service refused.");
     }
+
+    private static int? ReadInt(JsonElement payload, string name) =>
+        payload.ValueKind == JsonValueKind.Object
+        && payload.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt32(out var number)
+            ? number
+            : null;
+
+    private static bool? ReadBool(JsonElement payload, string name) =>
+        payload.ValueKind == JsonValueKind.Object
+        && payload.TryGetProperty(name, out var value)
+        && value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
+            : null;
 
     private static string? ReadString(JsonElement payload, string name) =>
         payload.ValueKind == JsonValueKind.Object

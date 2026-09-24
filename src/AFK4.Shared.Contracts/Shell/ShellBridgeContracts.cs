@@ -79,6 +79,9 @@ public static class ShellBridgeErrorCodeNames
 
     /// <summary>Такого хост пока не умеет: запрос из более новой страницы или раздел следующего этапа.</summary>
     public const string NotSupported = "not_supported";
+
+    /// <summary>Windows не дала поменять звук, микрофон или раскладку — например, нет устройства.</summary>
+    public const string SystemUnavailable = "system_unavailable";
 }
 
 public sealed record ShellAuthSignInRequest(
@@ -95,11 +98,34 @@ public sealed record ShellLaunchRequest(string AppId);
 
 public sealed record ShellGameForegroundDto(bool Active);
 
+/// <summary>
+/// Звук, микрофон и раскладка ПК. Пусто — у ПК этого нет или Windows не ответила (нет
+/// микрофона, звуковая карта отключена): страница прячет кнопку, а не показывает выдуманное.
+/// </summary>
 public sealed record ShellSystemStateDto(
     // 0–100.
-    int Volume,
-    bool MicMuted,
-    // Раскладка клавиатуры: «RU», «EN», «TG».
+    int? Volume,
+    bool? MicMuted,
+    // Раскладка клавиатуры — одно из ShellKeyboardLayoutNames.
+    string? Layout);
+
+public static class ShellKeyboardLayoutNames
+{
+    public const string Russian = "RU";
+
+    public const string English = "EN";
+
+    public const string Tajik = "TG";
+}
+
+public sealed record ShellSetVolumeRequest(
+    // 0–100.
+    int Volume);
+
+public sealed record ShellSetMicMutedRequest(bool MicMuted);
+
+public sealed record ShellSetLayoutRequest(
+    // Одно из ShellKeyboardLayoutNames.
     string Layout);
 
 /// <summary>Всё, что хост знает к моменту, когда страница загрузилась.</summary>

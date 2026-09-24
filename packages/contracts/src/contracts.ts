@@ -908,6 +908,8 @@ export const ShellBridgeErrorCodeNames = {
   PlatformUnreachable: 'platform_unreachable',
   /** Такого хост пока не умеет: запрос из более новой страницы или раздел следующего этапа. */
   NotSupported: 'not_supported',
+  /** Windows не дала поменять звук, микрофон или раскладку — например, нет устройства. */
+  SystemUnavailable: 'system_unavailable',
 } as const;
 export type ShellBridgeErrorCodeName = (typeof ShellBridgeErrorCodeNames)[keyof typeof ShellBridgeErrorCodeNames];
 
@@ -958,6 +960,14 @@ export const ShellBridgeRequestTypeNames = {
   ShowcaseImpression: 'showcase.impression',
 } as const;
 export type ShellBridgeRequestTypeName = (typeof ShellBridgeRequestTypeNames)[keyof typeof ShellBridgeRequestTypeNames];
+
+/** Словарь: Shell/ShellBridgeContracts.cs */
+export const ShellKeyboardLayoutNames = {
+  Russian: 'RU',
+  English: 'EN',
+  Tajik: 'TG',
+} as const;
+export type ShellKeyboardLayoutName = (typeof ShellKeyboardLayoutNames)[keyof typeof ShellKeyboardLayoutNames];
 
 /** Словарь: Shell/ShellPipeProtocol.cs */
 export const ShellPipeErrorCodeNames = {
@@ -6017,6 +6027,23 @@ export interface ShellPipeRequestDto {
   payload: Record<string, string>;
 }
 
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellSetLayoutRequest {
+  /** Одно из ShellKeyboardLayoutNames. */
+  layout: ShellKeyboardLayoutName;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellSetMicMutedRequest {
+  micMuted: boolean;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellSetVolumeRequest {
+  /** 0–100. */
+  volume: number;
+}
+
 /**
  * Всё, что хост знает к моменту, когда страница загрузилась.
  *
@@ -6029,13 +6056,18 @@ export interface ShellSnapshotDto {
   system?: ShellSystemStateDto | null;
 }
 
-/** Контракт: Shell/ShellBridgeContracts.cs */
+/**
+ * Звук, микрофон и раскладка ПК. Пусто — у ПК этого нет или Windows не ответила (нет
+ * микрофона, звуковая карта отключена): страница прячет кнопку, а не показывает выдуманное.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
 export interface ShellSystemStateDto {
   /** 0–100. */
-  volume: number;
-  micMuted: boolean;
-  /** Раскладка клавиатуры: «RU», «EN», «TG». */
-  layout: string;
+  volume: number | null;
+  micMuted: boolean | null;
+  /** Раскладка клавиатуры — одно из ShellKeyboardLayoutNames. */
+  layout: ShellKeyboardLayoutName | null;
 }
 
 /** Контракт: Shifts/ShiftDto.cs */

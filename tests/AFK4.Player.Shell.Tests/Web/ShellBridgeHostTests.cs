@@ -3,6 +3,7 @@ using System.Text.Json;
 using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Realtime;
 using AFK4.Player.Shell.Web;
+using AFK4.Player.Shell.Workstation;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Shell;
 
@@ -103,10 +104,84 @@ public sealed class ShellBridgeHostTests
     [Fact]
     public async Task ARequestTheHostCannotServeYet_IsRefusedHonestly()
     {
-        var response = await new Fixture().SendAsync(ShellBridgeRequestTypeNames.SystemSetVolume, new { volume = 40 });
+        var response = await new Fixture().SendAsync(ShellBridgeRequestTypeNames.ShowcaseImpression, new { slideId = "promo" });
 
         Assert.False(response.GetProperty("ok").GetBoolean());
         Assert.Equal(ShellBridgeErrorCodeNames.NotSupported, response.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task ShellReady_IncludesSoundAndLayout()
+    {
+        var fixture = new Fixture(new FakeSystemControls());
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.ShellReady);
+
+        var system = response.GetProperty("payload").GetProperty("system");
+        Assert.Equal(60, system.GetProperty("volume").GetInt32());
+        Assert.Equal("RU", system.GetProperty("layout").GetString());
+    }
+
+    [Fact]
+    public async Task Volume_IsSet_AndTheAnswerIsWhatThePcNowHas()
+    {
+        var system = new FakeSystemControls();
+        var fixture = new Fixture(system);
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.SystemSetVolume, new { volume = 25 });
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(25, system.State.Volume);
+        Assert.Equal(25, response.GetProperty("payload").GetProperty("volume").GetInt32());
+    }
+
+    [Fact]
+    public async Task Mic_IsMuted()
+    {
+        var system = new FakeSystemControls();
+
+        await new Fixture(system).SendAsync(ShellBridgeRequestTypeNames.SystemSetMicMuted, new { micMuted = true });
+
+        Assert.True(system.State.MicMuted);
+    }
+
+    [Fact]
+    public async Task ALayoutChange_IsAnsweredWithTheRequestedLayout_BeforeWindowsCatchesUp()
+    {
+        // Windows меняет раскладку сообщением окну: чтение сразу вернуло бы старую, и кнопка мигнула бы назад.
+        var system = new FakeSystemControls { LayoutLags = true };
+
+        var response = await new Fixture(system).SendAsync(ShellBridgeRequestTypeNames.SystemSetLayout, new { layout = "TG" });
+
+        Assert.Equal("TG", response.GetProperty("payload").GetProperty("layout").GetString());
+        Assert.Equal(["TG"], system.LayoutRequests);
+    }
+
+    [Theory]
+    [InlineData(ShellBridgeRequestTypeNames.SystemSetLayout, "{\"layout\":\"DE\"}")]
+    [InlineData(ShellBridgeRequestTypeNames.SystemSetVolume, "{\"volume\":\"loud\"}")]
+    [InlineData(ShellBridgeRequestTypeNames.SystemSetMicMuted, "{}")]
+    public async Task ANonsenseChange_IsRefused_AndNothingIsTouched(string type, string payloadJson)
+    {
+        var system = new FakeSystemControls();
+        var fixture = new Fixture(system);
+
+        var json = await fixture.Bridge.HandleAsync(
+            $"{{\"type\":\"{type}\",\"requestId\":\"r-1\",\"payload\":{payloadJson}}}", CancellationToken.None);
+
+        using var document = JsonDocument.Parse(json);
+        Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal(new ShellSystemStateDto(60, false, "RU"), system.State);
+    }
+
+    [Fact]
+    public async Task WindowsRefusing_IsSaidPlainly()
+    {
+        var system = new FakeSystemControls { Refuse = true };
+
+        var response = await new Fixture(system).SendAsync(ShellBridgeRequestTypeNames.SystemSetMicMuted, new { micMuted = true });
+
+        Assert.Equal(ShellBridgeErrorCodeNames.SystemUnavailable, response.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -150,11 +225,11 @@ public sealed class ShellBridgeHostTests
 
     private sealed class Fixture
     {
-        public Fixture()
+        public Fixture(ISystemControls? system = null)
         {
             // Без адреса API выход не ходит на сервер — мосту это и не нужно проверять.
             Session = new DevicePlayerSession(new HttpClient(), () => null, TimeProvider.System);
-            Bridge = new ShellBridgeHost(Agent, Session, () => State);
+            Bridge = new ShellBridgeHost(Agent, Session, () => State, system);
         }
 
         public RecordingAgent Agent { get; } = new();
@@ -174,6 +249,32 @@ public sealed class ShellBridgeHostTests
             Assert.Equal("host:response", document.RootElement.GetProperty("type").GetString());
             Assert.Equal("r-1", document.RootElement.GetProperty("requestId").GetString());
             return document.RootElement.Clone();
+        }
+    }
+
+    private sealed class FakeSystemControls : ISystemControls
+    {
+        public ShellSystemStateDto State { get; private set; } = new(60, false, "RU");
+
+        public bool Refuse { get; init; }
+
+        public bool LayoutLags { get; init; }
+
+        public List<string> LayoutRequests { get; } = [];
+
+        public ShellSystemStateDto Read() => State;
+
+        public void SetVolume(int percent) => State = Refuse ? throw new InvalidOperationException() : State with { Volume = percent };
+
+        public void SetMicMuted(bool muted) => State = Refuse ? throw new InvalidOperationException() : State with { MicMuted = muted };
+
+        public void SetLayout(string label)
+        {
+            LayoutRequests.Add(label);
+            if (!LayoutLags)
+            {
+                State = State with { Layout = label };
+            }
         }
     }
 

@@ -100,7 +100,9 @@ button {
 }
 
 .btn:focus-visible,
-.system-bar__language:focus-visible {
+.system-bar__language:focus-visible,
+.system-controls__button:focus-visible,
+.system-controls__volume input:focus-visible {
   outline: 3px solid var(--focus-outline);
   outline-offset: 3px;
 }
@@ -668,4 +670,57 @@ button {
     transition-duration: 150ms !important;
     transition-property: opacity !important;
   }
+}
+
+/* Звук, микрофон, раскладка */
+
+.system-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.system-controls__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.6rem;
+  min-width: 2.6rem;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.system-controls__button:hover {
+  color: var(--text-primary);
+}
+
+.system-controls__button[aria-pressed='true'] {
+  color: var(--warning-text);
+}
+
+.system-controls__button svg,
+.system-controls__volume svg {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.system-controls__volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.system-controls__volume input {
+  width: 8rem;
+  accent-color: var(--shell-accent);
+}
+
+.system-controls__error {
+  color: var(--warning-text);
+  font-size: 0.9rem;
 }

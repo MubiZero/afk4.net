@@ -762,6 +762,8 @@ abstract final class ShellBridgeErrorCodeNames {
   static const String platformUnreachable = 'platform_unreachable';
   /// Такого хост пока не умеет: запрос из более новой страницы или раздел следующего этапа.
   static const String notSupported = 'not_supported';
+  /// Windows не дала поменять звук, микрофон или раскладку — например, нет устройства.
+  static const String systemUnavailable = 'system_unavailable';
 }
 
 /// Словарь: Shell/ShellBridgeContracts.cs
@@ -804,6 +806,13 @@ abstract final class ShellBridgeRequestTypeNames {
   /// Язык интерфейса выбран на экране: хост запоминает его до выхода игрока.
   static const String uiSetLocale = 'ui.setLocale';
   static const String showcaseImpression = 'showcase.impression';
+}
+
+/// Словарь: Shell/ShellBridgeContracts.cs
+abstract final class ShellKeyboardLayoutNames {
+  static const String russian = 'RU';
+  static const String english = 'EN';
+  static const String tajik = 'TG';
 }
 
 /// Словарь: Shell/ShellPipeProtocol.cs
@@ -15319,6 +15328,61 @@ class ShellPipeRequestDto {
       };
 }
 
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellSetLayoutRequest {
+  const ShellSetLayoutRequest({
+    required this.layout,
+  });
+
+
+  /// Одно из ShellKeyboardLayoutNames.
+  final String layout;
+
+  factory ShellSetLayoutRequest.fromJson(Map<String, dynamic> json) => ShellSetLayoutRequest(
+        layout: json['layout'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'layout': layout,
+      };
+}
+
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellSetMicMutedRequest {
+  const ShellSetMicMutedRequest({
+    required this.micMuted,
+  });
+
+  final bool micMuted;
+
+  factory ShellSetMicMutedRequest.fromJson(Map<String, dynamic> json) => ShellSetMicMutedRequest(
+        micMuted: json['micMuted'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'micMuted': micMuted,
+      };
+}
+
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellSetVolumeRequest {
+  const ShellSetVolumeRequest({
+    required this.volume,
+  });
+
+
+  /// 0–100.
+  final int volume;
+
+  factory ShellSetVolumeRequest.fromJson(Map<String, dynamic> json) => ShellSetVolumeRequest(
+        volume: (json['volume'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'volume': volume,
+      };
+}
+
 /// Всё, что хост знает к моменту, когда страница загрузилась.
 ///
 /// Контракт: Shell/ShellBridgeContracts.cs
@@ -15348,26 +15412,29 @@ class ShellSnapshotDto {
       };
 }
 
+/// Звук, микрофон и раскладка ПК. Пусто — у ПК этого нет или Windows не ответила (нет
+/// микрофона, звуковая карта отключена): страница прячет кнопку, а не показывает выдуманное.
+///
 /// Контракт: Shell/ShellBridgeContracts.cs
 class ShellSystemStateDto {
   const ShellSystemStateDto({
-    required this.volume,
-    required this.micMuted,
-    required this.layout,
+    this.volume,
+    this.micMuted,
+    this.layout,
   });
 
 
   /// 0–100.
-  final int volume;
-  final bool micMuted;
+  final int? volume;
+  final bool? micMuted;
 
-  /// Раскладка клавиатуры: «RU», «EN», «TG».
-  final String layout;
+  /// Раскладка клавиатуры — одно из ShellKeyboardLayoutNames.
+  final String? layout;
 
   factory ShellSystemStateDto.fromJson(Map<String, dynamic> json) => ShellSystemStateDto(
-        volume: (json['volume'] as num).toInt(),
-        micMuted: json['micMuted'] as bool,
-        layout: json['layout'] as String,
+        volume: json['volume'] == null ? null : (json['volume'] as num).toInt(),
+        micMuted: json['micMuted'] == null ? null : json['micMuted'] as bool,
+        layout: json['layout'] == null ? null : json['layout'] as String,
       );
 
   Map<String, dynamic> toJson() => {

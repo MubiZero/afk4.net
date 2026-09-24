@@ -1,7 +1,8 @@
-import { ShellBridgeRequestTypeNames } from '@afk4/contracts';
+import { ShellBridgeRequestTypeNames, type ShellSystemStateDto } from '@afk4/contracts';
 import { useI18n, type Locale } from '@afk4/i18n';
 import { Wifi, WifiOff } from 'lucide-react';
 import { requestHost } from '../host/shellHost';
+import { SystemControls } from './SystemControls';
 import { useClock } from './useSecondTick';
 
 /**
@@ -16,11 +17,13 @@ const LANGUAGES: { locale: Locale; label: string }[] = [
 
 interface SystemBarProps {
   online: boolean;
+  /** Звук, микрофон, раскладка — от хоста; null — кнопок нет. */
+  system?: ShellSystemStateDto | null;
   /** Человек выбрал язык сам — с этой минуты язык филиала его не перебивает. */
   onLocaleChosen?: () => void;
 }
 
-export function SystemBar({ online, onLocaleChosen }: SystemBarProps) {
+export function SystemBar({ online, system = null, onLocaleChosen }: SystemBarProps) {
   const { t, locale, setLocale } = useI18n();
   const now = useClock('minute');
 
@@ -47,6 +50,7 @@ export function SystemBar({ online, onLocaleChosen }: SystemBarProps) {
         ))}
       </div>
       <span className="system-bar__grow" />
+      <SystemControls system={system} />
       <span className={online ? 'system-bar__network' : 'system-bar__network system-bar__network--down'}>
         {online ? <Wifi aria-hidden="true" /> : <WifiOff aria-hidden="true" />}
         {online ? t('playerShell.system.online') : t('playerShell.system.offline')}
