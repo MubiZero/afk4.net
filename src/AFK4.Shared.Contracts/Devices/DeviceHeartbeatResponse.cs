@@ -33,4 +33,7 @@ public sealed record DeviceHeartbeatResponse(
     DeviceSessionOwnerDto? SessionOwner = null,
     /// Права организации по тарифу (PlatformFeatureNames): оболочка прячет разделы, которых у клуба
     /// нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
-    IReadOnlyList<string>? Features = null);
+    IReadOnlyList<string>? Features = null,
+    /// Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
+    /// потерялся. null — ждать нечего.
+    PlayerSignInClaimedDto? PendingSignInClaim = null);

@@ -17,4 +17,7 @@ public static class DeviceRealtimeEvents
     public const string ShopOrderCreated = "shopOrderCreated";
 
     public const string ShopOrderUpdated = "shopOrderUpdated";
+
+    /// <summary>Устройству: человек отсканировал QR с монитора, забери заявку на вход.</summary>
+    public const string PlayerSignInClaimed = "playerSignInClaimed";
 }

@@ -583,6 +583,28 @@ export const PlayerShellStateNames = {
 } as const;
 export type PlayerShellStateName = (typeof PlayerShellStateNames)[keyof typeof PlayerShellStateNames];
 
+/** Словарь: Devices/PlayerSignInClaimDeviceContracts.cs */
+export const PlayerSignInClaimErrorCodeNames = {
+  /** Заявки нет или она для другого ПК. */
+  NotFound: 'claim_not_found',
+  /** ПК не успел забрать заявку за отведённое время. */
+  Expired: 'claim_expired',
+  /** Заявку уже забрали: одна заявка — один вход. */
+  AlreadyRedeemed: 'claim_already_redeemed',
+} as const;
+export type PlayerSignInClaimErrorCodeName = (typeof PlayerSignInClaimErrorCodeNames)[keyof typeof PlayerSignInClaimErrorCodeNames];
+
+/** Словарь: Players/PlayerSignInClaimContracts.cs */
+export const PlayerSignInClaimStatusNames = {
+  /** ПК ещё не забрал заявку. */
+  Pending: 'pending',
+  /** ПК забрал заявку — человек вошёл. */
+  Redeemed: 'redeemed',
+  /** ПК не забрал заявку за отведённое время. */
+  Expired: 'expired',
+} as const;
+export type PlayerSignInClaimStatusName = (typeof PlayerSignInClaimStatusNames)[keyof typeof PlayerSignInClaimStatusNames];
+
 /** Словарь: Pos/PosSaleStateNames.cs */
 export const PosSaleStateNames = {
   Draft: 'draft',
@@ -695,6 +717,24 @@ export const ScheduledReportTypeNames = {
   OperatorActions: 'operator_actions',
 } as const;
 export type ScheduledReportTypeName = (typeof ScheduledReportTypeNames)[keyof typeof ScheduledReportTypeNames];
+
+/**
+ * Почему код посадки не приняли. Одни и те же у старта с телефона и у заявки на вход.
+ *
+ * Словарь: Players/PlayerSignInClaimContracts.cs
+ */
+export const SeatingCodeErrorCodeNames = {
+  /**
+   * Код не подошёл. Чужой клуб, истёкший код и опечатка снаружи неразличимы: иначе перебор
+   * шестизначных цифр становится осмысленным.
+   */
+  Invalid: 'seating_code_invalid',
+  /** Слишком много неверных кодов — у человека или у всего клуба; ответ несёт, когда можно снова. */
+  AttemptsExceeded: 'seating_code_attempts_exceeded',
+  /** Заявке нужен аккаунт AFK4, а у входа — только клубная карточка старого образца. */
+  PlatformAccountRequired: 'platform_account_required',
+} as const;
+export type SeatingCodeErrorCodeName = (typeof SeatingCodeErrorCodeNames)[keyof typeof SeatingCodeErrorCodeNames];
 
 /**
  * Состояние места на карте зала — то, что сервер кладёт в SeatStatusDto.State.
@@ -1720,6 +1760,18 @@ export interface CreatePlayerReservationRequest {
 }
 
 /**
+ * Войти на ПК с телефона (спека оболочки, §5.4): приложение сканирует QR с монитора — в нём код
+ * посадки — и просит сервер впустить своего человека на эту машину. Номер и ПИН-код у ПК при
+ * этом не набираются вовсе.
+ *
+ * Контракт: Players/PlayerSignInClaimContracts.cs
+ */
+export interface CreatePlayerSignInClaimRequest {
+  seatingCode: string;
+  idempotencyKey: string;
+}
+
+/**
  * Строка чека в запросе на его создание: товар и сколько штук.
  * Это НЕ PosSaleLineDto. Имя товара, цену за штуку и сумму строки сервер берёт из
  * каталога и присланному не верит (см. EfPosService.CreateSaleAsync) — а раз так, требовать их в
@@ -2166,6 +2218,11 @@ export interface DeviceHeartbeatResponse {
    * нет, — бар без player_shop, кэшбек без loyalty. Тот же расчёт, что у /api/me/features.
    */
   features?: string[] | null;
+  /**
+   * Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
+   * потерялся. null — ждать нечего.
+   */
+  pendingSignInClaim?: PlayerSignInClaimedDto | null;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -2217,6 +2274,17 @@ export interface DevicePlayerSignInRequest {
   deviceId: Guid;
   phoneNumber: string;
   pin: string;
+}
+
+/**
+ * ПК забирает заявку ключом устройства — в ответ токены, привязанные к этому ПК.
+ *
+ * Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+ */
+export interface DeviceRedeemSignInClaimRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
 }
 
 /** Контракт: Devices/DeviceSeatAssignmentDto.cs */
@@ -4416,6 +4484,31 @@ export interface PlayerShellStateDto {
    * позвать человека к машине, которую сервер ему не отдаст.
    */
   seatingCode?: string | null;
+}
+
+/**
+ * Заявка на вход и что с ней стало: приложение показывает «Вы вошли на ПК 07».
+ *
+ * Контракт: Players/PlayerSignInClaimContracts.cs
+ */
+export interface PlayerSignInClaimDto {
+  claimId: Guid;
+  /** Одно из PlayerSignInClaimStatusNames. */
+  status: PlayerSignInClaimStatusName;
+  expiresAtUtc: IsoDateTime;
+  /** Имя места: «ПК 07». Пусто, если ПК не привязан к месту. */
+  seatLabel: string | null;
+}
+
+/**
+ * ПК должен забрать заявку на вход: человек отсканировал QR с его монитора. Приходит в группу
+ * устройства по SignalR и, на случай обрыва, в ответе на сердцебиение.
+ *
+ * Контракт: Devices/PlayerSignInClaimDeviceContracts.cs
+ */
+export interface PlayerSignInClaimedDto {
+  claimId: Guid;
+  expiresAtUtc: IsoDateTime;
 }
 
 /**

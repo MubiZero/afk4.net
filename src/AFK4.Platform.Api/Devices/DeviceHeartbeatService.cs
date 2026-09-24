@@ -22,6 +22,7 @@ public sealed class DeviceHeartbeatService(
     EfSeatingCodeService seatingCodes,
     IDeviceBoundPlayerTokens deviceTokens,
     IOrganizationFeatureSnapshot featureSnapshot,
+    PlayerSignInClaimService signInClaims,
     TimeProvider timeProvider) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
@@ -178,6 +179,11 @@ public sealed class DeviceHeartbeatService(
             ? await featureSnapshot.GetEnabledAsync(request.OrganizationId, cancellationToken)
             : null;
 
+        // Заявку на вход с телефона ПК получает по SignalR; сердцебиение — страховка на обрыв.
+        var pendingSignInClaim = allowOperationalCommands
+            ? await signInClaims.PendingForDeviceAsync(deviceId, cancellationToken)
+            : null;
+
         var rotationRequested = device?.CredentialRotationRequestedAtUtc is not null;
 
         return new DeviceHeartbeatResponse(
@@ -199,7 +205,8 @@ public sealed class DeviceHeartbeatService(
                     DeviceSessionOwnerKindNames.Player, playerAccountId),
                 _ => new DeviceSessionOwnerDto(DeviceSessionOwnerKindNames.Guest)
             },
-            Features: features);
+            Features: features,
+            PendingSignInClaim: pendingSignInClaim);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

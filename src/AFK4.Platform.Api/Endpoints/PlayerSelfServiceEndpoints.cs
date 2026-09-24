@@ -1127,6 +1127,8 @@ internal static class PlayerSelfServiceEndpoints
             PlatformDbContext dbContext,
             ISessionCommandService sessionCommandService,
             EfSeatingCodeService seatingCodes,
+            SeatingCodeAttemptGuard attemptGuard,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             // Клуб известен ещё до счёта: человек стоит у конкретного ПК конкретного клуба.
@@ -1136,14 +1138,34 @@ internal static class PlayerSelfServiceEndpoints
                 ?? personContextAccessor.Current?.SelectedOrganizationId;
             if (organizationId is null) return Results.Unauthorized();
 
+            // Повтор после обрыва связи отдаёт записанный ответ раньше, чем проверяется код: код
+            // одноразовый и погашен удачным стартом, и без этого повтор получил бы «код неверен»
+            // вместо своей же сессии.
+            var replay = await FindSelfStartReplayAsync(
+                dbContext, organizationId.Value, request.IdempotencyKey,
+                playerContextAccessor.Current?.PlayerAccountId, timeProvider, cancellationToken);
+            if (replay is not null) return Results.Ok(replay);
+
+            var attemptScope = SeatingCodeAttemptScopeId(playerContextAccessor, personContextAccessor);
+            if (attemptScope is null) return Results.Unauthorized();
+            var blockedUntil = await attemptGuard.BlockedUntilAsync(
+                attemptScope.Value, organizationId.Value, cancellationToken);
+            if (blockedUntil is not null)
+            {
+                return Results.Json(
+                    new { error = SeatingCodeErrorCodeNames.AttemptsExceeded, retryAfterUtc = blockedUntil },
+                    statusCode: StatusCodes.Status429TooManyRequests);
+            }
+
             // Код с монитора и есть доказательство, что человек стоит перед этой машиной. Не
             // подошёл — отвечаем одним отказом на все случаи: чужой клуб, истёкший код и опечатка
             // снаружи неразличимы, иначе перебор шестизначных цифр становится осмысленным.
-            var deviceId = await seatingCodes.RedeemAsync(
+            var deviceId = await seatingCodes.FindDeviceAsync(
                 organizationId.Value, request.SeatingCode, cancellationToken);
             if (deviceId is null)
             {
-                return Results.BadRequest(new { error = "seating_code_invalid" });
+                await attemptGuard.RecordFailureAsync(attemptScope.Value, organizationId.Value, cancellationToken);
+                return Results.BadRequest(new { error = SeatingCodeErrorCodeNames.Invalid });
             }
 
             var assignment = await (
@@ -1212,8 +1234,135 @@ internal static class PlayerSelfServiceEndpoints
             if (result.Conflict) return Results.Conflict(new { error = result.Error });
             if (result.NotFound) return Results.NotFound(new { error = result.Error });
             if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
+
+            // Сели — код своё отработал. Машина получит новый на ближайшем сердцебиении.
+            await seatingCodes.TryConsumeAsync(deviceId.Value, request.SeatingCode, cancellationToken);
             return Results.Ok(result.Response);
         }).RequireRateLimiting("player-me").OpensClubAccount();
+
+        // Вход на ПК с телефона: приложение отсканировало QR с монитора — в нём код посадки — и
+        // просит впустить своего человека на эту машину (спека оболочки, §5.4). ПК забирает
+        // заявку ключом устройства; номер и ПИН-код у машины не набираются вовсе.
+        app.MapPost("/api/me/devices/sign-in-claims", async (
+            CreatePlayerSignInClaimRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            IPlatformPersonContextAccessor personContextAccessor,
+            IPlayerClubMembershipService clubMembership,
+            PlatformDbContext dbContext,
+            EfSeatingCodeService seatingCodes,
+            SeatingCodeAttemptGuard attemptGuard,
+            PlayerSignInClaimService claims,
+            IHubContext<DeviceHub> hubContext,
+            CancellationToken cancellationToken) =>
+        {
+            var organizationId = playerContextAccessor.Current?.OrganizationId
+                ?? personContextAccessor.Current?.SelectedOrganizationId;
+            if (organizationId is null) return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                return Results.BadRequest(new { error = "idempotency_key_required" });
+            }
+
+            // Токены на ПК выдаются личности, а у старого клубного входа её нет.
+            var platformPersonId = personContextAccessor.Current?.PlatformPersonId
+                ?? playerContextAccessor.Current?.PlatformPersonId;
+            if (platformPersonId is null)
+            {
+                return Results.Conflict(new { error = SeatingCodeErrorCodeNames.PlatformAccountRequired });
+            }
+
+            // Повтор после обрыва — та же заявка, а не вторая: код уже погашен первой.
+            var repeat = await claims.FindRepeatAsync(
+                platformPersonId.Value, organizationId.Value, request.IdempotencyKey, cancellationToken);
+            if (repeat is not null) return Results.Ok(await claims.ToDtoAsync(repeat, cancellationToken));
+
+            var blockedUntil = await attemptGuard.BlockedUntilAsync(
+                platformPersonId.Value, organizationId.Value, cancellationToken);
+            if (blockedUntil is not null)
+            {
+                return Results.Json(
+                    new { error = SeatingCodeErrorCodeNames.AttemptsExceeded, retryAfterUtc = blockedUntil },
+                    statusCode: StatusCodes.Status429TooManyRequests);
+            }
+
+            var deviceId = await seatingCodes.FindDeviceAsync(
+                organizationId.Value, request.SeatingCode, cancellationToken);
+            if (deviceId is null)
+            {
+                await attemptGuard.RecordFailureAsync(platformPersonId.Value, organizationId.Value, cancellationToken);
+                return Results.BadRequest(new { error = SeatingCodeErrorCodeNames.Invalid });
+            }
+
+            var assignment = await (
+                from a in dbContext.DeviceSeatAssignments.AsNoTracking()
+                join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
+                where a.DeviceId == deviceId.Value &&
+                      a.OrganizationId == organizationId &&
+                      a.DetachedAtUtc == null &&
+                      d.EnrollmentState == DeviceEnrollmentStateNames.Approved
+                orderby a.AttachedAtUtc descending
+                select a).FirstOrDefaultAsync(cancellationToken);
+            if (assignment is null) return Results.NotFound(new { error = "device_not_assigned" });
+
+            var clubDenial = await OpenClubAccountIfNeededAsync(
+                playerContextAccessor, personContextAccessor, clubMembership,
+                assignment.BranchId, cancellationToken);
+            if (clubDenial is not null) return clubDenial;
+
+            var player = playerContextAccessor.Current;
+            if (player is null) return Results.Unauthorized();
+
+            // Чужая сессия на этой машине — открывать на ней заявителя нечего.
+            var liveSessionOwner = await dbContext.Sessions
+                .AsNoTracking()
+                .Where(session => session.DeviceId == deviceId.Value
+                    && (session.State == SessionStateNames.Active
+                        || session.State == SessionStateNames.Paused
+                        || session.State == SessionStateNames.Ending))
+                .Select(session => new { session.PlayerAccountId })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (liveSessionOwner is not null && liveSessionOwner.PlayerAccountId != player.PlayerAccountId)
+            {
+                return Results.Conflict(new { error = DevicePlayerSignInErrorCodeNames.SessionNotYours });
+            }
+
+            // Код одноразовый: вторая заявка по нему же — или старт — проиграет здесь.
+            if (!await seatingCodes.TryConsumeAsync(deviceId.Value, request.SeatingCode, cancellationToken))
+            {
+                return Results.BadRequest(new { error = SeatingCodeErrorCodeNames.Invalid });
+            }
+
+            var claim = await claims.CreateAsync(
+                organizationId.Value, assignment.BranchId, deviceId.Value,
+                platformPersonId.Value, player.PlayerAccountId, request.IdempotencyKey, cancellationToken);
+
+            // Сигнал доходит за доли секунды; если он потеряется, заявку принесёт сердцебиение.
+            await hubContext.Clients
+                .Group(DeviceHubGroups.Device(deviceId.Value))
+                .SendAsync(
+                    DeviceRealtimeEvents.PlayerSignInClaimed,
+                    new PlayerSignInClaimedDto(claim.ClaimId, claim.ExpiresAtUtc),
+                    cancellationToken);
+
+            return Results.Ok(await claims.ToDtoAsync(claim, cancellationToken));
+        }).RequireRateLimiting("player-me").OpensClubAccount();
+
+        // Что стало с заявкой: приложение показывает «Вы вошли на ПК 07», когда ПК её забрал.
+        app.MapGet("/api/me/devices/sign-in-claims/{claimId:guid}", async (
+            Guid claimId,
+            IPlayerContextAccessor playerContextAccessor,
+            IPlatformPersonContextAccessor personContextAccessor,
+            PlayerSignInClaimService claims,
+            CancellationToken cancellationToken) =>
+        {
+            var platformPersonId = personContextAccessor.Current?.PlatformPersonId
+                ?? playerContextAccessor.Current?.PlatformPersonId;
+            if (platformPersonId is null) return Results.Unauthorized();
+
+            var claim = await claims.DescribeAsync(claimId, platformPersonId.Value, cancellationToken);
+            return claim is null ? Results.NotFound() : Results.Ok(claim);
+        }).RequireRateLimiting("player-me");
 
         app.MapPost("/api/me/sessions/{sessionId:guid}/extend", async (
             Guid sessionId,
@@ -1458,6 +1607,63 @@ internal static class PlayerSelfServiceEndpoints
     /// Возвращает готовый отказ, если счёт открыть невозможно (клуб не найден, филиал не назван
     /// у клуба с несколькими филиалами), и null, когда путь свободен.
     /// </summary>
+    /// <summary>
+    /// Счёт попыток ввода кода ведётся на личность, а у старого клубного входа — на карточку.
+    /// </summary>
+    private static Guid? SeatingCodeAttemptScopeId(
+        IPlayerContextAccessor playerContextAccessor,
+        IPlatformPersonContextAccessor personContextAccessor) =>
+        personContextAccessor.Current?.PlatformPersonId
+            ?? playerContextAccessor.Current?.PlatformPersonId
+            ?? playerContextAccessor.Current?.PlayerAccountId;
+
+    /// <summary>
+    /// Записанный ответ самостарта с этим ключом, если он есть и сессия — этого игрока. Ищется
+    /// по клубу, а не по филиалу: филиал знает только код, а код после удачного старта погашен.
+    /// </summary>
+    private static async Task<SessionCommandResponse?> FindSelfStartReplayAsync(
+        PlatformDbContext dbContext,
+        Guid organizationId,
+        string? idempotencyKey,
+        Guid? playerAccountId,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey) || playerAccountId is null)
+        {
+            return null;
+        }
+
+        var keyHash = SessionCommandIdempotencyKeyHasher.Hash(idempotencyKey);
+        var now = timeProvider.GetUtcNow();
+        var stored = await dbContext.SessionCommandIdempotency
+            .AsNoTracking()
+            .Where(record => record.OrganizationId == organizationId
+                && record.Operation == "start"
+                && record.IdempotencyKeyHash == keyHash
+                && record.ExpiresAtUtc > now)
+            .Select(record => record.ResponseJson)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (stored is null)
+        {
+            return null;
+        }
+
+        var response = JsonSerializer.Deserialize<SessionCommandResponse>(stored, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        if (response is null)
+        {
+            return null;
+        }
+
+        // Ключ чужой — не наш повтор: отдавать чужую сессию нельзя ни при каком совпадении.
+        var ownsSession = await dbContext.Sessions
+            .AsNoTracking()
+            .AnyAsync(
+                session => session.SessionId == response.Session.SessionId && session.PlayerAccountId == playerAccountId,
+                cancellationToken);
+        return ownsSession ? response : null;
+    }
+
     private static async Task<IResult?> OpenClubAccountIfNeededAsync(
         IPlayerContextAccessor playerContextAccessor,
         IPlatformPersonContextAccessor personContextAccessor,
