@@ -6,7 +6,7 @@ import { projectOperatorError } from './apiErrors';
 import { useDeferredFlag } from './useDeferredFlag';
 import { offlineBannerText, type OperatorFloorMapState } from './floorMapState';
 import type { OperatorAuthSession } from './authClient';
-import type { Feedback, MapFilterId, PcControlActionId, PcControlActionResult, SeatActionRequest, SeatActionResult } from './operatorTypes';
+import type { Feedback, MapFilterId, PcControlActionId, PcControlActionOptions, PcControlActionResult, SeatActionRequest, SeatActionResult } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
 import {
   countByMapFilter,
@@ -47,7 +47,7 @@ export function MapWorkspace({
   onSelectSeat: (seatId: string) => void;
   onStartSeat?: (seatId: string) => void;
   onFilterChange: (filter: MapFilterId) => void;
-  onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
+  onPcControlAction: (seat: SeatSummary, action: PcControlActionId, options?: PcControlActionOptions) => Promise<PcControlActionResult>;
   onResolveAssistance: (seat: SeatSummary) => Promise<PcControlActionResult>;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
 }) {

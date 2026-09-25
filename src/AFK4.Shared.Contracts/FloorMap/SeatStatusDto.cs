@@ -34,4 +34,8 @@ public sealed record SeatStatusDto(
     DateTimeOffset? SessionStartedAtUtc = null,
     // Когда с этого места позвали оператора. Null — не зовут. Время, а не флаг: стойке важно,
     // кто ждёт дольше.
-    DateTimeOffset? AssistanceRequestedAtUtc = null);
+    DateTimeOffset? AssistanceRequestedAtUtc = null,
+    // С какого момента ПК на обслуживании по решению клуба. Null — ПК в зале. Отдельно от State:
+    // «обслуживание» на карте бывает и у неподтверждённого ПК, а вернуть в зал можно только того,
+    // кого туда увели.
+    DateTimeOffset? MaintenanceSinceUtc = null);

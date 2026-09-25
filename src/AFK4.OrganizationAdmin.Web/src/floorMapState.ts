@@ -212,6 +212,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     sessionStartedAtUtc,
     zoneId: dto.zoneId,
     assistanceRequestedAtUtc: dto.assistanceRequestedAtUtc ?? null,
+    maintenanceSinceUtc: dto.maintenanceSinceUtc ?? null,
     sessionState: dto.state
   };
 }

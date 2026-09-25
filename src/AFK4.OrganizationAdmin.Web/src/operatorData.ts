@@ -49,6 +49,11 @@ export interface SeatSummary {
    * своему прежнему виду — и продление молча затиралось.
    */
   sessionVersion?: number | null;
+  /**
+   * С какого момента клуб держит ПК на обслуживании. «Обслуживание» на карте бывает и у
+   * неподтверждённого ПК; «Вернуть в зал» имеет смысл только для того, кого туда увели.
+   */
+  maintenanceSinceUtc?: string | null;
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;

@@ -42,6 +42,11 @@ const codeMessageKeys = {
   reservation_already_started: 'op.error.code.reservationAlreadyStarted',
   reservation_expired: 'op.error.code.reservationExpired',
   seat_unavailable: 'op.error.code.seatUnavailable',
+  // Команды ПК: сервер отказывает по правилу, и повтор его не изменит — нужно действие человека.
+  device_has_active_session: 'op.error.code.deviceHasActiveSession',
+  wake_target_unknown: 'op.error.code.wakeTargetUnknown',
+  no_wake_helper: 'op.error.code.noWakeHelper',
+  invalid_command_payload: 'op.error.code.invalidCommandPayload',
   // Клуб сам закрыл этот ПК на обслуживание: «место недоступно» не сказало бы, что делать дальше.
   device_in_maintenance: 'op.error.code.deviceInMaintenance',
   version_conflict: 'op.error.code.versionConflict',

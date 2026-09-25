@@ -14292,6 +14292,7 @@ class SeatStatusDto {
     this.tariffName,
     this.sessionStartedAtUtc,
     this.assistanceRequestedAtUtc,
+    this.maintenanceSinceUtc,
   });
 
   final String seatId;
@@ -14336,6 +14337,11 @@ class SeatStatusDto {
   /// кто ждёт дольше.
   final DateTime? assistanceRequestedAtUtc;
 
+  /// С какого момента ПК на обслуживании по решению клуба. Null — ПК в зале. Отдельно от State:
+  /// «обслуживание» на карте бывает и у неподтверждённого ПК, а вернуть в зал можно только того,
+  /// кого туда увели.
+  final DateTime? maintenanceSinceUtc;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -14359,6 +14365,7 @@ class SeatStatusDto {
         tariffName: json['tariffName'] == null ? null : json['tariffName'] as String,
         sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
         assistanceRequestedAtUtc: json['assistanceRequestedAtUtc'] == null ? null : DateTime.parse(json['assistanceRequestedAtUtc'] as String),
+        maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -14384,6 +14391,7 @@ class SeatStatusDto {
         'tariffName': tariffName,
         'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
         'assistanceRequestedAtUtc': assistanceRequestedAtUtc?.toIso8601String(),
+        'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
       };
 }
 

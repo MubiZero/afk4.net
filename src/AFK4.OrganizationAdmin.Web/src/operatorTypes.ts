@@ -40,7 +40,22 @@ export type SeatActionRequest =
   | { type: 'resume'; seat: SeatSummary }
   | { type: 'end'; seat: SeatSummary }
   | { type: 'checkout'; seat: SeatSummary; payments: PaymentPartDto[] };
-export type PcControlActionId = 'status' | 'lock' | 'unlock' | 'reboot' | 'shutdown' | 'wake' | 'admin';
+export type PcControlActionId =
+  | 'status'
+  | 'lock'
+  | 'unlock'
+  | 'reboot'
+  | 'shutdown'
+  | 'wake'
+  | 'maintenance-on'
+  | 'maintenance-off'
+  | 'sign-out'
+  | 'message'
+  | 'admin';
+/** Тело команды, которое выбирает администратор: пока только текст сообщения игроку. */
+export type PcControlActionOptions = {
+  text?: string;
+};
 export type PcControlActionResult = {
   detail: string;
 };
