@@ -718,6 +718,13 @@ export const PosSaleStateNames = {
 } as const;
 export type PosSaleStateName = (typeof PosSaleStateNames)[keyof typeof PosSaleStateNames];
 
+/** Словарь: Devices/ProtectionProfileContracts.cs */
+export const ProtectionProfileErrorCodeNames = {
+  /** Профиль успели сохранить после того, как его открыли: нужно перечитать. */
+  VersionConflict: 'protection_profile_version_conflict',
+} as const;
+export type ProtectionProfileErrorCodeName = (typeof ProtectionProfileErrorCodeNames)[keyof typeof ProtectionProfileErrorCodeNames];
+
 /** Словарь: Platform/Pulse/PlatformPulseContracts.cs */
 export const PulseAlertKindNames = {
   AgentSilent: 'agent_silent',
@@ -1409,6 +1416,16 @@ export interface AuthenticatedInstallEnrollRequest {
 }
 
 /**
+ * Правило закрытия окна: часть заголовка, класс окна или оба сразу.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface BlockedWindowRuleDto {
+  titleContains: string | null;
+  className: string | null;
+}
+
+/**
  * Настройки приёма гостей у филиала — то, что видит и правит клуб.
  * UpdatedAtUtc пуст, пока филиал ничего не настраивал: значения в этом случае
  * не «нулевые», а по умолчанию, и админу полезно отличать одно от другого.
@@ -1501,6 +1518,18 @@ export interface BranchProfileDto {
   locale: string;
   workingHours: BranchWorkingHoursDayDto[];
   createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Профиль защиты филиала для Панели: сам профиль и кто его менял последним.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface BranchProtectionProfileDto {
+  organizationId: Guid;
+  branchId: Guid;
+  profile: ProtectionProfileDto;
+  updatedAtUtc: IsoDateTime | null;
 }
 
 /**
@@ -2491,6 +2520,8 @@ export interface DeviceHeartbeatResponse {
    */
   maintenanceSinceUtc?: IsoDateTime | null;
   maintenanceByName?: string | null;
+  /** Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет. */
+  policyProfileVersion?: number;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -5131,6 +5162,31 @@ export interface ProductBarcodeDto {
 }
 
 /**
+ * Профиль защиты ПК филиала (спека оболочки, §6.3): что агент запрещает на игровом ПК. Версия
+ * растёт с каждым сохранением и едет в сердцебиении — по её смене агент перечитывает профиль.
+ * Версия 0 — клуб профиль не настраивал, действует только постоянная база киоска.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface ProtectionProfileDto {
+  version: number;
+  /** Флешки и внешние диски — запрет Windows на все съёмные накопители. */
+  blockRemovableStorage: boolean;
+  /** Скачивание в Chrome и Edge. */
+  blockBrowserDownloads: boolean;
+  /** Режим инкогнито в Chrome и InPrivate в Edge. */
+  blockBrowserIncognito: boolean;
+  /** Окно «Выполнить» (Win+R). */
+  disableRunDialog: boolean;
+  /** Буквы дисков, скрытых в Проводнике. Это не запрет: программа откроет диск по пути. */
+  hiddenDrives: string[];
+  /** Адреса и шаблоны, которые Chrome и Edge не открывают (формат URLBlocklist). */
+  urlBlocklist: string[];
+  /** Окна, которые оболочка закрывает, едва они появятся. */
+  blockedWindows: BlockedWindowRuleDto[];
+}
+
+/**
  * DetailValue carries the single numeric figure behind an alert, meaning depends on Kind:
  * minutes since the last agent heartbeat for AgentSilent, minutes since the shift was
  * opened for ShiftNotClosed, count of devices that reported a failed install for
@@ -6719,6 +6775,24 @@ export interface UpdateBranchProfileRequest {
   photos?: BranchPhotoDto[] | null;
   latitude?: number | null;
   longitude?: number | null;
+}
+
+/**
+ * Сохранить профиль. ExpectedVersion — версия, которую человек открыл: если
+ * профиль успели поменять, сохранение отказывает, а не затирает чужую правку молча.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface UpdateBranchProtectionProfileRequest {
+  organizationId: Guid;
+  expectedVersion: number;
+  blockRemovableStorage: boolean;
+  blockBrowserDownloads: boolean;
+  blockBrowserIncognito: boolean;
+  disableRunDialog: boolean;
+  hiddenDrives: string[];
+  urlBlocklist: string[];
+  blockedWindows: BlockedWindowRuleDto[];
 }
 
 /** Контракт: Branches/UpdateBranchSettingsRequest.cs */

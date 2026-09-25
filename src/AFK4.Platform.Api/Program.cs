@@ -631,6 +631,7 @@ var organizations = app.MapGroup("/api/organizations/{organizationId:guid}")
 app.MapHealthEndpoints();
 organizations.MapFloorMapEndpoints();
 organizations.MapBranchSettingsEndpoints();
+app.MapProtectionProfileEndpoints(organizations);
 organizations.MapMediaEndpoints();
 app.MapAuthEndpoints(organizations);
 organizations.MapEskhataConfigEndpoints();

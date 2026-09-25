@@ -206,6 +206,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchBookingSettingsEntity> BranchBookingSettings => Set<BranchBookingSettingsEntity>();
 
+    public DbSet<BranchProtectionProfileEntity> BranchProtectionProfiles => Set<BranchProtectionProfileEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -1572,6 +1574,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(settings => settings.BranchId);
             entity.Property(settings => settings.AcceptanceMode).HasMaxLength(16).IsRequired();
             entity.HasIndex(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<BranchProtectionProfileEntity>(entity =>
+        {
+            entity.ToTable("branch_protection_profiles");
+            entity.HasKey(profile => profile.BranchId);
+            entity.Property(profile => profile.Version).IsConcurrencyToken();
+            entity.Property(profile => profile.HiddenDrives).HasMaxLength(26).IsRequired();
+            entity.Property(profile => profile.UrlBlocklistJson).IsRequired();
+            entity.Property(profile => profile.BlockedWindowsJson).IsRequired();
+            entity.HasIndex(profile => profile.OrganizationId);
         });
     }
 }

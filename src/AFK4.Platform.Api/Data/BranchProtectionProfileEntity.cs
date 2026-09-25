@@ -1,0 +1,34 @@
+namespace AFK4.Platform.Api.Data;
+
+/// <summary>
+/// Профиль защиты ПК филиала (спека оболочки, §6.3). Строки нет — клуб профиль не настраивал, и
+/// на ПК действует только постоянная база киоска (Ctrl+Alt+Del без блокировки, выхода и смены
+/// пользователя). Версия — сторож от одновременной правки и сигнал агентам перечитать профиль.
+/// </summary>
+public sealed class BranchProtectionProfileEntity
+{
+    public Guid BranchId { get; set; }
+
+    public Guid OrganizationId { get; set; }
+
+    public int Version { get; set; }
+
+    public bool BlockRemovableStorage { get; set; }
+
+    public bool BlockBrowserDownloads { get; set; }
+
+    public bool BlockBrowserIncognito { get; set; }
+
+    public bool DisableRunDialog { get; set; }
+
+    /// <summary>Буквы скрытых дисков подряд, по алфавиту: «DE».</summary>
+    public string HiddenDrives { get; set; } = string.Empty;
+
+    public string UrlBlocklistJson { get; set; } = "[]";
+
+    public string BlockedWindowsJson { get; set; } = "[]";
+
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+
+    public Guid UpdatedByStaffUserId { get; set; }
+}

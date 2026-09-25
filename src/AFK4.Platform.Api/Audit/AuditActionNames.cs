@@ -6,6 +6,9 @@ public static class AuditActionNames
 
     public const string DispatchDeviceCommand = "devices.commands.dispatch";
 
+    /// <summary>Профиль защиты ПК филиала сохранён (спека оболочки, §6.3).</summary>
+    public const string UpdateProtectionProfile = "branches.protection_profile.update";
+
     /// <summary>Техник вернул ПК в зал кнопкой на самом ПК.</summary>
     public const string ReturnDeviceFromMaintenance = "devices.maintenance.return";
 

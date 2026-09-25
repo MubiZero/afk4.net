@@ -20,6 +20,7 @@ import { allowedManagementDestinations, type ManagementDestinationId } from './m
 import { useUnsavedGuard } from './useUnsavedGuard';
 import { ClubDestination } from './destinations/ClubDestination';
 import { BookingIntakeDestination } from './destinations/booking/BookingIntakeDestination';
+import { ProtectionDestination } from './destinations/protection/ProtectionDestination';
 import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { NewsDestination } from './destinations/NewsDestination';
@@ -157,6 +158,9 @@ export function ManagementWorkspace({
     }
     if (currentId === 'booking') {
       return <BookingIntakeDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
+    }
+    if (currentId === 'protection') {
+      return <ProtectionDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
     }
     if (currentId === 'news') {
       return <NewsDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;

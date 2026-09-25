@@ -30,6 +30,8 @@ const codeMessageKeys = {
   // Пять промахов подряд запирают вход на четверть часа. Под общим «неверный логин или пароль»
   // человек продолжал бы подбирать и злиться, не понимая, почему верный пароль не подходит.
   too_many_password_attempts: 'op.error.code.tooManyPasswordAttempts',
+  // Двое правили профиль защиты одновременно: второму нужно перечитать, а не затереть первого.
+  protection_profile_version_conflict: 'op.error.code.protectionProfileConflict',
   open_shift_required: 'op.error.code.openShiftRequired',
   invalid_payment_split: 'op.error.code.invalidPaymentSplit',
   mixed_currency: 'op.error.code.mixedCurrency',

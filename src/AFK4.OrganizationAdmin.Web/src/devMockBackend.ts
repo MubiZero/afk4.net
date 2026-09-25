@@ -386,6 +386,23 @@ function booking(
 
 // Набор на день: две онлайн-заявки без места (уходят в лейн «новых заявок») + размещённые брони
 // разных статусов на дорожках мест, чтобы превью показывало все тона таймлайна и drawer.
+// Защита ПК филиала в превью: флешки закрыты, сайты казино заблокированы, диск D скрыт.
+let previewProtection = {
+  organizationId: ORG,
+  branchId: BRANCH,
+  profile: {
+    version: 3,
+    blockRemovableStorage: true,
+    blockBrowserDownloads: true,
+    blockBrowserIncognito: false,
+    disableRunDialog: true,
+    hiddenDrives: ['D'],
+    urlBlocklist: ['*.casino.example', 'betting.example'],
+    blockedWindows: [{ titleContains: 'Командная строка', className: null }]
+  },
+  updatedAtUtc: '2026-09-20T12:00:00Z' as string | null
+};
+
 let previewBookingSettings = {
   organizationId: ORG, branchId: BRANCH,
   acceptanceMode: 'auto', respondWithinMinutes: 15,
@@ -592,6 +609,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
   if (pathname.endsWith('/pos/categories')) return posCategories();
   if (pathname.endsWith('/booking-settings') && method === 'GET') return previewBookingSettings;
+  if (pathname.endsWith('/settings/protection') && method === 'GET') return previewProtection;
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return stockMovementsFixture();
@@ -874,6 +892,20 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/checkout') && method === 'POST') {
     return json(checkoutResult(init));
+  }
+  // Защита ПК в превью: помнит сохранённое и растит версию, как сервер; чужая версия — 409.
+  if (url.pathname.endsWith('/settings/protection') && method === 'PUT') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown> & { expectedVersion?: number };
+    if (request.expectedVersion !== previewProtection.profile.version) {
+      return jsonError(409, 'protection_profile_version_conflict', 'The protection profile was saved by someone else.');
+    }
+    const { organizationId: _organization, expectedVersion: _expected, ...profile } = request;
+    previewProtection = {
+      ...previewProtection,
+      profile: { ...previewProtection.profile, ...profile, version: previewProtection.profile.version + 1 },
+      updatedAtUtc: new Date().toISOString()
+    } as typeof previewProtection;
+    return json(previewProtection);
   }
   if (url.pathname.endsWith('/booking-settings') && method === 'PUT') {
     const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;

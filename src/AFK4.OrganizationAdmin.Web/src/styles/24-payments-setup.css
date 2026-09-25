@@ -405,3 +405,84 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Защита ПК ──────────────────────────────────────────────────────────────────────────
+   Тот же setup-кит. Своё здесь — сетка букв дисков (нажатая буква скрыта в Проводнике) и
+   построчные списки адресов и окон. */
+.protect-drives {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.protect-drives legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.protect-drive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+
+.protect-drive {
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.protect-drive:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.protect-drive[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.protect-drive:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.protect-list + .protect-list {
+  margin-top: 16px;
+}
+
+.protect-list textarea {
+  width: 100%;
+  min-height: 92px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.protect-list textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.protect-base-note {
+  margin: 16px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.45;
+}

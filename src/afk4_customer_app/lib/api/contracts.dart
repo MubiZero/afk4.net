@@ -603,6 +603,12 @@ abstract final class PosSaleStateNames {
   static const String voided = 'voided';
 }
 
+/// Словарь: Devices/ProtectionProfileContracts.cs
+abstract final class ProtectionProfileErrorCodeNames {
+  /// Профиль успели сохранить после того, как его открыли: нужно перечитать.
+  static const String versionConflict = 'protection_profile_version_conflict';
+}
+
 /// Словарь: Platform/Pulse/PlatformPulseContracts.cs
 abstract final class PulseAlertKindNames {
   static const String agentSilent = 'agent_silent';
@@ -1521,6 +1527,29 @@ class AuthenticatedInstallEnrollRequest {
       };
 }
 
+/// Правило закрытия окна: часть заголовка, класс окна или оба сразу.
+///
+/// Контракт: Devices/ProtectionProfileContracts.cs
+class BlockedWindowRuleDto {
+  const BlockedWindowRuleDto({
+    this.titleContains,
+    this.className,
+  });
+
+  final String? titleContains;
+  final String? className;
+
+  factory BlockedWindowRuleDto.fromJson(Map<String, dynamic> json) => BlockedWindowRuleDto(
+        titleContains: json['titleContains'] == null ? null : json['titleContains'] as String,
+        className: json['className'] == null ? null : json['className'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'titleContains': titleContains,
+        'className': className,
+      };
+}
+
 /// Настройки приёма гостей у филиала — то, что видит и правит клуб.
 /// UpdatedAtUtc пуст, пока филиал ничего не настраивал: значения в этом случае
 /// не «нулевые», а по умолчанию, и админу полезно отличать одно от другого.
@@ -1827,6 +1856,37 @@ class BranchProfileDto {
         'locale': locale,
         'workingHours': workingHours.map((item) => item.toJson()).toList(),
         'createdAtUtc': createdAtUtc.toIso8601String(),
+      };
+}
+
+/// Профиль защиты филиала для Панели: сам профиль и кто его менял последним.
+///
+/// Контракт: Devices/ProtectionProfileContracts.cs
+class BranchProtectionProfileDto {
+  const BranchProtectionProfileDto({
+    required this.organizationId,
+    required this.branchId,
+    required this.profile,
+    this.updatedAtUtc,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final ProtectionProfileDto profile;
+  final DateTime? updatedAtUtc;
+
+  factory BranchProtectionProfileDto.fromJson(Map<String, dynamic> json) => BranchProtectionProfileDto(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        profile: ProtectionProfileDto.fromJson(json['profile'] as Map<String, dynamic>),
+        updatedAtUtc: json['updatedAtUtc'] == null ? null : DateTime.parse(json['updatedAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'profile': profile.toJson(),
+        'updatedAtUtc': updatedAtUtc?.toIso8601String(),
       };
 }
 
@@ -4746,6 +4806,7 @@ class DeviceHeartbeatResponse {
     this.maintenance,
     this.maintenanceSinceUtc,
     this.maintenanceByName,
+    this.policyProfileVersion,
   });
 
   final DateTime serverTimeUtc;
@@ -4798,6 +4859,9 @@ class DeviceHeartbeatResponse {
   final DateTime? maintenanceSinceUtc;
   final String? maintenanceByName;
 
+  /// Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет.
+  final int? policyProfileVersion;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -4814,6 +4878,7 @@ class DeviceHeartbeatResponse {
         maintenance: json['maintenance'] == null ? null : json['maintenance'] as bool,
         maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
         maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
+        policyProfileVersion: json['policyProfileVersion'] == null ? null : (json['policyProfileVersion'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4832,6 +4897,7 @@ class DeviceHeartbeatResponse {
         'maintenance': maintenance,
         'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
         'maintenanceByName': maintenanceByName,
+        'policyProfileVersion': policyProfileVersion,
       };
 }
 
@@ -12713,6 +12779,69 @@ class ProductBarcodeDto {
       };
 }
 
+/// Профиль защиты ПК филиала (спека оболочки, §6.3): что агент запрещает на игровом ПК. Версия
+/// растёт с каждым сохранением и едет в сердцебиении — по её смене агент перечитывает профиль.
+/// Версия 0 — клуб профиль не настраивал, действует только постоянная база киоска.
+///
+/// Контракт: Devices/ProtectionProfileContracts.cs
+class ProtectionProfileDto {
+  const ProtectionProfileDto({
+    required this.version,
+    required this.blockRemovableStorage,
+    required this.blockBrowserDownloads,
+    required this.blockBrowserIncognito,
+    required this.disableRunDialog,
+    required this.hiddenDrives,
+    required this.urlBlocklist,
+    required this.blockedWindows,
+  });
+
+  final int version;
+
+  /// Флешки и внешние диски — запрет Windows на все съёмные накопители.
+  final bool blockRemovableStorage;
+
+  /// Скачивание в Chrome и Edge.
+  final bool blockBrowserDownloads;
+
+  /// Режим инкогнито в Chrome и InPrivate в Edge.
+  final bool blockBrowserIncognito;
+
+  /// Окно «Выполнить» (Win+R).
+  final bool disableRunDialog;
+
+  /// Буквы дисков, скрытых в Проводнике. Это не запрет: программа откроет диск по пути.
+  final List<String> hiddenDrives;
+
+  /// Адреса и шаблоны, которые Chrome и Edge не открывают (формат URLBlocklist).
+  final List<String> urlBlocklist;
+
+  /// Окна, которые оболочка закрывает, едва они появятся.
+  final List<BlockedWindowRuleDto> blockedWindows;
+
+  factory ProtectionProfileDto.fromJson(Map<String, dynamic> json) => ProtectionProfileDto(
+        version: (json['version'] as num).toInt(),
+        blockRemovableStorage: json['blockRemovableStorage'] as bool,
+        blockBrowserDownloads: json['blockBrowserDownloads'] as bool,
+        blockBrowserIncognito: json['blockBrowserIncognito'] as bool,
+        disableRunDialog: json['disableRunDialog'] as bool,
+        hiddenDrives: (json['hiddenDrives'] as List<dynamic>).map((item) => item as String).toList(),
+        urlBlocklist: (json['urlBlocklist'] as List<dynamic>).map((item) => item as String).toList(),
+        blockedWindows: (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'version': version,
+        'blockRemovableStorage': blockRemovableStorage,
+        'blockBrowserDownloads': blockBrowserDownloads,
+        'blockBrowserIncognito': blockBrowserIncognito,
+        'disableRunDialog': disableRunDialog,
+        'hiddenDrives': hiddenDrives.map((item) => item).toList(),
+        'urlBlocklist': urlBlocklist.map((item) => item).toList(),
+        'blockedWindows': blockedWindows.map((item) => item.toJson()).toList(),
+      };
+}
+
 /// DetailValue carries the single numeric figure behind an alert, meaning depends on Kind:
 /// minutes since the last agent heartbeat for AgentSilent, minutes since the shift was
 /// opened for ShiftNotClosed, count of devices that reported a failed install for
@@ -17447,6 +17576,58 @@ class UpdateBranchProfileRequest {
         'photos': photos?.map((item) => item.toJson()).toList(),
         'latitude': latitude,
         'longitude': longitude,
+      };
+}
+
+/// Сохранить профиль. ExpectedVersion — версия, которую человек открыл: если
+/// профиль успели поменять, сохранение отказывает, а не затирает чужую правку молча.
+///
+/// Контракт: Devices/ProtectionProfileContracts.cs
+class UpdateBranchProtectionProfileRequest {
+  const UpdateBranchProtectionProfileRequest({
+    required this.organizationId,
+    required this.expectedVersion,
+    required this.blockRemovableStorage,
+    required this.blockBrowserDownloads,
+    required this.blockBrowserIncognito,
+    required this.disableRunDialog,
+    required this.hiddenDrives,
+    required this.urlBlocklist,
+    required this.blockedWindows,
+  });
+
+  final String organizationId;
+  final int expectedVersion;
+  final bool blockRemovableStorage;
+  final bool blockBrowserDownloads;
+  final bool blockBrowserIncognito;
+  final bool disableRunDialog;
+  final List<String> hiddenDrives;
+  final List<String> urlBlocklist;
+  final List<BlockedWindowRuleDto> blockedWindows;
+
+  factory UpdateBranchProtectionProfileRequest.fromJson(Map<String, dynamic> json) => UpdateBranchProtectionProfileRequest(
+        organizationId: json['organizationId'] as String,
+        expectedVersion: (json['expectedVersion'] as num).toInt(),
+        blockRemovableStorage: json['blockRemovableStorage'] as bool,
+        blockBrowserDownloads: json['blockBrowserDownloads'] as bool,
+        blockBrowserIncognito: json['blockBrowserIncognito'] as bool,
+        disableRunDialog: json['disableRunDialog'] as bool,
+        hiddenDrives: (json['hiddenDrives'] as List<dynamic>).map((item) => item as String).toList(),
+        urlBlocklist: (json['urlBlocklist'] as List<dynamic>).map((item) => item as String).toList(),
+        blockedWindows: (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'expectedVersion': expectedVersion,
+        'blockRemovableStorage': blockRemovableStorage,
+        'blockBrowserDownloads': blockBrowserDownloads,
+        'blockBrowserIncognito': blockBrowserIncognito,
+        'disableRunDialog': disableRunDialog,
+        'hiddenDrives': hiddenDrives.map((item) => item).toList(),
+        'urlBlocklist': urlBlocklist.map((item) => item).toList(),
+        'blockedWindows': blockedWindows.map((item) => item.toJson()).toList(),
       };
 }
 

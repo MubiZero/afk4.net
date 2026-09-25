@@ -5,6 +5,8 @@ import type {
   AddProductBarcodeRequest,
   AssignDeviceSeatRequest,
   BranchBookingSettingsDto,
+  BranchProtectionProfileDto,
+  UpdateBranchProtectionProfileRequest,
   BranchProfileDto,
   BranchSettingsDto,
   CreatePackageDefinitionRequest,
@@ -47,6 +49,8 @@ export type {
   AddProductBarcodeRequest,
   AssignDeviceSeatRequest,
   BranchBookingSettingsDto,
+  BranchProtectionProfileDto,
+  UpdateBranchProtectionProfileRequest,
   BranchPhotoDto,
   BranchProfileDto,
   BranchSettingsDto,
@@ -121,6 +125,13 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     updateBookingSettings(branchId: Guid, request: UpdateBranchBookingSettingsRequest): Promise<BranchBookingSettingsDto> {
       return api.put<BranchBookingSettingsDto, UpdateBranchBookingSettingsRequest>(`branches/${branchId}/booking-settings`, request);
+    },
+    // Профиль защиты ПК филиала (спека оболочки, §6.3): агенты перечитывают его по версии.
+    getProtectionProfile(branchId: Guid): Promise<BranchProtectionProfileDto> {
+      return api.get<BranchProtectionProfileDto>(`branches/${branchId}/settings/protection`);
+    },
+    updateProtectionProfile(branchId: Guid, request: UpdateBranchProtectionProfileRequest): Promise<BranchProtectionProfileDto> {
+      return api.put<BranchProtectionProfileDto, UpdateBranchProtectionProfileRequest>(`branches/${branchId}/settings/protection`, request);
     },
     getStaffUsers(branchId: Guid): Promise<StaffUserDto[]> {
       return api.get<StaffUserDto[]>(`branches/${branchId}/staff`);

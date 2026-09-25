@@ -5,6 +5,7 @@ import type { MessageKey } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../../ManagementScreen';
 import { SetupFieldsSkeleton, SetupRuleSkeleton, SetupSection, SetupSectionSkeleton } from '../../kit/SetupSection';
 import { SkeletonLine } from '../../../LoadingSkeleton';
+import { RuleSwitch } from '../../kit/RuleSwitch';
 import { projectOperatorError, type OperatorErrorProjection } from '../../../apiErrors';
 import { createAuthenticatedOperatorClients, emptyFeedback } from '../../../operatorHelpers';
 import { useFeedbackToasts } from '../../../useFeedbackToasts';
@@ -26,39 +27,6 @@ const modeCopy: Record<string, { title: MessageKey; hint: MessageKey }> = {
   manual: { title: 'op.bookingRules.mode.manual', hint: 'op.bookingRules.mode.manual.hint' },
   auto: { title: 'op.bookingRules.mode.auto', hint: 'op.bookingRules.mode.auto.hint' }
 };
-
-// Тумблер того же вида, что в «Платежах и лояльности»: тактильнее галочки и уже знаком оператору.
-function RuleSwitch({
-  checked, onChange, disabled, name, hint
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  disabled: boolean;
-  name: string;
-  hint: string;
-}) {
-  return (
-    <div className={`payset-rule${checked ? ' is-on' : ''}`}>
-      <div className="payset-rule-top">
-        <label className="payset-switch">
-          <input
-            type="checkbox"
-            aria-label={name}
-            checked={checked}
-            disabled={disabled}
-            onChange={(event) => onChange(event.currentTarget.checked)}
-          />
-          <span className="payset-track" />
-          <span className="payset-knob" />
-        </label>
-        <div className="payset-rule-text">
-          <div className="payset-rule-name">{name}</div>
-          <div className="payset-rule-hint">{hint}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function NumberField({
   id, label, hint, unit, value, bounds, disabled, onChange

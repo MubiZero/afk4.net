@@ -1,12 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CalendarCheck, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper, Trophy } from 'lucide-react';
+import { Building2, CalendarCheck, MonitorCog, ShieldCheck, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper, Trophy } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission } from '../operatorPermissions';
 import { permissionNames } from '../permissionNames';
 
 export type ManagementDestinationId =
-  | 'club' | 'booking' | 'halls' | 'tariffs' | 'staff' | 'goods'
+  | 'club' | 'booking' | 'halls' | 'protection' | 'tariffs' | 'staff' | 'goods'
   | 'payments' | 'news' | 'events';
 
 export interface ManagementDestination {
@@ -51,6 +51,15 @@ export const managementDestinations: readonly ManagementDestination[] = [
       permissionNames.rotateDeviceCredential,
       permissionNames.revokeDeviceCredential
     ]
+  },
+  {
+    id: 'protection',
+    labelKey: 'op.management.dest.protection',
+    subtitleKey: 'op.management.dest.protection.subtitle',
+    Icon: ShieldCheck,
+    // Правила клуба для всех ПК филиала — настройка филиала, как приём броней: её задают владелец
+    // и управляющий, а не техник, который чинит ПК.
+    permissions: [permissionNames.manageBranchSettings]
   },
   {
     id: 'tariffs',

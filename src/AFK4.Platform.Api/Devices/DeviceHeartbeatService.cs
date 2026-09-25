@@ -162,6 +162,11 @@ public sealed class DeviceHeartbeatService(
             .Select(branch => new
             {
                 branch.GraceLeaseMinutes,
+                // Версия профиля защиты — тем же запросом: число, которое меняется раз в неделю.
+                PolicyProfileVersion = dbContext.BranchProtectionProfiles
+                    .Where(profile => profile.BranchId == branch.BranchId)
+                    .Select(profile => profile.Version)
+                    .FirstOrDefault(),
                 Branding = dbContext.Organizations
                     .Where(organization => organization.OrganizationId == branch.OrganizationId)
                     .Select(organization => new ShellBrandingDto(
@@ -234,7 +239,8 @@ public sealed class DeviceHeartbeatService(
             PendingSignInClaim: pendingSignInClaim,
             Maintenance: allowOperationalCommands && inMaintenance,
             MaintenanceSinceUtc: allowOperationalCommands ? device?.MaintenanceSinceUtc : null,
-            MaintenanceByName: allowOperationalCommands && inMaintenance ? device?.MaintenanceByName : null);
+            MaintenanceByName: allowOperationalCommands && inMaintenance ? device?.MaintenanceByName : null,
+            PolicyProfileVersion: allowOperationalCommands ? branchInfo?.PolicyProfileVersion ?? 0 : 0);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

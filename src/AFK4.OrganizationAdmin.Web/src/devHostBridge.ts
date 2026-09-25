@@ -13,7 +13,9 @@
 // sign-in is mocked by intercepting fetch (installMockFetch below), which serves `/api/auth/staff/*`
 // from devMockFetch — see devMockBackend.ts.
 
-import { devMockFetch } from './devMockBackend';
+import { createMockSession, devMockFetch } from './devMockBackend';
+import { readStoredSession, sessionFromSignInResponse, writeStoredSession } from './auth/staffSessionStore';
+import type { StaffSignInResponse } from '@afk4/contracts';
 
 const ORG = '0169044b-2f74-46a7-8e52-7656a39a8f8c';
 const BRANCH = 'f77b708c-1dc9-4cb3-9c19-21797f7035fc';
@@ -49,6 +51,12 @@ export function installDevHostBridge(): void {
   }
 
   window.__AFK4_ORGANIZATION_ADMIN_CONFIG__ = createDevOperatorConfig();
+
+  // ?signedIn=1 — сразу вошедший администратор превью: экраны за входом видно без формы и без
+  // ПИН-кода. Только заглушка dev-сборки; боевая сборка этого модуля не содержит.
+  if (new URLSearchParams(window.location.search).get('signedIn') === '1' && readStoredSession() === null) {
+    writeStoredSession(sessionFromSignInResponse(createMockSession() as unknown as StaffSignInResponse));
+  }
 
   const listeners = new Set<(event: { data: unknown }) => void>();
 

@@ -43,4 +43,6 @@ public sealed record DeviceHeartbeatResponse(
     /// С какого момента и кто включил обслуживание: оболочка пишет это на полосе поверх рабочего
     /// стола, чтобы техник у ПК видел, чей это ПК сейчас и с каких пор.
     DateTimeOffset? MaintenanceSinceUtc = null,
-    string? MaintenanceByName = null);
+    string? MaintenanceByName = null,
+    /// Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет.
+    int PolicyProfileVersion = 0);
