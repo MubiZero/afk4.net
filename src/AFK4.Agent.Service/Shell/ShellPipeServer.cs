@@ -301,11 +301,9 @@ public sealed class ShellPipeServer(
     /// системы или прочитать чужое состояние.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    internal static PipeSecurity CreatePipeSecurity(string? clientSid)
+    public static PipeSecurity CreatePipeSecurity(string? clientSid)
     {
-        var client = string.IsNullOrWhiteSpace(clientSid)
-            ? new SecurityIdentifier(WellKnownSidType.InteractiveSid, null)
-            : new SecurityIdentifier(clientSid);
+        var client = PipeClient(clientSid);
 
         var security = new PipeSecurity();
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
@@ -319,6 +317,29 @@ public sealed class ShellPipeServer(
             AccessControlType.Allow));
         security.AddAccessRule(new PipeAccessRule(client, PipeAccessRights.ReadWrite, AccessControlType.Allow));
         return security;
+    }
+
+    /// <summary>
+    /// Учётка игрока из настройки киоска; без киоска — любой интерактивный пользователь. Кривой
+    /// SID не должен ронять канал на каждом круге: тогда оболочка не подключилась бы вовсе, и ПК
+    /// стоял бы без экрана. Он откатывается к интерактивному пользователю — как машина без киоска.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static SecurityIdentifier PipeClient(string? clientSid)
+    {
+        if (!string.IsNullOrWhiteSpace(clientSid))
+        {
+            try
+            {
+                return new SecurityIdentifier(clientSid);
+            }
+            catch (ArgumentException)
+            {
+                Console.Error.WriteLine($"ShellPipeClientSid '{clientSid}' is not a SID; any interactive user may connect.");
+            }
+        }
+
+        return new SecurityIdentifier(WellKnownSidType.InteractiveSid, null);
     }
 
     /// <summary>

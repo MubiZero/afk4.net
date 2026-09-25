@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
@@ -20,6 +20,8 @@ interface PhoneLoginScreenProps {
   onDiscovered(response: WizardDiscoverResponse, signedInAs: SignInPrefill): void;
   onForgotPassword(): void;
   initialIdentity?: string;
+  /// Под формой: «Снять киоск» на ПК, где он стоит. Слотом — экран не знает о киоске ничего.
+  footer?: ReactNode;
 }
 
 // 'phone' — основной вход по номеру (телефон-first). 'credentials' — запасной по логину/email,
@@ -40,7 +42,7 @@ function initialModeFor(identity: string | undefined): Mode {
   return /[a-zA-Z@]/.test(identity) ? 'credentials' : 'phone';
 }
 
-export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdentity }: PhoneLoginScreenProps) {
+export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdentity, footer }: PhoneLoginScreenProps) {
   const { t } = useI18n();
   const [mode, setMode] = useState<Mode>(() => initialModeFor(initialIdentity));
   const [identity, setIdentity] = useState(() =>
@@ -308,6 +310,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
             : t('setup.wizard.phoneLogin.action.usePhone')}
         </button>
       </form>
+      {footer}
     </section>
   );
 }

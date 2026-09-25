@@ -32,7 +32,7 @@ public static class AgentBootstrapValues
             ["LeaseSigningPublicKeyPem"] = config.LeaseSigningPublicKeyPem,
             ["UpdateChannel"] = config.UpdateChannel,
             ["UpdatePackageSigningPublicKeyPem"] = config.UpdatePackageSigningPublicKeyPem,
-            ["PlayerShellExecutablePath"] = Path.Combine(programFiles, @"AFK4\Player Shell\AFK4.Player.Shell.exe"),
+            ["PlayerShellExecutablePath"] = PlayerShellExecutablePath(),
             ["PlayerShellAutoStartEnabled"] = bool.TrueString,
             ["OrganizationAdminExecutablePath"] = Path.Combine(programFiles, @"AFK4\Organization Admin\AFK4.OrganizationAdmin.App.exe"),
             ["OrganizationAdminUpdateCoordinationPipeName"] = organizationAdminPipeName,
@@ -48,6 +48,10 @@ public static class AgentBootstrapValues
                 $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(helperDirectory, "restart-afk4-agent-service.ps1")}\"",
         };
     }
+
+    /// <summary>Куда MSI ставит хост оболочки игрока. Им же киоск подменяет проводник.</summary>
+    public static string PlayerShellExecutablePath() =>
+        Path.Combine(ProgramFilesPath(), @"AFK4\Player Shell\AFK4.Player.Shell.exe");
 
     private static string DeriveOrganizationAdminCoordinationSecret(SetupWizardBootstrapConfig config)
     {

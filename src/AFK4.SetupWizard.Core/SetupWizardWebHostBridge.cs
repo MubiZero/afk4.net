@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Branding;
+using AFK4.SetupWizard.Core.Kiosk;
 
 namespace AFK4.SetupWizard.Core;
 
@@ -16,7 +17,9 @@ public sealed class SetupWizardWebHostBridge(
     ISetupWizardShellProvisioner shellProvisioner,
     ISetupWizardShellProvisioner operatorProvisioner,
     ISetupWizardOperatorLauncher operatorLauncher,
-    ILogoFilePicker? logoFilePicker = null)
+    ILogoFilePicker? logoFilePicker = null,
+    KioskProvisioner? kiosk = null,
+    ISetupWizardRebootAction? reboot = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -74,6 +77,9 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:saveBranding" => await SaveBrandingAsync(request.Payload, cancellationToken),
                 "wizard:uploadLogo" => await UploadLogoAsync(request.Payload, cancellationToken),
                 "wizard:provisionShell" => await FinalizeForRoleAsync(ReadProvisionRole(request.Payload), cancellationToken),
+                "wizard:kioskStatus" => new WizardKioskStatus(kiosk?.IsInstalled ?? false),
+                "wizard:removeKiosk" => await RemoveKioskAsync(cancellationToken),
+                "wizard:reboot" => Reboot(),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
 
@@ -176,7 +182,12 @@ public sealed class SetupWizardWebHostBridge(
 
         var status = result.Status == ShellProvisionStatus.AlreadyPresent ? "already_present" : "installed";
         SetupWizardStartupLog.Write($"{role} app install {status} (exitCode={result.ExitCode}).");
-        var outcome = StartAgentService(new WizardShellOutcome(status, result.ExitCode, null));
+
+        // Киоск — после того как оболочка встала: учётка с оболочкой, которой нет на диске, после
+        // перезагрузки показала бы чёрный экран. И до запуска агента: SID для прав на канал он
+        // читает один раз, при старте.
+        var kioskOutcome = role == DeviceRoleNames.GamingPc ? ProvisionKiosk() : null;
+        var outcome = StartAgentService(new WizardShellOutcome(status, result.ExitCode, null, kioskOutcome));
         if (outcome.Status == AgentStartFailedStatus)
         {
             return outcome;
@@ -211,8 +222,60 @@ public sealed class SetupWizardWebHostBridge(
         catch (Exception exception)
         {
             SetupWizardStartupLog.Write("Agent service could not be started after enrollment.", exception);
-            return new WizardShellOutcome(AgentStartFailedStatus, installOutcome.ExitCode, exception.Message);
+            return new WizardShellOutcome(AgentStartFailedStatus, installOutcome.ExitCode, exception.Message, installOutcome.Kiosk);
         }
+    }
+
+    /// <summary>
+    /// Учётка игрока, автовход и оболочка вместо проводника (спека оболочки, §6.1). Сорвалось —
+    /// ПК всё равно работает, как до киоска: оболочку поднимет агент в текущей учётке. Поэтому
+    /// агента запускаем в любом случае, а экран «Готово» говорит, что киоска нет, и даёт повтор.
+    /// </summary>
+    private WizardKioskOutcome? ProvisionKiosk()
+    {
+        if (kiosk is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var sid = kiosk.Provision(AgentBootstrapValues.PlayerShellExecutablePath());
+            SetupWizardStartupLog.Write($"Kiosk ready: player account {sid} signs in on its own after a restart.");
+            return new WizardKioskOutcome("ready", null);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            SetupWizardStartupLog.Write("The kiosk could not be set up.", exception);
+            return new WizardKioskOutcome("failed", exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// «Снять киоск»: вернуть проводник и настройки входа, удалить учётку игрока — и перезапустить
+    /// агента, чтобы канал с оболочкой снова пускал любого вошедшего, а не удалённую учётку.
+    /// </summary>
+    private Task<WizardKioskStatus> RemoveKioskAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (kiosk is null)
+        {
+            return Task.FromResult(new WizardKioskStatus(false));
+        }
+
+        return Task.Run(() =>
+        {
+            kiosk.Remove();
+            SetupWizardStartupLog.Write("Kiosk removed: the player account and autologon are gone.");
+            completionAction.Complete();
+            return new WizardKioskStatus(kiosk.IsInstalled);
+        }, CancellationToken.None);
+    }
+
+    private object Reboot()
+    {
+        (reboot ?? throw new InvalidOperationException("This wizard cannot restart the PC.")).Reboot();
+        return new { };
     }
 
     private async Task<WizardPhoneSignInResult> PhoneSignInAsync(JsonElement payload, CancellationToken cancellationToken)
@@ -657,6 +720,8 @@ public sealed class SetupWizardWebHostBridge(
         "wizard:createSeatAuth" => "wizard_create_seat_failed",
         "wizard:enrollAuth" => "wizard_enroll_failed",
         "wizard:provisionShell" => "wizard_shell_provision_failed",
+        "wizard:removeKiosk" => "wizard_kiosk_remove_failed",
+        "wizard:reboot" => "wizard_reboot_failed",
         // Шаги настройки клуба. Без своих кодов все четыре падали в общий wizard_request_failed,
         // и экран не мог сказать даже, что именно не получилось.
         "wizard:brandingPresets" => "wizard_branding_presets_failed",
@@ -793,5 +858,10 @@ public sealed class SetupWizardWebHostBridge(
         string UpdateChannel,
         WizardShellOutcome Shell);
 
-    private sealed record WizardShellOutcome(string Status, int? ExitCode, string? Message);
+    private sealed record WizardShellOutcome(string Status, int? ExitCode, string? Message, WizardKioskOutcome? Kiosk = null);
+
+    /// <summary>Киоск на игровом ПК: ready — войдёт в учётку игрока после перезагрузки; failed — нет.</summary>
+    private sealed record WizardKioskOutcome(string Status, string? Message);
+
+    private sealed record WizardKioskStatus(bool Installed);
 }

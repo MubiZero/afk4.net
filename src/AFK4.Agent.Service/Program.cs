@@ -18,26 +18,34 @@ builder.Logging.AddProvider(new FileLoggerProvider(FileLoggerProvider.DefaultLog
 // added last so it overrides env vars): a service launched by the SCM inherits a stale
 // environment block, so machine env vars written by the wizard are not visible until the next
 // reboot — but the file is read fresh on every start. See FileBootstrapWriter.
-var bootstrapConfigPath = Path.Combine(
+var agentConfigDirectory = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
     "AFK4",
-    "Agent",
-    "bootstrap.json");
+    "Agent");
 
 // Load into memory via a stream rather than AddJsonFile so an unreadable file (ACL denial,
 // partial write) is swallowed here instead of throwing during host build — a kiosk Agent must
 // not fail to start over a config-read error; it falls back to environment configuration.
-try
+void AddAgentConfigFile(string fileName)
 {
-    if (File.Exists(bootstrapConfigPath))
+    var path = Path.Combine(agentConfigDirectory, fileName);
+    try
     {
-        builder.Configuration.AddJsonStream(new MemoryStream(File.ReadAllBytes(bootstrapConfigPath)));
+        if (File.Exists(path))
+        {
+            builder.Configuration.AddJsonStream(new MemoryStream(File.ReadAllBytes(path)));
+        }
+    }
+    catch (Exception readException)
+    {
+        Console.Error.WriteLine($"Failed to read agent config '{path}': {readException.Message}");
     }
 }
-catch (Exception bootstrapReadException)
-{
-    Console.Error.WriteLine($"Failed to read bootstrap config '{bootstrapConfigPath}': {bootstrapReadException.Message}");
-}
+
+AddAgentConfigFile("bootstrap.json");
+// Учётка игрока киоска (спека оболочки, §6.1): мастер пишет её SID отдельным файлом, а «Снять
+// киоск» просто удаляет его — настройка с ключом устройства при этом не переписывается.
+AddAgentConfigFile("kiosk.json");
 
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection("Agent"));
 

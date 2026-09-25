@@ -59,6 +59,19 @@ export interface WizardShellOutcome {
   status: 'installed' | 'already_present' | 'skipped' | 'failed' | 'agent_start_failed';
   exitCode: number | null;
   message: string | null;
+  /// Киоск на игровом ПК (спека оболочки, §6.1). Нет поля — киоск не ставили: другая роль или
+  /// приложение не встало.
+  kiosk?: WizardKioskOutcome;
+}
+
+export interface WizardKioskOutcome {
+  /// ready — после перезагрузки Windows сама войдёт в учётку игрока; failed — не вышло.
+  status: 'ready' | 'failed';
+  message: string | null;
+}
+
+export interface WizardKioskStatus {
+  installed: boolean;
 }
 
 export type WizardRole = 'gaming_pc' | 'manager_workstation';
@@ -215,6 +228,21 @@ export function authenticatedInstallClient(): WizardInstallClient {
  *  manager_workstation) after a failed attempt. */
 export function provisionShell(role: WizardRole): Promise<WizardShellOutcome> {
   return postHostRequest<WizardShellOutcome>('wizard:provisionShell', { role }, ENROLL_TIMEOUT_MS);
+}
+
+/** Стоит ли на этом ПК киоск — от этого зависит, показывать ли «Снять киоск». */
+export function kioskStatus(): Promise<WizardKioskStatus> {
+  return postHostRequest<WizardKioskStatus>('wizard:kioskStatus', {});
+}
+
+/** «Снять киоск»: учётка игрока, автовход и подмена проводника уходят; агент перезапускается. */
+export function removeKiosk(): Promise<WizardKioskStatus> {
+  return postHostRequest<WizardKioskStatus>('wizard:removeKiosk', {}, ENROLL_TIMEOUT_MS);
+}
+
+/** Перезагрузить ПК: автовход срабатывает только при запуске Windows. */
+export function rebootPc(): Promise<void> {
+  return postHostRequest<void>('wizard:reboot', {});
 }
 
 export function closeWizard(): void {

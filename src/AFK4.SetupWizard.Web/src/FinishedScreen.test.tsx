@@ -34,6 +34,7 @@ function renderFinished(
   role: WizardRole = 'gaming_pc',
   shell: WizardShellOutcome = failedShell,
   provisionShell = mock(async (_role: WizardRole) => installed),
+  reboot = mock(async () => {}),
 ) {
   const onClose = mock(() => {});
   render(
@@ -44,15 +45,42 @@ function renderFinished(
         selectedSeat={null}
         stepNumber={5}
         provisionShell={provisionShell}
+        reboot={reboot}
         onClose={onClose}
       />
     </I18nProvider>,
   );
-  return { provisionShell, onClose };
+  return { provisionShell, onClose, reboot };
 }
 
 describe('FinishedScreen', () => {
   afterEach(cleanup);
+
+  // Без перезагрузки киоск не заработает — это единственная удача, о которой экран говорит вслух.
+  it('после киоска просит перезагрузить ПК и перезагружает по кнопке', async () => {
+    const { reboot } = renderFinished('gaming_pc', { ...installed, kiosk: { status: 'ready', message: null } });
+
+    expect(screen.getByText(/Перезагрузите ПК — Windows войдёт в неё сама/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Перезагрузить сейчас' }));
+
+    await waitFor(() => expect(reboot).toHaveBeenCalledTimes(1));
+  });
+
+  it('киоск не встал — говорит, что ПК работает без него, и даёт повторить', async () => {
+    const provisionShell = mock(async (_role: WizardRole) => ({ ...installed, kiosk: { status: 'ready' as const, message: null } }));
+    renderFinished('gaming_pc', { ...installed, kiosk: { status: 'failed', message: 'Access is denied.' } }, provisionShell);
+
+    expect(screen.getByText(/Не получилось настроить автовход в учётку игрока/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить установку' }));
+
+    expect(await screen.findByRole('button', { name: 'Перезагрузить сейчас' })).toBeInTheDocument();
+  });
+
+  it('без киоска строки киоска нет', () => {
+    renderFinished('manager_workstation', installed);
+
+    expect(screen.queryByRole('button', { name: 'Перезагрузить сейчас' })).toBeNull();
+  });
 
   it('показывает итог установки: филиал, роль и имя ПК', () => {
     renderFinished('gaming_pc', installed);

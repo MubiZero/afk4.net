@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
 using AFK4.SetupWizard.Core;
+using AFK4.SetupWizard.Core.Kiosk;
 using AFK4.SetupWizard.Web;
 
 namespace AFK4.SetupWizard;
@@ -57,7 +58,9 @@ public partial class App : Application
             new MsiexecPlayerShellProvisioner(payloadResolver, processRunner),
             new MsiexecOrganizationAdminProvisioner(payloadResolver, processRunner),
             new ExplorerOrganizationAdminLauncher(),
-            new OpenFileDialogLogoPicker());
+            new OpenFileDialogLogoPicker(),
+            new KioskProvisioner(new WindowsKioskMachine(), new FileKioskStateStore(), new FileKioskAgentConfig()),
+            new ShutdownRebootAction(processRunner));
 
         LaunchWebShell(bridge, machineInfo, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
         base.OnStartup(e);
