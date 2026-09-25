@@ -101,6 +101,8 @@ button {
 
 .btn:focus-visible,
 .offer-tile:focus-visible,
+.sheet__close:focus-visible,
+.time-money__sign-out:focus-visible,
 .system-bar__language:focus-visible,
 .system-controls__button:focus-visible,
 .system-controls__volume input:focus-visible {
@@ -724,19 +726,200 @@ button {
   gap: 2rem;
 }
 
-.session-screen__time {
+/* Тело сессии: игры слева, колонка «время и деньги» справа (кадр 03, каркас как у Senet). */
+.session-screen__body {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  justify-items: end;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+  gap: 2rem;
 }
 
-.session-screen__time-label {
+.time-money {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  padding: 1.6rem;
+  border-radius: var(--shell-radius);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  align-self: start;
+}
+
+.time-money__time {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.time-money__label,
+.time-money__until,
+.time-money__hint {
   color: var(--text-secondary);
 }
 
-.session-screen__countdown {
+.time-money__hint {
+  margin: 0;
+}
+
+.time-money__countdown {
   font-size: 3.6rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.05;
+}
+
+.time-money__actions {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.time-money__sign-out {
+  justify-self: center;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.time-money__sign-out:hover {
+  color: var(--text-primary);
+}
+
+/* Лист продления и раннего выхода: поверх сессии, справа, фон не кликабелен. */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(0 0 0 / 0.45);
+  z-index: 20;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  width: min(34rem, 100%);
+  height: 100%;
+  padding: var(--shell-gutter);
+  background: var(--surface-elevated);
+  border-left: 1px solid var(--border-soft);
+  overflow-y: auto;
+  animation: sheet-in var(--shell-duration-small) var(--ease-standard);
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateX(2rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sheet__title {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.sheet__close {
+  display: grid;
+  place-items: center;
+  width: var(--shell-control);
+  height: var(--shell-control);
+  border: 0;
+  border-radius: 0.8rem;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.sheet__close:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-card);
+}
+
+.sheet__meta,
+.sheet__note {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.sheet__facts {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 1.2rem;
+}
+
+.sheet__fact--strong {
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.sheet__error {
+  margin: 0;
+  color: var(--danger-text);
+}
+
+.sheet__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: auto;
+}
+
+/* Итог раннего выхода */
+.summary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: var(--shell-gutter);
+}
+
+.summary__body {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.6rem;
+  text-align: center;
+  font-size: 1.3rem;
+}
+
+.summary__body p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.summary__icon {
+  width: 4rem;
+  height: 4rem;
+  color: var(--shell-accent);
+}
+
+.summary__title {
+  margin: 0 0 0.6rem;
+  font-size: 2.6rem;
+}
+
+.summary__body .summary__refund {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.summary__actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
 }
 
 .banner {
@@ -759,6 +942,12 @@ button {
   background: var(--warning-soft-bg);
   border: 1px solid var(--warning-soft-border);
   color: var(--warning-text);
+}
+
+.banner--success {
+  background: var(--success-soft-bg);
+  border: 1px solid var(--success-soft-border);
+  color: var(--success-text);
 }
 
 .banner--danger {

@@ -2,15 +2,22 @@ import { useState } from 'react';
 import {
   ShellBridgeRequestTypeNames,
   type LauncherAppDto,
+  type PlayerSelfEndSessionResponse,
   type PlayerShellStateDto,
+  type ShellAuthStateDto,
   type ShellSystemStateDto
 } from '@afk4/contracts';
 import { useI18n } from '@afk4/i18n';
 import { AlertTriangle, WifiOff } from 'lucide-react';
+import { apiBaseUrl } from '../api/playerApi';
 import { requestHost } from '../host/shellHost';
-import { Countdown } from '../ui/Countdown';
+import { clubTime } from '../model/offers';
+import { sessionRole } from '../model/session';
 import { SeatBadge } from '../ui/SeatBadge';
 import { SystemControls } from '../ui/SystemControls';
+import { EndEarlySheet } from './session/EndEarlySheet';
+import { ExtendSheet } from './session/ExtendSheet';
+import { TimeMoneyColumn } from './session/TimeMoneyColumn';
 
 interface SessionScreenProps {
   state: PlayerShellStateDto;
@@ -18,29 +25,40 @@ interface SessionScreenProps {
   variant: 'session' | 'ending' | 'grace';
   /** Звук, микрофон, раскладка: системной строки в сессии нет, кнопки живут в шапке. */
   system?: ShellSystemStateDto | null;
+  auth?: ShellAuthStateDto;
+  /** Владелец сессии не вошёл на ПК — открыть окно входа поверх сессии. */
+  onSignIn?: () => void;
+  /** Встал раньше — итог показывает следующий экран. */
+  onEnded?: (result: PlayerSelfEndSessionResponse) => void;
 }
 
+const signedOut: ShellAuthStateDto = { signedIn: false, displayName: null, playerAccountId: null };
+
 /**
- * Идёт оплаченная сессия: сколько осталось и игры клуба. Вкладки бара, пополнения, продления и
- * «Встать раньше» — срез P4c; здесь — то, без чего сессия не сессия.
+ * Идёт оплаченная сессия (кадр 03): игры клуба и колонка «время и деньги» — продлить, встать
+ * раньше. Вкладки бара и пополнения — срез P4c-3.
  */
-export function SessionScreen({ state, receivedAtMs, variant, system = null }: SessionScreenProps) {
-  const { t } = useI18n();
+export function SessionScreen({
+  state,
+  receivedAtMs,
+  variant,
+  system = null,
+  auth = signedOut,
+  onSignIn = () => {},
+  onEnded = () => {}
+}: SessionScreenProps) {
+  const { t, locale } = useI18n();
+  const [sheet, setSheet] = useState<'extend' | 'end' | null>(null);
+  const [extendedUntil, setExtendedUntil] = useState<string | null>(null);
+  const baseUrl = apiBaseUrl(state);
+  const role = sessionRole(state, auth);
+  const offline = variant === 'grace' || !state.isOnline;
 
   return (
     <main className="session-screen">
       <header className="session-screen__top">
         <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} />
         <SystemControls system={system} />
-        <div className="session-screen__time">
-          <span className="session-screen__time-label">{t('playerShell.session.remaining')}</span>
-          <Countdown
-            className="session-screen__countdown"
-            untilUtc={state.leaseExpiresAtUtc}
-            observedAtUtc={state.observedAtUtc}
-            receivedAtMs={receivedAtMs}
-          />
-        </div>
       </header>
 
       {variant === 'grace' ? (
@@ -56,6 +74,13 @@ export function SessionScreen({ state, receivedAtMs, variant, system = null }: S
         </p>
       ) : null}
 
+      {extendedUntil ? (
+        <p className="banner banner--success" role="status">
+          {t('playerShell.extend.done', { time: clubTime(extendedUntil, undefined, locale) })}
+        </p>
+      ) : null}
+
+      <div className="session-screen__body">
       <section className="library" aria-labelledby="library-title">
         <h2 id="library-title" className="library__title">{t('playerShell.session.library')}</h2>
         {state.launcherApps.length === 0 ? (
@@ -70,6 +95,41 @@ export function SessionScreen({ state, receivedAtMs, variant, system = null }: S
           </ul>
         )}
       </section>
+
+      <TimeMoneyColumn
+        state={state}
+        receivedAtMs={receivedAtMs}
+        role={role}
+        offline={offline || !baseUrl}
+        onExtend={() => setSheet('extend')}
+        onEndEarly={() => setSheet('end')}
+        onSignIn={onSignIn}
+        onSignOut={() => void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {})}
+      />
+      </div>
+
+      {sheet === 'extend' && baseUrl && state.sessionId ? (
+        <ExtendSheet
+          baseUrl={baseUrl}
+          sessionId={state.sessionId}
+          onClose={() => setSheet(null)}
+          onExtended={(endsAtUtc) => {
+            setSheet(null);
+            setExtendedUntil(endsAtUtc);
+          }}
+        />
+      ) : null}
+      {sheet === 'end' && baseUrl && state.sessionId ? (
+        <EndEarlySheet
+          baseUrl={baseUrl}
+          sessionId={state.sessionId}
+          onClose={() => setSheet(null)}
+          onEnded={(result) => {
+            setSheet(null);
+            onEnded(result);
+          }}
+        />
+      ) : null}
     </main>
   );
 }

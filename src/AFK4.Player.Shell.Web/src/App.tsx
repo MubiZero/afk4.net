@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { ShellBridgeRequestTypeNames, type PlayerSelfEndSessionResponse } from '@afk4/contracts';
 import { useI18n, isLocale } from '@afk4/i18n';
 import { AlertOctagon, Loader2, WifiOff, Wrench } from 'lucide-react';
-import { useShellHost } from './host/shellHost';
+import { requestHost, useShellHost } from './host/shellHost';
 import { clubAccent } from './model/branding';
 import { selectScreen } from './model/screen';
 import { ChooseTimeScreen } from './screens/ChooseTimeScreen';
@@ -9,6 +10,7 @@ import { IdleScreen } from './screens/IdleScreen';
 import { SessionScreen } from './screens/SessionScreen';
 import { SignInPanel } from './screens/SignInPanel';
 import { StatusScreen } from './screens/StatusScreen';
+import { SummaryScreen } from './screens/SummaryScreen';
 import { AssistButton } from './ui/AssistButton';
 import { SeatBadge } from './ui/SeatBadge';
 import { SystemBar } from './ui/SystemBar';
@@ -18,6 +20,24 @@ export function App() {
   const host = useShellHost();
   const { state } = host;
   const [approached, setApproached] = useState(false);
+  // Итог раннего выхода: ответ сервера на «Встать раньше» — его показывает запертый ПК.
+  const [ended, setEnded] = useState<PlayerSelfEndSessionResponse | null>(null);
+  // Владелец сессии, севший с телефона, входит поверх экрана сессии, чтобы продлить.
+  const [signingIn, setSigningIn] = useState(false);
+
+  useEffect(() => {
+    if (host.auth.signedIn) setSigningIn(false);
+  }, [host.auth.signedIn]);
+
+  // Вышел — итог больше не его: следующий за этим ПК его не увидит.
+  useEffect(() => {
+    if (!host.auth.signedIn) setEnded(null);
+  }, [host.auth.signedIn]);
+
+  const leaveAfterSummary = useCallback(() => {
+    setEnded(null);
+    void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
+  }, []);
 
   // Подошли к свободному ПК — витрина уступает место окну входа; отошли — возвращается.
   const lastActivity = useRef(host.activity);
@@ -44,7 +64,7 @@ export function App() {
   const accent = clubAccent(state?.branding?.accentColor);
   const shellStyle = accent ? ({ '--club-accent': accent } as CSSProperties) : undefined;
 
-  const screen = selectScreen({ state, signedIn: host.auth.signedIn, approached });
+  const screen = selectScreen({ state, signedIn: host.auth.signedIn, approached, ended: ended !== null });
   const online = state?.isOnline ?? false;
 
   return (
@@ -97,7 +117,24 @@ export function App() {
       case 'session':
       case 'ending':
       case 'grace':
-        return <SessionScreen state={state!} receivedAtMs={host.stateReceivedAtMs} variant={screen} system={host.system} />;
+        return (
+          <>
+            <SessionScreen
+              state={state!}
+              receivedAtMs={host.stateReceivedAtMs}
+              variant={screen}
+              system={host.system}
+              auth={host.auth}
+              onSignIn={() => setSigningIn(true)}
+              onEnded={setEnded}
+            />
+            {signingIn && !host.auth.signedIn ? <SignInPanel state={state!} onClose={() => setSigningIn(false)} /> : null}
+          </>
+        );
+      case 'summary':
+        return (
+          <SummaryScreen state={state!} result={ended!} onPlayMore={() => setEnded(null)} onLeave={leaveAfterSummary} />
+        );
       case 'chooseTime':
         return <ChooseTimeScreen state={state!} auth={host.auth} />;
       case 'approach':

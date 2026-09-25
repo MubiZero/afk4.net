@@ -10,6 +10,7 @@ export type ShellScreen =
   | 'idle'
   | 'approach'
   | 'chooseTime'
+  | 'summary'
   | 'session'
   | 'ending'
   | 'grace'
@@ -24,9 +25,11 @@ export interface ScreenInput {
   signedIn: boolean;
   /** Мышь или клавиатура тронуты на свободном ПК: витрина уступает место окну входа. */
   approached: boolean;
+  /** Игрок только что встал раньше: запертый ПК сначала показывает ему итог. */
+  ended?: boolean;
 }
 
-export function selectScreen({ state, signedIn, approached }: ScreenInput): ShellScreen {
+export function selectScreen({ state, signedIn, approached, ended = false }: ScreenInput): ShellScreen {
   if (state === null) return 'connecting';
 
   switch (state.state) {
@@ -43,7 +46,9 @@ export function selectScreen({ state, signedIn, approached }: ScreenInput): Shel
     case PlayerShellStateNames.Active:
       return 'session';
     default:
-      // Заперт: вошедший выбирает время, подошедший — входит, остальным крутится витрина.
+      // Заперт: вставший раньше видит итог, вошедший выбирает время, подошедший — входит,
+      // остальным крутится витрина.
+      if (signedIn && ended) return 'summary';
       if (signedIn) return 'chooseTime';
       return approached ? 'approach' : 'idle';
   }

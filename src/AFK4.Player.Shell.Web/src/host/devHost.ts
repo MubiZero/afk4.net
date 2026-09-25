@@ -4,6 +4,7 @@ import {
   ShellBridgeRequestTypeNames,
   type PlayerShellStateDto,
   type ShellAuthStateDto,
+  type PlayerExtendOffersDto,
   type PlayerStartOffersDto,
   type ShellSnapshotDto,
   type ShellSystemStateDto
@@ -111,7 +112,10 @@ export function installDevHost(): void {
   const emit = (data: unknown) => queueMicrotask(() => {
     for (const listener of listeners) listener({ data });
   });
-  let auth: ShellAuthStateDto = { signedIn: false, displayName: null, playerAccountId: null };
+  // ?signedIn=1 — сразу вошедший владелец сессии: экраны с деньгами видно без формы входа.
+  let auth: ShellAuthStateDto = params.get('signedIn') === '1'
+    ? { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' }
+    : { signedIn: false, displayName: null, playerAccountId: null };
   let system: ShellSystemStateDto = { volume: 60, micMuted: false, layout: 'RU' };
 
   window.chrome = {
@@ -164,7 +168,7 @@ export function installDevHost(): void {
     }
   };
 
-  installDevApi(() => emit({ type: ShellBridgeEventTypeNames.StateChanged, payload: devScenarioState('session') }));
+  installDevApi((next) => emit({ type: ShellBridgeEventTypeNames.StateChanged, payload: devScenarioState(next) }));
 
   // «Подошли к ПК» — через полсекунды после загрузки, как если бы тронули мышь.
   if (scenario === 'approach') {
@@ -176,16 +180,30 @@ export function installDevHost(): void {
  * Учебный сервер клуба: цены для «Сколько играем» и старт. Настоящий адрес из учебного состояния
  * никуда не ведёт, поэтому запросы к нему отвечаются здесь; остальные уходят как есть.
  */
-function installDevApi(onStarted: () => void): void {
+function installDevApi(moveTo: (scenario: DevScenario) => void): void {
   const realFetch = window.fetch.bind(window);
   const devFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+    const post = init?.method === 'POST';
     if (url.pathname === '/api/me/this-pc/start-offers') {
       return json(devStartOffers(Date.now()));
     }
-    if (url.pathname === '/api/me/sessions/start' && init?.method === 'POST') {
-      setTimeout(onStarted, 600);
+    if (url.pathname === '/api/me/sessions/start' && post) {
+      setTimeout(() => moveTo('session'), 600);
       return json({});
+    }
+    if (url.pathname.endsWith('/extend-offers')) {
+      return json(devExtendOffers(Date.now()));
+    }
+    if (url.pathname.endsWith('/extend') && post) {
+      return json({});
+    }
+    if (url.pathname.endsWith('/end-quote')) {
+      return json({ billedMinutes: 35, refund: TJS(1_000), packageMinutesReturned: 0 });
+    }
+    if (url.pathname.endsWith('/end') && post) {
+      setTimeout(() => moveTo('idle'), 400);
+      return json({ billedMinutes: 35, refunded: TJS(1_000), packageMinutesReturned: 0 });
     }
     return realFetch(input, init);
   };
@@ -240,5 +258,26 @@ export function devStartOffers(nowMs: number): PlayerStartOffersDto {
     packages: [
       { playerPackageId: '00000000-0000-4000-8000-000000000201', name: 'Пакет «5 часов»', remainingMinutes: 200, expiresAtUtc: null }
     ]
+  };
+}
+
+export function devExtendOffers(nowMs: number): PlayerExtendOffersDto {
+  const balance = 4_500;
+  const endsAt = nowMs + 95 * 60_000;
+  return {
+    sessionId: '00000000-0000-4000-8000-000000000010',
+    balance: TJS(balance),
+    options: [30, 60, 120, 180].map((minutes) => {
+      const amount = (minutes / 60) * 1_000;
+      return {
+        minutes,
+        billableMinutes: minutes,
+        endsAtUtc: new Date(endsAt + minutes * 60_000).toISOString(),
+        amount: TJS(amount),
+        balanceAfter: TJS(balance - amount),
+        affordable: amount <= balance
+      };
+    }),
+    unavailableReason: null
   };
 }

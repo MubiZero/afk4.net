@@ -22,8 +22,8 @@ export function packageMinuteOptions(remainingMinutes: number): number[] {
 
 export const INTL_LOCALES: Record<Locale, string> = { ru: 'ru-RU', tg: 'tg-TJ', en: 'en-GB' };
 
-/** «до 21:40» — по часам клуба, а не по поясу, выставленному на ПК. */
-export function clubTime(isoUtc: string, timeZone: string, locale: Locale): string {
+/** «до 21:40» — по часам клуба, а не по поясу, выставленному на ПК. Пояс не пришёл — время ПК. */
+export function clubTime(isoUtc: string, timeZone: string | undefined, locale: Locale): string {
   try {
     return new Intl.DateTimeFormat(INTL_LOCALES[locale], { hour: '2-digit', minute: '2-digit', timeZone }).format(new Date(isoUtc));
   } catch {
