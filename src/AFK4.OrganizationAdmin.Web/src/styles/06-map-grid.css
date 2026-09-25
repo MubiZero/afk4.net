@@ -1769,3 +1769,118 @@
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* Выбор нескольких мест для общей команды (P6a). Выбранное для команды — отдельно от места,
+   открытого в карточке: у открытого ободок, у выбранного — отметка в углу. */
+.zone-group-pick {
+  margin-left: auto;
+  padding: 2px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.zone-group-pick:hover,
+.zone-group-pick:focus-visible {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.zone-group-pick[aria-pressed='true'] {
+  border-color: var(--border-accent);
+  color: var(--accent-text);
+}
+
+.seat-tile.picked {
+  /* Отметка в углу держится за саму плитку, а не за сетку зала. */
+  position: relative;
+  border-color: var(--accent);
+}
+
+.seat-picked-mark {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--accent) center / 10px no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.seat-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: 7px;
+  background: var(--surface-card);
+}
+
+.seat-selection-count {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.seat-selection-actions {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.seat-selection-actions .ui-btn,
+.seat-selection-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pc-dialog-impact {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pc-dialog-list {
+  display: grid;
+  gap: 4px;
+}
+
+.pc-dialog-list-title {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pc-dialog-list p,
+.pc-dialog-list ul {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.pc-dialog-list ul {
+  display: grid;
+  gap: 2px;
+  padding-left: 18px;
+}
+
+.pc-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -17,12 +17,18 @@ const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'ari
 export function SeatTile({
   seat,
   selected,
+  picked,
+  onPick,
   onSelect,
   onStartSession,
   onContextMenu
 }: {
   seat: SeatSummary;
   selected?: boolean;
+  /** Место выбрано для общей команды нескольким ПК. */
+  picked?: boolean;
+  /** Ctrl/⌘-клик — добавить или убрать место, Shift-клик — несколько подряд. */
+  onPick?: (mode: 'toggle' | 'range') => void;
   onSelect: () => void;
   onStartSession?: () => void;
   onContextMenu?: (event: ReactMouseEvent) => void;
@@ -35,7 +41,8 @@ export function SeatTile({
   const clientName = hasSession ? (seat.playerDisplayName?.trim() || t('op.floor.player.guest')) : null;
   const className = ['seat-tile', `state-${seat.tone}`,
     isAttentionTone(seat.tone) ? 'seat-tile--alert' : '',
-    selected ? 'selected' : ''].filter(Boolean).join(' ');
+    selected ? 'selected' : '',
+    picked ? 'picked' : ''].filter(Boolean).join(' ');
   const ProblemIcon = lead.kind === 'plain' ? PROBLEM_ICON[seat.tone] : undefined;
   // Сессия идёт, но ПК без связи: тон серый, время/сумма сессии остаются — значок обрыва говорит,
   // что деньги капают без контроля над ПК (сессия не теряется, см. модель SeatTone).
@@ -55,9 +62,17 @@ export function SeatTile({
   return (
     <article
       className={className}
-      aria-label={`${seat.name} ${seat.stateLabel}`}
+      aria-label={picked ? `${seat.name} ${seat.stateLabel}, ${t('op.map.pick.picked')}` : `${seat.name} ${seat.stateLabel}`}
       aria-pressed={selected}
-      onClick={activate}
+      onClick={(event) => {
+        // С модификатором клик выбирает место для общей команды, а не запускает сессию на свободном.
+        if (onPick && (event.ctrlKey || event.metaKey || event.shiftKey)) {
+          event.preventDefault();
+          onPick(event.shiftKey ? 'range' : 'toggle');
+          return;
+        }
+        activate();
+      }}
       onContextMenu={onContextMenu}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -68,6 +83,7 @@ export function SeatTile({
       role="button"
       tabIndex={0}
     >
+      {picked && <span className="seat-picked-mark" aria-hidden="true" />}
       <header className="seat-head">
         <span className="seat-id">
           {/* Цвет точки = состояние места (--seat-color); имя ПК — главная идентификация,

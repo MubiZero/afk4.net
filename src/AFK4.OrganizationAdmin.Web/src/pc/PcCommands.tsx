@@ -1,41 +1,12 @@
-import { useId, useState, type ReactNode } from 'react';
-import { Check, Loader2, LogOut, MessageSquare, Power, RotateCw, Sunrise, Wrench } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Check, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { projectOperatorFacingError } from '../operatorHelpers';
 import type { SeatSummary } from '../operatorData';
 import type { PcControlActionId, PcControlActionOptions, PcControlActionResult } from '../operatorTypes';
 import { CriticalActionConfirmation } from '../operatorPrimitives';
 import { PC_MESSAGE_MAX_LENGTH, pcCommandsFor, type PcCommandAccess, type PcCommandId } from './pcCommandOptions';
-
-const LABELS: Record<PcCommandId, MessageKey> = {
-  reboot: 'op.pc.reboot',
-  shutdown: 'op.pc.shutdown',
-  wake: 'op.pc.wake',
-  'maintenance-on': 'op.pc.maintenanceOn',
-  'maintenance-off': 'op.pc.maintenanceOff',
-  'sign-out': 'op.pc.signOut',
-  message: 'op.pc.message'
-};
-
-const ICONS: Record<PcCommandId, ReactNode> = {
-  reboot: <RotateCw size={14} aria-hidden="true" />,
-  shutdown: <Power size={14} aria-hidden="true" />,
-  wake: <Sunrise size={14} aria-hidden="true" />,
-  'maintenance-on': <Wrench size={14} aria-hidden="true" />,
-  'maintenance-off': <Wrench size={14} aria-hidden="true" />,
-  'sign-out': <LogOut size={14} aria-hidden="true" />,
-  message: <MessageSquare size={14} aria-hidden="true" />
-};
-
-type ConfirmCopy = { title: MessageKey; impact: MessageKey; confirm: MessageKey };
-
-const CONFIRM: Partial<Record<PcCommandId, ConfirmCopy>> = {
-  reboot: { title: 'op.pc.confirm.rebootTitle', impact: 'op.pc.confirm.rebootImpact', confirm: 'op.pc.reboot' },
-  shutdown: { title: 'op.pc.confirm.shutdownTitle', impact: 'op.pc.confirm.shutdownImpact', confirm: 'op.pc.shutdown' },
-  'maintenance-on': { title: 'op.pc.confirm.maintenanceTitle', impact: 'op.pc.confirm.maintenanceImpact', confirm: 'op.pc.maintenanceOn' },
-  'sign-out': { title: 'op.pc.confirm.signOutTitle', impact: 'op.pc.confirm.signOutImpact', confirm: 'op.pc.confirm.signOutButton' },
-  message: { title: 'op.pc.confirm.messageTitle', impact: 'op.pc.confirm.messageImpact', confirm: 'op.pc.confirm.messageSend' }
-};
+import { PC_COMMAND_CONFIRM as CONFIRM, PC_COMMAND_ICONS as ICONS, PC_COMMAND_LABELS as LABELS } from './pcCommandCopy';
 
 type Outcome = { id: PcCommandId; state: 'pending' | 'confirmed' | 'failed'; detail?: string };
 
