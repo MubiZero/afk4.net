@@ -4,6 +4,13 @@
 // call this as a function, so this narrower contract is the correct one.
 import type { PlatformAdminSignInResponse } from '@afk4/contracts';
 export type {
+  AdCampaignDto,
+  AdCampaignStateName,
+  AdCategoryName,
+  AdCreativeDto,
+  AdImpressionRowDto,
+  AdModerationName,
+  AdvertiserDto,
   CatalogGameDto,
   CreateBranchRequest,
   CreateOrganizationRequest,
@@ -11,11 +18,15 @@ export type {
   CreatePlanRequest,
   CreatePlatformUpdatePackageRequest,
   CreatePlatformUpdateRolloutRequest,
+  ModerateAdCreativeRequest,
   PlatformAdminListItem,
   PlatformAdminSignInChallengeResponse,
   PlatformAdminSignInResponse,
   UpdatePlanRequest,
   UpdateSubscriptionRequest,
+  UpsertAdCampaignRequest,
+  UpsertAdCreativeRequest,
+  UpsertAdvertiserRequest,
   UpsertCatalogGameRequest,
 } from '@afk4/contracts';
 

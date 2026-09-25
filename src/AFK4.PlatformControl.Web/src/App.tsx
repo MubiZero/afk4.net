@@ -29,6 +29,8 @@ const AuditScreen = lazy(() => import('./platform/audit/AuditScreen').then(modul
 const SettingsScreen = lazy(() => import('./platform/settings/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
 const AnnouncementsScreen = lazy(() => import('./platform/announcements/AnnouncementsScreen').then(module => ({ default: module.AnnouncementsScreen })));
 const GamesScreen = lazy(() => import('./platform/games/GamesScreen').then(module => ({ default: module.GamesScreen })));
+const AdsScreen = lazy(() => import('./platform/ads/AdsScreen').then(module => ({ default: module.AdsScreen })));
+const AdCampaignPage = lazy(() => import('./platform/ads/AdCampaignPage').then(module => ({ default: module.AdCampaignPage })));
 const PeopleScreen = lazy(() => import('./platform/people/PeopleScreen').then(module => ({ default: module.PeopleScreen })));
 const HealthScreen = lazy(() => import('./platform/health/HealthScreen').then(module => ({ default: module.HealthScreen })));
 
@@ -156,6 +158,13 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'settings' ? <SettingsScreen client={client.admins} twoFactorClient={client.twoFactor} rolesClient={client.roles} session={session} />
         : route.kind === 'announcements' ? <AnnouncementsScreen client={client.announcements} />
         : route.kind === 'games' ? <GamesScreen client={client.games} />
+        : route.kind === 'ads' ? <AdsScreen
+            client={client.ads}
+            tab={route.tab}
+            onTabChange={tab => navigate({ kind: 'ads', tab })}
+            onOpenCampaign={campaignId => navigate({ kind: 'adCampaign', campaignId })}
+          />
+        : route.kind === 'adCampaign' ? <AdCampaignPage client={client.ads} campaignId={route.campaignId} onBack={() => navigate({ kind: 'ads', tab: 'campaigns' })} />
         : route.kind === 'people' ? <PeopleScreen client={client.people} />
         : route.kind === 'health' ? <HealthScreen client={client.health} canSendTestEmail={can(session, 'health.test_email.send')} />
         : <UnavailableScreen />}</Suspense>
@@ -174,6 +183,8 @@ function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>)
     case 'settings': return 'admins.manage';
     case 'announcements': return 'announcements.manage';
     case 'games': return 'games.manage';
+    case 'ads':
+    case 'adCampaign': return 'ads.manage';
     case 'people': return 'people.network_ban.manage';
     case 'health': return 'health.read';
     case 'overview': return null;
@@ -182,6 +193,7 @@ function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>)
 
 function activePath(route: Exclude<PlatformRoute, { kind: 'notFound' }>): string {
   if (route.kind === 'organization' || route.kind === 'organizationNew') return '/admin';
+  if (route.kind === 'adCampaign') return '/admin/ads';
   return pathForPlatformRoute(route).split('?')[0];
 }
 

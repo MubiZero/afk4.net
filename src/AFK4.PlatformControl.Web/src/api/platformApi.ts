@@ -20,6 +20,7 @@ import { TwoFactorApi } from './platformClients/twoFactor';
 import { RolesApi } from './platformClients/roles';
 import { AnnouncementsApi } from './platformClients/announcements';
 import { GamesApi } from './platformClients/games';
+import { AdsApi } from './platformClients/ads';
 import { NetworkPeopleApi } from './platformClients/people';
 import { OffboardingApi } from './platformClients/offboarding';
 import { HealthApi } from './platformClients/health';
@@ -58,6 +59,7 @@ export class PlatformApiClient {
 
   public readonly announcements: AnnouncementsApi;
   public readonly games: GamesApi;
+  public readonly ads: AdsApi;
   public readonly people: NetworkPeopleApi;
 
   public readonly offboarding: OffboardingApi;
@@ -85,6 +87,7 @@ export class PlatformApiClient {
     this.roles = new RolesApi(this.transport);
     this.announcements = new AnnouncementsApi(this.transport);
     this.games = new GamesApi(this.transport);
+    this.ads = new AdsApi(this.transport);
     this.people = new NetworkPeopleApi(this.transport);
     this.offboarding = new OffboardingApi(this.transport);
     this.health = new HealthApi(this.transport);

@@ -23,12 +23,19 @@ describe('platform nav', () => {
     expect(keys).not.toContain('updates');
     expect(keys).not.toContain('settings');
     expect(keys).not.toContain('games');
+    expect(keys).not.toContain('ads');
   });
 
   it('shows the game catalog only to those who may edit it', () => {
     const keys = buildPlatformNav(session(['platform.games.manage'])).map(item => item.key);
     expect(keys).toEqual(['games']);
     expect(buildPlatformNav(session(['platform.games.manage']))[0].path).toBe('/admin/games');
+  });
+
+  it('shows platform ads only to those who may run them', () => {
+    const nav = buildPlatformNav(session(['platform.ads.manage']));
+    expect(nav.map(item => item.key)).toEqual(['ads']);
+    expect(nav[0].path).toBe('/admin/ads');
   });
 
   // Профиль переехал в меню аккаунта в подвале рейла: отдельного пункта навигации быть не должно,

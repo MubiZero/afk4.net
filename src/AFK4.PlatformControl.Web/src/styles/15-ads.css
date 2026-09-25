@@ -1,0 +1,97 @@
+/* ── Реклама платформы ───────────────────────────────────────────────────────────────── */
+
+/* Креатив в строке таблицы: миниатюра, заголовок и текст под ним. */
+.pc-ad-creative {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pc-ad-creative > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Миниатюра вытянута, как карточка витрины на экране ПК. Пустая плашка того же размера держит
+   заголовки в одну колонку. */
+.pc-ad-thumb {
+  flex: none;
+  width: 56px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--surface-sunken);
+}
+
+/* Предпросмотр — картинка целиком, без обрезки: как её подрежет витрина, форма не знает, а
+   человеку нужно увидеть, та ли это картинка. */
+.pc-ad-preview {
+  justify-self: start;
+  max-width: min(100%, 320px);
+  max-height: 180px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  background: var(--surface-sunken);
+}
+
+/* Сводка кампании: пары «метка → значение» во всю ширину карточки глаз не связывает. */
+.pc-ad-facts {
+  max-width: 520px;
+}
+
+/* Креатив глазами игрока — в окне модерации. */
+.pc-ad-card {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.pc-ad-card p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.pc-ad-card-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pc-ad-moderation {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.pc-ad-dates {
+  white-space: nowrap;
+}
+
+/* День отчёта стоит первой колонкой и читается слева; цифры — одной ширины, как в числах. */
+.pc-ad-day {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Контакт — свободный текст на несколько строк: переносы, которые вписал человек, сохраняются. */
+.pc-ad-contact {
+  white-space: pre-line;
+}
+
+/* Итог отчёта: те же колонки, что у строк, но читается как итог. */
+.pc-ad-totals td {
+  padding: 0 16px;
+  height: 44px;
+  border-top: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-weight: 700;
+}
