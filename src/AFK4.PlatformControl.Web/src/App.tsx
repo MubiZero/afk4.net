@@ -28,6 +28,7 @@ const UpdatesScreen = lazy(() => import('./platform/updates/UpdatesScreen').then
 const AuditScreen = lazy(() => import('./platform/audit/AuditScreen').then(module => ({ default: module.AuditScreen })));
 const SettingsScreen = lazy(() => import('./platform/settings/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
 const AnnouncementsScreen = lazy(() => import('./platform/announcements/AnnouncementsScreen').then(module => ({ default: module.AnnouncementsScreen })));
+const GamesScreen = lazy(() => import('./platform/games/GamesScreen').then(module => ({ default: module.GamesScreen })));
 const PeopleScreen = lazy(() => import('./platform/people/PeopleScreen').then(module => ({ default: module.PeopleScreen })));
 const HealthScreen = lazy(() => import('./platform/health/HealthScreen').then(module => ({ default: module.HealthScreen })));
 
@@ -154,6 +155,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onBack={() => navigate({ kind: 'overview', view: 'now' })} onChanged={() => {}} />
         : route.kind === 'settings' ? <SettingsScreen client={client.admins} twoFactorClient={client.twoFactor} rolesClient={client.roles} session={session} />
         : route.kind === 'announcements' ? <AnnouncementsScreen client={client.announcements} />
+        : route.kind === 'games' ? <GamesScreen client={client.games} />
         : route.kind === 'people' ? <PeopleScreen client={client.people} />
         : route.kind === 'health' ? <HealthScreen client={client.health} canSendTestEmail={can(session, 'health.test_email.send')} />
         : <UnavailableScreen />}</Suspense>
@@ -171,6 +173,7 @@ function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>)
     case 'audit': return 'audit.read';
     case 'settings': return 'admins.manage';
     case 'announcements': return 'announcements.manage';
+    case 'games': return 'games.manage';
     case 'people': return 'people.network_ban.manage';
     case 'health': return 'health.read';
     case 'overview': return null;

@@ -51,7 +51,7 @@ function renderScreen(permissions = ['organization.games.manage']) {
 
 afterEach(() => {
   library = [];
-  Object.values(games).forEach((fn) => fn.mockClear());
+  for (const fn of Object.values(games)) fn.mockClear();
   cleanup();
 });
 
