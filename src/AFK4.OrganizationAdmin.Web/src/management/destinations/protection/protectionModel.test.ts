@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { buildProtectionRequest, lines, protectionToForm, toggleDrive } from './protectionModel';
+import { buildProtectionRequest, lines, protectionDefaults, protectionToForm, toggleDrive, toggleTrace } from './protectionModel';
 
 const dto = {
   organizationId: 'o1',
@@ -15,7 +15,8 @@ const dto = {
     blockedWindows: [
       { titleContains: 'Командная строка', className: null },
       { titleContains: null, className: 'ConsoleWindowClass' }
-    ]
+    ],
+    clearAfterSession: ['steam', 'messengers']
   },
   updatedAtUtc: '2026-09-25T10:00:00Z'
 };
@@ -36,8 +37,20 @@ describe('protectionModel', () => {
       blockedWindows: [
         { titleContains: 'Командная строка', className: null },
         { titleContains: null, className: 'ConsoleWindowClass' }
-      ]
+      ],
+      clearAfterSession: ['steam', 'messengers']
     });
+  });
+
+  // Клуб, который страницу не открывал, всё равно стирает следы — как агент без профиля.
+  it('clears every trace by default', () => {
+    expect(protectionDefaults.clearAfterSession).toEqual(['steam', 'browsers', 'launchers', 'messengers']);
+  });
+
+  // Порядок пунктов — порядок каталога: иначе щелчки туда-обратно давали бы новую версию профиля.
+  it('toggles a trace and keeps the catalog order', () => {
+    expect(toggleTrace(['messengers'], 'steam', true)).toEqual(['steam', 'messengers']);
+    expect(toggleTrace(['steam', 'messengers'], 'steam', false)).toEqual(['messengers']);
   });
 
   // Пустые строки и пробелы по краям — след ввода, а не адреса.

@@ -1,4 +1,5 @@
-﻿using AFK4.Shared.Contracts.Devices;
+﻿using AFK4.Agent.Service.Cleanup;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 
@@ -9,7 +10,8 @@ public sealed class SessionEnforcementCoordinator(
     ISessionLeaseStore leaseStore,
     IAgentRuntimeStateStore runtimeStateStore,
     IWorkstationLockController workstationLockController,
-    TimeProvider timeProvider) : ISessionEnforcementCoordinator
+    TimeProvider timeProvider,
+    ISessionCleanup? sessionCleanup = null) : ISessionEnforcementCoordinator
 {
     public async Task<SessionEnforcementResult> UnlockAsync(
         SessionLeaseDto lease,
@@ -68,15 +70,22 @@ public sealed class SessionEnforcementCoordinator(
                 DeviceCommandOutcomeNames.MaintenanceStarted);
         }
 
+        var ended = runtimeStateStore.Current;
         leaseStore.Clear(sessionId);
         runtimeStateStore.MarkLocked(timeProvider.GetUtcNow());
         var lockOutcome = await workstationLockController.LockAsync(cancellationToken);
+
+        // Уборка — только после сессии: запереть свободный ПК ещё раз не повод закрывать на нём
+        // что-то. Экран уже заперт, и игры закрываются под ним.
+        var cleanup = ended.SessionRuns && sessionCleanup is not null
+            ? $"; {(await sessionCleanup.RunAsync(ended.SessionStartedAtUtc, cancellationToken)).Describe()}"
+            : string.Empty;
 
         // Оболочка закрывает экран в любом случае — это её работа и она от машинных политик не
         // зависит. А вот что удалось запереть на самой машине, оператор должен прочитать как есть:
         // «заперто» и «заперто, но политики машины не применились» — разные новости.
         return SessionEnforcementResult.Accepted(
-            $"Workstation locked ({lockOutcome.Describe()}).",
+            $"Workstation locked ({lockOutcome.Describe()}){cleanup}.",
             lockOutcome.IsEnforced
                 ? DeviceCommandOutcomeNames.WorkstationLocked
                 : DeviceCommandOutcomeNames.MachinePoliciesUnavailable);

@@ -28,6 +28,11 @@ public sealed class BranchProtectionProfileEntity
 
     public string BlockedWindowsJson { get; set; } = "[]";
 
+    /// <summary>Что стирать после сессии, JSON-список из SessionTraceNames. По умолчанию — всё.</summary>
+    public string ClearAfterSessionJson { get; set; } = DefaultClearAfterSessionJson;
+
+    public const string DefaultClearAfterSessionJson = "[\"steam\",\"browsers\",\"launchers\",\"messengers\"]";
+
     public DateTimeOffset UpdatedAtUtc { get; set; }
 
     public Guid UpdatedByStaffUserId { get; set; }

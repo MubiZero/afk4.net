@@ -133,6 +133,43 @@ public sealed class GraceModeMonitorTests
             Signature: "signed-payload");
     }
 
+    // Аренда кончилась без связи с сервером: следы следующему игроку остаются ровно так же, как
+    // после команды «Запереть», — значит, и уборка та же.
+    [Fact]
+    public async Task EnforceAsync_WhenTheLeaseRunsOut_CleansUpAfterTheSession()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var lease = CreateLease(Now.AddSeconds(-1));
+        leaseStore.Save(lease);
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-15));
+        var cleanup = new RecordingCleanup();
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            new RecordingWorkstationLockController(),
+            new OfflineLeaseExtender(new OfflineGraceState()),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance,
+            cleanup);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Equal([Now.AddMinutes(-15)], cleanup.Runs);
+    }
+
+    private sealed class RecordingCleanup : AFK4.Agent.Service.Cleanup.ISessionCleanup
+    {
+        public List<DateTimeOffset?> Runs { get; } = [];
+
+        public Task<AFK4.Agent.Service.Cleanup.SessionCleanupOutcome> RunAsync(DateTimeOffset? sessionStartedAtUtc, CancellationToken cancellationToken)
+        {
+            Runs.Add(sessionStartedAtUtc);
+            return Task.FromResult(new AFK4.Agent.Service.Cleanup.SessionCleanupOutcome(0, [], []));
+        }
+    }
+
     private sealed class RecordingRuntimeStateStore : IAgentRuntimeStateStore
     {
         public AgentRuntimeState Current { get; private set; } = AgentRuntimeState.Locked(Now);

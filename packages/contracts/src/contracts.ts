@@ -945,6 +945,26 @@ export const SessionStateNames = {
 } as const;
 export type SessionStateName = (typeof SessionStateNames)[keyof typeof SessionStateNames];
 
+/**
+ * Следы, которые агент стирает, когда сессия кончилась и ПК заперт (спека оболочки, §6.4). Пути
+ * у каждого пункта точные и зашиты в агента: из Панели приезжает только «стирать или нет», а не
+ * путь — иначе профиль защиты стал бы пультом удаления любых файлов на ПК зала. Сохранения игр в
+ * этих путях не лежат.
+ *
+ * Словарь: Devices/ProtectionProfileContracts.cs
+ */
+export const SessionTraceNames = {
+  /** Вход в Steam: запомненные аккаунты, автовход, кэш входа, куки магазина. */
+  Steam: 'steam',
+  /** Профили браузеров целиком: пароли, куки, история, открытые вкладки. */
+  Browsers: 'browsers',
+  /** Вход в Epic, Battle.net, Riot и Ubisoft Connect. */
+  Launchers: 'launchers',
+  /** Discord и Telegram Desktop: вход и переписка. */
+  Messengers: 'messengers',
+} as const;
+export type SessionTraceName = (typeof SessionTraceNames)[keyof typeof SessionTraceNames];
+
 /** Словарь: Shell/ShellBridgeContracts.cs */
 export const ShellBridgeErrorCodeNames = {
   /** Номер или ПИН-код не подошли. */
@@ -5324,6 +5344,8 @@ export interface ProtectionProfileDto {
   urlBlocklist: string[];
   /** Окна, которые оболочка закрывает, едва они появятся. */
   blockedWindows: BlockedWindowRuleDto[];
+  /** Что стереть после сессии игрока (§6.4). Каждый пункт — из SessionTraceNames. */
+  clearAfterSession: string[];
 }
 
 /**
@@ -6933,6 +6955,7 @@ export interface UpdateBranchProtectionProfileRequest {
   hiddenDrives: string[];
   urlBlocklist: string[];
   blockedWindows: BlockedWindowRuleDto[];
+  clearAfterSession: string[];
 }
 
 /** Контракт: Branches/UpdateBranchSettingsRequest.cs */

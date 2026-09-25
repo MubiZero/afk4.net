@@ -7,7 +7,7 @@ namespace AFK4.Agent.Service.Tests.Protection;
 public sealed class ProtectionPolicyTests
 {
     private static readonly ProtectionProfileDto Everything = new(
-        7, true, true, true, true, ["D", "e"], ["casino.example", "*.bet.example"], []);
+        7, true, true, true, true, ["D", "e"], ["casino.example", "*.bet.example"], [], SessionTraceNames.All);
 
     [Fact]
     public void TheKioskBaseline_IsAlwaysOn_AndCutsTheCtrlAltDelMenu()
@@ -56,7 +56,7 @@ public sealed class ProtectionPolicyTests
     [Fact]
     public void AnEmptyProfile_EnablesOnlyTheBaseline()
     {
-        var enabled = ProtectionPolicy.Plan(new ProtectionProfileDto(0, false, false, false, false, [], [], []))
+        var enabled = ProtectionPolicy.Plan(new ProtectionProfileDto(0, false, false, false, false, [], [], [], []))
             .Where(item => item.Enabled)
             .Select(item => item.Name);
 

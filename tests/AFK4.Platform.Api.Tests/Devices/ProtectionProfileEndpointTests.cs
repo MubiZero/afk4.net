@@ -23,7 +23,8 @@ public sealed class ProtectionProfileEndpointTests
         int expectedVersion = 0,
         IReadOnlyList<string>? hiddenDrives = null,
         IReadOnlyList<string>? urls = null,
-        IReadOnlyList<BlockedWindowRuleDto>? windows = null) =>
+        IReadOnlyList<BlockedWindowRuleDto>? windows = null,
+        IReadOnlyList<string>? clearAfterSession = null) =>
         new(
             TestIds.OrganizationId,
             expectedVersion,
@@ -33,7 +34,8 @@ public sealed class ProtectionProfileEndpointTests
             DisableRunDialog: true,
             hiddenDrives ?? ["d"],
             urls ?? ["example.com"],
-            windows ?? [new BlockedWindowRuleDto("Командная строка", null)]);
+            windows ?? [new BlockedWindowRuleDto("Командная строка", null)],
+            clearAfterSession ?? SessionTraceNames.All);
 
     [Fact]
     public async Task ABranchThatNeverSetItUp_HasAnEmptyProfileAtVersionZero()
@@ -48,6 +50,41 @@ public sealed class ProtectionProfileEndpointTests
         Assert.False(profile.Profile.BlockRemovableStorage);
         Assert.Empty(profile.Profile.UrlBlocklist);
         Assert.Null(profile.UpdatedAtUtc);
+        // Следы стираются и у клуба, который страницу не открывал: иначе следующий игрок войдёт в
+        // чужой Steam из-за того, что никто не нажал галочку.
+        Assert.Equal(SessionTraceNames.All, profile.Profile.ClearAfterSession);
+    }
+
+    [Fact]
+    public async Task ClearAfterSession_IsStoredInCatalogOrder_AndCanBeTurnedOff()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+
+        var response = await client.PutAsJsonAsync(Route, Request(
+            clearAfterSession: [SessionTraceNames.Messengers, SessionTraceNames.Steam, SessionTraceNames.Steam]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var saved = (await client.GetFromJsonAsync<BranchProtectionProfileDto>(Route))!.Profile;
+        Assert.Equal([SessionTraceNames.Steam, SessionTraceNames.Messengers], saved.ClearAfterSession);
+
+        var off = await client.PutAsJsonAsync(Route, Request(expectedVersion: 1, clearAfterSession: []));
+        Assert.Equal(HttpStatusCode.OK, off.StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<BranchProtectionProfileDto>(Route))!.Profile.ClearAfterSession);
+    }
+
+    // Путь стирания зашит в агента; из Панели едет только имя пункта, и чужое имя не пройдёт.
+    [Fact]
+    public async Task ClearAfterSession_TakesOnlyTheCatalog()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+
+        var response = await client.PutAsJsonAsync(Route, Request(clearAfterSession: [@"C:\Users"]));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     /// <summary>Повторы и регистр не должны давать новую версию и лишний круг перечитывания на всех ПК.</summary>

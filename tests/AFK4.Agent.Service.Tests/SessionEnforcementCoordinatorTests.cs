@@ -81,6 +81,55 @@ public sealed class SessionEnforcementCoordinatorTests
         Assert.Equal(1, lockController.LockCount);
     }
 
+    // После сессии ПК убирают: игры закрываются, следы стираются, и оператор читает итог в ответе.
+    [Fact]
+    public async Task LockAsync_AfterASession_CleansUp_FromWhenThePcOpened()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var directory = TemporaryDirectory.Create();
+        var lease = CreateSignedLease(key, sequence: 1);
+        var leaseStore = new FileSessionLeaseStore(directory.Path, new FixedTimeProvider(Now));
+        var runtimeStore = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now));
+        var cleanup = new RecordingCleanup();
+        var coordinator = CreateCoordinator(key, leaseStore, runtimeStore, new RecordingWorkstationLockController(), cleanup);
+        leaseStore.Save(lease);
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-40));
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-10));
+
+        var result = await coordinator.LockAsync(lease.SessionId, CancellationToken.None);
+
+        // Продление аренды — не новая сессия: закрывается всё, что стартовало с первого открытия.
+        Assert.Equal([Now.AddMinutes(-40)], cleanup.Runs);
+        Assert.Contains("closed 2 app(s); cleared steam", result.Message, StringComparison.Ordinal);
+    }
+
+    // Свободный ПК запирают ещё раз — это не повод закрывать на нём что-то.
+    [Fact]
+    public async Task LockAsync_OnAnIdlePc_DoesNotCleanUp()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var directory = TemporaryDirectory.Create();
+        var leaseStore = new FileSessionLeaseStore(directory.Path, new FixedTimeProvider(Now));
+        var runtimeStore = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now));
+        var cleanup = new RecordingCleanup();
+        var coordinator = CreateCoordinator(key, leaseStore, runtimeStore, new RecordingWorkstationLockController(), cleanup);
+
+        await coordinator.LockAsync(null, CancellationToken.None);
+
+        Assert.Empty(cleanup.Runs);
+    }
+
+    private sealed class RecordingCleanup : AFK4.Agent.Service.Cleanup.ISessionCleanup
+    {
+        public List<DateTimeOffset?> Runs { get; } = [];
+
+        public Task<AFK4.Agent.Service.Cleanup.SessionCleanupOutcome> RunAsync(DateTimeOffset? sessionStartedAtUtc, CancellationToken cancellationToken)
+        {
+            Runs.Add(sessionStartedAtUtc);
+            return Task.FromResult(new AFK4.Agent.Service.Cleanup.SessionCleanupOutcome(2, ["steam"], []));
+        }
+    }
+
     [Fact]
     public async Task UnlockAsync_WithInvalidLease_RejectsAndDoesNotUnlock()
     {
@@ -160,7 +209,8 @@ public sealed class SessionEnforcementCoordinatorTests
         ECDsa key,
         ISessionLeaseStore leaseStore,
         IAgentRuntimeStateStore runtimeStateStore,
-        IWorkstationLockController lockController)
+        IWorkstationLockController lockController,
+        AFK4.Agent.Service.Cleanup.ISessionCleanup? cleanup = null)
     {
         var options = Options.Create(new AgentOptions
         {
@@ -177,7 +227,8 @@ public sealed class SessionEnforcementCoordinatorTests
             leaseStore,
             runtimeStateStore,
             lockController,
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            cleanup);
     }
 
     private static SessionLeaseDto CreateSignedLease(ECDsa key, int sequence)

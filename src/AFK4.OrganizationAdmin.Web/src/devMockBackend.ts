@@ -398,7 +398,8 @@ let previewProtection = {
     disableRunDialog: true,
     hiddenDrives: ['D'],
     urlBlocklist: ['*.casino.example', 'betting.example'],
-    blockedWindows: [{ titleContains: 'Командная строка', className: null }]
+    blockedWindows: [{ titleContains: 'Командная строка', className: null }],
+    clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers']
   },
   updatedAtUtc: '2026-09-20T12:00:00Z' as string | null
 };

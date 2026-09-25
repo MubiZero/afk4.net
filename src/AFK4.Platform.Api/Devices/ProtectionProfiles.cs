@@ -15,7 +15,7 @@ public static class ProtectionProfiles
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public static readonly ProtectionProfileDto Empty = new(0, false, false, false, false, [], [], []);
+    public static readonly ProtectionProfileDto Empty = new(0, false, false, false, false, [], [], [], SessionTraceNames.All);
 
     public static ProtectionProfileDto For(BranchProtectionProfileEntity? entity) =>
         entity is null
@@ -28,7 +28,8 @@ public static class ProtectionProfiles
                 entity.DisableRunDialog,
                 entity.HiddenDrives.Select(letter => letter.ToString()).ToList(),
                 JsonSerializer.Deserialize<List<string>>(entity.UrlBlocklistJson, Json) ?? [],
-                JsonSerializer.Deserialize<List<BlockedWindowRuleDto>>(entity.BlockedWindowsJson, Json) ?? []);
+                JsonSerializer.Deserialize<List<BlockedWindowRuleDto>>(entity.BlockedWindowsJson, Json) ?? [],
+                JsonSerializer.Deserialize<List<string>>(entity.ClearAfterSessionJson, Json) ?? []);
 
     public static async Task<ProtectionProfileDto> ResolveAsync(
         PlatformDbContext dbContext, Guid branchId, CancellationToken cancellationToken) =>
@@ -56,6 +57,11 @@ public static class ProtectionProfiles
         if (request.UrlBlocklist.Any(url => string.IsNullOrWhiteSpace(url) || url.Trim().Length > MaxUrlLength))
         {
             return $"Every UrlBlocklist entry must be non-empty and at most {MaxUrlLength} characters.";
+        }
+
+        if (request.ClearAfterSession.Any(item => !SessionTraceNames.All.Contains(item)))
+        {
+            return $"ClearAfterSession takes only: {string.Join(", ", SessionTraceNames.All)}.";
         }
 
         if (request.BlockedWindows.Count > MaxBlockedWindows)
@@ -127,6 +133,9 @@ public static class ProtectionProfiles
                 .Distinct()
                 .ToList(),
             Json);
+        // В порядке каталога: порядок галочек в Панели не должен давать новую версию.
+        entity.ClearAfterSessionJson = JsonSerializer.Serialize(
+            SessionTraceNames.All.Where(request.ClearAfterSession.Contains).ToList(), Json);
         entity.UpdatedAtUtc = now;
         entity.UpdatedByStaffUserId = staffUserId;
 

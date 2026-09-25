@@ -1596,6 +1596,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(profile => profile.HiddenDrives).HasMaxLength(26).IsRequired();
             entity.Property(profile => profile.UrlBlocklistJson).IsRequired();
             entity.Property(profile => profile.BlockedWindowsJson).IsRequired();
+            // Строки, заведённые до стирания следов, получают «стирать всё» — как ПК без профиля.
+            entity.Property(profile => profile.ClearAfterSessionJson)
+                .IsRequired()
+                .HasDefaultValue(BranchProtectionProfileEntity.DefaultClearAfterSessionJson);
             entity.HasIndex(profile => profile.OrganizationId);
         });
     }

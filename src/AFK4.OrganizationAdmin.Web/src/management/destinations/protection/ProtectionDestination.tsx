@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AppWindow, Globe, HardDrive } from 'lucide-react';
-import { useI18n } from '@afk4/i18n';
+import { AppWindow, Eraser, Globe, HardDrive } from 'lucide-react';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../../ManagementScreen';
 import { SetupFieldsSkeleton, SetupRuleSkeleton, SetupSection, SetupSectionSkeleton } from '../../kit/SetupSection';
 import { RuleSwitch } from '../../kit/RuleSwitch';
@@ -15,7 +15,9 @@ import {
   hideableDrives,
   protectionDefaults,
   protectionToForm,
+  sessionTraces,
   toggleDrive,
+  toggleTrace,
   type ProtectionForm
 } from './protectionModel';
 import { managementScreenState } from '../types';
@@ -132,6 +134,9 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
               <div className="payset-divider" />
               <SetupFieldsSkeleton hints={[t('op.protection.windowTitles.hint'), t('op.protection.windowClasses.hint')]} />
             </SetupSectionSkeleton>
+            <SetupSectionSkeleton lead={t('op.protection.zone.afterSession.lead')}>
+              {sessionTraces.map((item) => <SetupRuleSkeleton key={item} hint={t(traceLabels[item].hint)} />)}
+            </SetupSectionSkeleton>
           </div>
         </>
       }
@@ -243,10 +248,32 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
 
           <p className="protect-base-note">{t('op.protection.baseNote')}</p>
         </SetupSection>
+
+        <SetupSection Icon={Eraser} title={t('op.protection.zone.afterSession')} lead={t('op.protection.zone.afterSession.lead')}>
+          <div className="payset-rules">
+            {sessionTraces.map((item) => (
+              <RuleSwitch
+                key={item}
+                checked={form.clearAfterSession.includes(item)}
+                disabled={disabled}
+                name={t(traceLabels[item].name)}
+                hint={t(traceLabels[item].hint)}
+                onChange={(value) => onField('clearAfterSession', toggleTrace(form.clearAfterSession, item, value))}
+              />
+            ))}
+          </div>
+        </SetupSection>
       </div>
     </ManagementScreen>
   );
 }
+
+const traceLabels = {
+  steam: { name: 'op.protection.clear.steam', hint: 'op.protection.clear.steam.hint' },
+  browsers: { name: 'op.protection.clear.browsers', hint: 'op.protection.clear.browsers.hint' },
+  launchers: { name: 'op.protection.clear.launchers', hint: 'op.protection.clear.launchers.hint' },
+  messengers: { name: 'op.protection.clear.messengers', hint: 'op.protection.clear.messengers.hint' }
+} as const satisfies Record<(typeof sessionTraces)[number], { name: MessageKey; hint: MessageKey }>;
 
 function ListField({ id, label, hint, placeholder, value, disabled, onChange }: {
   id: string;

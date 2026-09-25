@@ -20,7 +20,36 @@ public sealed record ProtectionProfileDto(
     /// Адреса и шаблоны, которые Chrome и Edge не открывают (формат URLBlocklist).
     IReadOnlyList<string> UrlBlocklist,
     /// Окна, которые оболочка закрывает, едва они появятся.
-    IReadOnlyList<BlockedWindowRuleDto> BlockedWindows);
+    IReadOnlyList<BlockedWindowRuleDto> BlockedWindows,
+    /// Что стереть после сессии игрока (§6.4). Каждый пункт — из SessionTraceNames.
+    IReadOnlyList<string> ClearAfterSession);
+
+/// <summary>
+/// Следы, которые агент стирает, когда сессия кончилась и ПК заперт (спека оболочки, §6.4). Пути
+/// у каждого пункта точные и зашиты в агента: из Панели приезжает только «стирать или нет», а не
+/// путь — иначе профиль защиты стал бы пультом удаления любых файлов на ПК зала. Сохранения игр в
+/// этих путях не лежат.
+/// </summary>
+public static class SessionTraceNames
+{
+    /// <summary>Вход в Steam: запомненные аккаунты, автовход, кэш входа, куки магазина.</summary>
+    public const string Steam = "steam";
+
+    /// <summary>Профили браузеров целиком: пароли, куки, история, открытые вкладки.</summary>
+    public const string Browsers = "browsers";
+
+    /// <summary>Вход в Epic, Battle.net, Riot и Ubisoft Connect.</summary>
+    public const string Launchers = "launchers";
+
+    /// <summary>Discord и Telegram Desktop: вход и переписка.</summary>
+    public const string Messengers = "messengers";
+
+    /// <summary>
+    /// Все пункты — так, пока клуб не решил иначе: следующий игрок не должен войти в чужой Steam
+    /// потому, что клуб не открыл страницу настроек.
+    /// </summary>
+    public static readonly IReadOnlyList<string> All = [Steam, Browsers, Launchers, Messengers];
+}
 
 /// <summary>Правило закрытия окна: часть заголовка, класс окна или оба сразу.</summary>
 public sealed record BlockedWindowRuleDto(string? TitleContains, string? ClassName);
@@ -45,7 +74,8 @@ public sealed record UpdateBranchProtectionProfileRequest(
     bool DisableRunDialog,
     IReadOnlyList<string> HiddenDrives,
     IReadOnlyList<string> UrlBlocklist,
-    IReadOnlyList<BlockedWindowRuleDto> BlockedWindows);
+    IReadOnlyList<BlockedWindowRuleDto> BlockedWindows,
+    IReadOnlyList<string> ClearAfterSession);
 
 public static class ProtectionProfileErrorCodeNames
 {

@@ -20,6 +20,7 @@ function profile(overrides: Partial<BranchProtectionProfileDto['profile']> = {},
       hiddenDrives: [],
       urlBlocklist: [],
       blockedWindows: [],
+      clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers'],
       ...overrides
     },
     updatedAtUtc
@@ -98,9 +99,25 @@ describe('ProtectionDestination', () => {
       disableRunDialog: false,
       hiddenDrives: ['D'],
       urlBlocklist: ['old.example', '*.casino.example'],
-      blockedWindows: [{ titleContains: 'Командная строка', className: null }]
+      blockedWindows: [{ titleContains: 'Командная строка', className: null }],
+      clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers']
     });
     expect(await screen.findByRole('button', { name: 'Диск D' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  // По умолчанию после сессии стирается всё; клуб выключает пункт — он уходит из профиля.
+  it('стирает следы по умолчанию и сохраняет выключенный пункт', async () => {
+    renderScreen();
+
+    expect(await screen.findByLabelText('Вход в Steam')).toBeChecked();
+    expect(screen.getByLabelText('Мессенджеры')).toBeChecked();
+    expect(screen.getByText(/Сохранения игр не трогаются/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Мессенджеры'));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateProtectionProfile).toHaveBeenCalledTimes(1));
+    expect(updateProtectionProfile.mock.calls[0][1].clearAfterSession).toEqual(['steam', 'browsers', 'launchers']);
   });
 
   it('чужая правка поверх открытой — просит обновить, а не затирает', async () => {

@@ -334,6 +334,8 @@ public sealed class MachineCommandHandlerTests
 
         public IReadOnlyList<BlockedWindowRuleDto> BlockedWindows => [];
 
+        public IReadOnlyList<string> ClearAfterSession => [];
+
         public Task ApplyAsync(CancellationToken cancellationToken)
         {
             Applies++;

@@ -1,8 +1,17 @@
+import { SessionTraceNames } from '@afk4/contracts';
 import type {
   BlockedWindowRuleDto,
   BranchProtectionProfileDto,
   UpdateBranchProtectionProfileRequest
 } from '@afk4/contracts';
+
+/** Что стирается после сессии, в том порядке, в каком пункты стоят на странице. */
+export const sessionTraces = [
+  SessionTraceNames.Steam,
+  SessionTraceNames.Browsers,
+  SessionTraceNames.Launchers,
+  SessionTraceNames.Messengers
+] as const;
 
 /**
  * Форма профиля защиты. Списки — текстом, строка на пункт: адресов и окон у клуба десяток, и
@@ -18,6 +27,7 @@ export interface ProtectionForm {
   urlBlocklist: string;
   blockedTitles: string;
   blockedClasses: string;
+  clearAfterSession: string[];
 }
 
 /** Диски, которые предлагаем скрыть. A и B — дисководы, которых давно нет. */
@@ -32,7 +42,10 @@ export const protectionDefaults: ProtectionForm = {
   hiddenDrives: [],
   urlBlocklist: '',
   blockedTitles: '',
-  blockedClasses: ''
+  blockedClasses: '',
+  // Как на сервере без профиля: следующий игрок не входит в чужой Steam потому, что клуб не
+  // открыл эту страницу.
+  clearAfterSession: [...sessionTraces]
 };
 
 export function protectionToForm(dto: BranchProtectionProfileDto): ProtectionForm {
@@ -48,7 +61,8 @@ export function protectionToForm(dto: BranchProtectionProfileDto): ProtectionFor
     // Панель пишет правила по одному признаку; правило с обоими признаками (например, из API)
     // показываем заголовком — класс в нём сузил бы совпадение, а не расширил.
     blockedTitles: profile.blockedWindows.filter((rule) => rule.titleContains).map((rule) => rule.titleContains).join('\n'),
-    blockedClasses: profile.blockedWindows.filter((rule) => !rule.titleContains && rule.className).map((rule) => rule.className).join('\n')
+    blockedClasses: profile.blockedWindows.filter((rule) => !rule.titleContains && rule.className).map((rule) => rule.className).join('\n'),
+    clearAfterSession: [...profile.clearAfterSession]
   };
 }
 
@@ -70,8 +84,14 @@ export function buildProtectionRequest(organizationId: string, form: ProtectionF
     disableRunDialog: form.disableRunDialog,
     hiddenDrives: [...form.hiddenDrives].sort(),
     urlBlocklist: lines(form.urlBlocklist),
-    blockedWindows: windows
+    blockedWindows: windows,
+    clearAfterSession: sessionTraces.filter((item) => form.clearAfterSession.includes(item))
   };
+}
+
+export function toggleTrace(items: string[], item: string, on: boolean): string[] {
+  const next = on ? [...items, item] : items.filter((current) => current !== item);
+  return sessionTraces.filter((trace) => next.includes(trace));
 }
 
 export function toggleDrive(drives: string[], drive: string): string[] {

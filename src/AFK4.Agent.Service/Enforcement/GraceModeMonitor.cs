@@ -1,4 +1,5 @@
-﻿using AFK4.Shared.Contracts.Shell;
+﻿using AFK4.Agent.Service.Cleanup;
+using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Agent.Service.Enforcement;
 
@@ -13,7 +14,8 @@ public sealed class GraceModeMonitor(
     IWorkstationLockController workstationLockController,
     IOfflineLeaseExtender offlineLeaseExtender,
     TimeProvider timeProvider,
-    ILogger<GraceModeMonitor> logger) : IGraceModeMonitor
+    ILogger<GraceModeMonitor> logger,
+    ISessionCleanup? sessionCleanup = null) : IGraceModeMonitor
 {
     public async Task EnforceAsync(CancellationToken cancellationToken)
     {
@@ -43,6 +45,7 @@ public sealed class GraceModeMonitor(
             return;
         }
 
+        var ended = runtimeStateStore.Current;
         leaseStore.Clear(lease.SessionId);
         runtimeStateStore.MarkLocked(now);
         var outcome = await workstationLockController.LockAsync(cancellationToken);
@@ -52,6 +55,17 @@ public sealed class GraceModeMonitor(
             lease.SessionId,
             lease.ExpiresAtUtc,
             outcome.Describe());
+        await CleanUpAfterAsync(ended, cancellationToken);
+    }
+
+    // Сессия кончилась без сервера — по аренде или после перезапуска службы: следы следующему
+    // игроку остаются ровно так же, как после команды «Запереть».
+    private async Task CleanUpAfterAsync(AgentRuntimeState ended, CancellationToken cancellationToken)
+    {
+        if (sessionCleanup is not null && ended.SessionRuns)
+        {
+            await sessionCleanup.RunAsync(ended.SessionStartedAtUtc, cancellationToken);
+        }
     }
 
     /// <summary>
@@ -78,7 +92,7 @@ public sealed class GraceModeMonitor(
             return;
         }
 
-        runtimeStateStore.Save(AgentRuntimeState.Grace(sessionId, leaseExpiresAtUtc, now));
+        runtimeStateStore.Save(AgentRuntimeState.Grace(sessionId, leaseExpiresAtUtc, now, state.SessionStartedAtUtc));
     }
 
     private async Task LockAfterRestartIfLeaseLapsedAsync(DateTimeOffset now, CancellationToken cancellationToken)
@@ -108,5 +122,6 @@ public sealed class GraceModeMonitor(
             state.ActiveSessionId,
             expiresAtUtc,
             outcome.Describe());
+        await CleanUpAfterAsync(state, cancellationToken);
     }
 }

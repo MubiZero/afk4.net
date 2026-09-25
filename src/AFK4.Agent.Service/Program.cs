@@ -1,4 +1,5 @@
 ﻿using AFK4.Agent.Service;
+using AFK4.Agent.Service.Cleanup;
 using AFK4.Agent.Service.Commands;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Logging;
@@ -104,6 +105,17 @@ builder.Services.AddSingleton<IMachineRegistry, WindowsMachineRegistry>();
 builder.Services.AddSingleton<IProtectionProfileStore, FileProtectionProfileStore>();
 builder.Services.AddSingleton<IProtectionPlatformClient, HttpProtectionPlatformClient>();
 builder.Services.AddSingleton<IProtectionEnforcer, ProtectionEnforcer>();
+// Уборка после сессии (спека оболочки, §6.4): вне Windows её нечем делать.
+if (OperatingSystem.IsWindows())
+{
+    builder.Services.AddSingleton<IPlayerSessionHost, WindowsPlayerSessionHost>();
+}
+else
+{
+    builder.Services.AddSingleton<IPlayerSessionHost, UnsupportedPlayerSessionHost>();
+}
+
+builder.Services.AddSingleton<ISessionCleanup, SessionCleanup>();
 builder.Services.AddSingleton<IMaintenanceDesktop, MaintenanceDesktop>();
 builder.Services.AddSingleton<IMaintenanceReturnClient, HttpMaintenanceReturnClient>();
 builder.Services.AddSingleton<MaintenanceReturn>();

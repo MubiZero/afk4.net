@@ -11,7 +11,7 @@ public sealed class ProtectionEnforcerTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-25T10:00:00Z");
 
     private static ProtectionProfileDto Profile(int version, bool usb = true, IReadOnlyList<string>? drives = null) =>
-        new(version, usb, false, false, false, drives ?? ["D"], [], []);
+        new(version, usb, false, false, false, drives ?? ["D"], [], [], SessionTraceNames.All);
 
     [Fact]
     public async Task Applying_WritesEnabledRules_RemovesDisabledOnes_AndReportsEachHonestly()
@@ -226,7 +226,7 @@ public sealed class ProtectionEnforcerTests
 
     internal sealed class FakePlatform : IProtectionPlatformClient
     {
-        public ProtectionProfileDto Profile { get; set; } = new(0, false, false, false, false, [], [], []);
+        public ProtectionProfileDto Profile { get; set; } = new(0, false, false, false, false, [], [], [], SessionTraceNames.All);
 
         public bool FailFetch { get; set; }
 

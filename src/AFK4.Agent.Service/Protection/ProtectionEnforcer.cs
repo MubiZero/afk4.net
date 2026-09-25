@@ -27,6 +27,9 @@ public interface IProtectionEnforcer
 
     /// <summary>Правила закрытия окон из текущего профиля — их исполняет хост в сессии игрока.</summary>
     IReadOnlyList<BlockedWindowRuleDto> BlockedWindows { get; }
+
+    /// <summary>Что стереть после сессии (SessionTraceNames) — по последнему полученному профилю.</summary>
+    IReadOnlyList<string> ClearAfterSession { get; }
 }
 
 public interface IProtectionPlatformClient
@@ -63,11 +66,16 @@ public sealed class ProtectionEnforcer(
 
     private ProtectionProfileDto Current => current ??= store.Load() ?? EmptyProfile;
 
-    private static ProtectionProfileDto EmptyProfile { get; } = new(0, false, false, false, false, [], [], []);
+    // Профиля ещё нет — стираем всё: следующий игрок не должен войти в чужой Steam потому, что
+    // агент не успел спросить сервер.
+    private static ProtectionProfileDto EmptyProfile { get; } = new(0, false, false, false, false, [], [], [], SessionTraceNames.All);
 
     private bool InMaintenance => runtimeState.Current.State == PlayerShellStateNames.Maintenance;
 
     public IReadOnlyList<BlockedWindowRuleDto> BlockedWindows => Current.BlockedWindows;
+
+    // Профиль, сохранённый прежней версией агента, списка не знает: для него — всё.
+    public IReadOnlyList<string> ClearAfterSession => Current.ClearAfterSession ?? SessionTraceNames.All;
 
     public async Task ApplyAsync(CancellationToken cancellationToken)
     {

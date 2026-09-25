@@ -324,6 +324,8 @@ public sealed class PlayerShellStateBuilderTests
     {
         public IReadOnlyList<AFK4.Shared.Contracts.Devices.BlockedWindowRuleDto> BlockedWindows => rules;
 
+        public IReadOnlyList<string> ClearAfterSession => [];
+
         public Task ApplyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task ReleaseAsync(CancellationToken cancellationToken) => Task.CompletedTask;

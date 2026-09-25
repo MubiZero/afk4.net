@@ -790,6 +790,23 @@ abstract final class SessionStateNames {
   static const String reconciled = 'reconciled';
 }
 
+/// Следы, которые агент стирает, когда сессия кончилась и ПК заперт (спека оболочки, §6.4). Пути
+/// у каждого пункта точные и зашиты в агента: из Панели приезжает только «стирать или нет», а не
+/// путь — иначе профиль защиты стал бы пультом удаления любых файлов на ПК зала. Сохранения игр в
+/// этих путях не лежат.
+///
+/// Словарь: Devices/ProtectionProfileContracts.cs
+abstract final class SessionTraceNames {
+  /// Вход в Steam: запомненные аккаунты, автовход, кэш входа, куки магазина.
+  static const String steam = 'steam';
+  /// Профили браузеров целиком: пароли, куки, история, открытые вкладки.
+  static const String browsers = 'browsers';
+  /// Вход в Epic, Battle.net, Riot и Ubisoft Connect.
+  static const String launchers = 'launchers';
+  /// Discord и Telegram Desktop: вход и переписка.
+  static const String messengers = 'messengers';
+}
+
 /// Словарь: Shell/ShellBridgeContracts.cs
 abstract final class ShellBridgeErrorCodeNames {
   /// Номер или ПИН-код не подошли.
@@ -13062,6 +13079,7 @@ class ProtectionProfileDto {
     required this.hiddenDrives,
     required this.urlBlocklist,
     required this.blockedWindows,
+    required this.clearAfterSession,
   });
 
   final int version;
@@ -13087,6 +13105,9 @@ class ProtectionProfileDto {
   /// Окна, которые оболочка закрывает, едва они появятся.
   final List<BlockedWindowRuleDto> blockedWindows;
 
+  /// Что стереть после сессии игрока (§6.4). Каждый пункт — из SessionTraceNames.
+  final List<String> clearAfterSession;
+
   factory ProtectionProfileDto.fromJson(Map<String, dynamic> json) => ProtectionProfileDto(
         version: (json['version'] as num).toInt(),
         blockRemovableStorage: json['blockRemovableStorage'] as bool,
@@ -13096,6 +13117,7 @@ class ProtectionProfileDto {
         hiddenDrives: (json['hiddenDrives'] as List<dynamic>).map((item) => item as String).toList(),
         urlBlocklist: (json['urlBlocklist'] as List<dynamic>).map((item) => item as String).toList(),
         blockedWindows: (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
+        clearAfterSession: (json['clearAfterSession'] as List<dynamic>).map((item) => item as String).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -13107,6 +13129,7 @@ class ProtectionProfileDto {
         'hiddenDrives': hiddenDrives.map((item) => item).toList(),
         'urlBlocklist': urlBlocklist.map((item) => item).toList(),
         'blockedWindows': blockedWindows.map((item) => item.toJson()).toList(),
+        'clearAfterSession': clearAfterSession.map((item) => item).toList(),
       };
 }
 
@@ -17862,6 +17885,7 @@ class UpdateBranchProtectionProfileRequest {
     required this.hiddenDrives,
     required this.urlBlocklist,
     required this.blockedWindows,
+    required this.clearAfterSession,
   });
 
   final String organizationId;
@@ -17873,6 +17897,7 @@ class UpdateBranchProtectionProfileRequest {
   final List<String> hiddenDrives;
   final List<String> urlBlocklist;
   final List<BlockedWindowRuleDto> blockedWindows;
+  final List<String> clearAfterSession;
 
   factory UpdateBranchProtectionProfileRequest.fromJson(Map<String, dynamic> json) => UpdateBranchProtectionProfileRequest(
         organizationId: json['organizationId'] as String,
@@ -17884,6 +17909,7 @@ class UpdateBranchProtectionProfileRequest {
         hiddenDrives: (json['hiddenDrives'] as List<dynamic>).map((item) => item as String).toList(),
         urlBlocklist: (json['urlBlocklist'] as List<dynamic>).map((item) => item as String).toList(),
         blockedWindows: (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
+        clearAfterSession: (json['clearAfterSession'] as List<dynamic>).map((item) => item as String).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -17896,6 +17922,7 @@ class UpdateBranchProtectionProfileRequest {
         'hiddenDrives': hiddenDrives.map((item) => item).toList(),
         'urlBlocklist': urlBlocklist.map((item) => item).toList(),
         'blockedWindows': blockedWindows.map((item) => item.toJson()).toList(),
+        'clearAfterSession': clearAfterSession.map((item) => item).toList(),
       };
 }
 

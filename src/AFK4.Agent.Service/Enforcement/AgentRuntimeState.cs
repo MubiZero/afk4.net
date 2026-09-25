@@ -12,7 +12,10 @@ public sealed record AgentRuntimeState(
     DateTimeOffset UpdatedAtUtc,
     // Проводник для техника запустил агент — значит, при возврате в зал его и закрывать. Если
     // проводник работал до обслуживания (ПК ещё не переведён в киоск), он чужой и остаётся.
-    bool MaintenanceDesktopOpened = false)
+    bool MaintenanceDesktopOpened = false,
+    // Когда ПК открылся игроку. По нему уборка отличает запущенное за сессию от того, что работало
+    // раньше: утилиты мыши и звука, стартовавшие при входе в Windows, закрывать нельзя.
+    DateTimeOffset? SessionStartedAtUtc = null)
 {
     public static AgentRuntimeState Locked(DateTimeOffset updatedAtUtc)
     {
@@ -34,14 +37,16 @@ public sealed record AgentRuntimeState(
     public static AgentRuntimeState Grace(
         Guid sessionId,
         DateTimeOffset? leaseExpiresAtUtc,
-        DateTimeOffset updatedAtUtc)
+        DateTimeOffset updatedAtUtc,
+        DateTimeOffset? sessionStartedAtUtc = null)
     {
         return new AgentRuntimeState(
             PlayerShellStateNames.Grace,
             IsLocked: false,
             sessionId,
             leaseExpiresAtUtc,
-            updatedAtUtc);
+            updatedAtUtc,
+            SessionStartedAtUtc: sessionStartedAtUtc);
     }
 
     /// <summary>
@@ -64,13 +69,17 @@ public sealed record AgentRuntimeState(
     [JsonIgnore]
     public bool SessionRuns => State is PlayerShellStateNames.Active or PlayerShellStateNames.Grace;
 
-    public static AgentRuntimeState Active(SessionLeaseDto lease, DateTimeOffset updatedAtUtc)
+    public static AgentRuntimeState Active(
+        SessionLeaseDto lease,
+        DateTimeOffset updatedAtUtc,
+        DateTimeOffset? sessionStartedAtUtc = null)
     {
         return new AgentRuntimeState(
             PlayerShellStateNames.Active,
             IsLocked: false,
             lease.SessionId,
             lease.ExpiresAtUtc,
-            updatedAtUtc);
+            updatedAtUtc,
+            SessionStartedAtUtc: sessionStartedAtUtc ?? updatedAtUtc);
     }
 }
