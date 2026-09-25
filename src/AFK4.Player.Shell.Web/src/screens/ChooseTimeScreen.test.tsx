@@ -113,6 +113,13 @@ describe('сколько играем', () => {
     await waitFor(() => expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2));
   });
 
+  it('пополнить можно прямо отсюда, если у клуба есть онлайн-оплата', async () => {
+    serve(() => ({ status: 200, body: devStartOffers(Date.now()) }));
+    renderScreen();
+
+    expect(await screen.findByRole('button', { name: 'Пополнить' })).toBeInTheDocument();
+  });
+
   it('цены не загрузились — можно попробовать ещё раз', async () => {
     serve(() => ({ status: 500, body: {} }));
     renderScreen();

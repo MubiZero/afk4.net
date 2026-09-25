@@ -20,6 +20,7 @@ import { BarTab } from './session/BarTab';
 import { EndEarlySheet } from './session/EndEarlySheet';
 import { ExtendSheet } from './session/ExtendSheet';
 import { TimeMoneyColumn } from './session/TimeMoneyColumn';
+import { TopUpPanel } from './session/TopUpPanel';
 
 interface SessionScreenProps {
   state: PlayerShellStateDto;
@@ -57,8 +58,11 @@ export function SessionScreen({
   const offline = variant === 'grace' || !state.isOnline;
   // Бар — только владельцу, вошедшему на ПК: заказ списывается с его кошелька. И только если у
   // клуба это право по тарифу: вкладка, которая отвечает «нет доступа», хуже её отсутствия.
-  const barAvailable = role === 'owner' && Boolean(baseUrl) && (state.features ?? []).includes(PlatformFeatureNames.PlayerShop);
-  const [tab, setTab] = useState<'games' | 'bar'>('games');
+  const features = state.features ?? [];
+  const barAvailable = role === 'owner' && Boolean(baseUrl) && features.includes(PlatformFeatureNames.PlayerShop);
+  const topUpAvailable = role === 'owner' && Boolean(baseUrl) && features.includes(PlatformFeatureNames.OnlineTopUp);
+  const tabsShown = barAvailable || topUpAvailable;
+  const [tab, setTab] = useState<'games' | 'bar' | 'topUp'>('games');
   const tabsId = useId();
 
   return (
@@ -89,7 +93,7 @@ export function SessionScreen({
 
       <div className="session-screen__body">
       <div className="session-screen__main">
-        {barAvailable ? (
+        {tabsShown ? (
           <div className="tabs" role="tablist" aria-label={t('playerShell.tabs.label')}>
             <button
               type="button"
@@ -102,17 +106,32 @@ export function SessionScreen({
             >
               {t('playerShell.session.library')}
             </button>
-            <button
-              type="button"
-              role="tab"
-              id={`${tabsId}-bar`}
-              aria-controls={`${tabsId}-panel`}
-              aria-selected={tab === 'bar'}
-              className="tabs__tab"
-              onClick={() => setTab('bar')}
-            >
-              {t('playerShell.tabs.bar')}
-            </button>
+            {barAvailable ? (
+              <button
+                type="button"
+                role="tab"
+                id={`${tabsId}-bar`}
+                aria-controls={`${tabsId}-panel`}
+                aria-selected={tab === 'bar'}
+                className="tabs__tab"
+                onClick={() => setTab('bar')}
+              >
+                {t('playerShell.tabs.bar')}
+              </button>
+            ) : null}
+            {topUpAvailable ? (
+              <button
+                type="button"
+                role="tab"
+                id={`${tabsId}-topUp`}
+                aria-controls={`${tabsId}-panel`}
+                aria-selected={tab === 'topUp'}
+                className="tabs__tab"
+                onClick={() => setTab('topUp')}
+              >
+                {t('playerShell.tabs.topUp')}
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -120,14 +139,18 @@ export function SessionScreen({
           <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-bar`}>
             <BarTab baseUrl={baseUrl} />
           </section>
+        ) : topUpAvailable && tab === 'topUp' && baseUrl ? (
+          <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-topUp`}>
+            <TopUpPanel baseUrl={baseUrl} />
+          </section>
         ) : (
           <section
             className="library"
-            {...(barAvailable
+            {...(tabsShown
               ? { role: 'tabpanel', id: `${tabsId}-panel`, 'aria-labelledby': `${tabsId}-games` }
               : { 'aria-labelledby': 'library-title' })}
           >
-            {barAvailable ? null : <h2 id="library-title" className="library__title">{t('playerShell.session.library')}</h2>}
+            {tabsShown ? null : <h2 id="library-title" className="library__title">{t('playerShell.session.library')}</h2>}
             {state.launcherApps.length === 0 ? (
               <p className="library__empty">{t('playerShell.session.libraryEmpty')}</p>
             ) : (

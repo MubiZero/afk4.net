@@ -1259,3 +1259,89 @@ button {
   padding-top: 1.2rem;
   background: linear-gradient(to bottom, transparent, var(--surface-canvas) 45%);
 }
+
+/* Пополнение по QR */
+.top-up {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.top-up__note {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.top-up__preset {
+  min-height: 4.4rem;
+  justify-items: center;
+  align-content: center;
+}
+
+.top-up__custom {
+  max-width: 18rem;
+}
+
+.top-up__problem {
+  margin: 0;
+  color: var(--danger-text);
+}
+
+.top-up__action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.top-up--qr {
+  flex-direction: row;
+  align-items: center;
+  gap: 2rem;
+}
+
+.top-up__qr {
+  width: min(22rem, 45%);
+  flex: none;
+}
+
+.top-up__qr .qr {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 1rem;
+}
+
+.top-up__qr-text {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+}
+
+.top-up__qr-text p {
+  margin: 0;
+}
+
+.top-up__amount {
+  font-size: 2.4rem;
+  font-weight: 700;
+}
+
+.top-up__waiting {
+  color: var(--text-secondary);
+}
+
+.top-up--done {
+  align-items: center;
+  text-align: center;
+}
+
+.top-up__done-icon {
+  width: 3.6rem;
+  height: 3.6rem;
+  color: var(--shell-accent);
+}
+
+.top-up__done {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}

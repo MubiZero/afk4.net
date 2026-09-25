@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import {
+  PlatformFeatureNames,
   ShellBridgeRequestTypeNames,
   type MoneyDto,
   type PlayerShellStateDto,
@@ -21,6 +22,8 @@ import {
   type OfferChoice
 } from '../model/offers';
 import { SeatBadge } from '../ui/SeatBadge';
+import { Sheet } from '../ui/Sheet';
+import { TopUpPanel } from './session/TopUpPanel';
 
 /**
  * Вошедший на свободном ПК выбирает время (спека, §3, кадр 02). Суммы считает сервер тем же
@@ -35,6 +38,9 @@ export function ChooseTimeScreen({ state, auth }: { state: PlayerShellStateDto; 
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [toppingUp, setToppingUp] = useState(false);
+  // Не хватает на нужное время — пополнить можно прямо здесь, не уходя к стойке.
+  const topUpAvailable = Boolean(baseUrl) && (state.features ?? []).includes(PlatformFeatureNames.OnlineTopUp);
   // Один ключ на один выбор: повтор после обрыва получит ту же сессию, а не вторую.
   const idempotencyKey = useRef<string | null>(null);
 
@@ -83,6 +89,11 @@ export function ChooseTimeScreen({ state, auth }: { state: PlayerShellStateDto; 
             {t('playerShell.chooseTime.balance', { amount: money(offers.balance) })}
           </span>
         ) : null}
+        {topUpAvailable ? (
+          <button type="button" className="btn btn--ghost" onClick={() => setToppingUp(true)} disabled={starting}>
+            {t('playerShell.tabs.topUp')}
+          </button>
+        ) : null}
         <button type="button" className="btn btn--ghost" onClick={signOut} disabled={leaving || starting}>
           {t('playerShell.signOut')}
         </button>
@@ -123,6 +134,12 @@ export function ChooseTimeScreen({ state, auth }: { state: PlayerShellStateDto; 
                 : t('playerShell.chooseTime.startPackage')}
         </button>
       </footer>
+
+      {toppingUp && baseUrl ? (
+        <Sheet title={t('playerShell.topUp.title')} onClose={() => setToppingUp(false)}>
+          <TopUpPanel baseUrl={baseUrl} onPaid={reload} />
+        </Sheet>
+      ) : null}
     </main>
   );
 }

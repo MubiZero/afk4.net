@@ -194,6 +194,30 @@ function installDevApi(moveTo: (scenario: DevScenario) => void): void {
       setTimeout(() => moveTo('session'), 600);
       return json({});
     }
+    if (url.pathname === '/api/me/dashboard') {
+      return json({ walletBalance: TJS(devBalance), heldBalance: TJS(0), debtBalance: TJS(0), activeSession: null });
+    }
+    if (url.pathname === '/api/me/wallet/top-up-methods') {
+      return json({ counter: true, online: true });
+    }
+    if (url.pathname === '/api/me/wallet/top-up-intent' && post) {
+      const { amountMinorUnits } = JSON.parse(String(init?.body ?? '{}')) as { amountMinorUnits: number };
+      devTopUp = { amount: amountMinorUnits, asked: 0 };
+      return json({
+        paymentIntentId: crypto.randomUUID(), amountMinorUnits, currencyCode: 'TJS', state: 'pending', purpose: 'top_up',
+        method: 'eskhata', createdAtUtc: new Date().toISOString(), fulfilledAtUtc: null, isExpired: false,
+        qr: 'https://pay.example.test/afk4-dev-top-up'
+      });
+    }
+    if (url.pathname.endsWith('/eskhata-status') && post) {
+      // Учебный банк отвечает «оплачено» на третий вопрос — будто человек дошёл до кнопки в приложении.
+      if (devTopUp && ++devTopUp.asked >= 3) {
+        devBalance += devTopUp.amount;
+        devTopUp = null;
+        return json({ payment: 'paid' });
+      }
+      return json({ payment: 'pending' });
+    }
     if (url.pathname === '/api/me/shop/catalog') {
       return json(DEV_CATALOG);
     }
@@ -337,3 +361,6 @@ function devOrder(lines: { productId: string; quantity: number }[]): ShopOrderDt
     seatName: 'ПК 07'
   };
 }
+
+let devBalance = 4_500;
+let devTopUp: { amount: number; asked: number } | null = null;
