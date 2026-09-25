@@ -56,8 +56,10 @@ describe('platformRoute', () => {
       resolvePlatformRoute('/admin/money').kind,
       resolvePlatformRoute('/admin/updates').kind,
       resolvePlatformRoute('/admin/journal').kind,
-      resolvePlatformRoute('/admin/settings').kind
-    ]).toEqual(['overview', 'organizationNew', 'organization', 'billing', 'updates', 'audit', 'settings']);
+      resolvePlatformRoute('/admin/settings').kind,
+      resolvePlatformRoute('/admin/games').kind
+    ]).toEqual(['overview', 'organizationNew', 'organization', 'billing', 'updates', 'audit', 'settings', 'games']);
+    expect(pathForPlatformRoute({ kind: 'games' })).toBe('/admin/games');
     // Закладка на удалённый экран профиля ведёт на главный, а не в 404.
     expect(resolvePlatformRoute('/admin/profile')).toEqual({ kind: 'overview', view: 'now' });
     expect(resolvePlatformRoute('/organizations').kind).toBe('notFound');

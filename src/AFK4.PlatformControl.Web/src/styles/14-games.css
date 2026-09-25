@@ -1,0 +1,32 @@
+/* ── Каталог игр ─────────────────────────────────────────────────────────────────────── */
+
+/* Название с миниатюрой обложки в одной строке таблицы. */
+.pc-game-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Миниатюра — квадрат с обрезкой: в строке таблицы важно узнать игру, а не разглядеть картинку.
+   Пустая плашка того же размера держит названия в одну колонку. */
+.pc-game-thumb {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--surface-sunken);
+}
+
+/* Предпросмотр показывает картинку целиком, без обрезки: как её подрежет плитка на ПК, форма
+   не знает, а человеку нужно увидеть, та ли это картинка. */
+.pc-game-cover-preview {
+  justify-self: start;
+  max-width: min(100%, 240px);
+  max-height: 180px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  background: var(--surface-sunken);
+}

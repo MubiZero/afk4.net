@@ -55,6 +55,10 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'customer.achievement.marathon',
     // «Бар» — вкладка оболочки; заимствование, в таджикском пишется так же.
     'playerShell.tabs.bar', 'playerShell.summary.barTotal',
+    // Лаунчеры — имена продуктов: Steam, Epic Games, Riot, Battle.net не переводятся ни на один язык.
+    'platform.games.kind.steam', 'platform.games.kind.epic', 'platform.games.kind.riot', 'platform.games.kind.battlenet',
+    // «Жанр» — заимствование, в таджикском пишется так же.
+    'platform.games.column.genre', 'platform.games.field.genre',
     // «{club}, {hall}» — две подстановки и запятая: переводить нечего.
     'customer.friends.inHall',
     'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',

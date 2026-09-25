@@ -22,6 +22,7 @@ export type PlatformRoute =
   | { kind: 'audit'; organizationId: string; action: string; outcome: string; from: string; to: string }
   | { kind: 'settings' }
   | { kind: 'announcements' }
+  | { kind: 'games' }
   | { kind: 'people' }
   | { kind: 'health' }
   | { kind: 'notFound'; path: string };
@@ -72,6 +73,7 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
   if (path === '/admin/journal') return { kind: 'audit', organizationId: query.get('organizationId') ?? '', action: query.get('action') ?? '', outcome: query.get('outcome') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '' };
   if (path === '/admin/settings') return { kind: 'settings' };
   if (path === '/admin/announcements') return { kind: 'announcements' };
+  if (path === '/admin/games') return { kind: 'games' };
   if (path === '/admin/people') return { kind: 'people' };
   if (path === '/admin/health') return { kind: 'health' };
   // '/admin/profile' — закладка на удалённый экран профиля: учётная запись переехала в меню
@@ -99,6 +101,7 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
     }
     case 'settings': return '/admin/settings';
     case 'announcements': return '/admin/announcements';
+    case 'games': return '/admin/games';
     case 'people': return '/admin/people';
     case 'health': return '/admin/health';
     case 'notFound': return route.path;

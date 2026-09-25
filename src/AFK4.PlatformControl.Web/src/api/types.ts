@@ -4,6 +4,7 @@
 // call this as a function, so this narrower contract is the correct one.
 import type { PlatformAdminSignInResponse } from '@afk4/contracts';
 export type {
+  CatalogGameDto,
   CreateBranchRequest,
   CreateOrganizationRequest,
   CreateOrganizationResponse,
@@ -15,6 +16,7 @@ export type {
   PlatformAdminSignInResponse,
   UpdatePlanRequest,
   UpdateSubscriptionRequest,
+  UpsertCatalogGameRequest,
 } from '@afk4/contracts';
 
 export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

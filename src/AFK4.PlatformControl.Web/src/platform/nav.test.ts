@@ -22,6 +22,13 @@ describe('platform nav', () => {
     expect(keys).toContain('journal');
     expect(keys).not.toContain('updates');
     expect(keys).not.toContain('settings');
+    expect(keys).not.toContain('games');
+  });
+
+  it('shows the game catalog only to those who may edit it', () => {
+    const keys = buildPlatformNav(session(['platform.games.manage'])).map(item => item.key);
+    expect(keys).toEqual(['games']);
+    expect(buildPlatformNav(session(['platform.games.manage']))[0].path).toBe('/admin/games');
   });
 
   // Профиль переехал в меню аккаунта в подвале рейла: отдельного пункта навигации быть не должно,
