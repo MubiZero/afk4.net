@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Devices;
+
 namespace AFK4.Shared.Contracts.Shell;
 
 public sealed record PlayerShellStateDto(
@@ -43,4 +45,7 @@ public sealed record PlayerShellStateDto(
     // Обслуживание: с какого момента и кто его включил — для полосы «Включено из Панели AFK4.net
     // в 14:05 · Шерзод». Пусто вне обслуживания; имя пусто, если его включила поддержка без имени.
     DateTimeOffset? MaintenanceSinceUtc = null,
-    string? MaintenanceByName = null);
+    string? MaintenanceByName = null,
+    // Окна, которые хост закрывает, едва они появятся (профиль защиты, §6.3). Служба в сессии 0
+    // окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
+    IReadOnlyList<BlockedWindowRuleDto>? BlockedWindows = null);

@@ -36,6 +36,7 @@ public partial class WebViewPlayerWindow : Window
     private string? appSource;
     private readonly WindowsSystemControls systemControls = new();
     private readonly KioskKeyboardHook keyboard = new();
+    private readonly WindowBlocker windows = new();
     private readonly MaintenanceBand band;
     private OverlayWindow? overlay;
     private ClubMessage? clubMessage;
@@ -124,6 +125,7 @@ public partial class WebViewPlayerWindow : Window
 
             // Пока агент молчит, ПК заперт: перехват стоит с первой секунды, а не с первого состояния.
             keyboard.Start();
+            windows.Start();
 
             overlay = new OverlayWindow(localization);
             overlay.ExtendRequested += BringShellForward;
@@ -349,6 +351,7 @@ public partial class WebViewPlayerWindow : Window
     private void ApplyWindowLayer(PlayerShellStateDto state)
     {
         keyboard.SetMode(KeyboardBlockPolicy.ModeFor(state));
+        windows.SetRules(state.BlockedWindows);
         var layout = ShellWindowPolicy.Layout(state);
         if (layout == ShellWindowLayout.Band)
         {
@@ -423,6 +426,7 @@ public partial class WebViewPlayerWindow : Window
     {
         tick.Stop();
         keyboard.Dispose();
+        windows.Dispose();
         band.Dispose();
         overlay?.Close();
         lifetime.Cancel();

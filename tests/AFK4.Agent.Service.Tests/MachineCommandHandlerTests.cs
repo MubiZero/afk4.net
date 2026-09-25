@@ -332,6 +332,8 @@ public sealed class MachineCommandHandlerTests
 
         public int Refreshes { get; private set; }
 
+        public IReadOnlyList<BlockedWindowRuleDto> BlockedWindows => [];
+
         public Task ApplyAsync(CancellationToken cancellationToken)
         {
             Applies++;

@@ -11921,6 +11921,7 @@ class PlayerShellStateDto {
     this.features,
     this.maintenanceSinceUtc,
     this.maintenanceByName,
+    this.blockedWindows,
   });
 
   final String organizationId;
@@ -11978,6 +11979,10 @@ class PlayerShellStateDto {
   final DateTime? maintenanceSinceUtc;
   final String? maintenanceByName;
 
+  /// Окна, которые хост закрывает, едва они появятся (профиль защиты, §6.3). Служба в сессии 0
+  /// окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
+  final List<BlockedWindowRuleDto>? blockedWindows;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -12006,6 +12011,7 @@ class PlayerShellStateDto {
         features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
         maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
         maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
+        blockedWindows: json['blockedWindows'] == null ? null : (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -12036,6 +12042,7 @@ class PlayerShellStateDto {
         'features': features?.map((item) => item).toList(),
         'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
         'maintenanceByName': maintenanceByName,
+        'blockedWindows': blockedWindows?.map((item) => item.toJson()).toList(),
       };
 }
 

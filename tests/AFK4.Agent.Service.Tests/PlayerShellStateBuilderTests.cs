@@ -306,7 +306,35 @@ public sealed class PlayerShellStateBuilderTests
         Assert.Null(locked.MaintenanceByName);
     }
 
-    private sealed class Fixture(string? clubName = null)
+    /// <summary>Правила закрытия окон едут хосту; в обслуживании технику нужны и командная строка, и реестр.</summary>
+    [Fact]
+    public void BlockedWindows_TravelToTheHost_ExceptUnderMaintenance()
+    {
+        var rules = new List<AFK4.Shared.Contracts.Devices.BlockedWindowRuleDto> { new("Командная строка", null) };
+        var fixture = new Fixture(protection: new StubProtection(rules));
+
+        Assert.Equal(rules, fixture.Build().BlockedWindows);
+
+        fixture.RuntimeState.Save(AgentRuntimeState.Maintenance(Now));
+        Assert.Empty(fixture.Build().BlockedWindows!);
+    }
+
+    private sealed class StubProtection(IReadOnlyList<AFK4.Shared.Contracts.Devices.BlockedWindowRuleDto> rules)
+        : AFK4.Agent.Service.Protection.IProtectionEnforcer
+    {
+        public IReadOnlyList<AFK4.Shared.Contracts.Devices.BlockedWindowRuleDto> BlockedWindows => rules;
+
+        public Task ApplyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task ReleaseAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task SyncAsync(int serverVersion, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<SessionEnforcementResult> RefreshAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(SessionEnforcementResult.Accepted("ok", "protection-applied"));
+    }
+
+    private sealed class Fixture(string? clubName = null, AFK4.Agent.Service.Protection.IProtectionEnforcer? protection = null)
     {
         public AgentOptions Options { get; } = new()
         {
@@ -359,7 +387,8 @@ public sealed class PlayerShellStateBuilderTests
             Grace,
             Heartbeat,
             Warnings,
-            new FixedTimeProvider(Now)).Build();
+            new FixedTimeProvider(Now),
+            protection).Build();
     }
 
     internal sealed class MemoryRuntimeStateStore(AgentRuntimeState initial) : IAgentRuntimeStateStore

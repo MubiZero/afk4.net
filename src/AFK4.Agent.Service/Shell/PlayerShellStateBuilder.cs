@@ -1,4 +1,5 @@
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Protection;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
 
@@ -23,7 +24,8 @@ public sealed class PlayerShellStateBuilder(
     IOfflineGraceState offlineGraceState,
     IShellHeartbeatSnapshot heartbeatSnapshot,
     IShellWarningStore shellWarningStore,
-    TimeProvider timeProvider) : IPlayerShellStateBuilder
+    TimeProvider timeProvider,
+    IProtectionEnforcer? protection = null) : IPlayerShellStateBuilder
 {
     /// <summary>Последняя минута сессии — отдельное состояние: экран готовит игрока к концу.</summary>
     public const int EndingThresholdSeconds = 60;
@@ -82,7 +84,9 @@ public sealed class PlayerShellStateBuilder(
             Features: heartbeatSnapshot.Features,
             // Кто и когда — только в обслуживании: вне его полосе нечего писать.
             MaintenanceSinceUtc: inMaintenance ? heartbeatSnapshot.MaintenanceSinceUtc : null,
-            MaintenanceByName: inMaintenance ? heartbeatSnapshot.MaintenanceByName : null);
+            MaintenanceByName: inMaintenance ? heartbeatSnapshot.MaintenanceByName : null,
+            // В обслуживании технику нужны и командная строка, и реестр — окна не закрываются.
+            BlockedWindows: inMaintenance || protection is null ? [] : protection.BlockedWindows);
     }
 
     private static string ResolveState(string runtimeState, int? remainingSeconds, bool isOnline) => runtimeState switch

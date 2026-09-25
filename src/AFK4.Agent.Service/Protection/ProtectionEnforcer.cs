@@ -24,6 +24,9 @@ public interface IProtectionEnforcer
 
     /// <summary>Команда «перечитать профиль» из Панели.</summary>
     Task<SessionEnforcementResult> RefreshAsync(CancellationToken cancellationToken);
+
+    /// <summary>Правила закрытия окон из текущего профиля — их исполняет хост в сессии игрока.</summary>
+    IReadOnlyList<BlockedWindowRuleDto> BlockedWindows { get; }
 }
 
 public interface IProtectionPlatformClient
@@ -63,6 +66,8 @@ public sealed class ProtectionEnforcer(
     private static ProtectionProfileDto EmptyProfile { get; } = new(0, false, false, false, false, [], [], []);
 
     private bool InMaintenance => runtimeState.Current.State == PlayerShellStateNames.Maintenance;
+
+    public IReadOnlyList<BlockedWindowRuleDto> BlockedWindows => Current.BlockedWindows;
 
     public async Task ApplyAsync(CancellationToken cancellationToken)
     {
