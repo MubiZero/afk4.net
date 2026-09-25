@@ -204,3 +204,55 @@
 .settings-device-commands b { color: var(--text-strong); font-size: 12px; font-weight: 500; }
 .settings-device-commands small { color: var(--text-tertiary); font-size: 11px; }
 .settings-device-commands em { grid-column: 1 / -1; color: var(--text-tertiary); font-size: 11px; font-style: normal; }
+
+/* Защита ПК в карточке устройства: пункт и что с ним на самом деле. Не применилось — красным,
+   «только в Проводнике» — предупреждением: это не запрет, и клуб должен это видеть. */
+.device-protection {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.device-protection .mgmt-drawer-hint {
+  padding: 0;
+}
+
+.device-protection-behind {
+  margin: 0;
+  color: var(--warning-text);
+  font-size: 12px;
+}
+
+.device-protection-items {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device-protection-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+  font-size: 12px;
+}
+
+.device-protection-items b {
+  font-weight: 600;
+  color: var(--text-strong);
+  text-align: right;
+}
+
+.device-protection-items li[data-status='explorer-only'] b {
+  color: var(--warning-text);
+}
+
+.device-protection-items li[data-status='failed'] b,
+.device-protection-items li[data-status='unsupported'] b {
+  color: var(--danger-text);
+}

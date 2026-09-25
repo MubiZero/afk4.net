@@ -131,6 +131,10 @@ export const DeviceCommandOutcomeNames = {
   ShellNotConnected: 'shell-not-connected',
   /** Профиля защиты у ПК пока нет — обновлять нечего. */
   NothingToRefresh: 'nothing-to-refresh',
+  /** Профиль защиты перечитан и применён; что вышло по пунктам — в отчёте ПК. */
+  ProtectionApplied: 'protection-applied',
+  /** Профиль не удалось получить с сервера — ПК остаётся на прежнем. */
+  ProtectionUnavailable: 'protection-unavailable',
 } as const;
 export type DeviceCommandOutcomeName = (typeof DeviceCommandOutcomeNames)[keyof typeof DeviceCommandOutcomeNames];
 
@@ -717,6 +721,41 @@ export const PosSaleStateNames = {
   Voided: 'voided',
 } as const;
 export type PosSaleStateName = (typeof PosSaleStateNames)[keyof typeof PosSaleStateNames];
+
+/**
+ * Что именно агент запрещает на ПК — по пункту на строку отчёта.
+ *
+ * Словарь: Devices/ProtectionProfileContracts.cs
+ */
+export const ProtectionItemNames = {
+  /** Постоянная основа киоска: меню Ctrl+Alt+Del без блокировки, выхода, смены пользователя и данных входа. */
+  KioskBaseline: 'kiosk-baseline',
+  RemovableStorage: 'removable-storage',
+  BrowserDownloads: 'browser-downloads',
+  BrowserIncognito: 'browser-incognito',
+  BrowserUrlBlocklist: 'browser-url-blocklist',
+  RunDialog: 'run-dialog',
+  HiddenDrives: 'hidden-drives',
+} as const;
+export type ProtectionItemName = (typeof ProtectionItemNames)[keyof typeof ProtectionItemNames];
+
+/**
+ * Что получилось с пунктом. Скрытие дисков — отдельный исход: диск пропал из Проводника, но
+ * программа откроет его по пути, и называть это «запрещено» было бы неправдой (§6.3).
+ *
+ * Словарь: Devices/ProtectionProfileContracts.cs
+ */
+export const ProtectionItemStatusNames = {
+  Applied: 'applied',
+  /** Действует только в Проводнике: это не запрет. */
+  ExplorerOnly: 'explorer-only',
+  Failed: 'failed',
+  /** Здесь не применить: ПК не на Windows или агент без доступа к политикам машины. */
+  Unsupported: 'unsupported',
+  /** Снято на время обслуживания. */
+  Released: 'released',
+} as const;
+export type ProtectionItemStatusName = (typeof ProtectionItemStatusNames)[keyof typeof ProtectionItemStatusNames];
 
 /** Словарь: Devices/ProtectionProfileContracts.cs */
 export const ProtectionProfileErrorCodeNames = {
@@ -2398,6 +2437,10 @@ export interface DeviceDetailDto {
   displayName?: string;
   role?: string;
   enrollmentState?: string;
+  /** Последний отчёт ПК о защите; null — ПК ещё не докладывал. */
+  protectionReport?: DeviceProtectionReportDto | null;
+  /** Текущая версия профиля филиала: отчёт со старой версией значит «ПК ещё не применил». */
+  branchProtectionVersion?: number;
 }
 
 /** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
@@ -2586,6 +2629,31 @@ export interface DevicePlayerSignInRequest {
   deviceId: Guid;
   phoneNumber: string;
   pin: string;
+}
+
+/**
+ * Последний отчёт ПК о защите — для карточки ПК в Панели.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface DeviceProtectionReportDto {
+  version: number;
+  appliedAtUtc: IsoDateTime;
+  items: ProtectionItemReportDto[];
+}
+
+/**
+ * Агент применил профиль (или снял его на обслуживание) и докладывает, что вышло.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface DeviceProtectionReportRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  version: number;
+  appliedAtUtc: IsoDateTime;
+  items: ProtectionItemReportDto[];
 }
 
 /**
@@ -5159,6 +5227,19 @@ export interface ProductBarcodeDto {
   productId: Guid;
   code: string;
   isPrimary: boolean;
+}
+
+/**
+ * Строка отчёта: пункт, исход (ProtectionItemStatusNames) и подробность для разбора.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface ProtectionItemReportDto {
+  /** Одно из ProtectionItemNames. */
+  item: ProtectionItemName;
+  /** Одно из ProtectionItemStatusNames. */
+  status: ProtectionItemStatusName;
+  detail: string | null;
 }
 
 /**

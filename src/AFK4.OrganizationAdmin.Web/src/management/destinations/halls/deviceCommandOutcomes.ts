@@ -25,7 +25,9 @@ const OUTCOME_LABELS: Record<string, MessageKey> = {
   'maintenance-ended': 'op.helper.cmdOutcome.maintenanceEnded',
   'delivered-to-shell': 'op.helper.cmdOutcome.deliveredToShell',
   'shell-not-connected': 'op.helper.cmdOutcome.shellNotConnected',
-  'nothing-to-refresh': 'op.helper.cmdOutcome.nothingToRefresh'
+  'nothing-to-refresh': 'op.helper.cmdOutcome.nothingToRefresh',
+  'protection-applied': 'op.helper.cmdOutcome.protectionApplied',
+  'protection-unavailable': 'op.helper.cmdOutcome.protectionUnavailable'
 };
 
 export function commandOutcomeLabelKey(outcome: string | null | undefined): MessageKey | null {

@@ -58,4 +58,68 @@ public static class DeviceProtectionRoutes
 {
     public static string Profile(Guid deviceId, Guid organizationId, Guid branchId) =>
         $"/api/devices/{deviceId:D}/policy?organizationId={organizationId:D}&branchId={branchId:D}";
+
+    public static string Report(Guid deviceId) => $"/api/devices/{deviceId:D}/policy/report";
 }
+
+/// <summary>Что именно агент запрещает на ПК — по пункту на строку отчёта.</summary>
+public static class ProtectionItemNames
+{
+    /// <summary>Постоянная основа киоска: меню Ctrl+Alt+Del без блокировки, выхода, смены пользователя и данных входа.</summary>
+    public const string KioskBaseline = "kiosk-baseline";
+
+    public const string RemovableStorage = "removable-storage";
+
+    public const string BrowserDownloads = "browser-downloads";
+
+    public const string BrowserIncognito = "browser-incognito";
+
+    public const string BrowserUrlBlocklist = "browser-url-blocklist";
+
+    public const string RunDialog = "run-dialog";
+
+    public const string HiddenDrives = "hidden-drives";
+}
+
+/// <summary>
+/// Что получилось с пунктом. Скрытие дисков — отдельный исход: диск пропал из Проводника, но
+/// программа откроет его по пути, и называть это «запрещено» было бы неправдой (§6.3).
+/// </summary>
+public static class ProtectionItemStatusNames
+{
+    public const string Applied = "applied";
+
+    /// <summary>Действует только в Проводнике: это не запрет.</summary>
+    public const string ExplorerOnly = "explorer-only";
+
+    public const string Failed = "failed";
+
+    /// <summary>Здесь не применить: ПК не на Windows или агент без доступа к политикам машины.</summary>
+    public const string Unsupported = "unsupported";
+
+    /// <summary>Снято на время обслуживания.</summary>
+    public const string Released = "released";
+}
+
+/// <summary>Строка отчёта: пункт, исход (ProtectionItemStatusNames) и подробность для разбора.</summary>
+public sealed record ProtectionItemReportDto(
+    /// Одно из ProtectionItemNames.
+    string Item,
+    /// Одно из ProtectionItemStatusNames.
+    string Status,
+    string? Detail);
+
+/// <summary>Агент применил профиль (или снял его на обслуживание) и докладывает, что вышло.</summary>
+public sealed record DeviceProtectionReportRequest(
+    Guid OrganizationId,
+    Guid BranchId,
+    Guid DeviceId,
+    int Version,
+    DateTimeOffset AppliedAtUtc,
+    IReadOnlyList<ProtectionItemReportDto> Items);
+
+/// <summary>Последний отчёт ПК о защите — для карточки ПК в Панели.</summary>
+public sealed record DeviceProtectionReportDto(
+    int Version,
+    DateTimeOffset AppliedAtUtc,
+    IReadOnlyList<ProtectionItemReportDto> Items);

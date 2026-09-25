@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Network;
+using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shell;
@@ -23,7 +24,8 @@ public sealed class MachineCommandHandler(
     IWakeOnLanSender wakeOnLanSender,
     INetworkIdentityProvider networkIdentity,
     IShellHostChannel hostChannel,
-    ILogger<MachineCommandHandler> logger) : IMachineCommandHandler
+    ILogger<MachineCommandHandler> logger,
+    IProtectionEnforcer? protection = null) : IMachineCommandHandler
 {
     /// <summary>Сколько Windows ждёт перед перезагрузкой: ответ серверу уходит за это время.</summary>
     public static readonly TimeSpan PowerDelay = TimeSpan.FromSeconds(10);
@@ -64,10 +66,12 @@ public sealed class MachineCommandHandler(
                     DeviceCommandTypeNames.Message,
                     command.Payload.GetValueOrDefault("text")));
             default:
-                // Профилей защиты ещё нет (P5): принять и честно сказать, что делать было нечего.
-                return SessionEnforcementResult.Accepted(
-                    "This PC has no protection profile yet; nothing to refresh.",
-                    DeviceCommandOutcomeNames.NothingToRefresh);
+                // policy-refresh: перечитать профиль защиты сейчас, не дожидаясь сердцебиения.
+                return protection is null
+                    ? SessionEnforcementResult.Accepted(
+                        "This PC has no protection profile yet; nothing to refresh.",
+                        DeviceCommandOutcomeNames.NothingToRefresh)
+                    : await protection.RefreshAsync(cancellationToken);
         }
     }
 

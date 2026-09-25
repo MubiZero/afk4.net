@@ -5,6 +5,7 @@ import { MgmtTable } from '../../kit/MgmtTable';
 import { SkeletonTable } from '../../../LoadingSkeleton';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
+import { DeviceProtectionReport } from './DeviceProtectionReport';
 import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
 import { CriticalActionConfirmation, EmptyState, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
@@ -428,6 +429,13 @@ export function DevicesTab({
                 <p className="mgmt-drawer-hint">{t('op.settings.devices.deviceCardNotOpen')}</p>
               )}
             </div>
+
+            {deviceDetail && !detailLoading && (
+              <div className="mgmt-drawer-section">
+                <div className="mgmt-section-title"><span>{t('op.management.dest.protection')}</span></div>
+                <DeviceProtectionReport report={deviceDetail.protectionReport} branchVersion={deviceDetail.branchProtectionVersion ?? 0} />
+              </div>
+            )}
 
             {canViewDeviceCommands && (
               <div className="mgmt-drawer-section">

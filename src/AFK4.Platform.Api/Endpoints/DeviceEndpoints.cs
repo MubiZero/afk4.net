@@ -1107,7 +1107,12 @@ internal static class DeviceEndpoints
                 RecentCommands: recentCommands,
                 DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
                 Role: device.Role,
-                EnrollmentState: device.EnrollmentState));
+                EnrollmentState: device.EnrollmentState,
+                ProtectionReport: ProtectionReports.Read(device.ProtectionReportJson),
+                BranchProtectionVersion: await dbContext.BranchProtectionProfiles.AsNoTracking()
+                    .Where(profile => profile.BranchId == device.BranchId)
+                    .Select(profile => profile.Version)
+                    .FirstOrDefaultAsync(cancellationToken)));
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 

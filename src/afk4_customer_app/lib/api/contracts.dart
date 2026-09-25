@@ -104,6 +104,10 @@ abstract final class DeviceCommandOutcomeNames {
   static const String shellNotConnected = 'shell-not-connected';
   /// Профиля защиты у ПК пока нет — обновлять нечего.
   static const String nothingToRefresh = 'nothing-to-refresh';
+  /// Профиль защиты перечитан и применён; что вышло по пунктам — в отчёте ПК.
+  static const String protectionApplied = 'protection-applied';
+  /// Профиль не удалось получить с сервера — ПК остаётся на прежнем.
+  static const String protectionUnavailable = 'protection-unavailable';
 }
 
 /// Где команда: ждёт, отдана агенту, устарела или агент уже ответил.
@@ -601,6 +605,35 @@ abstract final class PosSaleStateNames {
   static const String paid = 'paid';
   static const String refunded = 'refunded';
   static const String voided = 'voided';
+}
+
+/// Что именно агент запрещает на ПК — по пункту на строку отчёта.
+///
+/// Словарь: Devices/ProtectionProfileContracts.cs
+abstract final class ProtectionItemNames {
+  /// Постоянная основа киоска: меню Ctrl+Alt+Del без блокировки, выхода, смены пользователя и данных входа.
+  static const String kioskBaseline = 'kiosk-baseline';
+  static const String removableStorage = 'removable-storage';
+  static const String browserDownloads = 'browser-downloads';
+  static const String browserIncognito = 'browser-incognito';
+  static const String browserUrlBlocklist = 'browser-url-blocklist';
+  static const String runDialog = 'run-dialog';
+  static const String hiddenDrives = 'hidden-drives';
+}
+
+/// Что получилось с пунктом. Скрытие дисков — отдельный исход: диск пропал из Проводника, но
+/// программа откроет его по пути, и называть это «запрещено» было бы неправдой (§6.3).
+///
+/// Словарь: Devices/ProtectionProfileContracts.cs
+abstract final class ProtectionItemStatusNames {
+  static const String applied = 'applied';
+  /// Действует только в Проводнике: это не запрет.
+  static const String explorerOnly = 'explorer-only';
+  static const String failed = 'failed';
+  /// Здесь не применить: ПК не на Windows или агент без доступа к политикам машины.
+  static const String unsupported = 'unsupported';
+  /// Снято на время обслуживания.
+  static const String released = 'released';
 }
 
 /// Словарь: Devices/ProtectionProfileContracts.cs
@@ -4498,6 +4531,8 @@ class DeviceDetailDto {
     this.displayName,
     this.role,
     this.enrollmentState,
+    this.protectionReport,
+    this.branchProtectionVersion,
   });
 
   final String organizationId;
@@ -4521,6 +4556,12 @@ class DeviceDetailDto {
   final String? role;
   final String? enrollmentState;
 
+  /// Последний отчёт ПК о защите; null — ПК ещё не докладывал.
+  final DeviceProtectionReportDto? protectionReport;
+
+  /// Текущая версия профиля филиала: отчёт со старой версией значит «ПК ещё не применил».
+  final int? branchProtectionVersion;
+
   factory DeviceDetailDto.fromJson(Map<String, dynamic> json) => DeviceDetailDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -4542,6 +4583,8 @@ class DeviceDetailDto {
         displayName: json['displayName'] == null ? null : json['displayName'] as String,
         role: json['role'] == null ? null : json['role'] as String,
         enrollmentState: json['enrollmentState'] == null ? null : json['enrollmentState'] as String,
+        protectionReport: json['protectionReport'] == null ? null : DeviceProtectionReportDto.fromJson(json['protectionReport'] as Map<String, dynamic>),
+        branchProtectionVersion: json['branchProtectionVersion'] == null ? null : (json['branchProtectionVersion'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4565,6 +4608,8 @@ class DeviceDetailDto {
         'displayName': displayName,
         'role': role,
         'enrollmentState': enrollmentState,
+        'protectionReport': protectionReport?.toJson(),
+        'branchProtectionVersion': branchProtectionVersion,
       };
 }
 
@@ -5086,6 +5131,72 @@ class DevicePlayerSignInRequest {
         'deviceId': deviceId,
         'phoneNumber': phoneNumber,
         'pin': pin,
+      };
+}
+
+/// Последний отчёт ПК о защите — для карточки ПК в Панели.
+///
+/// Контракт: Devices/ProtectionProfileContracts.cs
+class DeviceProtectionReportDto {
+  const DeviceProtectionReportDto({
+    required this.version,
+    required this.appliedAtUtc,
+    required this.items,
+  });
+
+  final int version;
+  final DateTime appliedAtUtc;
+  final List<ProtectionItemReportDto> items;
+
+  factory DeviceProtectionReportDto.fromJson(Map<String, dynamic> json) => DeviceProtectionReportDto(
+        version: (json['version'] as num).toInt(),
+        appliedAtUtc: DateTime.parse(json['appliedAtUtc'] as String),
+        items: (json['items'] as List<dynamic>).map((item) => ProtectionItemReportDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'version': version,
+        'appliedAtUtc': appliedAtUtc.toIso8601String(),
+        'items': items.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Агент применил профиль (или снял его на обслуживание) и докладывает, что вышло.
+///
+/// Контракт: Devices/ProtectionProfileContracts.cs
+class DeviceProtectionReportRequest {
+  const DeviceProtectionReportRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+    required this.version,
+    required this.appliedAtUtc,
+    required this.items,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+  final int version;
+  final DateTime appliedAtUtc;
+  final List<ProtectionItemReportDto> items;
+
+  factory DeviceProtectionReportRequest.fromJson(Map<String, dynamic> json) => DeviceProtectionReportRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+        version: (json['version'] as num).toInt(),
+        appliedAtUtc: DateTime.parse(json['appliedAtUtc'] as String),
+        items: (json['items'] as List<dynamic>).map((item) => ProtectionItemReportDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+        'version': version,
+        'appliedAtUtc': appliedAtUtc.toIso8601String(),
+        'items': items.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -12776,6 +12887,37 @@ class ProductBarcodeDto {
         'productId': productId,
         'code': code,
         'isPrimary': isPrimary,
+      };
+}
+
+/// Строка отчёта: пункт, исход (ProtectionItemStatusNames) и подробность для разбора.
+///
+/// Контракт: Devices/ProtectionProfileContracts.cs
+class ProtectionItemReportDto {
+  const ProtectionItemReportDto({
+    required this.item,
+    required this.status,
+    this.detail,
+  });
+
+
+  /// Одно из ProtectionItemNames.
+  final String item;
+
+  /// Одно из ProtectionItemStatusNames.
+  final String status;
+  final String? detail;
+
+  factory ProtectionItemReportDto.fromJson(Map<String, dynamic> json) => ProtectionItemReportDto(
+        item: json['item'] as String,
+        status: json['status'] as String,
+        detail: json['detail'] == null ? null : json['detail'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'item': item,
+        'status': status,
+        'detail': detail,
       };
 }
 

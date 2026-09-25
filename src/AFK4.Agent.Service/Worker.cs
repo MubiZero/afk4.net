@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Network;
+using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.Extensions.Options;
@@ -31,7 +32,8 @@ public sealed class Worker(
     IPlatformClockSynchronizer? platformClockSynchronizer = null,
     INetworkIdentityProvider? networkIdentity = null,
     IMaintenanceMode? maintenanceMode = null,
-    IPlayerSignIn? playerSignIn = null) : BackgroundService
+    IPlayerSignIn? playerSignIn = null,
+    IProtectionEnforcer? protection = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -72,6 +74,7 @@ public sealed class Worker(
         await TryMaintainPlayerShellAsync(stoppingToken);
         await TryReconcileSessionAsync(stoppingToken);
         await TryReportInstalledAppsAsync(stoppingToken);
+        await TryProtectAsync(() => protection!.ApplyAsync(stoppingToken), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -142,6 +145,9 @@ public sealed class Worker(
                 {
                     await maintenanceMode.ReconcileAsync(heartbeat.Maintenance, cancellationToken);
                 }
+
+                // Профиль защиты — после обслуживания: в обслуживании запреты сняты и остаются снятыми.
+                await TryProtectAsync(() => protection!.SyncAsync(heartbeat.PolicyProfileVersion, cancellationToken), cancellationToken);
 
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
@@ -454,6 +460,27 @@ public sealed class Worker(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Installed app inventory report failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    private async Task TryProtectAsync(Func<Task> action, CancellationToken cancellationToken)
+    {
+        if (protection is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await action();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Protection profile step failed. Continuing with heartbeat loop.");
         }
     }
 

@@ -22,4 +22,8 @@ public sealed record DeviceDetailDto(
     IReadOnlyList<DeviceCommandStatusDto> RecentCommands,
     string DisplayName = "",
     string Role = DeviceRoleNames.GamingPc,
-    string EnrollmentState = DeviceEnrollmentStateNames.Approved);
+    string EnrollmentState = DeviceEnrollmentStateNames.Approved,
+    /// Последний отчёт ПК о защите; null — ПК ещё не докладывал.
+    DeviceProtectionReportDto? ProtectionReport = null,
+    /// Текущая версия профиля филиала: отчёт со старой версией значит «ПК ещё не применил».
+    int BranchProtectionVersion = 0);

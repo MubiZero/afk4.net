@@ -1,3 +1,4 @@
+using AFK4.Agent.Service.Protection;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shell;
 
@@ -24,7 +25,8 @@ public sealed class MaintenanceMode(
     IWorkstationLockController workstationLock,
     IMaintenanceDesktop desktop,
     TimeProvider timeProvider,
-    ILogger<MaintenanceMode> logger) : IMaintenanceMode
+    ILogger<MaintenanceMode> logger,
+    IProtectionEnforcer? protection = null) : IMaintenanceMode
 {
     public async Task<SessionEnforcementResult> EnterAsync(CancellationToken cancellationToken)
     {
@@ -43,6 +45,13 @@ public sealed class MaintenanceMode(
 
         // Технику нужен диспетчер задач и всё остальное, что политики прячут от игрока.
         var released = await workstationLock.UnlockAsync(cancellationToken);
+        runtimeStateStore.Save(AgentRuntimeState.Maintenance(timeProvider.GetUtcNow(), desktopOpened: false));
+        // Профиль защиты тоже снимается: флешка и «Выполнить» технику нужны (§6.5).
+        if (protection is not null)
+        {
+            await protection.ReleaseAsync(cancellationToken);
+        }
+
         var desktopOpened = TryOpenDesktop();
         runtimeStateStore.Save(AgentRuntimeState.Maintenance(timeProvider.GetUtcNow(), desktopOpened));
 
@@ -67,6 +76,10 @@ public sealed class MaintenanceMode(
 
         runtimeStateStore.MarkLocked(timeProvider.GetUtcNow());
         var locked = await workstationLock.LockAsync(cancellationToken);
+        if (protection is not null)
+        {
+            await protection.ApplyAsync(cancellationToken);
+        }
 
         // Экран «Свободен» вернётся в любом случае, но если политики Windows не встали обратно,
         // администратор должен это прочитать: «в зале» и «в зале, но диспетчер задач открыт» — разное.

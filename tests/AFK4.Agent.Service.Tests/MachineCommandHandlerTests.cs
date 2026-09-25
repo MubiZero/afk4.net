@@ -3,6 +3,7 @@ using System.Net.NetworkInformation;
 using AFK4.Agent.Service.Commands;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Network;
+using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
@@ -119,6 +120,32 @@ public sealed class MachineCommandHandlerTests
         Assert.Equal(PlayerShellStateNames.Locked, fixture.RuntimeState.Current.State);
         Assert.Equal(1, fixture.Desktop.Closed);
         Assert.Equal(1, fixture.Lock.Locks);
+    }
+
+    /// <summary>Спека, §6.5: профиль защиты снимается на обслуживание и встаёт по возвращении в зал.</summary>
+    [Fact]
+    public async Task Maintenance_LiftsTheProtectionProfile_AndReturningPutsItBack()
+    {
+        var protection = new CountingProtection();
+        var fixture = new Fixture(protection);
+
+        await fixture.HandleAsync(DeviceCommandTypeNames.MaintenanceOn);
+        Assert.Equal(1, protection.Releases);
+
+        await fixture.HandleAsync(DeviceCommandTypeNames.MaintenanceOff);
+        Assert.Equal(1, protection.Applies);
+    }
+
+    [Fact]
+    public async Task ThePolicyRefreshCommand_RereadsTheProfile()
+    {
+        var protection = new CountingProtection();
+        var fixture = new Fixture(protection);
+
+        var result = await fixture.HandleAsync(DeviceCommandTypeNames.PolicyRefresh);
+
+        Assert.Equal(DeviceCommandOutcomeNames.ProtectionApplied, result.Outcome);
+        Assert.Equal(1, protection.Refreshes);
     }
 
     /// <summary>До перевода в киоск проводник — обычная оболочка учётки: его не закрываем.</summary>
@@ -241,9 +268,9 @@ public sealed class MachineCommandHandlerTests
 
     private sealed class Fixture
     {
-        public Fixture()
+        public Fixture(IProtectionEnforcer? protection = null)
         {
-            Maintenance = new MaintenanceMode(RuntimeState, Lock, Desktop, TimeProvider.System, NullLogger<MaintenanceMode>.Instance);
+            Maintenance = new MaintenanceMode(RuntimeState, Lock, Desktop, TimeProvider.System, NullLogger<MaintenanceMode>.Instance, protection);
             Handler = new MachineCommandHandler(
                 RuntimeState,
                 Maintenance,
@@ -251,7 +278,8 @@ public sealed class MachineCommandHandlerTests
                 Wake,
                 new FixedNetworkIdentity(new NetworkIdentity("AA-BB-CC-DD-EE-01", "192.168.1.0/24", "192.168.1.255")),
                 Host,
-                NullLogger<MachineCommandHandler>.Instance);
+                NullLogger<MachineCommandHandler>.Instance,
+                protection);
         }
 
         public PlayerShellStateBuilderTests.MemoryRuntimeStateStore RuntimeState { get; } = new(AgentRuntimeState.Locked(Now));
@@ -294,6 +322,35 @@ public sealed class MachineCommandHandlerTests
 
         public Task<SessionEnforcementResult> RefreshLeaseAsync(SessionLeaseDto lease, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class CountingProtection : IProtectionEnforcer
+    {
+        public int Applies { get; private set; }
+
+        public int Releases { get; private set; }
+
+        public int Refreshes { get; private set; }
+
+        public Task ApplyAsync(CancellationToken cancellationToken)
+        {
+            Applies++;
+            return Task.CompletedTask;
+        }
+
+        public Task ReleaseAsync(CancellationToken cancellationToken)
+        {
+            Releases++;
+            return Task.CompletedTask;
+        }
+
+        public Task SyncAsync(int serverVersion, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<SessionEnforcementResult> RefreshAsync(CancellationToken cancellationToken)
+        {
+            Refreshes++;
+            return Task.FromResult(SessionEnforcementResult.Accepted("Protection profile v3.", DeviceCommandOutcomeNames.ProtectionApplied));
+        }
     }
 
     internal sealed class RecordingLock : IWorkstationLockController

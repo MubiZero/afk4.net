@@ -140,6 +140,43 @@ internal static class ProtectionProfileEndpoints
 
             return Results.Ok(await ProtectionProfiles.ResolveAsync(dbContext, branchId, cancellationToken));
         });
+
+        // Агент применил профиль (или снял его на обслуживание) и докладывает по пунктам.
+        app.MapPost("/api/devices/{deviceId:guid}/policy/report", async (
+            Guid deviceId,
+            DeviceProtectionReportRequest request,
+            HttpContext httpContext,
+            IDeviceCredentialValidator credentialValidator,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            if (request.Items.Count > ProtectionReports.MaxItems)
+            {
+                return Results.BadRequest(new { Error = $"A protection report holds at most {ProtectionReports.MaxItems} items." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            device.ProtectionReportJson = ProtectionReports.Write(
+                new DeviceProtectionReportDto(request.Version, request.AppliedAtUtc, request.Items));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        });
     }
 
     private static Task<bool> BranchBelongsAsync(

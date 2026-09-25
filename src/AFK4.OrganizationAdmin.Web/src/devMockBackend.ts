@@ -453,7 +453,19 @@ function deviceDetail() {
     deviceId: 'preview-device', agentVersion: '0.4', shellVersion: '0.4',
     isOnline: true, isLocked: true,
     enrolledAtUtc: '2026-05-21T08:30:00Z', lastHeartbeatAtUtc: '2026-05-21T10:00:00Z',
-    activeCredentialCount: 1, installedAppCount: 2, recentCommands: []
+    activeCredentialCount: 1, installedAppCount: 2, recentCommands: [],
+    // Отчёт о защите на версию позади филиала: карточка показывает и пункты, и «ещё не применил».
+    protectionReport: {
+      version: previewProtection.profile.version - 1,
+      appliedAtUtc: '2026-09-25T09:40:00Z',
+      items: [
+        { item: 'kiosk-baseline', status: 'applied', detail: null },
+        { item: 'removable-storage', status: 'applied', detail: null },
+        { item: 'browser-downloads', status: 'failed', detail: 'Access to the registry key is denied.' },
+        { item: 'hidden-drives', status: 'explorer-only', detail: null }
+      ]
+    },
+    branchProtectionVersion: previewProtection.profile.version
   };
 }
 

@@ -163,6 +163,50 @@ public sealed class ProtectionProfileEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await ReadAsAgentAsync(fixture, "not-the-key")).StatusCode);
     }
 
+    /// <summary>Отчёт агента доезжает до карточки ПК вместе с текущей версией филиала — видно, отстал ли ПК.</summary>
+    [Fact]
+    public async Task TheAgentsReport_ShowsUpOnThePcCard_NextToTheBranchVersion()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        await fixture.Client.PutAsJsonAsync(Route, Request());
+        await fixture.Client.PutAsJsonAsync(Route, Request(expectedVersion: 1));
+
+        var reported = await ReportAsAgentAsync(fixture, fixture.Device.CredentialSecret, version: 1);
+        Assert.Equal(HttpStatusCode.NoContent, reported.StatusCode);
+
+        var card = await fixture.Client.GetFromJsonAsync<DeviceDetailDto>(
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{fixture.Device.DeviceId:D}");
+        Assert.Equal(1, card!.ProtectionReport!.Version);
+        Assert.Equal(2, card.BranchProtectionVersion);
+        Assert.Equal(ProtectionItemStatusNames.ExplorerOnly,
+            card.ProtectionReport.Items.Single(item => item.Item == ProtectionItemNames.HiddenDrives).Status);
+    }
+
+    [Fact]
+    public async Task AReport_WithoutTheDeviceKey_IsRefused()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await ReportAsAgentAsync(fixture, "not-the-key", version: 1)).StatusCode);
+    }
+
+    private static Task<HttpResponseMessage> ReportAsAgentAsync(DevicePlayerFixture fixture, string credentialSecret, int version)
+    {
+        var message = new HttpRequestMessage(HttpMethod.Post, DeviceProtectionRoutes.Report(fixture.Device.DeviceId))
+        {
+            Content = JsonContent.Create(new DeviceProtectionReportRequest(
+                fixture.Device.OrganizationId, fixture.Device.BranchId, fixture.Device.DeviceId, version, fixture.Clock.GetUtcNow(),
+                [
+                    new ProtectionItemReportDto(ProtectionItemNames.RemovableStorage, ProtectionItemStatusNames.Applied, null),
+                    new ProtectionItemReportDto(ProtectionItemNames.HiddenDrives, ProtectionItemStatusNames.ExplorerOnly, null)
+                ]))
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
+        return fixture.Client.SendAsync(message);
+    }
+
     private static Task<HttpResponseMessage> ReadAsAgentAsync(DevicePlayerFixture fixture, string credentialSecret)
     {
         var message = new HttpRequestMessage(

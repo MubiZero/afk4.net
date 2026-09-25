@@ -82,4 +82,10 @@ public static class DeviceCommandOutcomeNames
 
     /// <summary>Профиля защиты у ПК пока нет — обновлять нечего.</summary>
     public const string NothingToRefresh = "nothing-to-refresh";
+
+    /// <summary>Профиль защиты перечитан и применён; что вышло по пунктам — в отчёте ПК.</summary>
+    public const string ProtectionApplied = "protection-applied";
+
+    /// <summary>Профиль не удалось получить с сервера — ПК остаётся на прежнем.</summary>
+    public const string ProtectionUnavailable = "protection-unavailable";
 }
