@@ -231,9 +231,12 @@ public sealed class UpdateHelperScriptTests
         var action = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "src", "AFK4.SetupWizard", "AgentServiceCompletionAction.cs"));
         var registration = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "src", "AFK4.SetupWizard", "SetupWizardFirstRunRegistration.cs"));
 
-        var startCheckIndex = action.IndexOf("if (startResult is not 0 and not ServiceAlreadyRunning)", StringComparison.Ordinal);
+        var startCheckIndex = action.IndexOf("if (startResult != 0)", StringComparison.Ordinal);
         var clearIndex = action.IndexOf("SetupWizardFirstRunRegistration.Clear();", StringComparison.Ordinal);
 
+        // Обе строки должны найтись: прежняя искала проверку, которой в коде давно нет, получала -1
+        // и проходила всегда — порядок никто не проверял.
+        Assert.True(startCheckIndex >= 0, "The Agent start check was not found; update this test with the code.");
         Assert.True(clearIndex > startCheckIndex, "The first-run marker should be cleared only after Agent service startup succeeds.");
         Assert.Contains(@"Software\AFK4\SetupWizard", registration, StringComparison.Ordinal);
         Assert.Contains(@"Software\Microsoft\Windows\CurrentVersion\RunOnce", registration, StringComparison.Ordinal);
