@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from '../i18n/ShellI18nProvider';
 import { ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/contracts';
 import { App } from '../App';
 import { devScenarioState } from '../host/devHost';
@@ -8,9 +8,9 @@ import { installFakeHost } from '../test/fakeHost';
 
 function renderShell() {
   return render(
-    <I18nProvider initialLocale="ru">
+    <ShellI18nProvider initialLocale="ru">
       <App />
-    </I18nProvider>
+    </ShellI18nProvider>
   );
 }
 

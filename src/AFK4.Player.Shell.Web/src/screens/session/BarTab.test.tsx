@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from '../../i18n/ShellI18nProvider';
 import type { ShopOrderDto } from '@afk4/contracts';
 import { BarTab } from './BarTab';
 
@@ -33,9 +33,9 @@ function serve(handler: (path: string, method: string) => { status: number; body
 
 function renderBar() {
   render(
-    <I18nProvider initialLocale="ru">
+    <ShellI18nProvider initialLocale="ru">
       <BarTab baseUrl="https://api.example.test/" />
-    </I18nProvider>
+    </ShellI18nProvider>
   );
 }
 

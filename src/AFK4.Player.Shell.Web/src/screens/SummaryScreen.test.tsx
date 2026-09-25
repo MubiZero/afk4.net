@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from '../i18n/ShellI18nProvider';
 import type { PlayerSelfEndSessionResponse } from '@afk4/contracts';
 import { devScenarioState } from '../host/devHost';
 import { SummaryScreen } from './SummaryScreen';
@@ -34,7 +34,7 @@ function renderSummary(selfEnd: PlayerSelfEndSessionResponse | null = null) {
   const onPlayMore = mock(() => {});
   const onLeave = mock(() => {});
   render(
-    <I18nProvider initialLocale="ru">
+    <ShellI18nProvider initialLocale="ru">
       <SummaryScreen
         state={devScenarioState('idle')!}
         visit={{ sessionId: 's-1', selfEnd }}
@@ -43,7 +43,7 @@ function renderSummary(selfEnd: PlayerSelfEndSessionResponse | null = null) {
         onPlayMore={onPlayMore}
         onLeave={onLeave}
       />
-    </I18nProvider>
+    </ShellI18nProvider>
   );
   return { onPlayMore, onLeave };
 }

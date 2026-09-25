@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from '../../i18n/ShellI18nProvider';
 import { TopUpPanel } from './TopUpPanel';
 
 const realFetch = globalThis.fetch;
@@ -32,9 +32,9 @@ function serve(options: { online?: boolean; intentStatus?: number; intentQr?: st
 
 function renderPanel(onPaid = mock(() => {})) {
   render(
-    <I18nProvider initialLocale="ru">
+    <ShellI18nProvider initialLocale="ru">
       <TopUpPanel baseUrl="https://api.example.test/" onPaid={onPaid} pollMs={10} />
-    </I18nProvider>
+    </ShellI18nProvider>
   );
   return onPaid;
 }

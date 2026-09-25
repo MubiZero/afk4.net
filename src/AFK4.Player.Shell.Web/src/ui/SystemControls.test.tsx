@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from '../i18n/ShellI18nProvider';
 import { ShellBridgeRequestTypeNames, type ShellSystemStateDto } from '@afk4/contracts';
 import { installFakeHost } from '../test/fakeHost';
 import { SystemControls } from './SystemControls';
@@ -11,9 +11,9 @@ const system: ShellSystemStateDto = { volume: 60, micMuted: false, layout: 'RU' 
 
 function renderControls(value: ShellSystemStateDto | null) {
   return render(
-    <I18nProvider initialLocale="ru">
+    <ShellI18nProvider initialLocale="ru">
       <SystemControls system={value} />
-    </I18nProvider>
+    </ShellI18nProvider>
   );
 }
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from '../i18n/ShellI18nProvider';
 import type { PlayerSelfEndSessionResponse, ShellAuthStateDto } from '@afk4/contracts';
 import { devExtendOffers, devScenarioState } from '../host/devHost';
 import { installFakeHost } from '../test/fakeHost';
@@ -43,7 +43,7 @@ function renderSession(options: {
   installFakeHost({ state: null });
   const state = { ...devScenarioState(options.variant ?? 'session')!, ...(options.kind ? { sessionOwnerKind: options.kind, sessionOwnerPlayerAccountId: null } : {}) };
   return render(
-    <I18nProvider initialLocale="ru">
+    <ShellI18nProvider initialLocale="ru">
       <SessionScreen
         state={state}
         receivedAtMs={Date.now()}
@@ -52,7 +52,7 @@ function renderSession(options: {
         onEnded={options.onEnded}
         onSignIn={options.onSignIn}
       />
-    </I18nProvider>
+    </ShellI18nProvider>
   );
 }
 

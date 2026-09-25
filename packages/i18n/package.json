@@ -13,6 +13,10 @@
     "./messages": {
       "types": "./src/messages.ts",
       "default": "./src/messages.ts"
+    },
+    "./catalogs/player-shell": {
+      "types": "./src/catalogs/playerShell.ts",
+      "default": "./src/catalogs/playerShell.ts"
     }
   },
   "scripts": {
@@ -36,5 +40,6 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "typescript": "^6.0.3"
-  }
+  },
+  "sideEffects": false
 }

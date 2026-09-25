@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from './i18n/ShellI18nProvider';
 import { App } from './App';
 import './styles/shell.css';
 
@@ -13,9 +13,9 @@ async function start() {
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <I18nProvider>
+      <ShellI18nProvider>
         <App />
-      </I18nProvider>
+      </ShellI18nProvider>
     </StrictMode>
   );
 }

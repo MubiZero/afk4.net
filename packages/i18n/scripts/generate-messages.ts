@@ -92,6 +92,33 @@ export type MessageKey = keyof (typeof messages)['ru'];
 writeFileSync(outFile, out);
 console.log(`generated ${outFile} from ${LOCALES.length} locales`);
 
+/**
+ * Части каталога для поверхностей, которым весь каталог не нужен. Экран ПК читает только
+ * `playerShell.*` — около 4% ключей; весь каталог стоил ему больше мегабайта JS на холодном старте.
+ */
+const CATALOG_SUBSETS = [{ name: 'playerShell', prefixes: ['playerShell.'] }] as const;
+
+mkdirSync(join(sourceDir, 'catalogs'), { recursive: true });
+for (const subset of CATALOG_SUBSETS) {
+  const parts = LOCALES.map((loc) => {
+    const catalog = JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
+    const picked = Object.fromEntries(
+      Object.keys(catalog)
+        .filter((key) => subset.prefixes.some((prefix) => key.startsWith(prefix)))
+        .sort()
+        .map((key) => [key, catalog[key]])
+    );
+    return `  ${loc}: ${JSON.stringify(picked, null, 2).replace(/\n/g, '\n  ')}`;
+  });
+  writeFileSync(
+    join(sourceDir, 'catalogs', `${subset.name}.ts`),
+    `// AUTO-GENERATED from locales/*.json (keys ${subset.prefixes.join(', ')}). Do not edit by hand.\n` +
+      `import type { Catalog } from '../core';\n\n` +
+      `export const ${subset.name}Catalog: Catalog = {\n${parts.join(',\n')}\n};\n`
+  );
+  console.log(`generated catalog subset ${subset.name}`);
+}
+
 for (const target of ARB_TARGETS) {
   mkdirSync(target.dir, { recursive: true });
   for (const loc of LOCALES) {

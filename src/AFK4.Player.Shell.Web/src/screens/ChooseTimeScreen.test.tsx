@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
+import { ShellI18nProvider } from '../i18n/ShellI18nProvider';
 import { devScenarioState, devStartOffers } from '../host/devHost';
 import { installFakeHost } from '../test/fakeHost';
 import { ChooseTimeScreen } from './ChooseTimeScreen';
@@ -22,9 +22,9 @@ function renderScreen() {
   installFakeHost({ state: null });
   const state = { ...devScenarioState('idle')!, apiBaseUrl: 'https://api.example.test/' };
   return render(
-    <I18nProvider initialLocale="ru">
+    <ShellI18nProvider initialLocale="ru">
       <ChooseTimeScreen state={state} auth={{ signedIn: true, displayName: 'Алишер', playerAccountId: null }} />
-    </I18nProvider>
+    </ShellI18nProvider>
   );
 }
 
