@@ -6,6 +6,7 @@
 // Fixtures mirror the shapes the test suite already exercises. Unmapped endpoints fall back to an
 // empty list, so secondary screens render their (themed) empty/error states rather than crashing.
 import { permissionNames } from './operatorPermissions';
+import type { BranchGameDto, CatalogGameDto } from '@afk4/contracts';
 
 const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const BRANCH = 'acfc0212-967f-4d84-94be-9003387b09c2';
@@ -786,13 +787,13 @@ function groupReservationResult(init?: RequestInit): unknown {
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
 
-const previewCatalogGames = [
+const previewCatalogGames: CatalogGameDto[] = [
   { catalogGameId: 'preview-catalog-cs2', name: 'Counter-Strike 2', description: null, genre: 'Шутер', minAge: 16, launchKind: 'steam', launchTarget: '730', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
   { catalogGameId: 'preview-catalog-dota', name: 'Dota 2', description: null, genre: 'MOBA', minAge: 12, launchKind: 'steam', launchTarget: '570', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
   { catalogGameId: 'preview-catalog-valorant', name: 'Valorant', description: null, genre: 'Шутер', minAge: 16, launchKind: 'riot', launchTarget: 'valorant', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' }
 ];
 
-let previewBranchGames = [
+let previewBranchGames: BranchGameDto[] = [
   { branchGameId: 'preview-game-1', catalogGameId: 'preview-catalog-dota', name: 'Dota 2', genre: 'MOBA', minAge: 12, coverUrl: null, launchKind: 'steam', launchTarget: '570', executablePath: null, arguments: null, availableWithoutSession: false, isEnabled: true, sortOrder: 0 },
   { branchGameId: 'preview-game-2', catalogGameId: null, name: 'Steam', genre: null, minAge: null, coverUrl: null, launchKind: 'exe', launchTarget: null, executablePath: 'C:\\Program Files (x86)\\Steam\\steam.exe', arguments: null, availableWithoutSession: true, isEnabled: true, sortOrder: 1 }
 ];
@@ -1143,14 +1144,14 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (branchGamesMatch && !branchGamesMatch[1] && method === 'POST') {
     const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
     const catalog = previewCatalogGames.find((game) => game.catalogGameId === request.catalogGameId);
-    const added = {
+    const added: BranchGameDto = {
       branchGameId: `preview-game-${previewBranchGames.length + 1}`,
       catalogGameId: (request.catalogGameId as string | null) ?? null,
       name: String(request.name ?? ''),
       genre: catalog?.genre ?? (request.genre as string | null) ?? null,
       minAge: catalog?.minAge ?? (request.minAge as number | null) ?? null,
       coverUrl: catalog?.coverUrl ?? null,
-      launchKind: String(request.launchKind ?? 'exe'),
+      launchKind: String(request.launchKind ?? 'exe') as BranchGameDto['launchKind'],
       launchTarget: (request.launchTarget as string | null) ?? catalog?.launchTarget ?? null,
       executablePath: (request.executablePath as string | null) ?? null,
       arguments: (request.arguments as string | null) ?? null,
