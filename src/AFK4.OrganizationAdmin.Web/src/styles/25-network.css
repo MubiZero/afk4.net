@@ -372,3 +372,7 @@
 .network-plan-note { margin: 0; color: var(--text-secondary); font-size: 13px; }
 .network-plan-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .network-stat--attention dd { color: var(--danger); }
+.network-plan-referral { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-soft); }
+.network-plan-referral p { margin: 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }
+.network-plan-referral-code { display: flex; align-items: center; gap: var(--space-3); }
+.network-plan-referral-code code { font-family: var(--font-mono); font-size: 18px; letter-spacing: 0.08em; color: var(--text-strong); }

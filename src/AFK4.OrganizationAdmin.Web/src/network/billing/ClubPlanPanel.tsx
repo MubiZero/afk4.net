@@ -120,6 +120,33 @@ export function ClubPlanPanel({
         </div>
       ) : null}
       {error && <p className="ui-inline-error" role="alert">{error}</p>}
+      {plan.referralCode ? <ReferralBlock plan={plan} /> : null}
+    </div>
+  );
+}
+
+/**
+ * «Приведи клуб»: код клуба и что за него будет. Код диктуют голосом — поэтому он крупно и без
+ * похожих знаков; кнопка копирует его целиком.
+ */
+function ReferralBlock({ plan }: { plan: ClubPlanDto }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard?.writeText(plan.referralCode ?? '').then(() => setCopied(true)).catch(() => {});
+  };
+
+  return (
+    <div className="network-plan-referral">
+      <strong>{t('op.network.referral.title')}</strong>
+      <p>{t('op.network.referral.lead')}</p>
+      <div className="network-plan-referral-code">
+        <code>{plan.referralCode}</code>
+        <button type="button" className="ui-btn ui-btn--sm" onClick={copy}>{copied ? t('op.network.referral.copied') : t('op.network.referral.copy')}</button>
+      </div>
+      {(plan.referredClubs ?? 0) > 0 || (plan.freeMonths ?? 0) > 0 ? (
+        <p className="network-plan-note">{t('op.network.referral.earned', { clubs: plan.referredClubs ?? 0, months: plan.freeMonths ?? 0 })}</p>
+      ) : null}
     </div>
   );
 }

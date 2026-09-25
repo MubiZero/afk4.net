@@ -63,6 +63,9 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         var estimate = kind == ClubPlanKindNames.PerPc && plan is not null ? AmountFor(plan, devices) : 0;
         var overdue = await OverdueAsync(organizationId, now, ct);
         var unpaid = await OldestUnpaidAsync(organizationId, ct);
+        var referralCode = await ClubReferrals.EnsureCodeAsync(db, state.Value.Organization, ct);
+        var referred = await db.Organizations.AsNoTracking()
+            .CountAsync(candidate => candidate.ReferredByOrganizationId == organizationId && candidate.ReferralRewardedAtUtc != null, ct);
 
         return new ClubPlanDto(
             subscription.PlanCode,
@@ -78,7 +81,10 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             PromisedPaymentAvailable: unpaid is not null && subscription.PromisedPaymentInvoiceId != unpaid.InvoiceId
                 && !(subscription.PaymentGraceUntilUtc > now),
             PromisedPaymentUntilUtc: subscription.PaymentGraceUntilUtc > now ? subscription.PaymentGraceUntilUtc : null,
-            Overdue: overdue > 0 ? new MoneyDto(currency, overdue) : null);
+            Overdue: overdue > 0 ? new MoneyDto(currency, overdue) : null,
+            ReferralCode: referralCode,
+            FreeMonths: subscription.FreeMonths,
+            ReferredClubs: referred);
     }
 
     public async Task<string?> StartTrialAsync(Guid organizationId, Guid actorStaffUserId, CancellationToken ct)

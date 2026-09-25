@@ -84,6 +84,13 @@ public sealed class EfInvoiceGenerationRunner(
         var discount = discountApplies
             ? SubscriptionDiscount.Apply(gross, subscription.DiscountPercent, subscription.DiscountAmountMinorUnits)
             : 0;
+        // Бесплатный месяц за приведённый клуб обнуляет счёт целиком и тратится одним счётом.
+        var freeMonth = gross > 0 && subscription.FreeMonths > 0;
+        if (freeMonth)
+        {
+            discount = gross;
+            subscription.FreeMonths--;
+        }
 
         var invoice = new InvoiceEntity
         {
@@ -102,7 +109,8 @@ public sealed class EfInvoiceGenerationRunner(
             Status = InvoiceStatusNames.Issued,
             Description = $"Subscription {subscription.PlanCode} " +
                 $"({subscription.CurrentPeriodStartUtc:yyyy-MM-dd} – {subscription.CurrentPeriodEndUtc:yyyy-MM-dd})" +
-                (plan is not null && ClubPlans.IsPerDevice(plan) ? $", PCs: {devices}, billable: {Math.Max(0, devices - plan.IncludedDevices)}" : string.Empty),
+                (plan is not null && ClubPlans.IsPerDevice(plan) ? $", PCs: {devices}, billable: {Math.Max(0, devices - plan.IncludedDevices)}" : string.Empty) +
+                (freeMonth ? ", free month for a referred club" : string.Empty),
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };

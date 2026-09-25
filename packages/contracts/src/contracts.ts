@@ -2204,6 +2204,10 @@ export interface ClubPlanDto {
   promisedPaymentUntilUtc: IsoDateTime | null;
   /** Просроченное; пусто — долга нет. */
   overdue: MoneyDto | null;
+  /** «Приведи клуб»: код клуба и сколько бесплатных месяцев накоплено за приведённых. */
+  referralCode?: string | null;
+  freeMonths?: number;
+  referredClubs?: number;
 }
 
 /**
@@ -2370,6 +2374,8 @@ export interface CreateOrganizationRequest {
   ownerUserName: string | null;
   ownerDisplayName: string | null;
   organizationOwnerInviteLifetime: IsoDuration | null;
+  /** Код «Приведи клуб» того, кто привёл этот клуб. Пусто — клуб пришёл сам. */
+  referralCode?: string | null;
 }
 
 /** Контракт: Platform/Organizations/CreateOrganizationResponse.cs */

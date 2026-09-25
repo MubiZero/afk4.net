@@ -3187,6 +3187,9 @@ class ClubPlanDto {
     required this.promisedPaymentAvailable,
     this.promisedPaymentUntilUtc,
     this.overdue,
+    this.referralCode,
+    this.freeMonths,
+    this.referredClubs,
   });
 
   final String planCode;
@@ -3209,6 +3212,11 @@ class ClubPlanDto {
   /// Просроченное; пусто — долга нет.
   final MoneyDto? overdue;
 
+  /// «Приведи клуб»: код клуба и сколько бесплатных месяцев накоплено за приведённых.
+  final String? referralCode;
+  final int? freeMonths;
+  final int? referredClubs;
+
   factory ClubPlanDto.fromJson(Map<String, dynamic> json) => ClubPlanDto(
         planCode: json['planCode'] as String,
         kind: json['kind'] as String,
@@ -3223,6 +3231,9 @@ class ClubPlanDto {
         promisedPaymentAvailable: json['promisedPaymentAvailable'] as bool,
         promisedPaymentUntilUtc: json['promisedPaymentUntilUtc'] == null ? null : DateTime.parse(json['promisedPaymentUntilUtc'] as String),
         overdue: json['overdue'] == null ? null : MoneyDto.fromJson(json['overdue'] as Map<String, dynamic>),
+        referralCode: json['referralCode'] == null ? null : json['referralCode'] as String,
+        freeMonths: json['freeMonths'] == null ? null : (json['freeMonths'] as num).toInt(),
+        referredClubs: json['referredClubs'] == null ? null : (json['referredClubs'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -3239,6 +3250,9 @@ class ClubPlanDto {
         'promisedPaymentAvailable': promisedPaymentAvailable,
         'promisedPaymentUntilUtc': promisedPaymentUntilUtc?.toIso8601String(),
         'overdue': overdue?.toJson(),
+        'referralCode': referralCode,
+        'freeMonths': freeMonths,
+        'referredClubs': referredClubs,
       };
 }
 
@@ -3717,6 +3731,7 @@ class CreateOrganizationRequest {
     this.ownerUserName,
     this.ownerDisplayName,
     this.organizationOwnerInviteLifetime,
+    this.referralCode,
   });
 
   final String organizationSlug;
@@ -3731,6 +3746,9 @@ class CreateOrganizationRequest {
   final String? ownerDisplayName;
   final String? organizationOwnerInviteLifetime;
 
+  /// Код «Приведи клуб» того, кто привёл этот клуб. Пусто — клуб пришёл сам.
+  final String? referralCode;
+
   factory CreateOrganizationRequest.fromJson(Map<String, dynamic> json) => CreateOrganizationRequest(
         organizationSlug: json['organizationSlug'] as String,
         organizationName: json['organizationName'] as String,
@@ -3743,6 +3761,7 @@ class CreateOrganizationRequest {
         ownerUserName: json['ownerUserName'] == null ? null : json['ownerUserName'] as String,
         ownerDisplayName: json['ownerDisplayName'] == null ? null : json['ownerDisplayName'] as String,
         organizationOwnerInviteLifetime: json['organizationOwnerInviteLifetime'] == null ? null : json['organizationOwnerInviteLifetime'] as String,
+        referralCode: json['referralCode'] == null ? null : json['referralCode'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3757,6 +3776,7 @@ class CreateOrganizationRequest {
         'ownerUserName': ownerUserName,
         'ownerDisplayName': ownerDisplayName,
         'organizationOwnerInviteLifetime': organizationOwnerInviteLifetime,
+        'referralCode': referralCode,
       };
 }
 

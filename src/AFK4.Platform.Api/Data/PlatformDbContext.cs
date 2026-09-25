@@ -237,6 +237,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         modelBuilder.Entity<OrganizationEntity>(entity =>
         {
             entity.ToTable("organizations");
+            entity.Property(organization => organization.ReferralCode).HasMaxLength(16);
+            entity.HasIndex(organization => organization.ReferralCode).IsUnique();
             entity.HasKey(organization => organization.OrganizationId);
             entity.Property(organization => organization.Slug).HasMaxLength(64).IsRequired();
             entity.Property(organization => organization.Name).HasMaxLength(160).IsRequired();

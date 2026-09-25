@@ -149,6 +149,20 @@ public sealed class EfPlatformOrganizationService(
                 PlatformErrorCodeNames.OrganizationSlugTaken);
         }
 
+        Guid? referredBy = null;
+        if (!string.IsNullOrWhiteSpace(request.ReferralCode))
+        {
+            var code = AFK4.Platform.Api.Platform.Billing.ClubReferrals.Normalize(request.ReferralCode);
+            referredBy = await dbContext.Organizations.AsNoTracking()
+                .Where(candidate => candidate.ReferralCode == code)
+                .Select(candidate => (Guid?)candidate.OrganizationId)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (referredBy is null)
+            {
+                return PlatformOrganizationOperationResult<CreateOrganizationResponse>.BadRequest("Referral code was not found.");
+            }
+        }
+
         var now = timeProvider.GetUtcNow();
         var catalogPlan = await dbContext.SubscriptionPlans
             .AsNoTracking()
@@ -170,6 +184,7 @@ public sealed class EfPlatformOrganizationService(
             PlanCode = request.PlanCode.Trim(),
             SubscriptionStatus = request.SubscriptionStatus.Trim(),
             LimitsJson = OrganizationLimitsJson.Serialize(limits),
+            ReferredByOrganizationId = referredBy,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };

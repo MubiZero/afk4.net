@@ -22,7 +22,11 @@ public sealed record ClubPlanDto(
     bool PromisedPaymentAvailable,
     DateTimeOffset? PromisedPaymentUntilUtc,
     // Просроченное; пусто — долга нет.
-    MoneyDto? Overdue);
+    MoneyDto? Overdue,
+    // «Приведи клуб»: код клуба и сколько бесплатных месяцев накоплено за приведённых.
+    string? ReferralCode = null,
+    int FreeMonths = 0,
+    int ReferredClubs = 0);
 
 public static class ClubPlanKindNames
 {

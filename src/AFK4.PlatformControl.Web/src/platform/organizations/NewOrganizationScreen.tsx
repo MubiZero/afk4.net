@@ -30,6 +30,7 @@ interface FormState {
   subscriptionStatus: string;
   ownerUserName: string;
   ownerDisplayName: string;
+  referralCode: string;
   maxBranches: string;
   maxDevicesPerBranch: string;
   maxConcurrentSessions: string;
@@ -47,6 +48,7 @@ const defaultState: FormState = {
   subscriptionStatus: SubscriptionStatus.Active,
   ownerUserName: '',
   ownerDisplayName: '',
+  referralCode: '',
   maxBranches: '',
   maxDevicesPerBranch: '',
   maxConcurrentSessions: '',
@@ -94,7 +96,9 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         limits: buildLimits(form),
         ownerUserName: form.ownerUserName.trim() === '' ? null : form.ownerUserName.trim(),
         ownerDisplayName: form.ownerDisplayName.trim() === '' ? null : form.ownerDisplayName.trim(),
-        organizationOwnerInviteLifetime: null
+        organizationOwnerInviteLifetime: null,
+        // «Приведи клуб»: пусто — клуб пришёл сам.
+        referralCode: form.referralCode.trim() === '' ? null : form.referralCode.trim()
       };
       const response = await client.createOrganization(request, attempt.forSubject(request));
       attempt.done();
@@ -178,6 +182,8 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         <CardContent>
           <LabeledInput label={t('platform.newOrganization.field.ownerUserName')} value={form.ownerUserName} onChange={v => update('ownerUserName', v)} />
           <LabeledInput label={t('platform.newOrganization.field.ownerDisplayName')} value={form.ownerDisplayName} onChange={v => update('ownerDisplayName', v)} />
+          <LabeledInput label={t('platform.newOrganization.field.referralCode')} value={form.referralCode} onChange={v => update('referralCode', v)} />
+          <p className="ui-field-hint">{t('platform.newOrganization.field.referralCodeHint')}</p>
         </CardContent>
       </Card>
 

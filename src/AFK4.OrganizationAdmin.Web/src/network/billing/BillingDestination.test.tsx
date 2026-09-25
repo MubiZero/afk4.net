@@ -102,3 +102,17 @@ describe('тариф клуба', () => {
     expect(screen.queryByRole('button', { name: /Попробовать/ })).toBeNull();
   });
 });
+
+describe('приведи клуб', () => {
+  it('показывает код клуба и накопленные месяцы', async () => {
+    render(
+      <I18nProvider initialLocale="ru">
+        <BillingDestination backend={backend as never} client={client} planClient={planClient(plan({ referralCode: 'AFK-7Q2MXR', referredClubs: 1, freeMonths: 1 }))} />
+      </I18nProvider>
+    );
+
+    expect(await screen.findByText('AFK-7Q2MXR')).toBeInTheDocument();
+    expect(screen.getByText('Приведено клубов: 1 · бесплатных месяцев впереди: 1')).toBeInTheDocument();
+  });
+});
+
