@@ -14,6 +14,7 @@ import { createOrgBillingClient } from './orgBilling';
 import { createOrgAuditClient } from './orgAudit';
 import { createInventoryClient } from './inventory';
 import { createDeviceClient } from './devices';
+import { createGamesClient } from './games';
 import { createInstallCodeClient } from './installCodes';
 import { createDiagnosticsClient } from './diagnostics';
 import { createUpdateClient } from './updates';
@@ -54,6 +55,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     orgAudit: createOrgAuditClient(organizationApi),
     inventory: createInventoryClient(organizationApi),
     devices: createDeviceClient(organizationApi),
+    games: createGamesClient(organizationApi),
     installCodes: createInstallCodeClient(organizationApi),
     diagnostics: createDiagnosticsClient(organizationApi),
     updates: createUpdateClient(organizationApi),

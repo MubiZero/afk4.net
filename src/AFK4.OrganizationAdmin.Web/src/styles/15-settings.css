@@ -256,3 +256,70 @@
 .device-protection-items li[data-status='unsupported'] b {
   color: var(--danger-text);
 }
+
+/* Управление → Игры: обложки в списке и в каталоге. Без обложки — первая буква названия. */
+.games-cover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+.games-cover--large {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.games-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.games-catalog-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-catalog-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.games-catalog-item:hover,
+.games-catalog-item:focus-visible {
+  border-color: var(--border-accent);
+  outline: none;
+}
+
+.games-catalog-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.games-catalog-text span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}

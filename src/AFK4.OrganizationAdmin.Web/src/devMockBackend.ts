@@ -786,6 +786,17 @@ function groupReservationResult(init?: RequestInit): unknown {
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
 
+const previewCatalogGames = [
+  { catalogGameId: 'preview-catalog-cs2', name: 'Counter-Strike 2', description: null, genre: 'Шутер', minAge: 16, launchKind: 'steam', launchTarget: '730', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
+  { catalogGameId: 'preview-catalog-dota', name: 'Dota 2', description: null, genre: 'MOBA', minAge: 12, launchKind: 'steam', launchTarget: '570', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
+  { catalogGameId: 'preview-catalog-valorant', name: 'Valorant', description: null, genre: 'Шутер', minAge: 16, launchKind: 'riot', launchTarget: 'valorant', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' }
+];
+
+let previewBranchGames = [
+  { branchGameId: 'preview-game-1', catalogGameId: 'preview-catalog-dota', name: 'Dota 2', genre: 'MOBA', minAge: 12, coverUrl: null, launchKind: 'steam', launchTarget: '570', executablePath: null, arguments: null, availableWithoutSession: false, isEnabled: true, sortOrder: 0 },
+  { branchGameId: 'preview-game-2', catalogGameId: null, name: 'Steam', genre: null, minAge: null, coverUrl: null, launchKind: 'exe', launchTarget: null, executablePath: 'C:\\Program Files (x86)\\Steam\\steam.exe', arguments: null, availableWithoutSession: true, isEnabled: true, sortOrder: 1 }
+];
+
 const previewOwnerBranches = [
   { branchId: BRANCH, name: 'Центр' },
   { branchId: '5b6f3c1e-8a2d-4f0b-9c7e-1d2a3b4c5d6e', name: 'Сино' }
@@ -1121,6 +1132,34 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/staff/candidates') && method === 'GET') {
     return json(previewStaffCandidates);
+  }
+  // Библиотека игр в превью: каталог платформы и игры филиала, правки живут до перезагрузки.
+  if (url.pathname.endsWith('/game-catalog') && method === 'GET') {
+    const query = (url.searchParams.get('query') ?? '').toLowerCase();
+    return json(previewCatalogGames.filter((game) => game.name.toLowerCase().includes(query)));
+  }
+  const branchGamesMatch = url.pathname.match(/\/branches\/[^/]+\/games(?:\/([^/]+))?$/);
+  if (branchGamesMatch && method === 'GET') return json(previewBranchGames);
+  if (branchGamesMatch && !branchGamesMatch[1] && method === 'POST') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    const catalog = previewCatalogGames.find((game) => game.catalogGameId === request.catalogGameId);
+    const added = {
+      branchGameId: `preview-game-${previewBranchGames.length + 1}`,
+      catalogGameId: (request.catalogGameId as string | null) ?? null,
+      name: String(request.name ?? ''),
+      genre: catalog?.genre ?? (request.genre as string | null) ?? null,
+      minAge: catalog?.minAge ?? (request.minAge as number | null) ?? null,
+      coverUrl: catalog?.coverUrl ?? null,
+      launchKind: String(request.launchKind ?? 'exe'),
+      launchTarget: (request.launchTarget as string | null) ?? catalog?.launchTarget ?? null,
+      executablePath: (request.executablePath as string | null) ?? null,
+      arguments: (request.arguments as string | null) ?? null,
+      availableWithoutSession: Boolean(request.availableWithoutSession),
+      isEnabled: request.isEnabled !== false,
+      sortOrder: previewBranchGames.length
+    };
+    previewBranchGames = [...previewBranchGames, added];
+    return json(added);
   }
   if (/\/organizations\/[^/]+\/branches$/.test(url.pathname) && method === 'GET') {
     return json(previewOwnerBranches);

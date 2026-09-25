@@ -23,6 +23,7 @@ import { BookingIntakeDestination } from './destinations/booking/BookingIntakeDe
 import { ProtectionDestination } from './destinations/protection/ProtectionDestination';
 import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
+import { GamesDestination } from './destinations/games/GamesDestination';
 import { NewsDestination } from './destinations/NewsDestination';
 import { EventsDestination } from './destinations/EventsDestination';
 import { PaymentsLoyaltyDestination } from './destinations/PaymentsLoyaltyDestination';
@@ -161,6 +162,9 @@ export function ManagementWorkspace({
     }
     if (currentId === 'protection') {
       return <ProtectionDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
+    }
+    if (currentId === 'games') {
+      return <GamesDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
     }
     if (currentId === 'news') {
       return <NewsDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
