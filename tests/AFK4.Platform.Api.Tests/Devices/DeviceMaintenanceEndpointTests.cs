@@ -40,10 +40,15 @@ public sealed class DeviceMaintenanceEndpointTests
         await fixture.HeartbeatAsync();
 
         await fixture.CommandAsync(DeviceCommandTypeNames.MaintenanceOn);
-        Assert.Equal(SeatStateNames.Maintenance, (await SeatAsync(fixture)).State);
+        var closed = await SeatAsync(fixture);
+        Assert.Equal(SeatStateNames.Maintenance, closed.State);
+        // Панель отличает «увели на обслуживание» от «ПК не подтверждён» — вернуть можно только первого.
+        Assert.Equal(DevicePlayerFixture.Start, closed.MaintenanceSinceUtc);
 
         await fixture.CommandAsync(DeviceCommandTypeNames.MaintenanceOff);
-        Assert.NotEqual(SeatStateNames.Maintenance, (await SeatAsync(fixture)).State);
+        var open = await SeatAsync(fixture);
+        Assert.NotEqual(SeatStateNames.Maintenance, open.State);
+        Assert.Null(open.MaintenanceSinceUtc);
     }
 
     [Fact]

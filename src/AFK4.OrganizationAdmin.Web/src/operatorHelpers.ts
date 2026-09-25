@@ -23,6 +23,7 @@ import type {
   SessionBillingSelection
 } from './operatorTypes';
 import type { MessageKey } from '@afk4/i18n';
+import type { DeviceCommandTypeName } from '@afk4/contracts';
 
 export type TFunc = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -1304,29 +1305,41 @@ export function describeSessionCommandFallback(response: SessionActionResponse, 
   return `${commandTypeLabel(command.type || 'command', t)}: ${sentLabel}`;
 }
 
+// Каждый тип команды из контракта назван словами: таблица по типам контракта, и новый тип без
+// подписи не соберётся. Раньше подписей было шесть на двенадцать типов, и журнал писал «Команда»
+// вместо «Перезагрузка» или «Обслуживание». «transfer» — не команда ПК, а событие пересадки.
+const COMMAND_TYPE_LABELS: Record<DeviceCommandTypeName | 'transfer', MessageKey> = {
+  lock: 'op.helper.command.type.lock',
+  unlock: 'op.helper.command.type.unlock',
+  'refresh-session-lease': 'op.helper.command.type.refreshSession',
+  warn: 'op.helper.command.type.warn',
+  reboot: 'op.helper.command.type.reboot',
+  shutdown: 'op.helper.command.type.shutdown',
+  wake: 'op.helper.command.type.wake',
+  'wake-neighbor': 'op.helper.command.type.wakeNeighbor',
+  'sign-out': 'op.helper.command.type.signOut',
+  message: 'op.helper.command.type.message',
+  'maintenance-on': 'op.helper.command.type.maintenanceOn',
+  'maintenance-off': 'op.helper.command.type.maintenanceOff',
+  'policy-refresh': 'op.helper.command.type.policyRefresh',
+  transfer: 'op.helper.command.type.transfer'
+};
+
 export function commandTypeLabel(type: string, t: TFunc): string {
-  switch (type.toLowerCase()) {
-    case 'lock':
-      return t('op.helper.command.type.lock');
-    case 'unlock':
-      return t('op.helper.command.type.unlock');
-    case 'transfer':
-      return t('op.helper.command.type.transfer');
-    case 'reboot':
-      return t('op.helper.command.type.reboot');
-    case 'shutdown':
-      return t('op.helper.command.type.shutdown');
-    case 'refresh-session-lease':
-      return t('op.helper.command.type.refreshSession');
-    default:
-      return t('op.helper.command.type.fallback');
-  }
+  const key = COMMAND_TYPE_LABELS[type.toLowerCase() as keyof typeof COMMAND_TYPE_LABELS];
+  return t(key ?? 'op.helper.command.type.fallback');
 }
 
 export function commandStatusLabel(status: string, t: TFunc): string {
   switch (status.toLowerCase()) {
     case 'pending':
       return t('op.helper.command.status.pending');
+    // Неповторяемую команду (перезагрузку, выключение) ПК забрал — ответ придёт, если успеет до
+    // перезагрузки, а если нет, придёт после неё.
+    case 'delivered':
+      return t('op.helper.command.status.delivered');
+    case 'expired':
+      return t('op.helper.command.status.expired');
     case 'sent':
     case 'accepted':
     case 'in_progress':

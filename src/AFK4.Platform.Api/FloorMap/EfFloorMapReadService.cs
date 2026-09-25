@@ -184,7 +184,8 @@ public sealed class EfFloorMapReadService(
             PlayerDisplayName: GetPlayerDisplayName(activeSession, playerAccountsById),
             TariffName: GetTariffName(activeSession, tariffVersionsById, tariffsById),
             SessionStartedAtUtc: activeSession?.StartedAtUtc,
-            AssistanceRequestedAtUtc: device?.AssistanceRequestedAtUtc);
+            AssistanceRequestedAtUtc: device?.AssistanceRequestedAtUtc,
+            MaintenanceSinceUtc: device?.MaintenanceSinceUtc);
     }
 
     private static string? GetPlayerDisplayName(

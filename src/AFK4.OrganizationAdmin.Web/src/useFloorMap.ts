@@ -24,6 +24,7 @@ import type {
   SeatActionResult,
   SeatActionRequest,
   PcControlActionId,
+  PcControlActionOptions,
   PcControlActionResult
 } from './operatorTypes';
 import type { SessionActionResponse } from './operatorApiClients';
@@ -72,7 +73,7 @@ export interface FloorMap {
   offlineActionAudit: string[];
   handleSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
   handleResolveAssistance: (seat: SeatSummary) => Promise<PcControlActionResult>;
-  handlePcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
+  handlePcControlAction: (seat: SeatSummary, action: PcControlActionId, options?: PcControlActionOptions) => Promise<PcControlActionResult>;
 }
 
 // Owns the operator floor map: authoritative load (with token-refresh + offline-cache fallback), the
@@ -434,7 +435,11 @@ export function useFloorMap({
     return { detail: t('op.map.menu.resolveAssistanceHint') };
   };
 
-  const handlePcControlAction = async (seat: SeatSummary, action: PcControlActionId): Promise<PcControlActionResult> => {
+  const handlePcControlAction = async (
+    seat: SeatSummary,
+    action: PcControlActionId,
+    options?: PcControlActionOptions
+  ): Promise<PcControlActionResult> => {
     const nextBackend = requireBackend(backendContext, t);
     if (!seat.deviceId) {
       throw new Error(t('op.shell.err.noDevice'));
@@ -483,6 +488,42 @@ export function useFloorMap({
           seatId: seat.id
         }
       });
+      return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command, t) };
+    }
+
+    if (action === 'maintenance-on' || action === 'maintenance-off') {
+      // Обслуживание закрывает ПК для игроков — своё право, не у каждого, кто может его запереть.
+      if (!hasPermission(nextBackend.session, permissionNames.maintainDevice)) {
+        throw new Error(t('op.shell.err.noPermMaintain'));
+      }
+
+      const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, {
+        type: action,
+        payload: { reason: 'operator-pc-control', source: 'operator-map', seatId: seat.id }
+      });
+      // Карта должна сразу показать «обслуживание» или «свободен», а не ждать следующего опроса.
+      if (authSession !== null && activeBranchId) {
+        setFloorMap(await loadBackendFloorMapState(config, authSession, activeBranchId, t));
+      }
+      return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command, t) };
+    }
+
+    if (action === 'reboot' || action === 'shutdown' || action === 'wake' || action === 'sign-out' || action === 'message') {
+      if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
+        throw new Error(t('op.shell.err.noPermDispatch'));
+      }
+
+      const payload: Record<string, string> = { reason: 'operator-pc-control', source: 'operator-map', seatId: seat.id };
+      if (action === 'message') {
+        payload.text = options?.text ?? '';
+      }
+
+      const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, { type: action, payload });
+      // Выключенный ПК будит сосед по сети: команда записана на соседа, и спрашивать её статус у
+      // этого ПК бесполезно — честнее сказать, как это работает.
+      if (action === 'wake') {
+        return { detail: t('op.pc.wakeSent') };
+      }
       return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command, t) };
     }
 

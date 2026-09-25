@@ -5598,6 +5598,12 @@ export interface SeatStatusDto {
    * кто ждёт дольше.
    */
   assistanceRequestedAtUtc?: IsoDateTime | null;
+  /**
+   * С какого момента ПК на обслуживании по решению клуба. Null — ПК в зале. Отдельно от State:
+   * «обслуживание» на карте бывает и у неподтверждённого ПК, а вернуть в зал можно только того,
+   * кого туда увели.
+   */
+  maintenanceSinceUtc?: IsoDateTime | null;
 }
 
 /**

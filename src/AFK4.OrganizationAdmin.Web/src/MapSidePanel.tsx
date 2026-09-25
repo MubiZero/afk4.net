@@ -8,6 +8,7 @@ import type {
   Feedback,
   OperatorBackendContext,
   PcControlActionId,
+  PcControlActionOptions,
   PcControlActionResult,
   SeatActionRequest,
   SeatActionResult,
@@ -33,6 +34,7 @@ import { useBlockedReason } from './components/BlockedReason';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PanelSelect } from './PanelSelect';
+import { PcCommands } from './pc/PcCommands';
 import { seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
 import { createSessionStartSelection, SessionStartForm, type SessionStartClient, type SessionStartSelection } from './session/SessionStartForm';
@@ -221,7 +223,7 @@ export function MapSidePanel({
   canUsePcControl: boolean;
   startRequestToken?: number;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
-  onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
+  onPcControlAction: (seat: SeatSummary, action: PcControlActionId, options?: PcControlActionOptions) => Promise<PcControlActionResult>;
 }) {
   const { t } = useI18n();
   const session = backend?.session ?? null;
@@ -605,6 +607,14 @@ export function MapSidePanel({
           {pcFeedback.state === 'failed' && pcFeedback.detail && (
             <p className="pc-control-result failed" role="alert">{pcFeedback.detail}</p>
           )}
+          <PcCommands
+            seat={seat}
+            access={{
+              canDispatch: hasPermission(session, permissionNames.dispatchDeviceCommand),
+              canMaintain: hasPermission(session, permissionNames.maintainDevice)
+            }}
+            onPcControlAction={onPcControlAction}
+          />
         </section>
       )}
 

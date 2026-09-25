@@ -1744,3 +1744,28 @@
 .start-dialog-body .booking-client-field input {
   font-size: 15px;
 }
+
+/* Команды ПК сверх блокировки: тот же столбик, что у «Запереть» и «Открыть». */
+.pc-commands {
+  display: grid;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.pc-message-field {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.pc-message-field textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.pc-message-field small {
+  justify-self: end;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
