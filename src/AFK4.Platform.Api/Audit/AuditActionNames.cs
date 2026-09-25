@@ -293,6 +293,18 @@ public static class AuditActionNames
     /// <summary>Код установки отозван.</summary>
     public const string RevokeInstallCode = "install.codes.revoke";
 
+    public const string CreateCatalogGame = "platform.games.create";
+
+    public const string UpdateCatalogGame = "platform.games.update";
+
+    public const string AddBranchGame = "games.library.add";
+
+    public const string UpdateBranchGame = "games.library.update";
+
+    public const string RemoveBranchGame = "games.library.remove";
+
+    public const string ReorderBranchGames = "games.library.reorder";
+
     public const string ViewBranchSettings = "branches.settings.view";
 
     public const string UpdateBranchSettings = "branches.settings.update";

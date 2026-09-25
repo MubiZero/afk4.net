@@ -161,4 +161,8 @@ public static class OrganizationPermissionNames
     /// Заводить и отменять события клуба. Отдельно от новостей: событие возвращает деньги
     /// при отмене, и это право сильнее права написать объявление.
     public const string ManageTournaments = "organization.tournaments.manage";
+
+    /// Библиотека игр филиала — что игрок запустит на ПК (спека оболочки, §6.6). У того, кто
+    /// ставит ПК и игры: владелец, управляющий, техник.
+    public const string ManageGameLibrary = "organization.games.manage";
 }

@@ -210,6 +210,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<InstallCodeEntity> InstallCodes => Set<InstallCodeEntity>();
 
+    public DbSet<CatalogGameEntity> CatalogGames => Set<CatalogGameEntity>();
+
+    public DbSet<BranchGameEntity> BranchGames => Set<BranchGameEntity>();
+
+    public DbSet<BranchGameLibraryEntity> BranchGameLibraries => Set<BranchGameLibraryEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -1576,6 +1582,43 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(settings => settings.BranchId);
             entity.Property(settings => settings.AcceptanceMode).HasMaxLength(16).IsRequired();
             entity.HasIndex(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<CatalogGameEntity>(entity =>
+        {
+            entity.ToTable("catalog_games");
+            entity.HasKey(game => game.CatalogGameId);
+            entity.Property(game => game.Name).HasMaxLength(120).IsRequired();
+            entity.Property(game => game.Description).HasMaxLength(2000);
+            entity.Property(game => game.Genre).HasMaxLength(60);
+            entity.Property(game => game.LaunchKind).HasMaxLength(20).IsRequired();
+            entity.Property(game => game.LaunchTarget).HasMaxLength(200);
+            entity.Property(game => game.CoverUrl).HasMaxLength(1024);
+            entity.HasIndex(game => game.Name);
+        });
+
+        modelBuilder.Entity<BranchGameEntity>(entity =>
+        {
+            entity.ToTable("branch_games");
+            entity.HasKey(game => game.BranchGameId);
+            entity.Property(game => game.Name).HasMaxLength(120).IsRequired();
+            entity.Property(game => game.Genre).HasMaxLength(60);
+            entity.Property(game => game.CoverUrl).HasMaxLength(1024);
+            entity.Property(game => game.LaunchKind).HasMaxLength(20).IsRequired();
+            entity.Property(game => game.LaunchTarget).HasMaxLength(200);
+            entity.Property(game => game.ExecutablePath).HasMaxLength(512);
+            entity.Property(game => game.Arguments).HasMaxLength(512);
+            entity.HasIndex(game => new { game.BranchId, game.SortOrder });
+            entity.HasIndex(game => game.CatalogGameId);
+            entity.HasIndex(game => game.OrganizationId);
+        });
+
+        modelBuilder.Entity<BranchGameLibraryEntity>(entity =>
+        {
+            entity.ToTable("branch_game_libraries");
+            entity.HasKey(library => library.BranchId);
+            entity.Property(library => library.Version).IsConcurrencyToken();
+            entity.HasIndex(library => library.OrganizationId);
         });
 
         modelBuilder.Entity<InstallCodeEntity>(entity =>

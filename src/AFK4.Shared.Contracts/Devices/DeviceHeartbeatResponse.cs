@@ -45,4 +45,6 @@ public sealed record DeviceHeartbeatResponse(
     DateTimeOffset? MaintenanceSinceUtc = null,
     string? MaintenanceByName = null,
     /// Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет.
-    int PolicyProfileVersion = 0);
+    int PolicyProfileVersion = 0,
+    /// Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6).
+    int GameLibraryVersion = 0);

@@ -167,6 +167,10 @@ public sealed class DeviceHeartbeatService(
                     .Where(profile => profile.BranchId == branch.BranchId)
                     .Select(profile => profile.Version)
                     .FirstOrDefault(),
+                GameLibraryVersion = dbContext.BranchGameLibraries
+                    .Where(library => library.BranchId == branch.BranchId)
+                    .Select(library => library.Version)
+                    .FirstOrDefault(),
                 Branding = dbContext.Organizations
                     .Where(organization => organization.OrganizationId == branch.OrganizationId)
                     .Select(organization => new ShellBrandingDto(
@@ -240,7 +244,8 @@ public sealed class DeviceHeartbeatService(
             Maintenance: allowOperationalCommands && inMaintenance,
             MaintenanceSinceUtc: allowOperationalCommands ? device?.MaintenanceSinceUtc : null,
             MaintenanceByName: allowOperationalCommands && inMaintenance ? device?.MaintenanceByName : null,
-            PolicyProfileVersion: allowOperationalCommands ? branchInfo?.PolicyProfileVersion ?? 0 : 0);
+            PolicyProfileVersion: allowOperationalCommands ? branchInfo?.PolicyProfileVersion ?? 0 : 0,
+            GameLibraryVersion: allowOperationalCommands ? branchInfo?.GameLibraryVersion ?? 0 : 0);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

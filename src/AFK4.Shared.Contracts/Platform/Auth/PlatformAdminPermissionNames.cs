@@ -58,6 +58,9 @@ public static class PlatformAdminPermissionNames
     /// </summary>
     public const string ManageAnnouncements = "platform.announcements.manage";
 
+    /// <summary>Каталог игр, из которого клубы собирают библиотеку ПК (спека оболочки, §6.6).</summary>
+    public const string ManageGameCatalog = "platform.games.manage";
+
     /// <summary>
     /// Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
     /// вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
@@ -92,6 +95,7 @@ public static class PlatformAdminPermissionNames
         ViewOrganizationHealth,
         ManageOrganizationFeatures,
         ManageAnnouncements,
+        ManageGameCatalog,
         ManageOffboarding,
         ManageNetworkBans,
         ViewPlatformAudit,

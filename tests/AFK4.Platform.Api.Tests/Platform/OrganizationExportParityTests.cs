@@ -58,6 +58,8 @@ public sealed class OrganizationExportParityTests
         ["StaffInvites"] = "приглашения сотрудников — одноразовые ссылки",
         ["StaffMoneyCaps"] = "пороги согласования — настройка, заводится заново",
         ["BranchProtectionProfiles"] = "профиль защиты ПК — настройка, заводится заново",
+        ["BranchGames"] = "библиотека игр ПК — настройка, заводится заново",
+        ["BranchGameLibraries"] = "версия библиотеки игр — служебный счётчик",
         ["StaffRoleAssignments"] = "роли уходят колонкой roles в staff.csv",
 
         // Производные и служебные данные: считаются из того, что уже выгружено.

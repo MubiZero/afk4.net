@@ -258,6 +258,34 @@ export const FriendshipStateNames = {
 export type FriendshipStateName = (typeof FriendshipStateNames)[keyof typeof FriendshipStateNames];
 
 /**
+ * Чем запускается игра (спека оболочки, §6.6). Путь к лаунчеру на каждом ПК свой — его находит
+ * агент; сервер хранит только что запускать.
+ *
+ * Словарь: Games/GameLibraryContracts.cs
+ */
+export const GameLaunchKindNames = {
+  /** Через Steam по AppID: `steam.exe -applaunch 730`. */
+  Steam: 'steam',
+  /** Через Epic Games Launcher по имени приложения: `Fortnite`. */
+  Epic: 'epic',
+  /** Через Riot Client по продукту: `league_of_legends`, `valorant`. */
+  Riot: 'riot',
+  /** Через Battle.net по коду игры: `WoW`, `Pro`. */
+  BattleNet: 'battlenet',
+  /** Своим exe по пути на ПК. */
+  Executable: 'exe',
+} as const;
+export type GameLaunchKindName = (typeof GameLaunchKindNames)[keyof typeof GameLaunchKindNames];
+
+/** Словарь: Games/GameLibraryContracts.cs */
+export const GameLibraryErrorCodeNames = {
+  InvalidGame: 'invalid_game',
+  CatalogGameNotFound: 'catalog_game_not_found',
+  LibraryFull: 'game_library_full',
+} as const;
+export type GameLibraryErrorCodeName = (typeof GameLibraryErrorCodeNames)[keyof typeof GameLibraryErrorCodeNames];
+
+/**
  * Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
  * текст отказа с сервера — всегда английский: показать его человеку у ПК нельзя, а назвать
  * причину своими словами по коду — можно.
@@ -492,6 +520,11 @@ export const OrganizationPermissionNames = {
    * при отмене, и это право сильнее права написать объявление.
    */
   ManageTournaments: 'organization.tournaments.manage',
+  /**
+   * Библиотека игр филиала — что игрок запустит на ПК (спека оболочки, §6.6). У того, кто
+   * ставит ПК и игры: владелец, управляющий, техник.
+   */
+  ManageGameLibrary: 'organization.games.manage',
 } as const;
 export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
 
@@ -575,6 +608,8 @@ export const PlatformAdminPermissionNames = {
    * тот их и читает — лишнее право усложнило бы модель, ничего не добавив.
    */
   ManageAnnouncements: 'platform.announcements.manage',
+  /** Каталог игр, из которого клубы собирают библиотеку ПК (спека оболочки, §6.6). */
+  ManageGameCatalog: 'platform.games.manage',
   /**
    * Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
    * вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
@@ -1549,6 +1584,31 @@ export interface BranchDynamicsDto {
 }
 
 /**
+ * Игра в библиотеке филиала — то, что увидит игрок на ПК.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface BranchGameDto {
+  branchGameId: Guid;
+  /** Из каталога — тогда обложка и возраст берутся оттуда; null — своя игра клуба. */
+  catalogGameId: Guid | null;
+  name: string;
+  genre: string | null;
+  minAge: number | null;
+  coverUrl: string | null;
+  /** Одно из GameLaunchKindNames. */
+  launchKind: GameLaunchKindName;
+  launchTarget: string | null;
+  /** Свой путь к exe вместо лаунчера — когда игра стоит не там, где её ищет агент. */
+  executablePath: string | null;
+  arguments: string | null;
+  /** Запускается и без сессии: лаунчер для пополнения Steam, например. */
+  availableWithoutSession: boolean;
+  isEnabled: boolean;
+  sortOrder: number;
+}
+
+/**
  * Одно фото зала. MediaId нужен, чтобы удалить объект из хранилища вместе со
  * строкой галереи; у фото, добавленного ссылкой, его нет.
  *
@@ -1740,6 +1800,27 @@ export interface CashReconciliationDto {
   expected: MoneyDto;
   counted: MoneyDto | null;
   difference: MoneyDto | null;
+}
+
+/**
+ * Игра в каталоге платформы — из него клубы добавляют игры себе.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface CatalogGameDto {
+  catalogGameId: Guid;
+  name: string;
+  description: string | null;
+  genre: string | null;
+  /** Возрастная отметка: 0, 12, 16, 18. Даты рождения у игрока нет — отметка только видна. */
+  minAge: number | null;
+  /** Одно из GameLaunchKindNames. */
+  launchKind: GameLaunchKindName;
+  /** AppID Steam, имя приложения Epic, продукт Riot, код Battle.net; для exe — путь по умолчанию. */
+  launchTarget: string | null;
+  coverUrl: string | null;
+  isPublished: boolean;
+  updatedAtUtc: IsoDateTime;
 }
 
 /** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
@@ -2519,6 +2600,35 @@ export interface DeviceEnrollmentResponse {
   enrolledAtUtc: IsoDateTime;
 }
 
+/**
+ * Игра для агента: всё, чтобы найти лаунчер на этом ПК и показать плитку.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface DeviceGameDto {
+  appId: string;
+  displayName: string;
+  genre: string | null;
+  minAge: number | null;
+  coverUrl: string | null;
+  /** Одно из GameLaunchKindNames. */
+  launchKind: GameLaunchKindName;
+  launchTarget: string | null;
+  executablePath: string | null;
+  arguments: string | null;
+  availableWithoutSession: boolean;
+}
+
+/**
+ * Библиотека филиала для агента. Версия едет в сердцебиении.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface DeviceGameLibraryDto {
+  version: number;
+  games: DeviceGameDto[];
+}
+
 /** Контракт: Devices/DeviceHeartbeatRequest.cs */
 export interface DeviceHeartbeatRequest {
   organizationId: Guid;
@@ -2602,6 +2712,8 @@ export interface DeviceHeartbeatResponse {
   maintenanceByName?: string | null;
   /** Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет. */
   policyProfileVersion?: number;
+  /** Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6). */
+  gameLibraryVersion?: number;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -5587,6 +5699,16 @@ export interface RenameDeviceRequest {
 }
 
 /**
+ * Порядок игр в библиотеке: все игры филиала в новом порядке.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface ReorderBranchGamesRequest {
+  organizationId: Guid;
+  branchGameIds: Guid[];
+}
+
+/**
  * Новый порядок категорий филиала: весь список целиком, сверху вниз.
  * Список, а не пара «категория + номер»: порядок — свойство набора, и присланный целиком он не
  * оставляет места расхождению. Пара «id + номер» на каждое перетаскивание порождала бы дыры и
@@ -7377,6 +7499,33 @@ export interface UploadedMediaDto {
   url: string;
   contentType: string;
   sizeBytes: number;
+}
+
+/** Контракт: Games/GameLibraryContracts.cs */
+export interface UpsertBranchGameRequest {
+  organizationId: Guid;
+  catalogGameId: Guid | null;
+  name: string;
+  genre: string | null;
+  minAge: number | null;
+  launchKind: string;
+  launchTarget: string | null;
+  executablePath: string | null;
+  arguments: string | null;
+  availableWithoutSession: boolean;
+  isEnabled: boolean;
+}
+
+/** Контракт: Games/GameLibraryContracts.cs */
+export interface UpsertCatalogGameRequest {
+  name: string;
+  description: string | null;
+  genre: string | null;
+  minAge: number | null;
+  launchKind: string;
+  launchTarget: string | null;
+  coverUrl: string | null;
+  isPublished: boolean;
 }
 
 /** Контракт: Platform/Billing/VoidInvoiceRequest.cs */

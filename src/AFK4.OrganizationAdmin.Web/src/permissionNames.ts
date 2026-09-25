@@ -67,5 +67,6 @@ export const permissionNames = {
   managePaymentGateways: 'organization.payments.gateways.manage',
   manageLoyaltySettings: 'organization.loyalty.settings.manage',
   manageNews: 'organization.news.manage',
-  manageTournaments: 'organization.tournaments.manage'
+  manageTournaments: 'organization.tournaments.manage',
+  manageGameLibrary: 'organization.games.manage'
 } as const;

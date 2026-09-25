@@ -206,6 +206,30 @@ abstract final class FriendshipStateNames {
   static const String declined = 'declined';
 }
 
+/// Чем запускается игра (спека оболочки, §6.6). Путь к лаунчеру на каждом ПК свой — его находит
+/// агент; сервер хранит только что запускать.
+///
+/// Словарь: Games/GameLibraryContracts.cs
+abstract final class GameLaunchKindNames {
+  /// Через Steam по AppID: `steam.exe -applaunch 730`.
+  static const String steam = 'steam';
+  /// Через Epic Games Launcher по имени приложения: `Fortnite`.
+  static const String epic = 'epic';
+  /// Через Riot Client по продукту: `league_of_legends`, `valorant`.
+  static const String riot = 'riot';
+  /// Через Battle.net по коду игры: `WoW`, `Pro`.
+  static const String battleNet = 'battlenet';
+  /// Своим exe по пути на ПК.
+  static const String executable = 'exe';
+}
+
+/// Словарь: Games/GameLibraryContracts.cs
+abstract final class GameLibraryErrorCodeNames {
+  static const String invalidGame = 'invalid_game';
+  static const String catalogGameNotFound = 'catalog_game_not_found';
+  static const String libraryFull = 'game_library_full';
+}
+
 /// Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
 /// текст отказа с сервера — всегда английский: показать его человеку у ПК нельзя, а назвать
 /// причину своими словами по коду — можно.
@@ -407,6 +431,9 @@ abstract final class OrganizationPermissionNames {
   /// Заводить и отменять события клуба. Отдельно от новостей: событие возвращает деньги
   /// при отмене, и это право сильнее права написать объявление.
   static const String manageTournaments = 'organization.tournaments.manage';
+  /// Библиотека игр филиала — что игрок запустит на ПК (спека оболочки, §6.6). У того, кто
+  /// ставит ПК и игры: владелец, управляющий, техник.
+  static const String manageGameLibrary = 'organization.games.manage';
 }
 
 /// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
@@ -477,6 +504,8 @@ abstract final class PlatformAdminPermissionNames {
   /// Ведение анонсов платформы. Отдельного «смотреть анонсы» нет: как и у ролей, кто их ведёт,
   /// тот их и читает — лишнее право усложнило бы модель, ничего не добавив.
   static const String manageAnnouncements = 'platform.announcements.manage';
+  /// Каталог игр, из которого клубы собирают библиотеку ПК (спека оболочки, §6.6).
+  static const String manageGameCatalog = 'platform.games.manage';
   /// Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
   /// вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
   /// право здесь значит раздать необратимое тем, кому дали настраивать.
@@ -1791,6 +1820,81 @@ class BranchDynamicsDto {
       };
 }
 
+/// Игра в библиотеке филиала — то, что увидит игрок на ПК.
+///
+/// Контракт: Games/GameLibraryContracts.cs
+class BranchGameDto {
+  const BranchGameDto({
+    required this.branchGameId,
+    this.catalogGameId,
+    required this.name,
+    this.genre,
+    this.minAge,
+    this.coverUrl,
+    required this.launchKind,
+    this.launchTarget,
+    this.executablePath,
+    this.arguments,
+    required this.availableWithoutSession,
+    required this.isEnabled,
+    required this.sortOrder,
+  });
+
+  final String branchGameId;
+
+  /// Из каталога — тогда обложка и возраст берутся оттуда; null — своя игра клуба.
+  final String? catalogGameId;
+  final String name;
+  final String? genre;
+  final int? minAge;
+  final String? coverUrl;
+
+  /// Одно из GameLaunchKindNames.
+  final String launchKind;
+  final String? launchTarget;
+
+  /// Свой путь к exe вместо лаунчера — когда игра стоит не там, где её ищет агент.
+  final String? executablePath;
+  final String? arguments;
+
+  /// Запускается и без сессии: лаунчер для пополнения Steam, например.
+  final bool availableWithoutSession;
+  final bool isEnabled;
+  final int sortOrder;
+
+  factory BranchGameDto.fromJson(Map<String, dynamic> json) => BranchGameDto(
+        branchGameId: json['branchGameId'] as String,
+        catalogGameId: json['catalogGameId'] == null ? null : json['catalogGameId'] as String,
+        name: json['name'] as String,
+        genre: json['genre'] == null ? null : json['genre'] as String,
+        minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
+        coverUrl: json['coverUrl'] == null ? null : json['coverUrl'] as String,
+        launchKind: json['launchKind'] as String,
+        launchTarget: json['launchTarget'] == null ? null : json['launchTarget'] as String,
+        executablePath: json['executablePath'] == null ? null : json['executablePath'] as String,
+        arguments: json['arguments'] == null ? null : json['arguments'] as String,
+        availableWithoutSession: json['availableWithoutSession'] as bool,
+        isEnabled: json['isEnabled'] as bool,
+        sortOrder: (json['sortOrder'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'branchGameId': branchGameId,
+        'catalogGameId': catalogGameId,
+        'name': name,
+        'genre': genre,
+        'minAge': minAge,
+        'coverUrl': coverUrl,
+        'launchKind': launchKind,
+        'launchTarget': launchTarget,
+        'executablePath': executablePath,
+        'arguments': arguments,
+        'availableWithoutSession': availableWithoutSession,
+        'isEnabled': isEnabled,
+        'sortOrder': sortOrder,
+      };
+}
+
 /// Одно фото зала. MediaId нужен, чтобы удалить объект из хранилища вместе со
 /// строкой галереи; у фото, добавленного ссылкой, его нет.
 ///
@@ -2350,6 +2454,67 @@ class CashReconciliationDto {
         'expected': expected.toJson(),
         'counted': counted?.toJson(),
         'difference': difference?.toJson(),
+      };
+}
+
+/// Игра в каталоге платформы — из него клубы добавляют игры себе.
+///
+/// Контракт: Games/GameLibraryContracts.cs
+class CatalogGameDto {
+  const CatalogGameDto({
+    required this.catalogGameId,
+    required this.name,
+    this.description,
+    this.genre,
+    this.minAge,
+    required this.launchKind,
+    this.launchTarget,
+    this.coverUrl,
+    required this.isPublished,
+    required this.updatedAtUtc,
+  });
+
+  final String catalogGameId;
+  final String name;
+  final String? description;
+  final String? genre;
+
+  /// Возрастная отметка: 0, 12, 16, 18. Даты рождения у игрока нет — отметка только видна.
+  final int? minAge;
+
+  /// Одно из GameLaunchKindNames.
+  final String launchKind;
+
+  /// AppID Steam, имя приложения Epic, продукт Riot, код Battle.net; для exe — путь по умолчанию.
+  final String? launchTarget;
+  final String? coverUrl;
+  final bool isPublished;
+  final DateTime updatedAtUtc;
+
+  factory CatalogGameDto.fromJson(Map<String, dynamic> json) => CatalogGameDto(
+        catalogGameId: json['catalogGameId'] as String,
+        name: json['name'] as String,
+        description: json['description'] == null ? null : json['description'] as String,
+        genre: json['genre'] == null ? null : json['genre'] as String,
+        minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
+        launchKind: json['launchKind'] as String,
+        launchTarget: json['launchTarget'] == null ? null : json['launchTarget'] as String,
+        coverUrl: json['coverUrl'] == null ? null : json['coverUrl'] as String,
+        isPublished: json['isPublished'] as bool,
+        updatedAtUtc: DateTime.parse(json['updatedAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'catalogGameId': catalogGameId,
+        'name': name,
+        'description': description,
+        'genre': genre,
+        'minAge': minAge,
+        'launchKind': launchKind,
+        'launchTarget': launchTarget,
+        'coverUrl': coverUrl,
+        'isPublished': isPublished,
+        'updatedAtUtc': updatedAtUtc.toIso8601String(),
       };
 }
 
@@ -4802,6 +4967,86 @@ class DeviceEnrollmentResponse {
       };
 }
 
+/// Игра для агента: всё, чтобы найти лаунчер на этом ПК и показать плитку.
+///
+/// Контракт: Games/GameLibraryContracts.cs
+class DeviceGameDto {
+  const DeviceGameDto({
+    required this.appId,
+    required this.displayName,
+    this.genre,
+    this.minAge,
+    this.coverUrl,
+    required this.launchKind,
+    this.launchTarget,
+    this.executablePath,
+    this.arguments,
+    required this.availableWithoutSession,
+  });
+
+  final String appId;
+  final String displayName;
+  final String? genre;
+  final int? minAge;
+  final String? coverUrl;
+
+  /// Одно из GameLaunchKindNames.
+  final String launchKind;
+  final String? launchTarget;
+  final String? executablePath;
+  final String? arguments;
+  final bool availableWithoutSession;
+
+  factory DeviceGameDto.fromJson(Map<String, dynamic> json) => DeviceGameDto(
+        appId: json['appId'] as String,
+        displayName: json['displayName'] as String,
+        genre: json['genre'] == null ? null : json['genre'] as String,
+        minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
+        coverUrl: json['coverUrl'] == null ? null : json['coverUrl'] as String,
+        launchKind: json['launchKind'] as String,
+        launchTarget: json['launchTarget'] == null ? null : json['launchTarget'] as String,
+        executablePath: json['executablePath'] == null ? null : json['executablePath'] as String,
+        arguments: json['arguments'] == null ? null : json['arguments'] as String,
+        availableWithoutSession: json['availableWithoutSession'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'appId': appId,
+        'displayName': displayName,
+        'genre': genre,
+        'minAge': minAge,
+        'coverUrl': coverUrl,
+        'launchKind': launchKind,
+        'launchTarget': launchTarget,
+        'executablePath': executablePath,
+        'arguments': arguments,
+        'availableWithoutSession': availableWithoutSession,
+      };
+}
+
+/// Библиотека филиала для агента. Версия едет в сердцебиении.
+///
+/// Контракт: Games/GameLibraryContracts.cs
+class DeviceGameLibraryDto {
+  const DeviceGameLibraryDto({
+    required this.version,
+    required this.games,
+  });
+
+  final int version;
+  final List<DeviceGameDto> games;
+
+  factory DeviceGameLibraryDto.fromJson(Map<String, dynamic> json) => DeviceGameLibraryDto(
+        version: (json['version'] as num).toInt(),
+        games: (json['games'] as List<dynamic>).map((item) => DeviceGameDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'version': version,
+        'games': games.map((item) => item.toJson()).toList(),
+      };
+}
+
 /// Контракт: Devices/DeviceHeartbeatRequest.cs
 class DeviceHeartbeatRequest {
   const DeviceHeartbeatRequest({
@@ -4897,6 +5142,7 @@ class DeviceHeartbeatResponse {
     this.maintenanceSinceUtc,
     this.maintenanceByName,
     this.policyProfileVersion,
+    this.gameLibraryVersion,
   });
 
   final DateTime serverTimeUtc;
@@ -4952,6 +5198,9 @@ class DeviceHeartbeatResponse {
   /// Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет.
   final int? policyProfileVersion;
 
+  /// Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6).
+  final int? gameLibraryVersion;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -4969,6 +5218,7 @@ class DeviceHeartbeatResponse {
         maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
         maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
         policyProfileVersion: json['policyProfileVersion'] == null ? null : (json['policyProfileVersion'] as num).toInt(),
+        gameLibraryVersion: json['gameLibraryVersion'] == null ? null : (json['gameLibraryVersion'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4988,6 +5238,7 @@ class DeviceHeartbeatResponse {
         'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
         'maintenanceByName': maintenanceByName,
         'policyProfileVersion': policyProfileVersion,
+        'gameLibraryVersion': gameLibraryVersion,
       };
 }
 
@@ -13807,6 +14058,29 @@ class RenameDeviceRequest {
       };
 }
 
+/// Порядок игр в библиотеке: все игры филиала в новом порядке.
+///
+/// Контракт: Games/GameLibraryContracts.cs
+class ReorderBranchGamesRequest {
+  const ReorderBranchGamesRequest({
+    required this.organizationId,
+    required this.branchGameIds,
+  });
+
+  final String organizationId;
+  final List<String> branchGameIds;
+
+  factory ReorderBranchGamesRequest.fromJson(Map<String, dynamic> json) => ReorderBranchGamesRequest(
+        organizationId: json['organizationId'] as String,
+        branchGameIds: (json['branchGameIds'] as List<dynamic>).map((item) => item as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchGameIds': branchGameIds.map((item) => item).toList(),
+      };
+}
+
 /// Новый порядок категорий филиала: весь список целиком, сверху вниз.
 /// Список, а не пара «категория + номер»: порядок — свойство набора, и присланный целиком он не
 /// оставляет места расхождению. Пара «id + номер» на каждое перетаскивание порождала бы дыры и
@@ -19308,6 +19582,108 @@ class UploadedMediaDto {
         'url': url,
         'contentType': contentType,
         'sizeBytes': sizeBytes,
+      };
+}
+
+/// Контракт: Games/GameLibraryContracts.cs
+class UpsertBranchGameRequest {
+  const UpsertBranchGameRequest({
+    required this.organizationId,
+    this.catalogGameId,
+    required this.name,
+    this.genre,
+    this.minAge,
+    required this.launchKind,
+    this.launchTarget,
+    this.executablePath,
+    this.arguments,
+    required this.availableWithoutSession,
+    required this.isEnabled,
+  });
+
+  final String organizationId;
+  final String? catalogGameId;
+  final String name;
+  final String? genre;
+  final int? minAge;
+  final String launchKind;
+  final String? launchTarget;
+  final String? executablePath;
+  final String? arguments;
+  final bool availableWithoutSession;
+  final bool isEnabled;
+
+  factory UpsertBranchGameRequest.fromJson(Map<String, dynamic> json) => UpsertBranchGameRequest(
+        organizationId: json['organizationId'] as String,
+        catalogGameId: json['catalogGameId'] == null ? null : json['catalogGameId'] as String,
+        name: json['name'] as String,
+        genre: json['genre'] == null ? null : json['genre'] as String,
+        minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
+        launchKind: json['launchKind'] as String,
+        launchTarget: json['launchTarget'] == null ? null : json['launchTarget'] as String,
+        executablePath: json['executablePath'] == null ? null : json['executablePath'] as String,
+        arguments: json['arguments'] == null ? null : json['arguments'] as String,
+        availableWithoutSession: json['availableWithoutSession'] as bool,
+        isEnabled: json['isEnabled'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'catalogGameId': catalogGameId,
+        'name': name,
+        'genre': genre,
+        'minAge': minAge,
+        'launchKind': launchKind,
+        'launchTarget': launchTarget,
+        'executablePath': executablePath,
+        'arguments': arguments,
+        'availableWithoutSession': availableWithoutSession,
+        'isEnabled': isEnabled,
+      };
+}
+
+/// Контракт: Games/GameLibraryContracts.cs
+class UpsertCatalogGameRequest {
+  const UpsertCatalogGameRequest({
+    required this.name,
+    this.description,
+    this.genre,
+    this.minAge,
+    required this.launchKind,
+    this.launchTarget,
+    this.coverUrl,
+    required this.isPublished,
+  });
+
+  final String name;
+  final String? description;
+  final String? genre;
+  final int? minAge;
+  final String launchKind;
+  final String? launchTarget;
+  final String? coverUrl;
+  final bool isPublished;
+
+  factory UpsertCatalogGameRequest.fromJson(Map<String, dynamic> json) => UpsertCatalogGameRequest(
+        name: json['name'] as String,
+        description: json['description'] == null ? null : json['description'] as String,
+        genre: json['genre'] == null ? null : json['genre'] as String,
+        minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
+        launchKind: json['launchKind'] as String,
+        launchTarget: json['launchTarget'] == null ? null : json['launchTarget'] as String,
+        coverUrl: json['coverUrl'] == null ? null : json['coverUrl'] as String,
+        isPublished: json['isPublished'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'description': description,
+        'genre': genre,
+        'minAge': minAge,
+        'launchKind': launchKind,
+        'launchTarget': launchTarget,
+        'coverUrl': coverUrl,
+        'isPublished': isPublished,
       };
 }
 
