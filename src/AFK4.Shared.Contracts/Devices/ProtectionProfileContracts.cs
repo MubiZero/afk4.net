@@ -22,7 +22,11 @@ public sealed record ProtectionProfileDto(
     /// Окна, которые оболочка закрывает, едва они появятся.
     IReadOnlyList<BlockedWindowRuleDto> BlockedWindows,
     /// Что стереть после сессии игрока (§6.4). Каждый пункт — из SessionTraceNames.
-    IReadOnlyList<string> ClearAfterSession);
+    IReadOnlyList<string> ClearAfterSession,
+    /// Выключить свободный ПК, за которым столько минут никого нет; null — не выключать.
+    int? IdleShutdownMinutes = null,
+    /// Правила клуба на экране ПК — текст клуба как есть, на его языке.
+    string? ClubRules = null);
 
 /// <summary>
 /// Следы, которые агент стирает, когда сессия кончилась и ПК заперт (спека оболочки, §6.4). Пути
@@ -75,7 +79,16 @@ public sealed record UpdateBranchProtectionProfileRequest(
     IReadOnlyList<string> HiddenDrives,
     IReadOnlyList<string> UrlBlocklist,
     IReadOnlyList<BlockedWindowRuleDto> BlockedWindows,
-    IReadOnlyList<string> ClearAfterSession);
+    IReadOnlyList<string> ClearAfterSession,
+    int? IdleShutdownMinutes = null,
+    string? ClubRules = null);
+
+public static class ProtectionProfileLimits
+{
+    public const int MinIdleShutdownMinutes = 5;
+    public const int MaxIdleShutdownMinutes = 720;
+    public const int MaxClubRulesLength = 2000;
+}
 
 public static class ProtectionProfileErrorCodeNames
 {

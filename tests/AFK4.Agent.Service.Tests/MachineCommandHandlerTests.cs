@@ -336,6 +336,8 @@ public sealed class MachineCommandHandlerTests
 
         public IReadOnlyList<string> ClearAfterSession => [];
 
+        public ProtectionProfileDto Profile => new(0, false, false, false, false, [], [], [], ClearAfterSession);
+
         public Task ApplyAsync(CancellationToken cancellationToken)
         {
             Applies++;
@@ -407,6 +409,10 @@ public sealed class MachineCommandHandlerTests
 
     private sealed class RecordingPower : IMachinePowerController
     {
+        public void Cancel()
+        {
+        }
+
         public List<(MachinePowerAction Action, TimeSpan Delay, string Reason)> Scheduled { get; } = [];
 
         public void Schedule(MachinePowerAction action, TimeSpan delay, string reason) => Scheduled.Add((action, delay, reason));

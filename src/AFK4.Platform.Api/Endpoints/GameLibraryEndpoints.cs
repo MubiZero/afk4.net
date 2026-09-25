@@ -428,6 +428,7 @@ internal static class GameLibraryEndpoints
         entity.Arguments = GameLibrary.Blank(request.Arguments);
         entity.AvailableWithoutSession = request.AvailableWithoutSession;
         entity.IsEnabled = request.IsEnabled;
+        entity.LaunchOnSessionStart = request.LaunchOnSessionStart;
         entity.UpdatedAtUtc = now;
     }
 }

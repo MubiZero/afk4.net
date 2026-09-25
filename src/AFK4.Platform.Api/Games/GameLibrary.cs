@@ -127,7 +127,8 @@ public static partial class GameLibrary
         entity.Arguments,
         entity.AvailableWithoutSession,
         entity.IsEnabled,
-        entity.SortOrder);
+        entity.SortOrder,
+        entity.LaunchOnSessionStart);
 
     public static async Task<IReadOnlyList<BranchGameDto>> ListAsync(
         PlatformDbContext dbContext, Guid organizationId, Guid branchId, CancellationToken cancellationToken)
@@ -164,7 +165,8 @@ public static partial class GameLibrary
                 game.LaunchTarget,
                 game.ExecutablePath,
                 game.Arguments,
-                game.AvailableWithoutSession))
+                game.AvailableWithoutSession,
+                game.LaunchOnSessionStart))
             .ToList();
         return new DeviceGameLibraryDto(version, games);
     }

@@ -30,6 +30,9 @@ public interface IProtectionEnforcer
 
     /// <summary>Что стереть после сессии (SessionTraceNames) — по последнему полученному профилю.</summary>
     IReadOnlyList<string> ClearAfterSession { get; }
+
+    /// <summary>Последний полученный профиль целиком: простой, правила клуба и остальное.</summary>
+    ProtectionProfileDto Profile { get; }
 }
 
 public interface IProtectionPlatformClient
@@ -76,6 +79,8 @@ public sealed class ProtectionEnforcer(
 
     // Профиль, сохранённый прежней версией агента, списка не знает: для него — всё.
     public IReadOnlyList<string> ClearAfterSession => Current.ClearAfterSession ?? SessionTraceNames.All;
+
+    public ProtectionProfileDto Profile => Current;
 
     public async Task ApplyAsync(CancellationToken cancellationToken)
     {

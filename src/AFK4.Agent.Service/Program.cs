@@ -129,6 +129,11 @@ builder.Services.AddSingleton<IGameLauncherLocator, WindowsGameLauncherLocator>(
 builder.Services.AddSingleton<GameLibraryService>();
 builder.Services.AddSingleton<ILauncherCatalog>(services => services.GetRequiredService<GameLibraryService>());
 builder.Services.AddSingleton<IGameLibrarySync>(services => services.GetRequiredService<GameLibraryService>());
+builder.Services.AddSingleton<ISessionAutostart, SessionAutostart>();
+
+// Выключение свободного ПК после простоя (настройки ПК клуба).
+builder.Services.AddSingleton<AFK4.Agent.Service.Power.IPlayerPresence, AFK4.Agent.Service.Power.PlayerPresence>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Power.IIdleShutdownMonitor, AFK4.Agent.Service.Power.IdleShutdownMonitor>();
 builder.Services.AddSingleton<IMaintenanceDesktop, MaintenanceDesktop>();
 builder.Services.AddSingleton<IMaintenanceReturnClient, HttpMaintenanceReturnClient>();
 builder.Services.AddSingleton<MaintenanceReturn>();

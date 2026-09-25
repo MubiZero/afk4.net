@@ -48,4 +48,6 @@ public sealed record PlayerShellStateDto(
     string? MaintenanceByName = null,
     // Окна, которые хост закрывает, едва они появятся (профиль защиты, §6.3). Служба в сессии 0
     // окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
-    IReadOnlyList<BlockedWindowRuleDto>? BlockedWindows = null);
+    IReadOnlyList<BlockedWindowRuleDto>? BlockedWindows = null,
+    // Правила клуба из настроек ПК: кнопка на экране свободного ПК их открывает.
+    string? ClubRules = null);

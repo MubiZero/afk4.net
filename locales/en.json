@@ -4017,6 +4017,7 @@
   "playerShell.signIn.pin": "PIN",
   "playerShell.signIn.qrHint": "Point the camera in the AFK4.net app — the PC signs you in by itself, no number or PIN needed. Or enter the code {code} under “Take a PC”.",
   "playerShell.signIn.qrTitle": "Or with your phone",
+  "playerShell.signIn.rules": "Club rules",
   "playerShell.signIn.submit": "Sign in",
   "playerShell.signIn.submitting": "Signing in…",
   "playerShell.signIn.title": "Take this PC",

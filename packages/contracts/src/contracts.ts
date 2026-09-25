@@ -1142,6 +1142,11 @@ export const ShellPipeRequestTypeNames = {
    * рабочий стол техника. Тело пустое.
    */
   MaintenanceReturn: 'maintenance.return',
+  /**
+   * За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в минуту; по нему агент не
+   * выключает простаивающий ПК под рукой человека, который вводит номер. Тело пустое.
+   */
+  Activity: 'activity',
 } as const;
 export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
 
@@ -1606,6 +1611,8 @@ export interface BranchGameDto {
   availableWithoutSession: boolean;
   isEnabled: boolean;
   sortOrder: number;
+  /** Запускается сам в начале сессии: Discord, клиент Steam. */
+  launchOnSessionStart?: boolean;
 }
 
 /**
@@ -2617,6 +2624,7 @@ export interface DeviceGameDto {
   executablePath: string | null;
   arguments: string | null;
   availableWithoutSession: boolean;
+  launchOnSessionStart?: boolean;
 }
 
 /**
@@ -5127,6 +5135,8 @@ export interface PlayerShellStateDto {
    * окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
    */
   blockedWindows?: BlockedWindowRuleDto[] | null;
+  /** Правила клуба из настроек ПК: кнопка на экране свободного ПК их открывает. */
+  clubRules?: string | null;
 }
 
 /**
@@ -5460,6 +5470,10 @@ export interface ProtectionProfileDto {
   blockedWindows: BlockedWindowRuleDto[];
   /** Что стереть после сессии игрока (§6.4). Каждый пункт — из SessionTraceNames. */
   clearAfterSession: string[];
+  /** Выключить свободный ПК, за которым столько минут никого нет; null — не выключать. */
+  idleShutdownMinutes?: number | null;
+  /** Правила клуба на экране ПК — текст клуба как есть, на его языке. */
+  clubRules?: string | null;
 }
 
 /**
@@ -7080,6 +7094,8 @@ export interface UpdateBranchProtectionProfileRequest {
   urlBlocklist: string[];
   blockedWindows: BlockedWindowRuleDto[];
   clearAfterSession: string[];
+  idleShutdownMinutes?: number | null;
+  clubRules?: string | null;
 }
 
 /** Контракт: Branches/UpdateBranchSettingsRequest.cs */
@@ -7516,6 +7532,7 @@ export interface UpsertBranchGameRequest {
   arguments: string | null;
   availableWithoutSession: boolean;
   isEnabled: boolean;
+  launchOnSessionStart?: boolean;
 }
 
 /** Контракт: Games/GameLibraryContracts.cs */

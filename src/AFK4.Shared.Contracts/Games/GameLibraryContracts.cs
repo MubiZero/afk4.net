@@ -70,7 +70,9 @@ public sealed record BranchGameDto(
     /// Запускается и без сессии: лаунчер для пополнения Steam, например.
     bool AvailableWithoutSession,
     bool IsEnabled,
-    int SortOrder);
+    int SortOrder,
+    /// Запускается сам в начале сессии: Discord, клиент Steam.
+    bool LaunchOnSessionStart = false);
 
 public sealed record UpsertBranchGameRequest(
     Guid OrganizationId,
@@ -83,7 +85,8 @@ public sealed record UpsertBranchGameRequest(
     string? ExecutablePath,
     string? Arguments,
     bool AvailableWithoutSession,
-    bool IsEnabled);
+    bool IsEnabled,
+    bool LaunchOnSessionStart = false);
 
 /// <summary>Порядок игр в библиотеке: все игры филиала в новом порядке.</summary>
 public sealed record ReorderBranchGamesRequest(Guid OrganizationId, IReadOnlyList<Guid> BranchGameIds);
@@ -100,7 +103,8 @@ public sealed record DeviceGameDto(
     string? LaunchTarget,
     string? ExecutablePath,
     string? Arguments,
-    bool AvailableWithoutSession);
+    bool AvailableWithoutSession,
+    bool LaunchOnSessionStart = false);
 
 /// <summary>Библиотека филиала для агента. Версия едет в сердцебиении.</summary>
 public sealed record DeviceGameLibraryDto(int Version, IReadOnlyList<DeviceGameDto> Games);

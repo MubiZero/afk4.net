@@ -29,7 +29,9 @@ public static class ProtectionProfiles
                 entity.HiddenDrives.Select(letter => letter.ToString()).ToList(),
                 JsonSerializer.Deserialize<List<string>>(entity.UrlBlocklistJson, Json) ?? [],
                 JsonSerializer.Deserialize<List<BlockedWindowRuleDto>>(entity.BlockedWindowsJson, Json) ?? [],
-                JsonSerializer.Deserialize<List<string>>(entity.ClearAfterSessionJson, Json) ?? []);
+                JsonSerializer.Deserialize<List<string>>(entity.ClearAfterSessionJson, Json) ?? [],
+                entity.IdleShutdownMinutes,
+                entity.ClubRules);
 
     public static async Task<ProtectionProfileDto> ResolveAsync(
         PlatformDbContext dbContext, Guid branchId, CancellationToken cancellationToken) =>
@@ -62,6 +64,16 @@ public static class ProtectionProfiles
         if (request.ClearAfterSession.Any(item => !SessionTraceNames.All.Contains(item)))
         {
             return $"ClearAfterSession takes only: {string.Join(", ", SessionTraceNames.All)}.";
+        }
+
+        if (request.IdleShutdownMinutes is < ProtectionProfileLimits.MinIdleShutdownMinutes or > ProtectionProfileLimits.MaxIdleShutdownMinutes)
+        {
+            return $"IdleShutdownMinutes is between {ProtectionProfileLimits.MinIdleShutdownMinutes} and {ProtectionProfileLimits.MaxIdleShutdownMinutes}, or empty.";
+        }
+
+        if (request.ClubRules?.Trim().Length > ProtectionProfileLimits.MaxClubRulesLength)
+        {
+            return $"ClubRules is at most {ProtectionProfileLimits.MaxClubRulesLength} characters.";
         }
 
         if (request.BlockedWindows.Count > MaxBlockedWindows)
@@ -136,6 +148,8 @@ public static class ProtectionProfiles
         // В порядке каталога: порядок галочек в Панели не должен давать новую версию.
         entity.ClearAfterSessionJson = JsonSerializer.Serialize(
             SessionTraceNames.All.Where(request.ClearAfterSession.Contains).ToList(), Json);
+        entity.IdleShutdownMinutes = request.IdleShutdownMinutes;
+        entity.ClubRules = Blank(request.ClubRules);
         entity.UpdatedAtUtc = now;
         entity.UpdatedByStaffUserId = staffUserId;
 

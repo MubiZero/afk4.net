@@ -4018,6 +4018,7 @@ export const tg = {
   "playerShell.signIn.pin": "PIN",
   "playerShell.signIn.qrHint": "Камераро дар барномаи AFK4.net равона кунед — ПК худаш ворид мешавад, бе рақам ва PIN. Ё рамзи {code}-ро дар «Ба ПК нишастан» ворид кунед.",
   "playerShell.signIn.qrTitle": "Ё бо телефон",
+  "playerShell.signIn.rules": "Қоидаҳои клуб",
   "playerShell.signIn.submit": "Ворид шудан",
   "playerShell.signIn.submitting": "Ворид мешавем…",
   "playerShell.signIn.title": "Ба ПК нишастан",

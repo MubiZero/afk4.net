@@ -31,6 +31,12 @@ public sealed class BranchProtectionProfileEntity
     /// <summary>Что стирать после сессии, JSON-список из SessionTraceNames. По умолчанию — всё.</summary>
     public string ClearAfterSessionJson { get; set; } = DefaultClearAfterSessionJson;
 
+    /// <summary>Выключать свободный ПК через столько минут простоя; null — не выключать.</summary>
+    public int? IdleShutdownMinutes { get; set; }
+
+    /// <summary>Правила клуба на экране ПК.</summary>
+    public string? ClubRules { get; set; }
+
     public const string DefaultClearAfterSessionJson = "[\"steam\",\"browsers\",\"launchers\",\"messengers\"]";
 
     public DateTimeOffset UpdatedAtUtc { get; set; }

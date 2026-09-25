@@ -115,8 +115,23 @@ export function SignInPanel({ state, onClose }: SignInPanelProps) {
           </div>
         ) : null}
         <AssistButton />
+        {state.clubRules ? <ClubRules text={state.clubRules} /> : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * Правила клуба из настроек ПК — рядом с входом: садящийся читает их до того, как начать.
+ * Свёрнуты по умолчанию: окно входа — про вход, а не про чтение.
+ */
+function ClubRules({ text }: { text: string }) {
+  const { t } = useI18n();
+  return (
+    <details className="sign-in__rules">
+      <summary>{t('playerShell.signIn.rules')}</summary>
+      <p className="sign-in__rules-text">{text}</p>
+    </details>
   );
 }
 

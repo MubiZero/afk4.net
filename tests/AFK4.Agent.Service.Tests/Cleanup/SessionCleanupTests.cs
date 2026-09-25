@@ -161,6 +161,8 @@ public sealed class SessionCleanupTests : IDisposable
 
         public IReadOnlyList<string> ClearAfterSession => clear;
 
+        public ProtectionProfileDto Profile => new(0, false, false, false, false, [], [], [], ClearAfterSession);
+
         public Task ApplyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task ReleaseAsync(CancellationToken cancellationToken) => Task.CompletedTask;

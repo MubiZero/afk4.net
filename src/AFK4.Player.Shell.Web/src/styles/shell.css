@@ -1498,3 +1498,24 @@ button {
   border-radius: 8px;
   font-size: 15px;
 }
+
+/* Правила клуба в окне входа: свёрнуты, текст клуба как есть — с его переносами строк. */
+.sign-in__rules {
+  margin-top: 1rem;
+  color: var(--text-secondary);
+}
+
+.sign-in__rules summary {
+  min-height: 2.6rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.sign-in__rules-text {
+  max-height: 14rem;
+  margin: 0.5rem 0 0;
+  overflow-y: auto;
+  white-space: pre-line;
+  line-height: 1.5;
+}

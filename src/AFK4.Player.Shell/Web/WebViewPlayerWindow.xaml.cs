@@ -225,6 +225,24 @@ public partial class WebViewPlayerWindow : Window
     }
 
     /// <summary>
+    /// За ПК кто-то есть — агенту, не чаще раза в минуту: по этому он не выключит простаивающий
+    /// ПК под рукой человека, который вводит номер. Ответ не ждём: это подсказка, а не просьба.
+    /// </summary>
+    private void ReportPresence()
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (now - lastPresenceReported < TimeSpan.FromMinutes(1))
+        {
+            return;
+        }
+
+        lastPresenceReported = now;
+        _ = agentPipe.RequestAsync(ShellPipeRequestTypeNames.Activity, new Dictionary<string, string>(), lifetime.Token);
+    }
+
+    private DateTimeOffset lastPresenceReported = DateTimeOffset.MinValue;
+
+    /// <summary>
     /// Обложки игр (и витрина P7) — из общей папки ПК, которую пополняет агент. Только на чтение:
     /// страница показывает картинки, но ничего туда не пишет. Папки ещё нет — агент её не завёл, и
     /// плитки рисуются по названию.
@@ -324,6 +342,7 @@ public partial class WebViewPlayerWindow : Window
             {
                 case InputSignal.Activity:
                     PostToPage(ShellBridgeEventTypeNames.InputActivity, null);
+                    ReportPresence();
                     break;
                 case InputSignal.Idle:
                     PostToPage(ShellBridgeEventTypeNames.InputIdle, null);

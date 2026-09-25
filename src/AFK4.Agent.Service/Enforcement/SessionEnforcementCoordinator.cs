@@ -11,7 +11,8 @@ public sealed class SessionEnforcementCoordinator(
     IAgentRuntimeStateStore runtimeStateStore,
     IWorkstationLockController workstationLockController,
     TimeProvider timeProvider,
-    ISessionCleanup? sessionCleanup = null) : ISessionEnforcementCoordinator
+    ISessionCleanup? sessionCleanup = null,
+    AFK4.Agent.Service.Games.ISessionAutostart? autostart = null) : ISessionEnforcementCoordinator
 {
     public async Task<SessionEnforcementResult> UnlockAsync(
         SessionLeaseDto lease,
@@ -25,9 +26,23 @@ public sealed class SessionEnforcementCoordinator(
                 DeviceCommandOutcomeNames.LeaseInvalid);
         }
 
+        var before = runtimeStateStore.Current;
         leaseStore.Save(lease);
         runtimeStateStore.MarkActive(lease, timeProvider.GetUtcNow());
         var unlock = await workstationLockController.UnlockAsync(cancellationToken);
+
+        // Автозапуск — только в начале сессии: повторное открытие той же сессии не повод
+        // запускать Discord второй раз. Не запустилось — сессия всё равно началась.
+        if (!before.SessionRuns && autostart is not null)
+        {
+            try
+            {
+                await autostart.StartAsync(cancellationToken);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
 
         return SessionEnforcementResult.Accepted(
             $"Session lease accepted; workstation unlocked ({unlock.Describe()}).",

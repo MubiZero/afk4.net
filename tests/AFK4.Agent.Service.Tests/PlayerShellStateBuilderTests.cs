@@ -326,6 +326,8 @@ public sealed class PlayerShellStateBuilderTests
 
         public IReadOnlyList<string> ClearAfterSession => [];
 
+        public AFK4.Shared.Contracts.Devices.ProtectionProfileDto Profile => new(0, false, false, false, false, [], [], [], ClearAfterSession);
+
         public Task ApplyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task ReleaseAsync(CancellationToken cancellationToken) => Task.CompletedTask;

@@ -66,6 +66,7 @@ public sealed class PlayerShellStateBuilder(
             WarningThresholdSeconds: threshold,
             Message: CreateMessage(state),
             LauncherApps: catalog is null ? CreateLauncherApps(agentOptions) : CreateLauncherApps(catalog),
+            ClubRules: protection?.Profile.ClubRules,
             Locale: agentOptions.PreferredLocale,
             WarningKind: ResolveWarning(state, remainingSeconds, threshold, isGraceMode, isOnline),
             // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом

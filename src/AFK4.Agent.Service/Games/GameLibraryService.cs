@@ -20,7 +20,8 @@ public sealed record LauncherEntry(
     string Arguments,
     bool AllowWithoutSession,
     string? IconUri,
-    int? MinAge);
+    int? MinAge,
+    bool LaunchOnSessionStart = false);
 
 /// <summary>
 /// Один список на «что показать игроку» и «что ему разрешено запустить»: два разных списка
@@ -111,7 +112,8 @@ public sealed class GameLibraryService(
                     launch?.Arguments ?? string.Empty,
                     game.AvailableWithoutSession,
                     covers.CoverUri(game.AppId),
-                    game.MinAge);
+                    game.MinAge,
+                    game.LaunchOnSessionStart);
             }).ToList();
         }
 

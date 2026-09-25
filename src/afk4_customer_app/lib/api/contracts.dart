@@ -960,6 +960,9 @@ abstract final class ShellPipeRequestTypeNames {
   /// «Вернуть в зал» с самого ПК (спека оболочки, §6.5): агент говорит серверу и закрывает
   /// рабочий стол техника. Тело пустое.
   static const String maintenanceReturn = 'maintenance.return';
+  /// За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в минуту; по нему агент не
+  /// выключает простаивающий ПК под рукой человека, который вводит номер. Тело пустое.
+  static const String activity = 'activity';
 }
 
 /// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
@@ -1838,6 +1841,7 @@ class BranchGameDto {
     required this.availableWithoutSession,
     required this.isEnabled,
     required this.sortOrder,
+    this.launchOnSessionStart,
   });
 
   final String branchGameId;
@@ -1862,6 +1866,9 @@ class BranchGameDto {
   final bool isEnabled;
   final int sortOrder;
 
+  /// Запускается сам в начале сессии: Discord, клиент Steam.
+  final bool? launchOnSessionStart;
+
   factory BranchGameDto.fromJson(Map<String, dynamic> json) => BranchGameDto(
         branchGameId: json['branchGameId'] as String,
         catalogGameId: json['catalogGameId'] == null ? null : json['catalogGameId'] as String,
@@ -1876,6 +1883,7 @@ class BranchGameDto {
         availableWithoutSession: json['availableWithoutSession'] as bool,
         isEnabled: json['isEnabled'] as bool,
         sortOrder: (json['sortOrder'] as num).toInt(),
+        launchOnSessionStart: json['launchOnSessionStart'] == null ? null : json['launchOnSessionStart'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -1892,6 +1900,7 @@ class BranchGameDto {
         'availableWithoutSession': availableWithoutSession,
         'isEnabled': isEnabled,
         'sortOrder': sortOrder,
+        'launchOnSessionStart': launchOnSessionStart,
       };
 }
 
@@ -4982,6 +4991,7 @@ class DeviceGameDto {
     this.executablePath,
     this.arguments,
     required this.availableWithoutSession,
+    this.launchOnSessionStart,
   });
 
   final String appId;
@@ -4996,6 +5006,7 @@ class DeviceGameDto {
   final String? executablePath;
   final String? arguments;
   final bool availableWithoutSession;
+  final bool? launchOnSessionStart;
 
   factory DeviceGameDto.fromJson(Map<String, dynamic> json) => DeviceGameDto(
         appId: json['appId'] as String,
@@ -5008,6 +5019,7 @@ class DeviceGameDto {
         executablePath: json['executablePath'] == null ? null : json['executablePath'] as String,
         arguments: json['arguments'] == null ? null : json['arguments'] as String,
         availableWithoutSession: json['availableWithoutSession'] as bool,
+        launchOnSessionStart: json['launchOnSessionStart'] == null ? null : json['launchOnSessionStart'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -5021,6 +5033,7 @@ class DeviceGameDto {
         'executablePath': executablePath,
         'arguments': arguments,
         'availableWithoutSession': availableWithoutSession,
+        'launchOnSessionStart': launchOnSessionStart,
       };
 }
 
@@ -12315,6 +12328,7 @@ class PlayerShellStateDto {
     this.maintenanceSinceUtc,
     this.maintenanceByName,
     this.blockedWindows,
+    this.clubRules,
   });
 
   final String organizationId;
@@ -12376,6 +12390,9 @@ class PlayerShellStateDto {
   /// окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
   final List<BlockedWindowRuleDto>? blockedWindows;
 
+  /// Правила клуба из настроек ПК: кнопка на экране свободного ПК их открывает.
+  final String? clubRules;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -12405,6 +12422,7 @@ class PlayerShellStateDto {
         maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
         maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
         blockedWindows: json['blockedWindows'] == null ? null : (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
+        clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -12436,6 +12454,7 @@ class PlayerShellStateDto {
         'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
         'maintenanceByName': maintenanceByName,
         'blockedWindows': blockedWindows?.map((item) => item.toJson()).toList(),
+        'clubRules': clubRules,
       };
 }
 
@@ -13337,6 +13356,8 @@ class ProtectionProfileDto {
     required this.urlBlocklist,
     required this.blockedWindows,
     required this.clearAfterSession,
+    this.idleShutdownMinutes,
+    this.clubRules,
   });
 
   final int version;
@@ -13365,6 +13386,12 @@ class ProtectionProfileDto {
   /// Что стереть после сессии игрока (§6.4). Каждый пункт — из SessionTraceNames.
   final List<String> clearAfterSession;
 
+  /// Выключить свободный ПК, за которым столько минут никого нет; null — не выключать.
+  final int? idleShutdownMinutes;
+
+  /// Правила клуба на экране ПК — текст клуба как есть, на его языке.
+  final String? clubRules;
+
   factory ProtectionProfileDto.fromJson(Map<String, dynamic> json) => ProtectionProfileDto(
         version: (json['version'] as num).toInt(),
         blockRemovableStorage: json['blockRemovableStorage'] as bool,
@@ -13375,6 +13402,8 @@ class ProtectionProfileDto {
         urlBlocklist: (json['urlBlocklist'] as List<dynamic>).map((item) => item as String).toList(),
         blockedWindows: (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
         clearAfterSession: (json['clearAfterSession'] as List<dynamic>).map((item) => item as String).toList(),
+        idleShutdownMinutes: json['idleShutdownMinutes'] == null ? null : (json['idleShutdownMinutes'] as num).toInt(),
+        clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -13387,6 +13416,8 @@ class ProtectionProfileDto {
         'urlBlocklist': urlBlocklist.map((item) => item).toList(),
         'blockedWindows': blockedWindows.map((item) => item.toJson()).toList(),
         'clearAfterSession': clearAfterSession.map((item) => item).toList(),
+        'idleShutdownMinutes': idleShutdownMinutes,
+        'clubRules': clubRules,
       };
 }
 
@@ -18166,6 +18197,8 @@ class UpdateBranchProtectionProfileRequest {
     required this.urlBlocklist,
     required this.blockedWindows,
     required this.clearAfterSession,
+    this.idleShutdownMinutes,
+    this.clubRules,
   });
 
   final String organizationId;
@@ -18178,6 +18211,8 @@ class UpdateBranchProtectionProfileRequest {
   final List<String> urlBlocklist;
   final List<BlockedWindowRuleDto> blockedWindows;
   final List<String> clearAfterSession;
+  final int? idleShutdownMinutes;
+  final String? clubRules;
 
   factory UpdateBranchProtectionProfileRequest.fromJson(Map<String, dynamic> json) => UpdateBranchProtectionProfileRequest(
         organizationId: json['organizationId'] as String,
@@ -18190,6 +18225,8 @@ class UpdateBranchProtectionProfileRequest {
         urlBlocklist: (json['urlBlocklist'] as List<dynamic>).map((item) => item as String).toList(),
         blockedWindows: (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
         clearAfterSession: (json['clearAfterSession'] as List<dynamic>).map((item) => item as String).toList(),
+        idleShutdownMinutes: json['idleShutdownMinutes'] == null ? null : (json['idleShutdownMinutes'] as num).toInt(),
+        clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -18203,6 +18240,8 @@ class UpdateBranchProtectionProfileRequest {
         'urlBlocklist': urlBlocklist.map((item) => item).toList(),
         'blockedWindows': blockedWindows.map((item) => item.toJson()).toList(),
         'clearAfterSession': clearAfterSession.map((item) => item).toList(),
+        'idleShutdownMinutes': idleShutdownMinutes,
+        'clubRules': clubRules,
       };
 }
 
@@ -19605,6 +19644,7 @@ class UpsertBranchGameRequest {
     this.arguments,
     required this.availableWithoutSession,
     required this.isEnabled,
+    this.launchOnSessionStart,
   });
 
   final String organizationId;
@@ -19618,6 +19658,7 @@ class UpsertBranchGameRequest {
   final String? arguments;
   final bool availableWithoutSession;
   final bool isEnabled;
+  final bool? launchOnSessionStart;
 
   factory UpsertBranchGameRequest.fromJson(Map<String, dynamic> json) => UpsertBranchGameRequest(
         organizationId: json['organizationId'] as String,
@@ -19631,6 +19672,7 @@ class UpsertBranchGameRequest {
         arguments: json['arguments'] == null ? null : json['arguments'] as String,
         availableWithoutSession: json['availableWithoutSession'] as bool,
         isEnabled: json['isEnabled'] as bool,
+        launchOnSessionStart: json['launchOnSessionStart'] == null ? null : json['launchOnSessionStart'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -19645,6 +19687,7 @@ class UpsertBranchGameRequest {
         'arguments': arguments,
         'availableWithoutSession': availableWithoutSession,
         'isEnabled': isEnabled,
+        'launchOnSessionStart': launchOnSessionStart,
       };
 }
 

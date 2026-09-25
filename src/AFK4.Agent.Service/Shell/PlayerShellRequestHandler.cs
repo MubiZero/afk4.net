@@ -17,7 +17,8 @@ public sealed class PlayerShellRequestHandler(
     TimeProvider timeProvider,
     ILogger<PlayerShellRequestHandler> logger,
     IPlayerSignIn? playerSignIn = null,
-    MaintenanceReturn? maintenanceReturn = null) : IPlayerShellRequestHandler
+    MaintenanceReturn? maintenanceReturn = null,
+    AFK4.Agent.Service.Power.IPlayerPresence? presence = null) : IPlayerShellRequestHandler
 {
     public const string AppIdPayloadKey = "appId";
 
@@ -28,6 +29,7 @@ public sealed class PlayerShellRequestHandler(
             ShellPipeRequestTypeNames.Assist => AssistAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.SignInPin when playerSignIn is not null => playerSignIn.SignInWithPinAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.MaintenanceReturn when maintenanceReturn is not null => maintenanceReturn.ReturnAsync(request, cancellationToken),
+            ShellPipeRequestTypeNames.Activity => RecordActivity(request),
             _ => Task.FromResult(Rejected(request, ShellPipeErrorCodeNames.UnknownRequest, $"Unknown request type '{request.Type}'."))
         };
 
@@ -90,6 +92,12 @@ public sealed class PlayerShellRequestHandler(
 
         logger.LogInformation("Launched {AppId} at the player's request.", app.AppId);
         return new ShellPipeReplyDto(request.RequestId, Ok: true);
+    }
+
+    private Task<ShellPipeReplyDto> RecordActivity(ShellPipeRequestDto request)
+    {
+        presence?.Record(timeProvider.GetUtcNow());
+        return Task.FromResult(new ShellPipeReplyDto(request.RequestId, Ok: true));
     }
 
     private bool SessionRuns() => runtimeStateStore.Current.SessionRuns;

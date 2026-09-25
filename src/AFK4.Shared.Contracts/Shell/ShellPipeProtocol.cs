@@ -64,6 +64,12 @@ public static class ShellPipeRequestTypeNames
     /// рабочий стол техника. Тело пустое.
     /// </summary>
     public const string MaintenanceReturn = "maintenance.return";
+
+    /// <summary>
+    /// За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в минуту; по нему агент не
+    /// выключает простаивающий ПК под рукой человека, который вводит номер. Тело пустое.
+    /// </summary>
+    public const string Activity = "activity";
 }
 
 public static class ShellPipeErrorCodeNames

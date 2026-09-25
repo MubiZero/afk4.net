@@ -59,6 +59,9 @@ public sealed class BranchGameEntity
 
     public bool IsEnabled { get; set; }
 
+    /// <summary>Запускается сам в начале сессии.</summary>
+    public bool LaunchOnSessionStart { get; set; }
+
     public int SortOrder { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }

@@ -16,6 +16,9 @@ public interface IMachinePowerController
     /// ответ, а игрок — прочитать строку Windows о причине.
     /// </summary>
     void Schedule(MachinePowerAction action, TimeSpan delay, string reason);
+
+    /// <summary>Отменить назначенное: к ПК, который выключался от простоя, подошёл человек.</summary>
+    void Cancel();
 }
 
 /// <summary>Перезагрузка и выключение через shutdown.exe — тем же путём, что у администратора Windows.</summary>
@@ -54,5 +57,22 @@ public sealed class WindowsMachinePowerController : IMachinePowerController
         {
             throw new InvalidOperationException($"shutdown.exe exited with code {process.ExitCode}.");
         }
+    }
+
+    public void Cancel()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var startInfo = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "shutdown.exe"))
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("/a");
+        using var process = Process.Start(startInfo);
+        process?.WaitForExit(TimeSpan.FromSeconds(10));
     }
 }

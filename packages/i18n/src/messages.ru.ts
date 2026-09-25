@@ -4018,6 +4018,7 @@ export const ru = {
   "playerShell.signIn.pin": "ПИН-код",
   "playerShell.signIn.qrHint": "Наведите камеру в приложении AFK4.net — ПК войдёт сам, без номера и ПИН-кода. Или введите код {code} в «Сесть за ПК».",
   "playerShell.signIn.qrTitle": "Или с телефона",
+  "playerShell.signIn.rules": "Правила клуба",
   "playerShell.signIn.submit": "Войти",
   "playerShell.signIn.submitting": "Входим…",
   "playerShell.signIn.title": "Сесть за ПК",

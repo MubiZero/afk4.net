@@ -35,7 +35,8 @@ public sealed class Worker(
     IMaintenanceMode? maintenanceMode = null,
     IPlayerSignIn? playerSignIn = null,
     IProtectionEnforcer? protection = null,
-    IGameLibrarySync? games = null) : BackgroundService
+    IGameLibrarySync? games = null,
+    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -151,6 +152,8 @@ public sealed class Worker(
                 // Профиль защиты — после обслуживания: в обслуживании запреты сняты и остаются снятыми.
                 await TryProtectAsync(() => protection!.SyncAsync(heartbeat.PolicyProfileVersion, cancellationToken), cancellationToken);
                 await TryGamesAsync(() => games!.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
+                // Простой — по профилю, который только что сверили.
+                idleShutdown?.Check();
 
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
