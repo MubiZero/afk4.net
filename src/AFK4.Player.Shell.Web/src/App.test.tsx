@@ -42,10 +42,15 @@ describe('оболочка выбирает экран по состоянию �
     expect(screen.getByText('Нет связи')).toBeInTheDocument();
   });
 
-  it('на обслуживании говорит об обслуживании', async () => {
+  it('на обслуживании сжимается в полосу: какой ПК, кто и когда, и «Вернуть в зал»', async () => {
     installFakeHost({ state: devScenarioState('maintenance') });
     renderShell();
-    expect(await screen.findByText('ПК на обслуживании')).toBeInTheDocument();
+    expect(await screen.findByText('ПК 07 на обслуживании')).toBeInTheDocument();
+    expect(screen.getByText(/^Включено из Панели AFK4\.net в \d\d:\d\d · Шерзод$/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Вернуть в зал' })).toBeInTheDocument();
+    // Полоса — служебная строка над рабочим столом техника: системной строки гостя в ней нет.
+    expect(screen.queryByText('Нет связи')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'RU' })).not.toBeInTheDocument();
   });
 
   it('в сессии показывает остаток и игры клуба', async () => {

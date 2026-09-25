@@ -98,7 +98,14 @@ export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): Pla
     case 'offline':
       return { ...base, state: PlayerShellStateNames.Offline, isOnline: false, seatingCode: null, seatingCodeExpiresAtUtc: null, lastContactUtc: minutes(-4) };
     case 'maintenance':
-      return { ...base, state: PlayerShellStateNames.Maintenance, seatingCode: null };
+      return {
+        ...base,
+        state: PlayerShellStateNames.Maintenance,
+        seatingCode: null,
+        seatingCodeExpiresAtUtc: null,
+        maintenanceSinceUtc: minutes(-35),
+        maintenanceByName: 'Шерзод'
+      };
     case 'error':
       return { ...base, state: PlayerShellStateNames.Error, seatingCode: null };
     default:
@@ -159,6 +166,11 @@ export function installDevHost(): void {
             system = { ...system, ...((message as { payload?: Partial<ShellSystemStateDto> }).payload ?? {}) };
             reply(system);
             emit({ type: ShellBridgeEventTypeNames.SystemChanged, payload: system });
+            break;
+          case ShellBridgeRequestTypeNames.MaintenanceReturn:
+            // «Вернуть в зал»: агент закрыл бы рабочий стол, а сервер прислал бы «Свободен».
+            reply({});
+            emit({ type: ShellBridgeEventTypeNames.StateChanged, payload: devScenarioState('idle') });
             break;
           default:
             // Запуск игры, вызов администратора, язык — учебный хост со всем соглашается.

@@ -286,6 +286,26 @@ public sealed class PlayerShellStateBuilderTests
         Assert.Null(state.SeatingCode);
     }
 
+    /// <summary>Полоса обслуживания пишет, кто и когда: оболочка берёт это из состояния.</summary>
+    [Fact]
+    public void Maintenance_CarriesWhoTurnedItOnAndSince_AndOnlyThere()
+    {
+        var fixture = new Fixture();
+        fixture.Heartbeat.RecordMaintenance(Now.AddMinutes(-30), "Шерзод");
+        fixture.RuntimeState.Save(AgentRuntimeState.Maintenance(Now));
+
+        var maintenance = fixture.Build();
+
+        Assert.Equal(Now.AddMinutes(-30), maintenance.MaintenanceSinceUtc);
+        Assert.Equal("Шерзод", maintenance.MaintenanceByName);
+
+        fixture.RuntimeState.Save(AgentRuntimeState.Locked(Now));
+        var locked = fixture.Build();
+
+        Assert.Null(locked.MaintenanceSinceUtc);
+        Assert.Null(locked.MaintenanceByName);
+    }
+
     private sealed class Fixture(string? clubName = null)
     {
         public AgentOptions Options { get; } = new()

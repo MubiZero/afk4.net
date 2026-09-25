@@ -4,15 +4,16 @@ using AFK4.Shared.Contracts.Shell;
 namespace AFK4.Agent.Service.Enforcement;
 
 /// <summary>
-/// Обслуживание на агенте: ПК заперт, экран пишет «на обслуживании», код посадки не показывается.
-/// Правду держит сервер: команда даёт мгновенный отклик, а сердцебиение догоняет пропущенную
-/// команду в обе стороны.
+/// Обслуживание на агенте (спека оболочки, §6.5): ПК открыт для техника — политики сняты, рабочий
+/// стол Windows на экране, игрокам вход закрыт. Правду держит сервер: команда даёт мгновенный
+/// отклик, а сердцебиение догоняет пропущенную команду в обе стороны.
 /// </summary>
 public interface IMaintenanceMode
 {
     Task<SessionEnforcementResult> EnterAsync(CancellationToken cancellationToken);
 
-    SessionEnforcementResult Leave();
+    /// <summary>Вернуть в зал: закрыть рабочий стол техника и вернуть политики и экран «Свободен».</summary>
+    Task<SessionEnforcementResult> LeaveAsync(CancellationToken cancellationToken);
 
     /// <summary>Свести машину с тем, что говорит сервер в сердцебиении.</summary>
     Task ReconcileAsync(bool maintenance, CancellationToken cancellationToken);
@@ -20,7 +21,8 @@ public interface IMaintenanceMode
 
 public sealed class MaintenanceMode(
     IAgentRuntimeStateStore runtimeStateStore,
-    ISessionEnforcementCoordinator enforcementCoordinator,
+    IWorkstationLockController workstationLock,
+    IMaintenanceDesktop desktop,
     TimeProvider timeProvider,
     ILogger<MaintenanceMode> logger) : IMaintenanceMode
 {
@@ -39,26 +41,38 @@ public sealed class MaintenanceMode(
             return SessionEnforcementResult.Rejected("A session is running on this PC.", DeviceCommandOutcomeNames.SessionInProgress);
         }
 
-        var locked = await enforcementCoordinator.LockAsync(sessionId: null, cancellationToken);
-        runtimeStateStore.Save(AgentRuntimeState.Maintenance(timeProvider.GetUtcNow()));
+        // Технику нужен диспетчер задач и всё остальное, что политики прячут от игрока.
+        var released = await workstationLock.UnlockAsync(cancellationToken);
+        var desktopOpened = TryOpenDesktop();
+        runtimeStateStore.Save(AgentRuntimeState.Maintenance(timeProvider.GetUtcNow(), desktopOpened));
 
-        // Экран закрыт в любом случае, но если политики Windows не применились, администратор должен
-        // это прочитать: «на обслуживании» и «на обслуживании, но диспетчер задач открыт» — разное.
         return SessionEnforcementResult.Accepted(
-            $"Under maintenance; {locked.Message}",
-            locked.Outcome == DeviceCommandOutcomeNames.MachinePoliciesUnavailable
-                ? DeviceCommandOutcomeNames.MachinePoliciesUnavailable
-                : DeviceCommandOutcomeNames.MaintenanceStarted);
+            $"Under maintenance; machine policies released ({released.Describe()}); " +
+            (desktopOpened ? "Windows desktop opened." : "Windows desktop was already open or could not be opened."),
+            DeviceCommandOutcomeNames.MaintenanceStarted);
     }
 
-    public SessionEnforcementResult Leave()
+    public async Task<SessionEnforcementResult> LeaveAsync(CancellationToken cancellationToken)
     {
-        if (runtimeStateStore.Current.State == PlayerShellStateNames.Maintenance)
+        var current = runtimeStateStore.Current;
+        if (current.State != PlayerShellStateNames.Maintenance)
         {
-            runtimeStateStore.MarkLocked(timeProvider.GetUtcNow());
+            return SessionEnforcementResult.Accepted("The PC is back on the floor.", DeviceCommandOutcomeNames.MaintenanceEnded);
         }
 
-        return SessionEnforcementResult.Accepted("The PC is back on the floor.", DeviceCommandOutcomeNames.MaintenanceEnded);
+        if (current.MaintenanceDesktopOpened)
+        {
+            TryCloseDesktop();
+        }
+
+        runtimeStateStore.MarkLocked(timeProvider.GetUtcNow());
+        var locked = await workstationLock.LockAsync(cancellationToken);
+
+        // Экран «Свободен» вернётся в любом случае, но если политики Windows не встали обратно,
+        // администратор должен это прочитать: «в зале» и «в зале, но диспетчер задач открыт» — разное.
+        return SessionEnforcementResult.Accepted(
+            $"The PC is back on the floor ({locked.Describe()}).",
+            locked.IsEnforced ? DeviceCommandOutcomeNames.MaintenanceEnded : DeviceCommandOutcomeNames.MachinePoliciesUnavailable);
     }
 
     public async Task ReconcileAsync(bool maintenance, CancellationToken cancellationToken)
@@ -72,7 +86,33 @@ public sealed class MaintenanceMode(
         else if (!maintenance && state == PlayerShellStateNames.Maintenance)
         {
             logger.LogInformation("The platform has this PC back on the floor; leaving maintenance.");
-            Leave();
+            await LeaveAsync(cancellationToken);
+        }
+    }
+
+    private bool TryOpenDesktop()
+    {
+        try
+        {
+            return desktop.Open();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or PlatformNotSupportedException or System.ComponentModel.Win32Exception)
+        {
+            // Без проводника обслуживание всё равно идёт: ПК закрыт для игроков, клавиши свободны.
+            logger.LogWarning(exception, "The maintenance desktop could not be opened.");
+            return false;
+        }
+    }
+
+    private void TryCloseDesktop()
+    {
+        try
+        {
+            desktop.Close();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            logger.LogWarning(exception, "The maintenance desktop could not be closed.");
         }
     }
 }

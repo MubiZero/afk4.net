@@ -42,6 +42,7 @@ public sealed class PlayerShellStateBuilder(
             : Math.Max(0, (int)(lease.ExpiresAtUtc - now).TotalSeconds);
         var state = ResolveState(runtimeState.State, remainingSeconds, isOnline);
         var isGraceMode = string.Equals(state, PlayerShellStateNames.Grace, StringComparison.Ordinal);
+        var inMaintenance = string.Equals(state, PlayerShellStateNames.Maintenance, StringComparison.Ordinal);
         var threshold = agentOptions.ShellWarningThresholdSeconds;
         var sessionId = lease?.SessionId ?? runtimeState.ActiveSessionId;
 
@@ -78,7 +79,10 @@ public sealed class PlayerShellStateBuilder(
             ZoneName: heartbeatSnapshot.Seat?.ZoneName,
             SessionOwnerKind: heartbeatSnapshot.SessionOwner?.Kind,
             SessionOwnerPlayerAccountId: heartbeatSnapshot.SessionOwner?.PlayerAccountId,
-            Features: heartbeatSnapshot.Features);
+            Features: heartbeatSnapshot.Features,
+            // Кто и когда — только в обслуживании: вне его полосе нечего писать.
+            MaintenanceSinceUtc: inMaintenance ? heartbeatSnapshot.MaintenanceSinceUtc : null,
+            MaintenanceByName: inMaintenance ? heartbeatSnapshot.MaintenanceByName : null);
     }
 
     private static string ResolveState(string runtimeState, int? remainingSeconds, bool isOnline) => runtimeState switch

@@ -119,6 +119,29 @@ public sealed class SessionEnforcementCoordinatorTests
         Assert.Equal(DeviceCommandOutcomeNames.MachinePoliciesUnavailable, result.Outcome);
     }
 
+    /// <summary>
+    /// «Запереть» посреди обслуживания не выводит из него: иначе агент забыл бы, что проводник
+    /// техника открыл он, и тот остался бы открытым после возврата в зал.
+    /// </summary>
+    [Fact]
+    public async Task LockAsync_DuringMaintenance_KeepsThePcUnderMaintenance()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var directory = TemporaryDirectory.Create();
+        var leaseStore = new FileSessionLeaseStore(directory.Path, new FixedTimeProvider(Now));
+        var runtimeStore = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now));
+        runtimeStore.Save(AgentRuntimeState.Maintenance(Now, desktopOpened: true));
+        var lockController = new RecordingWorkstationLockController();
+        var coordinator = CreateCoordinator(key, leaseStore, runtimeStore, lockController);
+
+        var result = await coordinator.LockAsync(sessionId: null, CancellationToken.None);
+
+        Assert.Equal(DeviceCommandOutcomeNames.MaintenanceStarted, result.Outcome);
+        Assert.Equal(PlayerShellStateNames.Maintenance, runtimeStore.Current.State);
+        Assert.True(runtimeStore.Current.MaintenanceDesktopOpened);
+        Assert.Equal(0, lockController.LockCount);
+    }
+
     [Fact]
     public async Task LockAsync_WhenPoliciesApply_ReportsThatTheWorkstationIsLocked()
     {

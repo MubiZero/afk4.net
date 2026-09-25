@@ -232,7 +232,9 @@ public sealed class DeviceHeartbeatService(
             },
             Features: features,
             PendingSignInClaim: pendingSignInClaim,
-            Maintenance: allowOperationalCommands && inMaintenance);
+            Maintenance: allowOperationalCommands && inMaintenance,
+            MaintenanceSinceUtc: allowOperationalCommands ? device?.MaintenanceSinceUtc : null,
+            MaintenanceByName: allowOperationalCommands && inMaintenance ? device?.MaintenanceByName : null);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

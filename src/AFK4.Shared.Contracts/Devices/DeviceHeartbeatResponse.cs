@@ -39,4 +39,8 @@ public sealed record DeviceHeartbeatResponse(
     PlayerSignInClaimedDto? PendingSignInClaim = null,
     /// ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
     /// догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
-    bool Maintenance = false);
+    bool Maintenance = false,
+    /// С какого момента и кто включил обслуживание: оболочка пишет это на полосе поверх рабочего
+    /// стола, чтобы техник у ПК видел, чей это ПК сейчас и с каких пор.
+    DateTimeOffset? MaintenanceSinceUtc = null,
+    string? MaintenanceByName = null);

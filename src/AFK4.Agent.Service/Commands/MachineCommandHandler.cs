@@ -55,7 +55,7 @@ public sealed class MachineCommandHandler(
             case DeviceCommandTypeNames.MaintenanceOn:
                 return await maintenanceMode.EnterAsync(cancellationToken);
             case DeviceCommandTypeNames.MaintenanceOff:
-                return maintenanceMode.Leave();
+                return await maintenanceMode.LeaveAsync(cancellationToken);
             case DeviceCommandTypeNames.SignOut:
                 return PostToHost(new ShellPipeCommandDto(command.CommandId, DeviceCommandTypeNames.SignOut));
             case DeviceCommandTypeNames.Message:

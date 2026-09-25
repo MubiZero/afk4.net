@@ -708,6 +708,68 @@ internal static class DeviceEndpoints
             return Results.Ok(new DeviceAssistanceStateDto(deviceId, device.AssistanceRequestedAtUtc));
         });
 
+        // «Вернуть в зал» с самого ПК (спека оболочки, §6.5). Кнопку на полосе может нажать любой,
+        // кто стоит у ПК, и это безопасно: возврат в зал только закрывает машину обратно. Поэтому
+        // хватает ключа устройства — сотрудника здесь не спрашивают.
+        app.MapPost("/api/devices/{deviceId:guid}/maintenance/return", async (
+            Guid deviceId,
+            DeviceMaintenanceReturnRequest request,
+            HttpContext httpContext,
+            PlatformDbContext dbContext,
+            IDeviceCredentialValidator credentialValidator,
+            IAuditRecordWriter auditRecordWriter,
+            IHubContext<DeviceHub> hubContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(
+                candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Уже в зале — нечего возвращать; кнопку жмут и дважды.
+            if (device.MaintenanceSinceUtc is null)
+            {
+                return Results.NoContent();
+            }
+
+            var details = JsonSerializer.Serialize(new
+            {
+                device.DeviceId,
+                device.MaintenanceSinceUtc,
+                device.MaintenanceByStaffUserId,
+                device.MaintenanceByName
+            });
+            DeviceMaintenance.Clear(device);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                OrganizationId: device.OrganizationId,
+                BranchId: device.BranchId,
+                ActorStaffUserId: null,
+                Action: AuditActionNames.ReturnDeviceFromMaintenance,
+                TargetType: "Device",
+                TargetId: deviceId.ToString("D"),
+                Outcome: AuditOutcome.Succeeded,
+                SourceApp: "Agent",
+                DetailsJson: details),
+                cancellationToken);
+            await NotifyDeviceChangesAsync(hubContext, dbContext, [deviceId], timeProvider.GetUtcNow(), cancellationToken);
+            return Results.NoContent();
+        });
+
         // Игрок входит на самом ПК — номером и ПИН-кодом, через агента с ключом устройства
         // (спека оболочки, §5.2). Публичный вход здесь не годится: он не знает машины, не может
         // привязать к ней токены и считает попытки на адрес всего клуба за одним роутером.
@@ -1680,11 +1742,19 @@ internal static class DeviceEndpoints
 
             // Обслуживание запоминает сервер: по нему стойка не начнёт сессию, карта покажет машину
             // закрытой, а агент, пропустивший команду, догонит по сердцебиению.
-            if (request.Type is DeviceCommandTypeNames.MaintenanceOn or DeviceCommandTypeNames.MaintenanceOff)
+            if (request.Type == DeviceCommandTypeNames.MaintenanceOn && device.MaintenanceSinceUtc is null)
             {
-                device.MaintenanceSinceUtc = request.Type == DeviceCommandTypeNames.MaintenanceOn
-                    ? device.MaintenanceSinceUtc ?? timeProvider.GetUtcNow()
-                    : null;
+                // Повторное «на обслуживание» не переписывает, кто и когда: полоса на ПК и восемь
+                // часов до автоснятия считаются от первого нажатия.
+                var staff = authorization.StaffContext!;
+                device.MaintenanceSinceUtc = timeProvider.GetUtcNow();
+                device.MaintenanceByStaffUserId = staff.StaffUserId == Guid.Empty ? null : staff.StaffUserId;
+                device.MaintenanceByName = staff.DisplayName;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            else if (request.Type == DeviceCommandTypeNames.MaintenanceOff)
+            {
+                DeviceMaintenance.Clear(device);
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 

@@ -6,6 +6,12 @@ public static class AuditActionNames
 
     public const string DispatchDeviceCommand = "devices.commands.dispatch";
 
+    /// <summary>Техник вернул ПК в зал кнопкой на самом ПК.</summary>
+    public const string ReturnDeviceFromMaintenance = "devices.maintenance.return";
+
+    /// <summary>Обслуживание сняло себя само: ПК простоял открытым восемь часов.</summary>
+    public const string ExpireDeviceMaintenance = "devices.maintenance.expire";
+
     public const string ViewDeviceCommandStatus = "devices.commands.status.view";
 
     public const string RotateDeviceCredential = "devices.credentials.rotate";

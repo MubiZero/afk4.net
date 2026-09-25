@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Platform.Analytics;
@@ -23,6 +24,7 @@ public sealed class PlatformJobIntervalCatalog(
     AutoProtectionOptions autoProtectionOptions,
     ReservationNoShowOptions reservationNoShowOptions,
     ReservationRequestExpiryOptions reservationRequestExpiryOptions,
+    DeviceMaintenanceExpiryOptions deviceMaintenanceExpiryOptions,
     ReputationSnapshotOptions reputationSnapshotOptions,
     IOptions<PlatformAnalyticsOptions> analyticsOptions)
 {
@@ -39,6 +41,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.BranchSnapshots] = analyticsOptions.Value.SnapshotInterval,
         [PlatformJobNames.ReservationNoShow] = reservationNoShowOptions.TickInterval,
         [PlatformJobNames.ReservationRequestExpiry] = reservationRequestExpiryOptions.TickInterval,
+        [PlatformJobNames.DeviceMaintenanceExpiry] = deviceMaintenanceExpiryOptions.TickInterval,
         [PlatformJobNames.PlayerReminders] = notificationOptions.Value.PlayerReminderInterval,
         [PlatformJobNames.ReputationSnapshot] = reputationSnapshotOptions.TickInterval
     };

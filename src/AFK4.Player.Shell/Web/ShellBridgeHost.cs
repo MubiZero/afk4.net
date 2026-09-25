@@ -55,6 +55,8 @@ public sealed class ShellBridgeHost(
             ShellBridgeRequestTypeNames.AppLaunch => await LaunchAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AssistCall => await AskAgentAsync(
                 requestId, ShellPipeRequestTypeNames.Assist, new Dictionary<string, string>(), cancellationToken),
+            ShellBridgeRequestTypeNames.MaintenanceReturn => await AskAgentAsync(
+                requestId, ShellPipeRequestTypeNames.MaintenanceReturn, new Dictionary<string, string>(), cancellationToken),
             ShellBridgeRequestTypeNames.UiSetLocale => SetLocale(requestId, payload),
             ShellBridgeRequestTypeNames.SystemSetVolume or ShellBridgeRequestTypeNames.SystemSetMicMuted
                 or ShellBridgeRequestTypeNames.SystemSetLayout when system is not null => ChangeSystem(requestId, type, payload),

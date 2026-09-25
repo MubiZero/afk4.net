@@ -958,6 +958,8 @@ export const ShellBridgeRequestTypeNames = {
   /** Язык интерфейса выбран на экране: хост запоминает его до выхода игрока. */
   UiSetLocale: 'ui.setLocale',
   ShowcaseImpression: 'showcase.impression',
+  /** Кнопка «Вернуть в зал» на полосе обслуживания. */
+  MaintenanceReturn: 'maintenance.return',
 } as const;
 export type ShellBridgeRequestTypeName = (typeof ShellBridgeRequestTypeNames)[keyof typeof ShellBridgeRequestTypeNames];
 
@@ -1029,6 +1031,11 @@ export const ShellPipeRequestTypeNames = {
    * приходят кадром ShellPipeMessageTypeNames.Auth.
    */
   SignInPin: 'signIn.pin',
+  /**
+   * «Вернуть в зал» с самого ПК (спека оболочки, §6.5): агент говорит серверу и закрывает
+   * рабочий стол техника. Тело пустое.
+   */
+  MaintenanceReturn: 'maintenance.return',
 } as const;
 export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
 
@@ -2478,6 +2485,12 @@ export interface DeviceHeartbeatResponse {
    * догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
    */
   maintenance?: boolean;
+  /**
+   * С какого момента и кто включил обслуживание: оболочка пишет это на полосе поверх рабочего
+   * стола, чтобы техник у ПК видел, чей это ПК сейчас и с каких пор.
+   */
+  maintenanceSinceUtc?: IsoDateTime | null;
+  maintenanceByName?: string | null;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -2503,6 +2516,19 @@ export interface DeviceInventoryItemDto {
   displayName?: string;
   role?: string;
   enrollmentState?: string;
+}
+
+/**
+ * «Вернуть в зал» с самого ПК (спека оболочки, §6.5): техник закончил и нажал кнопку на полосе.
+ * Агент зовёт сервер ключом устройства, а не ждёт Панель — иначе ПК стоял бы открытым, пока
+ * кто-нибудь не дойдёт до стойки.
+ *
+ * Контракт: Devices/DeviceMaintenanceContracts.cs
+ */
+export interface DeviceMaintenanceReturnRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
 }
 
 /**
@@ -4803,6 +4829,12 @@ export interface PlayerShellStateDto {
   sessionOwnerPlayerAccountId?: Guid | null;
   /** Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека. */
   features?: string[] | null;
+  /**
+   * Обслуживание: с какого момента и кто его включил — для полосы «Включено из Панели AFK4.net
+   * в 14:05 · Шерзод». Пусто вне обслуживания; имя пусто, если его включила поддержка без имени.
+   */
+  maintenanceSinceUtc?: IsoDateTime | null;
+  maintenanceByName?: string | null;
 }
 
 /**

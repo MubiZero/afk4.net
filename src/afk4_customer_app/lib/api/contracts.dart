@@ -806,6 +806,8 @@ abstract final class ShellBridgeRequestTypeNames {
   /// Язык интерфейса выбран на экране: хост запоминает его до выхода игрока.
   static const String uiSetLocale = 'ui.setLocale';
   static const String showcaseImpression = 'showcase.impression';
+  /// Кнопка «Вернуть в зал» на полосе обслуживания.
+  static const String maintenanceReturn = 'maintenance.return';
 }
 
 /// Словарь: Shell/ShellBridgeContracts.cs
@@ -867,6 +869,9 @@ abstract final class ShellPipeRequestTypeNames {
   /// Войти номером и ПИН-кодом. В теле — `phone` и `pin`. Удачный ответ пуст: токены
   /// приходят кадром ShellPipeMessageTypeNames.Auth.
   static const String signInPin = 'signIn.pin';
+  /// «Вернуть в зал» с самого ПК (спека оболочки, §6.5): агент говорит серверу и закрывает
+  /// рабочий стол техника. Тело пустое.
+  static const String maintenanceReturn = 'maintenance.return';
 }
 
 /// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
@@ -4739,6 +4744,8 @@ class DeviceHeartbeatResponse {
     this.features,
     this.pendingSignInClaim,
     this.maintenance,
+    this.maintenanceSinceUtc,
+    this.maintenanceByName,
   });
 
   final DateTime serverTimeUtc;
@@ -4786,6 +4793,11 @@ class DeviceHeartbeatResponse {
   /// догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
   final bool? maintenance;
 
+  /// С какого момента и кто включил обслуживание: оболочка пишет это на полосе поверх рабочего
+  /// стола, чтобы техник у ПК видел, чей это ПК сейчас и с каких пор.
+  final DateTime? maintenanceSinceUtc;
+  final String? maintenanceByName;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -4800,6 +4812,8 @@ class DeviceHeartbeatResponse {
         features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
         pendingSignInClaim: json['pendingSignInClaim'] == null ? null : PlayerSignInClaimedDto.fromJson(json['pendingSignInClaim'] as Map<String, dynamic>),
         maintenance: json['maintenance'] == null ? null : json['maintenance'] as bool,
+        maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
+        maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -4816,6 +4830,8 @@ class DeviceHeartbeatResponse {
         'features': features?.map((item) => item).toList(),
         'pendingSignInClaim': pendingSignInClaim?.toJson(),
         'maintenance': maintenance,
+        'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
+        'maintenanceByName': maintenanceByName,
       };
 }
 
@@ -4913,6 +4929,35 @@ class DeviceInventoryItemDto {
         'displayName': displayName,
         'role': role,
         'enrollmentState': enrollmentState,
+      };
+}
+
+/// «Вернуть в зал» с самого ПК (спека оболочки, §6.5): техник закончил и нажал кнопку на полосе.
+/// Агент зовёт сервер ключом устройства, а не ждёт Панель — иначе ПК стоял бы открытым, пока
+/// кто-нибудь не дойдёт до стойки.
+///
+/// Контракт: Devices/DeviceMaintenanceContracts.cs
+class DeviceMaintenanceReturnRequest {
+  const DeviceMaintenanceReturnRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+
+  factory DeviceMaintenanceReturnRequest.fromJson(Map<String, dynamic> json) => DeviceMaintenanceReturnRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
       };
 }
 
@@ -11697,6 +11742,8 @@ class PlayerShellStateDto {
     this.sessionOwnerKind,
     this.sessionOwnerPlayerAccountId,
     this.features,
+    this.maintenanceSinceUtc,
+    this.maintenanceByName,
   });
 
   final String organizationId;
@@ -11749,6 +11796,11 @@ class PlayerShellStateDto {
   /// Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека.
   final List<String>? features;
 
+  /// Обслуживание: с какого момента и кто его включил — для полосы «Включено из Панели AFK4.net
+  /// в 14:05 · Шерзод». Пусто вне обслуживания; имя пусто, если его включила поддержка без имени.
+  final DateTime? maintenanceSinceUtc;
+  final String? maintenanceByName;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -11775,6 +11827,8 @@ class PlayerShellStateDto {
         sessionOwnerKind: json['sessionOwnerKind'] == null ? null : json['sessionOwnerKind'] as String,
         sessionOwnerPlayerAccountId: json['sessionOwnerPlayerAccountId'] == null ? null : json['sessionOwnerPlayerAccountId'] as String,
         features: json['features'] == null ? null : (json['features'] as List<dynamic>).map((item) => item as String).toList(),
+        maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
+        maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -11803,6 +11857,8 @@ class PlayerShellStateDto {
         'sessionOwnerKind': sessionOwnerKind,
         'sessionOwnerPlayerAccountId': sessionOwnerPlayerAccountId,
         'features': features?.map((item) => item).toList(),
+        'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
+        'maintenanceByName': maintenanceByName,
       };
 }
 

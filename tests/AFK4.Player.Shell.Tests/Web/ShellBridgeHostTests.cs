@@ -101,6 +101,17 @@ public sealed class ShellBridgeHostTests
         Assert.Equal("cs2", fixture.Agent.Requests[0].Payload["appId"]);
     }
 
+    /// <summary>«Вернуть в зал» решает агент: он говорит серверу и закрывает рабочий стол техника.</summary>
+    [Fact]
+    public async Task ReturningToTheFloor_IsAskedOfTheAgent()
+    {
+        var fixture = new Fixture();
+
+        await fixture.SendAsync(ShellBridgeRequestTypeNames.MaintenanceReturn);
+
+        Assert.Equal([ShellPipeRequestTypeNames.MaintenanceReturn], fixture.Agent.Requests.Select(request => request.Type));
+    }
+
     [Fact]
     public async Task ARequestTheHostCannotServeYet_IsRefusedHonestly()
     {

@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { ShellBridgeRequestTypeNames } from '@afk4/contracts';
 import { apiBaseUrl } from './api/playerApi';
 import { useI18n, isLocale } from '@afk4/i18n';
-import { AlertOctagon, Loader2, WifiOff, Wrench } from 'lucide-react';
+import { AlertOctagon, Loader2, WifiOff } from 'lucide-react';
 import { requestHost, useShellHost } from './host/shellHost';
 import { clubAccent } from './model/branding';
 import { selectScreen, type ShellScreen } from './model/screen';
 import { endedSessionId, type EndedVisit } from './model/visit';
 import { ChooseTimeScreen } from './screens/ChooseTimeScreen';
 import { IdleScreen } from './screens/IdleScreen';
+import { MaintenanceBand } from './screens/MaintenanceBand';
 import { SessionScreen } from './screens/SessionScreen';
 import { SignInPanel } from './screens/SignInPanel';
 import { StatusScreen } from './screens/StatusScreen';
@@ -82,7 +83,7 @@ export function App() {
   return (
     <div className="shell" data-screen={screen} style={shellStyle}>
       {renderScreen()}
-      {screen === 'session' || screen === 'ending' || screen === 'grace'
+      {screen === 'session' || screen === 'ending' || screen === 'grace' || screen === 'maintenance'
         ? null
         : <SystemBar online={online} system={host.system} onLocaleChosen={() => { localeChosen.current = true; }} />}
     </div>
@@ -106,14 +107,7 @@ export function App() {
           />
         );
       case 'maintenance':
-        return (
-          <StatusScreen
-            top={seat}
-            icon={<Wrench />}
-            title={t('playerShell.maintenance.title')}
-            body={t('playerShell.maintenance.body')}
-          />
-        );
+        return state ? <MaintenanceBand state={state} /> : null;
       case 'error':
         return (
           <StatusScreen

@@ -1,5 +1,6 @@
 ﻿using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Agent.Service.Enforcement;
 
@@ -57,6 +58,16 @@ public sealed class SessionEnforcementCoordinator(
         Guid? sessionId,
         CancellationToken cancellationToken)
     {
+        // Обслуживание заканчивает только «Вернуть в зал»: оно же закрывает проводник техника.
+        // «Запереть» посреди обслуживания потеряло бы эту память, и проводник остался бы открытым
+        // навсегда. А закрыт для игроков такой ПК и так — сервер не начнёт на нём сессию.
+        if (runtimeStateStore.Current.State == PlayerShellStateNames.Maintenance)
+        {
+            return SessionEnforcementResult.Accepted(
+                "The PC is under maintenance and already closed to players; return it to the floor to lock it.",
+                DeviceCommandOutcomeNames.MaintenanceStarted);
+        }
+
         leaseStore.Clear(sessionId);
         runtimeStateStore.MarkLocked(timeProvider.GetUtcNow());
         var lockOutcome = await workstationLockController.LockAsync(cancellationToken);

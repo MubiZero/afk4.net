@@ -321,6 +321,7 @@ builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ReservationNoShowHostedService>();
 builder.Services.AddHostedService<ReservationRequestExpiryHostedService>();
+builder.Services.AddHostedService<DeviceMaintenanceExpiryHostedService>();
 builder.Services.AddHostedService<ReputationSnapshotHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.Configure<PlatformHealthOptions>(
@@ -385,6 +386,8 @@ builder.Services.AddSingleton(new ReservationNoShowOptions());
 builder.Services.AddScoped<ReservationNoShowRunner>();
 builder.Services.AddSingleton(new ReservationRequestExpiryOptions());
 builder.Services.AddScoped<ReservationRequestExpiryRunner>();
+builder.Services.AddSingleton(new DeviceMaintenanceExpiryOptions());
+builder.Services.AddScoped<DeviceMaintenanceExpiryRunner>();
 builder.Services.AddSingleton(new ReputationSnapshotOptions());
 builder.Services.AddScoped<ReputationSnapshotRunner>();
 builder.Services.AddScoped<IPlayerReputationService, EfPlayerReputationService>();

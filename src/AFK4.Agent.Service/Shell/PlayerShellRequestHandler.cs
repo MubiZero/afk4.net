@@ -16,7 +16,8 @@ public sealed class PlayerShellRequestHandler(
     IAssistanceRequestReporter assistanceRequestReporter,
     TimeProvider timeProvider,
     ILogger<PlayerShellRequestHandler> logger,
-    IPlayerSignIn? playerSignIn = null) : IPlayerShellRequestHandler
+    IPlayerSignIn? playerSignIn = null,
+    MaintenanceReturn? maintenanceReturn = null) : IPlayerShellRequestHandler
 {
     public const string AppIdPayloadKey = "appId";
 
@@ -26,6 +27,7 @@ public sealed class PlayerShellRequestHandler(
             ShellPipeRequestTypeNames.Launch => LaunchAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.Assist => AssistAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.SignInPin when playerSignIn is not null => playerSignIn.SignInWithPinAsync(request, cancellationToken),
+            ShellPipeRequestTypeNames.MaintenanceReturn when maintenanceReturn is not null => maintenanceReturn.ReturnAsync(request, cancellationToken),
             _ => Task.FromResult(Rejected(request, ShellPipeErrorCodeNames.UnknownRequest, $"Unknown request type '{request.Type}'."))
         };
 

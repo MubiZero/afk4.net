@@ -58,6 +58,12 @@ public static class ShellPipeRequestTypeNames
     /// приходят кадром <see cref="ShellPipeMessageTypeNames.Auth"/>.
     /// </summary>
     public const string SignInPin = "signIn.pin";
+
+    /// <summary>
+    /// «Вернуть в зал» с самого ПК (спека оболочки, §6.5): агент говорит серверу и закрывает
+    /// рабочий стол техника. Тело пустое.
+    /// </summary>
+    public const string MaintenanceReturn = "maintenance.return";
 }
 
 public static class ShellPipeErrorCodeNames

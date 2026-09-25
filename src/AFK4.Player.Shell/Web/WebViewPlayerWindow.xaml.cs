@@ -36,6 +36,7 @@ public partial class WebViewPlayerWindow : Window
     private string? appSource;
     private readonly WindowsSystemControls systemControls = new();
     private readonly KioskKeyboardHook keyboard = new();
+    private readonly MaintenanceBand band;
     private OverlayWindow? overlay;
     private ClubMessage? clubMessage;
     private ShellSystemStateDto? lastSystem;
@@ -55,6 +56,7 @@ public partial class WebViewPlayerWindow : Window
     internal WebViewPlayerWindow(PlayerShellOptions options)
     {
         this.options = options;
+        band = new MaintenanceBand(this);
         agentPipe = new ShellPipeClient(options);
         apiHttp = new HttpClient();
         session = new DevicePlayerSession(apiHttp, ApiBaseUrl, TimeProvider.System);
@@ -340,11 +342,33 @@ public partial class WebViewPlayerWindow : Window
             ? remaining - (int)Stopwatch.GetElapsedTime(stateReceivedAt).TotalSeconds
             : null;
 
-    /// <summary>«Поверх всех» только на запертом экране; при блокировке окно возвращается наверх.</summary>
+    /// <summary>
+    /// «Поверх всех» только на запертом экране; при блокировке окно возвращается наверх. В
+    /// обслуживании — полоса сверху, под ней рабочий стол техника.
+    /// </summary>
     private void ApplyWindowLayer(PlayerShellStateDto state)
     {
         keyboard.SetMode(KeyboardBlockPolicy.ModeFor(state));
-        var onTop = ShellWindowPolicy.ShouldStayOnTop(state);
+        var layout = ShellWindowPolicy.Layout(state);
+        if (layout == ShellWindowLayout.Band)
+        {
+            if (!band.IsDocked)
+            {
+                // Полоса — не заслон: поверх окон техника она стоит как панель задач, а не как киоск.
+                Topmost = true;
+                band.Dock(ShellWindowPolicy.BandHeight);
+            }
+
+            return;
+        }
+
+        if (band.IsDocked)
+        {
+            band.Undock();
+            WindowState = WindowState.Maximized;
+        }
+
+        var onTop = layout == ShellWindowLayout.Cover;
         if (Topmost == onTop)
         {
             return;
@@ -399,6 +423,7 @@ public partial class WebViewPlayerWindow : Window
     {
         tick.Stop();
         keyboard.Dispose();
+        band.Dispose();
         overlay?.Close();
         lifetime.Cancel();
         lifetime.Dispose();

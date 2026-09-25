@@ -35,6 +35,9 @@ public static class ShellBridgeRequestTypeNames
     public const string UiSetLocale = "ui.setLocale";
 
     public const string ShowcaseImpression = "showcase.impression";
+
+    /// <summary>Кнопка «Вернуть в зал» на полосе обслуживания.</summary>
+    public const string MaintenanceReturn = "maintenance.return";
 }
 
 public static class ShellBridgeEventTypeNames

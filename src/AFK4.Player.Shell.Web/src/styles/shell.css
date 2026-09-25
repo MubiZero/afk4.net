@@ -1414,3 +1414,60 @@ button {
   margin: 0;
   color: var(--danger-text);
 }
+
+/* Полоса обслуживания (спека, §6.5). Окно хоста здесь высотой 56 px над рабочим столом техника,
+   поэтому размеры в px, а не от ширины экрана: полоса — служебная строка, а не экран для гостя. */
+
+.shell[data-screen='maintenance'] {
+  flex-direction: row;
+}
+
+.maintenance-band {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 0 8px 0 16px;
+  border-bottom: 2px solid var(--warning);
+  background: var(--warning-soft-bg);
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.maintenance-band__icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--warning-text);
+}
+
+.maintenance-band__title {
+  flex: none;
+  color: var(--text-primary);
+}
+
+.maintenance-band__detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.maintenance-band__error {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--warning-text);
+  font-weight: 700;
+}
+
+.maintenance-band__return {
+  flex: none;
+  margin-left: auto;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 15px;
+}

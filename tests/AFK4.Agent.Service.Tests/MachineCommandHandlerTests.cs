@@ -99,8 +99,9 @@ public sealed class MachineCommandHandlerTests
         Assert.Empty(fixture.Wake.Sent);
     }
 
+    /// <summary>Спека оболочки, §6.5: обслуживание открывает ПК технику, а не запирает его.</summary>
     [Fact]
-    public async Task Maintenance_LocksThePc_AndOffReturnsItLocked()
+    public async Task Maintenance_OpensThePcForTheTechnician_AndReturningLocksItAgain()
     {
         var fixture = new Fixture();
 
@@ -108,13 +109,43 @@ public sealed class MachineCommandHandlerTests
 
         Assert.Equal(DeviceCommandOutcomeNames.MaintenanceStarted, on.Outcome);
         Assert.Equal(PlayerShellStateNames.Maintenance, fixture.RuntimeState.Current.State);
-        Assert.True(fixture.RuntimeState.Current.IsLocked);
-        Assert.Equal(1, fixture.Coordinator.Locks);
+        Assert.Equal(1, fixture.Lock.Unlocks);
+        Assert.Equal(1, fixture.Desktop.Opened);
+        Assert.True(fixture.RuntimeState.Current.MaintenanceDesktopOpened);
 
         var off = await fixture.HandleAsync(DeviceCommandTypeNames.MaintenanceOff);
 
         Assert.Equal(DeviceCommandOutcomeNames.MaintenanceEnded, off.Outcome);
         Assert.Equal(PlayerShellStateNames.Locked, fixture.RuntimeState.Current.State);
+        Assert.Equal(1, fixture.Desktop.Closed);
+        Assert.Equal(1, fixture.Lock.Locks);
+    }
+
+    /// <summary>До перевода в киоск проводник — обычная оболочка учётки: его не закрываем.</summary>
+    [Fact]
+    public async Task ReturningToTheFloor_LeavesAnExplorerTheAgentDidNotStart()
+    {
+        var fixture = new Fixture();
+        fixture.Desktop.AlreadyOpen = true;
+
+        await fixture.HandleAsync(DeviceCommandTypeNames.MaintenanceOn);
+        await fixture.HandleAsync(DeviceCommandTypeNames.MaintenanceOff);
+
+        Assert.Equal(0, fixture.Desktop.Closed);
+        Assert.Equal(PlayerShellStateNames.Locked, fixture.RuntimeState.Current.State);
+    }
+
+    [Fact]
+    public async Task ADesktopThatWouldNotOpen_DoesNotStopMaintenance()
+    {
+        var fixture = new Fixture();
+        fixture.Desktop.Fails = true;
+
+        var on = await fixture.HandleAsync(DeviceCommandTypeNames.MaintenanceOn);
+
+        Assert.Equal(DeviceCommandOutcomeNames.MaintenanceStarted, on.Outcome);
+        Assert.Equal(PlayerShellStateNames.Maintenance, fixture.RuntimeState.Current.State);
+        Assert.False(fixture.RuntimeState.Current.MaintenanceDesktopOpened);
     }
 
     [Fact]
@@ -138,7 +169,7 @@ public sealed class MachineCommandHandlerTests
         await fixture.Maintenance.ReconcileAsync(maintenance: true, CancellationToken.None);
 
         Assert.Equal(PlayerShellStateNames.Active, fixture.RuntimeState.Current.State);
-        Assert.Equal(0, fixture.Coordinator.Locks);
+        Assert.Equal(0, fixture.Desktop.Opened);
     }
 
     [Fact]
@@ -212,7 +243,7 @@ public sealed class MachineCommandHandlerTests
     {
         public Fixture()
         {
-            Maintenance = new MaintenanceMode(RuntimeState, Coordinator, TimeProvider.System, NullLogger<MaintenanceMode>.Instance);
+            Maintenance = new MaintenanceMode(RuntimeState, Lock, Desktop, TimeProvider.System, NullLogger<MaintenanceMode>.Instance);
             Handler = new MachineCommandHandler(
                 RuntimeState,
                 Maintenance,
@@ -228,6 +259,10 @@ public sealed class MachineCommandHandlerTests
         public LockingCoordinator Coordinator => coordinator ??= new LockingCoordinator(RuntimeState);
 
         public RecordingPower Power { get; } = new();
+
+        public RecordingLock Lock { get; } = new();
+
+        public RecordingDesktop Desktop { get; } = new();
 
         public RecordingWake Wake { get; } = new();
 
@@ -259,6 +294,54 @@ public sealed class MachineCommandHandlerTests
 
         public Task<SessionEnforcementResult> RefreshLeaseAsync(SessionLeaseDto lease, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    internal sealed class RecordingLock : IWorkstationLockController
+    {
+        public int Locks { get; private set; }
+
+        public int Unlocks { get; private set; }
+
+        public Task<WorkstationLockOutcome> LockAsync(CancellationToken cancellationToken)
+        {
+            Locks++;
+            return Task.FromResult(new WorkstationLockOutcome(["task manager disabled"]));
+        }
+
+        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken)
+        {
+            Unlocks++;
+            return Task.FromResult(new WorkstationLockOutcome(["task manager restored"]));
+        }
+    }
+
+    internal sealed class RecordingDesktop : IMaintenanceDesktop
+    {
+        public bool AlreadyOpen { get; set; }
+
+        public bool Fails { get; set; }
+
+        public int Opened { get; private set; }
+
+        public int Closed { get; private set; }
+
+        public bool Open()
+        {
+            if (Fails)
+            {
+                throw new InvalidOperationException("No interactive user session is available.");
+            }
+
+            if (AlreadyOpen)
+            {
+                return false;
+            }
+
+            Opened++;
+            return true;
+        }
+
+        public void Close() => Closed++;
     }
 
     private sealed class RecordingPower : IMachinePowerController
