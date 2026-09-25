@@ -9,6 +9,7 @@ using AFK4.Localization;
 using AFK4.Player.Shell.Configuration;
 using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Input;
+using AFK4.Player.Shell.Kiosk;
 using AFK4.Player.Shell.Overlay;
 using AFK4.Player.Shell.Workstation;
 using AFK4.Player.Shell.Realtime;
@@ -34,6 +35,7 @@ public partial class WebViewPlayerWindow : Window
     private long stateReceivedAt;
     private string? appSource;
     private readonly WindowsSystemControls systemControls = new();
+    private readonly KioskKeyboardHook keyboard = new();
     private OverlayWindow? overlay;
     private ClubMessage? clubMessage;
     private ShellSystemStateDto? lastSystem;
@@ -117,6 +119,9 @@ public partial class WebViewPlayerWindow : Window
             _ = ListenForStateAsync(lifetime.Token);
             _ = ListenForPushesAsync(lifetime.Token);
             _ = RefreshAuthLoopAsync(lifetime.Token);
+
+            // Пока агент молчит, ПК заперт: перехват стоит с первой секунды, а не с первого состояния.
+            keyboard.Start();
 
             overlay = new OverlayWindow(localization);
             overlay.ExtendRequested += BringShellForward;
@@ -302,6 +307,7 @@ public partial class WebViewPlayerWindow : Window
 
             var now = DateTimeOffset.UtcNow;
             var shellInFront = NativeInput.ShellInFront();
+            keyboard.SetShellInFront(shellInFront);
             if (game.Observe(shellInFront, latestState, now) is { } gameActive)
             {
                 await SetPageAsleepAsync(gameActive);
@@ -337,6 +343,7 @@ public partial class WebViewPlayerWindow : Window
     /// <summary>«Поверх всех» только на запертом экране; при блокировке окно возвращается наверх.</summary>
     private void ApplyWindowLayer(PlayerShellStateDto state)
     {
+        keyboard.SetMode(KeyboardBlockPolicy.ModeFor(state));
         var onTop = ShellWindowPolicy.ShouldStayOnTop(state);
         if (Topmost == onTop)
         {
@@ -391,6 +398,7 @@ public partial class WebViewPlayerWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         tick.Stop();
+        keyboard.Dispose();
         overlay?.Close();
         lifetime.Cancel();
         lifetime.Dispose();
