@@ -106,7 +106,7 @@ export const ru = {
   "auth.invite.error.generic": "Не получилось принять приглашение. Повторите.",
   "auth.invite.field.code": "Код из SMS",
   "auth.invite.field.password": "Ваш ПИН-код",
-  "auth.invite.link": "Меня пригласили работать",
+  "auth.invite.link": "Новый сотрудник — у меня код из SMS",
   "auth.invite.submit": "Принять приглашение",
   "auth.invite.submitting": "Принимаем…",
   "auth.invite.subtitle": "Введите номер, код из SMS и придумайте себе ПИН-код.",

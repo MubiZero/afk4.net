@@ -105,7 +105,7 @@
   "auth.invite.error.generic": "Даъватномаро қабул карда нашуд. Такрор кунед.",
   "auth.invite.field.code": "Рамз аз SMS",
   "auth.invite.field.password": "PIN-и шумо",
-  "auth.invite.link": "Маро ба кор даъват карданд",
+  "auth.invite.link": "Корманди нав — ман рамз аз SMS дорам",
   "auth.invite.submit": "Даъватномаро қабул кардан",
   "auth.invite.submitting": "Қабул шуда истодааст…",
   "auth.invite.subtitle": "Рақами худ, рамзи SMS-ро ворид кунед ва барои худ PIN интихоб кунед.",

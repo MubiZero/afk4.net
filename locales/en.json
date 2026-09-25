@@ -105,7 +105,7 @@
   "auth.invite.error.generic": "The invitation could not be accepted. Try again.",
   "auth.invite.field.code": "Code from the text message",
   "auth.invite.field.password": "Your PIN",
-  "auth.invite.link": "I was invited to work here",
+  "auth.invite.link": "New staff member — I have an SMS code",
   "auth.invite.submit": "Accept the invitation",
   "auth.invite.submitting": "Accepting…",
   "auth.invite.subtitle": "Enter your number, the code from the text message, and pick your own PIN.",

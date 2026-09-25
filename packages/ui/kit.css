@@ -329,6 +329,22 @@
   outline: 0;
 }
 
+/* Рамку и кольцо фокуса рисует .ui-phone-field, у поля внутри их нет. Селектор с родителем
+   сильнее общих правил форм (.auth-form input и его :focus-visible): без него поле получало свою
+   рамку, высоту и кольцо, и вокруг цифр вставала вторая рамка внутри первой. */
+.ui-phone-field > .ui-phone-input,
+.ui-phone-field > .ui-phone-input:hover,
+.ui-phone-field > .ui-phone-input:focus,
+.ui-phone-field > .ui-phone-input:focus-visible {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0;
+}
+
 /* Пароль: кнопка «показать» внутри поля, поэтому справа оставлено место под неё. */
 .ui-password { position: relative; display: flex; }
 .ui-password > input { flex: 1; padding-right: 40px; }
