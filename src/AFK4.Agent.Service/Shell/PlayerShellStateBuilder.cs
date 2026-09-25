@@ -28,7 +28,8 @@ public sealed class PlayerShellStateBuilder(
     TimeProvider timeProvider,
     IProtectionEnforcer? protection = null,
     ILauncherCatalog? catalog = null,
-    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null) : IPlayerShellStateBuilder
+    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null,
+    AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null) : IPlayerShellStateBuilder
 {
     /// <summary>Последняя минута сессии — отдельное состояние: экран готовит игрока к концу.</summary>
     public const int EndingThresholdSeconds = 60;
@@ -69,6 +70,7 @@ public sealed class PlayerShellStateBuilder(
             LauncherApps: catalog is null ? CreateLauncherApps(agentOptions) : CreateLauncherApps(catalog),
             ClubRules: protection?.Profile.ClubRules,
             IdleShutdownAtUtc: idleShutdown?.ShutdownAtUtc,
+            Showcase: showcase?.Cards(),
             Locale: agentOptions.PreferredLocale,
             WarningKind: ResolveWarning(state, remainingSeconds, threshold, isGraceMode, isOnline),
             // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом

@@ -37,7 +37,8 @@ public sealed class Worker(
     IProtectionEnforcer? protection = null,
     IGameLibrarySync? games = null,
     AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null,
-    AFK4.Agent.Service.Hardware.IHardwareReporter? hardware = null) : BackgroundService
+    AFK4.Agent.Service.Hardware.IHardwareReporter? hardware = null,
+    AFK4.Agent.Service.Showcase.IShowcaseSync? showcase = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -152,11 +153,13 @@ public sealed class Worker(
 
                 // Профиль защиты — после обслуживания: в обслуживании запреты сняты и остаются снятыми.
                 await TryProtectAsync(() => protection!.SyncAsync(heartbeat.PolicyProfileVersion, cancellationToken), cancellationToken);
-                await TryGamesAsync(() => games!.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
+                await TryStepAsync("Game library", () => games?.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
                 // Простой — по профилю, который только что сверили.
                 idleShutdown?.Check();
                 // Железо — раз в несколько часов; своё расписание у отправителя.
-                await TryGamesAsync(() => hardware?.ReportIfDueAsync(cancellationToken) ?? Task.CompletedTask, cancellationToken);
+                await TryStepAsync("Hardware report", () => hardware?.ReportIfDueAsync(cancellationToken), cancellationToken);
+                // Витрина — раз в 10 минут по ETag; своё расписание у витрины.
+                await TryStepAsync("Showcase", () => showcase?.SyncIfDueAsync(cancellationToken), cancellationToken);
 
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
@@ -493,16 +496,18 @@ public sealed class Worker(
         }
     }
 
-    private async Task TryGamesAsync(Func<Task> action, CancellationToken cancellationToken)
+    /// <summary>
+    /// Шаг после сердцебиения, который не должен ронять круг: библиотека игр, опись железа, витрина.
+    /// Шаг, которого на этом ПК нет, возвращает null и просто пропускается.
+    /// </summary>
+    private async Task TryStepAsync(string step, Func<Task?> action, CancellationToken cancellationToken)
     {
-        if (games is null)
-        {
-            return;
-        }
-
         try
         {
-            await action();
+            if (action() is { } running)
+            {
+                await running;
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -510,7 +515,7 @@ public sealed class Worker(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Game library step failed. Continuing with heartbeat loop.");
+            logger.LogWarning(exception, "{Step} step failed. Continuing with heartbeat loop.", step);
         }
     }
 

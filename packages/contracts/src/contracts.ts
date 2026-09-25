@@ -5298,6 +5298,8 @@ export interface PlayerShellStateDto {
    * отменяет. null — выключение не назначено.
    */
   idleShutdownAtUtc?: IsoDateTime | null;
+  /** Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба. */
+  showcase?: ShowcaseCardDto[] | null;
 }
 
 /**

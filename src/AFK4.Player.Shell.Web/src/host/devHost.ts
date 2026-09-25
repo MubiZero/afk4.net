@@ -33,6 +33,29 @@ export type DevScenario =
 
 const SCENARIOS: readonly DevScenario[] = ['idle', 'approach', 'session', 'ending', 'grace', 'offline', 'maintenance', 'error', 'connecting'];
 
+// Картинка-заглушка для учебного стенда: настоящие лежат в кэше ПК, которого у браузера нет.
+const DEV_PHOTO = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+  + '<stop offset="0" stop-color="#1b2a4a"/><stop offset=".55" stop-color="#3b1f5c"/><stop offset="1" stop-color="#0c6b58"/></linearGradient></defs>'
+  + '<rect width="1600" height="900" fill="url(#g)"/><circle cx="1180" cy="380" r="260" fill="#f2c14e" opacity=".18"/>'
+  + '<circle cx="1320" cy="620" r="180" fill="#2cc592" opacity=".22"/></svg>'
+)}`;
+
+const DEV_SHOWCASE = (minutes: (count: number) => string): PlayerShellStateDto['showcase'] => [
+  { cardId: 'news:dev', kind: 'news', title: 'Ночь CS2 в пятницу', body: 'С 22:00 до утра — турнир на пять команд, призы от клуба и пицца в перерывах.', imageUrl: DEV_PHOTO },
+  { cardId: 'tariff:dev', kind: 'tariff', title: 'Ночной', price: { currencyCode: 'TJS', minorUnits: 600 }, timeWindow: '22:00–06:00' },
+  { cardId: 'tournament:dev', kind: 'tournament', title: 'Кубок зала', subtitle: 'Dota 2', startsAtUtc: minutes(60 * 50) },
+  {
+    cardId: 'packages:dev', kind: 'packages', title: '',
+    packages: [
+      { name: '3 часа', price: { currencyCode: 'TJS', minorUnits: 2500 }, minutes: 180 },
+      { name: '5 часов', price: { currencyCode: 'TJS', minorUnits: 4000 }, minutes: 300 },
+      { name: 'Ночь', price: { currencyCode: 'TJS', minorUnits: 5000 }, minutes: 480 }
+    ]
+  },
+  { cardId: 'bar_hit:dev', kind: 'bar_hit', title: 'Кола 0,5', price: { currencyCode: 'TJS', minorUnits: 1000 } }
+];
+
 export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): PlayerShellStateDto | null {
   if (scenario === 'connecting') return null;
 
@@ -67,7 +90,8 @@ export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): Pla
     zoneName: 'Общий зал',
     sessionOwnerKind: 'none',
     sessionOwnerPlayerAccountId: null,
-    features: ['player_shop', 'loyalty', 'online_topup']
+    features: ['player_shop', 'loyalty', 'online_topup'],
+    showcase: DEV_SHOWCASE(minutes)
   };
 
   const playing = (untilMinutes: number, state: string): PlayerShellStateDto => ({

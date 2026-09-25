@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import type { PlayerShellStateDto } from '@afk4/contracts';
 import { useI18n } from '@afk4/i18n';
 import { SeatBadge } from '../ui/SeatBadge';
+import { ShowcaseCarousel } from './idle/ShowcaseCarousel';
 
 /**
  * Свободный ПК: к нему никто не подошёл (спека, §3, кадр 01). Витрина клуба — фон без кнопок,
- * номер ПК — наверху слева, читается первым. Карусель карточек витрины — в срезе P4d; пока на её
- * месте — оформление клуба.
+ * номер ПК — наверху слева, читается первым. Карточки витрины крутятся поверх оформления клуба;
+ * у клуба без карточек остаётся само оформление.
  */
 export function IdleScreen({ state, dimmed = false }: { state: PlayerShellStateDto; dimmed?: boolean }) {
   const { t } = useI18n();
@@ -15,6 +16,7 @@ export function IdleScreen({ state, dimmed = false }: { state: PlayerShellStateD
   return (
     <main className={dimmed ? 'idle-screen idle-screen--dimmed' : 'idle-screen'} aria-hidden={dimmed || undefined}>
       <div className="idle-screen__showcase" aria-hidden="true" />
+      {state.showcase && state.showcase.length > 0 ? <ShowcaseCarousel cards={state.showcase} paused={dimmed} /> : null}
       {/* Подошли — знак ПК уезжает в шапку окна входа, витрина притушается фоном. */}
       {dimmed ? null : (
         <header className="idle-screen__top">

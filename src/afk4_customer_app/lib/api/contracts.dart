@@ -12691,6 +12691,7 @@ class PlayerShellStateDto {
     this.blockedWindows,
     this.clubRules,
     this.idleShutdownAtUtc,
+    this.showcase,
   });
 
   final String organizationId;
@@ -12759,6 +12760,9 @@ class PlayerShellStateDto {
   /// отменяет. null — выключение не назначено.
   final DateTime? idleShutdownAtUtc;
 
+  /// Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба.
+  final List<ShowcaseCardDto>? showcase;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -12790,6 +12794,7 @@ class PlayerShellStateDto {
         blockedWindows: json['blockedWindows'] == null ? null : (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
         clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
         idleShutdownAtUtc: json['idleShutdownAtUtc'] == null ? null : DateTime.parse(json['idleShutdownAtUtc'] as String),
+        showcase: json['showcase'] == null ? null : (json['showcase'] as List<dynamic>).map((item) => ShowcaseCardDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -12823,6 +12828,7 @@ class PlayerShellStateDto {
         'blockedWindows': blockedWindows?.map((item) => item.toJson()).toList(),
         'clubRules': clubRules,
         'idleShutdownAtUtc': idleShutdownAtUtc?.toIso8601String(),
+        'showcase': showcase?.map((item) => item.toJson()).toList(),
       };
 }
 

@@ -341,7 +341,8 @@ public sealed class PlayerShellStateBuilderTests
     private sealed class Fixture(
         string? clubName = null,
         AFK4.Agent.Service.Protection.IProtectionEnforcer? protection = null,
-        AFK4.Agent.Service.Games.ILauncherCatalog? catalog = null)
+        AFK4.Agent.Service.Games.ILauncherCatalog? catalog = null,
+        AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null)
     {
         public AgentOptions Options { get; } = new()
         {
@@ -396,7 +397,8 @@ public sealed class PlayerShellStateBuilderTests
             Warnings,
             new FixedTimeProvider(Now),
             protection,
-            catalog).Build();
+            catalog,
+            showcase: showcase).Build();
     }
 
     // Библиотека клуба: обложка из кэша ПК и возраст — на плитке; лаунчера на ПК нет — плитка видна
@@ -418,6 +420,24 @@ public sealed class PlayerShellStateBuilderTests
         Assert.Equal(12, apps[0].MinAge);
         Assert.True(apps[0].IsAvailable);
         Assert.False(apps[1].IsAvailable);
+    }
+
+    // Витрина едет экрану тем же состоянием: без сети он крутит то, что агент уже положил на диск.
+    [Fact]
+    public void TheShowcase_ReachesTheScreen_WithCachedImages()
+    {
+        var card = new AFK4.Shared.Contracts.Showcase.ShowcaseCardDto(
+            "news:1", AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.News, "Ночь CS2",
+            ImageUrl: "https://showcase.afk4.local/cards/a.webp");
+
+        var state = new Fixture(showcase: new FixedShowcase([card])).Build();
+
+        Assert.Equal("https://showcase.afk4.local/cards/a.webp", Assert.Single(state.Showcase!).ImageUrl);
+    }
+
+    private sealed class FixedShowcase(IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto> cards) : AFK4.Agent.Service.Showcase.IShowcaseSource
+    {
+        public IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto> Cards() => cards;
     }
 
     private sealed class FixedCatalog(IReadOnlyList<AFK4.Agent.Service.Games.LauncherEntry> entries) : AFK4.Agent.Service.Games.ILauncherCatalog

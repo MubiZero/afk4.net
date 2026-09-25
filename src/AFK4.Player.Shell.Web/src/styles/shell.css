@@ -239,8 +239,8 @@ button {
   overflow: hidden;
 }
 
-/* Витрина — фон без кнопок. Карусель карточек придёт в срезе P4d; пока — оформление клуба:
-   мягкий свет цвета клуба, который медленно дышит только прозрачностью. */
+/* Витрина — фон без кнопок. Под карточками — оформление клуба: мягкий свет цвета клуба, который
+   медленно дышит только прозрачностью; у клуба без карточек он и есть витрина. */
 .idle-screen__showcase {
   position: absolute;
   inset: -10%;
@@ -255,6 +255,137 @@ button {
   from { opacity: 0.75; transform: scale(1); }
   to { opacity: 1; transform: scale(1.04); }
 }
+
+/* Карусель витрины: слои лежат друг на друге, сменяются только прозрачностью. Уходящая
+   карточка гаснет, новая проявляется; картинку под текстом притеняет градиент слева. */
+.showcase {
+  position: absolute;
+  inset: 0;
+}
+
+.showcase-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: showcase-in 700ms var(--ease-standard) forwards;
+}
+
+.showcase-slide--leaving {
+  opacity: 1;
+  animation: showcase-out 700ms var(--ease-standard) forwards;
+}
+
+@keyframes showcase-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes showcase-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.showcase-slide__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Затемнение — частью слоя картинки, а не анимацией: в кадре ничего не пересчитывается. */
+.showcase-slide--image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface-canvas) 88%, transparent) 0%, color-mix(in srgb, var(--surface-canvas) 55%, transparent) 45%, transparent 75%),
+    linear-gradient(0deg, color-mix(in srgb, var(--surface-canvas) 70%, transparent) 0%, transparent 35%);
+}
+
+.showcase-slide__text {
+  position: absolute;
+  z-index: 1;
+  left: var(--shell-gutter);
+  bottom: calc(var(--shell-gutter) + 4.5rem);
+  max-width: min(46rem, 52%);
+}
+
+.showcase-slide__kind {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--shell-accent);
+}
+
+.showcase-slide__title {
+  margin: 0;
+  font-size: clamp(2.4rem, 4.2vw, 4.4rem);
+  line-height: 1.05;
+  font-weight: 700;
+  color: var(--text-strong);
+  text-wrap: balance;
+}
+
+.showcase-slide__body {
+  margin: 1rem 0 0;
+  font-size: 1.35rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.showcase-slide__facts {
+  margin: 1.2rem 0 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.showcase-slide__packages {
+  list-style: none;
+  margin: 1.4rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.showcase-slide__packages li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 1.5rem;
+  align-items: baseline;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.showcase-slide__package-name {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.showcase-slide__package-time {
+  color: var(--text-secondary);
+}
+
+.showcase-slide__package-price {
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+/* Подошли к ПК: витрина уходит в фон тем же притушением, что и подложка. */
+.idle-screen--dimmed .showcase {
+  opacity: 0.35;
+  transition: opacity var(--shell-duration-open) var(--ease-out-emphasized);
+}
+
 
 .idle-screen__top {
   position: absolute;

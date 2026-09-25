@@ -1,4 +1,5 @@
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Showcase;
 
 namespace AFK4.Shared.Contracts.Shell;
 
@@ -53,4 +54,6 @@ public sealed record PlayerShellStateDto(
     string? ClubRules = null,
     // Свободный ПК выключится от простоя в это время: экран показывает отсчёт, движение мыши его
     // отменяет. null — выключение не назначено.
-    DateTimeOffset? IdleShutdownAtUtc = null);
+    DateTimeOffset? IdleShutdownAtUtc = null,
+    // Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба.
+    IReadOnlyList<ShowcaseCardDto>? Showcase = null);

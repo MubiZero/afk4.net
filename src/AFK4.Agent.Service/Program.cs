@@ -7,6 +7,7 @@ using AFK4.Agent.Service.Logging;
 using AFK4.Agent.Service.Network;
 using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
+using AFK4.Agent.Service.Showcase;
 using AFK4.Agent.Service.Updates;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Options;
@@ -129,6 +130,16 @@ builder.Services.AddSingleton<IGameLauncherLocator, WindowsGameLauncherLocator>(
 builder.Services.AddSingleton<GameLibraryService>();
 builder.Services.AddSingleton<ILauncherCatalog>(services => services.GetRequiredService<GameLibraryService>());
 builder.Services.AddSingleton<IGameLibrarySync>(services => services.GetRequiredService<GameLibraryService>());
+
+// Витрина свободного ПК (спека оболочки, §5.7): опрос по ETag, карточки и картинки на диске.
+builder.Services.AddSingleton<IShowcaseStore, FileShowcaseStore>();
+builder.Services.AddSingleton<IShowcaseClient, HttpShowcaseClient>();
+builder.Services.AddSingleton<IShowcaseImageCache>(services => new FileShowcaseImageCache(
+    services.GetRequiredService<IHttpClientFactory>(),
+    services.GetRequiredService<ILogger<FileShowcaseImageCache>>()));
+builder.Services.AddSingleton<ShowcaseService>();
+builder.Services.AddSingleton<IShowcaseSource>(services => services.GetRequiredService<ShowcaseService>());
+builder.Services.AddSingleton<IShowcaseSync>(services => services.GetRequiredService<ShowcaseService>());
 builder.Services.AddSingleton<ISessionAutostart, SessionAutostart>();
 
 // Опись железа ПК (P9): реестр и системные вызовы, без WMI.

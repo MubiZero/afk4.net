@@ -1,6 +1,4 @@
 using System.Net.Http.Json;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
@@ -239,8 +237,6 @@ public sealed class FileCoverCache(IHttpClientFactory httpClientFactory, ILogger
     /// <summary>Больше обложке не нужно: это картинка на плитку, а не фон на весь экран.</summary>
     public const long MaxBytes = 5 * 1024 * 1024;
 
-    private static readonly string[] Extensions = [".webp", ".png", ".jpg", ".jpeg"];
-
     private readonly string folder = Path.Combine(directory ?? ShellShowcaseAssets.Directory(), ShellShowcaseAssets.CoversFolder);
 
     public string? CoverUri(string appId)
@@ -248,7 +244,7 @@ public sealed class FileCoverCache(IHttpClientFactory httpClientFactory, ILogger
         var file = Directory.Exists(folder)
             ? Directory.EnumerateFiles(folder, $"{appId}.*").FirstOrDefault(candidate => !candidate.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
             : null;
-        return file is null ? null : $"https://{ShellShowcaseAssets.VirtualHost}/{ShellShowcaseAssets.CoversFolder}/{Path.GetFileName(file)}";
+        return file is null ? null : CachedImages.PageUri(ShellShowcaseAssets.CoversFolder, Path.GetFileName(file));
     }
 
     public async Task RefreshAsync(IReadOnlyList<DeviceGameDto> games, CancellationToken cancellationToken)
@@ -257,13 +253,12 @@ public sealed class FileCoverCache(IHttpClientFactory httpClientFactory, ILogger
         var wanted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var game in games)
         {
-            if (!Uri.TryCreate(game.CoverUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+            if (CachedImages.Parse(game.CoverUrl) is not { } uri)
             {
                 continue;
             }
 
-            var extension = Extensions.FirstOrDefault(candidate => uri.AbsolutePath.EndsWith(candidate, StringComparison.OrdinalIgnoreCase)) ?? ".jpg";
-            var name = $"{game.AppId}.{Fingerprint(uri)}{extension}";
+            var name = $"{game.AppId}.{CachedImages.Fingerprint(uri)}{CachedImages.Extension(uri)}";
             wanted.Add(name);
             var path = Path.Combine(folder, name);
             if (File.Exists(path))
@@ -273,7 +268,7 @@ public sealed class FileCoverCache(IHttpClientFactory httpClientFactory, ILogger
 
             try
             {
-                await DownloadAsync(uri, path, cancellationToken);
+                await CachedImages.DownloadAsync(httpClientFactory.CreateClient("covers"), uri, path, MaxBytes, cancellationToken);
             }
             catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or TaskCanceledException
                                               && !cancellationToken.IsCancellationRequested)
@@ -283,70 +278,7 @@ public sealed class FileCoverCache(IHttpClientFactory httpClientFactory, ILogger
             }
         }
 
-        foreach (var stale in Directory.EnumerateFiles(folder).Where(file => !wanted.Contains(Path.GetFileName(file))).ToList())
-        {
-            TryDelete(stale);
-        }
-    }
-
-    private async Task DownloadAsync(Uri uri, string path, CancellationToken cancellationToken)
-    {
-        var client = httpClientFactory.CreateClient("covers");
-        using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        if (response.Content.Headers.ContentType?.MediaType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) != true)
-        {
-            throw new InvalidDataException($"{uri} is not an image.");
-        }
-
-        if (response.Content.Headers.ContentLength > MaxBytes)
-        {
-            throw new InvalidDataException($"{uri} is larger than {MaxBytes} bytes.");
-        }
-
-        var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (var target = File.Create(temporary))
-            {
-                var buffer = new byte[81920];
-                long total = 0;
-                int read;
-                while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
-                {
-                    total += read;
-                    if (total > MaxBytes)
-                    {
-                        throw new InvalidDataException($"{uri} is larger than {MaxBytes} bytes.");
-                    }
-
-                    await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                }
-            }
-
-            File.Move(temporary, path, overwrite: true);
-        }
-        finally
-        {
-            TryDelete(temporary);
-        }
-    }
-
-    private static string Fingerprint(Uri uri) =>
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(uri.AbsoluteUri)))[..12];
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-        }
+        CachedImages.Prune(folder, wanted);
     }
 }
+

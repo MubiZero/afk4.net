@@ -32,7 +32,7 @@ it('ru, en and tg have identical key sets (catalog parity)', () => {
 // never to silence the check. Native-Tajik review may move entries out of this list.
 const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Тариф» — заимствование, в таджикском пишется так же; переводить его нечем.
-    'customer.reservations.tariff', 'setup.wizard.stepper.tariff',
+    'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
     // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
     // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
     'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',
