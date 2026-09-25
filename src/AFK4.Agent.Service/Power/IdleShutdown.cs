@@ -13,11 +13,16 @@ public interface IPlayerPresence
     DateTimeOffset? LastSeenUtc { get; }
 
     void Record(DateTimeOffset at);
+
+    /// <summary>Кто-то тронул ПК — сразу, а не на следующем круге сердцебиения.</summary>
+    event Action<DateTimeOffset>? Seen;
 }
 
 public sealed class PlayerPresence : IPlayerPresence
 {
     private long lastSeenTicks;
+
+    public event Action<DateTimeOffset>? Seen;
 
     public DateTimeOffset? LastSeenUtc
     {
@@ -28,7 +33,11 @@ public sealed class PlayerPresence : IPlayerPresence
         }
     }
 
-    public void Record(DateTimeOffset at) => Interlocked.Exchange(ref lastSeenTicks, at.UtcTicks);
+    public void Record(DateTimeOffset at)
+    {
+        Interlocked.Exchange(ref lastSeenTicks, at.UtcTicks);
+        Seen?.Invoke(at);
+    }
 }
 
 public static class IdleShutdownPolicy
@@ -53,6 +62,9 @@ public interface IIdleShutdownMonitor
 {
     /// <summary>Проверить на очередном круге сердцебиения.</summary>
     void Check();
+
+    /// <summary>Когда ПК выключится от простоя; null — не назначено. Экран показывает отсчёт.</summary>
+    DateTimeOffset? ShutdownAtUtc { get; }
 }
 
 /// <summary>
@@ -66,12 +78,58 @@ public sealed class IdleShutdownMonitor(
     IPlayerPresence presence,
     IMachinePowerController power,
     TimeProvider timeProvider,
-    ILogger<IdleShutdownMonitor> logger) : IIdleShutdownMonitor
+    ILogger<IdleShutdownMonitor> logger,
+    AFK4.Agent.Service.Shell.IShellStateSignal? shellState = null) : IIdleShutdownMonitor
 {
+    private readonly object gate = new();
     private DateTimeOffset? freeSince;
     private DateTimeOffset? scheduledAt;
+    private bool subscribed;
+
+    public DateTimeOffset? ShutdownAtUtc
+    {
+        get
+        {
+            lock (gate)
+            {
+                return scheduledAt + IdleShutdownPolicy.Warning;
+            }
+        }
+    }
 
     public void Check()
+    {
+        lock (gate)
+        {
+            if (!subscribed)
+            {
+                presence.Seen += OnSeen;
+                subscribed = true;
+            }
+
+            CheckLocked();
+        }
+    }
+
+    // Человек тронул ПК — выключение, если оно назначено, отменяется сразу.
+    private void OnSeen(DateTimeOffset at)
+    {
+        lock (gate)
+        {
+            if (scheduledAt is null)
+            {
+                return;
+            }
+
+            TryCancel();
+            scheduledAt = null;
+            freeSince = at;
+        }
+
+        shellState?.Notify();
+    }
+
+    private void CheckLocked()
     {
         var now = timeProvider.GetUtcNow();
         if (runtimeState.Current.State != PlayerShellStateNames.Locked)
@@ -116,6 +174,7 @@ public sealed class IdleShutdownMonitor(
 
         // Не повторять на каждом круге: и удачное назначение, и отказ ждут, пока ПК не сменит состояние.
         scheduledAt = now;
+        shellState?.Notify();
     }
 
     private void TryCancel()

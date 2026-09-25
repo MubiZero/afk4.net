@@ -41,6 +41,7 @@ export interface GameForm {
   arguments: string;
   availableWithoutSession: boolean;
   isEnabled: boolean;
+  launchOnSessionStart: boolean;
   /** Обложка и возраст из каталога — только показываются: их обновляет платформа. */
   catalogCoverUrl: string | null;
 }
@@ -57,6 +58,7 @@ export const emptyGameForm: GameForm = {
   arguments: '',
   availableWithoutSession: false,
   isEnabled: true,
+  launchOnSessionStart: false,
   catalogCoverUrl: null
 };
 
@@ -87,6 +89,7 @@ export function formFromGame(game: BranchGameDto): GameForm {
     arguments: game.arguments ?? '',
     availableWithoutSession: game.availableWithoutSession,
     isEnabled: game.isEnabled,
+    launchOnSessionStart: game.launchOnSessionStart ?? false,
     catalogCoverUrl: game.catalogGameId ? game.coverUrl : null
   };
 }
@@ -128,7 +131,8 @@ export function buildGameRequest(organizationId: string, form: GameForm): Upsert
     executablePath: blank(form.executablePath),
     arguments: blank(form.arguments),
     availableWithoutSession: form.availableWithoutSession,
-    isEnabled: form.isEnabled
+    isEnabled: form.isEnabled,
+    launchOnSessionStart: form.launchOnSessionStart
   };
 }
 

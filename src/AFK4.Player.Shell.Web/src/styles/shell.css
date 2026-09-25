@@ -1519,3 +1519,17 @@ button {
   white-space: pre-line;
   line-height: 1.5;
 }
+
+/* Свободный ПК выключается от простоя: полоса над подсказкой, цифры не прыгают. */
+.idle-screen__shutdown {
+  position: absolute;
+  left: 50%;
+  bottom: 6rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.8rem 1.4rem;
+  border-radius: var(--shell-radius);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  font-variant-numeric: tabular-nums;
+}

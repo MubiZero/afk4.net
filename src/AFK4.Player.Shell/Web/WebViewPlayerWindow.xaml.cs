@@ -225,13 +225,13 @@ public partial class WebViewPlayerWindow : Window
     }
 
     /// <summary>
-    /// За ПК кто-то есть — агенту, не чаще раза в минуту: по этому он не выключит простаивающий
-    /// ПК под рукой человека, который вводит номер. Ответ не ждём: это подсказка, а не просьба.
+    /// За ПК кто-то есть — агенту, не чаще раза в 20 секунд: по этому он не выключит простаивающий
+    /// ПК под рукой человека и отменит выключение, назначенное за минуту. Ответ не ждём.
     /// </summary>
     private void ReportPresence()
     {
         var now = DateTimeOffset.UtcNow;
-        if (now - lastPresenceReported < TimeSpan.FromMinutes(1))
+        if (now - lastPresenceReported < TimeSpan.FromSeconds(20))
         {
             return;
         }

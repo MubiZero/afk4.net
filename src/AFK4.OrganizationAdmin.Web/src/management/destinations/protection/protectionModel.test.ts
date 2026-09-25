@@ -16,7 +16,9 @@ const dto = {
       { titleContains: 'Командная строка', className: null },
       { titleContains: null, className: 'ConsoleWindowClass' }
     ],
-    clearAfterSession: ['steam', 'messengers']
+    clearAfterSession: ['steam', 'messengers'],
+    idleShutdownMinutes: 30,
+    clubRules: 'Не есть за ПК.'
   },
   updatedAtUtc: '2026-09-25T10:00:00Z'
 };
@@ -38,8 +40,18 @@ describe('protectionModel', () => {
         { titleContains: 'Командная строка', className: null },
         { titleContains: null, className: 'ConsoleWindowClass' }
       ],
-      clearAfterSession: ['steam', 'messengers']
+      clearAfterSession: ['steam', 'messengers'],
+      idleShutdownMinutes: 30,
+      clubRules: 'Не есть за ПК.'
     });
+  });
+
+  // Пустое поле — «не выключать» и «правил нет», а не ноль минут и пустая строка на экране ПК.
+  it('an empty idle time and empty rules go out as nothing', () => {
+    const request = buildProtectionRequest('o1', { ...protectionDefaults, clubRules: '   ' });
+
+    expect(request.idleShutdownMinutes).toBeNull();
+    expect(request.clubRules).toBeNull();
   });
 
   // Клуб, который страницу не открывал, всё равно стирает следы — как агент без профиля.

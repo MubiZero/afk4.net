@@ -350,6 +350,15 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
                 {t('op.games.field.withoutSession')}
               </label>
               <p className="payset-field-hint mgmt-form-wide">{t('op.games.field.withoutSessionHint')}</p>
+              <label className="mgmt-check mgmt-form-wide">
+                <input
+                  type="checkbox"
+                  checked={form.launchOnSessionStart}
+                  disabled={!canManage}
+                  onChange={(event) => setForm({ ...form, launchOnSessionStart: event.target.checked })}
+                />
+                {t('op.games.field.autostart')}
+              </label>
               {formError && <p className="ui-inline-error mgmt-form-wide" role="alert">{formError}</p>}
             </form>
           </MgmtDrawer>

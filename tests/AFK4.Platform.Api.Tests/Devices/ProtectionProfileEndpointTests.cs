@@ -74,6 +74,36 @@ public sealed class ProtectionProfileEndpointTests
         Assert.Empty((await client.GetFromJsonAsync<BranchProtectionProfileDto>(Route))!.Profile.ClearAfterSession);
     }
 
+    [Fact]
+    public async Task IdleShutdown_AndClubRules_AreKept_AndEmptyRulesAreNone()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+
+        await client.PutAsJsonAsync(Route, Request() with { IdleShutdownMinutes = 30, ClubRules = "  Не есть за ПК.  " });
+        var saved = (await client.GetFromJsonAsync<BranchProtectionProfileDto>(Route))!.Profile;
+        Assert.Equal(30, saved.IdleShutdownMinutes);
+        Assert.Equal("Не есть за ПК.", saved.ClubRules);
+
+        await client.PutAsJsonAsync(Route, Request(expectedVersion: 1) with { ClubRules = "   " });
+        var cleared = (await client.GetFromJsonAsync<BranchProtectionProfileDto>(Route))!.Profile;
+        Assert.Null(cleared.IdleShutdownMinutes);
+        Assert.Null(cleared.ClubRules);
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(721)]
+    public async Task AnIdleTimeOutOfRange_IsRefused(int minutes)
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync(Route, Request() with { IdleShutdownMinutes = minutes })).StatusCode);
+    }
+
     // Путь стирания зашит в агента; из Панели едет только имя пункта, и чужое имя не пройдёт.
     [Fact]
     public async Task ClearAfterSession_TakesOnlyTheCatalog()

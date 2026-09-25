@@ -28,7 +28,13 @@ export interface ProtectionForm {
   blockedTitles: string;
   blockedClasses: string;
   clearAfterSession: string[];
+  /** Минуты простоя до выключения; '' — не выключать. */
+  idleShutdownMinutes: string;
+  clubRules: string;
 }
+
+/** Что предложить в «выключать свободный ПК»: чаще получаса — лишние включения, реже двух часов — нет смысла. */
+export const idleShutdownOptions = [15, 30, 60, 120] as const;
 
 /** Диски, которые предлагаем скрыть. A и B — дисководы, которых давно нет. */
 export const hideableDrives = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -45,7 +51,9 @@ export const protectionDefaults: ProtectionForm = {
   blockedClasses: '',
   // Как на сервере без профиля: следующий игрок не входит в чужой Steam потому, что клуб не
   // открыл эту страницу.
-  clearAfterSession: [...sessionTraces]
+  clearAfterSession: [...sessionTraces],
+  idleShutdownMinutes: '',
+  clubRules: ''
 };
 
 export function protectionToForm(dto: BranchProtectionProfileDto): ProtectionForm {
@@ -62,7 +70,9 @@ export function protectionToForm(dto: BranchProtectionProfileDto): ProtectionFor
     // показываем заголовком — класс в нём сузил бы совпадение, а не расширил.
     blockedTitles: profile.blockedWindows.filter((rule) => rule.titleContains).map((rule) => rule.titleContains).join('\n'),
     blockedClasses: profile.blockedWindows.filter((rule) => !rule.titleContains && rule.className).map((rule) => rule.className).join('\n'),
-    clearAfterSession: [...profile.clearAfterSession]
+    clearAfterSession: [...profile.clearAfterSession],
+    idleShutdownMinutes: profile.idleShutdownMinutes == null ? '' : String(profile.idleShutdownMinutes),
+    clubRules: profile.clubRules ?? ''
   };
 }
 
@@ -85,7 +95,9 @@ export function buildProtectionRequest(organizationId: string, form: ProtectionF
     hiddenDrives: [...form.hiddenDrives].sort(),
     urlBlocklist: lines(form.urlBlocklist),
     blockedWindows: windows,
-    clearAfterSession: sessionTraces.filter((item) => form.clearAfterSession.includes(item))
+    clearAfterSession: sessionTraces.filter((item) => form.clearAfterSession.includes(item)),
+    idleShutdownMinutes: form.idleShutdownMinutes === '' ? null : Number(form.idleShutdownMinutes),
+    clubRules: form.clubRules.trim() === '' ? null : form.clubRules.trim()
   };
 }
 

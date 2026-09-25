@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppWindow, Eraser, Globe, HardDrive } from 'lucide-react';
+import { AppWindow, Eraser, Globe, HardDrive, Power } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../../ManagementScreen';
 import { SetupFieldsSkeleton, SetupRuleSkeleton, SetupSection, SetupSectionSkeleton } from '../../kit/SetupSection';
@@ -13,6 +13,7 @@ import type { BranchProtectionProfileDto } from '../../../api/clients/settings';
 import {
   buildProtectionRequest,
   hideableDrives,
+  idleShutdownOptions,
   protectionDefaults,
   protectionToForm,
   sessionTraces,
@@ -136,6 +137,9 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
             </SetupSectionSkeleton>
             <SetupSectionSkeleton lead={t('op.protection.zone.afterSession.lead')}>
               {sessionTraces.map((item) => <SetupRuleSkeleton key={item} hint={t(traceLabels[item].hint)} />)}
+            </SetupSectionSkeleton>
+            <SetupSectionSkeleton lead={t('op.protection.zone.screen.lead')}>
+              <SetupFieldsSkeleton hints={[t('op.protection.idle.hint'), t('op.protection.rules.hint')]} />
             </SetupSectionSkeleton>
           </div>
         </>
@@ -261,6 +265,40 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
                 onChange={(value) => onField('clearAfterSession', toggleTrace(form.clearAfterSession, item, value))}
               />
             ))}
+          </div>
+        </SetupSection>
+
+        <SetupSection Icon={Power} title={t('op.protection.zone.screen')} lead={t('op.protection.zone.screen.lead')}>
+          <div className="payset-field">
+            <label htmlFor="protection-idle">{t('op.protection.idle')}</label>
+            <select
+              id="protection-idle"
+              value={form.idleShutdownMinutes}
+              disabled={disabled}
+              onChange={(event) => onField('idleShutdownMinutes', event.currentTarget.value)}
+            >
+              <option value="">{t('op.protection.idle.off')}</option>
+              {idleShutdownOptions.map((minutes) => (
+                <option key={minutes} value={String(minutes)}>{t('op.protection.idle.after', { minutes })}</option>
+              ))}
+            </select>
+            <p className="payset-field-hint">{t('op.protection.idle.hint')}</p>
+          </div>
+
+          <div className="payset-divider" />
+
+          <div className="payset-field protect-list">
+            <label htmlFor="protection-rules">{t('op.protection.rules')}</label>
+            <textarea
+              id="protection-rules"
+              rows={5}
+              maxLength={2000}
+              placeholder={t('op.protection.rules.placeholder')}
+              value={form.clubRules}
+              disabled={disabled}
+              onChange={(event) => onField('clubRules', event.currentTarget.value)}
+            />
+            <p className="payset-field-hint">{t('op.protection.rules.hint')}</p>
           </div>
         </SetupSection>
       </div>

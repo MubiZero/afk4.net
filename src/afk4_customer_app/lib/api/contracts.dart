@@ -960,8 +960,8 @@ abstract final class ShellPipeRequestTypeNames {
   /// «Вернуть в зал» с самого ПК (спека оболочки, §6.5): агент говорит серверу и закрывает
   /// рабочий стол техника. Тело пустое.
   static const String maintenanceReturn = 'maintenance.return';
-  /// За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в минуту; по нему агент не
-  /// выключает простаивающий ПК под рукой человека, который вводит номер. Тело пустое.
+  /// За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в 20 секунд; по нему агент не
+  /// выключает простаивающий ПК под рукой человека и отменяет уже назначенное выключение. Тело пустое.
   static const String activity = 'activity';
 }
 
@@ -12329,6 +12329,7 @@ class PlayerShellStateDto {
     this.maintenanceByName,
     this.blockedWindows,
     this.clubRules,
+    this.idleShutdownAtUtc,
   });
 
   final String organizationId;
@@ -12393,6 +12394,10 @@ class PlayerShellStateDto {
   /// Правила клуба из настроек ПК: кнопка на экране свободного ПК их открывает.
   final String? clubRules;
 
+  /// Свободный ПК выключится от простоя в это время: экран показывает отсчёт, движение мыши его
+  /// отменяет. null — выключение не назначено.
+  final DateTime? idleShutdownAtUtc;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -12423,6 +12428,7 @@ class PlayerShellStateDto {
         maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
         blockedWindows: json['blockedWindows'] == null ? null : (json['blockedWindows'] as List<dynamic>).map((item) => BlockedWindowRuleDto.fromJson(item as Map<String, dynamic>)).toList(),
         clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
+        idleShutdownAtUtc: json['idleShutdownAtUtc'] == null ? null : DateTime.parse(json['idleShutdownAtUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -12455,6 +12461,7 @@ class PlayerShellStateDto {
         'maintenanceByName': maintenanceByName,
         'blockedWindows': blockedWindows?.map((item) => item.toJson()).toList(),
         'clubRules': clubRules,
+        'idleShutdownAtUtc': idleShutdownAtUtc?.toIso8601String(),
       };
 }
 

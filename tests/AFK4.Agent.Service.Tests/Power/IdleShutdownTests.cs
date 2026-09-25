@@ -45,20 +45,24 @@ public sealed class IdleShutdownTests
         Assert.Single(fixture.Power.Scheduled);
     }
 
+    // Человек тронул мышь в последнюю минуту — выключение отменяется сразу, не дожидаясь
+    // следующего сердцебиения, и простой отсчитывается заново.
     [Fact]
-    public void ToutchingTheMouseInTheLastMinute_CancelsTheShutdown()
+    public void TouchingTheMouseInTheLastMinute_CancelsTheShutdownAtOnce()
     {
         var fixture = new Fixture(idleMinutes: 30);
         fixture.CheckAt(Start);
         fixture.CheckAt(Start.AddMinutes(30));
+        Assert.Equal(Start.AddMinutes(30) + IdleShutdownPolicy.Warning, fixture.Monitor.ShutdownAtUtc);
 
         fixture.Presence.Record(Start.AddMinutes(30).AddSeconds(20));
-        fixture.CheckAt(Start.AddMinutes(30).AddSeconds(30));
 
         Assert.Equal(1, fixture.Power.Cancels);
-        // Простой начался заново: снова полчаса, а не сразу.
+        Assert.Null(fixture.Monitor.ShutdownAtUtc);
         fixture.CheckAt(Start.AddMinutes(45));
         Assert.Single(fixture.Power.Scheduled);
+        fixture.CheckAt(Start.AddMinutes(60).AddSeconds(30));
+        Assert.Equal(2, fixture.Power.Scheduled.Count);
     }
 
     [Theory]
@@ -95,6 +99,8 @@ public sealed class IdleShutdownTests
         {
             monitor = new IdleShutdownMonitor(Runtime, new FixedProfile(idleMinutes), Presence, Power, time, NullLogger<IdleShutdownMonitor>.Instance);
         }
+
+        public IdleShutdownMonitor Monitor => monitor;
 
         public FakeRuntime Runtime { get; } = new();
         public PlayerPresence Presence { get; } = new();

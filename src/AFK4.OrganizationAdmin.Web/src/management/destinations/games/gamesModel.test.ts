@@ -31,7 +31,8 @@ describe('gamesModel', () => {
       executablePath: null,
       arguments: null,
       availableWithoutSession: false,
-      isEnabled: true
+      isEnabled: true,
+      launchOnSessionStart: false
     });
   });
 

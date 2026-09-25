@@ -21,6 +21,8 @@ function profile(overrides: Partial<BranchProtectionProfileDto['profile']> = {},
       urlBlocklist: [],
       blockedWindows: [],
       clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers'],
+      idleShutdownMinutes: null,
+      clubRules: null,
       ...overrides
     },
     updatedAtUtc
@@ -100,9 +102,22 @@ describe('ProtectionDestination', () => {
       hiddenDrives: ['D'],
       urlBlocklist: ['old.example', '*.casino.example'],
       blockedWindows: [{ titleContains: 'Командная строка', className: null }],
-      clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers']
+      clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers'],
+      idleShutdownMinutes: null,
+      clubRules: null
     });
     expect(await screen.findByRole('button', { name: 'Диск D' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('выключение при простое и правила клуба уходят в профиль', async () => {
+    renderScreen();
+
+    fireEvent.change(await screen.findByLabelText('Выключать свободный ПК'), { target: { value: '60' } });
+    fireEvent.change(screen.getByLabelText('Правила клуба'), { target: { value: 'Наушники — у администратора.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateProtectionProfile).toHaveBeenCalledTimes(1));
+    expect(updateProtectionProfile.mock.calls[0][1]).toMatchObject({ idleShutdownMinutes: 60, clubRules: 'Наушники — у администратора.' });
   });
 
   // По умолчанию после сессии стирается всё; клуб выключает пункт — он уходит из профиля.

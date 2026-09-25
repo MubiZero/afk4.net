@@ -50,4 +50,7 @@ public sealed record PlayerShellStateDto(
     // окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
     IReadOnlyList<BlockedWindowRuleDto>? BlockedWindows = null,
     // Правила клуба из настроек ПК: кнопка на экране свободного ПК их открывает.
-    string? ClubRules = null);
+    string? ClubRules = null,
+    // Свободный ПК выключится от простоя в это время: экран показывает отсчёт, движение мыши его
+    // отменяет. null — выключение не назначено.
+    DateTimeOffset? IdleShutdownAtUtc = null);

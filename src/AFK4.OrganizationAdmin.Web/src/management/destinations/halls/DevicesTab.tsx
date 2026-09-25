@@ -432,7 +432,7 @@ export function DevicesTab({
 
             {deviceDetail && !detailLoading && (
               <div className="mgmt-drawer-section">
-                <div className="mgmt-section-title"><span>{t('op.management.dest.protection')}</span></div>
+                <div className="mgmt-section-title"><span>{t('op.settings.devices.protectionReport')}</span></div>
                 <DeviceProtectionReport report={deviceDetail.protectionReport} branchVersion={deviceDetail.branchProtectionVersion ?? 0} />
               </div>
             )}

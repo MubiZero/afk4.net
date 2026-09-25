@@ -28,3 +28,17 @@ describe('SignInPanel — club rules', () => {
     expect(screen.queryByText('Правила клуба')).toBeNull();
   });
 });
+
+describe('IdleScreen — idle shutdown', () => {
+  it('counts down to the idle shutdown and says how to keep the PC on', async () => {
+    const { IdleScreen } = await import('./IdleScreen');
+    const at = new Date(Date.now() + 45_000).toISOString();
+    render(
+      <ShellI18nProvider>
+        <IdleScreen state={{ ...devScenarioState('idle'), idleShutdownAtUtc: at }} />
+      </ShellI18nProvider>
+    );
+
+    expect(screen.getByRole('status').textContent).toMatch(/выключится через 4[45] с/);
+  });
+});
