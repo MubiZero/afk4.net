@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Players;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Reviews;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +19,70 @@ internal static class ClubReviewEndpoints
     private const int MaxCommentLength = 1000;
     private const int PublicPageSize = 20;
 
-    public static void MapClubReviewEndpoints(this WebApplication app)
+    /// <summary>Страница отзывов в Панели: больше публичной — клубу нужна вся история, а не витрина.</summary>
+    private const int StaffPageSize = 50;
+
+    public static void MapClubReviewEndpoints(this WebApplication app, IEndpointRouteBuilder organizations)
     {
+        // Отзывы филиала для Панели: итог, разбивка по звёздам и страница с ПК, за которым сидели.
+        organizations.MapGet("branches/{branchId:guid}/reviews", async (
+            Guid branchId,
+            int? rating,
+            bool? withComment,
+            DateTimeOffset? before,
+            StaffAuthorizationService authorizationService,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ViewReviews, cancellationToken);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (rating is < 1 or > 5) return Results.BadRequest(new { Error = "rating is 1..5." });
+
+            var organizationId = authorization.StaffContext!.OrganizationId;
+            var all = dbContext.ClubReviews.AsNoTracking()
+                .Where(review => review.OrganizationId == organizationId && review.BranchId == branchId);
+            var counts = await all.GroupBy(review => review.Rating)
+                .Select(group => new { Rating = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+            var total = counts.Sum(entry => entry.Count);
+            double? average = total == 0
+                ? null
+                : Math.Round(counts.Sum(entry => entry.Rating * (double)entry.Count) / total, 1);
+
+            var filtered = all;
+            if (rating is { } stars) filtered = filtered.Where(review => review.Rating == stars);
+            if (withComment == true) filtered = filtered.Where(review => review.Comment != null && review.Comment != "");
+            if (before is { } cursor) filtered = filtered.Where(review => review.CreatedAtUtc < cursor);
+
+            var page = await filtered
+                .OrderByDescending(review => review.CreatedAtUtc)
+                .Take(StaffPageSize + 1)
+                .Select(review => new BranchReviewDto(
+                    review.ReviewId,
+                    review.PlayerAccountId,
+                    dbContext.PlayerAccounts.Where(account => account.PlayerAccountId == review.PlayerAccountId)
+                        .Select(account => account.DisplayName).FirstOrDefault() ?? string.Empty,
+                    review.Rating,
+                    review.Comment,
+                    review.CreatedAtUtc,
+                    review.SessionId,
+                    dbContext.Sessions.Where(session => session.SessionId == review.SessionId)
+                        .SelectMany(session => dbContext.Seats.Where(seat => seat.SeatId == session.SeatId).Select(seat => seat.Name))
+                        .FirstOrDefault()))
+                .ToListAsync(cancellationToken);
+
+            var more = page.Count > StaffPageSize;
+            var items = more ? page.Take(StaffPageSize).ToList() : page;
+            return Results.Ok(new BranchReviewsPageDto(
+                average,
+                total,
+                Enumerable.Range(1, 5).Select(stars => counts.FirstOrDefault(entry => entry.Rating == stars)?.Count ?? 0).ToList(),
+                items,
+                more ? items[^1].CreatedAtUtc : null));
+        }).AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReviews);
+
         // Витрина клуба до входа: средняя оценка и последние отзывы. Публично — их и читают
         // до того, как выбрать клуб.
         app.MapGet("/api/public/organizations/{organizationId:guid}/reviews", async (

@@ -434,6 +434,9 @@ abstract final class OrganizationPermissionNames {
   /// Библиотека игр филиала — что игрок запустит на ПК (спека оболочки, §6.6). У того, кто
   /// ставит ПК и игры: владелец, управляющий, техник.
   static const String manageGameLibrary = 'organization.games.manage';
+  /// Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
+  /// управляющего, а не у всей стойки.
+  static const String viewReviews = 'organization.reviews.view';
 }
 
 /// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
@@ -2053,6 +2056,95 @@ class BranchProtectionProfileDto {
         'branchId': branchId,
         'profile': profile.toJson(),
         'updatedAtUtc': updatedAtUtc?.toIso8601String(),
+      };
+}
+
+/// Отзыв для клуба: кто, за каким ПК и когда — чтобы «мышь липкая» можно было найти на ПК 07,
+/// а не гадать, о каком из тридцати речь.
+///
+/// Контракт: Reviews/ClubReviewDtos.cs
+class BranchReviewDto {
+  const BranchReviewDto({
+    required this.reviewId,
+    required this.playerAccountId,
+    required this.authorName,
+    required this.rating,
+    this.comment,
+    required this.createdAtUtc,
+    required this.sessionId,
+    this.seatName,
+  });
+
+  final String reviewId;
+  final String playerAccountId;
+  final String authorName;
+  final int rating;
+  final String? comment;
+  final DateTime createdAtUtc;
+  final String sessionId;
+  final String? seatName;
+
+  factory BranchReviewDto.fromJson(Map<String, dynamic> json) => BranchReviewDto(
+        reviewId: json['reviewId'] as String,
+        playerAccountId: json['playerAccountId'] as String,
+        authorName: json['authorName'] as String,
+        rating: (json['rating'] as num).toInt(),
+        comment: json['comment'] == null ? null : json['comment'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        sessionId: json['sessionId'] as String,
+        seatName: json['seatName'] == null ? null : json['seatName'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reviewId': reviewId,
+        'playerAccountId': playerAccountId,
+        'authorName': authorName,
+        'rating': rating,
+        'comment': comment,
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'sessionId': sessionId,
+        'seatName': seatName,
+      };
+}
+
+/// Отзывы филиала для Панели: итог по всем оценкам и страница списка.
+///
+/// Контракт: Reviews/ClubReviewDtos.cs
+class BranchReviewsPageDto {
+  const BranchReviewsPageDto({
+    this.rating,
+    required this.reviewCount,
+    required this.countsByRating,
+    required this.items,
+    this.nextBefore,
+  });
+
+
+  /// Пусто — оценок пока нет. Это не ноль звёзд.
+  final double? rating;
+  final int reviewCount;
+
+  /// Сколько оценок на каждую звезду: [1★, 2★, 3★, 4★, 5★].
+  final List<int> countsByRating;
+  final List<BranchReviewDto> items;
+
+  /// Следующая страница — отзывы раньше этого времени; null — дальше нет.
+  final DateTime? nextBefore;
+
+  factory BranchReviewsPageDto.fromJson(Map<String, dynamic> json) => BranchReviewsPageDto(
+        rating: json['rating'] == null ? null : (json['rating'] as num).toDouble(),
+        reviewCount: (json['reviewCount'] as num).toInt(),
+        countsByRating: (json['countsByRating'] as List<dynamic>).map((item) => (item as num).toInt()).toList(),
+        items: (json['items'] as List<dynamic>).map((item) => BranchReviewDto.fromJson(item as Map<String, dynamic>)).toList(),
+        nextBefore: json['nextBefore'] == null ? null : DateTime.parse(json['nextBefore'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'rating': rating,
+        'reviewCount': reviewCount,
+        'countsByRating': countsByRating.map((item) => item).toList(),
+        'items': items.map((item) => item.toJson()).toList(),
+        'nextBefore': nextBefore?.toIso8601String(),
       };
 }
 

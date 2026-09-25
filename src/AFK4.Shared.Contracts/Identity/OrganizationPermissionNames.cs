@@ -165,4 +165,8 @@ public static class OrganizationPermissionNames
     /// Библиотека игр филиала — что игрок запустит на ПК (спека оболочки, §6.6). У того, кто
     /// ставит ПК и игры: владелец, управляющий, техник.
     public const string ManageGameLibrary = "organization.games.manage";
+
+    /// Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
+    /// управляющего, а не у всей стойки.
+    public const string ViewReviews = "organization.reviews.view";
 }

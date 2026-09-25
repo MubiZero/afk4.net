@@ -525,6 +525,11 @@ export const OrganizationPermissionNames = {
    * ставит ПК и игры: владелец, управляющий, техник.
    */
   ManageGameLibrary: 'organization.games.manage',
+  /**
+   * Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
+   * управляющего, а не у всей стойки.
+   */
+  ViewReviews: 'organization.reviews.view',
 } as const;
 export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
 
@@ -1661,6 +1666,39 @@ export interface BranchProtectionProfileDto {
   branchId: Guid;
   profile: ProtectionProfileDto;
   updatedAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Отзыв для клуба: кто, за каким ПК и когда — чтобы «мышь липкая» можно было найти на ПК 07,
+ * а не гадать, о каком из тридцати речь.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface BranchReviewDto {
+  reviewId: Guid;
+  playerAccountId: Guid;
+  authorName: string;
+  rating: number;
+  comment: string | null;
+  createdAtUtc: IsoDateTime;
+  sessionId: Guid;
+  seatName: string | null;
+}
+
+/**
+ * Отзывы филиала для Панели: итог по всем оценкам и страница списка.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface BranchReviewsPageDto {
+  /** Пусто — оценок пока нет. Это не ноль звёзд. */
+  rating: number | null;
+  reviewCount: number;
+  /** Сколько оценок на каждую звезду: [1★, 2★, 3★, 4★, 5★]. */
+  countsByRating: number[];
+  items: BranchReviewDto[];
+  /** Следующая страница — отзывы раньше этого времени; null — дальше нет. */
+  nextBefore: IsoDateTime | null;
 }
 
 /**

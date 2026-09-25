@@ -668,7 +668,7 @@ app.MapPlayerLoyaltyEndpoints();
 app.MapPlayerReferralEndpoints();
 app.MapPlayerFeatureEndpoints();
 app.MapPlayerNewsEndpoints();
-app.MapClubReviewEndpoints();
+app.MapClubReviewEndpoints(organizations);
 app.MapPlayerDeviceEndpoints();
 organizations.MapShopOrderEndpoints();
 organizations.MapWalletEndpoints();

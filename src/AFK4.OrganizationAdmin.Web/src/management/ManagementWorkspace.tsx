@@ -24,6 +24,7 @@ import { ProtectionDestination } from './destinations/protection/ProtectionDesti
 import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { GamesDestination } from './destinations/games/GamesDestination';
+import { ReviewsDestination } from './destinations/reviews/ReviewsDestination';
 import { NewsDestination } from './destinations/NewsDestination';
 import { EventsDestination } from './destinations/EventsDestination';
 import { PaymentsLoyaltyDestination } from './destinations/PaymentsLoyaltyDestination';
@@ -162,6 +163,9 @@ export function ManagementWorkspace({
     }
     if (currentId === 'protection') {
       return <ProtectionDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
+    }
+    if (currentId === 'reviews') {
+      return <ReviewsDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
     }
     if (currentId === 'games') {
       return <GamesDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;

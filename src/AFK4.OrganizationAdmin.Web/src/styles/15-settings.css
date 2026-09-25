@@ -323,3 +323,147 @@
   color: var(--text-tertiary);
   font-size: 12px;
 }
+
+/* Управление → Отзывы: итог с разбивкой по звёздам (полоса — отбор) и список. */
+.reviews-screen {
+  display: grid;
+  gap: 14px;
+}
+
+.reviews-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.reviews-average {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.reviews-average strong {
+  color: var(--text-strong);
+  font-size: 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviews-average span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.reviews-bars {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviews-bar {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reviews-bar[aria-pressed='true'],
+.reviews-bar:hover,
+.reviews-bar:focus-visible {
+  border-color: var(--border-accent);
+  outline: none;
+}
+
+.reviews-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviews-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.reviews-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.reviews-bar-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviews-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.reviews-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviews-item header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.reviews-item time {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.reviews-item p {
+  margin: 8px 0 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  white-space: pre-line;
+}
+
+.reviews-item .reviews-no-comment {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.reviews-stars {
+  display: inline-flex;
+  gap: 1px;
+  color: var(--border-strong);
+}
+
+.reviews-stars .is-on {
+  color: var(--accent);
+  fill: currentColor;
+}
+
+.reviews-more {
+  justify-self: center;
+}

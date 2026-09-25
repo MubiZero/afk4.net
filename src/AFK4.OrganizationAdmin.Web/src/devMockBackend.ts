@@ -787,6 +787,13 @@ function groupReservationResult(init?: RequestInit): unknown {
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
 
+const previewReviews = [
+  { reviewId: 'preview-review-1', playerAccountId: 'p1', authorName: 'Азиз К.', rating: 5, comment: 'Мощные ПК, тишина, администратор помог с Steam.', createdAtUtc: '2026-09-24T21:10:00Z', sessionId: 's1', seatName: 'PC-04' },
+  { reviewId: 'preview-review-2', playerAccountId: 'p2', authorName: 'Мадина С.', rating: 4, comment: null, createdAtUtc: '2026-09-24T19:40:00Z', sessionId: 's2', seatName: 'VIP-01' },
+  { reviewId: 'preview-review-3', playerAccountId: 'p3', authorName: 'Гость', rating: 2, comment: 'Мышь на PC-07 липкая, наушники шумят.', createdAtUtc: '2026-09-23T23:05:00Z', sessionId: 's3', seatName: 'PC-07' },
+  { reviewId: 'preview-review-4', playerAccountId: 'p4', authorName: 'Фарход', rating: 5, comment: 'Лучший клуб в районе.', createdAtUtc: '2026-09-22T17:15:00Z', sessionId: 's4', seatName: 'PC-01' }
+];
+
 const previewCatalogGames: CatalogGameDto[] = [
   { catalogGameId: 'preview-catalog-cs2', name: 'Counter-Strike 2', description: null, genre: 'Шутер', minAge: 16, launchKind: 'steam', launchTarget: '730', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
   { catalogGameId: 'preview-catalog-dota', name: 'Dota 2', description: null, genre: 'MOBA', minAge: 12, launchKind: 'steam', launchTarget: '570', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
@@ -1133,6 +1140,15 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/staff/candidates') && method === 'GET') {
     return json(previewStaffCandidates);
+  }
+  // Отзывы в превью: итог, разбивка и отбор по звёздам и тексту.
+  if (/\/branches\/[^/]+\/reviews$/.test(url.pathname) && method === 'GET') {
+    const rating = Number(url.searchParams.get('rating') ?? '0');
+    const withComment = url.searchParams.get('withComment') === 'true';
+    const items = previewReviews.filter((review) => (!rating || review.rating === rating) && (!withComment || Boolean(review.comment)));
+    const counts = [1, 2, 3, 4, 5].map((stars) => previewReviews.filter((review) => review.rating === stars).length);
+    const average = Math.round((previewReviews.reduce((sum, review) => sum + review.rating, 0) / previewReviews.length) * 10) / 10;
+    return json({ rating: average, reviewCount: previewReviews.length, countsByRating: counts, items, nextBefore: null });
   }
   // Библиотека игр в превью: каталог платформы и игры филиала, правки живут до перезагрузки.
   if (url.pathname.endsWith('/game-catalog') && method === 'GET') {
