@@ -60,6 +60,7 @@ public sealed class OrganizationExportParityTests
         ["BranchProtectionProfiles"] = "профиль защиты ПК — настройка, заводится заново",
         ["BranchGames"] = "библиотека игр ПК — настройка, заводится заново",
         ["BranchGameLibraries"] = "версия библиотеки игр — служебный счётчик",
+        ["DeviceHardware"] = "опись железа ПК — снимается агентом заново",
         ["StaffRoleAssignments"] = "роли уходят колонкой roles в staff.csv",
 
         // Производные и служебные данные: считаются из того, что уже выгружено.

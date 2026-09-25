@@ -230,6 +230,15 @@ abstract final class GameLibraryErrorCodeNames {
   static const String libraryFull = 'game_library_full';
 }
 
+/// Словарь: Devices/DeviceHardwareContracts.cs
+abstract final class HardwareComponentNames {
+  static const String cpu = 'cpu';
+  static const String memory = 'memory';
+  static const String gpu = 'gpu';
+  static const String motherboard = 'motherboard';
+  static const String disk = 'disk';
+}
+
 /// Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
 /// текст отказа с сервера — всегда английский: показать его человеку у ПК нельзя, а назвать
 /// причину своими словами по коду — можно.
@@ -437,6 +446,9 @@ abstract final class OrganizationPermissionNames {
   /// Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
   /// управляющего, а не у всей стойки.
   static const String viewReviews = 'organization.reviews.view';
+  /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
+  /// владелец, управляющий, техник.
+  static const String acceptDeviceHardware = 'organization.devices.hardware.accept';
 }
 
 /// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
@@ -5152,6 +5164,80 @@ class DeviceGameLibraryDto {
       };
 }
 
+/// Железо ПК для карточки в Панели: сейчас, принятое и чем они отличаются.
+///
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class DeviceHardwareDto {
+  const DeviceHardwareDto({
+    this.current,
+    this.reportedAtUtc,
+    this.accepted,
+    this.acceptedAtUtc,
+    this.acceptedByName,
+    required this.changes,
+  });
+
+  final HardwareSnapshotDto? current;
+  final DateTime? reportedAtUtc;
+  final HardwareSnapshotDto? accepted;
+  final DateTime? acceptedAtUtc;
+
+  /// Кто принял; null — первый снимок, принятый сам.
+  final String? acceptedByName;
+  final List<HardwareChangeDto> changes;
+
+  factory DeviceHardwareDto.fromJson(Map<String, dynamic> json) => DeviceHardwareDto(
+        current: json['current'] == null ? null : HardwareSnapshotDto.fromJson(json['current'] as Map<String, dynamic>),
+        reportedAtUtc: json['reportedAtUtc'] == null ? null : DateTime.parse(json['reportedAtUtc'] as String),
+        accepted: json['accepted'] == null ? null : HardwareSnapshotDto.fromJson(json['accepted'] as Map<String, dynamic>),
+        acceptedAtUtc: json['acceptedAtUtc'] == null ? null : DateTime.parse(json['acceptedAtUtc'] as String),
+        acceptedByName: json['acceptedByName'] == null ? null : json['acceptedByName'] as String,
+        changes: (json['changes'] as List<dynamic>).map((item) => HardwareChangeDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'current': current?.toJson(),
+        'reportedAtUtc': reportedAtUtc?.toIso8601String(),
+        'accepted': accepted?.toJson(),
+        'acceptedAtUtc': acceptedAtUtc?.toIso8601String(),
+        'acceptedByName': acceptedByName,
+        'changes': changes.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class DeviceHardwareReportRequest {
+  const DeviceHardwareReportRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+    required this.collectedAtUtc,
+    required this.snapshot,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+  final DateTime collectedAtUtc;
+  final HardwareSnapshotDto snapshot;
+
+  factory DeviceHardwareReportRequest.fromJson(Map<String, dynamic> json) => DeviceHardwareReportRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+        collectedAtUtc: DateTime.parse(json['collectedAtUtc'] as String),
+        snapshot: HardwareSnapshotDto.fromJson(json['snapshot'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+        'collectedAtUtc': collectedAtUtc.toIso8601String(),
+        'snapshot': snapshot.toJson(),
+      };
+}
+
 /// Контракт: Devices/DeviceHeartbeatRequest.cs
 class DeviceHeartbeatRequest {
   const DeviceHeartbeatRequest({
@@ -5371,6 +5457,7 @@ class DeviceInventoryItemDto {
     this.displayName,
     this.role,
     this.enrollmentState,
+    this.hardwareChanged,
   });
 
   final String organizationId;
@@ -5395,6 +5482,9 @@ class DeviceInventoryItemDto {
   final String? role;
   final String? enrollmentState;
 
+  /// Железо отличается от принятого — в карточке видно, что поменялось, и кнопка «Принять».
+  final bool? hardwareChanged;
+
   factory DeviceInventoryItemDto.fromJson(Map<String, dynamic> json) => DeviceInventoryItemDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -5417,6 +5507,7 @@ class DeviceInventoryItemDto {
         displayName: json['displayName'] == null ? null : json['displayName'] as String,
         role: json['role'] == null ? null : json['role'] as String,
         enrollmentState: json['enrollmentState'] == null ? null : json['enrollmentState'] as String,
+        hardwareChanged: json['hardwareChanged'] == null ? null : json['hardwareChanged'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -5441,6 +5532,7 @@ class DeviceInventoryItemDto {
         'displayName': displayName,
         'role': role,
         'enrollmentState': enrollmentState,
+        'hardwareChanged': hardwareChanged,
       };
 }
 
@@ -6608,6 +6700,131 @@ class GameplayTimeReportRowDto {
         'startedAtUtc': startedAtUtc?.toIso8601String(),
         'endedAtUtc': endedAtUtc?.toIso8601String(),
         'endsAtUtc': endsAtUtc?.toIso8601String(),
+      };
+}
+
+/// Что в железе отличается от принятого: было → стало.
+///
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwareChangeDto {
+  const HardwareChangeDto({
+    required this.component,
+    this.was,
+    this.now,
+  });
+
+
+  /// Одно из HardwareComponentNames.
+  final String component;
+  final String? was;
+  final String? now;
+
+  factory HardwareChangeDto.fromJson(Map<String, dynamic> json) => HardwareChangeDto(
+        component: json['component'] as String,
+        was: json['was'] == null ? null : json['was'] as String,
+        now: json['now'] == null ? null : json['now'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'component': component,
+        'was': was,
+        'now': now,
+      };
+}
+
+/// <param name="Name">Буква диска: «C:».</param>
+///
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwareDiskDto {
+  const HardwareDiskDto({
+    required this.name,
+    required this.sizeGb,
+  });
+
+  final String name;
+  final int sizeGb;
+
+  factory HardwareDiskDto.fromJson(Map<String, dynamic> json) => HardwareDiskDto(
+        name: json['name'] as String,
+        sizeGb: (json['sizeGb'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'sizeGb': sizeGb,
+      };
+}
+
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwareGpuDto {
+  const HardwareGpuDto({
+    required this.name,
+    this.memoryGb,
+  });
+
+  final String name;
+  final int? memoryGb;
+
+  factory HardwareGpuDto.fromJson(Map<String, dynamic> json) => HardwareGpuDto(
+        name: json['name'] as String,
+        memoryGb: json['memoryGb'] == null ? null : (json['memoryGb'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'memoryGb': memoryGb,
+      };
+}
+
+/// Снимок железа ПК (спека оболочки, P9): что стоит внутри. Сравнивается с принятым — поменяли
+/// видеокарту или вынули планку памяти, и клуб видит это в карточке ПК, а не узнаёт от игрока.
+///
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwareSnapshotDto {
+  const HardwareSnapshotDto({
+    this.cpu,
+    required this.cpuThreads,
+    required this.memoryGb,
+    required this.gpus,
+    this.motherboard,
+    required this.disks,
+    this.os,
+    this.bios,
+  });
+
+  final String? cpu;
+  final int cpuThreads;
+
+  /// Вся память в гигабайтах, округлённо: 15,9 ГБ Windows — это 16 ГБ в корпусе.
+  final int memoryGb;
+  final List<HardwareGpuDto> gpus;
+  final String? motherboard;
+  final List<HardwareDiskDto> disks;
+
+  /// Windows и её сборка — видна, но не считается изменением железа: обновления идут каждый месяц.
+  final String? os;
+  final String? bios;
+
+  factory HardwareSnapshotDto.fromJson(Map<String, dynamic> json) => HardwareSnapshotDto(
+        cpu: json['cpu'] == null ? null : json['cpu'] as String,
+        cpuThreads: (json['cpuThreads'] as num).toInt(),
+        memoryGb: (json['memoryGb'] as num).toInt(),
+        gpus: (json['gpus'] as List<dynamic>).map((item) => HardwareGpuDto.fromJson(item as Map<String, dynamic>)).toList(),
+        motherboard: json['motherboard'] == null ? null : json['motherboard'] as String,
+        disks: (json['disks'] as List<dynamic>).map((item) => HardwareDiskDto.fromJson(item as Map<String, dynamic>)).toList(),
+        os: json['os'] == null ? null : json['os'] as String,
+        bios: json['bios'] == null ? null : json['bios'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'cpu': cpu,
+        'cpuThreads': cpuThreads,
+        'memoryGb': memoryGb,
+        'gpus': gpus.map((item) => item.toJson()).toList(),
+        'motherboard': motherboard,
+        'disks': disks.map((item) => item.toJson()).toList(),
+        'os': os,
+        'bios': bios,
       };
 }
 

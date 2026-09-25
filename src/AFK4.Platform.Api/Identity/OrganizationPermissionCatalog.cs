@@ -73,7 +73,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageNews,
                 OrganizationPermissionNames.ManageTournaments,
                 OrganizationPermissionNames.ManageGameLibrary,
-                OrganizationPermissionNames.ViewReviews
+                OrganizationPermissionNames.ViewReviews,
+                OrganizationPermissionNames.AcceptDeviceHardware
             },
             [OrganizationRoleNames.BranchManager] = new HashSet<string>
             {
@@ -135,7 +136,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageNews,
                 OrganizationPermissionNames.ManageTournaments,
                 OrganizationPermissionNames.ManageGameLibrary,
-                OrganizationPermissionNames.ViewReviews
+                OrganizationPermissionNames.ViewReviews,
+                OrganizationPermissionNames.AcceptDeviceHardware
             },
             [OrganizationRoleNames.ShiftSupervisor] = new HashSet<string>
             {
@@ -221,6 +223,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewDeviceDetail,
                 OrganizationPermissionNames.InstallDevice,
                 OrganizationPermissionNames.ManageGameLibrary,
+                OrganizationPermissionNames.AcceptDeviceHardware,
                 OrganizationPermissionNames.ViewFloorMap,
                 OrganizationPermissionNames.ViewInventory,
                 OrganizationPermissionNames.ViewUpdateStatus,

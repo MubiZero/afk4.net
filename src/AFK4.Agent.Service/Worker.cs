@@ -36,7 +36,8 @@ public sealed class Worker(
     IPlayerSignIn? playerSignIn = null,
     IProtectionEnforcer? protection = null,
     IGameLibrarySync? games = null,
-    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null) : BackgroundService
+    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null,
+    AFK4.Agent.Service.Hardware.IHardwareReporter? hardware = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -154,6 +155,8 @@ public sealed class Worker(
                 await TryGamesAsync(() => games!.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
                 // Простой — по профилю, который только что сверили.
                 idleShutdown?.Check();
+                // Железо — раз в несколько часов; своё расписание у отправителя.
+                await TryGamesAsync(() => hardware?.ReportIfDueAsync(cancellationToken) ?? Task.CompletedTask, cancellationToken);
 
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)

@@ -216,6 +216,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchGameLibraryEntity> BranchGameLibraries => Set<BranchGameLibraryEntity>();
 
+    public DbSet<DeviceHardwareEntity> DeviceHardware => Set<DeviceHardwareEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -1611,6 +1613,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(game => new { game.BranchId, game.SortOrder });
             entity.HasIndex(game => game.CatalogGameId);
             entity.HasIndex(game => game.OrganizationId);
+        });
+
+        modelBuilder.Entity<DeviceHardwareEntity>(entity =>
+        {
+            entity.ToTable("device_hardware");
+            entity.HasKey(hardware => hardware.DeviceId);
+            entity.Property(hardware => hardware.CurrentJson).IsRequired();
+            entity.Property(hardware => hardware.AcceptedJson).IsRequired();
+            entity.Property(hardware => hardware.CurrentFingerprint).HasMaxLength(2000).IsRequired();
+            entity.Property(hardware => hardware.AcceptedFingerprint).HasMaxLength(2000).IsRequired();
+            entity.Property(hardware => hardware.AcceptedByName).HasMaxLength(200);
+            entity.HasIndex(hardware => new { hardware.OrganizationId, hardware.BranchId });
         });
 
         modelBuilder.Entity<BranchGameLibraryEntity>(entity =>

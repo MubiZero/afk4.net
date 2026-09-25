@@ -467,3 +467,46 @@
 .reviews-more {
   justify-self: center;
 }
+
+/* Карточка ПК → Железо: что поменялось — зачёркнутое было и жирное стало. */
+.device-hardware {
+  display: grid;
+  gap: 10px;
+}
+
+.device-hardware-changes {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+}
+
+.device-hardware-changes ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.device-hardware-changes li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.device-hardware-changes li span {
+  color: var(--text-tertiary);
+}
+
+.device-hardware-changes li s {
+  color: var(--text-tertiary);
+}
+
+.device-hardware-changes .ui-btn {
+  justify-self: start;
+}

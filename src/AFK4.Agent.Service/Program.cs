@@ -131,6 +131,18 @@ builder.Services.AddSingleton<ILauncherCatalog>(services => services.GetRequired
 builder.Services.AddSingleton<IGameLibrarySync>(services => services.GetRequiredService<GameLibraryService>());
 builder.Services.AddSingleton<ISessionAutostart, SessionAutostart>();
 
+// Опись железа ПК (P9): реестр и системные вызовы, без WMI.
+if (OperatingSystem.IsWindows())
+{
+    builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHardwareSnapshotCollector, AFK4.Agent.Service.Hardware.WindowsHardwareSnapshotCollector>();
+}
+else
+{
+    builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHardwareSnapshotCollector, AFK4.Agent.Service.Hardware.UnsupportedHardwareSnapshotCollector>();
+}
+
+builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHardwareReporter, AFK4.Agent.Service.Hardware.HardwareReporter>();
+
 // Выключение свободного ПК после простоя (настройки ПК клуба).
 builder.Services.AddSingleton<AFK4.Agent.Service.Power.IPlayerPresence, AFK4.Agent.Service.Power.PlayerPresence>();
 builder.Services.AddSingleton<AFK4.Agent.Service.Power.IIdleShutdownMonitor, AFK4.Agent.Service.Power.IdleShutdownMonitor>();

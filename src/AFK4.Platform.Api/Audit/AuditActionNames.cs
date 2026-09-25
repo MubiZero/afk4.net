@@ -305,6 +305,9 @@ public static class AuditActionNames
 
     public const string ReorderBranchGames = "games.library.reorder";
 
+    /// <summary>Новое железо ПК принято как норма.</summary>
+    public const string AcceptDeviceHardware = "devices.hardware.accept";
+
     public const string ViewBranchSettings = "branches.settings.view";
 
     public const string UpdateBranchSettings = "branches.settings.update";

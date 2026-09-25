@@ -169,4 +169,8 @@ public static class OrganizationPermissionNames
     /// Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
     /// управляющего, а не у всей стойки.
     public const string ViewReviews = "organization.reviews.view";
+
+    /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
+    /// владелец, управляющий, техник.
+    public const string AcceptDeviceHardware = "organization.devices.hardware.accept";
 }

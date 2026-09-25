@@ -787,6 +787,8 @@ function groupReservationResult(init?: RequestInit): unknown {
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
 
+let previewHardwareAccepted = false;
+
 const previewReviews = [
   { reviewId: 'preview-review-1', playerAccountId: 'p1', authorName: 'Азиз К.', rating: 5, comment: 'Мощные ПК, тишина, администратор помог с Steam.', createdAtUtc: '2026-09-24T21:10:00Z', sessionId: 's1', seatName: 'PC-04' },
   { reviewId: 'preview-review-2', playerAccountId: 'p2', authorName: 'Мадина С.', rating: 4, comment: null, createdAtUtc: '2026-09-24T19:40:00Z', sessionId: 's2', seatName: 'VIP-01' },
@@ -1140,6 +1142,24 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/staff/candidates') && method === 'GET') {
     return json(previewStaffCandidates);
+  }
+  // Железо в превью: у первого ПК поменяли видеокарту — видно «было → стало».
+  const hardwareMatch = url.pathname.match(/\/devices\/[^/]+\/hardware(\/accept)?$/);
+  if (hardwareMatch) {
+    const snapshot = (gpu: string) => ({
+      cpu: 'AMD Ryzen 5 5600X 6-Core Processor', cpuThreads: 12, memoryGb: 16, gpus: [{ name: gpu, memoryGb: 12 }],
+      motherboard: 'ASUSTeK PRIME B550M-A', disks: [{ name: 'C:', sizeGb: 500 }, { name: 'D:', sizeGb: 1000 }],
+      os: 'Windows 11 Pro 23H2 build 22631', bios: 'American Megatrends 2803'
+    });
+    if (hardwareMatch[1] || previewHardwareAccepted) {
+      previewHardwareAccepted = true;
+      return json({ current: snapshot('NVIDIA GeForce RTX 4060'), reportedAtUtc: '2026-09-25T09:00:00Z', accepted: snapshot('NVIDIA GeForce RTX 4060'), acceptedAtUtc: new Date().toISOString(), acceptedByName: 'Администратор смены', changes: [] });
+    }
+    return json({
+      current: snapshot('NVIDIA GeForce RTX 4060'), reportedAtUtc: '2026-09-25T09:00:00Z',
+      accepted: snapshot('NVIDIA GeForce RTX 3060'), acceptedAtUtc: '2026-09-01T09:00:00Z', acceptedByName: null,
+      changes: [{ component: 'gpu', was: 'NVIDIA GeForce RTX 3060 12 GB', now: 'NVIDIA GeForce RTX 4060 12 GB' }]
+    });
   }
   // Отзывы в превью: итог, разбивка и отбор по звёздам и тексту.
   if (/\/branches\/[^/]+\/reviews$/.test(url.pathname) && method === 'GET') {

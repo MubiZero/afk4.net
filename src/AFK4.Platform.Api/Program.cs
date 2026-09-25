@@ -646,6 +646,7 @@ organizations.MapBranchSettingsEndpoints();
 app.MapProtectionProfileEndpoints(organizations);
 app.MapInstallCodeEndpoints(organizations);
 app.MapGameLibraryEndpoints(organizations);
+app.MapDeviceHardwareEndpoints(organizations);
 organizations.MapMediaEndpoints();
 app.MapAuthEndpoints(organizations);
 organizations.MapEskhataConfigEndpoints();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { KeyRound, Lock, MonitorSmartphone, Unlock, Wifi, WifiOff } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
@@ -6,6 +6,7 @@ import { SkeletonTable } from '../../../LoadingSkeleton';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
 import { DeviceProtectionReport } from './DeviceProtectionReport';
+import { DeviceHardwareSection } from './DeviceHardwareSection';
 import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
 import { CriticalActionConfirmation, EmptyState, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
@@ -110,6 +111,11 @@ export function DevicesTab({
   const [busy, setBusy] = useState(false);
 
   const selectedDevice = deviceInventory.find((device) => readString(device, 'deviceId') === selectedDeviceId) ?? null;
+  // Один набор клиентов на сессию: раздел «Железо» грузится заново только при смене ПК.
+  const hardwareClients = useMemo(
+    () => (backend ? createAuthenticatedOperatorClients(backend.config, backend.session) : null),
+    [backend?.config, backend?.session]
+  );
 
   const loadDeviceCard = async (deviceId: string) => {
     const label = t('op.settings.action.openDeviceCard');
@@ -370,6 +376,7 @@ export function DevicesTab({
                     <span aria-hidden="true">·</span>
                     {locked ? <Lock size={13} aria-hidden="true" /> : <Unlock size={13} aria-hidden="true" />}
                     {locked ? t('op.settings.devices.locked') : t('op.settings.devices.unlocked')}
+                    {device.hardwareChanged && <span className="ui-chip ui-chip--status ui-chip--xs is-warning">{t('op.hardware.changedChip')}</span>}
                   </span>
                 );
               }
@@ -434,6 +441,18 @@ export function DevicesTab({
               <div className="mgmt-drawer-section">
                 <div className="mgmt-section-title"><span>{t('op.settings.devices.protectionReport')}</span></div>
                 <DeviceProtectionReport report={deviceDetail.protectionReport} branchVersion={deviceDetail.branchProtectionVersion ?? 0} />
+              </div>
+            )}
+
+            {canViewDeviceDetail && (
+              <div className="mgmt-drawer-section">
+                <div className="mgmt-section-title"><span>{t('op.hardware.title')}</span></div>
+                <DeviceHardwareSection
+                  clients={hardwareClients}
+                  deviceId={readString(selectedDevice, 'deviceId')}
+                  canAccept={hasPermission(backend?.session ?? null, permissionNames.acceptDeviceHardware)}
+                  onAccepted={() => { if (backend) void onReload(backend); }}
+                />
               </div>
             )}
 

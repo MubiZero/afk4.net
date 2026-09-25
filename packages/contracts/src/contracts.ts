@@ -285,6 +285,16 @@ export const GameLibraryErrorCodeNames = {
 } as const;
 export type GameLibraryErrorCodeName = (typeof GameLibraryErrorCodeNames)[keyof typeof GameLibraryErrorCodeNames];
 
+/** Словарь: Devices/DeviceHardwareContracts.cs */
+export const HardwareComponentNames = {
+  Cpu: 'cpu',
+  Memory: 'memory',
+  Gpu: 'gpu',
+  Motherboard: 'motherboard',
+  Disk: 'disk',
+} as const;
+export type HardwareComponentName = (typeof HardwareComponentNames)[keyof typeof HardwareComponentNames];
+
 /**
  * Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
  * текст отказа с сервера — всегда английский: показать его человеку у ПК нельзя, а назвать
@@ -530,6 +540,11 @@ export const OrganizationPermissionNames = {
    * управляющего, а не у всей стойки.
    */
   ViewReviews: 'organization.reviews.view',
+  /**
+   * Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
+   * владелец, управляющий, техник.
+   */
+  AcceptDeviceHardware: 'organization.devices.hardware.accept',
 } as const;
 export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
 
@@ -2675,6 +2690,30 @@ export interface DeviceGameLibraryDto {
   games: DeviceGameDto[];
 }
 
+/**
+ * Железо ПК для карточки в Панели: сейчас, принятое и чем они отличаются.
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface DeviceHardwareDto {
+  current: HardwareSnapshotDto | null;
+  reportedAtUtc: IsoDateTime | null;
+  accepted: HardwareSnapshotDto | null;
+  acceptedAtUtc: IsoDateTime | null;
+  /** Кто принял; null — первый снимок, принятый сам. */
+  acceptedByName: string | null;
+  changes: HardwareChangeDto[];
+}
+
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface DeviceHardwareReportRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  collectedAtUtc: IsoDateTime;
+  snapshot: HardwareSnapshotDto;
+}
+
 /** Контракт: Devices/DeviceHeartbeatRequest.cs */
 export interface DeviceHeartbeatRequest {
   organizationId: Guid;
@@ -2785,6 +2824,8 @@ export interface DeviceInventoryItemDto {
   displayName?: string;
   role?: string;
   enrollmentState?: string;
+  /** Железо отличается от принятого — в карточке видно, что поменялось, и кнопка «Принять». */
+  hardwareChanged?: boolean;
 }
 
 /**
@@ -3173,6 +3214,53 @@ export interface GameplayTimeReportRowDto {
   startedAtUtc: IsoDateTime | null;
   endedAtUtc: IsoDateTime | null;
   endsAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Что в железе отличается от принятого: было → стало.
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface HardwareChangeDto {
+  /** Одно из HardwareComponentNames. */
+  component: HardwareComponentName;
+  was: string | null;
+  now: string | null;
+}
+
+/**
+ * <param name="Name">Буква диска: «C:».</param>
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface HardwareDiskDto {
+  name: string;
+  sizeGb: number;
+}
+
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface HardwareGpuDto {
+  name: string;
+  memoryGb: number | null;
+}
+
+/**
+ * Снимок железа ПК (спека оболочки, P9): что стоит внутри. Сравнивается с принятым — поменяли
+ * видеокарту или вынули планку памяти, и клуб видит это в карточке ПК, а не узнаёт от игрока.
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface HardwareSnapshotDto {
+  cpu: string | null;
+  cpuThreads: number;
+  /** Вся память в гигабайтах, округлённо: 15,9 ГБ Windows — это 16 ГБ в корпусе. */
+  memoryGb: number;
+  gpus: HardwareGpuDto[];
+  motherboard: string | null;
+  disks: HardwareDiskDto[];
+  /** Windows и её сборка — видна, но не считается изменением железа: обновления идут каждый месяц. */
+  os: string | null;
+  bios: string | null;
 }
 
 /** Контракт: Platform/Health/PlatformHealthContracts.cs */

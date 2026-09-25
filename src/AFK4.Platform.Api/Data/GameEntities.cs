@@ -83,3 +83,4 @@ public sealed class BranchGameLibraryEntity
 
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }
+
