@@ -153,7 +153,15 @@ export function SignInScreen({
     if (step.kind !== 'pin') return;
     const via = step.via;
     void run(
-      () => (via === 'phone' ? actions.signInByPhone(phoneNumber, pin) : actions.signInByLogin(trimmedLogin, pin)),
+      async () => {
+        if (via === 'phone') {
+          await actions.signInByPhone(phoneNumber, pin);
+        } else {
+          await actions.signInByLogin(trimmedLogin, pin);
+          // Логин нашёлся в нескольких клубах — впереди выбор клуба; вернувшийся оттуда видит пустые клетки.
+          setDigits('');
+        }
+      },
       (cause) => failPin(projectPinSignInError(cause, via, t))
     );
   };

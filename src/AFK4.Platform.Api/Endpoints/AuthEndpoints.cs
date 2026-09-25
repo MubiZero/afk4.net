@@ -509,7 +509,7 @@ internal static class AuthEndpoints
                 && responseOrganizationId != organizationId
                     ? Results.StatusCode(StatusCodes.Status403Forbidden)
                     : SignInResult(outcome);
-        }).RequireRateLimiting("staff-sign-in");
+        });
 
         organizations.MapPost("account/phone/start-verification", async (
             StaffPhoneStartVerificationRequest request,

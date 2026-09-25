@@ -768,7 +768,7 @@
   "op.auth.newPin.title": "Create a PIN",
   "op.auth.next": "Next",
   "op.auth.operator": "Admin",
-  "op.auth.phone.unknown": "This number isn't registered at any club. Ask your manager to add you: Management → Staff and roles.",
+  "op.auth.phone.unknown": "This number isn't registered at any club. Staff are added by the manager: Management → Staff and roles. If your account has no number, sign in with login or email — the link is below.",
   "op.auth.pin.title": "Enter your PIN",
   "op.auth.repeatPin.hint": "The same digits once more, to be sure.",
   "op.auth.repeatPin.mismatch": "The PINs didn't match. Create one again.",
