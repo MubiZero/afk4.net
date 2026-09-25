@@ -30,7 +30,9 @@ public sealed record ShowcaseCardDto(
     // Начало турнира.
     DateTimeOffset? StartsAtUtc = null,
     // Строки карточки «Пакеты».
-    IReadOnlyList<ShowcasePackageLineDto>? Packages = null);
+    IReadOnlyList<ShowcasePackageLineDto>? Packages = null,
+    // Рекламодатель — только у рекламы: экран пишет «Реклама · {рекламодатель}».
+    string? Advertiser = null);
 
 public sealed record ShowcasePackageLineDto(string Name, MoneyDto Price, int Minutes);
 
@@ -47,6 +49,9 @@ public static class ShowcaseCardKindNames
     public const string Packages = "packages";
 
     public const string BarHit = "bar_hit";
+
+    /// <summary>Реклама платформы: только на свободном ПК и с меткой «Реклама · рекламодатель».</summary>
+    public const string Ad = "ad";
 }
 
 public static class ShowcaseLimits
@@ -70,6 +75,11 @@ public static class ShowcaseLimits
 
     // Одна продажа за месяц — не хит, а случайность.
     public const int BarHitMinimumUnits = 3;
+
+    // Реклама — после каждых двух карточек клуба; без карточек клуба — не больше трёх.
+    public const int ClubCardsPerAd = 2;
+
+    public const int MaxAdsWithoutClubCards = 3;
 }
 
 public static class ShowcaseRoutes

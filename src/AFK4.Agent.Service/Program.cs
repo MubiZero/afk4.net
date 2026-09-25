@@ -140,6 +140,9 @@ builder.Services.AddSingleton<IShowcaseImageCache>(services => new FileShowcaseI
 builder.Services.AddSingleton<ShowcaseService>();
 builder.Services.AddSingleton<IShowcaseSource>(services => services.GetRequiredService<ShowcaseService>());
 builder.Services.AddSingleton<IShowcaseSync>(services => services.GetRequiredService<ShowcaseService>());
+builder.Services.AddSingleton<IShowcaseImpressionStore, FileShowcaseImpressionStore>();
+builder.Services.AddSingleton<IShowcaseImpressionClient, HttpShowcaseImpressionClient>();
+builder.Services.AddSingleton<IShowcaseImpressions, ShowcaseImpressions>();
 builder.Services.AddSingleton<ISessionAutostart, SessionAutostart>();
 
 // Опись железа ПК (P9): реестр и системные вызовы, без WMI.

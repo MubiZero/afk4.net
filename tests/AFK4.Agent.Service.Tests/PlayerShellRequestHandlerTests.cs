@@ -163,6 +163,32 @@ public sealed class PlayerShellRequestHandlerTests
         Assert.Equal(ShellPipeErrorCodeNames.PlatformUnreachable, reply.ErrorCode);
     }
 
+    // Показ рекламы на ПК, за которым играют, не считается: там её быть не должно.
+    [Fact]
+    public async Task AnImpression_IsCountedOnlyOnAFreePc()
+    {
+        var impressions = new RecordingImpressions();
+        var free = CreateHandler("x.exe", new RecordingProcessLauncher(), Locked(), impressions: impressions);
+        var busy = CreateHandler("x.exe", new RecordingProcessLauncher(), SessionRunning(), impressions: impressions);
+        var request = new ShellPipeRequestDto(Guid.NewGuid(), ShellPipeRequestTypeNames.ShowcaseImpression,
+            new Dictionary<string, string> { ["cardId"] = "ad:1", ["shownMs"] = "9000" });
+
+        Assert.True((await free.HandleAsync(request, CancellationToken.None)).Ok);
+        Assert.True((await busy.HandleAsync(request, CancellationToken.None)).Ok);
+        Assert.False((await free.HandleAsync(Request(ShellPipeRequestTypeNames.ShowcaseImpression), CancellationToken.None)).Ok);
+
+        Assert.Equal([("ad:1", 9000L)], impressions.Recorded);
+    }
+
+    private sealed class RecordingImpressions : AFK4.Agent.Service.Showcase.IShowcaseImpressions
+    {
+        public List<(string CardId, long ShownMs)> Recorded { get; } = [];
+
+        public void Record(string cardId, long shownMs) => Recorded.Add((cardId, shownMs));
+
+        public Task FlushIfDueAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
     [Fact]
     public async Task EnforceAsync_TerminatesConfiguredDeniedProcesses()
     {
@@ -187,7 +213,8 @@ public sealed class PlayerShellRequestHandlerTests
         IProcessLauncher processLauncher,
         IAgentRuntimeStateStore runtimeState,
         bool allowWithoutSession = false,
-        IAssistanceRequestReporter? assistance = null)
+        IAssistanceRequestReporter? assistance = null,
+        AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null)
     {
         var enforcer = new ProcessPolicyEnforcer(
             Options.Create(new AgentOptions
@@ -214,7 +241,8 @@ public sealed class PlayerShellRequestHandlerTests
             runtimeState,
             assistance ?? new RecordingAssistanceReporter(),
             TimeProvider.System,
-            NullLogger<PlayerShellRequestHandler>.Instance);
+            NullLogger<PlayerShellRequestHandler>.Instance,
+            impressions: impressions);
     }
 
     private static IAgentRuntimeStateStore Locked() =>

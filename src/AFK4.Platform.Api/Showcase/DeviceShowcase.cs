@@ -1,9 +1,12 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using AFK4.Platform.Api.Ads;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Platform.Features;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Showcase;
 using AFK4.Shared.Contracts.Tournaments;
@@ -14,12 +17,14 @@ namespace AFK4.Platform.Api.Showcase;
 
 /// <summary>
 /// Витрина свободного ПК (спека оболочки, §5.7): новости с отметкой «на экране ПК», выделенные
-/// тарифы и товары, автокарточки — ближайший турнир, пакеты, хит бара. Модуль только читает чужие
-/// таблицы; своих у витрины нет — отметки живут у самих записей.
+/// тарифы и товары, автокарточки — ближайший турнир, пакеты, хит бара; у бесплатного тарифа —
+/// реклама платформы каждой третьей. Модуль только читает чужие таблицы; своих у витрины нет —
+/// отметки живут у самих записей.
 /// </summary>
 public sealed class DeviceShowcase(
     PlatformDbContext db,
     IOperatorReferenceDataService referenceData,
+    IOrganizationFeatureSnapshot features,
     IMemoryCache cache,
     TimeProvider clock)
 {
@@ -134,7 +139,15 @@ public sealed class DeviceShowcase(
             cards.Add(hit);
         }
 
-        return new DeviceShowcaseDto(cards.Take(ShowcaseLimits.MaxCards).ToList());
+        var club = cards.Take(ShowcaseLimits.MaxCards).ToList();
+        // Реклама платформы — только у клуба с platform_ads (бесплатный тариф), каждой третьей.
+        if (!(await features.GetEnabledAsync(organizationId, ct)).Contains(PlatformFeatureNames.PlatformAds))
+        {
+            return new DeviceShowcaseDto(club);
+        }
+
+        var ads = await PlatformAds.CardsForBranchAsync(db, organizationId, branchId, now, ct);
+        return new DeviceShowcaseDto(PlatformAds.Interleave(club, ads));
     }
 
     /// <summary>

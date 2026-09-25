@@ -4123,6 +4123,7 @@ export const tg = {
   "playerShell.showcase.durationMinutes": "{minutes} дақ",
   "playerShell.showcase.entryFee": "Ҳаққи иштирок {price}",
   "playerShell.showcase.entryFree": "Иштирок ройгон",
+  "playerShell.showcase.kind.ad": "Реклама",
   "playerShell.showcase.kind.barHit": "Маъмултарин дар бар",
   "playerShell.showcase.kind.news": "Хабарҳои клуб",
   "playerShell.showcase.kind.product": "Дар бар",

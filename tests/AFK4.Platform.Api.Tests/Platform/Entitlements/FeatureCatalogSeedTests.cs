@@ -31,8 +31,9 @@ public sealed class FeatureCatalogSeedTests
 
         Assert.Equal(PlatformFeatureNames.All.Count, features.Count);
         Assert.All(PlatformFeatureNames.All, key => Assert.Contains(features, feature => feature.FeatureKey == key));
-        // Сегодняшнее поведение не меняется: всё, что работало, продолжает работать у всех.
-        Assert.All(features, feature => Assert.True(feature.EnabledByDefault));
+        // Сегодняшнее поведение не меняется: всё, что работало, продолжает работать у всех. Реклама
+        // платформы — новое и выключена, пока её не включит бесплатный тариф.
+        Assert.All(features, feature => Assert.Equal(feature.FeatureKey != PlatformFeatureNames.PlatformAds, feature.EnabledByDefault));
     }
 
     [Fact]

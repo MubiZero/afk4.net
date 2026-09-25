@@ -16,7 +16,8 @@ const KIND_LABEL: Partial<Record<string, MessageKey>> = {
   [ShowcaseCardKindNames.Tariff]: 'playerShell.showcase.kind.tariff',
   [ShowcaseCardKindNames.Product]: 'playerShell.showcase.kind.product',
   [ShowcaseCardKindNames.BarHit]: 'playerShell.showcase.kind.barHit',
-  [ShowcaseCardKindNames.Tournament]: 'playerShell.showcase.kind.tournament'
+  [ShowcaseCardKindNames.Tournament]: 'playerShell.showcase.kind.tournament',
+  [ShowcaseCardKindNames.Ad]: 'playerShell.showcase.kind.ad'
 };
 
 /**
@@ -28,11 +29,14 @@ const KIND_LABEL: Partial<Record<string, MessageKey>> = {
 export function ShowcaseCarousel({
   cards,
   paused,
-  slideMs = SHOWCASE_SLIDE_MS
+  slideMs = SHOWCASE_SLIDE_MS,
+  onShown
 }: {
   cards: readonly ShowcaseCardDto[];
   paused: boolean;
   slideMs?: number;
+  // Карточка ушла с экрана (или экран сменился) — сколько она простояла. Счёт ведёт агент.
+  onShown?: (card: ShowcaseCardDto, shownMs: number) => void;
 }) {
   const [currentId, setCurrentId] = useState<string | null>(cards[0]?.cardId ?? null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
@@ -65,6 +69,18 @@ export function ShowcaseCarousel({
     return () => clearTimeout(timer);
   }, [leavingId]);
 
+  // Сколько карточка простояла — от её появления до ухода или до смены экрана.
+  const onShownRef = useRef(onShown);
+  onShownRef.current = onShown;
+  useEffect(() => {
+    if (current === null) return undefined;
+    const card = current;
+    const shownSince = performance.now();
+    return () => onShownRef.current?.(card, Math.round(performance.now() - shownSince));
+    // Только смена карточки: новый объект той же карточки из следующего пульса — не новый показ.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.cardId]);
+
   const nextImage = cards.length > 1 ? cards[(index + 1) % cards.length]?.imageUrl : null;
   useEffect(() => {
     if (!nextImage) return;
@@ -96,7 +112,7 @@ function ShowcaseSlide({ card, state }: { card: ShowcaseCardDto; state: 'current
     <article className={`showcase-slide showcase-slide--${state}${card.imageUrl ? ' showcase-slide--image' : ''}`} aria-hidden={state === 'leaving' || undefined}>
       {card.imageUrl ? <img className="showcase-slide__image" src={card.imageUrl} alt="" decoding="async" /> : null}
       <div className="showcase-slide__text">
-        {kind ? <p className="showcase-slide__kind">{card.subtitle ? `${kind} · ${card.subtitle}` : kind}</p> : null}
+        {kind ? <p className="showcase-slide__kind">{kindLine(kind, card)}</p> : null}
         <h2 className="showcase-slide__title">{title}</h2>
         {card.body ? <p className="showcase-slide__body">{card.body}</p> : null}
         {card.packages && card.packages.length > 0 ? (
@@ -114,6 +130,12 @@ function ShowcaseSlide({ card, state }: { card: ShowcaseCardDto; state: 'current
       </div>
     </article>
   );
+}
+
+// «Турнир · Dota 2», «Реклама · Сомон Телеком»: у рекламы рядом с меткой всегда рекламодатель (PRD).
+function kindLine(kind: string, card: ShowcaseCardDto): string {
+  const detail = card.kind === ShowcaseCardKindNames.Ad ? card.advertiser : card.subtitle;
+  return detail ? `${kind} · ${detail}` : kind;
 }
 
 function SlideFacts({ card, money, intlLocale }: { card: ShowcaseCardDto; money: (value: MoneyDto) => string; intlLocale: string }) {

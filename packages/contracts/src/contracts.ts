@@ -16,6 +16,43 @@ export type IsoTime = string;
 /** Длительность, ISO-8601: `PT2H30M`. */
 export type IsoDuration = string;
 
+/** Словарь: Ads/AdContracts.cs */
+export const AdCampaignStateNames = {
+  Draft: 'draft',
+  /** Идёт в своих датах, если у неё есть одобренный креатив. */
+  Active: 'active',
+  Paused: 'paused',
+} as const;
+export type AdCampaignStateName = (typeof AdCampaignStateNames)[keyof typeof AdCampaignStateNames];
+
+/** Словарь: Ads/AdContracts.cs */
+export const AdCategoryNames = {
+  Food: 'food',
+  Electronics: 'electronics',
+  Games: 'games',
+  Education: 'education',
+  Services: 'services',
+  Telecom: 'telecom',
+  Other: 'other',
+} as const;
+export type AdCategoryName = (typeof AdCategoryNames)[keyof typeof AdCategoryNames];
+
+/** Словарь: Ads/AdContracts.cs */
+export const AdErrorCodeNames = {
+  Invalid: 'ad_invalid',
+  NotApproved: 'ad_campaign_without_approved_creative',
+  ConfirmationRequired: 'ad_moderation_confirmation_required',
+} as const;
+export type AdErrorCodeName = (typeof AdErrorCodeNames)[keyof typeof AdErrorCodeNames];
+
+/** Словарь: Ads/AdContracts.cs */
+export const AdModerationNames = {
+  Pending: 'pending',
+  Approved: 'approved',
+  Rejected: 'rejected',
+} as const;
+export type AdModerationName = (typeof AdModerationNames)[keyof typeof AdModerationNames];
+
 /** Словарь: Platform/Billing/BillingIntervalNames.cs */
 export const BillingIntervalNames = {
   Monthly: 'monthly',
@@ -635,6 +672,11 @@ export const PlatformAdminPermissionNames = {
   /** Каталог игр, из которого клубы собирают библиотеку ПК (спека оболочки, §6.6). */
   ManageGameCatalog: 'platform.games.manage',
   /**
+   * Реклама платформы в витрине ПК: рекламодатели, кампании, модерация креативов, отчёт
+   * показов. Модерация — внутри этого же права: команда платформы маленькая.
+   */
+  ManageAds: 'platform.ads.manage',
+  /**
    * Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
    * вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
    * право здесь значит раздать необратимое тем, кому дали настраивать.
@@ -713,6 +755,8 @@ export const PlatformFeatureNames = {
   OnlineTopUp: 'online_topup',
   PlayerShop: 'player_shop',
   Tournaments: 'tournaments',
+  /** Реклама платформы в витрине свободного ПК. Её включает бесплатный тариф. */
+  PlatformAds: 'platform_ads',
 } as const;
 export type PlatformFeatureName = (typeof PlatformFeatureNames)[keyof typeof PlatformFeatureNames];
 
@@ -1087,6 +1131,10 @@ export const ShellBridgeRequestTypeNames = {
   SystemSetLayout: 'system.setLayout',
   /** Язык интерфейса выбран на экране: хост запоминает его до выхода игрока. */
   UiSetLocale: 'ui.setLocale',
+  /**
+   * Рекламная карточка витрины ушла с экрана — ShellShowcaseImpressionDto. Хост передаёт агенту,
+   * тот копит суммы и отправляет пачками; карточки клуба не считаются.
+   */
   ShowcaseImpression: 'showcase.impression',
   /** Кнопка «Вернуть в зал» на полосе обслуживания. */
   MaintenanceReturn: 'maintenance.return',
@@ -1171,6 +1219,11 @@ export const ShellPipeRequestTypeNames = {
    * выключает простаивающий ПК под рукой человека и отменяет уже назначенное выключение. Тело пустое.
    */
   Activity: 'activity',
+  /**
+   * Рекламная карточка витрины отстояла на экране. В теле — `cardId` и `shownMs`.
+   * Агент считает только рекламу и только на свободном ПК.
+   */
+  ShowcaseImpression: 'showcase.impression',
 } as const;
 export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
 
@@ -1223,6 +1276,8 @@ export const ShowcaseCardKindNames = {
   Tournament: 'tournament',
   Packages: 'packages',
   BarHit: 'bar_hit',
+  /** Реклама платформы: только на свободном ПК и с меткой «Реклама · рекламодатель». */
+  Ad: 'ad',
 } as const;
 export type ShowcaseCardKindName = (typeof ShowcaseCardKindNames)[keyof typeof ShowcaseCardKindNames];
 
@@ -1455,11 +1510,79 @@ export interface ActiveSessionDto {
   zoneName?: string | null;
 }
 
+/** Контракт: Ads/AdContracts.cs */
+export interface AdCampaignDto {
+  campaignId: Guid;
+  advertiserId: Guid;
+  advertiserName: string;
+  name: string;
+  /** Одно из AdCategoryNames */
+  category: AdCategoryName;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  /** Пусто — все города. */
+  cities: string[];
+  /** Пусто — все клубы. */
+  organizationIds: Guid[];
+  /** Одно из AdCampaignStateNames */
+  state: AdCampaignStateName;
+  creatives: AdCreativeDto[];
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface AdCreativeDto {
+  creativeId: Guid;
+  campaignId: Guid;
+  title: string;
+  body: string | null;
+  imageUrl: string | null;
+  /** Одно из AdModerationNames */
+  moderation: AdModerationName;
+  rejectedReason: string | null;
+  moderatedAtUtc: IsoDateTime | null;
+  createdAtUtc: IsoDateTime;
+}
+
 /** Контракт: Inventory/AddProductBarcodeRequest.cs */
 export interface AddProductBarcodeRequest {
   organizationId: Guid;
   code: string;
   isPrimary?: boolean;
+}
+
+/**
+ * Строка отчёта показов: креатив в филиале за день. Игрока в строке нет и быть не может.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface AdImpressionRowDto {
+  day: string;
+  campaignId: Guid;
+  campaignName: string;
+  creativeId: Guid;
+  creativeTitle: string;
+  organizationId: Guid;
+  organizationName: string;
+  branchId: Guid;
+  branchName: string;
+  city: string;
+  impressions: number;
+  shownSeconds: number;
+}
+
+/**
+ * Реклама платформы в витрине свободного ПК (спека `2026-09-25-platform-ads-design.md`). Продаёт
+ * её AFK4, показывается она только клубам с фичей `platform_ads` — это бесплатный тариф.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface AdvertiserDto {
+  advertiserId: Guid;
+  name: string;
+  contact: string;
+  createdAtUtc: IsoDateTime;
 }
 
 /**
@@ -2980,6 +3103,20 @@ export interface DeviceShowcaseDto {
   cards: ShowcaseCardDto[];
 }
 
+/**
+ * Пачка показов с ПК: суммы по карточке за день.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface DeviceShowcaseImpressionsRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  /** Ключ пачки: повтор той же пачки после обрыва связи не удваивает счёт. */
+  batchId: string;
+  items: ShowcaseImpressionDto[];
+}
+
 /** Контракт: Devices/DeviceStateChangeRequest.cs */
 export interface DeviceStateChangeRequest {
   organizationId: Guid;
@@ -3604,6 +3741,18 @@ export interface MePersonDto {
    * приложения — и он идёт спорить к стойке, которая его не ставила.
    */
   networkBanReason: string | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface ModerateAdCreativeRequest {
+  approve: boolean;
+  /** Причина отказа — рекламодателю через менеджера платформы. Обязательна при отказе. */
+  reason: string | null;
+  /**
+   * Модератор подтверждает то, чего код не проверит: это не другой клуб, не алкоголь, не табак и
+   * не ставки. Без отметки одобрить нельзя.
+   */
+  confirmedAllowed: boolean;
 }
 
 /**
@@ -6447,6 +6596,12 @@ export interface SessionTimelineResult {
   sessions: SessionTimelineItemDto[];
 }
 
+/** Контракт: Ads/AdContracts.cs */
+export interface SetAdCampaignStateRequest {
+  /** Одно из AdCampaignStateNames */
+  state: AdCampaignStateName;
+}
+
 /**
  * Постановка ручного исключения для клуба. Причина обязательна.
  *
@@ -6604,6 +6759,16 @@ export interface ShellSetMicMutedRequest {
 export interface ShellSetVolumeRequest {
   /** 0–100. */
   volume: number;
+}
+
+/**
+ * Показ карточки витрины: какая и сколько миллисекунд стояла на экране.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
+export interface ShellShowcaseImpressionDto {
+  cardId: string;
+  shownMs: number;
 }
 
 /**
@@ -6809,6 +6974,17 @@ export interface ShowcaseCardDto {
   startsAtUtc?: IsoDateTime | null;
   /** Строки карточки «Пакеты». */
   packages?: ShowcasePackageLineDto[] | null;
+  /** Рекламодатель — только у рекламы: экран пишет «Реклама · {рекламодатель}». */
+  advertiser?: string | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface ShowcaseImpressionDto {
+  cardId: string;
+  /** День показа по UTC, «2026-09-25». */
+  day: string;
+  impressions: number;
+  shownMs: number;
 }
 
 /** Контракт: Showcase/ShowcaseContracts.cs */
@@ -7729,6 +7905,30 @@ export interface UploadedMediaDto {
   url: string;
   contentType: string;
   sizeBytes: number;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface UpsertAdCampaignRequest {
+  advertiserId: Guid;
+  name: string;
+  category: string;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  cities: string[] | null;
+  organizationIds: Guid[] | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface UpsertAdCreativeRequest {
+  title: string;
+  body: string | null;
+  imageUrl: string | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface UpsertAdvertiserRequest {
+  name: string;
+  contact: string | null;
 }
 
 /** Контракт: Games/GameLibraryContracts.cs */

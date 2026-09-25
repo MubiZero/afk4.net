@@ -70,7 +70,7 @@ public sealed class PlayerShellStateBuilder(
             LauncherApps: catalog is null ? CreateLauncherApps(agentOptions) : CreateLauncherApps(catalog),
             ClubRules: protection?.Profile.ClubRules,
             IdleShutdownAtUtc: idleShutdown?.ShutdownAtUtc,
-            Showcase: showcase?.Cards(),
+            Showcase: ShowcaseFor(state),
             Locale: agentOptions.PreferredLocale,
             WarningKind: ResolveWarning(state, remainingSeconds, threshold, isGraceMode, isOnline),
             // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом
@@ -94,6 +94,18 @@ public sealed class PlayerShellStateBuilder(
             MaintenanceByName: inMaintenance ? heartbeatSnapshot.MaintenanceByName : null,
             // В обслуживании технику нужны и командная строка, и реестр — окна не закрываются.
             BlockedWindows: inMaintenance || protection is null ? [] : protection.BlockedWindows);
+    }
+
+    /// <summary>
+    /// Реклама платформы — только на свободном ПК (PRD): во время сессии, в её последнюю минуту и в
+    /// обслуживании её в состоянии нет, даже если экран по ошибке решит показать витрину.
+    /// </summary>
+    private IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto>? ShowcaseFor(string state)
+    {
+        var cards = showcase?.Cards();
+        return cards is null || state is PlayerShellStateNames.Locked or PlayerShellStateNames.Offline
+            ? cards
+            : cards.Where(card => card.Kind != AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.Ad).ToList();
     }
 
     private static string ResolveState(string runtimeState, int? remainingSeconds, bool isOnline) => runtimeState switch

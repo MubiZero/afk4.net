@@ -58,9 +58,9 @@ public sealed class ShellBridgeHost(
             ShellBridgeRequestTypeNames.MaintenanceReturn => await AskAgentAsync(
                 requestId, ShellPipeRequestTypeNames.MaintenanceReturn, new Dictionary<string, string>(), cancellationToken),
             ShellBridgeRequestTypeNames.UiSetLocale => SetLocale(requestId, payload),
+            ShellBridgeRequestTypeNames.ShowcaseImpression => await ImpressionAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.SystemSetVolume or ShellBridgeRequestTypeNames.SystemSetMicMuted
                 or ShellBridgeRequestTypeNames.SystemSetLayout when system is not null => ChangeSystem(requestId, type, payload),
-            // Показы витрины — P7. Честный отказ лучше «да», за которым ничего не случилось.
             _ => Error(requestId, ShellBridgeErrorCodeNames.NotSupported, $"The shell host does not handle '{type}' yet.")
         };
     }
@@ -102,6 +102,24 @@ public sealed class ShellBridgeHost(
         return string.IsNullOrWhiteSpace(appId)
             ? Task.FromResult(Error(requestId, ShellPipeErrorCodeNames.InvalidPayload, "app.launch needs an appId."))
             : AskAgentAsync(requestId, ShellPipeRequestTypeNames.Launch, new Dictionary<string, string> { ["appId"] = appId }, cancellationToken);
+    }
+
+    /// <summary>Показ карточки витрины — агенту: он решает, что считать, и копит суммы.</summary>
+    private Task<string> ImpressionAsync(string requestId, JsonElement payload, CancellationToken cancellationToken)
+    {
+        var cardId = ReadString(payload, "cardId");
+        var shownMs = ReadInt(payload, "shownMs");
+        return string.IsNullOrWhiteSpace(cardId) || shownMs is null or < 0
+            ? Task.FromResult(Error(requestId, ShellPipeErrorCodeNames.InvalidPayload, "showcase.impression needs a cardId and shownMs."))
+            : AskAgentAsync(
+                requestId,
+                ShellPipeRequestTypeNames.ShowcaseImpression,
+                new Dictionary<string, string>
+                {
+                    ["cardId"] = cardId,
+                    ["shownMs"] = shownMs.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                },
+                cancellationToken);
     }
 
     private string SetLocale(string requestId, JsonElement payload)

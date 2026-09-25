@@ -4123,6 +4123,7 @@ export const ru = {
   "playerShell.showcase.durationMinutes": "{minutes} мин",
   "playerShell.showcase.entryFee": "Взнос {price}",
   "playerShell.showcase.entryFree": "Участие бесплатно",
+  "playerShell.showcase.kind.ad": "Реклама",
   "playerShell.showcase.kind.barHit": "Хит бара",
   "playerShell.showcase.kind.news": "Новости клуба",
   "playerShell.showcase.kind.product": "В баре",

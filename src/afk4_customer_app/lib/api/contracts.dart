@@ -4,6 +4,39 @@
 // ignore_for_file: lines_longer_than_80_chars
 library;
 
+/// Словарь: Ads/AdContracts.cs
+abstract final class AdCampaignStateNames {
+  static const String draft = 'draft';
+  /// Идёт в своих датах, если у неё есть одобренный креатив.
+  static const String active = 'active';
+  static const String paused = 'paused';
+}
+
+/// Словарь: Ads/AdContracts.cs
+abstract final class AdCategoryNames {
+  static const String food = 'food';
+  static const String electronics = 'electronics';
+  static const String games = 'games';
+  static const String education = 'education';
+  static const String services = 'services';
+  static const String telecom = 'telecom';
+  static const String other = 'other';
+}
+
+/// Словарь: Ads/AdContracts.cs
+abstract final class AdErrorCodeNames {
+  static const String invalid = 'ad_invalid';
+  static const String notApproved = 'ad_campaign_without_approved_creative';
+  static const String confirmationRequired = 'ad_moderation_confirmation_required';
+}
+
+/// Словарь: Ads/AdContracts.cs
+abstract final class AdModerationNames {
+  static const String pending = 'pending';
+  static const String approved = 'approved';
+  static const String rejected = 'rejected';
+}
+
 /// Словарь: Platform/Billing/BillingIntervalNames.cs
 abstract final class BillingIntervalNames {
   static const String monthly = 'monthly';
@@ -525,6 +558,9 @@ abstract final class PlatformAdminPermissionNames {
   static const String manageAnnouncements = 'platform.announcements.manage';
   /// Каталог игр, из которого клубы собирают библиотеку ПК (спека оболочки, §6.6).
   static const String manageGameCatalog = 'platform.games.manage';
+  /// Реклама платформы в витрине ПК: рекламодатели, кампании, модерация креативов, отчёт
+  /// показов. Модерация — внутри этого же права: команда платформы маленькая.
+  static const String manageAds = 'platform.ads.manage';
   /// Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
   /// вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
   /// право здесь значит раздать необратимое тем, кому дали настраивать.
@@ -593,6 +629,8 @@ abstract final class PlatformFeatureNames {
   static const String onlineTopUp = 'online_topup';
   static const String playerShop = 'player_shop';
   static const String tournaments = 'tournaments';
+  /// Реклама платформы в витрине свободного ПК. Её включает бесплатный тариф.
+  static const String platformAds = 'platform_ads';
 }
 
 /// Словарь: Platform/Health/PlatformHealthContracts.cs
@@ -912,6 +950,8 @@ abstract final class ShellBridgeRequestTypeNames {
   static const String systemSetLayout = 'system.setLayout';
   /// Язык интерфейса выбран на экране: хост запоминает его до выхода игрока.
   static const String uiSetLocale = 'ui.setLocale';
+  /// Рекламная карточка витрины ушла с экрана — ShellShowcaseImpressionDto. Хост передаёт агенту,
+  /// тот копит суммы и отправляет пачками; карточки клуба не считаются.
   static const String showcaseImpression = 'showcase.impression';
   /// Кнопка «Вернуть в зал» на полосе обслуживания.
   static const String maintenanceReturn = 'maintenance.return';
@@ -982,6 +1022,9 @@ abstract final class ShellPipeRequestTypeNames {
   /// За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в 20 секунд; по нему агент не
   /// выключает простаивающий ПК под рукой человека и отменяет уже назначенное выключение. Тело пустое.
   static const String activity = 'activity';
+  /// Рекламная карточка витрины отстояла на экране. В теле — `cardId` и `shownMs`.
+  /// Агент считает только рекламу и только на свободном ПК.
+  static const String showcaseImpression = 'showcase.impression';
 }
 
 /// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
@@ -1028,6 +1071,8 @@ abstract final class ShowcaseCardKindNames {
   static const String tournament = 'tournament';
   static const String packages = 'packages';
   static const String barHit = 'bar_hit';
+  /// Реклама платформы: только на свободном ПК и с меткой «Реклама · рекламодатель».
+  static const String ad = 'ad';
 }
 
 /// Машинные причины отказа на входе сотрудника. Клиент по ним и подбирает слова: текст сервера
@@ -1344,6 +1389,130 @@ class ActiveSessionDto {
       };
 }
 
+/// Контракт: Ads/AdContracts.cs
+class AdCampaignDto {
+  const AdCampaignDto({
+    required this.campaignId,
+    required this.advertiserId,
+    required this.advertiserName,
+    required this.name,
+    required this.category,
+    required this.startsAtUtc,
+    required this.endsAtUtc,
+    required this.cities,
+    required this.organizationIds,
+    required this.state,
+    required this.creatives,
+    required this.createdAtUtc,
+    required this.updatedAtUtc,
+  });
+
+  final String campaignId;
+  final String advertiserId;
+  final String advertiserName;
+  final String name;
+
+  /// Одно из AdCategoryNames
+  final String category;
+  final DateTime startsAtUtc;
+  final DateTime endsAtUtc;
+
+  /// Пусто — все города.
+  final List<String> cities;
+
+  /// Пусто — все клубы.
+  final List<String> organizationIds;
+
+  /// Одно из AdCampaignStateNames
+  final String state;
+  final List<AdCreativeDto> creatives;
+  final DateTime createdAtUtc;
+  final DateTime updatedAtUtc;
+
+  factory AdCampaignDto.fromJson(Map<String, dynamic> json) => AdCampaignDto(
+        campaignId: json['campaignId'] as String,
+        advertiserId: json['advertiserId'] as String,
+        advertiserName: json['advertiserName'] as String,
+        name: json['name'] as String,
+        category: json['category'] as String,
+        startsAtUtc: DateTime.parse(json['startsAtUtc'] as String),
+        endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
+        cities: (json['cities'] as List<dynamic>).map((item) => item as String).toList(),
+        organizationIds: (json['organizationIds'] as List<dynamic>).map((item) => item as String).toList(),
+        state: json['state'] as String,
+        creatives: (json['creatives'] as List<dynamic>).map((item) => AdCreativeDto.fromJson(item as Map<String, dynamic>)).toList(),
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        updatedAtUtc: DateTime.parse(json['updatedAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'campaignId': campaignId,
+        'advertiserId': advertiserId,
+        'advertiserName': advertiserName,
+        'name': name,
+        'category': category,
+        'startsAtUtc': startsAtUtc.toIso8601String(),
+        'endsAtUtc': endsAtUtc.toIso8601String(),
+        'cities': cities.map((item) => item).toList(),
+        'organizationIds': organizationIds.map((item) => item).toList(),
+        'state': state,
+        'creatives': creatives.map((item) => item.toJson()).toList(),
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'updatedAtUtc': updatedAtUtc.toIso8601String(),
+      };
+}
+
+/// Контракт: Ads/AdContracts.cs
+class AdCreativeDto {
+  const AdCreativeDto({
+    required this.creativeId,
+    required this.campaignId,
+    required this.title,
+    this.body,
+    this.imageUrl,
+    required this.moderation,
+    this.rejectedReason,
+    this.moderatedAtUtc,
+    required this.createdAtUtc,
+  });
+
+  final String creativeId;
+  final String campaignId;
+  final String title;
+  final String? body;
+  final String? imageUrl;
+
+  /// Одно из AdModerationNames
+  final String moderation;
+  final String? rejectedReason;
+  final DateTime? moderatedAtUtc;
+  final DateTime createdAtUtc;
+
+  factory AdCreativeDto.fromJson(Map<String, dynamic> json) => AdCreativeDto(
+        creativeId: json['creativeId'] as String,
+        campaignId: json['campaignId'] as String,
+        title: json['title'] as String,
+        body: json['body'] == null ? null : json['body'] as String,
+        imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
+        moderation: json['moderation'] as String,
+        rejectedReason: json['rejectedReason'] == null ? null : json['rejectedReason'] as String,
+        moderatedAtUtc: json['moderatedAtUtc'] == null ? null : DateTime.parse(json['moderatedAtUtc'] as String),
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'creativeId': creativeId,
+        'campaignId': campaignId,
+        'title': title,
+        'body': body,
+        'imageUrl': imageUrl,
+        'moderation': moderation,
+        'rejectedReason': rejectedReason,
+        'moderatedAtUtc': moderatedAtUtc?.toIso8601String(),
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+      };
+}
+
 /// Контракт: Inventory/AddProductBarcodeRequest.cs
 class AddProductBarcodeRequest {
   const AddProductBarcodeRequest({
@@ -1366,6 +1535,101 @@ class AddProductBarcodeRequest {
         'organizationId': organizationId,
         'code': code,
         'isPrimary': isPrimary,
+      };
+}
+
+/// Строка отчёта показов: креатив в филиале за день. Игрока в строке нет и быть не может.
+///
+/// Контракт: Ads/AdContracts.cs
+class AdImpressionRowDto {
+  const AdImpressionRowDto({
+    required this.day,
+    required this.campaignId,
+    required this.campaignName,
+    required this.creativeId,
+    required this.creativeTitle,
+    required this.organizationId,
+    required this.organizationName,
+    required this.branchId,
+    required this.branchName,
+    required this.city,
+    required this.impressions,
+    required this.shownSeconds,
+  });
+
+  final String day;
+  final String campaignId;
+  final String campaignName;
+  final String creativeId;
+  final String creativeTitle;
+  final String organizationId;
+  final String organizationName;
+  final String branchId;
+  final String branchName;
+  final String city;
+  final int impressions;
+  final int shownSeconds;
+
+  factory AdImpressionRowDto.fromJson(Map<String, dynamic> json) => AdImpressionRowDto(
+        day: json['day'] as String,
+        campaignId: json['campaignId'] as String,
+        campaignName: json['campaignName'] as String,
+        creativeId: json['creativeId'] as String,
+        creativeTitle: json['creativeTitle'] as String,
+        organizationId: json['organizationId'] as String,
+        organizationName: json['organizationName'] as String,
+        branchId: json['branchId'] as String,
+        branchName: json['branchName'] as String,
+        city: json['city'] as String,
+        impressions: (json['impressions'] as num).toInt(),
+        shownSeconds: (json['shownSeconds'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'day': day,
+        'campaignId': campaignId,
+        'campaignName': campaignName,
+        'creativeId': creativeId,
+        'creativeTitle': creativeTitle,
+        'organizationId': organizationId,
+        'organizationName': organizationName,
+        'branchId': branchId,
+        'branchName': branchName,
+        'city': city,
+        'impressions': impressions,
+        'shownSeconds': shownSeconds,
+      };
+}
+
+/// Реклама платформы в витрине свободного ПК (спека `2026-09-25-platform-ads-design.md`). Продаёт
+/// её AFK4, показывается она только клубам с фичей `platform_ads` — это бесплатный тариф.
+///
+/// Контракт: Ads/AdContracts.cs
+class AdvertiserDto {
+  const AdvertiserDto({
+    required this.advertiserId,
+    required this.name,
+    required this.contact,
+    required this.createdAtUtc,
+  });
+
+  final String advertiserId;
+  final String name;
+  final String contact;
+  final DateTime createdAtUtc;
+
+  factory AdvertiserDto.fromJson(Map<String, dynamic> json) => AdvertiserDto(
+        advertiserId: json['advertiserId'] as String,
+        name: json['name'] as String,
+        contact: json['contact'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'advertiserId': advertiserId,
+        'name': name,
+        'contact': contact,
+        'createdAtUtc': createdAtUtc.toIso8601String(),
       };
 }
 
@@ -5907,6 +6171,43 @@ class DeviceShowcaseDto {
       };
 }
 
+/// Пачка показов с ПК: суммы по карточке за день.
+///
+/// Контракт: Ads/AdContracts.cs
+class DeviceShowcaseImpressionsRequest {
+  const DeviceShowcaseImpressionsRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+    required this.batchId,
+    required this.items,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+
+  /// Ключ пачки: повтор той же пачки после обрыва связи не удваивает счёт.
+  final String batchId;
+  final List<ShowcaseImpressionDto> items;
+
+  factory DeviceShowcaseImpressionsRequest.fromJson(Map<String, dynamic> json) => DeviceShowcaseImpressionsRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+        batchId: json['batchId'] as String,
+        items: (json['items'] as List<dynamic>).map((item) => ShowcaseImpressionDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+        'batchId': batchId,
+        'items': items.map((item) => item.toJson()).toList(),
+      };
+}
+
 /// Контракт: Devices/DeviceStateChangeRequest.cs
 class DeviceStateChangeRequest {
   const DeviceStateChangeRequest({
@@ -7881,6 +8182,36 @@ class MePersonDto {
         'pinSet': pinSet,
         'networkBanned': networkBanned,
         'networkBanReason': networkBanReason,
+      };
+}
+
+/// Контракт: Ads/AdContracts.cs
+class ModerateAdCreativeRequest {
+  const ModerateAdCreativeRequest({
+    required this.approve,
+    this.reason,
+    required this.confirmedAllowed,
+  });
+
+  final bool approve;
+
+  /// Причина отказа — рекламодателю через менеджера платформы. Обязательна при отказе.
+  final String? reason;
+
+  /// Модератор подтверждает то, чего код не проверит: это не другой клуб, не алкоголь, не табак и
+  /// не ставки. Без отметки одобрить нельзя.
+  final bool confirmedAllowed;
+
+  factory ModerateAdCreativeRequest.fromJson(Map<String, dynamic> json) => ModerateAdCreativeRequest(
+        approve: json['approve'] as bool,
+        reason: json['reason'] == null ? null : json['reason'] as String,
+        confirmedAllowed: json['confirmedAllowed'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'approve': approve,
+        'reason': reason,
+        'confirmedAllowed': confirmedAllowed,
       };
 }
 
@@ -16117,6 +16448,25 @@ class SessionTimelineResult {
       };
 }
 
+/// Контракт: Ads/AdContracts.cs
+class SetAdCampaignStateRequest {
+  const SetAdCampaignStateRequest({
+    required this.state,
+  });
+
+
+  /// Одно из AdCampaignStateNames
+  final String state;
+
+  factory SetAdCampaignStateRequest.fromJson(Map<String, dynamic> json) => SetAdCampaignStateRequest(
+        state: json['state'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'state': state,
+      };
+}
+
 /// Постановка ручного исключения для клуба. Причина обязательна.
 ///
 /// Контракт: Platform/Features/FeatureContracts.cs
@@ -16561,6 +16911,29 @@ class ShellSetVolumeRequest {
 
   Map<String, dynamic> toJson() => {
         'volume': volume,
+      };
+}
+
+/// Показ карточки витрины: какая и сколько миллисекунд стояла на экране.
+///
+/// Контракт: Shell/ShellBridgeContracts.cs
+class ShellShowcaseImpressionDto {
+  const ShellShowcaseImpressionDto({
+    required this.cardId,
+    required this.shownMs,
+  });
+
+  final String cardId;
+  final int shownMs;
+
+  factory ShellShowcaseImpressionDto.fromJson(Map<String, dynamic> json) => ShellShowcaseImpressionDto(
+        cardId: json['cardId'] as String,
+        shownMs: (json['shownMs'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'cardId': cardId,
+        'shownMs': shownMs,
       };
 }
 
@@ -17114,6 +17487,7 @@ class ShowcaseCardDto {
     this.timeWindow,
     this.startsAtUtc,
     this.packages,
+    this.advertiser,
   });
 
 
@@ -17147,6 +17521,9 @@ class ShowcaseCardDto {
   /// Строки карточки «Пакеты».
   final List<ShowcasePackageLineDto>? packages;
 
+  /// Рекламодатель — только у рекламы: экран пишет «Реклама · {рекламодатель}».
+  final String? advertiser;
+
   factory ShowcaseCardDto.fromJson(Map<String, dynamic> json) => ShowcaseCardDto(
         cardId: json['cardId'] as String,
         kind: json['kind'] as String,
@@ -17158,6 +17535,7 @@ class ShowcaseCardDto {
         timeWindow: json['timeWindow'] == null ? null : json['timeWindow'] as String,
         startsAtUtc: json['startsAtUtc'] == null ? null : DateTime.parse(json['startsAtUtc'] as String),
         packages: json['packages'] == null ? null : (json['packages'] as List<dynamic>).map((item) => ShowcasePackageLineDto.fromJson(item as Map<String, dynamic>)).toList(),
+        advertiser: json['advertiser'] == null ? null : json['advertiser'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -17171,6 +17549,38 @@ class ShowcaseCardDto {
         'timeWindow': timeWindow,
         'startsAtUtc': startsAtUtc?.toIso8601String(),
         'packages': packages?.map((item) => item.toJson()).toList(),
+        'advertiser': advertiser,
+      };
+}
+
+/// Контракт: Ads/AdContracts.cs
+class ShowcaseImpressionDto {
+  const ShowcaseImpressionDto({
+    required this.cardId,
+    required this.day,
+    required this.impressions,
+    required this.shownMs,
+  });
+
+  final String cardId;
+
+  /// День показа по UTC, «2026-09-25».
+  final String day;
+  final int impressions;
+  final int shownMs;
+
+  factory ShowcaseImpressionDto.fromJson(Map<String, dynamic> json) => ShowcaseImpressionDto(
+        cardId: json['cardId'] as String,
+        day: json['day'] as String,
+        impressions: (json['impressions'] as num).toInt(),
+        shownMs: (json['shownMs'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'cardId': cardId,
+        'day': day,
+        'impressions': impressions,
+        'shownMs': shownMs,
       };
 }
 
@@ -20140,6 +20550,93 @@ class UploadedMediaDto {
         'url': url,
         'contentType': contentType,
         'sizeBytes': sizeBytes,
+      };
+}
+
+/// Контракт: Ads/AdContracts.cs
+class UpsertAdCampaignRequest {
+  const UpsertAdCampaignRequest({
+    required this.advertiserId,
+    required this.name,
+    required this.category,
+    required this.startsAtUtc,
+    required this.endsAtUtc,
+    this.cities,
+    this.organizationIds,
+  });
+
+  final String advertiserId;
+  final String name;
+  final String category;
+  final DateTime startsAtUtc;
+  final DateTime endsAtUtc;
+  final List<String>? cities;
+  final List<String>? organizationIds;
+
+  factory UpsertAdCampaignRequest.fromJson(Map<String, dynamic> json) => UpsertAdCampaignRequest(
+        advertiserId: json['advertiserId'] as String,
+        name: json['name'] as String,
+        category: json['category'] as String,
+        startsAtUtc: DateTime.parse(json['startsAtUtc'] as String),
+        endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
+        cities: json['cities'] == null ? null : (json['cities'] as List<dynamic>).map((item) => item as String).toList(),
+        organizationIds: json['organizationIds'] == null ? null : (json['organizationIds'] as List<dynamic>).map((item) => item as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'advertiserId': advertiserId,
+        'name': name,
+        'category': category,
+        'startsAtUtc': startsAtUtc.toIso8601String(),
+        'endsAtUtc': endsAtUtc.toIso8601String(),
+        'cities': cities?.map((item) => item).toList(),
+        'organizationIds': organizationIds?.map((item) => item).toList(),
+      };
+}
+
+/// Контракт: Ads/AdContracts.cs
+class UpsertAdCreativeRequest {
+  const UpsertAdCreativeRequest({
+    required this.title,
+    this.body,
+    this.imageUrl,
+  });
+
+  final String title;
+  final String? body;
+  final String? imageUrl;
+
+  factory UpsertAdCreativeRequest.fromJson(Map<String, dynamic> json) => UpsertAdCreativeRequest(
+        title: json['title'] as String,
+        body: json['body'] == null ? null : json['body'] as String,
+        imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'body': body,
+        'imageUrl': imageUrl,
+      };
+}
+
+/// Контракт: Ads/AdContracts.cs
+class UpsertAdvertiserRequest {
+  const UpsertAdvertiserRequest({
+    required this.name,
+    this.contact,
+  });
+
+  final String name;
+  final String? contact;
+
+  factory UpsertAdvertiserRequest.fromJson(Map<String, dynamic> json) => UpsertAdvertiserRequest(
+        name: json['name'] as String,
+        contact: json['contact'] == null ? null : json['contact'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'contact': contact,
       };
 }
 

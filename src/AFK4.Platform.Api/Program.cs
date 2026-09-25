@@ -649,6 +649,7 @@ app.MapInstallCodeEndpoints(organizations);
 app.MapGameLibraryEndpoints(organizations);
 app.MapDeviceHardwareEndpoints(organizations);
 app.MapShowcaseEndpoints();
+app.MapAdEndpoints();
 organizations.MapMediaEndpoints();
 app.MapAuthEndpoints(organizations);
 organizations.MapEskhataConfigEndpoints();

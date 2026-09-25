@@ -38,7 +38,8 @@ public sealed class Worker(
     IGameLibrarySync? games = null,
     AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null,
     AFK4.Agent.Service.Hardware.IHardwareReporter? hardware = null,
-    AFK4.Agent.Service.Showcase.IShowcaseSync? showcase = null) : BackgroundService
+    AFK4.Agent.Service.Showcase.IShowcaseSync? showcase = null,
+    AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -160,6 +161,8 @@ public sealed class Worker(
                 await TryStepAsync("Hardware report", () => hardware?.ReportIfDueAsync(cancellationToken), cancellationToken);
                 // Витрина — раз в 10 минут по ETag; своё расписание у витрины.
                 await TryStepAsync("Showcase", () => showcase?.SyncIfDueAsync(cancellationToken), cancellationToken);
+                // Показы рекламы — пачкой раз в час.
+                await TryStepAsync("Showcase impressions", () => impressions?.FlushIfDueAsync(cancellationToken), cancellationToken);
 
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)

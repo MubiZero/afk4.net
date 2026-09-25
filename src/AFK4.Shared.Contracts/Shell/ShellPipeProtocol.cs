@@ -70,6 +70,12 @@ public static class ShellPipeRequestTypeNames
     /// выключает простаивающий ПК под рукой человека и отменяет уже назначенное выключение. Тело пустое.
     /// </summary>
     public const string Activity = "activity";
+
+    /// <summary>
+    /// Рекламная карточка витрины отстояла на экране. В теле — <c>cardId</c> и <c>shownMs</c>.
+    /// Агент считает только рекламу и только на свободном ПК.
+    /// </summary>
+    public const string ShowcaseImpression = "showcase.impression";
 }
 
 public static class ShellPipeErrorCodeNames

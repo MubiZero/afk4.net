@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { PlayerShellStateDto } from '@afk4/contracts';
+import { ShellBridgeRequestTypeNames, ShowcaseCardKindNames, type PlayerShellStateDto, type ShowcaseCardDto } from '@afk4/contracts';
 import { useI18n } from '@afk4/i18n';
 import { SeatBadge } from '../ui/SeatBadge';
 import { ShowcaseCarousel } from './idle/ShowcaseCarousel';
+import { requestHost } from '../host/shellHost';
 
 /**
  * Свободный ПК: к нему никто не подошёл (спека, §3, кадр 01). Витрина клуба — фон без кнопок,
@@ -16,7 +17,9 @@ export function IdleScreen({ state, dimmed = false }: { state: PlayerShellStateD
   return (
     <main className={dimmed ? 'idle-screen idle-screen--dimmed' : 'idle-screen'} aria-hidden={dimmed || undefined}>
       <div className="idle-screen__showcase" aria-hidden="true" />
-      {state.showcase && state.showcase.length > 0 ? <ShowcaseCarousel cards={state.showcase} paused={dimmed} /> : null}
+      {state.showcase && state.showcase.length > 0 ? (
+        <ShowcaseCarousel cards={state.showcase} paused={dimmed} onShown={reportShown} />
+      ) : null}
       {/* Подошли — знак ПК уезжает в шапку окна входа, витрина притушается фоном. */}
       {dimmed ? null : (
         <header className="idle-screen__top">
@@ -37,6 +40,12 @@ export function IdleScreen({ state, dimmed = false }: { state: PlayerShellStateD
  * Свободный ПК вот-вот выключится от простоя: сколько осталось и как оставить включённым. Движение
  * мыши отменяет выключение у агента — и полоса уходит со следующим состоянием.
  */
+/** Показ рекламы — агенту: он считает только рекламу и только на свободном ПК. */
+function reportShown(card: ShowcaseCardDto, shownMs: number) {
+  if (card.kind !== ShowcaseCardKindNames.Ad) return;
+  requestHost(ShellBridgeRequestTypeNames.ShowcaseImpression, { cardId: card.cardId, shownMs }).catch(() => {});
+}
+
 function IdleShutdownNotice({ at }: { at: string }) {
   const { t } = useI18n();
   const [now, setNow] = useState(() => Date.now());

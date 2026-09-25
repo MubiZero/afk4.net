@@ -4123,6 +4123,7 @@ export const en = {
   "playerShell.showcase.durationMinutes": "{minutes} min",
   "playerShell.showcase.entryFee": "Entry {price}",
   "playerShell.showcase.entryFree": "Free entry",
+  "playerShell.showcase.kind.ad": "Advertisement",
   "playerShell.showcase.kind.barHit": "Bar favourite",
   "playerShell.showcase.kind.news": "Club news",
   "playerShell.showcase.kind.product": "At the bar",

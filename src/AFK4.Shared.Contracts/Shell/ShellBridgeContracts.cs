@@ -34,6 +34,10 @@ public static class ShellBridgeRequestTypeNames
     /// <summary>Язык интерфейса выбран на экране: хост запоминает его до выхода игрока.</summary>
     public const string UiSetLocale = "ui.setLocale";
 
+    /// <summary>
+    /// Рекламная карточка витрины ушла с экрана — ShellShowcaseImpressionDto. Хост передаёт агенту,
+    /// тот копит суммы и отправляет пачками; карточки клуба не считаются.
+    /// </summary>
     public const string ShowcaseImpression = "showcase.impression";
 
     /// <summary>Кнопка «Вернуть в зал» на полосе обслуживания.</summary>
@@ -137,3 +141,6 @@ public sealed record ShellSnapshotDto(
     PlayerShellStateDto? State,
     ShellAuthStateDto Auth,
     ShellSystemStateDto? System = null);
+
+/// <summary>Показ карточки витрины: какая и сколько миллисекунд стояла на экране.</summary>
+public sealed record ShellShowcaseImpressionDto(string CardId, int ShownMs);

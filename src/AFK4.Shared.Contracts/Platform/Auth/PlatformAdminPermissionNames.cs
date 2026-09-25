@@ -62,6 +62,12 @@ public static class PlatformAdminPermissionNames
     public const string ManageGameCatalog = "platform.games.manage";
 
     /// <summary>
+    /// Реклама платформы в витрине ПК: рекламодатели, кампании, модерация креативов, отчёт
+    /// показов. Модерация — внутри этого же права: команда платформы маленькая.
+    /// </summary>
+    public const string ManageAds = "platform.ads.manage";
+
+    /// <summary>
     /// Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
     /// вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
     /// право здесь значит раздать необратимое тем, кому дали настраивать.
@@ -96,6 +102,7 @@ public static class PlatformAdminPermissionNames
         ManageOrganizationFeatures,
         ManageAnnouncements,
         ManageGameCatalog,
+        ManageAds,
         ManageOffboarding,
         ManageNetworkBans,
         ViewPlatformAudit,

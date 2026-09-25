@@ -18,7 +18,8 @@ public sealed class PlayerShellRequestHandler(
     ILogger<PlayerShellRequestHandler> logger,
     IPlayerSignIn? playerSignIn = null,
     MaintenanceReturn? maintenanceReturn = null,
-    AFK4.Agent.Service.Power.IPlayerPresence? presence = null) : IPlayerShellRequestHandler
+    AFK4.Agent.Service.Power.IPlayerPresence? presence = null,
+    AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null) : IPlayerShellRequestHandler
 {
     public const string AppIdPayloadKey = "appId";
 
@@ -30,6 +31,7 @@ public sealed class PlayerShellRequestHandler(
             ShellPipeRequestTypeNames.SignInPin when playerSignIn is not null => playerSignIn.SignInWithPinAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.MaintenanceReturn when maintenanceReturn is not null => maintenanceReturn.ReturnAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.Activity => RecordActivity(request),
+            ShellPipeRequestTypeNames.ShowcaseImpression => RecordImpression(request),
             _ => Task.FromResult(Rejected(request, ShellPipeErrorCodeNames.UnknownRequest, $"Unknown request type '{request.Type}'."))
         };
 
@@ -97,6 +99,27 @@ public sealed class PlayerShellRequestHandler(
     private Task<ShellPipeReplyDto> RecordActivity(ShellPipeRequestDto request)
     {
         presence?.Record(timeProvider.GetUtcNow());
+        return Task.FromResult(new ShellPipeReplyDto(request.RequestId, Ok: true));
+    }
+
+    /// <summary>
+    /// Показ витрины. Считается только реклама и только на свободном ПК: показ посреди сессии
+    /// значил бы, что реклама попала туда, где её быть не должно, — и платить за него нельзя.
+    /// </summary>
+    private Task<ShellPipeReplyDto> RecordImpression(ShellPipeRequestDto request)
+    {
+        if (!request.Payload.TryGetValue("cardId", out var cardId) || string.IsNullOrWhiteSpace(cardId)
+            || !request.Payload.TryGetValue("shownMs", out var shown)
+            || !long.TryParse(shown, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var shownMs))
+        {
+            return Task.FromResult(Rejected(request, ShellPipeErrorCodeNames.InvalidPayload, "An impression needs a cardId and shownMs."));
+        }
+
+        if (!SessionRuns())
+        {
+            impressions?.Record(cardId, shownMs);
+        }
+
         return Task.FromResult(new ShellPipeReplyDto(request.RequestId, Ok: true));
     }
 

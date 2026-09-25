@@ -113,12 +113,28 @@ public sealed class ShellBridgeHostTests
     }
 
     [Fact]
-    public async Task ARequestTheHostCannotServeYet_IsRefusedHonestly()
+    public async Task ARequestTheHostDoesNotKnow_IsRefusedHonestly()
     {
-        var response = await new Fixture().SendAsync(ShellBridgeRequestTypeNames.ShowcaseImpression, new { slideId = "promo" });
+        var response = await new Fixture().SendAsync("screen.unknown", new { slideId = "promo" });
 
         Assert.False(response.GetProperty("ok").GetBoolean());
         Assert.Equal(ShellBridgeErrorCodeNames.NotSupported, response.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    /// <summary>Показ витрины считает агент: хост только передаёт, какая карточка и сколько стояла.</summary>
+    [Fact]
+    public async Task AShowcaseImpression_GoesToTheAgent()
+    {
+        var fixture = new Fixture();
+
+        await fixture.SendAsync(ShellBridgeRequestTypeNames.ShowcaseImpression, new { cardId = "ad:1", shownMs = 9000 });
+        var malformed = await fixture.SendAsync(ShellBridgeRequestTypeNames.ShowcaseImpression, new { slideId = "promo" });
+
+        var request = Assert.Single(fixture.Agent.Requests);
+        Assert.Equal(ShellPipeRequestTypeNames.ShowcaseImpression, request.Type);
+        Assert.Equal("ad:1", request.Payload["cardId"]);
+        Assert.Equal("9000", request.Payload["shownMs"]);
+        Assert.False(malformed.GetProperty("ok").GetBoolean());
     }
 
     [Fact]

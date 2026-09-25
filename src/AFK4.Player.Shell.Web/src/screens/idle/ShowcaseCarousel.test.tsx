@@ -57,3 +57,21 @@ describe('витрина свободного ПК', () => {
     expect(screen.getByRole('heading', { name: 'Ночь CS2' })).toBeTruthy();
   });
 });
+
+describe('реклама в витрине', () => {
+  afterEach(() => cleanup());
+
+  it('подписана «Реклама» с рекламодателем и докладывает, сколько простояла', async () => {
+    const ad: ShowcaseCardDto = { cardId: 'ad:1', kind: 'ad', title: 'Безлимит на месяц', advertiser: 'Сомон Телеком' };
+    const shown: Array<[string, number]> = [];
+    render(
+      <ShellI18nProvider>
+        <ShowcaseCarousel cards={[ad, news]} paused={false} slideMs={60} onShown={(card, ms) => shown.push([card.cardId, ms])} />
+      </ShellI18nProvider>
+    );
+
+    expect(screen.getByText('Реклама · Сомон Телеком')).toBeTruthy();
+    await waitFor(() => expect(shown.map(([id]) => id)).toContain('ad:1'));
+    expect(shown[0][1]).toBeGreaterThanOrEqual(40);
+  });
+});

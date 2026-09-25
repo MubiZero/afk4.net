@@ -297,6 +297,17 @@ public static class AuditActionNames
 
     public const string UpdateCatalogGame = "platform.games.update";
 
+    public const string UpsertAdvertiser = "platform.ads.advertisers.upsert";
+
+    public const string UpsertAdCampaign = "platform.ads.campaigns.upsert";
+
+    public const string SetAdCampaignState = "platform.ads.campaigns.state";
+
+    public const string UpsertAdCreative = "platform.ads.creatives.upsert";
+
+    /// <summary>Креатив одобрен или отклонён — с подтверждением, что это не клуб, алкоголь, табак или ставки.</summary>
+    public const string ModerateAdCreative = "platform.ads.creatives.moderate";
+
     public const string AddBranchGame = "games.library.add";
 
     public const string UpdateBranchGame = "games.library.update";

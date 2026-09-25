@@ -435,6 +435,21 @@ public sealed class PlayerShellStateBuilderTests
         Assert.Equal("https://showcase.afk4.local/cards/a.webp", Assert.Single(state.Showcase!).ImageUrl);
     }
 
+    // Реклама платформы — только на свободном ПК: в сессии её в состоянии нет, карточки клуба остаются.
+    [Fact]
+    public void DuringASession_TheShowcaseCarriesNoAds()
+    {
+        var news = new AFK4.Shared.Contracts.Showcase.ShowcaseCardDto("news:1", AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.News, "Ночь CS2");
+        var ad = new AFK4.Shared.Contracts.Showcase.ShowcaseCardDto("ad:1", AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.Ad, "Безлимит", Advertiser: "Сомон");
+        var fixture = new Fixture(showcase: new FixedShowcase([news, ad]));
+        fixture.Contact(Now, intervalSeconds: 10);
+
+        Assert.Equal(2, fixture.Build().Showcase!.Count);
+
+        fixture.StartSession(Now.AddHours(1));
+        Assert.Equal(["news:1"], fixture.Build().Showcase!.Select(card => card.CardId));
+    }
+
     private sealed class FixedShowcase(IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto> cards) : AFK4.Agent.Service.Showcase.IShowcaseSource
     {
         public IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto> Cards() => cards;

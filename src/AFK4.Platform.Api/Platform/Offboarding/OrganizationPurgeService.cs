@@ -228,6 +228,8 @@ public sealed class OrganizationPurgeService(PlatformDbContext dbContext, TimePr
         await DeleteAsync(dbContext.BranchGames.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.BranchGameLibraries.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.DeviceHardware.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.AdImpressionsDaily.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.AdImpressionBatches.Where(row => row.OrganizationId == organizationId), cancellationToken);
         return await DeleteAsync(dbContext.Devices.Where(row => row.OrganizationId == organizationId), cancellationToken);
     }
 

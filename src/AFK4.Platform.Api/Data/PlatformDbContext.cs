@@ -218,6 +218,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<DeviceHardwareEntity> DeviceHardware => Set<DeviceHardwareEntity>();
 
+    public DbSet<AdAdvertiserEntity> AdAdvertisers => Set<AdAdvertiserEntity>();
+
+    public DbSet<AdCampaignEntity> AdCampaigns => Set<AdCampaignEntity>();
+
+    public DbSet<AdCreativeEntity> AdCreatives => Set<AdCreativeEntity>();
+
+    public DbSet<AdImpressionDailyEntity> AdImpressionsDaily => Set<AdImpressionDailyEntity>();
+
+    public DbSet<AdImpressionBatchEntity> AdImpressionBatches => Set<AdImpressionBatchEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -1585,6 +1595,56 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(settings => settings.BranchId);
             entity.Property(settings => settings.AcceptanceMode).HasMaxLength(16).IsRequired();
             entity.HasIndex(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<AdAdvertiserEntity>(entity =>
+        {
+            entity.ToTable("ad_advertisers");
+            entity.HasKey(advertiser => advertiser.AdvertiserId);
+            entity.Property(advertiser => advertiser.Name).HasMaxLength(160).IsRequired();
+            entity.Property(advertiser => advertiser.Contact).HasMaxLength(400).IsRequired();
+        });
+
+        modelBuilder.Entity<AdCampaignEntity>(entity =>
+        {
+            entity.ToTable("ad_campaigns");
+            entity.HasKey(campaign => campaign.CampaignId);
+            entity.Property(campaign => campaign.Name).HasMaxLength(160).IsRequired();
+            entity.Property(campaign => campaign.Category).HasMaxLength(32).IsRequired();
+            entity.Property(campaign => campaign.State).HasMaxLength(16).IsRequired();
+            entity.Property(campaign => campaign.CitiesJson).IsRequired();
+            entity.Property(campaign => campaign.OrganizationIdsJson).IsRequired();
+            entity.HasIndex(campaign => campaign.AdvertiserId);
+            entity.HasIndex(campaign => new { campaign.State, campaign.EndsAtUtc });
+        });
+
+        modelBuilder.Entity<AdCreativeEntity>(entity =>
+        {
+            entity.ToTable("ad_creatives");
+            entity.HasKey(creative => creative.CreativeId);
+            entity.Property(creative => creative.Title).HasMaxLength(120).IsRequired();
+            entity.Property(creative => creative.Body).HasMaxLength(280);
+            entity.Property(creative => creative.ImageUrl).HasMaxLength(2048);
+            entity.Property(creative => creative.Moderation).HasMaxLength(16).IsRequired();
+            entity.Property(creative => creative.RejectedReason).HasMaxLength(400);
+            entity.HasIndex(creative => creative.CampaignId);
+        });
+
+        modelBuilder.Entity<AdImpressionDailyEntity>(entity =>
+        {
+            entity.ToTable("ad_impressions_daily");
+            entity.HasKey(row => row.AdImpressionDailyId);
+            entity.HasIndex(row => new { row.CreativeId, row.BranchId, row.Day }).IsUnique();
+            entity.HasIndex(row => new { row.OrganizationId, row.Day });
+            entity.HasIndex(row => row.Day);
+        });
+
+        modelBuilder.Entity<AdImpressionBatchEntity>(entity =>
+        {
+            entity.ToTable("ad_impression_batches");
+            entity.HasKey(batch => new { batch.DeviceId, batch.BatchId });
+            entity.Property(batch => batch.BatchId).HasMaxLength(64);
+            entity.HasIndex(batch => batch.OrganizationId);
         });
 
         modelBuilder.Entity<CatalogGameEntity>(entity =>
