@@ -396,6 +396,7 @@ export const en = {
   "customer.play.err.deviceGone": "This PC is not connected to the platform — ask an admin",
   "customer.play.err.funds": "Your wallet doesn't cover this time",
   "customer.play.err.generic": "Couldn't start the session. Try again.",
+  "customer.play.err.maintenance": "This PC is under maintenance — pick another one or ask at the counter",
   "customer.play.err.taken": "That seat was just taken; pick another",
   "customer.play.errCode": "That code did not work. Check the screen — it changes every couple of minutes.",
   "customer.play.loadError": "Couldn't load the seats",

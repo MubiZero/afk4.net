@@ -548,6 +548,7 @@
   "customerPlayErrDeviceGone": "This PC is not connected to the platform — ask an admin",
   "customerPlayErrFunds": "Your wallet doesn't cover this time",
   "customerPlayErrGeneric": "Couldn't start the session. Try again.",
+  "customerPlayErrMaintenance": "This PC is under maintenance — pick another one or ask at the counter",
   "customerPlayErrTaken": "That seat was just taken; pick another",
   "customerPlayErrCode": "That code did not work. Check the screen — it changes every couple of minutes.",
   "customerPlayLoadError": "Couldn't load the seats",
