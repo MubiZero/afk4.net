@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import type { CatalogGameDto } from '../../../api/clients/games';
 import { buildGameRequest, emptyGameForm, formFromCatalog, moved, validateGame } from './gamesModel';
 
-const cs2 = {
+const cs2: CatalogGameDto = {
   catalogGameId: 'c1',
   name: 'Counter-Strike 2',
   description: null,
