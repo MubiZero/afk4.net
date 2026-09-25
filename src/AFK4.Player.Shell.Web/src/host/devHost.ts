@@ -194,6 +194,18 @@ function installDevApi(moveTo: (scenario: DevScenario) => void): void {
       setTimeout(() => moveTo('session'), 600);
       return json({});
     }
+    if (url.pathname.startsWith('/api/me/visits/') && url.pathname.endsWith('/receipt')) {
+      const ended = Date.now();
+      return json({
+        receiptNumber: 'S-000142', createdAtUtc: new Date(ended).toISOString(),
+        sessionId: url.pathname.split('/')[4], seatName: 'ПК 07',
+        startedAtUtc: new Date(ended - 95 * 60_000).toISOString(), endedAtUtc: new Date(ended).toISOString(),
+        timeChargeMinorUnits: 1_600, posLines: [], posTotalMinorUnits: 2_400, grandTotalMinorUnits: 4_000, currencyCode: 'TJS'
+      });
+    }
+    if (url.pathname === '/api/me/reviews' && post) {
+      return json({ rating: 5, count: 1, reviews: [] });
+    }
     if (url.pathname === '/api/me/dashboard') {
       return json({ walletBalance: TJS(devBalance), heldBalance: TJS(0), debtBalance: TJS(0), activeSession: null });
     }

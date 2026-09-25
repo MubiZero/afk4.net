@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ShellBridgeRequestTypeNames, type PlayerSelfEndSessionResponse } from '@afk4/contracts';
+import { ShellBridgeRequestTypeNames } from '@afk4/contracts';
+import { apiBaseUrl } from './api/playerApi';
 import { useI18n, isLocale } from '@afk4/i18n';
 import { AlertOctagon, Loader2, WifiOff, Wrench } from 'lucide-react';
 import { requestHost, useShellHost } from './host/shellHost';
 import { clubAccent } from './model/branding';
-import { selectScreen } from './model/screen';
+import { selectScreen, type ShellScreen } from './model/screen';
+import { endedSessionId, type EndedVisit } from './model/visit';
 import { ChooseTimeScreen } from './screens/ChooseTimeScreen';
 import { IdleScreen } from './screens/IdleScreen';
 import { SessionScreen } from './screens/SessionScreen';
@@ -20,8 +22,8 @@ export function App() {
   const host = useShellHost();
   const { state } = host;
   const [approached, setApproached] = useState(false);
-  // Итог раннего выхода: ответ сервера на «Встать раньше» — его показывает запертый ПК.
-  const [ended, setEnded] = useState<PlayerSelfEndSessionResponse | null>(null);
+  // Визит, который только что кончился: по нему итог, чек и оценка — после любого конца сессии.
+  const [ended, setEnded] = useState<EndedVisit | null>(null);
   // Владелец сессии, севший с телефона, входит поверх экрана сессии, чтобы продлить.
   const [signingIn, setSigningIn] = useState(false);
 
@@ -65,6 +67,16 @@ export function App() {
   const shellStyle = accent ? ({ '--club-accent': accent } as CSSProperties) : undefined;
 
   const screen = selectScreen({ state, signedIn: host.auth.signedIn, approached, ended: ended !== null });
+
+  // Сессия вошедшего закрылась сама — по таймеру или у стойки: итог нужен и тогда. Смотрим на экран
+  // без учёта итога, иначе он сам себя и перекрывал бы.
+  const baseScreen = selectScreen({ state, signedIn: host.auth.signedIn, approached });
+  const previous = useRef<{ screen: ShellScreen; sessionId: string | null }>({ screen: baseScreen, sessionId: null });
+  useEffect(() => {
+    const sessionId = endedSessionId(previous.current, baseScreen, host.auth.signedIn);
+    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null });
+    previous.current = { screen: baseScreen, sessionId: state?.sessionId ?? previous.current.sessionId };
+  }, [baseScreen, host.auth.signedIn, state?.sessionId]);
   const online = state?.isOnline ?? false;
 
   return (
@@ -126,14 +138,21 @@ export function App() {
               system={host.system}
               auth={host.auth}
               onSignIn={() => setSigningIn(true)}
-              onEnded={setEnded}
+              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd })}
             />
             {signingIn && !host.auth.signedIn ? <SignInPanel state={state!} onClose={() => setSigningIn(false)} /> : null}
           </>
         );
       case 'summary':
         return (
-          <SummaryScreen state={state!} result={ended!} onPlayMore={() => setEnded(null)} onLeave={leaveAfterSummary} />
+          <SummaryScreen
+            state={state!}
+            visit={ended!}
+            baseUrl={apiBaseUrl(state)}
+            activity={host.activity}
+            onPlayMore={() => setEnded(null)}
+            onLeave={leaveAfterSummary}
+          />
         );
       case 'chooseTime':
         return <ChooseTimeScreen state={state!} auth={host.auth} />;

@@ -101,6 +101,7 @@ button {
 
 .btn:focus-visible,
 .offer-tile:focus-visible,
+.rating__star:focus-visible,
 .tabs__tab:focus-visible,
 .bar-item__step:focus-visible,
 .sheet__close:focus-visible,
@@ -878,16 +879,20 @@ button {
 }
 
 /* Итог раннего выхода */
+/* Середина итога по центру, когда места хватает, и прокручивается, когда нет: чек, оценка и
+   кнопки не должны уходить за край на мониторе пониже. */
 .summary {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.6rem;
   padding: var(--shell-gutter);
+  overflow-y: auto;
 }
 
 .summary__body {
-  flex: 1;
+  margin-top: auto;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -918,10 +923,16 @@ button {
   font-size: 1.5rem;
 }
 
+/* «Выйти» и «Играть ещё» видны всегда — даже когда чек с оценкой длиннее экрана. */
 .summary__actions {
+  position: sticky;
+  bottom: calc(-1 * var(--shell-gutter));
+  margin-bottom: auto;
   display: flex;
   justify-content: center;
   gap: 1rem;
+  padding-block: 1.2rem;
+  background: linear-gradient(to bottom, transparent, var(--surface-canvas) 40%);
 }
 
 .banner {
@@ -1344,4 +1355,62 @@ button {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+/* Оценка визита на итоге */
+.rating {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
+  width: min(34rem, 100%);
+  margin: 0 auto;
+}
+
+.rating__title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.rating__stars {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.rating__star {
+  display: grid;
+  place-items: center;
+  width: var(--shell-control);
+  height: var(--shell-control);
+  border: 0;
+  border-radius: 0.8rem;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.rating__star svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.rating__star[data-lit] {
+  color: var(--shell-accent);
+}
+
+.rating__star[data-lit] svg {
+  fill: currentColor;
+}
+
+.rating__comment {
+  width: 100%;
+}
+
+.rating__thanks {
+  margin: 0;
+  font-weight: 600;
+}
+
+.rating__failed {
+  margin: 0;
+  color: var(--danger-text);
 }

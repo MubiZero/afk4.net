@@ -54,7 +54,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Марафон» — заимствование, в таджикском пишется так же.
     'customer.achievement.marathon',
     // «Бар» — вкладка оболочки; заимствование, в таджикском пишется так же.
-    'playerShell.tabs.bar',
+    'playerShell.tabs.bar', 'playerShell.summary.barTotal',
     // «{club}, {hall}» — две подстановки и запятая: переводить нечего.
     'customer.friends.inHall',
     'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',

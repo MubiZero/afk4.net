@@ -150,3 +150,25 @@ describe('действия идут через хост', () => {
     await waitFor(() => expect(host.requests).toContainEqual({ type: ShellBridgeRequestTypeNames.UiSetLocale, payload: { locale: 'tg' } }));
   });
 });
+
+describe('итог после любого конца сессии', () => {
+  it('время кончилось само — вошедший видит итог, а не сразу выбор времени', async () => {
+    // Итог просит чек у сервера клуба — в тесте его нет, и в сеть тест не ходит.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response('{}', { status: 404 })) as unknown as typeof fetch;
+    try {
+      const owner = { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' };
+      const host = installFakeHost({ state: devScenarioState('session'), auth: owner });
+      renderShell();
+      await screen.findByRole('button', { name: 'Продлить' });
+
+      await act(async () => host.send(ShellBridgeEventTypeNames.StateChanged, devScenarioState('idle')));
+
+      expect(await screen.findByText('Сессия закончена')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Играть ещё' })).toBeInTheDocument();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
