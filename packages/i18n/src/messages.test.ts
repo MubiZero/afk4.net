@@ -42,7 +42,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'platform.audit.target', 'platform.organization.history.target',
     'roles.technician',
     'op.network.billing.col.number',
-    'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone', 'op.network.billing.plan',
+    'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone',
     'platform.health.queue.billing_outbox', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
     'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
@@ -290,9 +290,7 @@ it('includes the network section keys', () => {
 it('includes the network billing (subscription) screen keys', () => {
   for (const key of [
     'op.network.billing.subscription',
-    'op.network.billing.plan',
     'op.network.billing.status',
-    'op.network.billing.amount',
     'op.network.billing.period',
     'op.network.billing.nextInvoice',
     'op.network.billing.invoices',

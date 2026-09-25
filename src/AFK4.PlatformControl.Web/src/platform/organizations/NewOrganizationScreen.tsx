@@ -42,8 +42,9 @@ const defaultState: FormState = {
   branchSlug: 'main',
   branchName: '',
   branchCity: '',
-  planCode: OrganizationPlanCode.Starter,
-  subscriptionStatus: SubscriptionStatus.Trial,
+  // Новый клуб — на бесплатном тарифе; пробный период тарифа за ПК клуб начинает сам из Панели.
+  planCode: OrganizationPlanCode.Free,
+  subscriptionStatus: SubscriptionStatus.Active,
   ownerUserName: '',
   ownerDisplayName: '',
   maxBranches: '',
@@ -146,9 +147,8 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
           <label className="ui-field">
             <span>{t('platform.newOrganization.field.planCode')}</span>
             <Select value={form.planCode} onChange={event => update('planCode', event.target.value)}>
-                <option value={OrganizationPlanCode.Starter}>{t('platform.plan.starter')}</option>
-                <option value={OrganizationPlanCode.Growth}>{t('platform.plan.growth')}</option>
-                <option value={OrganizationPlanCode.Scale}>{t('platform.plan.scale')}</option>
+                <option value={OrganizationPlanCode.Free}>{t('platform.plan.free')}</option>
+                <option value={OrganizationPlanCode.PerPc}>{t('platform.plan.perPc')}</option>
             </Select>
           </label>
           <label className="ui-field">

@@ -13,6 +13,9 @@ public sealed class SubscriptionPlanEntity
     public int? MaxStaffUsersPerBranch { get; set; }
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
+    /// <summary>Цена каждого подтверждённого ПК сверх <see cref="IncludedDevices"/> за период.</summary>
+    public long PricePerDeviceMinorUnits { get; set; }
+    public int IncludedDevices { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }

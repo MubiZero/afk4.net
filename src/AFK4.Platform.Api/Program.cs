@@ -239,6 +239,7 @@ builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolv
 builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
 builder.Services.AddScoped<IDunningRunner, EfDunningRunner>();
+builder.Services.AddScoped<ClubPlans>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
@@ -652,6 +653,7 @@ app.MapDeviceHardwareEndpoints(organizations);
 app.MapShowcaseEndpoints();
 app.MapAdEndpoints();
 app.MapTipEndpoints(organizations);
+organizations.MapClubPlanEndpoints();
 organizations.MapMediaEndpoints();
 app.MapAuthEndpoints(organizations);
 organizations.MapEskhataConfigEndpoints();

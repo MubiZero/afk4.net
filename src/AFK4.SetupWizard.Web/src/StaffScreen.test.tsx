@@ -120,7 +120,7 @@ describe('StaffScreen', () => {
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '+992900000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
-    await waitFor(() => expect(screen.getByText(/Тарифный план клуба/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Тариф клуба не позволяет/)).toBeTruthy());
   });
 
 });

@@ -548,6 +548,22 @@ const mockTips = [
   { ledgerEntryId: 'tip-2', amount: money(2000), seatLabel: 'ПК 12', createdAtUtc: minutesAgoUtc(25), reversed: false },
   { ledgerEntryId: 'tip-3', amount: money(500), seatLabel: 'ПК 03', createdAtUtc: minutesAgoUtc(12), reversed: false }
 ];
+// Тариф учебного клуба: бесплатный, 7 ПК, пробный период ещё не брали.
+let mockPlan: Record<string, unknown> = {
+  planCode: 'free', kind: 'free', devices: 7, includedDevices: 10, billableDevices: 0,
+  pricePerDevice: money(1000), estimatedMonthly: money(0), trialEndsAtUtc: null, trialAvailable: true,
+  canSwitchToPerPc: true, promisedPaymentAvailable: false, promisedPaymentUntilUtc: null, overdue: null
+};
+function mockSubscription() {
+  return {
+    organizationSubscriptionId: 'sub1', organizationId: ORG, planCode: mockPlan.planCode, status: mockPlan.kind === 'trial' ? 'trial' : 'active',
+    currentPeriodStartUtc: minutesAgoUtc(60 * 24 * 5), currentPeriodEndUtc: minutesAgoUtc(-60 * 24 * 25), nextInvoiceUtc: null,
+    amountMinorUnits: 0, currencyCode: 'TJS', billingInterval: 'monthly', cancelAtPeriodEnd: false,
+    createdAtUtc: minutesAgoUtc(60 * 24 * 40), updatedAtUtc: minutesAgoUtc(60), paymentGraceUntilUtc: null,
+    discountPercent: null, discountAmountMinorUnits: null, discountUntilUtc: null, discountReason: null
+  };
+}
+
 function shiftTips() {
   const total = mockTips.filter((tip) => !tip.reversed).reduce((sum, tip) => sum + tip.amount.minorUnits, 0);
   return {
@@ -615,6 +631,9 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
   if (pathname.endsWith('/tip-settings') && method === 'GET') return { enabled: mockTipsEnabled };
+  if (pathname.endsWith('/plan') && method === 'GET') return mockPlan;
+  if (pathname.endsWith('/subscription') && method === 'GET') return mockSubscription();
+  if (pathname.endsWith('/invoices') && method === 'GET') return [];
   if (/\/shifts\/[^/]+\/tips$/.test(pathname) && method === 'GET') return shiftTips();
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
@@ -1097,6 +1116,10 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     };
     prependLedger(entry);
     return json(entry);
+  }
+  if (url.pathname.endsWith('/plan/trial') && method === 'POST') {
+    mockPlan = { ...mockPlan, planCode: 'per_pc', kind: 'trial', trialAvailable: false, canSwitchToPerPc: false, trialEndsAtUtc: minutesAgoUtc(-60 * 24 * 30) };
+    return json(mockPlan);
   }
   if (url.pathname.endsWith('/tip-settings') && method === 'PUT') {
     mockTipsEnabled = Boolean((JSON.parse(String(init?.body ?? '{}')) as { enabled?: boolean }).enabled);

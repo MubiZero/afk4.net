@@ -89,7 +89,7 @@ export function emptyPlanForm(): PlanForm {
     planCode: '',
     name: '',
     priceMinorUnits: 0,
-    currencyCode: 'RUB',
+    currencyCode: 'TJS',
     billingInterval: 'monthly',
     maxBranches: null,
     maxDevicesPerBranch: null,

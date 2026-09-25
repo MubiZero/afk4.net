@@ -11,4 +11,7 @@ public sealed record SubscriptionPlanDto(
     int? MaxConcurrentSessions,
     int? MaxStaffUsersPerBranch,
     bool IsActive,
-    int SortOrder);
+    int SortOrder,
+    // Цена каждого ПК сверх включённых — у тарифа за ПК; у прочих ноль.
+    long PricePerDeviceMinorUnits = 0,
+    int IncludedDevices = 0);

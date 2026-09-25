@@ -150,6 +150,15 @@ public sealed class EfPlatformOrganizationService(
         }
 
         var now = timeProvider.GetUtcNow();
+        var catalogPlan = await dbContext.SubscriptionPlans
+            .AsNoTracking()
+            .SingleOrDefaultAsync(plan => plan.PlanCode == request.PlanCode.Trim(), cancellationToken);
+        // Платформа не задала своих лимитов — у клуба лимиты его тарифа: бесплатный без них был бы
+        // безлимитным (спека тарифов клуба, §1).
+        var limits = request.Limits ?? (catalogPlan is null
+            ? null
+            : new OrganizationLimitsDto(catalogPlan.MaxBranches, catalogPlan.MaxDevicesPerBranch,
+                catalogPlan.MaxConcurrentSessions, catalogPlan.MaxStaffUsersPerBranch));
         var organization = new OrganizationEntity
         {
             OrganizationId = Guid.NewGuid(),
@@ -160,7 +169,7 @@ public sealed class EfPlatformOrganizationService(
             StatusChangedAtUtc = now,
             PlanCode = request.PlanCode.Trim(),
             SubscriptionStatus = request.SubscriptionStatus.Trim(),
-            LimitsJson = OrganizationLimitsJson.Serialize(request.Limits),
+            LimitsJson = OrganizationLimitsJson.Serialize(limits),
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -198,9 +207,6 @@ public sealed class EfPlatformOrganizationService(
         dbContext.Branches.Add(branch);
         dbContext.Zones.Add(defaultZone);
         dbContext.OrganizationOwnerInvites.Add(invite);
-        var catalogPlan = await dbContext.SubscriptionPlans
-            .AsNoTracking()
-            .SingleOrDefaultAsync(plan => plan.PlanCode == organization.PlanCode, cancellationToken);
         var subscriptionInterval = catalogPlan?.BillingInterval ?? "monthly";
         dbContext.OrganizationSubscriptions.Add(new OrganizationSubscriptionEntity
         {

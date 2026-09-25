@@ -270,6 +270,9 @@ export const OrganizationStatus = {
 export type OrganizationStatusValue = (typeof OrganizationStatus)[keyof typeof OrganizationStatus];
 
 export const OrganizationPlanCode = {
+  // Спека тарифов клуба: бесплатно до 10 ПК, дальше за ПК. Прежняя сетка снята с продажи.
+  Free: 'free',
+  PerPc: 'per_pc',
   Starter: 'starter',
   Growth: 'growth',
   Scale: 'scale'

@@ -9,22 +9,25 @@ import type { OperatorBackendContext } from '../../operatorTypes';
 import { SectionState } from '../SectionState';
 import { SkeletonLine, SkeletonTable, SkeletonTiles } from '../../LoadingSkeleton';
 import { useBilling, type BillingClient } from './useBilling';
+import { ClubPlanPanel, type ClubPlanClient } from './ClubPlanPanel';
+import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { subscriptionStatusLabelKey, subscriptionStatusTone, invoiceStatusLabelKey, invoiceStatusTone } from './billingModel';
 
 const INVOICES_GRID = '0.6fr 1fr 1fr 1fr 0.8fr';
 
-// Read-only «Сеть → Подписка» screen — org subscription plan/status/period + invoice history.
-// No plan-management actions here by design (upgrade/cancel/payment-method live on the platform
-// side); this is a status mirror for the org's own operators (owner-exclusive, see billingModel
-// gate in networkNav.ts).
+// «Сеть → Подписка»: тариф клуба словами и то, что клуб делает с ним сам (пробный период, тариф за
+// ПК, обещанный платёж), статус и период подписки, история счетов. Сумма подписки больше не
+// показывается как есть: у прежней сетки это были рубли без пересчёта (спека тарифов клуба).
 // `client` подставляется в тестах — по той же причине, что у «Обновлений»: `mock.module` в bun
 // течёт за пределы файла, и подмена общего фабричного хелпера задела бы соседние наборы.
 export function BillingDestination({
   backend,
-  client: injectedClient
+  client: injectedClient,
+  planClient: injectedPlanClient
 }: {
   backend: OperatorBackendContext | null;
   client?: BillingClient;
+  planClient?: ClubPlanClient;
 }): JSX.Element {
   const { t, formatDate } = useI18n();
 
@@ -38,6 +41,15 @@ export function BillingDestination({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injectedClient, backend?.config.platformBaseUrl, backend?.session.accessToken]);
+
+  const planClient = useMemo<ClubPlanClient | null>(() => {
+    if (injectedPlanClient !== undefined) return injectedPlanClient;
+    // Экран с подставленным клиентом подписки (тесты) без клиента тарифа — без панели тарифа.
+    if (backend === null || injectedClient !== undefined) return null;
+    return createAuthenticatedOperatorClients(backend.config, backend.session).orgBilling;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [injectedPlanClient, injectedClient, backend?.config.platformBaseUrl, backend?.session.accessToken]);
+  const canManagePlan = hasPermission(backend?.session ?? null, permissionNames.manageSubscription);
 
   const { subscription, invoices } = useBilling(
     client ?? { getSubscription: async () => { throw new Error('no backend'); }, listInvoices: async () => [] },
@@ -83,10 +95,16 @@ export function BillingDestination({
         <>
           <section className="management-panel network-billing-sub">
             <h3>{t('op.network.billing.subscription')}</h3>
+            {planClient ? (
+              <ClubPlanPanel
+                client={planClient}
+                canManage={canManagePlan}
+                onChanged={() => { if (subscription.status === 'ready' || subscription.status === 'error') subscription.retry(); }}
+              />
+            ) : null}
             <SectionState section={subscription} failedTitle={t('op.network.billing.subscription.loadFailed')} skeleton={subscriptionSkeleton} />
             {subscription.status === 'ready' && (
               <dl className="network-billing-grid">
-                <Field label={t('op.network.billing.plan')} value={subscription.data.planCode} />
                 <Field
                   label={t('op.network.billing.status')}
                   value={
@@ -96,10 +114,6 @@ export function BillingDestination({
                         : subscription.data.status}
                     </span>
                   }
-                />
-                <Field
-                  label={t('op.network.billing.amount')}
-                  value={<Money minorUnits={subscription.data.amountMinorUnits} currencyCode={subscription.data.currencyCode} />}
                 />
                 <Field
                   label={t('op.network.billing.period')}

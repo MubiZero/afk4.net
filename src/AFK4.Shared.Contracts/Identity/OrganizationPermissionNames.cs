@@ -60,6 +60,10 @@ public static class OrganizationPermissionNames
 
     public const string ViewSubscription = "organization.billing.subscription.view";
 
+    /// Сменить тариф клуба, начать пробный период, взять обещанный платёж. Это обязательство
+    /// платить — только у владельца.
+    public const string ManageSubscription = "organization.billing.subscription.manage";
+
     public const string ManageTariffs = "organization.tariffs.manage";
 
     public const string ViewTariffs = "organization.tariffs.view";

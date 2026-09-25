@@ -13,6 +13,8 @@ export const STATUS_LABEL: Record<string, MessageKey> = {
 };
 
 export const PLAN_LABEL: Record<string, MessageKey> = {
+  free: 'platform.plan.free',
+  per_pc: 'platform.plan.perPc',
   starter: 'platform.plan.starter',
   growth: 'platform.plan.growth',
   scale: 'platform.plan.scale'

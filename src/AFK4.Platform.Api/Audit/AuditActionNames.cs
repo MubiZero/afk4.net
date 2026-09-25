@@ -306,6 +306,20 @@ public static class AuditActionNames
     /// <summary>Чаевые смены выданы администратору из кассы.</summary>
     public const string PayOutTips = "tips.payout";
 
+    /// <summary>Клуб сам начал пробный период тарифа за ПК.</summary>
+    public const string StartPlanTrial = "billing.plan.trial.start";
+
+    /// <summary>Пробный период кончился: клуб на тарифе за ПК или на бесплатном.</summary>
+    public const string EndPlanTrial = "billing.plan.trial.end";
+
+    public const string SwitchPlanToPerPc = "billing.plan.per_pc";
+
+    /// <summary>Клуб взял обещанный платёж на неделю.</summary>
+    public const string PromisePlanPayment = "billing.plan.promised_payment";
+
+    /// <summary>Счёт просрочен — клуб перешёл на бесплатный тариф вместо блокировки.</summary>
+    public const string FallBackToFreePlan = "billing.plan.fallback_free";
+
     public const string UpsertAdvertiser = "platform.ads.advertisers.upsert";
 
     public const string UpsertAdCampaign = "platform.ads.campaigns.upsert";

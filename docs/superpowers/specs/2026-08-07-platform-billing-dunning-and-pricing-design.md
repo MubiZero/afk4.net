@@ -174,6 +174,9 @@ for existing rows is the migration's job, not the seeder's.
 
 ## 6a. Pricing amendment (2026-09-24)
 
+> 2026-09-25: how the owner's pricing works — plans `free` and `per_pc`, the trial, the promised
+> payment and the free-plan fallback — is specified in `2026-09-25-club-plans-per-pc-design.md`.
+
 The seeded prices above were never re-decided for somoni. §6 rebased the
 currency code and kept the digits — the same move it describes for staging
 data, "2 900 rubles becomes 2 900 somoni" — so the Starter plan asks

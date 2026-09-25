@@ -10,4 +10,7 @@ public sealed record UpdatePlanRequest(
     int? MaxConcurrentSessions,
     int? MaxStaffUsersPerBranch,
     bool IsActive,
-    int SortOrder);
+    int SortOrder,
+    // Не переданы — остаются прежними: старый редактор тарифов о них не знает.
+    long? PricePerDeviceMinorUnits = null,
+    int? IncludedDevices = null);

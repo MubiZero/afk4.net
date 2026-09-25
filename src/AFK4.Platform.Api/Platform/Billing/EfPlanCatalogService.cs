@@ -72,6 +72,8 @@ public sealed class EfPlanCatalogService(
             MaxDevicesPerBranch = request.MaxDevicesPerBranch,
             MaxConcurrentSessions = request.MaxConcurrentSessions,
             MaxStaffUsersPerBranch = request.MaxStaffUsersPerBranch,
+            PricePerDeviceMinorUnits = request.PricePerDeviceMinorUnits,
+            IncludedDevices = request.IncludedDevices,
             IsActive = true,
             SortOrder = request.SortOrder,
             CreatedAtUtc = now,
@@ -109,6 +111,8 @@ public sealed class EfPlanCatalogService(
         entity.MaxDevicesPerBranch = request.MaxDevicesPerBranch;
         entity.MaxConcurrentSessions = request.MaxConcurrentSessions;
         entity.MaxStaffUsersPerBranch = request.MaxStaffUsersPerBranch;
+        entity.PricePerDeviceMinorUnits = request.PricePerDeviceMinorUnits ?? entity.PricePerDeviceMinorUnits;
+        entity.IncludedDevices = request.IncludedDevices ?? entity.IncludedDevices;
         entity.IsActive = request.IsActive;
         entity.SortOrder = request.SortOrder;
         entity.UpdatedAtUtc = timeProvider.GetUtcNow();
@@ -158,5 +162,7 @@ public sealed class EfPlanCatalogService(
             MaxConcurrentSessions: entity.MaxConcurrentSessions,
             MaxStaffUsersPerBranch: entity.MaxStaffUsersPerBranch,
             IsActive: entity.IsActive,
-            SortOrder: entity.SortOrder);
+            SortOrder: entity.SortOrder,
+            PricePerDeviceMinorUnits: entity.PricePerDeviceMinorUnits,
+            IncludedDevices: entity.IncludedDevices);
 }

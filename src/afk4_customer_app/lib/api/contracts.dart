@@ -68,6 +68,25 @@ abstract final class CashMovementTypeNames {
   static const String cashOut = 'cash_out';
 }
 
+/// Словарь: Platform/Billing/ClubPlanContracts.cs
+abstract final class ClubPlanErrorCodeNames {
+  static const String trialUsed = 'plan_trial_used';
+  /// Сначала оплатить просроченное — потом снова на тариф за ПК.
+  static const String overdueInvoices = 'plan_overdue_invoices';
+  static const String nothingToPromise = 'plan_nothing_to_promise';
+  static const String promiseUsed = 'plan_promise_used';
+  static const String alreadyOnPlan = 'plan_already_on_plan';
+}
+
+/// Словарь: Platform/Billing/ClubPlanContracts.cs
+abstract final class ClubPlanKindNames {
+  static const String free = 'free';
+  static const String perPc = 'per_pc';
+  static const String trial = 'trial';
+  /// Прежняя сетка тарифов: условия у поддержки, цену экран не показывает.
+  static const String legacy = 'legacy';
+}
+
 /// Почему сервер не принял команду администратора.
 ///
 /// Словарь: Devices/DeviceCommandErrorCodeNames.cs
@@ -418,6 +437,9 @@ abstract final class OrganizationPermissionNames {
   /// Anti-fraud (§5.2/D2): approve an over-threshold high-risk money action raised by another actor.
   static const String approveMoneyAction = 'organization.billing.money_action.approve';
   static const String viewSubscription = 'organization.billing.subscription.view';
+  /// Сменить тариф клуба, начать пробный период, взять обещанный платёж. Это обязательство
+  /// платить — только у владельца.
+  static const String manageSubscription = 'organization.billing.subscription.manage';
   static const String manageTariffs = 'organization.tariffs.manage';
   static const String viewTariffs = 'organization.tariffs.view';
   static const String managePackages = 'organization.packages.manage';
@@ -495,6 +517,11 @@ abstract final class OrganizationPermissionNames {
 
 /// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
 abstract final class OrganizationPlanCodeNames {
+  /// Бесплатно: до 10 ПК, 1 зал, 3 сотрудника, с рекламой платформы.
+  static const String free = 'free';
+  /// 10 сомони в месяц за каждый ПК сверх десяти; без лимитов и рекламы.
+  static const String perPc = 'per_pc';
+  /// Прежняя сетка — снята с продажи (спека тарифов клуба, §2); клубы на ней остаются.
   static const String starter = 'starter';
   static const String growth = 'growth';
   static const String scale = 'scale';
@@ -3113,6 +3140,80 @@ class ClubPlaceDto {
       };
 }
 
+/// Тариф клуба словами (спека `2026-09-25-club-plans-per-pc-design.md`): сколько ПК, сколько из них
+/// платных, во что выйдет месяц и что клуб может сделать сам. Цену прежней сетки клуб не видит.
+///
+/// Контракт: Platform/Billing/ClubPlanContracts.cs
+class ClubPlanDto {
+  const ClubPlanDto({
+    required this.planCode,
+    required this.kind,
+    required this.devices,
+    required this.includedDevices,
+    required this.billableDevices,
+    required this.pricePerDevice,
+    required this.estimatedMonthly,
+    this.trialEndsAtUtc,
+    required this.trialAvailable,
+    required this.canSwitchToPerPc,
+    required this.promisedPaymentAvailable,
+    this.promisedPaymentUntilUtc,
+    this.overdue,
+  });
+
+  final String planCode;
+
+  /// Одно из ClubPlanKindNames
+  final String kind;
+  final int devices;
+  final int includedDevices;
+  final int billableDevices;
+  final MoneyDto pricePerDevice;
+
+  /// Счёт за месяц при сегодняшнем числе ПК. У бесплатного и пробного — ноль.
+  final MoneyDto estimatedMonthly;
+  final DateTime? trialEndsAtUtc;
+  final bool trialAvailable;
+  final bool canSwitchToPerPc;
+  final bool promisedPaymentAvailable;
+  final DateTime? promisedPaymentUntilUtc;
+
+  /// Просроченное; пусто — долга нет.
+  final MoneyDto? overdue;
+
+  factory ClubPlanDto.fromJson(Map<String, dynamic> json) => ClubPlanDto(
+        planCode: json['planCode'] as String,
+        kind: json['kind'] as String,
+        devices: (json['devices'] as num).toInt(),
+        includedDevices: (json['includedDevices'] as num).toInt(),
+        billableDevices: (json['billableDevices'] as num).toInt(),
+        pricePerDevice: MoneyDto.fromJson(json['pricePerDevice'] as Map<String, dynamic>),
+        estimatedMonthly: MoneyDto.fromJson(json['estimatedMonthly'] as Map<String, dynamic>),
+        trialEndsAtUtc: json['trialEndsAtUtc'] == null ? null : DateTime.parse(json['trialEndsAtUtc'] as String),
+        trialAvailable: json['trialAvailable'] as bool,
+        canSwitchToPerPc: json['canSwitchToPerPc'] as bool,
+        promisedPaymentAvailable: json['promisedPaymentAvailable'] as bool,
+        promisedPaymentUntilUtc: json['promisedPaymentUntilUtc'] == null ? null : DateTime.parse(json['promisedPaymentUntilUtc'] as String),
+        overdue: json['overdue'] == null ? null : MoneyDto.fromJson(json['overdue'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'planCode': planCode,
+        'kind': kind,
+        'devices': devices,
+        'includedDevices': includedDevices,
+        'billableDevices': billableDevices,
+        'pricePerDevice': pricePerDevice.toJson(),
+        'estimatedMonthly': estimatedMonthly.toJson(),
+        'trialEndsAtUtc': trialEndsAtUtc?.toIso8601String(),
+        'trialAvailable': trialAvailable,
+        'canSwitchToPerPc': canSwitchToPerPc,
+        'promisedPaymentAvailable': promisedPaymentAvailable,
+        'promisedPaymentUntilUtc': promisedPaymentUntilUtc?.toIso8601String(),
+        'overdue': overdue?.toJson(),
+      };
+}
+
 /// A review as the club's shop window shows it: who, how many stars, and what they wrote.
 ///
 /// Контракт: Reviews/ClubReviewDtos.cs
@@ -3694,6 +3795,8 @@ class CreatePlanRequest {
     this.maxConcurrentSessions,
     this.maxStaffUsersPerBranch,
     required this.sortOrder,
+    this.pricePerDeviceMinorUnits,
+    this.includedDevices,
   });
 
   final String planCode;
@@ -3706,6 +3809,8 @@ class CreatePlanRequest {
   final int? maxConcurrentSessions;
   final int? maxStaffUsersPerBranch;
   final int sortOrder;
+  final int? pricePerDeviceMinorUnits;
+  final int? includedDevices;
 
   factory CreatePlanRequest.fromJson(Map<String, dynamic> json) => CreatePlanRequest(
         planCode: json['planCode'] as String,
@@ -3718,6 +3823,8 @@ class CreatePlanRequest {
         maxConcurrentSessions: json['maxConcurrentSessions'] == null ? null : (json['maxConcurrentSessions'] as num).toInt(),
         maxStaffUsersPerBranch: json['maxStaffUsersPerBranch'] == null ? null : (json['maxStaffUsersPerBranch'] as num).toInt(),
         sortOrder: (json['sortOrder'] as num).toInt(),
+        pricePerDeviceMinorUnits: json['pricePerDeviceMinorUnits'] == null ? null : (json['pricePerDeviceMinorUnits'] as num).toInt(),
+        includedDevices: json['includedDevices'] == null ? null : (json['includedDevices'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -3731,6 +3838,8 @@ class CreatePlanRequest {
         'maxConcurrentSessions': maxConcurrentSessions,
         'maxStaffUsersPerBranch': maxStaffUsersPerBranch,
         'sortOrder': sortOrder,
+        'pricePerDeviceMinorUnits': pricePerDeviceMinorUnits,
+        'includedDevices': includedDevices,
       };
 }
 
@@ -18655,6 +18764,8 @@ class SubscriptionPlanDto {
     this.maxStaffUsersPerBranch,
     required this.isActive,
     required this.sortOrder,
+    this.pricePerDeviceMinorUnits,
+    this.includedDevices,
   });
 
   final String planCode;
@@ -18669,6 +18780,10 @@ class SubscriptionPlanDto {
   final bool isActive;
   final int sortOrder;
 
+  /// Цена каждого ПК сверх включённых — у тарифа за ПК; у прочих ноль.
+  final int? pricePerDeviceMinorUnits;
+  final int? includedDevices;
+
   factory SubscriptionPlanDto.fromJson(Map<String, dynamic> json) => SubscriptionPlanDto(
         planCode: json['planCode'] as String,
         name: json['name'] as String,
@@ -18681,6 +18796,8 @@ class SubscriptionPlanDto {
         maxStaffUsersPerBranch: json['maxStaffUsersPerBranch'] == null ? null : (json['maxStaffUsersPerBranch'] as num).toInt(),
         isActive: json['isActive'] as bool,
         sortOrder: (json['sortOrder'] as num).toInt(),
+        pricePerDeviceMinorUnits: json['pricePerDeviceMinorUnits'] == null ? null : (json['pricePerDeviceMinorUnits'] as num).toInt(),
+        includedDevices: json['includedDevices'] == null ? null : (json['includedDevices'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -18695,6 +18812,8 @@ class SubscriptionPlanDto {
         'maxStaffUsersPerBranch': maxStaffUsersPerBranch,
         'isActive': isActive,
         'sortOrder': sortOrder,
+        'pricePerDeviceMinorUnits': pricePerDeviceMinorUnits,
+        'includedDevices': includedDevices,
       };
 }
 
@@ -19911,6 +20030,8 @@ class UpdatePlanRequest {
     this.maxStaffUsersPerBranch,
     required this.isActive,
     required this.sortOrder,
+    this.pricePerDeviceMinorUnits,
+    this.includedDevices,
   });
 
   final String name;
@@ -19924,6 +20045,10 @@ class UpdatePlanRequest {
   final bool isActive;
   final int sortOrder;
 
+  /// Не переданы — остаются прежними: старый редактор тарифов о них не знает.
+  final int? pricePerDeviceMinorUnits;
+  final int? includedDevices;
+
   factory UpdatePlanRequest.fromJson(Map<String, dynamic> json) => UpdatePlanRequest(
         name: json['name'] as String,
         priceMinorUnits: (json['priceMinorUnits'] as num).toInt(),
@@ -19935,6 +20060,8 @@ class UpdatePlanRequest {
         maxStaffUsersPerBranch: json['maxStaffUsersPerBranch'] == null ? null : (json['maxStaffUsersPerBranch'] as num).toInt(),
         isActive: json['isActive'] as bool,
         sortOrder: (json['sortOrder'] as num).toInt(),
+        pricePerDeviceMinorUnits: json['pricePerDeviceMinorUnits'] == null ? null : (json['pricePerDeviceMinorUnits'] as num).toInt(),
+        includedDevices: json['includedDevices'] == null ? null : (json['includedDevices'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -19948,6 +20075,8 @@ class UpdatePlanRequest {
         'maxStaffUsersPerBranch': maxStaffUsersPerBranch,
         'isActive': isActive,
         'sortOrder': sortOrder,
+        'pricePerDeviceMinorUnits': pricePerDeviceMinorUnits,
+        'includedDevices': includedDevices,
       };
 }
 

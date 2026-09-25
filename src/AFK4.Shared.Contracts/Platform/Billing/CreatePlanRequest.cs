@@ -10,4 +10,6 @@ public sealed record CreatePlanRequest(
     int? MaxDevicesPerBranch,
     int? MaxConcurrentSessions,
     int? MaxStaffUsersPerBranch,
-    int SortOrder);
+    int SortOrder,
+    long PricePerDeviceMinorUnits = 0,
+    int IncludedDevices = 0);

@@ -90,6 +90,27 @@ export const CashMovementTypeNames = {
 } as const;
 export type CashMovementTypeName = (typeof CashMovementTypeNames)[keyof typeof CashMovementTypeNames];
 
+/** Словарь: Platform/Billing/ClubPlanContracts.cs */
+export const ClubPlanErrorCodeNames = {
+  TrialUsed: 'plan_trial_used',
+  /** Сначала оплатить просроченное — потом снова на тариф за ПК. */
+  OverdueInvoices: 'plan_overdue_invoices',
+  NothingToPromise: 'plan_nothing_to_promise',
+  PromiseUsed: 'plan_promise_used',
+  AlreadyOnPlan: 'plan_already_on_plan',
+} as const;
+export type ClubPlanErrorCodeName = (typeof ClubPlanErrorCodeNames)[keyof typeof ClubPlanErrorCodeNames];
+
+/** Словарь: Platform/Billing/ClubPlanContracts.cs */
+export const ClubPlanKindNames = {
+  Free: 'free',
+  PerPc: 'per_pc',
+  Trial: 'trial',
+  /** Прежняя сетка тарифов: условия у поддержки, цену экран не показывает. */
+  Legacy: 'legacy',
+} as const;
+export type ClubPlanKindName = (typeof ClubPlanKindNames)[keyof typeof ClubPlanKindNames];
+
 /**
  * Почему сервер не принял команду администратора.
  *
@@ -502,6 +523,11 @@ export const OrganizationPermissionNames = {
   /** Anti-fraud (§5.2/D2): approve an over-threshold high-risk money action raised by another actor. */
   ApproveMoneyAction: 'organization.billing.money_action.approve',
   ViewSubscription: 'organization.billing.subscription.view',
+  /**
+   * Сменить тариф клуба, начать пробный период, взять обещанный платёж. Это обязательство
+   * платить — только у владельца.
+   */
+  ManageSubscription: 'organization.billing.subscription.manage',
   ManageTariffs: 'organization.tariffs.manage',
   ViewTariffs: 'organization.tariffs.view',
   ManagePackages: 'organization.packages.manage',
@@ -598,6 +624,11 @@ export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[ke
 
 /** Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs */
 export const OrganizationPlanCodeNames = {
+  /** Бесплатно: до 10 ПК, 1 зал, 3 сотрудника, с рекламой платформы. */
+  Free: 'free',
+  /** 10 сомони в месяц за каждый ПК сверх десяти; без лимитов и рекламы. */
+  PerPc: 'per_pc',
+  /** Прежняя сетка — снята с продажи (спека тарифов клуба, §2); клубы на ней остаются. */
   Starter: 'starter',
   Growth: 'growth',
   Scale: 'scale',
@@ -2115,6 +2146,31 @@ export interface ClubPlaceDto {
 }
 
 /**
+ * Тариф клуба словами (спека `2026-09-25-club-plans-per-pc-design.md`): сколько ПК, сколько из них
+ * платных, во что выйдет месяц и что клуб может сделать сам. Цену прежней сетки клуб не видит.
+ *
+ * Контракт: Platform/Billing/ClubPlanContracts.cs
+ */
+export interface ClubPlanDto {
+  planCode: string;
+  /** Одно из ClubPlanKindNames */
+  kind: ClubPlanKindName;
+  devices: number;
+  includedDevices: number;
+  billableDevices: number;
+  pricePerDevice: MoneyDto;
+  /** Счёт за месяц при сегодняшнем числе ПК. У бесплатного и пробного — ноль. */
+  estimatedMonthly: MoneyDto;
+  trialEndsAtUtc: IsoDateTime | null;
+  trialAvailable: boolean;
+  canSwitchToPerPc: boolean;
+  promisedPaymentAvailable: boolean;
+  promisedPaymentUntilUtc: IsoDateTime | null;
+  /** Просроченное; пусто — долга нет. */
+  overdue: MoneyDto | null;
+}
+
+/**
  * A review as the club's shop window shows it: who, how many stars, and what they wrote.
  *
  * Контракт: Reviews/ClubReviewDtos.cs
@@ -2301,6 +2357,8 @@ export interface CreatePlanRequest {
   maxConcurrentSessions: number | null;
   maxStaffUsersPerBranch: number | null;
   sortOrder: number;
+  pricePerDeviceMinorUnits?: number;
+  includedDevices?: number;
 }
 
 /** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
@@ -7350,6 +7408,9 @@ export interface SubscriptionPlanDto {
   maxStaffUsersPerBranch: number | null;
   isActive: boolean;
   sortOrder: number;
+  /** Цена каждого ПК сверх включённых — у тарифа за ПК; у прочих ноль. */
+  pricePerDeviceMinorUnits?: number;
+  includedDevices?: number;
 }
 
 /** Контракт: Tariffs/TariffCalculationResult.cs */
@@ -7751,6 +7812,9 @@ export interface UpdatePlanRequest {
   maxStaffUsersPerBranch: number | null;
   isActive: boolean;
   sortOrder: number;
+  /** Не переданы — остаются прежними: старый редактор тарифов о них не знает. */
+  pricePerDeviceMinorUnits?: number | null;
+  includedDevices?: number | null;
 }
 
 /** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */

@@ -1,0 +1,65 @@
+using AFK4.Shared.Contracts.Billing;
+
+namespace AFK4.Shared.Contracts.Platform.Billing;
+
+/// <summary>
+/// Тариф клуба словами (спека `2026-09-25-club-plans-per-pc-design.md`): сколько ПК, сколько из них
+/// платных, во что выйдет месяц и что клуб может сделать сам. Цену прежней сетки клуб не видит.
+/// </summary>
+public sealed record ClubPlanDto(
+    string PlanCode,
+    // Одно из ClubPlanKindNames
+    string Kind,
+    int Devices,
+    int IncludedDevices,
+    int BillableDevices,
+    MoneyDto PricePerDevice,
+    // Счёт за месяц при сегодняшнем числе ПК. У бесплатного и пробного — ноль.
+    MoneyDto EstimatedMonthly,
+    DateTimeOffset? TrialEndsAtUtc,
+    bool TrialAvailable,
+    bool CanSwitchToPerPc,
+    bool PromisedPaymentAvailable,
+    DateTimeOffset? PromisedPaymentUntilUtc,
+    // Просроченное; пусто — долга нет.
+    MoneyDto? Overdue);
+
+public static class ClubPlanKindNames
+{
+    public const string Free = "free";
+
+    public const string PerPc = "per_pc";
+
+    public const string Trial = "trial";
+
+    /// <summary>Прежняя сетка тарифов: условия у поддержки, цену экран не показывает.</summary>
+    public const string Legacy = "legacy";
+}
+
+public static class ClubPlanErrorCodeNames
+{
+    public const string TrialUsed = "plan_trial_used";
+
+    /// <summary>Сначала оплатить просроченное — потом снова на тариф за ПК.</summary>
+    public const string OverdueInvoices = "plan_overdue_invoices";
+
+    public const string NothingToPromise = "plan_nothing_to_promise";
+
+    public const string PromiseUsed = "plan_promise_used";
+
+    public const string AlreadyOnPlan = "plan_already_on_plan";
+}
+
+public static class ClubPlanLimits
+{
+    public const int TrialDays = 30;
+
+    public const int PromisedPaymentDays = 7;
+
+    /// <summary>Сколько дней после срока оплаты клуб живёт на своём тарифе, прежде чем уйти на бесплатный.</summary>
+    public const int FallbackAfterOverdueDays = 14;
+
+    public const int FreeDevices = 10;
+
+    public const long PricePerDeviceMinorUnits = 1000;
+}

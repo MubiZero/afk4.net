@@ -289,7 +289,7 @@ public sealed class EfInstallService(
         // Лимит тарифа — только для нового ПК: переустановка того же места в зале не добавляет.
         // Раньше его проверял лишь старый вход по коду, и мастер ставил ПК сверх тарифа.
         if (existingDevice is null &&
-            await planLimitGuard.CheckDeviceAsync(organizationId, branchId, cancellationToken) is not null)
+            await planLimitGuard.CheckDeviceAsync(organizationId, branchId, cancellationToken, normalizedRole) is not null)
         {
             return InstallOperationResult<InstallEnrollResponse>.Conflict(
                 "Plan device limit for this branch has been reached.",

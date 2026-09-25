@@ -31,8 +31,14 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
         return Verdict(PlanLimitNames.Branches, limit, current, plan.PlanCode);
     }
 
-    public async Task<PlanLimitExceededDto?> CheckDeviceAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken)
+    public async Task<PlanLimitExceededDto?> CheckDeviceAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken, string role = DeviceRoleNames.GamingPc)
     {
+        if (role != DeviceRoleNames.GamingPc)
+        {
+            return null;
+        }
+
         var plan = await LoadPlanAsync(organizationId, cancellationToken);
         if (plan?.Limits.MaxDevicesPerBranch is not { } limit)
         {
@@ -43,6 +49,7 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
             .CountAsync(
                 device => device.OrganizationId == organizationId
                     && device.BranchId == branchId
+                    && device.Role == DeviceRoleNames.GamingPc
                     && LiveDeviceStates.Contains(device.EnrollmentState),
                 cancellationToken);
 

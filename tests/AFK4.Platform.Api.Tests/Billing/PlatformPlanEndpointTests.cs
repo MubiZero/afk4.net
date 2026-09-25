@@ -18,8 +18,10 @@ public sealed class PlatformPlanEndpointTests
         var plans = await response.Content.ReadFromJsonAsync<List<SubscriptionPlanDto>>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(6, plans!.Count);
-        Assert.Contains(plans, plan => plan.PlanCode == "starter");
+        // Бесплатный и за ПК — в продаже; прежняя сетка остаётся в каталоге снятой с продажи.
+        Assert.Equal(8, plans!.Count);
+        Assert.Contains(plans, plan => plan.PlanCode == "starter" && !plan.IsActive);
+        Assert.Contains(plans, plan => plan.PlanCode == "per_pc" && plan.IsActive && plan.PricePerDeviceMinorUnits == 1000 && plan.IncludedDevices == 10);
     }
 
     [Fact]

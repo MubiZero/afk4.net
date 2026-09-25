@@ -10,7 +10,12 @@ public interface IPlanLimitGuard
 {
     Task<PlanLimitExceededDto?> CheckBranchAsync(Guid organizationId, CancellationToken cancellationToken);
 
-    Task<PlanLimitExceededDto?> CheckDeviceAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Лимит ПК филиала. Считаются только игровые ПК: рабочее место управляющего играм не служит и
+    /// место в лимите бесплатного тарифа («до десяти ПК») не занимает — его регистрация не упирается.
+    /// </summary>
+    Task<PlanLimitExceededDto?> CheckDeviceAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken, string role = AFK4.Shared.Contracts.Install.DeviceRoleNames.GamingPc);
 
     Task<PlanLimitExceededDto?> CheckConcurrentSessionAsync(Guid organizationId, CancellationToken cancellationToken);
 

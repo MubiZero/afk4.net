@@ -1,17 +1,20 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import type {
+  ClubPlanDto,
   InvoiceDto,
   OrganizationBillingStatusDto,
   OrganizationSubscriptionDto,
 } from '@afk4/contracts';
 export type {
+  ClubPlanDto,
   InvoiceDto,
   OrganizationBillingStatusDto,
   OrganizationSubscriptionDto,
 } from '@afk4/contracts';
 
-// Read-only org billing screen (Сеть → Подписка) — no plan-management actions by design.
+// «Сеть → Подписка»: подписка и счета — чтение; тариф клуба — словами и с тем, что клуб делает сам
+// (пробный период, тариф за ПК, обещанный платёж; спека тарифов клуба, §6).
 export function createOrgBillingClient(api: PlatformApiClient) {
   return {
     getSubscription(_organizationId: Guid): Promise<OrganizationSubscriptionDto> {
@@ -22,6 +25,18 @@ export function createOrgBillingClient(api: PlatformApiClient) {
     },
     getBillingStatus(_organizationId: Guid): Promise<OrganizationBillingStatusDto> {
       return api.get<OrganizationBillingStatusDto>('billing/status');
+    },
+    getPlan(): Promise<ClubPlanDto> {
+      return api.get<ClubPlanDto>('plan');
+    },
+    startTrial(): Promise<ClubPlanDto> {
+      return api.post<ClubPlanDto, Record<string, never>>('plan/trial', {});
+    },
+    switchToPerPc(): Promise<ClubPlanDto> {
+      return api.post<ClubPlanDto, Record<string, never>>('plan/per-pc', {});
+    },
+    promisePayment(): Promise<ClubPlanDto> {
+      return api.post<ClubPlanDto, Record<string, never>>('plan/promised-payment', {});
     }
   };
 }
