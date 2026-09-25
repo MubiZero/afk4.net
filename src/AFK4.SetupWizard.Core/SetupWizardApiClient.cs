@@ -40,7 +40,7 @@ public static class SetupWizardDefaults
             .FirstOrDefault(attribute => attribute.Key == "AFK4.PlatformBaseUrl")?.Value;
 }
 
-public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardApiClient
+public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardApiClient, IInstallCodeEnrollmentClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient httpClient = httpClient;
@@ -300,6 +300,16 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         };
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await ReadRequiredAsync<InstallEnrollResponse>(response, cancellationToken);
+    }
+
+    public async Task<InstallEnrollResponse> EnrollByCodeAsync(
+        InstallCodeEnrollRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(InstallRoutes.CodeEnroll, request, JsonOptions, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<InstallEnrollResponse>(response, cancellationToken);

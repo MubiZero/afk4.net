@@ -37,6 +37,51 @@ public sealed class MsiexecPlayerShellProvisionerTests
         Assert.Equal(exitCode, result.ExitCode);
     }
 
+    private sealed class SequenceProcessRunner(params int[] exitCodes) : IProcessRunner
+    {
+        public int Runs { get; private set; }
+
+        public ProcessRunResult Run(string fileName, IReadOnlyList<string> arguments)
+        {
+            var exitCode = exitCodes[Math.Min(Runs, exitCodes.Length - 1)];
+            Runs++;
+            return new ProcessRunResult(exitCode, "msiexec output");
+        }
+    }
+
+    // При тихой установке мастер стартует, пока установщик агента ещё закрывает свою сессию:
+    // первая попытка натыкается на занятый Windows Installer, и это не повод бросать ПК без оболочки.
+    [Fact]
+    public void Provision_WaitsOutABusyWindowsInstaller()
+    {
+        var runner = new SequenceProcessRunner(1618, 1618, 0);
+        var waits = new List<TimeSpan>();
+        var provisioner = new MsiexecPlayerShellProvisioner(
+            new SetupWizardPayloadResolver(_ => true, _ => MsiPath), runner, waits.Add);
+
+        var result = provisioner.Provision();
+
+        Assert.Equal(ShellProvisionStatus.Installed, result.Status);
+        Assert.Equal(3, runner.Runs);
+        Assert.Equal(2, waits.Count);
+    }
+
+    [Fact]
+    public void Provision_GivesUpOnAnInstallerThatStaysBusy()
+    {
+        var runner = new SequenceProcessRunner(1618);
+        var waits = new List<TimeSpan>();
+        var provisioner = new MsiexecPlayerShellProvisioner(
+            new SetupWizardPayloadResolver(_ => true, _ => MsiPath), runner, waits.Add);
+
+        var result = provisioner.Provision();
+
+        Assert.Equal(ShellProvisionStatus.Failed, result.Status);
+        Assert.Equal(1618, result.ExitCode);
+        Assert.Equal(24, runner.Runs);
+        Assert.Equal(TimeSpan.FromMinutes(2) - TimeSpan.FromSeconds(5), waits.Aggregate(TimeSpan.Zero, (sum, wait) => sum + wait));
+    }
+
     [Fact]
     public void Provision_RunsMsiexecInstallQuietForTheBundledMsi()
     {

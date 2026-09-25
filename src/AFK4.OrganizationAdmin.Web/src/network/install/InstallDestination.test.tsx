@@ -6,7 +6,8 @@ afterEach(() => cleanup());
 
 mock.module('../../operatorHelpers', () => ({
   createAuthenticatedOperatorClients: () => ({
-    orgBranches: { getOwnerBranches: mock(async () => [{ branchId: 'b1', name: 'Центр' }]) }
+    orgBranches: { getOwnerBranches: mock(async () => [{ branchId: 'b1', name: 'Центр' }]) },
+    installCodes: { list: mock(async () => []), issue: mock(), revoke: mock() }
   })
 }));
 

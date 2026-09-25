@@ -200,6 +200,44 @@ public sealed class SetupWizardApiClientTests
         Assert.Equal("access-123", request.Headers.Authorization.Parameter);
     }
 
+    // Тихая установка идёт без сотрудника: никакого токена, только код в теле.
+    [Fact]
+    public async Task EnrollByCodeAsync_PostsTheCodeWithoutAnyStaffToken()
+    {
+        var expected = new InstallEnrollResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "secret",
+            "approved", "https://api", "stable", DateTimeOffset.UnixEpoch)
+        {
+            AssignedSeatName = "PC-07"
+        };
+        var handler = new RecordingHandler(_ => JsonResponse(expected));
+        var client = CreateClient(handler);
+
+        var response = await client.EnrollByCodeAsync(
+            new InstallCodeEnrollRequest("7KQ2-M9XD-4TPV-HB3R", "PC-07", null, "WIN-HALL-07", "pem"),
+            CancellationToken.None);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(InstallRoutes.CodeEnroll, request.RequestUri!.AbsolutePath);
+        Assert.Null(request.Headers.Authorization);
+        Assert.Equal("PC-07", response.AssignedSeatName);
+    }
+
+    [Fact]
+    public async Task EnrollByCodeAsync_WhenTheCodeIsRefused_SurfacesTheServerCode()
+    {
+        var handler = new RecordingHandler(_ => ErrorResponse(
+            HttpStatusCode.BadRequest,
+            """{"error":"Install code is not valid.","code":"install_code_invalid"}"""));
+        var client = CreateClient(handler);
+
+        var exception = await Assert.ThrowsAsync<SetupWizardApiException>(() => client.EnrollByCodeAsync(
+            new InstallCodeEnrollRequest("код", null, null, "WIN-HALL-07", "pem"),
+            CancellationToken.None));
+
+        Assert.Equal(InstallErrorCodeNames.InstallCodeInvalid, exception.Code);
+    }
+
     // Мастер работает на трёх языках, а текст отказа с сервера всегда английский: показать его
     // человеку нельзя. Код рядом с текстом — единственное, по чему экран назовёт причину сам.
     [Fact]

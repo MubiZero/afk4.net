@@ -36,7 +36,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
     // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
     'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',
-    'platform.organization.invites.branch', 'op.status.club', 'platform.search.kind.club', 'op.cash.shift.cashier',
+    'platform.organization.invites.branch', 'op.network.install.codes.branch', 'op.status.club', 'platform.search.kind.club', 'op.cash.shift.cashier',
     'platform.audit.target', 'platform.organization.history.target',
     'roles.technician',
     'op.network.billing.col.number',
@@ -273,7 +273,7 @@ it('includes the network section keys', () => {
     'op.network.install.download', 'op.network.install.noUrl', 'op.network.install.steps.title',
     'op.network.install.step.run', 'op.network.install.step.signIn', 'op.network.install.step.branch',
     'op.network.install.step.role', 'op.network.install.step.name', 'op.network.install.step.done',
-    'op.network.install.branches.title', 'op.network.install.branches.empty'
+    'op.network.install.branches.empty', 'op.network.install.codes.title', 'op.network.install.codes.issue'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();

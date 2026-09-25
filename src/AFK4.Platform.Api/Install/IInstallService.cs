@@ -22,7 +22,23 @@ public interface IInstallService
         Guid organizationId,
         AuthenticatedInstallEnrollRequest request,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Тихая установка: ПК предъявляет код вместо входа сотрудника. Код равен праву техника
+    /// ставить ПК в этом филиале — и не шире: только игровой ПК и только в филиал кода.
+    /// </summary>
+    Task<InstallOperationResult<InstallCodeEnrollment>> EnrollByCodeAsync(
+        InstallCodeEnrollRequest request,
+        CancellationToken cancellationToken);
 }
+
+/// <param name="IssuedByStaffUserId">Кто выдал код — для журнала: сам он при установке не присутствовал.</param>
+/// <param name="NewDevice">ПК встал впервые и потратил одну установку кода.</param>
+public sealed record InstallCodeEnrollment(
+    InstallEnrollResponse Response,
+    Guid InstallCodeId,
+    Guid IssuedByStaffUserId,
+    bool NewDevice);
 
 /// <param name="Code">
 /// Машинное имя отказа для причин, которые мастер установки обязан назвать человеку своими
@@ -51,8 +67,9 @@ public sealed record InstallOperationResult<T>(
         string error,
         Guid? organizationId = null,
         Guid? branchId = null,
-        Guid? staffUserId = null) =>
-        new(InstallOperationStatus.BadRequest, default, error, organizationId, branchId, staffUserId);
+        Guid? staffUserId = null,
+        string? code = null) =>
+        new(InstallOperationStatus.BadRequest, default, error, organizationId, branchId, staffUserId, code);
 
     public static InstallOperationResult<T> NotFound(string error) =>
         new(InstallOperationStatus.NotFound, default, error);

@@ -222,6 +222,7 @@ builder.Services.AddSingleton<IOrganizationOwnerInviteCodeGenerator, RandomOrgan
 builder.Services.Configure<InstallOptions>(
     builder.Configuration.GetSection(InstallOptions.SectionName));
 builder.Services.AddScoped<IInstallService, EfInstallService>();
+builder.Services.AddScoped<IInstallCodeService, EfInstallCodeService>();
 builder.Services.AddSingleton<IInstallRequestThrottle, InMemoryInstallRequestThrottle>();
 builder.Services.AddScoped<IPlatformOrganizationService, EfPlatformOrganizationService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
@@ -509,6 +510,17 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1)
             }));
 
+    // Тихая установка по коду. Зал ставят разом, и тридцать ПК за одним адресом клуба приходят
+    // в одну минуту — потолок под это, а не под перебор: код в 80 бит перебором не взять.
+    options.AddPolicy("install-code", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
     // Вход в платформенную панель. За этой дверью — заведение клубов, деньги и права, и до сих
     // пор она была единственной во всей системе без ограничения частоты.
     options.AddPolicy("platform-sign-in", httpContext =>
@@ -632,6 +644,7 @@ app.MapHealthEndpoints();
 organizations.MapFloorMapEndpoints();
 organizations.MapBranchSettingsEndpoints();
 app.MapProtectionProfileEndpoints(organizations);
+app.MapInstallCodeEndpoints(organizations);
 organizations.MapMediaEndpoints();
 app.MapAuthEndpoints(organizations);
 organizations.MapEskhataConfigEndpoints();

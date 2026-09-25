@@ -976,15 +976,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   need a native WebView2 visual pass at 100%/125% scaling in dark and light
   themes together with the broader clean `manager_workstation` smoke below.
 
-- **The gaming PC still has no OS-level kiosk.** Lock now disables Task Manager
-  through machine policy and reports what it enforced (#275), the launcher list
-  and the credit-limit warning reach the player, unknown commands are refused
-  and the app inventory runs on a schedule (#274). What is still missing is the
-  half that cannot live in a service: swallowing Win/Alt+Tab and holding the
-  shell in front need a hook on the interactive desktop, and the agent sits in
-  session 0. So a player can still Alt+Tab out of a "locked" PC — the difference
-  is that the server no longer claims otherwise. That half belongs to the Player
-  Shell rewrite (plan P5). Plan P1 of the rewrite (2026-09-24,
+- **The gaming PC kiosk is built but not proven on a live PC.** Plan P5
+  (`docs/superpowers/plans/2026-09-25-shell-p5-kiosk.md`, stacked PRs #467,
+  #469–#473, #477 and P5f-2) adds what a service in session 0 could not do: the
+  host's low-level keyboard hook (Win, Alt+Tab, Ctrl+Esc by mode), maintenance
+  mode with an expiry, the kiosk account with autologon and the shell instead of
+  Explorer, the branch protection profile with a per-item report, window rules,
+  Windows restarting a crashed agent, and silent install by code for a whole hall.
+  Trace wiping after a session (P5e) is still open. None of it is proven until the
+  P5 acceptance on a real club PC. Earlier steps of the same rewrite: plan P1 (2026-09-24,
   `docs/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
   tell the shell the truth: one persistent pipe `afk4-shell-v2` with an ACL
   instead of two open per-message pipes, state pushed on change instead of

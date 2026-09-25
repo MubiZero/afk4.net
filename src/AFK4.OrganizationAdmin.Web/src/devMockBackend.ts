@@ -785,6 +785,23 @@ function groupReservationResult(init?: RequestInit): unknown {
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
 
+const previewOwnerBranches = [
+  { branchId: BRANCH, name: 'Центр' },
+  { branchId: '5b6f3c1e-8a2d-4f0b-9c7e-1d2a3b4c5d6e', name: 'Сино' }
+];
+
+let previewInstallCodes = [
+  {
+    installCodeId: 'preview-install-code-0',
+    branchId: BRANCH,
+    code: null as string | null,
+    createdAtUtc: new Date(Date.now() - 3_600_000).toISOString(),
+    expiresAtUtc: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    maxDevices: 30,
+    usedDevices: 12
+  }
+];
+
 export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
@@ -1103,6 +1120,33 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/staff/candidates') && method === 'GET') {
     return json(previewStaffCandidates);
+  }
+  if (/\/organizations\/[^/]+\/branches$/.test(url.pathname) && method === 'GET') {
+    return json(previewOwnerBranches);
+  }
+  // Коды тихой установки в превью: выданный код виден один раз, в списке — только срок и счёт.
+  const installCodesMatch = url.pathname.match(/\/branches\/([^/]+)\/install-codes(?:\/([^/]+))?$/);
+  if (installCodesMatch && method === 'GET') {
+    return json(previewInstallCodes.filter((code) => code.branchId === installCodesMatch[1]));
+  }
+  if (installCodesMatch && method === 'POST') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as { lifetimeHours?: number; maxDevices?: number };
+    const now = new Date();
+    const issued = {
+      installCodeId: `preview-install-code-${previewInstallCodes.length + 1}`,
+      branchId: installCodesMatch[1],
+      code: null as string | null,
+      createdAtUtc: now.toISOString(),
+      expiresAtUtc: new Date(now.getTime() + (request.lifetimeHours ?? 24) * 3_600_000).toISOString(),
+      maxDevices: request.maxDevices ?? 30,
+      usedDevices: 0
+    };
+    previewInstallCodes.unshift(issued);
+    return json({ ...issued, code: '7KQ2-M9XD-4TPV-HB3R' });
+  }
+  if (installCodesMatch?.[2] && method === 'DELETE') {
+    previewInstallCodes = previewInstallCodes.filter((code) => code.installCodeId !== installCodesMatch[2]);
+    return noContent();
   }
   const staffRemoveMatch = url.pathname.match(/\/branches\/[^/]+\/staff\/([^/]+)$/);
   if (staffRemoveMatch && method === 'DELETE') {

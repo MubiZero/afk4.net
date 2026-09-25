@@ -124,7 +124,7 @@
 
 .network-install-get h3,
 .network-install-steps h3,
-.network-install-branches h3 {
+.network-install-codes h3 {
   margin: 0;
   color: var(--text-strong);
   font-size: 16px;
@@ -164,14 +164,108 @@
   font-size: 13px;
 }
 
-.network-install-branch-list {
+.network-install-codes-lead,
+.network-install-codes-hint,
+.network-install-codes-once {
   margin: 0;
-  padding-left: 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.network-install-codes-once {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+/* Три поля и кнопка — одной строкой: это одна просьба «выдай код», а не анкета. На узком окне
+   строка переносится. */
+.network-install-codes-form {
+  grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(110px, 0.6fr) auto;
+  align-items: end;
+}
+
+.network-install-codes-form .mgmt-form-actions {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .network-install-codes-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.network-install-codes-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.network-install-codes-issued {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+.network-install-codes-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* Код и команда переносятся, а не режутся: их переписывают с экрана, и обрезанный хвост
+   кода — это код, который не подойдёт. */
+.network-install-codes-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.network-install-codes-copy code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+  font-family: var(--font-mono);
+  color: var(--text-strong);
+}
+
+.network-install-codes-value {
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.network-install-codes-command {
+  font-size: 13px;
+}
+
+.network-install-codes-copy .ui-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.network-install-codes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.network-install-codes-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   color: var(--text-strong);
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Сеть → Журнал: фильтры (.mgmt-form переиспускается) + org-audit таблица на существующих

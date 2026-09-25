@@ -214,6 +214,9 @@ abstract final class FriendshipStateNames {
 abstract final class InstallErrorCodeNames {
   /// На выбранное место уже привязан другой ПК.
   static const String seatOccupied = 'seat_occupied';
+  /// Код установки не подходит: неизвестен, истёк, отозван или исчерпан. Одна причина на все
+  /// четыре: угадывающему код не надо подсказывать, какой из них был почти верным.
+  static const String installCodeInvalid = 'install_code_invalid';
 }
 
 /// Словарь: Platform/Billing/InvoiceKindNames.cs
@@ -2808,6 +2811,31 @@ class CreateDeviceEnrollmentCodeRequest {
   Map<String, dynamic> toJson() => {
         'organizationId': organizationId,
         'expiresInSeconds': expiresInSeconds,
+      };
+}
+
+/// Код установки: техник ставит AFK4 на ПК зала без мастера —
+/// `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
+/// числом новых ПК; сервер хранит его хешем, открытым он виден один раз — при выдаче.
+///
+/// Контракт: Install/InstallCodeContracts.cs
+class CreateInstallCodeRequest {
+  const CreateInstallCodeRequest({
+    required this.lifetimeHours,
+    required this.maxDevices,
+  });
+
+  final int lifetimeHours;
+  final int maxDevices;
+
+  factory CreateInstallCodeRequest.fromJson(Map<String, dynamic> json) => CreateInstallCodeRequest(
+        lifetimeHours: (json['lifetimeHours'] as num).toInt(),
+        maxDevices: (json['maxDevices'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'lifetimeHours': lifetimeHours,
+        'maxDevices': maxDevices,
       };
 }
 
@@ -6325,6 +6353,91 @@ class InstallBranchDto {
       };
 }
 
+/// Действующий код установки филиала.
+/// <param name="Code">Сам код — только в ответе на выдачу; в списке его нет.</param>
+/// <param name="UsedDevices">Сколько новых ПК уже встало по коду. Переустановка того же ПК код не тратит.</param>
+///
+/// Контракт: Install/InstallCodeContracts.cs
+class InstallCodeDto {
+  const InstallCodeDto({
+    required this.installCodeId,
+    required this.branchId,
+    this.code,
+    required this.createdAtUtc,
+    required this.expiresAtUtc,
+    required this.maxDevices,
+    required this.usedDevices,
+  });
+
+  final String installCodeId;
+  final String branchId;
+  final String? code;
+  final DateTime createdAtUtc;
+  final DateTime expiresAtUtc;
+  final int maxDevices;
+  final int usedDevices;
+
+  factory InstallCodeDto.fromJson(Map<String, dynamic> json) => InstallCodeDto(
+        installCodeId: json['installCodeId'] as String,
+        branchId: json['branchId'] as String,
+        code: json['code'] == null ? null : json['code'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+        maxDevices: (json['maxDevices'] as num).toInt(),
+        usedDevices: (json['usedDevices'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'installCodeId': installCodeId,
+        'branchId': branchId,
+        'code': code,
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
+        'maxDevices': maxDevices,
+        'usedDevices': usedDevices,
+      };
+}
+
+/// Тихая регистрация ПК по коду.
+/// <param name="SeatName">
+/// Место по имени. Не названо — ищется место с именем компьютера. Не нашлось или занято другим
+/// ПК — ПК встаёт без места, и его привязывают в Панели: отказ из-за опечатки в имени оставил бы
+/// ПК вовсе не зарегистрированным, а узнал бы о нём техник только обходом зала.
+/// </param>
+///
+/// Контракт: Install/InstallCodeContracts.cs
+class InstallCodeEnrollRequest {
+  const InstallCodeEnrollRequest({
+    required this.code,
+    this.seatName,
+    this.displayName,
+    required this.machineName,
+    required this.devicePublicKey,
+  });
+
+  final String code;
+  final String? seatName;
+  final String? displayName;
+  final String machineName;
+  final String devicePublicKey;
+
+  factory InstallCodeEnrollRequest.fromJson(Map<String, dynamic> json) => InstallCodeEnrollRequest(
+        code: json['code'] as String,
+        seatName: json['seatName'] == null ? null : json['seatName'] as String,
+        displayName: json['displayName'] == null ? null : json['displayName'] as String,
+        machineName: json['machineName'] as String,
+        devicePublicKey: json['devicePublicKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'seatName': seatName,
+        'displayName': displayName,
+        'machineName': machineName,
+        'devicePublicKey': devicePublicKey,
+      };
+}
+
 /// Контракт: Install/InstallCreateSeatResponse.cs
 class InstallCreateSeatResponse {
   const InstallCreateSeatResponse({
@@ -6471,6 +6584,7 @@ class InstallEnrollResponse {
     required this.enrolledAtUtc,
     required this.leaseSigningPublicKeyPem,
     required this.updatePackageSigningPublicKeyPem,
+    this.assignedSeatName,
   });
 
   final String organizationId;
@@ -6485,6 +6599,9 @@ class InstallEnrollResponse {
   final String leaseSigningPublicKeyPem;
   final String updatePackageSigningPublicKeyPem;
 
+  /// На какое место встал ПК. Null — без места: при тихой установке место по имени не нашлось или занято.
+  final String? assignedSeatName;
+
   factory InstallEnrollResponse.fromJson(Map<String, dynamic> json) => InstallEnrollResponse(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -6497,6 +6614,7 @@ class InstallEnrollResponse {
         enrolledAtUtc: DateTime.parse(json['enrolledAtUtc'] as String),
         leaseSigningPublicKeyPem: json['leaseSigningPublicKeyPem'] as String,
         updatePackageSigningPublicKeyPem: json['updatePackageSigningPublicKeyPem'] as String,
+        assignedSeatName: json['assignedSeatName'] == null ? null : json['assignedSeatName'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6511,6 +6629,7 @@ class InstallEnrollResponse {
         'enrolledAtUtc': enrolledAtUtc.toIso8601String(),
         'leaseSigningPublicKeyPem': leaseSigningPublicKeyPem,
         'updatePackageSigningPublicKeyPem': updatePackageSigningPublicKeyPem,
+        'assignedSeatName': assignedSeatName,
       };
 }
 

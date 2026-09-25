@@ -78,6 +78,14 @@
         Result="value"
         Variable="WebView2RuntimeHkcuPv" />
 
+    <!--
+      Тихая установка по коду: `afk4-client.exe /quiet AFK4_INSTALL_CODE=… [AFK4_SEAT=…]`. Burn
+      пускает с командной строки только переменные, помеченные Overridable; код Hidden — его
+      значения нет в журнале установщика. Дальше обе едут в MSI агента одноимёнными свойствами.
+    -->
+    <Variable Name="AFK4_INSTALL_CODE" bal:Overridable="yes" Hidden="yes" Value="" />
+    <Variable Name="AFK4_SEAT" bal:Overridable="yes" Value="" />
+
     <netfx:DotNetCoreSearch
         Id="DesktopRuntime10"
         RuntimeType="desktop"
@@ -129,6 +137,8 @@
            runs it at UILevel=none; see the LaunchSetupWizard condition in installers/agent/Package.wxs. -->
       <MsiPackage SourceFile="$(var.AgentMsiPath)" Vital="yes">
         <MsiProperty Name="LAUNCHWIZARD" Value="1" />
+        <MsiProperty Name="AFK4_INSTALL_CODE" Value="[AFK4_INSTALL_CODE]" />
+        <MsiProperty Name="AFK4_SEAT" Value="[AFK4_SEAT]" />
       </MsiPackage>
     </Chain>
   </Bundle>

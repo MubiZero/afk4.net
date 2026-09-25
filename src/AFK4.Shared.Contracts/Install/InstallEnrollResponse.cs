@@ -14,4 +14,7 @@ public sealed record InstallEnrollResponse(
     public string LeaseSigningPublicKeyPem { get; init; } = string.Empty;
 
     public string UpdatePackageSigningPublicKeyPem { get; init; } = string.Empty;
+
+    /// <summary>На какое место встал ПК. Null — без места: при тихой установке место по имени не нашлось или занято.</summary>
+    public string? AssignedSeatName { get; init; }
 }

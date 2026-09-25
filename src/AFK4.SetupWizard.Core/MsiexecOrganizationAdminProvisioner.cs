@@ -6,11 +6,13 @@ namespace AFK4.SetupWizard.Core;
 // of the MSI is all that's left to make the cashier UI runnable.
 public sealed class MsiexecOrganizationAdminProvisioner(
     SetupWizardPayloadResolver payloadResolver,
-    IProcessRunner processRunner) : ISetupWizardShellProvisioner
+    IProcessRunner processRunner,
+    Action<TimeSpan>? wait = null) : ISetupWizardShellProvisioner
 {
     public ShellProvisionResult Provision() =>
         MsiexecProvisioning.Install(
             payloadResolver.ResolveOrganizationAdminMsiPath(),
             processRunner,
-            "Bundled Organization Admin MSI was not found next to the wizard.");
+            "Bundled Organization Admin MSI was not found next to the wizard.",
+            wait);
 }

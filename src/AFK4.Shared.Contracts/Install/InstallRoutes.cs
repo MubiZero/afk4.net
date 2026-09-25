@@ -19,6 +19,9 @@ public static class InstallRoutes
 
     public static string AuthenticatedEnroll(Guid organizationId) => Build(organizationId, "enroll");
 
+    /// <summary>Тихая установка по коду: организации в пути нет — её называет сам код.</summary>
+    public const string CodeEnroll = "/api/install/code/enroll";
+
     private static string Build(Guid organizationId, string action) => string.Create(
         CultureInfo.InvariantCulture,
         $"/api/organizations/{organizationId:D}/install/auth/{action}");

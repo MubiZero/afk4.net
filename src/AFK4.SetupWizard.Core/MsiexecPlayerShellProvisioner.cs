@@ -2,11 +2,13 @@ namespace AFK4.SetupWizard.Core;
 
 public sealed class MsiexecPlayerShellProvisioner(
     SetupWizardPayloadResolver payloadResolver,
-    IProcessRunner processRunner) : ISetupWizardShellProvisioner
+    IProcessRunner processRunner,
+    Action<TimeSpan>? wait = null) : ISetupWizardShellProvisioner
 {
     public ShellProvisionResult Provision() =>
         MsiexecProvisioning.Install(
             payloadResolver.ResolvePlayerShellMsiPath(),
             processRunner,
-            "Bundled Player Shell MSI was not found next to the wizard.");
+            "Bundled Player Shell MSI was not found next to the wizard.",
+            wait);
 }

@@ -33,6 +33,7 @@ public sealed class OrganizationExportParityTests
         ["PlayerCredentials"] = "хеши паролей игроков",
         ["DeviceCredentials"] = "секреты устройств",
         ["DeviceEnrollmentCodes"] = "одноразовые коды подключения машин",
+        ["InstallCodes"] = "коды тихой установки ПК — хеши секретов, живут дни",
 
         // Технические очереди и следы исполнения: клубу они ничего не объясняют, а восстановить по
         // ним ничего нельзя.
@@ -56,6 +57,7 @@ public sealed class OrganizationExportParityTests
         ["OrganizationOwnerInvites"] = "приглашения владельца — одноразовые ссылки",
         ["StaffInvites"] = "приглашения сотрудников — одноразовые ссылки",
         ["StaffMoneyCaps"] = "пороги согласования — настройка, заводится заново",
+        ["BranchProtectionProfiles"] = "профиль защиты ПК — настройка, заводится заново",
         ["StaffRoleAssignments"] = "роли уходят колонкой roles в staff.csv",
 
         // Производные и служебные данные: считаются из того, что уже выгружено.

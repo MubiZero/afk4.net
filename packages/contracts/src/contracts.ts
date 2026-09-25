@@ -267,6 +267,11 @@ export type FriendshipStateName = (typeof FriendshipStateNames)[keyof typeof Fri
 export const InstallErrorCodeNames = {
   /** На выбранное место уже привязан другой ПК. */
   SeatOccupied: 'seat_occupied',
+  /**
+   * Код установки не подходит: неизвестен, истёк, отозван или исчерпан. Одна причина на все
+   * четыре: угадывающему код не надо подсказывать, какой из них был почти верным.
+   */
+  InstallCodeInvalid: 'install_code_invalid',
 } as const;
 export type InstallErrorCodeName = (typeof InstallErrorCodeNames)[keyof typeof InstallErrorCodeNames];
 
@@ -1877,6 +1882,18 @@ export interface CreateDeviceEnrollmentCodeRequest {
   expiresInSeconds: number;
 }
 
+/**
+ * Код установки: техник ставит AFK4 на ПК зала без мастера —
+ * `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
+ * числом новых ПК; сервер хранит его хешем, открытым он виден один раз — при выдаче.
+ *
+ * Контракт: Install/InstallCodeContracts.cs
+ */
+export interface CreateInstallCodeRequest {
+  lifetimeHours: number;
+  maxDevices: number;
+}
+
 /** Контракт: Platform/Billing/CreateInvoiceRequest.cs */
 export interface CreateInvoiceRequest {
   kind: string;
@@ -3012,6 +3029,41 @@ export interface InstallBranchDto {
   hasStaffBesidesOwner?: boolean;
 }
 
+/**
+ * Действующий код установки филиала.
+ * <param name="Code">Сам код — только в ответе на выдачу; в списке его нет.</param>
+ * <param name="UsedDevices">Сколько новых ПК уже встало по коду. Переустановка того же ПК код не тратит.</param>
+ *
+ * Контракт: Install/InstallCodeContracts.cs
+ */
+export interface InstallCodeDto {
+  installCodeId: Guid;
+  branchId: Guid;
+  code: string | null;
+  createdAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+  maxDevices: number;
+  usedDevices: number;
+}
+
+/**
+ * Тихая регистрация ПК по коду.
+ * <param name="SeatName">
+ * Место по имени. Не названо — ищется место с именем компьютера. Не нашлось или занято другим
+ * ПК — ПК встаёт без места, и его привязывают в Панели: отказ из-за опечатки в имени оставил бы
+ * ПК вовсе не зарегистрированным, а узнал бы о нём техник только обходом зала.
+ * </param>
+ *
+ * Контракт: Install/InstallCodeContracts.cs
+ */
+export interface InstallCodeEnrollRequest {
+  code: string;
+  seatName: string | null;
+  displayName: string | null;
+  machineName: string;
+  devicePublicKey: string;
+}
+
 /** Контракт: Install/InstallCreateSeatResponse.cs */
 export interface InstallCreateSeatResponse {
   organizationId: Guid;
@@ -3065,6 +3117,8 @@ export interface InstallEnrollResponse {
   enrolledAtUtc: IsoDateTime;
   leaseSigningPublicKeyPem: string;
   updatePackageSigningPublicKeyPem: string;
+  /** На какое место встал ПК. Null — без места: при тихой установке место по имени не нашлось или занято. */
+  assignedSeatName: string | null;
 }
 
 /** Контракт: Inventory/InventoryStockDto.cs */

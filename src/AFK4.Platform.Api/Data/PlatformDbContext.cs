@@ -208,6 +208,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchProtectionProfileEntity> BranchProtectionProfiles => Set<BranchProtectionProfileEntity>();
 
+    public DbSet<InstallCodeEntity> InstallCodes => Set<InstallCodeEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -1574,6 +1576,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(settings => settings.BranchId);
             entity.Property(settings => settings.AcceptanceMode).HasMaxLength(16).IsRequired();
             entity.HasIndex(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<InstallCodeEntity>(entity =>
+        {
+            entity.ToTable("install_codes");
+            entity.HasKey(code => code.InstallCodeId);
+            entity.Property(code => code.CodeHash).HasMaxLength(64).IsRequired();
+            entity.Property(code => code.UsedDevices).IsConcurrencyToken();
+            entity.HasIndex(code => code.CodeHash).IsUnique();
+            entity.HasIndex(code => new { code.OrganizationId, code.BranchId });
         });
 
         modelBuilder.Entity<BranchProtectionProfileEntity>(entity =>

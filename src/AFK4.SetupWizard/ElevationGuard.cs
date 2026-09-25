@@ -8,11 +8,15 @@ namespace AFK4.SetupWizard;
 
 public static class ElevationGuard
 {
-    public static bool EnsureElevated()
+    public static bool IsElevated()
     {
         using var identity = WindowsIdentity.GetCurrent();
-        var principal = new WindowsPrincipal(identity);
-        if (principal.IsInRole(WindowsBuiltInRole.Administrator))
+        return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    public static bool EnsureElevated()
+    {
+        if (IsElevated())
         {
             return true;
         }

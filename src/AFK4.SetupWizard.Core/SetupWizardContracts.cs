@@ -116,6 +116,12 @@ public interface ISetupWizardApiClient
         CancellationToken cancellationToken);
 }
 
+/// <summary>Тихая установка: ПК предъявляет код установки вместо входа сотрудника.</summary>
+public interface IInstallCodeEnrollmentClient
+{
+    Task<InstallEnrollResponse> EnrollByCodeAsync(InstallCodeEnrollRequest request, CancellationToken cancellationToken);
+}
+
 public interface IDeviceKeyStore
 {
     Task<string> GetOrCreatePublicKeyPemAsync(CancellationToken cancellationToken);

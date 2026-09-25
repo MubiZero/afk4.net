@@ -287,6 +287,12 @@ public static class AuditActionNames
 
     public const string InstallEnrollRejected = "install.enroll.rejected";
 
+    /// <summary>Выдан код установки ПК (тихая установка).</summary>
+    public const string CreateInstallCode = "install.codes.create";
+
+    /// <summary>Код установки отозван.</summary>
+    public const string RevokeInstallCode = "install.codes.revoke";
+
     public const string ViewBranchSettings = "branches.settings.view";
 
     public const string UpdateBranchSettings = "branches.settings.update";
