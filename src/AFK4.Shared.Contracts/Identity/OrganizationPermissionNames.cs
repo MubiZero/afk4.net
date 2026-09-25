@@ -64,6 +64,10 @@ public static class OrganizationPermissionNames
     /// платить — только у владельца.
     public const string ManageSubscription = "organization.billing.subscription.manage";
 
+    /// Перенести гостей с балансами из прежней программы. Это деньги, которые клуб берёт на себя, —
+    /// только у владельца.
+    public const string ImportPlayers = "organization.players.import";
+
     public const string ManageTariffs = "organization.tariffs.manage";
 
     public const string ViewTariffs = "organization.tariffs.view";

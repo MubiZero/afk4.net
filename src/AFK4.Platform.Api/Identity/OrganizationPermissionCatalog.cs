@@ -76,7 +76,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewReviews,
                 OrganizationPermissionNames.AcceptDeviceHardware,
                 OrganizationPermissionNames.ManageTips,
-                OrganizationPermissionNames.ManageSubscription
+                OrganizationPermissionNames.ManageSubscription,
+                OrganizationPermissionNames.ImportPlayers
             },
             [OrganizationRoleNames.BranchManager] = new HashSet<string>
             {

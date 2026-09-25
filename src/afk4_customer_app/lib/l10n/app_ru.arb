@@ -1107,6 +1107,7 @@
   "ledgerTypeDebtPayment": "Оплата долга",
   "ledgerTypeGameplayCharge": "Списание за игру",
   "ledgerTypeManualCorrection": "Поправка вручную",
+  "ledgerTypeOpeningBalance": "Перенос из прежней программы",
   "ledgerTypePackageConsumption": "Время из пакета",
   "ledgerTypePackagePurchase": "Покупка пакета",
   "ledgerTypePostpaidDebt": "Записано в долг",

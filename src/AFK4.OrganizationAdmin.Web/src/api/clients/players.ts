@@ -1,5 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
+import type { GuestImportRequest, GuestImportResultDto } from '@afk4/contracts';
 import type {
   CreatePlayerAccountRequest,
   LedgerEntryDto,
@@ -51,6 +52,10 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     createPlayer(branchId: Guid, request: CreatePlayerAccountRequest): Promise<PlayerAccountDto> {
       return api.post<PlayerAccountDto, CreatePlayerAccountRequest>(`branches/${branchId}/players`, request);
+    },
+    // Перенос гостей из прежней программы: пробный прогон (dryRun) и перенос одной ручкой.
+    importGuests(branchId: Guid, request: GuestImportRequest): Promise<GuestImportResultDto> {
+      return api.post<GuestImportResultDto, GuestImportRequest>(`branches/${branchId}/players/import`, request);
     },
     getWalletSummary(playerAccountId: Guid): Promise<WalletSummaryDto> {
       return api.get<WalletSummaryDto>(`players/${playerAccountId}/wallet-summary`);

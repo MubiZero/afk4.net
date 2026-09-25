@@ -1107,6 +1107,7 @@
   "ledgerTypeDebtPayment": "Пардохти қарз",
   "ledgerTypeGameplayCharge": "Ҳисобкунӣ барои бозӣ",
   "ledgerTypeManualCorrection": "Ислоҳи дастӣ",
+  "ledgerTypeOpeningBalance": "Интиқол аз барномаи пешина",
   "ledgerTypePackageConsumption": "Вақт аз баста",
   "ledgerTypePackagePurchase": "Харидани пакет",
   "ledgerTypePostpaidDebt": "Ба қарз навишта шуд",

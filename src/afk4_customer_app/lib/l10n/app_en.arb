@@ -1107,6 +1107,7 @@
   "ledgerTypeDebtPayment": "Debt payment",
   "ledgerTypeGameplayCharge": "Gameplay charge",
   "ledgerTypeManualCorrection": "Manual fix",
+  "ledgerTypeOpeningBalance": "Moved from previous software",
   "ledgerTypePackageConsumption": "Time from a package",
   "ledgerTypePackagePurchase": "Package purchase",
   "ledgerTypePostpaidDebt": "Added to debt",

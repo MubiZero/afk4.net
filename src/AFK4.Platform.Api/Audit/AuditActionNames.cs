@@ -339,6 +339,9 @@ public static class AuditActionNames
 
     public const string ReorderBranchGames = "games.library.reorder";
 
+    /// <summary>Гости перенесены из прежней программы с начальными остатками.</summary>
+    public const string ImportPlayers = "players.import";
+
     /// <summary>Место стало консольным: консоль без агента, сессию ведёт администратор.</summary>
     public const string CreateConsoleSeat = "devices.console.create";
 

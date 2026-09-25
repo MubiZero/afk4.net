@@ -29,6 +29,7 @@ import { HistorySection } from './players/HistorySection';
 import { fullPhoneDigits } from './phoneFormat';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
+import { GuestImportModal } from './players/GuestImportModal';
 import { ClientBookingModal, type ClientBookingDraft } from './players/ClientBookingModal';
 import { ClientPackageModal } from './players/ClientPackageModal';
 import { ClientSessionModal } from './players/ClientSessionModal';
@@ -58,6 +59,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   const [clientSearch, setClientSearch] = useState(openClient?.search ?? '');
   const [activeSegment, setActiveSegment] = useState<ClientSegmentId>('all');
   const [newClientOpen, setNewClientOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  // Растёт после переноса гостей: список перечитывается с новыми карточками и балансами.
+  const [reloadTick, setReloadTick] = useState(0);
   const [payDebtOpen, setPayDebtOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(
     openClient?.playerAccountId ?? cachedSnapshot?.selectedId ?? null);
@@ -164,7 +168,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
       disposed = true;
       window.clearTimeout(timer);
     };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode]);
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode, reloadTick]);
 
   const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId) ?? null;
   const reputation = useReputation(backend, selectedClient?.phoneNumber ?? '', selectedClient?.platformPersonId ?? null);
@@ -383,6 +387,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.payDebt);
   const canCreatePlayer = backend !== null && hasPermission(backend.session, permissionNames.createPlayerAccount);
+  const canImportPlayers = backend !== null && hasPermission(backend.session, permissionNames.importPlayers);
   const canCreateClientReservation = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
@@ -857,6 +862,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           liveContextByClient={liveContextByClient}
           nowMs={nowMs}
           onNewClient={() => setNewClientOpen(true)}
+          canImport={canImportPlayers}
+          onImport={() => setImportOpen(true)}
           onSearchChange={setClientSearch}
           onSelectSegment={setActiveSegment}
           onSelectClient={handleSelectClient}
@@ -952,6 +959,16 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           onChange={setBookingDraft}
           onClose={() => setBookingDraft(null)}
           onSubmit={() => void submitBooking()}
+        />
+      )}
+
+      {importOpen && backend !== null && (
+        <GuestImportModal
+          client={{ importGuests: (request) => createAuthenticatedOperatorClients(backend.config, backend.session).players.importGuests(backend.branchId, request) }}
+          organizationId={backend.session.organizationId}
+          currencyCode={currencyCode}
+          onClose={() => setImportOpen(false)}
+          onImported={() => setReloadTick((tick) => tick + 1)}
         />
       )}
 

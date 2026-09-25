@@ -293,6 +293,17 @@ abstract final class GameLibraryErrorCodeNames {
   static const String libraryFull = 'game_library_full';
 }
 
+/// Словарь: Players/GuestImportContracts.cs
+abstract final class GuestImportIssueNames {
+  static const String invalidPhone = 'invalid_phone';
+  static const String missingName = 'missing_name';
+  static const String negativeAmount = 'negative_amount';
+  /// Тот же номер уже встречался выше в этом файле.
+  static const String duplicateInFile = 'duplicate_in_file';
+  /// Гостю уже переносили остатки — второй перенос удвоил бы деньги.
+  static const String alreadyImported = 'already_imported';
+}
+
 /// Словарь: Devices/DeviceHardwareContracts.cs
 abstract final class HardwareComponentNames {
   static const String cpu = 'cpu';
@@ -371,6 +382,9 @@ abstract final class LedgerEntryTypeNames {
   static const String tournamentEntryRefund = 'tournament_entry_refund';
   /// Чаевые администратору смены с кошелька игрока. Не выручка клуба: клуб их должен сотруднику.
   static const String tip = 'tip';
+  /// Начальный остаток из прежней программы клуба: деньги гость заплатил туда, клуб берёт долг на
+  /// себя. Не выручка и не наличные смены.
+  static const String openingBalance = 'opening_balance';
 }
 
 /// Словарь: Media/MediaPurposeNames.cs
@@ -451,6 +465,9 @@ abstract final class OrganizationPermissionNames {
   /// Сменить тариф клуба, начать пробный период, взять обещанный платёж. Это обязательство
   /// платить — только у владельца.
   static const String manageSubscription = 'organization.billing.subscription.manage';
+  /// Перенести гостей с балансами из прежней программы. Это деньги, которые клуб берёт на себя, —
+  /// только у владельца.
+  static const String importPlayers = 'organization.players.import';
   static const String manageTariffs = 'organization.tariffs.manage';
   static const String viewTariffs = 'organization.tariffs.view';
   static const String managePackages = 'organization.packages.manage';
@@ -7222,6 +7239,156 @@ class GameplayTimeReportRowDto {
         'startedAtUtc': startedAtUtc?.toIso8601String(),
         'endedAtUtc': endedAtUtc?.toIso8601String(),
         'endsAtUtc': endsAtUtc?.toIso8601String(),
+      };
+}
+
+/// Контракт: Players/GuestImportContracts.cs
+class GuestImportIssueDto {
+  const GuestImportIssueDto({
+    required this.row,
+    required this.code,
+  });
+
+
+  /// Номер строки в файле, с единицы, без заголовка.
+  final int row;
+
+  /// Одно из GuestImportIssueNames
+  final String code;
+
+  factory GuestImportIssueDto.fromJson(Map<String, dynamic> json) => GuestImportIssueDto(
+        row: (json['row'] as num).toInt(),
+        code: json['code'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'row': row,
+        'code': code,
+      };
+}
+
+/// Контракт: Players/GuestImportContracts.cs
+class GuestImportRequest {
+  const GuestImportRequest({
+    required this.organizationId,
+    required this.currencyCode,
+    required this.source,
+    required this.rows,
+    required this.dryRun,
+    required this.idempotencyKey,
+  });
+
+  final String organizationId;
+  final String currencyCode;
+
+  /// Откуда перенос — «SmartShell», «Langame»: в журнал и в описание остатков.
+  final String source;
+  final List<GuestImportRowDto> rows;
+
+  /// true — только проверить и посчитать, ничего не записывать.
+  final bool dryRun;
+  final String idempotencyKey;
+
+  factory GuestImportRequest.fromJson(Map<String, dynamic> json) => GuestImportRequest(
+        organizationId: json['organizationId'] as String,
+        currencyCode: json['currencyCode'] as String,
+        source: json['source'] as String,
+        rows: (json['rows'] as List<dynamic>).map((item) => GuestImportRowDto.fromJson(item as Map<String, dynamic>)).toList(),
+        dryRun: json['dryRun'] as bool,
+        idempotencyKey: json['idempotencyKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'currencyCode': currencyCode,
+        'source': source,
+        'rows': rows.map((item) => item.toJson()).toList(),
+        'dryRun': dryRun,
+        'idempotencyKey': idempotencyKey,
+      };
+}
+
+/// Контракт: Players/GuestImportContracts.cs
+class GuestImportResultDto {
+  const GuestImportResultDto({
+    required this.committed,
+    required this.total,
+    required this.created,
+    required this.matched,
+    required this.skipped,
+    required this.balanceTotal,
+    required this.bonusTotal,
+    required this.issues,
+  });
+
+  final bool committed;
+  final int total;
+
+  /// Новых карточек гостей.
+  final int created;
+
+  /// Гость с этим номером уже есть в клубе — остатки легли на его карточку.
+  final int matched;
+
+  /// Строки, которые не переносятся (причина — в Issues).
+  final int skipped;
+  final MoneyDto balanceTotal;
+  final MoneyDto bonusTotal;
+  final List<GuestImportIssueDto> issues;
+
+  factory GuestImportResultDto.fromJson(Map<String, dynamic> json) => GuestImportResultDto(
+        committed: json['committed'] as bool,
+        total: (json['total'] as num).toInt(),
+        created: (json['created'] as num).toInt(),
+        matched: (json['matched'] as num).toInt(),
+        skipped: (json['skipped'] as num).toInt(),
+        balanceTotal: MoneyDto.fromJson(json['balanceTotal'] as Map<String, dynamic>),
+        bonusTotal: MoneyDto.fromJson(json['bonusTotal'] as Map<String, dynamic>),
+        issues: (json['issues'] as List<dynamic>).map((item) => GuestImportIssueDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'committed': committed,
+        'total': total,
+        'created': created,
+        'matched': matched,
+        'skipped': skipped,
+        'balanceTotal': balanceTotal.toJson(),
+        'bonusTotal': bonusTotal.toJson(),
+        'issues': issues.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Перенос гостей из прежней программы клуба (план `2026-09-25-guest-import.md`): номер, имя,
+/// баланс и бонусы становятся карточкой гостя и начальными остатками в журнале. Выгрузку делает
+/// владелец клуба; сначала — пробный прогон без записи, потом перенос.
+///
+/// Контракт: Players/GuestImportContracts.cs
+class GuestImportRowDto {
+  const GuestImportRowDto({
+    this.phone,
+    this.name,
+    required this.balanceMinorUnits,
+    required this.bonusMinorUnits,
+  });
+
+  final String? phone;
+  final String? name;
+  final int balanceMinorUnits;
+  final int bonusMinorUnits;
+
+  factory GuestImportRowDto.fromJson(Map<String, dynamic> json) => GuestImportRowDto(
+        phone: json['phone'] == null ? null : json['phone'] as String,
+        name: json['name'] == null ? null : json['name'] as String,
+        balanceMinorUnits: (json['balanceMinorUnits'] as num).toInt(),
+        bonusMinorUnits: (json['bonusMinorUnits'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'phone': phone,
+        'name': name,
+        'balanceMinorUnits': balanceMinorUnits,
+        'bonusMinorUnits': bonusMinorUnits,
       };
 }
 

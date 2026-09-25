@@ -357,6 +357,18 @@ export const GameLibraryErrorCodeNames = {
 } as const;
 export type GameLibraryErrorCodeName = (typeof GameLibraryErrorCodeNames)[keyof typeof GameLibraryErrorCodeNames];
 
+/** Словарь: Players/GuestImportContracts.cs */
+export const GuestImportIssueNames = {
+  InvalidPhone: 'invalid_phone',
+  MissingName: 'missing_name',
+  NegativeAmount: 'negative_amount',
+  /** Тот же номер уже встречался выше в этом файле. */
+  DuplicateInFile: 'duplicate_in_file',
+  /** Гостю уже переносили остатки — второй перенос удвоил бы деньги. */
+  AlreadyImported: 'already_imported',
+} as const;
+export type GuestImportIssueName = (typeof GuestImportIssueNames)[keyof typeof GuestImportIssueNames];
+
 /** Словарь: Devices/DeviceHardwareContracts.cs */
 export const HardwareComponentNames = {
   Cpu: 'cpu',
@@ -450,6 +462,11 @@ export const LedgerEntryTypeNames = {
   TournamentEntryRefund: 'tournament_entry_refund',
   /** Чаевые администратору смены с кошелька игрока. Не выручка клуба: клуб их должен сотруднику. */
   Tip: 'tip',
+  /**
+   * Начальный остаток из прежней программы клуба: деньги гость заплатил туда, клуб берёт долг на
+   * себя. Не выручка и не наличные смены.
+   */
+  OpeningBalance: 'opening_balance',
 } as const;
 export type LedgerEntryTypeName = (typeof LedgerEntryTypeNames)[keyof typeof LedgerEntryTypeNames];
 
@@ -542,6 +559,11 @@ export const OrganizationPermissionNames = {
    * платить — только у владельца.
    */
   ManageSubscription: 'organization.billing.subscription.manage',
+  /**
+   * Перенести гостей с балансами из прежней программы. Это деньги, которые клуб берёт на себя, —
+   * только у владельца.
+   */
+  ImportPlayers: 'organization.players.import',
   ManageTariffs: 'organization.tariffs.manage',
   ViewTariffs: 'organization.tariffs.view',
   ManagePackages: 'organization.packages.manage',
@@ -3494,6 +3516,55 @@ export interface GameplayTimeReportRowDto {
   startedAtUtc: IsoDateTime | null;
   endedAtUtc: IsoDateTime | null;
   endsAtUtc: IsoDateTime | null;
+}
+
+/** Контракт: Players/GuestImportContracts.cs */
+export interface GuestImportIssueDto {
+  /** Номер строки в файле, с единицы, без заголовка. */
+  row: number;
+  /** Одно из GuestImportIssueNames */
+  code: GuestImportIssueName;
+}
+
+/** Контракт: Players/GuestImportContracts.cs */
+export interface GuestImportRequest {
+  organizationId: Guid;
+  currencyCode: string;
+  /** Откуда перенос — «SmartShell», «Langame»: в журнал и в описание остатков. */
+  source: string;
+  rows: GuestImportRowDto[];
+  /** true — только проверить и посчитать, ничего не записывать. */
+  dryRun: boolean;
+  idempotencyKey: string;
+}
+
+/** Контракт: Players/GuestImportContracts.cs */
+export interface GuestImportResultDto {
+  committed: boolean;
+  total: number;
+  /** Новых карточек гостей. */
+  created: number;
+  /** Гость с этим номером уже есть в клубе — остатки легли на его карточку. */
+  matched: number;
+  /** Строки, которые не переносятся (причина — в Issues). */
+  skipped: number;
+  balanceTotal: MoneyDto;
+  bonusTotal: MoneyDto;
+  issues: GuestImportIssueDto[];
+}
+
+/**
+ * Перенос гостей из прежней программы клуба (план `2026-09-25-guest-import.md`): номер, имя,
+ * баланс и бонусы становятся карточкой гостя и начальными остатками в журнале. Выгрузку делает
+ * владелец клуба; сначала — пробный прогон без записи, потом перенос.
+ *
+ * Контракт: Players/GuestImportContracts.cs
+ */
+export interface GuestImportRowDto {
+  phone: string | null;
+  name: string | null;
+  balanceMinorUnits: number;
+  bonusMinorUnits: number;
 }
 
 /**
