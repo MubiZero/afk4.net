@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
+  PlatformFeatureNames,
   ShellBridgeRequestTypeNames,
   type LauncherAppDto,
   type PlayerSelfEndSessionResponse,
@@ -15,6 +16,7 @@ import { clubTime } from '../model/offers';
 import { sessionRole } from '../model/session';
 import { SeatBadge } from '../ui/SeatBadge';
 import { SystemControls } from '../ui/SystemControls';
+import { BarTab } from './session/BarTab';
 import { EndEarlySheet } from './session/EndEarlySheet';
 import { ExtendSheet } from './session/ExtendSheet';
 import { TimeMoneyColumn } from './session/TimeMoneyColumn';
@@ -53,6 +55,11 @@ export function SessionScreen({
   const baseUrl = apiBaseUrl(state);
   const role = sessionRole(state, auth);
   const offline = variant === 'grace' || !state.isOnline;
+  // Бар — только владельцу, вошедшему на ПК: заказ списывается с его кошелька. И только если у
+  // клуба это право по тарифу: вкладка, которая отвечает «нет доступа», хуже её отсутствия.
+  const barAvailable = role === 'owner' && Boolean(baseUrl) && (state.features ?? []).includes(PlatformFeatureNames.PlayerShop);
+  const [tab, setTab] = useState<'games' | 'bar'>('games');
+  const tabsId = useId();
 
   return (
     <main className="session-screen">
@@ -81,20 +88,60 @@ export function SessionScreen({
       ) : null}
 
       <div className="session-screen__body">
-      <section className="library" aria-labelledby="library-title">
-        <h2 id="library-title" className="library__title">{t('playerShell.session.library')}</h2>
-        {state.launcherApps.length === 0 ? (
-          <p className="library__empty">{t('playerShell.session.libraryEmpty')}</p>
+      <div className="session-screen__main">
+        {barAvailable ? (
+          <div className="tabs" role="tablist" aria-label={t('playerShell.tabs.label')}>
+            <button
+              type="button"
+              role="tab"
+              id={`${tabsId}-games`}
+              aria-controls={`${tabsId}-panel`}
+              aria-selected={tab === 'games'}
+              className="tabs__tab"
+              onClick={() => setTab('games')}
+            >
+              {t('playerShell.session.library')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id={`${tabsId}-bar`}
+              aria-controls={`${tabsId}-panel`}
+              aria-selected={tab === 'bar'}
+              className="tabs__tab"
+              onClick={() => setTab('bar')}
+            >
+              {t('playerShell.tabs.bar')}
+            </button>
+          </div>
+        ) : null}
+
+        {barAvailable && tab === 'bar' && baseUrl ? (
+          <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-bar`}>
+            <BarTab baseUrl={baseUrl} />
+          </section>
         ) : (
-          <ul className="library__grid">
-            {state.launcherApps.map((app) => (
-              <li key={app.appId}>
-                <LibraryTile app={app} />
-              </li>
-            ))}
-          </ul>
+          <section
+            className="library"
+            {...(barAvailable
+              ? { role: 'tabpanel', id: `${tabsId}-panel`, 'aria-labelledby': `${tabsId}-games` }
+              : { 'aria-labelledby': 'library-title' })}
+          >
+            {barAvailable ? null : <h2 id="library-title" className="library__title">{t('playerShell.session.library')}</h2>}
+            {state.launcherApps.length === 0 ? (
+              <p className="library__empty">{t('playerShell.session.libraryEmpty')}</p>
+            ) : (
+              <ul className="library__grid">
+                {state.launcherApps.map((app) => (
+                  <li key={app.appId}>
+                    <LibraryTile app={app} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         )}
-      </section>
+      </div>
 
       <TimeMoneyColumn
         state={state}

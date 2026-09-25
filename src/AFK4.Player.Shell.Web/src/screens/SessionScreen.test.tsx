@@ -137,6 +137,21 @@ describe('экран сессии', () => {
     expect(calls.some((call) => call.method === 'POST')).toBe(false);
   });
 
+  it('у владельца есть вкладка бара, если у клуба он включён', async () => {
+    serve((path, method) => path.includes('/api/me/shop/') ? { status: 200, body: [] } : api(path, method));
+    renderSession({ auth: owner });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Бар' }));
+
+    expect(screen.getByRole('tab', { name: 'Бар' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText(/Клуб не выложил меню/)).toBeInTheDocument();
+  });
+
+  it('без входа и без бара у клуба вкладок нет — заказывать не с чего', () => {
+    renderSession({});
+    expect(screen.queryByRole('tab', { name: 'Бар' })).toBeNull();
+  });
+
   it('сессию по пакету продлевают иначе — лист так и говорит', async () => {
     serve((path, method) => path.endsWith('/extend-offers')
       ? { status: 200, body: { ...devExtendOffers(Date.now()), options: [], unavailableReason: 'package_session' } }

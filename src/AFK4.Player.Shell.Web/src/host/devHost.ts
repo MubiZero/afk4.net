@@ -6,6 +6,8 @@ import {
   type ShellAuthStateDto,
   type PlayerExtendOffersDto,
   type PlayerStartOffersDto,
+  type ShopCatalogItemDto,
+  type ShopOrderDto,
   type ShellSnapshotDto,
   type ShellSystemStateDto
 } from '@afk4/contracts';
@@ -192,6 +194,27 @@ function installDevApi(moveTo: (scenario: DevScenario) => void): void {
       setTimeout(() => moveTo('session'), 600);
       return json({});
     }
+    if (url.pathname === '/api/me/shop/catalog') {
+      return json(DEV_CATALOG);
+    }
+    if (url.pathname === '/api/me/shop/orders' && post) {
+      const lines = (JSON.parse(String(init?.body ?? '{}')) as { lines: { productId: string; quantity: number }[] }).lines;
+      const order = devOrder(lines);
+      devOrders = [order, ...devOrders];
+      // Стойка приняла заказ через несколько секунд — как настоящая.
+      setTimeout(() => {
+        devOrders = devOrders.map((existing) => (existing.id === order.id ? { ...existing, status: 'accepted' } : existing));
+      }, 8_000);
+      return json(order);
+    }
+    if (url.pathname === '/api/me/shop/orders') {
+      return json(devOrders);
+    }
+    if (url.pathname.startsWith('/api/me/shop/orders/') && url.pathname.endsWith('/cancel') && post) {
+      const id = url.pathname.split('/')[5];
+      devOrders = devOrders.map((existing) => (existing.id === id ? { ...existing, status: 'cancelled' } : existing));
+      return json(devOrders.find((existing) => existing.id === id));
+    }
     if (url.pathname.endsWith('/extend-offers')) {
       return json(devExtendOffers(Date.now()));
     }
@@ -279,5 +302,38 @@ export function devExtendOffers(nowMs: number): PlayerExtendOffersDto {
       };
     }),
     unavailableReason: null
+  };
+}
+
+const DEV_CATALOG: ShopCatalogItemDto[] = [
+  { productId: '00000000-0000-4000-8000-000000000301', name: 'Кола 0,5 л', sku: 'COLA05', price: TJS(1_200), stockOnHand: 24 },
+  { productId: '00000000-0000-4000-8000-000000000302', name: 'Энергетик', sku: 'ENERGY', price: TJS(1_800), stockOnHand: 2 },
+  { productId: '00000000-0000-4000-8000-000000000303', name: 'Чипсы', sku: 'CHIPS', price: TJS(900), stockOnHand: 0 },
+  { productId: '00000000-0000-4000-8000-000000000304', name: 'Лаваш с курицей', sku: 'LAVASH', price: TJS(2_500), stockOnHand: 0 }
+];
+
+let devOrders: ShopOrderDto[] = [];
+
+function devOrder(lines: { productId: string; quantity: number }[]): ShopOrderDto {
+  const orderLines = lines.map((line) => {
+    const item = DEV_CATALOG.find((candidate) => candidate.productId === line.productId)!;
+    return { productId: item.productId, name: item.name, unitPrice: item.price, quantity: line.quantity, lineTotal: TJS(item.price.minorUnits * line.quantity) };
+  });
+  return {
+    id: crypto.randomUUID(),
+    branchId: '00000000-0000-4000-8000-000000000002',
+    seatId: '00000000-0000-4000-8000-000000000004',
+    playerAccountId: '00000000-0000-4000-8000-000000000020',
+    playerDisplayName: 'Алишер',
+    status: 'placed',
+    total: TJS(orderLines.reduce((sum, line) => sum + line.lineTotal.minorUnits, 0)),
+    lines: orderLines,
+    placedAtUtc: new Date().toISOString(),
+    acceptedAtUtc: null,
+    deliveredAtUtc: null,
+    cancelledAtUtc: null,
+    version: 1,
+    posSaleId: null,
+    seatName: 'ПК 07'
   };
 }

@@ -101,6 +101,8 @@ button {
 
 .btn:focus-visible,
 .offer-tile:focus-visible,
+.tabs__tab:focus-visible,
+.bar-item__step:focus-visible,
 .sheet__close:focus-visible,
 .time-money__sign-out:focus-visible,
 .system-bar__language:focus-visible,
@@ -1071,4 +1073,189 @@ button {
 .system-controls__error {
   color: var(--warning-text);
   font-size: 0.9rem;
+}
+
+/* Вкладки сессии: «Игры», «Бар» */
+.session-screen__main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tabs__tab {
+  min-height: var(--shell-control);
+  padding: 0 1.2rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs__tab[aria-selected='true'] {
+  color: var(--text-primary);
+  border-bottom-color: var(--shell-accent);
+}
+
+.tabs__tab:hover {
+  color: var(--text-primary);
+}
+
+.session-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Бар к месту */
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.bar-order {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  padding: 1.2rem 1.4rem;
+  border-radius: var(--shell-radius);
+  background: var(--surface-card);
+  border: 1px solid var(--shell-accent);
+}
+
+.bar-order__head {
+  display: flex;
+  justify-content: space-between;
+  justify-self: stretch;
+  gap: 1rem;
+}
+
+.bar-order__title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.bar-order__lines,
+.bar-order__status {
+  margin: 0;
+}
+
+.bar-order__lines {
+  color: var(--text-secondary);
+}
+
+.bar-order__status {
+  font-weight: 600;
+}
+
+.bar-order__status--cancelled {
+  color: var(--text-secondary);
+}
+
+.bar__menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 5.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--shell-radius);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+}
+
+.bar-item__info {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.bar-item__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bar-item__price {
+  color: var(--text-secondary);
+}
+
+.bar-item__few {
+  color: var(--warning-text);
+  font-size: 0.95rem;
+}
+
+.bar-item__quantity {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bar-item__step {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.bar-item__step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.bar-item__step svg {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.bar-item__count {
+  min-width: 1.6rem;
+  text-align: center;
+}
+
+.bar__empty,
+.bar__error {
+  margin: 0;
+}
+
+.bar__empty {
+  color: var(--text-secondary);
+}
+
+.bar__error {
+  color: var(--danger-text);
+}
+
+/* Кнопка заказа видна всегда: карточка заказа и длинное меню не уводят её за край. */
+.bar__action {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1.2rem;
+  background: linear-gradient(to bottom, transparent, var(--surface-canvas) 45%);
 }
