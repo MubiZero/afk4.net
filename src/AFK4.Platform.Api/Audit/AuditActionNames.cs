@@ -198,6 +198,14 @@ public static class AuditActionNames
 
     public const string CreateStaffInvite = "identity.staff.invite.create";
 
+    /// <summary>Сотрудник вошёл первым входом — или код первого входа не подошёл (Denied).</summary>
+    public const string AcceptStaffInvite = "identity.staff.invite.accept";
+
+    /// <summary>Руководитель отозвал код первого входа.</summary>
+    public const string RevokeStaffInvite = "identity.staff.invite.revoke";
+
+    public const string ViewStaffInvites = "identity.staff.invite.view";
+
     public const string ViewStaffUsers = "identity.staff.view";
 
     public const string UpdateStaffProfile = "identity.staff.profile.update";

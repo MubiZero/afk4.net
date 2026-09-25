@@ -256,7 +256,51 @@ public sealed class EfStaffInviteService(
         invite.AcceptedByStaffUserId = staffUser.StaffUserId;
         await db.SaveChangesAsync(cancellationToken);
 
-        return StaffInviteAcceptResult.Success(invite.OrganizationId, invite.UserName, staffUser.StaffUserId);
+        return StaffInviteAcceptResult.Success(invite.OrganizationId, invite.UserName, staffUser.StaffUserId)
+            with { StaffInviteId = invite.StaffInviteId, BranchId = invite.BranchId };
+    }
+
+    public async Task<IReadOnlyList<StaffInviteSummaryDto>> ListPendingAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var invites = await db.StaffInvites.AsNoTracking()
+            .Where(invite => invite.OrganizationId == organizationId && invite.BranchId == branchId && invite.AcceptedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        return invites
+            .OrderByDescending(invite => invite.CreatedAtUtc)
+            .Select(invite => new StaffInviteSummaryDto(
+                invite.StaffInviteId,
+                invite.UserName,
+                invite.DisplayName,
+                invite.PhoneNumber,
+                invite.Email,
+                invite.RoleNamesCsv.Split(RoleSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                invite.CreatedAtUtc,
+                invite.ExpiresAtUtc,
+                Math.Max(0, MaxAttempts - invite.AttemptCount),
+                invite.AttemptCount >= MaxAttempts ? StaffInviteStatusNames.Exhausted
+                    : invite.ExpiresAtUtc <= now ? StaffInviteStatusNames.Expired
+                    : StaffInviteStatusNames.Pending))
+            .ToList();
+    }
+
+    public async Task<bool> RevokeAsync(Guid organizationId, Guid branchId, Guid staffInviteId, CancellationToken cancellationToken)
+    {
+        var invite = await db.StaffInvites.SingleOrDefaultAsync(
+            candidate => candidate.StaffInviteId == staffInviteId
+                && candidate.OrganizationId == organizationId
+                && candidate.BranchId == branchId
+                && candidate.AcceptedAtUtc == null,
+            cancellationToken);
+        if (invite is null)
+        {
+            return false;
+        }
+
+        db.StaffInvites.Remove(invite);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     private Task<StaffInviteEntity?> LatestPendingInviteAsync(string normalizedPhone, CancellationToken cancellationToken) =>
@@ -280,23 +324,26 @@ public sealed class EfStaffInviteService(
             return (null!, StaffInviteAcceptResult.NoActiveInvite());
         }
 
+        StaffInviteAcceptResult Refusal(StaffInviteAcceptResult result) =>
+            result with { OrganizationId = invite.OrganizationId, BranchId = invite.BranchId, StaffInviteId = invite.StaffInviteId };
+
         if (invite.ExpiresAtUtc <= timeProvider.GetUtcNow())
         {
-            return (invite, StaffInviteAcceptResult.Expired());
+            return (invite, Refusal(StaffInviteAcceptResult.Expired()));
         }
 
         // Потолок попыток проверяется до сверки кода: иначе верный код после трёх промахов
         // пускал бы, и счётчик не значил бы ничего.
         if (invite.AttemptCount >= MaxAttempts)
         {
-            return (invite, StaffInviteAcceptResult.TooManyAttempts());
+            return (invite, Refusal(StaffInviteAcceptResult.TooManyAttempts()));
         }
 
         if (codeHasher.Hash(PhoneOtpCode.KeepDigits(code)) != invite.CodeHash)
         {
             invite.AttemptCount++;
             await db.SaveChangesAsync(cancellationToken);
-            return (invite, StaffInviteAcceptResult.InvalidCode(Math.Max(0, MaxAttempts - invite.AttemptCount)));
+            return (invite, Refusal(StaffInviteAcceptResult.InvalidCode(Math.Max(0, MaxAttempts - invite.AttemptCount))));
         }
 
         return (invite, null);

@@ -26,6 +26,8 @@ import { useBlockedReason } from '../../components/BlockedReason';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
 import { SkeletonTable } from '../../LoadingSkeleton';
 import { StaffFromNetworkModal } from './StaffFromNetworkModal';
+import { PendingStaffInvites } from './staff/PendingStaffInvites';
+import { groupCode } from './staff/firstSignInCode';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type StaffUser = StaffUserDto;
@@ -77,6 +79,8 @@ export function StaffRolesDestination({
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRoleNames, setInviteRoleNames] = useState<string[]>(['operator']);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+  // Растёт после каждого добавления — «Ждут первого входа» перечитывается.
+  const [invitesVersion, setInvitesVersion] = useState(0);
   const [profileUserName, setProfileUserName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [roleNames, setRoleNames] = useState<string[]>(['operator']);
@@ -182,6 +186,7 @@ export function StaffRolesDestination({
       // Сотрудник появится в списке только после первого входа, когда придумает себе ПИН-код, —
       // поэтому список не обновляем, только показываем код первого входа.
       setInviteCode(invite.code);
+      setInvitesVersion((version) => version + 1);
       onFeedback?.({ label, state: 'confirmed' });
     } catch (error) {
       onFeedback?.({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
@@ -570,6 +575,10 @@ export function StaffRolesDestination({
         )}
       </div>
 
+      {canInviteStaff && backend !== null && (
+        <PendingStaffInvites backend={backend} refreshKey={invitesVersion} onFeedback={onFeedback} />
+      )}
+
       {inviteOpen && (
         <PanelModal title={t('op.management.staff.inviteModal.title')} onClose={() => setInviteOpen(false)} closeDisabled={busy}>
           <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); void submitInvite(); }}>
@@ -662,9 +671,4 @@ export function StaffRolesDestination({
       )}
     </ManagementScreen>
   );
-}
-
-/** «123456» → «123 456»: так код читают вслух и переписывают без ошибок. */
-function groupCode(code: string): string {
-  return code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
 }

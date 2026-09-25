@@ -573,6 +573,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/floor-map')) return currentPreviewFloorMap();
   if (pathname.endsWith('/layout/zones')) return previewLayoutZones();
   if (pathname.endsWith('/staff')) return previewStaff();
+  if (pathname.endsWith('/staff/invites') && method === 'GET') return previewInvites;
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
   if (pathname.endsWith('/shifts/revenue/current')) return currentShiftRevenue();
   if (pathname.endsWith('/shifts/revenue')) return shiftHistory();
@@ -786,9 +787,26 @@ function previewSignIn(pathname: string, method: string, init?: RequestInit): Re
   return null;
 }
 
+// «Ждут первого входа» в превью: один живой код и один истёкший.
+let previewInvites = [
+  {
+    staffInviteId: 'preview-invite-1', userName: '992930000010', displayName: 'Фарход', phoneNumber: '+992930000010', email: null,
+    roleNames: ['operator'], createdAtUtc: '2026-09-25T08:00:00Z', expiresAtUtc: '2026-09-26T08:00:00Z', attemptsLeft: 3, status: 'pending'
+  },
+  {
+    staffInviteId: 'preview-invite-2', userName: '992930000011', displayName: 'Нигора', phoneNumber: '+992930000011', email: null,
+    roleNames: ['shift_supervisor'], createdAtUtc: '2026-09-22T08:00:00Z', expiresAtUtc: '2026-09-23T08:00:00Z', attemptsLeft: 3, status: 'expired'
+  }
+];
+
 export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
+  const revokeInvite = url.pathname.match(/\/staff\/invites\/([^/]+)$/);
+  if (revokeInvite && method === 'DELETE') {
+    previewInvites = previewInvites.filter((invite) => invite.staffInviteId !== revokeInvite[1]);
+    return noContent();
+  }
   const signIn = previewSignIn(url.pathname, method, init);
   if (signIn !== null) {
     return signIn;

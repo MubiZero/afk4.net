@@ -825,6 +825,16 @@ abstract final class StaffInviteErrorCodeNames {
   static const String phoneTaken = 'staff_phone_taken';
 }
 
+/// Словарь: Identity/StaffInviteDto.cs
+abstract final class StaffInviteStatusNames {
+  /// Код действует: сотрудник может войти.
+  static const String pending = 'pending';
+  /// Сутки прошли — нужен новый код.
+  static const String expired = 'expired';
+  /// Три неверных кода — этот больше не пустит.
+  static const String exhausted = 'exhausted';
+}
+
 /// Второй шаг входа по номеру. Код первого входа нужен, потому что номер — не секрет: без него
 /// ПИН новому сотруднику успел бы назначить любой, кто знает его номер.
 ///
@@ -15680,6 +15690,64 @@ class StaffInviteDto {
         'staffInviteId': staffInviteId,
         'code': code,
         'expiresAtUtc': expiresAtUtc.toIso8601String(),
+      };
+}
+
+/// Сотрудник, которого добавили, но он ещё не входил: код первого входа живой, истёк или исчерпал
+/// попытки. Сам код не отдаётся — он хранится хешем; нужен новый — руководитель выдаёт новый.
+///
+/// Контракт: Identity/StaffInviteDto.cs
+class StaffInviteSummaryDto {
+  const StaffInviteSummaryDto({
+    required this.staffInviteId,
+    required this.userName,
+    required this.displayName,
+    required this.phoneNumber,
+    this.email,
+    required this.roleNames,
+    required this.createdAtUtc,
+    required this.expiresAtUtc,
+    required this.attemptsLeft,
+    required this.status,
+  });
+
+  final String staffInviteId;
+  final String userName;
+  final String displayName;
+  final String phoneNumber;
+  final String? email;
+  final List<String> roleNames;
+  final DateTime createdAtUtc;
+  final DateTime expiresAtUtc;
+  final int attemptsLeft;
+
+  /// Одно из StaffInviteStatusNames.
+  final String status;
+
+  factory StaffInviteSummaryDto.fromJson(Map<String, dynamic> json) => StaffInviteSummaryDto(
+        staffInviteId: json['staffInviteId'] as String,
+        userName: json['userName'] as String,
+        displayName: json['displayName'] as String,
+        phoneNumber: json['phoneNumber'] as String,
+        email: json['email'] == null ? null : json['email'] as String,
+        roleNames: (json['roleNames'] as List<dynamic>).map((item) => item as String).toList(),
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+        attemptsLeft: (json['attemptsLeft'] as num).toInt(),
+        status: json['status'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'staffInviteId': staffInviteId,
+        'userName': userName,
+        'displayName': displayName,
+        'phoneNumber': phoneNumber,
+        'email': email,
+        'roleNames': roleNames.map((item) => item).toList(),
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
+        'attemptsLeft': attemptsLeft,
+        'status': status,
       };
 }
 

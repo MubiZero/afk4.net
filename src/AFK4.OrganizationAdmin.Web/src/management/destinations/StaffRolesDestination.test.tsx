@@ -27,7 +27,7 @@ const actualHelpers = await import('../../operatorHelpers');
 mock.module('../../operatorHelpers', () => ({
   ...actualHelpers,
   createAuthenticatedOperatorClients: () => ({
-    settings: { createStaffInvite, updateStaffUserProfile, updateStaffUserRoles, updateStaffUserState, resetStaffUserPassword, getStaffCandidates, removeStaffFromBranch }
+    settings: { createStaffInvite, updateStaffUserProfile, updateStaffUserRoles, updateStaffUserState, resetStaffUserPassword, getStaffCandidates, removeStaffFromBranch, listStaffInvites: async () => [] }
   })
 }));
 

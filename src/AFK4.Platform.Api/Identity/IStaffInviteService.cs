@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Organizations;
 
 namespace AFK4.Platform.Api.Identity;
@@ -32,6 +33,12 @@ public interface IStaffInviteService
 
     /// <summary>Что спросить вторым шагом входа по номеру (<see cref="Shared.Contracts.Identity.StaffSignInStepNames"/>).</summary>
     Task<string> ResolveSignInStepAsync(string phoneNumber, CancellationToken cancellationToken);
+
+    /// <summary>Кого добавили в филиал, но кто ещё не входил, — со статусом кода.</summary>
+    Task<IReadOnlyList<StaffInviteSummaryDto>> ListPendingAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken);
+
+    /// <summary>Отозвать код первого входа. false — такого ожидающего приглашения в филиале нет.</summary>
+    Task<bool> RevokeAsync(Guid organizationId, Guid branchId, Guid staffInviteId, CancellationToken cancellationToken);
 }
 
 /// <param name="Code">Код приглашения, который человек вводит при приёме (не путать с
@@ -81,7 +88,10 @@ public sealed record StaffInviteAcceptResult(
     string UserName,
     int RemainingAttempts = 0,
     PlanLimitExceededDto? PlanLimit = null,
-    Guid StaffUserId = default)
+    Guid StaffUserId = default,
+    // Какое приглашение ответило — и при отказе тоже: журнал должен видеть подбор кода.
+    Guid? StaffInviteId = null,
+    Guid BranchId = default)
 {
     public bool Succeeded => Status == StaffInviteAcceptStatus.Success;
 

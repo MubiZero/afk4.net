@@ -989,6 +989,17 @@ export const StaffInviteErrorCodeNames = {
 } as const;
 export type StaffInviteErrorCodeName = (typeof StaffInviteErrorCodeNames)[keyof typeof StaffInviteErrorCodeNames];
 
+/** Словарь: Identity/StaffInviteDto.cs */
+export const StaffInviteStatusNames = {
+  /** Код действует: сотрудник может войти. */
+  Pending: 'pending',
+  /** Сутки прошли — нужен новый код. */
+  Expired: 'expired',
+  /** Три неверных кода — этот больше не пустит. */
+  Exhausted: 'exhausted',
+} as const;
+export type StaffInviteStatusName = (typeof StaffInviteStatusNames)[keyof typeof StaffInviteStatusNames];
+
 /**
  * Второй шаг входа по номеру. Код первого входа нужен, потому что номер — не секрет: без него
  * ПИН новому сотруднику успел бы назначить любой, кто знает его номер.
@@ -6069,6 +6080,26 @@ export interface StaffInviteDto {
   staffInviteId: Guid;
   code: string;
   expiresAtUtc: IsoDateTime;
+}
+
+/**
+ * Сотрудник, которого добавили, но он ещё не входил: код первого входа живой, истёк или исчерпал
+ * попытки. Сам код не отдаётся — он хранится хешем; нужен новый — руководитель выдаёт новый.
+ *
+ * Контракт: Identity/StaffInviteDto.cs
+ */
+export interface StaffInviteSummaryDto {
+  staffInviteId: Guid;
+  userName: string;
+  displayName: string;
+  phoneNumber: string;
+  email: string | null;
+  roleNames: string[];
+  createdAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+  attemptsLeft: number;
+  /** Одно из StaffInviteStatusNames. */
+  status: StaffInviteStatusName;
 }
 
 /** Контракт: Identity/StaffPhoneVerificationContracts.cs */

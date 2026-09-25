@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
@@ -322,6 +323,102 @@ public sealed class StaffInviteByPhoneTests
         Assert.Equal(HttpStatusCode.OK, signIn.StatusCode);
         var session = await signIn.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.Equal(TestIds.OrganizationId, session!.OrganizationId);
+    }
+
+    /// <summary>
+    /// Кого добавили, но кто не входил, виден руководителю — до первого входа. Без списка выданный
+    /// код нельзя было ни увидеть, ни отозвать.
+    /// </summary>
+    [Fact]
+    public async Task APendingInvite_IsListedUntilTheFirstSignIn()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        await InviteAsync(client);
+
+        var pending = (await client.GetFromJsonAsync<List<StaffInviteSummaryDto>>(InvitesRoute))!.Single();
+        Assert.Equal(StaffInviteStatusNames.Pending, pending.Status);
+        Assert.Equal(3, pending.AttemptsLeft);
+        Assert.Equal([OrganizationRoleNames.Operator], pending.RoleNames);
+
+        await client.PostAsJsonAsync(StaffAuthRoutes.AcceptInvite, new AcceptStaffInviteRequest(Phone, await ReadCodeFromSmsAsync(factory), Password));
+
+        Assert.Empty((await client.GetFromJsonAsync<List<StaffInviteSummaryDto>>(InvitesRoute))!);
+    }
+
+    [Fact]
+    public async Task TheList_SaysWhenACodeIsSpent()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        await InviteAsync(client);
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            await client.PostAsJsonAsync(StaffAuthRoutes.CheckInvite, new CheckStaffInviteRequest(Phone, "000000"));
+        }
+
+        var pending = (await client.GetFromJsonAsync<List<StaffInviteSummaryDto>>(InvitesRoute))!.Single();
+        Assert.Equal(StaffInviteStatusNames.Exhausted, pending.Status);
+        Assert.Equal(0, pending.AttemptsLeft);
+    }
+
+    [Fact]
+    public async Task ARevokedCode_NoLongerLetsAnyoneIn_AndLeavesATrace()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        await InviteAsync(client);
+        var code = await ReadCodeFromSmsAsync(factory);
+        var invite = (await client.GetFromJsonAsync<List<StaffInviteSummaryDto>>(InvitesRoute))!.Single();
+
+        var revoked = await client.DeleteAsync($"{InvitesRoute}/{invite.StaffInviteId:D}");
+
+        Assert.Equal(HttpStatusCode.NoContent, revoked.StatusCode);
+        Assert.Equal(StaffSignInStepNames.Unknown, await NextStepAsync(client, Phone));
+        Assert.NotEqual(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync(StaffAuthRoutes.AcceptInvite, new AcceptStaffInviteRequest(Phone, code, Password))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.DeleteAsync($"{InvitesRoute}/{invite.StaffInviteId:D}")).StatusCode);
+        Assert.True(await AuditedAsync(factory, AuditActionNames.RevokeStaffInvite, AuditOutcome.Succeeded));
+    }
+
+    /// <summary>Первый вход и подбор кода видны в журнале клуба.</summary>
+    [Fact]
+    public async Task TheFirstSignIn_AndAWrongCode_AreBothInTheAuditLog()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        await InviteAsync(client);
+
+        await client.PostAsJsonAsync(StaffAuthRoutes.CheckInvite, new CheckStaffInviteRequest(Phone, "000000"));
+        Assert.True(await AuditedAsync(factory, AuditActionNames.AcceptStaffInvite, AuditOutcome.Denied));
+
+        await client.PostAsJsonAsync(StaffAuthRoutes.AcceptInvite, new AcceptStaffInviteRequest(Phone, await ReadCodeFromSmsAsync(factory), Password));
+        Assert.True(await AuditedAsync(factory, AuditActionNames.AcceptStaffInvite, AuditOutcome.Succeeded));
+    }
+
+    [Fact]
+    public async Task ATechnician_CannotSeeOrRevokeCodes()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(InvitesRoute)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync($"{InvitesRoute}/{Guid.NewGuid():D}")).StatusCode);
+    }
+
+    private static string InvitesRoute =>
+        $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/invites";
+
+    private static async Task<bool> AuditedAsync(PlatformApiFactory factory, string action, string outcome)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.AuditRecords.AnyAsync(record => record.Action == action && record.Outcome == outcome);
     }
 
     private static async Task<string> NextStepAsync(HttpClient client, string phone)

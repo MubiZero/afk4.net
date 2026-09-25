@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Sessions;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Entitlements;
 
-public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGuard
+public sealed class EfPlanLimitGuard(PlatformDbContext dbContext, TimeProvider? timeProvider = null) : IPlanLimitGuard
 {
     // Снятое и отклонённое устройство места на филиале не занимает; ожидающее одобрения — занимает,
     // иначе очередь из ожидающих перепрыгнет лимит в момент одобрения.
@@ -86,12 +87,16 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
         // Непринятое живое приглашение занимает место заранее: иначе три приглашения на филиал
         // с лимитом два пройдут проверку по очереди и перепрыгнут границу в момент приёма.
         // Само принимаемое приглашение (excludingInviteId) — исключение: приём не добавляет
-        // место сверх занятого, он превращает это же приглашение в сотрудника.
+        // место сверх занятого, он превращает это же приглашение в сотрудника. Истёкший или
+        // исчерпавший попытки код в сотрудника уже не превратится — места он не держит.
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         var pendingInvites = await dbContext.StaffInvites
             .CountAsync(
                 invite => invite.OrganizationId == organizationId
                     && invite.BranchId == branchId
                     && invite.AcceptedAtUtc == null
+                    && invite.ExpiresAtUtc > now
+                    && invite.AttemptCount < EfStaffInviteService.MaxAttempts
                     && invite.StaffInviteId != excludingInviteId,
                 cancellationToken);
 
