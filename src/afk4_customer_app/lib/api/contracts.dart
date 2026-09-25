@@ -7124,6 +7124,7 @@ class LauncherAppDto {
     required this.category,
     this.iconUri,
     required this.isAvailable,
+    this.minAge,
   });
 
   final String appId;
@@ -7132,12 +7133,16 @@ class LauncherAppDto {
   final String? iconUri;
   final bool isAvailable;
 
+  /// Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения.
+  final int? minAge;
+
   factory LauncherAppDto.fromJson(Map<String, dynamic> json) => LauncherAppDto(
         appId: json['appId'] as String,
         displayName: json['displayName'] as String,
         category: json['category'] as String,
         iconUri: json['iconUri'] == null ? null : json['iconUri'] as String,
         isAvailable: json['isAvailable'] as bool,
+        minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -7146,6 +7151,7 @@ class LauncherAppDto {
         'category': category,
         'iconUri': iconUri,
         'isAvailable': isAvailable,
+        'minAge': minAge,
       };
 }
 

@@ -2,6 +2,7 @@
 using AFK4.Agent.Service.Cleanup;
 using AFK4.Agent.Service.Commands;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Games;
 using AFK4.Agent.Service.Logging;
 using AFK4.Agent.Service.Network;
 using AFK4.Agent.Service.Protection;
@@ -116,6 +117,18 @@ else
 }
 
 builder.Services.AddSingleton<ISessionCleanup, SessionCleanup>();
+
+// Библиотека игр филиала (спека оболочки, §6.6): список, лаунчеры этого ПК и обложки.
+builder.Services.AddHttpClient("covers", client => client.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddSingleton<IGameLibraryStore, FileGameLibraryStore>();
+builder.Services.AddSingleton<IGameLibraryClient, HttpGameLibraryClient>();
+builder.Services.AddSingleton<ICoverCache>(services => new FileCoverCache(
+    services.GetRequiredService<IHttpClientFactory>(),
+    services.GetRequiredService<ILogger<FileCoverCache>>()));
+builder.Services.AddSingleton<IGameLauncherLocator, WindowsGameLauncherLocator>();
+builder.Services.AddSingleton<GameLibraryService>();
+builder.Services.AddSingleton<ILauncherCatalog>(services => services.GetRequiredService<GameLibraryService>());
+builder.Services.AddSingleton<IGameLibrarySync>(services => services.GetRequiredService<GameLibraryService>());
 builder.Services.AddSingleton<IMaintenanceDesktop, MaintenanceDesktop>();
 builder.Services.AddSingleton<IMaintenanceReturnClient, HttpMaintenanceReturnClient>();
 builder.Services.AddSingleton<MaintenanceReturn>();

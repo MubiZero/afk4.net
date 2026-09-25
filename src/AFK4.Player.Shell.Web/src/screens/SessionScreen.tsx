@@ -222,7 +222,14 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
 
   return (
     <div className="library-tile">
-      <span className="library-tile__name">{app.displayName}</span>
+      {/* Обложка — из кэша ПК; её нет — плитка по названию, а не пустой квадрат. */}
+      {app.iconUri
+        ? <img className="library-tile__cover" src={app.iconUri} alt="" loading="lazy" decoding="async" />
+        : <span className="library-tile__cover library-tile__cover--name" aria-hidden="true">{app.displayName.slice(0, 1)}</span>}
+      <span className="library-tile__name">
+        {app.displayName}
+        {app.minAge !== null && app.minAge !== undefined ? <span className="library-tile__age">{app.minAge}+</span> : null}
+      </span>
       <span className="library-tile__category">{app.category}</span>
       {app.isAvailable ? (
         <button type="button" className="btn btn--primary" onClick={start} disabled={launch === 'launching'}>

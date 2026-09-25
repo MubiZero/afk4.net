@@ -1007,8 +1007,35 @@ button {
 }
 
 .library-tile__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 1.2rem;
   font-weight: 700;
+}
+
+/* Обложка 16:9 во всю ширину плитки; без неё — первая буква на той же площади: ряд не прыгает,
+   когда картинки догоняют. */
+.library-tile__cover {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: calc(var(--shell-radius) - 4px);
+  object-fit: cover;
+  background: var(--surface-sunken, var(--surface-card));
+  color: var(--text-tertiary, inherit);
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
+.library-tile__age {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .library-tile__category,

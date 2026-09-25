@@ -336,7 +336,10 @@ public sealed class PlayerShellStateBuilderTests
             Task.FromResult(SessionEnforcementResult.Accepted("ok", "protection-applied"));
     }
 
-    private sealed class Fixture(string? clubName = null, AFK4.Agent.Service.Protection.IProtectionEnforcer? protection = null)
+    private sealed class Fixture(
+        string? clubName = null,
+        AFK4.Agent.Service.Protection.IProtectionEnforcer? protection = null,
+        AFK4.Agent.Service.Games.ILauncherCatalog? catalog = null)
     {
         public AgentOptions Options { get; } = new()
         {
@@ -390,7 +393,36 @@ public sealed class PlayerShellStateBuilderTests
             Heartbeat,
             Warnings,
             new FixedTimeProvider(Now),
-            protection).Build();
+            protection,
+            catalog).Build();
+    }
+
+    // Библиотека клуба: обложка из кэша ПК и возраст — на плитке; лаунчера на ПК нет — плитка видна
+    // недоступной, а не пропадает.
+    [Fact]
+    public void TheClubLibrary_ReachesTheShell_WithCoversAges_AndHonestAvailability()
+    {
+        var present = typeof(PlayerShellStateBuilderTests).Assembly.Location;
+        var catalog = new FixedCatalog(
+        [
+            new AFK4.Agent.Service.Games.LauncherEntry("g1", "Dota 2", "MOBA", present, "-applaunch 570", false, "https://showcase.afk4.local/covers/g1.a.webp", 12),
+            new AFK4.Agent.Service.Games.LauncherEntry("g2", "Valorant", "Шутер", null, "", false, null, 16)
+        ]);
+
+        var apps = new Fixture(catalog: catalog).Build().LauncherApps;
+
+        Assert.Equal(2, apps.Count);
+        Assert.Equal("https://showcase.afk4.local/covers/g1.a.webp", apps[0].IconUri);
+        Assert.Equal(12, apps[0].MinAge);
+        Assert.True(apps[0].IsAvailable);
+        Assert.False(apps[1].IsAvailable);
+    }
+
+    private sealed class FixedCatalog(IReadOnlyList<AFK4.Agent.Service.Games.LauncherEntry> entries) : AFK4.Agent.Service.Games.ILauncherCatalog
+    {
+        public IReadOnlyList<AFK4.Agent.Service.Games.LauncherEntry> Entries() => entries;
+
+        public AFK4.Agent.Service.Games.LauncherEntry? Find(string appId) => entries.FirstOrDefault(entry => entry.AppId == appId);
     }
 
     internal sealed class MemoryRuntimeStateStore(AgentRuntimeState initial) : IAgentRuntimeStateStore

@@ -3321,6 +3321,8 @@ export interface LauncherAppDto {
   category: string;
   iconUri: string | null;
   isAvailable: boolean;
+  /** Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения. */
+  minAge?: number | null;
 }
 
 /** Контракт: Billing/LedgerEntryDto.cs */

@@ -1,4 +1,5 @@
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Games;
 using AFK4.Agent.Service.Protection;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
@@ -25,7 +26,8 @@ public sealed class PlayerShellStateBuilder(
     IShellHeartbeatSnapshot heartbeatSnapshot,
     IShellWarningStore shellWarningStore,
     TimeProvider timeProvider,
-    IProtectionEnforcer? protection = null) : IPlayerShellStateBuilder
+    IProtectionEnforcer? protection = null,
+    ILauncherCatalog? catalog = null) : IPlayerShellStateBuilder
 {
     /// <summary>Последняя минута сессии — отдельное состояние: экран готовит игрока к концу.</summary>
     public const int EndingThresholdSeconds = 60;
@@ -63,7 +65,7 @@ public sealed class PlayerShellStateBuilder(
             IsGraceMode: isGraceMode,
             WarningThresholdSeconds: threshold,
             Message: CreateMessage(state),
-            LauncherApps: CreateLauncherApps(agentOptions),
+            LauncherApps: catalog is null ? CreateLauncherApps(agentOptions) : CreateLauncherApps(catalog),
             Locale: agentOptions.PreferredLocale,
             WarningKind: ResolveWarning(state, remainingSeconds, threshold, isGraceMode, isOnline),
             // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом
@@ -161,6 +163,18 @@ public sealed class PlayerShellStateBuilder(
                 Category: string.IsNullOrWhiteSpace(app.Category) ? "Games" : app.Category,
                 IconUri: null,
                 IsAvailable: File.Exists(app.ExecutablePath)))
+            .ToList();
+
+    /// <summary>Библиотека клуба: лаунчера на ПК нет — плитка видна недоступной, а не пропадает.</summary>
+    private static IReadOnlyList<LauncherAppDto> CreateLauncherApps(ILauncherCatalog catalog) =>
+        catalog.Entries()
+            .Select(entry => new LauncherAppDto(
+                AppId: entry.AppId,
+                DisplayName: entry.DisplayName,
+                Category: entry.Category,
+                IconUri: entry.IconUri,
+                IsAvailable: entry.ExecutablePath is not null && File.Exists(entry.ExecutablePath),
+                MinAge: entry.MinAge))
             .ToList();
 
     private static string CreateMessage(string state) => state switch

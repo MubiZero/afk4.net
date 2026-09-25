@@ -113,6 +113,8 @@ public partial class WebViewPlayerWindow : Window
                     CoreWebView2HostResourceAccessKind.Allow);
             }
 
+            MapShowcaseAssets();
+
             Browser.CoreWebView2.ProcessFailed += OnProcessFailed;
             appSource = target.Source;
             Browser.Source = new Uri(target.Source);
@@ -220,6 +222,25 @@ public partial class WebViewPlayerWindow : Window
             // перезапускал бы его по кругу. Пишем в журнал и живём дальше.
             PlayerShellStartupLog.Write("Player Shell host bridge message failed.", exception);
         }
+    }
+
+    /// <summary>
+    /// Обложки игр (и витрина P7) — из общей папки ПК, которую пополняет агент. Только на чтение:
+    /// страница показывает картинки, но ничего туда не пишет. Папки ещё нет — агент её не завёл, и
+    /// плитки рисуются по названию.
+    /// </summary>
+    private void MapShowcaseAssets()
+    {
+        var folder = AFK4.Shared.Contracts.Shell.ShellShowcaseAssets.Directory();
+        if (!System.IO.Directory.Exists(folder))
+        {
+            return;
+        }
+
+        Browser.CoreWebView2.SetVirtualHostNameToFolderMapping(
+            AFK4.Shared.Contracts.Shell.ShellShowcaseAssets.VirtualHost,
+            folder,
+            CoreWebView2HostResourceAccessKind.Allow);
     }
 
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)

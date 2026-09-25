@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Games;
 using AFK4.Agent.Service.Network;
 using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
@@ -33,7 +34,8 @@ public sealed class Worker(
     INetworkIdentityProvider? networkIdentity = null,
     IMaintenanceMode? maintenanceMode = null,
     IPlayerSignIn? playerSignIn = null,
-    IProtectionEnforcer? protection = null) : BackgroundService
+    IProtectionEnforcer? protection = null,
+    IGameLibrarySync? games = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -148,6 +150,7 @@ public sealed class Worker(
 
                 // Профиль защиты — после обслуживания: в обслуживании запреты сняты и остаются снятыми.
                 await TryProtectAsync(() => protection!.SyncAsync(heartbeat.PolicyProfileVersion, cancellationToken), cancellationToken);
+                await TryGamesAsync(() => games!.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
 
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
@@ -481,6 +484,27 @@ public sealed class Worker(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Protection profile step failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    private async Task TryGamesAsync(Func<Task> action, CancellationToken cancellationToken)
+    {
+        if (games is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await action();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Game library step failed. Continuing with heartbeat loop.");
         }
     }
 

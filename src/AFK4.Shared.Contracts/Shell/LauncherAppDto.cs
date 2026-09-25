@@ -5,4 +5,6 @@ public sealed record LauncherAppDto(
     string DisplayName,
     string Category,
     string? IconUri,
-    bool IsAvailable);
+    bool IsAvailable,
+    /// Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения.
+    int? MinAge = null);
