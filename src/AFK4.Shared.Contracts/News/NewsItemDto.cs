@@ -10,4 +10,6 @@ public sealed record NewsItemDto(
     DateTimeOffset? PublishAtUtc,
     DateTimeOffset? ExpiresAtUtc,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    // Новость крутится и на экране свободного ПК (витрина), а не только в приложении.
+    bool ShowOnPcs = false);

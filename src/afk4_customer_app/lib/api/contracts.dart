@@ -318,6 +318,10 @@ abstract final class MediaPurposeNames {
   static const String branchCover = 'branch-cover';
   /// Остальные фото зала: их несколько, и новая загрузка не заменяет прежние.
   static const String branchGallery = 'branch-gallery';
+  /// Картинка новости: её показывают приложение игрока и витрина свободного ПК.
+  static const String newsImage = 'news-image';
+  /// Фото товара бара — для витрины ПК и меню бара.
+  static const String productImage = 'product-image';
 }
 
 /// Машинные имена отказов при подключении админки клуба к клубу.
@@ -1014,6 +1018,16 @@ abstract final class ShopOrderStatusNames {
   static const String accepted = 'accepted';
   static const String delivered = 'delivered';
   static const String cancelled = 'cancelled';
+}
+
+/// Словарь: Showcase/ShowcaseContracts.cs
+abstract final class ShowcaseCardKindNames {
+  static const String news = 'news';
+  static const String tariff = 'tariff';
+  static const String product = 'product';
+  static const String tournament = 'tournament';
+  static const String packages = 'packages';
+  static const String barHit = 'bar_hit';
 }
 
 /// Машинные причины отказа на входе сотрудника. Клиент по ним и подбирает слова: текст сервера
@@ -3173,6 +3187,7 @@ class CreateNewsItemRequest {
     required this.isPublished,
     this.publishAtUtc,
     this.expiresAtUtc,
+    this.showOnPcs,
   });
 
   final String? branchId;
@@ -3182,6 +3197,7 @@ class CreateNewsItemRequest {
   final bool isPublished;
   final DateTime? publishAtUtc;
   final DateTime? expiresAtUtc;
+  final bool? showOnPcs;
 
   factory CreateNewsItemRequest.fromJson(Map<String, dynamic> json) => CreateNewsItemRequest(
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
@@ -3191,6 +3207,7 @@ class CreateNewsItemRequest {
         isPublished: json['isPublished'] as bool,
         publishAtUtc: json['publishAtUtc'] == null ? null : DateTime.parse(json['publishAtUtc'] as String),
         expiresAtUtc: json['expiresAtUtc'] == null ? null : DateTime.parse(json['expiresAtUtc'] as String),
+        showOnPcs: json['showOnPcs'] == null ? null : json['showOnPcs'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3201,6 +3218,7 @@ class CreateNewsItemRequest {
         'isPublished': isPublished,
         'publishAtUtc': publishAtUtc?.toIso8601String(),
         'expiresAtUtc': expiresAtUtc?.toIso8601String(),
+        'showOnPcs': showOnPcs,
       };
 }
 
@@ -3892,6 +3910,8 @@ class CreateProductRequest {
     required this.idempotencyKey,
     required this.reorderThreshold,
     required this.availableInShell,
+    required this.featuredOnPcs,
+    this.imageUrl,
   });
 
   final String organizationId;
@@ -3904,6 +3924,8 @@ class CreateProductRequest {
   final String idempotencyKey;
   final int reorderThreshold;
   final bool availableInShell;
+  final bool featuredOnPcs;
+  final String? imageUrl;
 
   factory CreateProductRequest.fromJson(Map<String, dynamic> json) => CreateProductRequest(
         organizationId: json['organizationId'] as String,
@@ -3916,6 +3938,8 @@ class CreateProductRequest {
         idempotencyKey: json['idempotencyKey'] as String,
         reorderThreshold: (json['reorderThreshold'] as num).toInt(),
         availableInShell: json['availableInShell'] as bool,
+        featuredOnPcs: json['featuredOnPcs'] as bool,
+        imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3929,6 +3953,8 @@ class CreateProductRequest {
         'idempotencyKey': idempotencyKey,
         'reorderThreshold': reorderThreshold,
         'availableInShell': availableInShell,
+        'featuredOnPcs': featuredOnPcs,
+        'imageUrl': imageUrl,
       };
 }
 
@@ -5858,6 +5884,26 @@ class DeviceSessionSnapshotRequest {
         'isLocked': isLocked,
         'pendingLocalEventCount': pendingLocalEventCount,
         'observedAtUtc': observedAtUtc.toIso8601String(),
+      };
+}
+
+/// Витрина свободного ПК (спека оболочки, §5.7): что показывает экран, пока за ПК никто не сидит.
+/// Тексты — словами клуба, как их написали в Панели; подписи вроде «Турнир» переводит оболочка.
+///
+/// Контракт: Showcase/ShowcaseContracts.cs
+class DeviceShowcaseDto {
+  const DeviceShowcaseDto({
+    required this.cards,
+  });
+
+  final List<ShowcaseCardDto> cards;
+
+  factory DeviceShowcaseDto.fromJson(Map<String, dynamic> json) => DeviceShowcaseDto(
+        cards: (json['cards'] as List<dynamic>).map((item) => ShowcaseCardDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'cards': cards.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -8202,6 +8248,7 @@ class NewsItemDto {
     this.expiresAtUtc,
     required this.createdAtUtc,
     required this.updatedAtUtc,
+    this.showOnPcs,
   });
 
   final String id;
@@ -8215,6 +8262,9 @@ class NewsItemDto {
   final DateTime createdAtUtc;
   final DateTime updatedAtUtc;
 
+  /// Новость крутится и на экране свободного ПК (витрина), а не только в приложении.
+  final bool? showOnPcs;
+
   factory NewsItemDto.fromJson(Map<String, dynamic> json) => NewsItemDto(
         id: json['id'] as String,
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
@@ -8226,6 +8276,7 @@ class NewsItemDto {
         expiresAtUtc: json['expiresAtUtc'] == null ? null : DateTime.parse(json['expiresAtUtc'] as String),
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         updatedAtUtc: DateTime.parse(json['updatedAtUtc'] as String),
+        showOnPcs: json['showOnPcs'] == null ? null : json['showOnPcs'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -8239,6 +8290,7 @@ class NewsItemDto {
         'expiresAtUtc': expiresAtUtc?.toIso8601String(),
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
+        'showOnPcs': showOnPcs,
       };
 }
 
@@ -13423,6 +13475,8 @@ class PosProductDto {
     this.availableInShell,
     this.avgCostMinorUnits,
     this.barcodes,
+    this.featuredOnPcs,
+    this.imageUrl,
   });
 
   final String productId;
@@ -13441,6 +13495,8 @@ class PosProductDto {
   final bool? availableInShell;
   final int? avgCostMinorUnits;
   final List<String>? barcodes;
+  final bool? featuredOnPcs;
+  final String? imageUrl;
 
   factory PosProductDto.fromJson(Map<String, dynamic> json) => PosProductDto(
         productId: json['productId'] as String,
@@ -13459,6 +13515,8 @@ class PosProductDto {
         availableInShell: json['availableInShell'] == null ? null : json['availableInShell'] as bool,
         avgCostMinorUnits: json['avgCostMinorUnits'] == null ? null : (json['avgCostMinorUnits'] as num).toInt(),
         barcodes: json['barcodes'] == null ? null : (json['barcodes'] as List<dynamic>).map((item) => item as String).toList(),
+        featuredOnPcs: json['featuredOnPcs'] == null ? null : json['featuredOnPcs'] as bool,
+        imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -13478,6 +13536,8 @@ class PosProductDto {
         'availableInShell': availableInShell,
         'avgCostMinorUnits': avgCostMinorUnits,
         'barcodes': barcodes?.map((item) => item).toList(),
+        'featuredOnPcs': featuredOnPcs,
+        'imageUrl': imageUrl,
       };
 }
 
@@ -17035,6 +17095,104 @@ class ShopOrderLineInput {
       };
 }
 
+/// Контракт: Showcase/ShowcaseContracts.cs
+class ShowcaseCardDto {
+  const ShowcaseCardDto({
+    required this.cardId,
+    required this.kind,
+    required this.title,
+    this.body,
+    this.subtitle,
+    this.imageUrl,
+    this.price,
+    this.timeWindow,
+    this.startsAtUtc,
+    this.packages,
+  });
+
+
+  /// Стабильный ключ карточки: «news:…», «tariff:…». По нему агент узнаёт карточку между
+  /// обновлениями, а экран не перезапускает показ, когда список не изменился.
+  final String cardId;
+
+  /// Одно из ShowcaseCardKindNames
+  final String kind;
+
+  /// У «Пакетов» заголовок пуст: его пишет оболочка на языке экрана.
+  final String title;
+  final String? body;
+
+  /// Короткая строка рядом с видом карточки: дисциплина турнира («Dota 2»).
+  final String? subtitle;
+
+  /// Адрес картинки. С сервера — адрес в медиа-хранилище, на экран — адрес в кэше ПК: чужих
+  /// адресов экран не получает.
+  final String? imageUrl;
+
+  /// Цена: час тарифа, товар, взнос турнира. Пусто — цены у карточки нет (или взнос бесплатный).
+  final MoneyDto? price;
+
+  /// Часы тарифа по времени клуба, «22:00–06:00». Пусто — круглые сутки.
+  final String? timeWindow;
+
+  /// Начало турнира.
+  final DateTime? startsAtUtc;
+
+  /// Строки карточки «Пакеты».
+  final List<ShowcasePackageLineDto>? packages;
+
+  factory ShowcaseCardDto.fromJson(Map<String, dynamic> json) => ShowcaseCardDto(
+        cardId: json['cardId'] as String,
+        kind: json['kind'] as String,
+        title: json['title'] as String,
+        body: json['body'] == null ? null : json['body'] as String,
+        subtitle: json['subtitle'] == null ? null : json['subtitle'] as String,
+        imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
+        price: json['price'] == null ? null : MoneyDto.fromJson(json['price'] as Map<String, dynamic>),
+        timeWindow: json['timeWindow'] == null ? null : json['timeWindow'] as String,
+        startsAtUtc: json['startsAtUtc'] == null ? null : DateTime.parse(json['startsAtUtc'] as String),
+        packages: json['packages'] == null ? null : (json['packages'] as List<dynamic>).map((item) => ShowcasePackageLineDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'cardId': cardId,
+        'kind': kind,
+        'title': title,
+        'body': body,
+        'subtitle': subtitle,
+        'imageUrl': imageUrl,
+        'price': price?.toJson(),
+        'timeWindow': timeWindow,
+        'startsAtUtc': startsAtUtc?.toIso8601String(),
+        'packages': packages?.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Контракт: Showcase/ShowcaseContracts.cs
+class ShowcasePackageLineDto {
+  const ShowcasePackageLineDto({
+    required this.name,
+    required this.price,
+    required this.minutes,
+  });
+
+  final String name;
+  final MoneyDto price;
+  final int minutes;
+
+  factory ShowcasePackageLineDto.fromJson(Map<String, dynamic> json) => ShowcasePackageLineDto(
+        name: json['name'] as String,
+        price: MoneyDto.fromJson(json['price'] as Map<String, dynamic>),
+        minutes: (json['minutes'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'price': price.toJson(),
+        'minutes': minutes,
+      };
+}
+
 /// Сотрудник организации, которого нет в этом филиале: его можно добавить сюда ролями. Филиалы, где
 /// он уже работает, — названиями; пустой список значит, что назначений у него не осталось вовсе и
 /// войти в Панель ему некуда, пока его не вернут в филиал.
@@ -17967,6 +18125,7 @@ class TariffDto {
     this.appliesOnDaysMask,
     this.appliesFromMinuteOfDay,
     this.appliesToMinuteOfDay,
+    this.featuredOnPcs,
   });
 
   final String tariffId;
@@ -17979,6 +18138,9 @@ class TariffDto {
   final int? appliesFromMinuteOfDay;
   final int? appliesToMinuteOfDay;
 
+  /// Тариф крутится в витрине свободного ПК.
+  final bool? featuredOnPcs;
+
   factory TariffDto.fromJson(Map<String, dynamic> json) => TariffDto(
         tariffId: json['tariffId'] as String,
         organizationId: json['organizationId'] as String,
@@ -17989,6 +18151,7 @@ class TariffDto {
         appliesOnDaysMask: json['appliesOnDaysMask'] == null ? null : (json['appliesOnDaysMask'] as num).toInt(),
         appliesFromMinuteOfDay: json['appliesFromMinuteOfDay'] == null ? null : (json['appliesFromMinuteOfDay'] as num).toInt(),
         appliesToMinuteOfDay: json['appliesToMinuteOfDay'] == null ? null : (json['appliesToMinuteOfDay'] as num).toInt(),
+        featuredOnPcs: json['featuredOnPcs'] == null ? null : json['featuredOnPcs'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -18001,6 +18164,7 @@ class TariffDto {
         'appliesOnDaysMask': appliesOnDaysMask,
         'appliesFromMinuteOfDay': appliesFromMinuteOfDay,
         'appliesToMinuteOfDay': appliesToMinuteOfDay,
+        'featuredOnPcs': featuredOnPcs,
       };
 }
 
@@ -18031,6 +18195,7 @@ class TariffOptionDto {
     this.appliesFromMinuteOfDay,
     this.appliesToMinuteOfDay,
     this.appliesNow,
+    this.featuredOnPcs,
   });
 
   final String tariffId;
@@ -18053,6 +18218,9 @@ class TariffOptionDto {
   /// начинают сию секунду; для брони на завтра ответ никакого значения не имеет.
   final bool? appliesNow;
 
+  /// Тариф крутится в витрине свободного ПК.
+  final bool? featuredOnPcs;
+
   factory TariffOptionDto.fromJson(Map<String, dynamic> json) => TariffOptionDto(
         tariffId: json['tariffId'] as String,
         tariffVersionId: json['tariffVersionId'] as String,
@@ -18068,6 +18236,7 @@ class TariffOptionDto {
         appliesFromMinuteOfDay: json['appliesFromMinuteOfDay'] == null ? null : (json['appliesFromMinuteOfDay'] as num).toInt(),
         appliesToMinuteOfDay: json['appliesToMinuteOfDay'] == null ? null : (json['appliesToMinuteOfDay'] as num).toInt(),
         appliesNow: json['appliesNow'] == null ? null : json['appliesNow'] as bool,
+        featuredOnPcs: json['featuredOnPcs'] == null ? null : json['featuredOnPcs'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -18085,6 +18254,7 @@ class TariffOptionDto {
         'appliesFromMinuteOfDay': appliesFromMinuteOfDay,
         'appliesToMinuteOfDay': appliesToMinuteOfDay,
         'appliesNow': appliesNow,
+        'featuredOnPcs': featuredOnPcs,
       };
 }
 
@@ -18757,6 +18927,7 @@ class UpdateNewsItemRequest {
     required this.isPublished,
     this.publishAtUtc,
     this.expiresAtUtc,
+    this.showOnPcs,
   });
 
   final String? branchId;
@@ -18766,6 +18937,7 @@ class UpdateNewsItemRequest {
   final bool isPublished;
   final DateTime? publishAtUtc;
   final DateTime? expiresAtUtc;
+  final bool? showOnPcs;
 
   factory UpdateNewsItemRequest.fromJson(Map<String, dynamic> json) => UpdateNewsItemRequest(
         branchId: json['branchId'] == null ? null : json['branchId'] as String,
@@ -18775,6 +18947,7 @@ class UpdateNewsItemRequest {
         isPublished: json['isPublished'] as bool,
         publishAtUtc: json['publishAtUtc'] == null ? null : DateTime.parse(json['publishAtUtc'] as String),
         expiresAtUtc: json['expiresAtUtc'] == null ? null : DateTime.parse(json['expiresAtUtc'] as String),
+        showOnPcs: json['showOnPcs'] == null ? null : json['showOnPcs'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -18785,6 +18958,7 @@ class UpdateNewsItemRequest {
         'isPublished': isPublished,
         'publishAtUtc': publishAtUtc?.toIso8601String(),
         'expiresAtUtc': expiresAtUtc?.toIso8601String(),
+        'showOnPcs': showOnPcs,
       };
 }
 
@@ -19287,6 +19461,8 @@ class UpdateProductRequest {
     required this.isActive,
     this.reorderThreshold,
     this.availableInShell,
+    this.featuredOnPcs,
+    this.imageUrl,
   });
 
   final String organizationId;
@@ -19300,6 +19476,12 @@ class UpdateProductRequest {
   final int? reorderThreshold;
   final bool? availableInShell;
 
+  /// Товар крутится в витрине свободного ПК.
+  final bool? featuredOnPcs;
+
+  /// Фото товара: адрес загрузки с назначением product-image. Пусто — без фото.
+  final String? imageUrl;
+
   factory UpdateProductRequest.fromJson(Map<String, dynamic> json) => UpdateProductRequest(
         organizationId: json['organizationId'] as String,
         categoryId: json['categoryId'] as String,
@@ -19311,6 +19493,8 @@ class UpdateProductRequest {
         isActive: json['isActive'] as bool,
         reorderThreshold: json['reorderThreshold'] == null ? null : (json['reorderThreshold'] as num).toInt(),
         availableInShell: json['availableInShell'] == null ? null : json['availableInShell'] as bool,
+        featuredOnPcs: json['featuredOnPcs'] == null ? null : json['featuredOnPcs'] as bool,
+        imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -19324,6 +19508,8 @@ class UpdateProductRequest {
         'isActive': isActive,
         'reorderThreshold': reorderThreshold,
         'availableInShell': availableInShell,
+        'featuredOnPcs': featuredOnPcs,
+        'imageUrl': imageUrl,
       };
 }
 
@@ -19776,7 +19962,8 @@ class UpdateSubscriptionRequest {
 }
 
 /// `Schedule` не передан — расписание остаётся прежним. Снятие тарифа с продажи и
-/// переименование не должны требовать от вызывающего знания о часах.
+/// переименование не должны требовать от вызывающего знания о часах. Так же и
+/// `FeaturedOnPcs`: не передан — отметка в витрине не меняется.
 ///
 /// Контракт: Tariffs/UpdateTariffRequest.cs
 class UpdateTariffRequest {
@@ -19785,18 +19972,21 @@ class UpdateTariffRequest {
     required this.name,
     required this.isActive,
     this.schedule,
+    this.featuredOnPcs,
   });
 
   final String organizationId;
   final String name;
   final bool isActive;
   final TariffScheduleDto? schedule;
+  final bool? featuredOnPcs;
 
   factory UpdateTariffRequest.fromJson(Map<String, dynamic> json) => UpdateTariffRequest(
         organizationId: json['organizationId'] as String,
         name: json['name'] as String,
         isActive: json['isActive'] as bool,
         schedule: json['schedule'] == null ? null : TariffScheduleDto.fromJson(json['schedule'] as Map<String, dynamic>),
+        featuredOnPcs: json['featuredOnPcs'] == null ? null : json['featuredOnPcs'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -19804,6 +19994,7 @@ class UpdateTariffRequest {
         'name': name,
         'isActive': isActive,
         'schedule': schedule?.toJson(),
+        'featuredOnPcs': featuredOnPcs,
       };
 }
 

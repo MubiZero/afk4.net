@@ -834,6 +834,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(product => product.Name).HasMaxLength(160).IsRequired();
             entity.Property(product => product.Sku).HasMaxLength(80).IsRequired();
             entity.Property(product => product.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(product => product.ImageUrl).HasMaxLength(2048);
             entity.HasIndex(product => new
             {
                 product.OrganizationId,

@@ -14,4 +14,6 @@ public sealed record TariffDto(
     DateTimeOffset CreatedAtUtc,
     int AppliesOnDaysMask = 0,
     int? AppliesFromMinuteOfDay = null,
-    int? AppliesToMinuteOfDay = null);
+    int? AppliesToMinuteOfDay = null,
+    // Тариф крутится в витрине свободного ПК.
+    bool FeaturedOnPcs = false);

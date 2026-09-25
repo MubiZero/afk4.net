@@ -27,5 +27,8 @@ public sealed class TariffEntity
 
     public int? AppliesToMinuteOfDay { get; set; }
 
+    /// <summary>Тариф крутится в витрине свободного ПК.</summary>
+    public bool FeaturedOnPcs { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

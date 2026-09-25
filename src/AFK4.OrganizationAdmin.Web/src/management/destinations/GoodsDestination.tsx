@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { MediaPurposeNames } from '@afk4/contracts';
 import { Archive, ArchiveRestore, Package, Pencil } from 'lucide-react';
 import { ManagementScreen } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
@@ -8,6 +9,7 @@ import type { RowAction } from '../kit/types';
 import { PanelModal } from '../../PanelModal';
 import { CriticalActionConfirmation, Money } from '../../operatorPrimitives';
 import { ProductBarcodesSection } from '../../settings/ProductBarcodesSection';
+import { MediaUpload } from '../../components/MediaUpload';
 import { projectOperatorError } from '../../apiErrors';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
 import {
@@ -85,6 +87,8 @@ export function GoodsDestination({
   const [trackStock, setTrackStock] = useState(true);
   const [allowNegativeStock, setAllowNegativeStock] = useState(false);
   const [availableInShell, setAvailableInShell] = useState(false);
+  const [featuredOnPcs, setFeaturedOnPcs] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [reorderThreshold, setReorderThreshold] = useState('0');
   const [busy, setBusy] = useState(false);
 
@@ -126,6 +130,8 @@ export function GoodsDestination({
     setTrackStock(readBoolean(selectedProduct, 'trackStock', true));
     setAllowNegativeStock(readBoolean(selectedProduct, 'allowNegativeStock'));
     setAvailableInShell(readBoolean(selectedProduct, 'availableInShell'));
+    setFeaturedOnPcs(readBoolean(selectedProduct, 'featuredOnPcs'));
+    setImageUrl(selectedProduct.imageUrl ?? null);
     setReorderThreshold(String(readNumber(selectedProduct, 'reorderThreshold', 0)));
     setSelectedCategoryId(readString(selectedProduct, 'categoryId'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,6 +197,9 @@ export function GoodsDestination({
         trackStock,
         allowNegativeStock,
         availableInShell,
+        // Фото и витрина ПК — в карточке уже заведённого товара.
+        featuredOnPcs: false,
+        imageUrl: null,
         reorderThreshold: Number(reorderThreshold) || 0,
         idempotencyKey: createIdempotencyKey('pos-product-create')
       });
@@ -234,6 +243,8 @@ export function GoodsDestination({
         trackStock,
         allowNegativeStock,
         availableInShell,
+        featuredOnPcs,
+        imageUrl,
         reorderThreshold: Number(reorderThreshold) || 0,
         // Сохраняем текущее состояние «в продаже/снят» — редактирование карточки не должно
         // втихую возвращать в продажу товар, снятый через отдельное действие «Снять с продажи».
@@ -277,6 +288,9 @@ export function GoodsDestination({
         trackStock: readBoolean(product, 'trackStock', true),
         allowNegativeStock: readBoolean(product, 'allowNegativeStock'),
         availableInShell: readBoolean(product, 'availableInShell'),
+        // Тело товара уходит целиком: без этих полей снятие с продажи стирало бы фото и отметку.
+        featuredOnPcs: readBoolean(product, 'featuredOnPcs'),
+        imageUrl: product.imageUrl ?? null,
         reorderThreshold: readNumber(product, 'reorderThreshold', 0),
         isActive
       });
@@ -380,7 +394,18 @@ export function GoodsDestination({
       <div className="mgmt-master-detail">
         <MgmtTable<Product>
           columns={[
-            { key: 'name', header: t('op.management.goods.col.name'), render: (product) => readString(product, 'name', t('op.settings.pos.productFallback')) },
+            {
+              key: 'name',
+              header: t('op.management.goods.col.name'),
+              render: (product) => (
+                <span className="mgmt-inline-tags">
+                  {readString(product, 'name', t('op.settings.pos.productFallback'))}
+                  {readBoolean(product, 'featuredOnPcs')
+                    ? <span className="ui-chip ui-chip--xs is-neutral">{t('op.news.onPcsTag')}</span>
+                    : null}
+                </span>
+              )
+            },
             { key: 'category', header: t('op.settings.pos.category'), render: (product) => categoryOptions.find((option) => option.categoryId === readString(product, 'categoryId'))?.label ?? '—' },
             { key: 'sku', header: t('op.management.goods.col.sku'), render: (product) => readString(product, 'sku', '—') },
             {
@@ -479,6 +504,23 @@ export function GoodsDestination({
                     <input type="checkbox" checked={availableInShell} disabled={!canManagePosCatalog || busy} onChange={(event) => setAvailableInShell(event.currentTarget.checked)} />
                     {t('op.settings.pos.availableInShell')}
                   </label>
+                  <label className="mgmt-check mgmt-form-wide">
+                    <input type="checkbox" checked={featuredOnPcs} disabled={!canManagePosCatalog || busy} onChange={(event) => setFeaturedOnPcs(event.currentTarget.checked)} />
+                    {t('op.management.goods.featuredOnPcs')}
+                  </label>
+                  {backend ? (
+                    <label className="mgmt-form-wide">{t('op.management.goods.photo')}
+                      <MediaUpload
+                        value={imageUrl}
+                        purpose={MediaPurposeNames.ProductImage}
+                        branchId={backend.branchId}
+                        backend={backend}
+                        disabled={!canManagePosCatalog || busy}
+                        onChange={(media) => setImageUrl(media?.url ?? null)}
+                      />
+                      <span className="mgmt-drawer-hint">{t('op.management.goods.photoHint')}</span>
+                    </label>
+                  ) : null}
                 </div>
               </form>
             </div>

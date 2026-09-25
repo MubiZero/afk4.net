@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { PlatformApiError } from '../platformApi';
 import type { OperatorBackendContext } from '../operatorTypes';
 
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -93,7 +94,10 @@ export function MediaUpload({ value, mediaId: explicitMediaId, onChange, purpose
       await client.remove(branchId, mediaId);
       onChange(null);
     } catch (err) {
-      setError(projectOperatorError(err, t).detail);
+      // Объекта уже нет (или адрес вписан руками и в хранилище его не было): убирать с сервера
+      // нечего, а запись всё равно должна перестать на него ссылаться.
+      if (err instanceof PlatformApiError && err.status === 404) onChange(null);
+      else setError(projectOperatorError(err, t).detail);
     } finally {
       setUploading(false);
     }

@@ -306,6 +306,11 @@ public sealed class EfTariffService(
             tariff.AppliesToMinuteOfDay = nextSchedule.AppliesToMinuteOfDay;
         }
 
+        if (request.FeaturedOnPcs is { } featured)
+        {
+            tariff.FeaturedOnPcs = featured;
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return BillingCommandServiceResult<TariffDto>.Ok(ToDto(tariff));
@@ -633,7 +638,8 @@ public sealed class EfTariffService(
             tariff.CreatedAtUtc,
             tariff.AppliesOnDaysMask,
             tariff.AppliesFromMinuteOfDay,
-            tariff.AppliesToMinuteOfDay);
+            tariff.AppliesToMinuteOfDay,
+            tariff.FeaturedOnPcs);
     }
 
     private static TariffVersionDto ToDto(TariffVersionEntity version)

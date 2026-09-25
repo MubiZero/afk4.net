@@ -117,7 +117,8 @@ describe('TariffsTab', () => {
       organizationId: 'org',
       name: 'Стандарт',
       isActive: true,
-      schedule: { appliesOnDaysMask: 0, appliesFromMinuteOfDay: null, appliesToMinuteOfDay: null }
+      schedule: { appliesOnDaysMask: 0, appliesFromMinuteOfDay: null, appliesToMinuteOfDay: null },
+      featuredOnPcs: false
     }));
     await waitFor(() => expect(updateTariffVersion).toHaveBeenCalledWith('b1', tariffId, tariffVersionId, expect.objectContaining({
       organizationId: 'org',
@@ -140,6 +141,15 @@ describe('TariffsTab', () => {
     await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({ isActive: false })));
     await waitFor(() => expect(updateTariffVersion).toHaveBeenCalledWith('b1', tariffId, tariffVersionId, expect.objectContaining({ isActive: false })));
   });
+  it('features the tariff on idle PCs when the owner ticks it', async () => {
+    wrap(<TariffsTab tariffs={tariffs} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
+    fireEvent.click(screen.getByText('Стандарт'));
+    fireEvent.click(screen.getByLabelText('Выделить на экране ПК'));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({ featuredOnPcs: true })));
+  });
+
   // Часы задаются в тех же минутах от полуночи, что и хранятся: 08:00 — это 480.
   it('saves the hours the owner set on the tariff', async () => {
     wrap(<TariffsTab tariffs={tariffs} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Newspaper } from 'lucide-react';
+import { MediaPurposeNames } from '@afk4/contracts';
 import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
 import { CriticalActionConfirmation, EmptyState, PartialLoadFailure } from './operatorPrimitives';
@@ -9,6 +10,7 @@ import { projectOperatorError, type OperatorErrorProjection } from './apiErrors'
 import type { OperatorBackendContext } from './operatorTypes';
 import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
 import { DeferredSkeleton, SkeletonTable } from './LoadingSkeleton';
+import { MediaUpload } from './components/MediaUpload';
 
 // Колонки списка — одни на таблицу и её заглушку.
 const NEWS_GRID = '1.6fr 1fr 0.8fr 1.2fr';
@@ -29,7 +31,8 @@ const EMPTY = {
   imageUrl: '',
   isPublished: true,
   publishAt: '',
-  expiresAt: ''
+  expiresAt: '',
+  showOnPcs: false
 };
 
 function toIsoOrNull(localValue: string): string | null {
@@ -124,7 +127,8 @@ export function NewsWorkspace({
       imageUrl: item.imageUrl ?? '',
       isPublished: item.isPublished,
       publishAt: toLocalInput(item.publishAtUtc),
-      expiresAt: toLocalInput(item.expiresAtUtc)
+      expiresAt: toLocalInput(item.expiresAtUtc),
+      showOnPcs: item.showOnPcs ?? false
     });
     setSelectedId(item.id);
   };
@@ -155,7 +159,8 @@ export function NewsWorkspace({
       imageUrl: form.imageUrl.trim() === '' ? null : form.imageUrl.trim(),
       isPublished: form.isPublished,
       publishAtUtc,
-      expiresAtUtc
+      expiresAtUtc,
+      showOnPcs: form.showOnPcs
     };
     if (form.id === null) {
       await client.create(request);
@@ -217,8 +222,11 @@ export function NewsWorkspace({
             key: 'status',
             header: t('op.news.col.status'),
             render: (n) => (
-              <span className={`ui-chip ui-chip--status ui-chip--xs ${n.isPublished ? 'is-live' : 'is-neutral'}`}>
-                {n.isPublished ? t('op.news.statusPublished') : t('op.news.draftTag')}
+              <span className="mgmt-inline-tags">
+                <span className={`ui-chip ui-chip--status ui-chip--xs ${n.isPublished ? 'is-live' : 'is-neutral'}`}>
+                  {n.isPublished ? t('op.news.statusPublished') : t('op.news.draftTag')}
+                </span>
+                {n.showOnPcs ? <span className="ui-chip ui-chip--xs is-neutral">{t('op.news.onPcsTag')}</span> : null}
               </span>
             )
           },
@@ -291,7 +299,20 @@ export function NewsWorkspace({
             </label>
             <label>
               {t('op.news.fieldImage')}
-              <input value={form.imageUrl} disabled={!canManage} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
+              {/* Загрузка кладёт картинку в медиа-хранилище и ставит сюда её адрес; без бэкенда (в
+                  тестах экрана) остаётся поле адреса. */}
+              {backend ? (
+                <MediaUpload
+                  value={form.imageUrl === '' ? null : form.imageUrl}
+                  purpose={MediaPurposeNames.NewsImage}
+                  branchId={form.branchId === '' ? backend.branchId : form.branchId}
+                  backend={backend}
+                  disabled={!canManage}
+                  onChange={(media) => setForm((current) => ({ ...current, imageUrl: media?.url ?? '' }))}
+                />
+              ) : (
+                <input value={form.imageUrl} disabled={!canManage} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
+              )}
             </label>
             <label className="mgmt-check">
               <input
@@ -302,6 +323,16 @@ export function NewsWorkspace({
               />
               {t('op.news.published')}
             </label>
+            <label className="mgmt-check">
+              <input
+                type="checkbox"
+                checked={form.showOnPcs}
+                disabled={!canManage}
+                onChange={(event) => setForm({ ...form, showOnPcs: event.target.checked })}
+              />
+              {t('op.news.showOnPcs')}
+            </label>
+            <p className="mgmt-drawer-hint">{t('op.news.showOnPcsHint')}</p>
             <label>
               {t('op.news.publishAt')}
               <input type="datetime-local" value={form.publishAt} disabled={!canManage} onChange={(event) => setForm({ ...form, publishAt: event.target.value })} />

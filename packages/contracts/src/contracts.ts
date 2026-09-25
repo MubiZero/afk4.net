@@ -391,6 +391,10 @@ export const MediaPurposeNames = {
   BranchCover: 'branch-cover',
   /** Остальные фото зала: их несколько, и новая загрузка не заменяет прежние. */
   BranchGallery: 'branch-gallery',
+  /** Картинка новости: её показывают приложение игрока и витрина свободного ПК. */
+  NewsImage: 'news-image',
+  /** Фото товара бара — для витрины ПК и меню бара. */
+  ProductImage: 'product-image',
 } as const;
 export type MediaPurposeName = (typeof MediaPurposeNames)[keyof typeof MediaPurposeNames];
 
@@ -1210,6 +1214,17 @@ export const ShopOrderStatusNames = {
   Cancelled: 'cancelled',
 } as const;
 export type ShopOrderStatusName = (typeof ShopOrderStatusNames)[keyof typeof ShopOrderStatusNames];
+
+/** Словарь: Showcase/ShowcaseContracts.cs */
+export const ShowcaseCardKindNames = {
+  News: 'news',
+  Tariff: 'tariff',
+  Product: 'product',
+  Tournament: 'tournament',
+  Packages: 'packages',
+  BarHit: 'bar_hit',
+} as const;
+export type ShowcaseCardKindName = (typeof ShowcaseCardKindNames)[keyof typeof ShowcaseCardKindNames];
 
 /**
  * Машинные причины отказа на входе сотрудника. Клиент по ним и подбирает слова: текст сервера
@@ -2072,6 +2087,7 @@ export interface CreateNewsItemRequest {
   isPublished: boolean;
   publishAtUtc: IsoDateTime | null;
   expiresAtUtc: IsoDateTime | null;
+  showOnPcs?: boolean;
 }
 
 /** Контракт: Identity/AccountActivation/CreateOrganizationOwnerInviteRequest.cs */
@@ -2309,6 +2325,8 @@ export interface CreateProductRequest {
   idempotencyKey: string;
   reorderThreshold: number;
   availableInShell: boolean;
+  featuredOnPcs: boolean;
+  imageUrl: string | null;
 }
 
 /**
@@ -2950,6 +2968,16 @@ export interface DeviceSessionSnapshotRequest {
   isLocked: boolean;
   pendingLocalEventCount: number;
   observedAtUtc: IsoDateTime;
+}
+
+/**
+ * Витрина свободного ПК (спека оболочки, §5.7): что показывает экран, пока за ПК никто не сидит.
+ * Тексты — словами клуба, как их написали в Панели; подписи вроде «Турнир» переводит оболочка.
+ *
+ * Контракт: Showcase/ShowcaseContracts.cs
+ */
+export interface DeviceShowcaseDto {
+  cards: ShowcaseCardDto[];
 }
 
 /** Контракт: Devices/DeviceStateChangeRequest.cs */
@@ -3725,6 +3753,8 @@ export interface NewsItemDto {
   expiresAtUtc: IsoDateTime | null;
   createdAtUtc: IsoDateTime;
   updatedAtUtc: IsoDateTime;
+  /** Новость крутится и на экране свободного ПК (витрина), а не только в приложении. */
+  showOnPcs?: boolean;
 }
 
 /**
@@ -5518,6 +5548,8 @@ export interface PosProductDto {
   availableInShell?: boolean;
   avgCostMinorUnits?: number;
   barcodes?: string[] | null;
+  featuredOnPcs?: boolean;
+  imageUrl?: string | null;
 }
 
 /** Контракт: Pos/PosSaleDto.cs */
@@ -6748,6 +6780,42 @@ export interface ShopOrderLineInput {
   quantity: number;
 }
 
+/** Контракт: Showcase/ShowcaseContracts.cs */
+export interface ShowcaseCardDto {
+  /**
+   * Стабильный ключ карточки: «news:…», «tariff:…». По нему агент узнаёт карточку между
+   * обновлениями, а экран не перезапускает показ, когда список не изменился.
+   */
+  cardId: string;
+  /** Одно из ShowcaseCardKindNames */
+  kind: ShowcaseCardKindName;
+  /** У «Пакетов» заголовок пуст: его пишет оболочка на языке экрана. */
+  title: string;
+  body?: string | null;
+  /** Короткая строка рядом с видом карточки: дисциплина турнира («Dota 2»). */
+  subtitle?: string | null;
+  /**
+   * Адрес картинки. С сервера — адрес в медиа-хранилище, на экран — адрес в кэше ПК: чужих
+   * адресов экран не получает.
+   */
+  imageUrl?: string | null;
+  /** Цена: час тарифа, товар, взнос турнира. Пусто — цены у карточки нет (или взнос бесплатный). */
+  price?: MoneyDto | null;
+  /** Часы тарифа по времени клуба, «22:00–06:00». Пусто — круглые сутки. */
+  timeWindow?: string | null;
+  /** Начало турнира. */
+  startsAtUtc?: IsoDateTime | null;
+  /** Строки карточки «Пакеты». */
+  packages?: ShowcasePackageLineDto[] | null;
+}
+
+/** Контракт: Showcase/ShowcaseContracts.cs */
+export interface ShowcasePackageLineDto {
+  name: string;
+  price: MoneyDto;
+  minutes: number;
+}
+
 /**
  * Сотрудник организации, которого нет в этом филиале: его можно добавить сюда ролями. Филиалы, где
  * он уже работает, — названиями; пустой список значит, что назначений у него не осталось вовсе и
@@ -7043,6 +7111,8 @@ export interface TariffDto {
   appliesOnDaysMask?: number;
   appliesFromMinuteOfDay?: number | null;
   appliesToMinuteOfDay?: number | null;
+  /** Тариф крутится в витрине свободного ПК. */
+  featuredOnPcs?: boolean;
 }
 
 /**
@@ -7078,6 +7148,8 @@ export interface TariffOptionDto {
    * начинают сию секунду; для брони на завтра ответ никакого значения не имеет.
    */
   appliesNow?: boolean;
+  /** Тариф крутится в витрине свободного ПК. */
+  featuredOnPcs?: boolean;
 }
 
 /**
@@ -7301,6 +7373,7 @@ export interface UpdateNewsItemRequest {
   isPublished: boolean;
   publishAtUtc: IsoDateTime | null;
   expiresAtUtc: IsoDateTime | null;
+  showOnPcs?: boolean;
 }
 
 /** Контракт: Updates/UpdateOrganizationAdminUpdatePreferenceRequest.cs */
@@ -7467,6 +7540,10 @@ export interface UpdateProductRequest {
   isActive: boolean;
   reorderThreshold?: number;
   availableInShell?: boolean;
+  /** Товар крутится в витрине свободного ПК. */
+  featuredOnPcs?: boolean;
+  /** Фото товара: адрес загрузки с назначением product-image. Пусто — без фото. */
+  imageUrl?: string | null;
 }
 
 /** Контракт: Loyalty/ReferralContracts.cs */
@@ -7597,7 +7674,8 @@ export interface UpdateSubscriptionRequest {
 
 /**
  * `Schedule` не передан — расписание остаётся прежним. Снятие тарифа с продажи и
- * переименование не должны требовать от вызывающего знания о часах.
+ * переименование не должны требовать от вызывающего знания о часах. Так же и
+ * `FeaturedOnPcs`: не передан — отметка в витрине не меняется.
  *
  * Контракт: Tariffs/UpdateTariffRequest.cs
  */
@@ -7606,6 +7684,7 @@ export interface UpdateTariffRequest {
   name: string;
   isActive: boolean;
   schedule?: TariffScheduleDto | null;
+  featuredOnPcs?: boolean | null;
 }
 
 /** Контракт: Tariffs/UpdateTariffVersionRequest.cs */

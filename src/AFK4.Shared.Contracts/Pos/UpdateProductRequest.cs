@@ -12,4 +12,8 @@ public sealed record UpdateProductRequest(
     bool AllowNegativeStock,
     bool IsActive,
     int ReorderThreshold = 0,
-    bool AvailableInShell = false);
+    bool AvailableInShell = false,
+    // Товар крутится в витрине свободного ПК.
+    bool FeaturedOnPcs = false,
+    // Фото товара: адрес загрузки с назначением product-image. Пусто — без фото.
+    string? ImageUrl = null);

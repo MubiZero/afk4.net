@@ -52,6 +52,19 @@ describe('NewsWorkspace', () => {
     expect(c.created[0].title).toBe('Турнир');
   });
 
+  it('marks the news for the PC screen', async () => {
+    const c = client();
+    renderWorkspace(c);
+    await screen.findAllByRole('button', { name: /создать новость/i });
+    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+    fireEvent.change(screen.getByLabelText(/заголовок/i), { target: { value: 'Турнир' } });
+    fireEvent.change(screen.getByLabelText(/текст/i), { target: { value: 'В субботу' } });
+    fireEvent.click(screen.getByLabelText('Показывать на экране ПК'));
+    fireEvent.click(screen.getByRole('button', { name: /сохранить/i }));
+    await waitFor(() => expect(c.created).toHaveLength(1));
+    expect(c.created[0].showOnPcs).toBe(true);
+  });
+
   it('rejects an empty title in the drawer', async () => {
     const c = client();
     renderWorkspace(c);

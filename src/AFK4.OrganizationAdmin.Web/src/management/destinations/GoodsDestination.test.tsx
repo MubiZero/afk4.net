@@ -202,6 +202,36 @@ describe('GoodsDestination', () => {
     ));
   });
 
+  it('отметка «на экране ПК» доезжает до сервера вместе с фото товара', async () => {
+    const withPhoto = { ...cola, imageUrl: 'https://media.example/cola.webp' } as PosProductDto;
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[withPhoto]} />);
+    fireEvent.click(screen.getByText('Cola 0.5'));
+
+    fireEvent.click(await screen.findByLabelText('Выделить на экране ПК'));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('b1', productId, expect.objectContaining({
+      featuredOnPcs: true,
+      imageUrl: 'https://media.example/cola.webp'
+    })));
+  });
+
+  // Снятие и возврат шлют тело товара целиком: забытое поле стёрло бы фото и отметку витрины.
+  it('возврат в продажу не стирает фото и отметку витрины', async () => {
+    const featured = { ...cola, isActive: false, featuredOnPcs: true, imageUrl: 'https://media.example/cola.webp' } as PosProductDto;
+    const { container } = wrap(
+      <GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[featured]} />
+    );
+    fireEvent.click(within(container).getAllByRole('button', { name: 'Действия' })[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Вернуть в продажу' }));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('b1', productId, expect.objectContaining({
+      isActive: true,
+      featuredOnPcs: true,
+      imageUrl: 'https://media.example/cola.webp'
+    })));
+  });
+
   it('hides the "+ Товар" primary action and row menu without canManagePosCatalog', () => {
     wrap(<GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} />);
     expect(screen.queryByRole('button', { name: '+ Товар' })).toBeNull();

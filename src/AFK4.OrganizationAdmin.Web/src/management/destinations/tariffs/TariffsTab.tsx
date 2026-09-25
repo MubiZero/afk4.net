@@ -99,6 +99,7 @@ export function TariffsTab({
   const [roundingMinutes, setRoundingMinutes] = useState('5');
   const [effectiveFromUtc, setEffectiveFromUtc] = useState(() => new Date().toISOString());
   const [schedule, setSchedule] = useState<TariffScheduleForm>(ALL_HOURS);
+  const [featuredOnPcs, setFeaturedOnPcs] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Если выбранная версия пропала из выборки (снята с продажи/reload) — закрыть drawer, а не
@@ -127,6 +128,7 @@ export function TariffsTab({
       readNumber(selectedTariff, 'appliesOnDaysMask', 0),
       readOptionalNumber(selectedTariff, 'appliesFromMinuteOfDay'),
       readOptionalNumber(selectedTariff, 'appliesToMinuteOfDay')));
+    setFeaturedOnPcs(readBoolean(selectedTariff, 'featuredOnPcs', false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTariffVersionId]);
 
@@ -227,7 +229,8 @@ export function TariffsTab({
         organizationId: nextBackend.session.organizationId,
         name: trimmedName,
         isActive: true,
-        schedule: schedulePayload
+        schedule: schedulePayload,
+        featuredOnPcs
       });
       await apiClients.settings.updateTariffVersion(nextBackend.branchId, tariffId, tariffVersionId, {
         organizationId: nextBackend.session.organizationId,
@@ -329,7 +332,18 @@ export function TariffsTab({
       <div className="mgmt-master-detail">
         <MgmtTable<Tariff>
           columns={[
-            { key: 'name', header: t('op.management.tariffs.col.name'), render: (tariff) => readString(tariff, 'name', t('op.settings.tariffs.tariffFallback')) },
+            {
+              key: 'name',
+              header: t('op.management.tariffs.col.name'),
+              render: (tariff) => (
+                <span className="mgmt-inline-tags">
+                  {readString(tariff, 'name', t('op.settings.tariffs.tariffFallback'))}
+                  {readBoolean(tariff, 'featuredOnPcs', false)
+                    ? <span className="ui-chip ui-chip--xs is-neutral">{t('op.news.onPcsTag')}</span>
+                    : null}
+                </span>
+              )
+            },
             {
               key: 'price',
               header: t('op.management.tariffs.col.pricePerHour'),
@@ -418,6 +432,16 @@ export function TariffsTab({
                   disabled={!canManageTariffs || busy}
                   onChange={setSchedule}
                 />
+                <label className="mgmt-check mgmt-form-wide">
+                  <input
+                    type="checkbox"
+                    checked={featuredOnPcs}
+                    disabled={!canManageTariffs || busy}
+                    onChange={(event) => setFeaturedOnPcs(event.currentTarget.checked)}
+                  />
+                  {t('op.management.tariffs.featuredOnPcs')}
+                </label>
+                <p className="mgmt-drawer-hint mgmt-form-wide">{t('op.management.tariffs.featuredOnPcsHint')}</p>
               </div>
             </form>
           </MgmtDrawer>
