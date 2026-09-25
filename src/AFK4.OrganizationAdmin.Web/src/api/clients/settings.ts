@@ -1,5 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
+import type { CreateConsoleSeatRequest, DeviceInventoryItemDto } from '@afk4/contracts';
 import type { PosProductDto, PosProductCategoryDto } from './pos';
 import type {
   AddProductBarcodeRequest,
@@ -236,6 +237,10 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     assignDeviceSeat(branchId: Guid, deviceId: Guid, request: AssignDeviceSeatRequest): Promise<DeviceSeatAssignmentDto> {
       return api.post<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(`branches/${branchId}/devices/${deviceId}/seat-assignment`, request);
+    },
+    // Консоль без агента на месте: сессию ведёт администратор.
+    createConsoleSeat(branchId: Guid, request: CreateConsoleSeatRequest): Promise<DeviceInventoryItemDto> {
+      return api.post<DeviceInventoryItemDto, CreateConsoleSeatRequest>(`branches/${branchId}/consoles`, request);
     }
   };
 }

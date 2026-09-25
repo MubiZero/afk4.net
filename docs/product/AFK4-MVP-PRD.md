@@ -483,6 +483,8 @@ Success criteria:
 - A seat may have no device: console and TV seats are agentless. Admins start
   and end their sessions by hand; tariffs, cash, reports, and the floor map
   treat them like PC seats, and nothing is enforced on the console.
+  Implemented as an agentless device of role `console` on the seat (plan
+  `2026-09-25-console-seats.md`); the admin ends the session when time is up.
 - Device state must include online/offline, lock state, Agent version, Shell
   version, and last heartbeat.
 - Device commands for gaming PCs include lock/unlock, reboot, shutdown,

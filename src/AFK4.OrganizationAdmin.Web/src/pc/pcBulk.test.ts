@@ -72,3 +72,13 @@ describe('bulkCommands', () => {
     expect(bulkCommands([seat('01')], { canDispatch: false, canMaintain: false })).toEqual([]);
   });
 });
+
+describe('консоли в общей команде', () => {
+  it('пропускаются с причиной', () => {
+    const plan = planBulk([seat('01'), seat('02', { isConsole: true })], 'reboot', all);
+
+    expect(plan.targets.map((target) => target.id)).toEqual(['01']);
+    expect(plan.skipped).toEqual([{ seat: expect.objectContaining({ id: '02' }), reason: 'op.pc.bulk.skip.console' }]);
+  });
+});
+

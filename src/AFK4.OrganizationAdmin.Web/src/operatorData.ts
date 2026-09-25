@@ -54,6 +54,8 @@ export interface SeatSummary {
    * неподтверждённого ПК; «Вернуть в зал» имеет смысл только для того, кого туда увели.
    */
   maintenanceSinceUtc?: string | null;
+  // Консоль без агента: сессию ведёт администратор, команд ПК у места нет.
+  isConsole?: boolean;
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;

@@ -82,6 +82,18 @@ describe('floor-map state', () => {
     });
   });
 
+  // У консоли нет агента: сердцебиения нет никогда, и место не должно гореть «нет связи».
+  it('maps a console seat to «free», never to «нет связи»', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [createSeat({ state: 'Free', isDeviceOnline: null, isConsole: true, lastHeartbeatAtUtc: null })]
+    }, t);
+
+    expect(state.seats[0]).toMatchObject({ tone: 'ready', isConsole: true });
+  });
+
   it('maps a maintenance PC to the calm "service" tone, separate from the «нет связи» bucket', () => {
     const state = mapFloorMapDtoToState({
       branchId,

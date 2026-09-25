@@ -7,6 +7,7 @@ import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
 import { DeviceProtectionReport } from './DeviceProtectionReport';
 import { DeviceHardwareSection } from './DeviceHardwareSection';
+import { ConsoleSeatDialog } from './ConsoleSeatDialog';
 import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
 import { CriticalActionConfirmation, EmptyState, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
@@ -109,6 +110,35 @@ export function DevicesTab({
   const [displayName, setDisplayName] = useState('');
   const [removeReason, setRemoveReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  // Консоль ставится только на место без устройства: две машины на месте — две правды о сессии.
+  const takenSeatIds = new Set(deviceInventory
+    .filter((device) => device.enrollmentState !== 'removed' && device.enrollmentState !== 'rejected')
+    .map((device) => device.seatId)
+    .filter((seatId): seatId is string => Boolean(seatId)));
+  const freeSeats = layoutSeatOptions.filter((seat) => !takenSeatIds.has(seat.seatId));
+
+  const createConsole = async (seatId: string, name: string) => {
+    const label = t('op.settings.devices.console.create');
+    setBusy(true);
+    onFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await apiClients.settings.createConsoleSeat(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        seatId,
+        displayName: name
+      });
+      setConsoleOpen(false);
+      await onReload(nextBackend);
+      onFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const selectedDevice = deviceInventory.find((device) => readString(device, 'deviceId') === selectedDeviceId) ?? null;
   // Один набор клиентов на сессию: раздел «Железо» грузится заново только при смене ПК.
@@ -367,6 +397,9 @@ export function DevicesTab({
               key: 'status',
               header: t('op.settings.devices.detail.status'),
               render: (device) => {
+                if (device.role === 'console') {
+                  return <span className="mgmt-status-pair">{t('op.settings.devices.console')} · {t('op.settings.devices.console.noAgent')}</span>;
+                }
                 const online = readBoolean(device, 'isOnline');
                 const locked = readBoolean(device, 'isLocked');
                 return (
@@ -390,7 +423,7 @@ export function DevicesTab({
               key: 'health',
               header: t('op.management.halls.col.health'),
               align: 'end',
-              render: (device) => t('op.settings.devices.deviceSummary', {
+              render: (device) => device.role === 'console' ? '—' : t('op.settings.devices.deviceSummary', {
                 agentVersion: readString(device, 'agentVersion', '—'),
                 appCount: readNumber(device, 'installedAppCount', 0),
                 pending: readNumber(device, 'pendingCommandCount', 0),
@@ -404,7 +437,10 @@ export function DevicesTab({
           gridTemplate={DEVICES_GRID}
           selectedKey={selectedDeviceId}
           onSelectRow={(device) => setSelectedDeviceId(readString(device, 'deviceId'))}
-          toolbar={{ title: t('op.management.halls.devicesTable.title') }}
+          toolbar={{
+            title: t('op.management.halls.devicesTable.title'),
+            primary: canAssignDeviceSeat ? { label: t('op.settings.devices.addConsole'), onClick: () => setConsoleOpen(true) } : undefined
+          }}
           empty={{
             icon: <MonitorSmartphone size={22} aria-hidden="true" />,
             title: t('op.management.halls.devicesEmpty.title'),
@@ -576,6 +612,14 @@ export function DevicesTab({
           confirmLabel={t('op.settings.devices.remove')}
           onCancel={() => setCriticalAction(null)}
           onConfirm={() => void confirmRemove()}
+        />
+      )}
+      {consoleOpen && (
+        <ConsoleSeatDialog
+          freeSeats={freeSeats}
+          busy={busy}
+          onSubmit={(seatId, name) => void createConsole(seatId, name)}
+          onClose={() => setConsoleOpen(false)}
         />
       )}
     </>

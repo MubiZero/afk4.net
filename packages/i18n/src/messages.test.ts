@@ -35,6 +35,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
     // «Реклама» — так и пишется по-таджикски на вывесках и в эфире; метку сверит носитель языка.
     'playerShell.showcase.kind.ad',
+    // Название-пример консоли — марка и номер, переводить нечего.
+    'op.settings.devices.console.namePlaceholder',
     // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
     // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
     'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',

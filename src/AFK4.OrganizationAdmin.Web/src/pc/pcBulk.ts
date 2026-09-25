@@ -65,6 +65,8 @@ function allowedAtAll(command: PcCommandOrLock, access: PcCommandAccess): boolea
 
 function blockReason(seat: SeatSummary, command: PcCommandOrLock, access: PcCommandAccess): MessageKey | null {
   if (!seat.deviceId) return 'op.pc.bulk.skip.noDevice';
+  // Консоль в общей команде пропускается с причиной: агента у неё нет, команду выполнить некому.
+  if (seat.isConsole) return 'op.pc.bulk.skip.console';
   if (!allowedAtAll(command, access)) return 'op.pc.bulk.skip.notAllowed';
 
   if (command === 'lock') {

@@ -111,6 +111,14 @@ export const ClubPlanKindNames = {
 } as const;
 export type ClubPlanKindName = (typeof ClubPlanKindNames)[keyof typeof ClubPlanKindNames];
 
+/** Словарь: Consoles/ConsoleSeatContracts.cs */
+export const ConsoleSeatErrorCodeNames = {
+  /** На месте уже стоит ПК или консоль. */
+  SeatTaken: 'console_seat_taken',
+  SeatNotFound: 'console_seat_not_found',
+} as const;
+export type ConsoleSeatErrorCodeName = (typeof ConsoleSeatErrorCodeNames)[keyof typeof ConsoleSeatErrorCodeNames];
+
 /**
  * Почему сервер не принял команду администратора.
  *
@@ -287,6 +295,12 @@ export type DevicePlayerSignInErrorCodeName = (typeof DevicePlayerSignInErrorCod
 export const DeviceRoleNames = {
   GamingPc: 'gaming_pc',
   ManagerWorkstation: 'manager_workstation',
+  /**
+   * Консоль на месте — без агента: сессию ведёт администратор, ПК не отпирается и не запирается,
+   * сердцебиения нет. Запись устройства нужна, чтобы у сессии, кассы и отчётов было то же место,
+   * что у ПК.
+   */
+  Console: 'console',
 } as const;
 export type DeviceRoleName = (typeof DeviceRoleNames)[keyof typeof DeviceRoleNames];
 
@@ -2252,6 +2266,19 @@ export interface CreateClubReviewRequest {
   sessionId: Guid;
   rating: number;
   comment: string | null;
+}
+
+/**
+ * Консоль на месте — без агента (план `2026-09-25-console-seats.md`): администратор сам начинает и
+ * заканчивает сессию, тарифы, касса и отчёты — как у ПК. Снимается консоль тем же «Снять
+ * устройство», что и ПК.
+ *
+ * Контракт: Consoles/ConsoleSeatContracts.cs
+ */
+export interface CreateConsoleSeatRequest {
+  organizationId: Guid;
+  seatId: Guid;
+  displayName: string;
 }
 
 /** Контракт: Payments/DcTopUpDtos.cs */
@@ -6528,6 +6555,8 @@ export interface SeatStatusDto {
    * кого туда увели.
    */
   maintenanceSinceUtc?: IsoDateTime | null;
+  /** Место с консолью без агента: сессию ведёт администратор, команд ПК у места нет. */
+  isConsole?: boolean;
 }
 
 /**

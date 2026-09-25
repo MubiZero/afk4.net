@@ -339,6 +339,9 @@ public static class AuditActionNames
 
     public const string ReorderBranchGames = "games.library.reorder";
 
+    /// <summary>Место стало консольным: консоль без агента, сессию ведёт администратор.</summary>
+    public const string CreateConsoleSeat = "devices.console.create";
+
     /// <summary>Новое железо ПК принято как норма.</summary>
     public const string AcceptDeviceHardware = "devices.hardware.accept";
 

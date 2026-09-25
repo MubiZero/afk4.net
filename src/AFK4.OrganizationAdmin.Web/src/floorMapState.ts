@@ -158,7 +158,9 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
   const normalizedState = normalizeState(dto.state);
   const hasActiveSession = dto.activeSessionId !== null && dto.activeSessionId !== undefined;
   const hasDevice = dto.deviceId !== null && dto.deviceId !== undefined;
-  const isDeviceOnline = dto.isDeviceOnline ?? false;
+  const isConsole = dto.isConsole === true;
+  // У консоли нет агента и нет «связи»: её место не бывает «без связи».
+  const isDeviceOnline = isConsole ? true : dto.isDeviceOnline ?? false;
   const isDeviceLocked = dto.isDeviceLocked ?? true;
   const tone = resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession);
   const remainingSeconds = dto.remainingSeconds ?? null;
@@ -213,7 +215,8 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     zoneId: dto.zoneId,
     assistanceRequestedAtUtc: dto.assistanceRequestedAtUtc ?? null,
     maintenanceSinceUtc: dto.maintenanceSinceUtc ?? null,
-    sessionState: dto.state
+    sessionState: dto.state,
+    isConsole
   };
 }
 

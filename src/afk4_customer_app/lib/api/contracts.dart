@@ -87,6 +87,13 @@ abstract final class ClubPlanKindNames {
   static const String legacy = 'legacy';
 }
 
+/// Словарь: Consoles/ConsoleSeatContracts.cs
+abstract final class ConsoleSeatErrorCodeNames {
+  /// На месте уже стоит ПК или консоль.
+  static const String seatTaken = 'console_seat_taken';
+  static const String seatNotFound = 'console_seat_not_found';
+}
+
 /// Почему сервер не принял команду администратора.
 ///
 /// Словарь: Devices/DeviceCommandErrorCodeNames.cs
@@ -235,6 +242,10 @@ abstract final class DevicePlayerSignInErrorCodeNames {
 abstract final class DeviceRoleNames {
   static const String gamingPc = 'gaming_pc';
   static const String managerWorkstation = 'manager_workstation';
+  /// Консоль на месте — без агента: сессию ведёт администратор, ПК не отпирается и не запирается,
+  /// сердцебиения нет. Запись устройства нужна, чтобы у сессии, кассы и отчётов было то же место,
+  /// что у ПК.
+  static const String console = 'console';
 }
 
 /// Словарь: Devices/DeviceShellContextContracts.cs
@@ -3465,6 +3476,35 @@ class CreateClubReviewRequest {
         'sessionId': sessionId,
         'rating': rating,
         'comment': comment,
+      };
+}
+
+/// Консоль на месте — без агента (план `2026-09-25-console-seats.md`): администратор сам начинает и
+/// заканчивает сессию, тарифы, касса и отчёты — как у ПК. Снимается консоль тем же «Снять
+/// устройство», что и ПК.
+///
+/// Контракт: Consoles/ConsoleSeatContracts.cs
+class CreateConsoleSeatRequest {
+  const CreateConsoleSeatRequest({
+    required this.organizationId,
+    required this.seatId,
+    required this.displayName,
+  });
+
+  final String organizationId;
+  final String seatId;
+  final String displayName;
+
+  factory CreateConsoleSeatRequest.fromJson(Map<String, dynamic> json) => CreateConsoleSeatRequest(
+        organizationId: json['organizationId'] as String,
+        seatId: json['seatId'] as String,
+        displayName: json['displayName'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'seatId': seatId,
+        'displayName': displayName,
       };
 }
 
@@ -16036,6 +16076,7 @@ class SeatStatusDto {
     this.sessionStartedAtUtc,
     this.assistanceRequestedAtUtc,
     this.maintenanceSinceUtc,
+    this.isConsole,
   });
 
   final String seatId;
@@ -16085,6 +16126,9 @@ class SeatStatusDto {
   /// кого туда увели.
   final DateTime? maintenanceSinceUtc;
 
+  /// Место с консолью без агента: сессию ведёт администратор, команд ПК у места нет.
+  final bool? isConsole;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -16109,6 +16153,7 @@ class SeatStatusDto {
         sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
         assistanceRequestedAtUtc: json['assistanceRequestedAtUtc'] == null ? null : DateTime.parse(json['assistanceRequestedAtUtc'] as String),
         maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
+        isConsole: json['isConsole'] == null ? null : json['isConsole'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -16135,6 +16180,7 @@ class SeatStatusDto {
         'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
         'assistanceRequestedAtUtc': assistanceRequestedAtUtc?.toIso8601String(),
         'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
+        'isConsole': isConsole,
       };
 }
 

@@ -62,7 +62,8 @@ function seatHasSession(seat: SeatSummary): boolean {
 export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSection[] {
   const hasSession = seatHasSession(seat);
   const isFree = seat.tone === 'ready' && !seat.activeSessionId && !hasSession;
-  const hasDevice = Boolean(seat.deviceId);
+  // У консоли нет агента — запереть, отпереть или перезагрузить её некому.
+  const hasDevice = Boolean(seat.deviceId) && !seat.isConsole;
 
   // Вызов оператора идёт первым пунктом: место зовёт человека, а не ждёт настройки.
   const session: SeatMenuItem[] = [];
@@ -138,7 +139,7 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
 
   // Остальные команды ПК — те же, что в карточке места, и закрыты по тем же причинам: почему,
   // сказано подсказкой у пункта, а не отказом после.
-  for (const option of pcCommandsFor(seat, { canDispatch: caps.canLockUnlock, canMaintain: caps.canMaintain })) {
+  for (const option of hasDevice ? pcCommandsFor(seat, { canDispatch: caps.canLockUnlock, canMaintain: caps.canMaintain }) : []) {
     pc.push({
       id: `pc-${option.id}`,
       labelKey: PC_COMMAND_LABELS[option.id],

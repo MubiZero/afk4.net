@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Install;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Updates;
@@ -29,7 +30,9 @@ public sealed class EfBranchDiagnosticsService(
             .AsNoTracking()
             .Where(device =>
                 device.OrganizationId == organizationId &&
-                device.BranchId == branchId)
+                device.BranchId == branchId &&
+                // У консоли нет агента: её «молчание» — не поломка.
+                device.Role != DeviceRoleNames.Console)
             .OrderBy(device => device.MachineName)
             .ToListAsync(cancellationToken);
         var deviceIds = devices

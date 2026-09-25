@@ -167,3 +167,13 @@ describe('buildSeatMenu', () => {
     expect(ids(sections)).not.toContain('resolve-assistance');
   });
 });
+
+describe('консольное место', () => {
+  it('без команд ПК: запереть, отпереть и перезагрузить консоль некому', () => {
+    const sections = buildSeatMenu(seat({ isConsole: true, isDeviceOnline: true }), allCaps);
+
+    expect(sections.find((section) => section.id === 'pc')).toBeUndefined();
+    expect(sections.flatMap((section) => section.items).map((item) => item.id)).toContain('start-guest');
+  });
+});
+

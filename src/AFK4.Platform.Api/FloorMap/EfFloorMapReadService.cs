@@ -66,7 +66,7 @@ public sealed class EfFloorMapReadService(
         activeAssignments = activeAssignments
             .Where(assignment =>
                 devices.TryGetValue(assignment.DeviceId, out var device) &&
-                device.Role == DeviceRoleNames.GamingPc)
+                DeviceRoleNames.IsPlayable(device.Role))
             .ToList();
         var sessions = await dbContext.Sessions
             .AsNoTracking()
@@ -159,7 +159,9 @@ public sealed class EfFloorMapReadService(
         }
 
         sessionsBySeat.TryGetValue(seat.SeatId, out var activeSession);
-        var isDeviceOnline = device is null ? (bool?)null : IsHeartbeatFresh(device, now);
+        var isConsole = device?.Role == DeviceRoleNames.Console;
+        // У консоли нет агента и нет «на связи»: вопрос о связи к ней не относится.
+        var isDeviceOnline = device is null || isConsole ? (bool?)null : IsHeartbeatFresh(device, now);
         var (accruedCostMinorUnits, currencyCode) = GetAccruedCost(activeSession, tariffVersionsById, now);
 
         return new SeatStatusDto(
@@ -185,7 +187,8 @@ public sealed class EfFloorMapReadService(
             TariffName: GetTariffName(activeSession, tariffVersionsById, tariffsById),
             SessionStartedAtUtc: activeSession?.StartedAtUtc,
             AssistanceRequestedAtUtc: device?.AssistanceRequestedAtUtc,
-            MaintenanceSinceUtc: device?.MaintenanceSinceUtc);
+            MaintenanceSinceUtc: device?.MaintenanceSinceUtc,
+            IsConsole: isConsole);
     }
 
     private static string? GetPlayerDisplayName(
@@ -291,6 +294,12 @@ public sealed class EfFloorMapReadService(
         if (device.MaintenanceSinceUtc is not null)
         {
             return SeatStateNames.Maintenance;
+        }
+
+        // Консоль свободна, пока на ней нет сессии: запирать и отпирать её некому.
+        if (device.Role == DeviceRoleNames.Console)
+        {
+            return SeatStateNames.Free;
         }
 
         if (isDeviceOnline != true)

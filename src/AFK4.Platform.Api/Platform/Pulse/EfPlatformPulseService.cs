@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Install;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Pulse;
@@ -37,6 +38,9 @@ public sealed class EfPlatformPulseService(
         // вместе с сетью, а не вместе с экраном.
         var deviceStats = await dbContext.Devices
             .AsNoTracking()
+            // Консоль без агента не выходит на связь никогда — считать её «не на связи» значило бы
+            // вечную тревогу у клуба с приставками.
+            .Where(device => device.Role != DeviceRoleNames.Console)
             .GroupBy(device => device.BranchId)
             .Select(group => new
             {
