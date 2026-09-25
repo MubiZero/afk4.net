@@ -989,6 +989,24 @@ export const StaffInviteErrorCodeNames = {
 } as const;
 export type StaffInviteErrorCodeName = (typeof StaffInviteErrorCodeNames)[keyof typeof StaffInviteErrorCodeNames];
 
+/**
+ * Второй шаг входа по номеру. Код первого входа нужен, потому что номер — не секрет: без него
+ * ПИН новому сотруднику успел бы назначить любой, кто знает его номер.
+ *
+ * Словарь: Identity/StaffSignInNextStepContracts.cs
+ */
+export const StaffSignInStepNames = {
+  /** У номера есть ПИН — спросить его. */
+  Pin: 'pin',
+  /** Руководитель добавил сотрудника, тот ещё не входил: спросить код первого входа, потом новый ПИН. */
+  InviteCode: 'invite-code',
+  /** Код первого входа истёк или исчерпал попытки — нужен новый от руководителя. */
+  InviteExpired: 'invite-expired',
+  /** Номер не заведён ни в одном клубе. */
+  Unknown: 'unknown',
+} as const;
+export type StaffSignInStepName = (typeof StaffSignInStepNames)[keyof typeof StaffSignInStepNames];
+
 /** Словарь: Inventory/StockMovementTypeNames.cs */
 export const StockMovementTypeNames = {
   Purchase: 'purchase',
@@ -1137,7 +1155,8 @@ export interface AcceptPlatformAdminInvitationRequest {
 }
 
 /**
- * Приём приглашения: номер, код из SMS и пароль, который человек придумывает себе сам.
+ * Приём приглашения: номер, код первого входа от руководителя (SMS его только дублирует) и ПИН,
+ * который человек придумывает себе сам.
  *
  * Контракт: Identity/AcceptStaffInviteRequest.cs
  */
@@ -1148,13 +1167,14 @@ export interface AcceptStaffInviteRequest {
 }
 
 /**
- * Кем человек стал: клуб и его логин в нём.
+ * Кем человек стал — клуб и логин — и сразу вход: придумав ПИН, он не вводит его второй раз.
  *
  * Контракт: Identity/AcceptStaffInviteRequest.cs
  */
 export interface AcceptStaffInviteResponse {
   organizationId: Guid;
   userName: string;
+  signIn: StaffSignInResponse;
 }
 
 /** Контракт: Players/ActiveSessionDto.cs */
@@ -1536,6 +1556,16 @@ export interface ChangePlatformUpdatePackageStateRequest {
 export interface ChangePlatformUpdateRolloutStateRequest {
   state: string;
   reason: string;
+}
+
+/**
+ * Проверка кода первого входа до того, как человек придумывает ПИН.
+ *
+ * Контракт: Identity/StaffSignInNextStepContracts.cs
+ */
+export interface CheckStaffInviteRequest {
+  phoneNumber: string;
+  code: string;
 }
 
 /** Контракт: Loyalty/ReferralContracts.cs */
@@ -6129,6 +6159,24 @@ export interface StaffSignInChooseClubResponse {
 export interface StaffSignInClubChoice {
   organizationId: Guid;
   name: string;
+}
+
+/**
+ * Первый шаг входа сотрудника: только номер.
+ *
+ * Контракт: Identity/StaffSignInNextStepContracts.cs
+ */
+export interface StaffSignInNextStepRequest {
+  phoneNumber: string;
+}
+
+/**
+ * Что спросить у человека вторым шагом (StaffSignInStepNames).
+ *
+ * Контракт: Identity/StaffSignInNextStepContracts.cs
+ */
+export interface StaffSignInNextStepResponse {
+  step: string;
 }
 
 /** Контракт: Identity/StaffSignInRequest.cs */

@@ -673,3 +673,10 @@
   font-size: 13px;
   font-weight: 500;
 }
+/* Код первого входа сотрудника: его диктуют вслух и переписывают с экрана, поэтому крупно. */
+.mgmt-first-sign-in-code input {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}

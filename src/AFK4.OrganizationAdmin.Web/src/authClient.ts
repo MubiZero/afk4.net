@@ -1,4 +1,5 @@
 import { getOperatorConfig } from './operatorConfig';
+import type { StaffSignInResponse, StaffSignInStepName } from '@afk4/contracts';
 import { StaffAuthApi, ChooseClubError, StaffAuthApiError, isUnauthorizedStaffAuthError, type ClubChoice } from './auth/staffAuthApi';
 import {
   readStoredSession,
@@ -39,21 +40,42 @@ export function loadOperatorSession(): Promise<OperatorAuthSession | null> {
   return Promise.resolve(readStoredSession());
 }
 
-export async function signInByLoginOperator(login: string, password: string): Promise<OperatorAuthSession> {
-  const organizationId = getOperatorConfig().organizationId;
-  if (!organizationId) {
-    throw new Error('Organization Admin requires an organization connection before sign-in.');
-  }
-
-  const session = sessionFromSignInResponse(await api().signInByLogin(organizationId, login, password));
+function remember(response: StaffSignInResponse): OperatorAuthSession {
+  const session = sessionFromSignInResponse(response);
   writeStoredSession(session);
   return session;
 }
 
+/**
+ * Клуб, к которому подключена эта панель, или null в браузере. Подключённая спрашивает только свой
+ * клуб; браузерная клуба не знает, и сервер находит его по номеру или логину. Раньше браузерная
+ * панель без клуба бросала ошибку ещё до сети — и вход в ней не работал вовсе.
+ */
+export async function signInByPhoneOperator(
+  organizationId: string | null, phoneNumber: string, password: string): Promise<OperatorAuthSession> {
+  return remember(await api().signInByPhone(organizationId, phoneNumber, password));
+}
+
+export async function signInByLoginOperator(
+  organizationId: string | null, login: string, password: string): Promise<OperatorAuthSession> {
+  return remember(await api().signInByLogin(organizationId, login, password));
+}
+
+export function staffSignInNextStep(phoneNumber: string): Promise<StaffSignInStepName> {
+  return api().nextStep(phoneNumber);
+}
+
+export function checkStaffInviteCode(phoneNumber: string, code: string): Promise<void> {
+  return api().checkInvite(phoneNumber, code);
+}
+
+/** Первый вход: код от руководителя и новый ПИН — и человек сразу внутри. */
+export async function acceptStaffInvite(phoneNumber: string, code: string, password: string): Promise<OperatorAuthSession> {
+  return remember((await api().acceptInvite(phoneNumber, code, password)).signIn);
+}
+
 export async function signInToClubOperator(organizationId: string, login: string, password: string): Promise<OperatorAuthSession> {
-  const session = sessionFromSignInResponse(await api().signInToClub(organizationId, login, password));
-  writeStoredSession(session);
-  return session;
+  return remember(await api().signInToClub(organizationId, login, password));
 }
 
 export async function refreshOperatorSession(): Promise<OperatorAuthSession> {
@@ -94,11 +116,6 @@ export function resetPasswordByEmail(userNameOrEmail: string, code: string, newP
 
 export function forgotPasswordByPhone(phoneNumber: string): Promise<void> {
   return api().forgotByPhone(phoneNumber);
-}
-
-export function acceptStaffInvite(
-  phoneNumber: string, code: string, password: string): Promise<{ organizationId: string; userName: string }> {
-  return api().acceptInvite(phoneNumber, code, password);
 }
 
 export function resetPasswordByPhone(phoneNumber: string, code: string, newPassword: string): Promise<void> {

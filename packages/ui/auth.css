@@ -240,3 +240,99 @@
   outline-offset: 2px;
   border-radius: 4px;
 }
+/* Шаг входа: кем человек назвался на прошлом шаге и как туда вернуться. Номер виден целиком —
+   опечатка в нём объясняет «номер не заведён» лучше любого текста. */
+.auth-step-back {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 0 12px 0 8px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 120ms ease, background 120ms ease;
+}.auth-step-back:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}.auth-step-back:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 2px;
+}.auth-step-back svg {
+  color: var(--text-tertiary);
+}.auth-step-back-action {
+  color: var(--accent-bright);
+  font-size: 11px;
+  font-weight: 700;
+}/* Шесть клеток под ПИН-код. Настоящее поле лежит прозрачным поверх клеток: клик в любую клетку
+   ставит фокус, а клетки рисуют набранное. Середина чуть шире — «123 456», как код и написан. */
+.auth-pin {
+  position: relative;
+  display: grid;
+}.auth-pin > .auth-pin-input,
+.auth-pin > .auth-pin-input:hover,
+.auth-pin > .auth-pin-input:focus-visible {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0;
+  opacity: 0;
+  cursor: text;
+}.auth-pin-cells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 6px repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}.auth-pin-cell:nth-child(4) {
+  grid-column: 5;
+}.auth-pin-cell {
+  display: grid;
+  place-items: center;
+  height: 54px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}.auth-pin-cell[data-filled] {
+  border-color: var(--border-strong);
+}.auth-pin-input:focus ~ .auth-pin-cells .auth-pin-cell[data-next] {
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}.auth-pin-input:disabled ~ .auth-pin-cells {
+  opacity: 0.6;
+}.auth-pin[data-invalid] .auth-pin-cell {
+  border-color: var(--danger);
+}.auth-pin[data-invalid] .auth-pin-cells {
+  animation: auth-pin-shake 320ms ease;
+}@keyframes auth-pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}@media (prefers-reduced-motion: reduce) {
+  .auth-pin[data-invalid] .auth-pin-cells { animation: none; }
+}.auth-pin-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 20px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}

@@ -72,7 +72,6 @@ export function StaffRolesDestination({
   const [inviteOpen, setInviteOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
   const [criticalAction, setCriticalAction] = useState<CriticalAction | null>(null);
-  const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState(() => t('op.settings.prefill.inviteDisplayName'));
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -140,7 +139,6 @@ export function StaffRolesDestination({
   };
 
   const openInvite = () => {
-    setInviteUserName(`operator${staffRows.length + 1}`);
     setInviteDisplayName(t('op.settings.prefill.inviteDisplayName'));
     setInvitePhone('');
     setInviteEmail('');
@@ -159,13 +157,16 @@ export function StaffRolesDestination({
         throw new Error(t('op.settings.staff.error.noPerm'));
       }
 
-      const userName = inviteUserName.trim();
       const displayName = inviteDisplayName.trim();
       const phoneNumber = invitePhone.trim();
+      // Логин — цифры номера, как в мастере установки: сотрудник входит номером, и придумывать
+      // ему «operator3» — лишнее поле, которое никто потом не вспомнит. Номер уникален по сети,
+      // значит и такой логин уникален в клубе.
+      const userName = phoneNumber.replace(/\D/g, '');
       const email = inviteEmail.trim();
-      // Телефон обязателен, почта — нет: код едет SMS, а почты у администратора зала может не
-      // быть вовсе.
-      if (!userName || !displayName || !phoneNumber || inviteRoleNames.length === 0) {
+      // Телефон обязателен, почта — нет: сотрудник входит номером, а почты у администратора зала
+      // может не быть вовсе.
+      if (!userName || !displayName || inviteRoleNames.length === 0) {
         throw new Error(t('op.settings.staff.error.fillInvite'));
       }
 
@@ -178,8 +179,8 @@ export function StaffRolesDestination({
         email: email.length > 0 ? email : null,
         roleNames: inviteRoleNames
       });
-      // Приглашённый появится в списке сотрудников только после того как примет приглашение и
-      // задаст пароль — поэтому список не обновляем, только показываем код.
+      // Сотрудник появится в списке только после первого входа, когда придумает себе ПИН-код, —
+      // поэтому список не обновляем, только показываем код первого входа.
       setInviteCode(invite.code);
       onFeedback?.({ label, state: 'confirmed' });
     } catch (error) {
@@ -573,14 +574,11 @@ export function StaffRolesDestination({
         <PanelModal title={t('op.management.staff.inviteModal.title')} onClose={() => setInviteOpen(false)} closeDisabled={busy}>
           <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); void submitInvite(); }}>
             <div className="mgmt-form-grid">
-              <label>{t('op.settings.staff.loginLabel')}
-                <input value={inviteUserName} disabled={busy} onChange={(event) => setInviteUserName(event.currentTarget.value)} autoFocus />
+              <label>{t('op.settings.staff.phone')}
+                <input type="tel" inputMode="tel" placeholder="+992 93 738 00 70" value={invitePhone} disabled={busy} onChange={(event) => setInvitePhone(event.currentTarget.value)} autoFocus />
               </label>
               <label>{t('op.settings.staff.displayName')}
                 <input value={inviteDisplayName} disabled={busy} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} />
-              </label>
-              <label>{t('op.settings.staff.phone')}
-                <input type="tel" inputMode="tel" placeholder="+992 93 738 00 70" value={invitePhone} disabled={busy} onChange={(event) => setInvitePhone(event.currentTarget.value)} />
               </label>
               <label>{t('op.settings.staff.emailOptional')}
                 <input type="email" value={inviteEmail} disabled={busy} onChange={(event) => setInviteEmail(event.currentTarget.value)} />
@@ -604,8 +602,8 @@ export function StaffRolesDestination({
             {inviteCode && (
               <>
                 <div className="mgmt-form-grid">
-                  <label className="mgmt-form-wide">{t('op.settings.staff.inviteCode')}
-                    <input readOnly value={inviteCode} onFocus={(event) => event.currentTarget.select()} />
+                  <label className="mgmt-form-wide mgmt-first-sign-in-code">{t('op.settings.staff.inviteCode')}
+                    <input readOnly value={groupCode(inviteCode)} onFocus={(event) => event.currentTarget.select()} />
                   </label>
                 </div>
                 <p className="mgmt-drawer-hint">{t('op.management.staff.inviteModal.codeHint')}</p>
@@ -664,4 +662,9 @@ export function StaffRolesDestination({
       )}
     </ManagementScreen>
   );
+}
+
+/** «123456» → «123 456»: так код читают вслух и переписывают без ошибок. */
+function groupCode(code: string): string {
+  return code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
 }

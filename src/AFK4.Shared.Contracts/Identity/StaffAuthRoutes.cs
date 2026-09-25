@@ -33,4 +33,16 @@ public static class StaffAuthRoutes
     /// из него самого и в пути не нужна.
     /// </summary>
     public const string SignInByPhone = "/api/auth/staff/sign-in-by-phone";
+
+    /// <summary>
+    /// Первый шаг входа по номеру: что спросить дальше — ПИН или код первого входа. Номер уникален
+    /// по сети, поэтому организация не нужна и здесь.
+    /// </summary>
+    public const string NextStep = "/api/auth/staff/next-step";
+
+    /// <summary>Проверить код первого входа, не принимая приглашение.</summary>
+    public const string CheckInvite = "/api/staff/invites/check";
+
+    /// <summary>Принять приглашение: код первого входа и новый ПИН. Ответ сразу несёт вход.</summary>
+    public const string AcceptInvite = "/api/staff/invites/accept";
 }

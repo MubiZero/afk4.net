@@ -11,9 +11,9 @@ using Microsoft.Extensions.Options;
 namespace AFK4.Platform.Api.Identity;
 
 /// <summary>
-/// Приглашение сотрудника по номеру телефона. Владелец называет номер и роли, человеку уходит SMS
-/// с шестизначным кодом, он вводит код и придумывает себе пароль — и получает счёт с уже
-/// подтверждённым телефоном, то есть входит номером, как все остальные сотрудники.
+/// Приглашение сотрудника по номеру телефона. Руководитель называет номер и роли и видит
+/// шестизначный код первого входа; SMS его дублирует. Человек вводит свой номер, код и придумывает
+/// себе ПИН — и получает счёт с уже подтверждённым телефоном, то есть входит номером, как все.
 ///
 /// Пороги те же, что у сброса пароля по телефону: код шестизначный, живёт сутки, умирает после
 /// трёх неверных попыток. Второе приглашение на тот же номер гасит первое — иначе отозвать
@@ -31,7 +31,7 @@ public sealed class EfStaffInviteService(
     /// <summary>Сутки, а не неделя: шесть цифр, живущих неделю, перебираются спокойно.</summary>
     private static readonly TimeSpan InviteLifetime = TimeSpan.FromHours(24);
 
-    private const int MaxAttempts = 3;
+    internal const int MaxAttempts = 3;
 
     private static readonly char[] RoleSeparator = [','];
 
@@ -157,44 +157,54 @@ public sealed class EfStaffInviteService(
         return StaffInviteCreateResult.Success(inviteId, code, expiresAtUtc);
     }
 
+    public async Task<StaffInviteAcceptResult> CheckInviteAsync(
+        string phoneNumber, string code, CancellationToken cancellationToken)
+    {
+        var (_, refusal) = await VerifyCodeAsync(phoneNumber, code, cancellationToken);
+        return refusal ?? StaffInviteAcceptResult.CodeAccepted();
+    }
+
+    public async Task<string> ResolveSignInStepAsync(string phoneNumber, CancellationToken cancellationToken)
+    {
+        var normalizedPhone = PhoneNumberNormalizer.Normalize(phoneNumber);
+        if (normalizedPhone is null)
+        {
+            return StaffSignInStepNames.Unknown;
+        }
+
+        // Тот же отбор, что у входа по номеру: без подтверждённого телефона войти номером нельзя,
+        // и спрашивать у такого человека ПИН значит обещать вход, которого не будет.
+        var hasPin = await db.StaffUsers.AnyAsync(
+            candidate => candidate.NormalizedPhone == normalizedPhone &&
+                candidate.PhoneVerifiedAtUtc != null &&
+                candidate.IsActive,
+            cancellationToken);
+        if (hasPin)
+        {
+            return StaffSignInStepNames.Pin;
+        }
+
+        var invite = await LatestPendingInviteAsync(normalizedPhone, cancellationToken);
+        if (invite is null)
+        {
+            return StaffSignInStepNames.Unknown;
+        }
+
+        return invite.ExpiresAtUtc <= timeProvider.GetUtcNow() || invite.AttemptCount >= MaxAttempts
+            ? StaffSignInStepNames.InviteExpired
+            : StaffSignInStepNames.InviteCode;
+    }
+
     public async Task<StaffInviteAcceptResult> AcceptInviteAsync(
         string phoneNumber, string code, string password, CancellationToken cancellationToken)
     {
-        var normalizedPhone = PhoneNumberNormalizer.Normalize(phoneNumber);
-        if (normalizedPhone is null || string.IsNullOrWhiteSpace(code))
+        var (invite, refusal) = await VerifyCodeAsync(phoneNumber, code, cancellationToken);
+        if (refusal is not null)
         {
-            return StaffInviteAcceptResult.NoActiveInvite();
+            return refusal;
         }
 
         var now = timeProvider.GetUtcNow();
-        var invite = await db.StaffInvites
-            .Where(candidate => candidate.NormalizedPhone == normalizedPhone && candidate.AcceptedAtUtc == null)
-            .OrderByDescending(candidate => candidate.CreatedAtUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (invite is null)
-        {
-            return StaffInviteAcceptResult.NoActiveInvite();
-        }
-
-        if (invite.ExpiresAtUtc <= now)
-        {
-            return StaffInviteAcceptResult.Expired();
-        }
-
-        // Потолок попыток проверяется до сверки кода: иначе верный код после трёх промахов
-        // пускал бы, и счётчик не значил бы ничего.
-        if (invite.AttemptCount >= MaxAttempts)
-        {
-            return StaffInviteAcceptResult.TooManyAttempts();
-        }
-
-        if (codeHasher.Hash(PhoneOtpCode.KeepDigits(code)) != invite.CodeHash)
-        {
-            invite.AttemptCount++;
-            await db.SaveChangesAsync(cancellationToken);
-            return StaffInviteAcceptResult.InvalidCode(Math.Max(0, MaxAttempts - invite.AttemptCount));
-        }
-
         var alreadyExists = await db.StaffUsers.AnyAsync(
             user => user.OrganizationId == invite.OrganizationId && user.NormalizedUserName == invite.NormalizedUserName,
             cancellationToken);
@@ -218,8 +228,9 @@ public sealed class EfStaffInviteService(
             NormalizedUserName = invite.NormalizedUserName,
             DisplayName = invite.DisplayName,
             Email = invite.Email,
-            // Телефон приходит подтверждённым: код из SMS и есть доказательство, что номер его.
-            // Иначе приглашённый остался бы без входа по номеру — того самого, которым входят все.
+            // Телефон приходит подтверждённым: номер завёл руководитель, а код — из его рук или из
+            // SMS на этот номер — подтверждает, что вводит тот самый человек. Иначе приглашённый
+            // остался бы без входа по номеру — того самого, которым входят все.
             Phone = invite.PhoneNumber,
             NormalizedPhone = invite.NormalizedPhone,
             PhoneVerifiedAtUtc = now,
@@ -245,7 +256,50 @@ public sealed class EfStaffInviteService(
         invite.AcceptedByStaffUserId = staffUser.StaffUserId;
         await db.SaveChangesAsync(cancellationToken);
 
-        return StaffInviteAcceptResult.Success(invite.OrganizationId, invite.UserName);
+        return StaffInviteAcceptResult.Success(invite.OrganizationId, invite.UserName, staffUser.StaffUserId);
+    }
+
+    private Task<StaffInviteEntity?> LatestPendingInviteAsync(string normalizedPhone, CancellationToken cancellationToken) =>
+        db.StaffInvites
+            .Where(candidate => candidate.NormalizedPhone == normalizedPhone && candidate.AcceptedAtUtc == null)
+            .OrderByDescending(candidate => candidate.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    private async Task<(StaffInviteEntity Invite, StaffInviteAcceptResult? Refusal)> VerifyCodeAsync(
+        string phoneNumber, string code, CancellationToken cancellationToken)
+    {
+        var normalizedPhone = PhoneNumberNormalizer.Normalize(phoneNumber);
+        if (normalizedPhone is null || string.IsNullOrWhiteSpace(code))
+        {
+            return (null!, StaffInviteAcceptResult.NoActiveInvite());
+        }
+
+        var invite = await LatestPendingInviteAsync(normalizedPhone, cancellationToken);
+        if (invite is null)
+        {
+            return (null!, StaffInviteAcceptResult.NoActiveInvite());
+        }
+
+        if (invite.ExpiresAtUtc <= timeProvider.GetUtcNow())
+        {
+            return (invite, StaffInviteAcceptResult.Expired());
+        }
+
+        // Потолок попыток проверяется до сверки кода: иначе верный код после трёх промахов
+        // пускал бы, и счётчик не значил бы ничего.
+        if (invite.AttemptCount >= MaxAttempts)
+        {
+            return (invite, StaffInviteAcceptResult.TooManyAttempts());
+        }
+
+        if (codeHasher.Hash(PhoneOtpCode.KeepDigits(code)) != invite.CodeHash)
+        {
+            invite.AttemptCount++;
+            await db.SaveChangesAsync(cancellationToken);
+            return (invite, StaffInviteAcceptResult.InvalidCode(Math.Max(0, MaxAttempts - invite.AttemptCount)));
+        }
+
+        return (invite, null);
     }
 
     private static IReadOnlyList<string> NormalizeRoles(IReadOnlyList<string> roleNames) =>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { I18nProvider, useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import { refreshOperatorSession } from './authClient';
+import { checkStaffInviteCode, refreshOperatorSession, staffSignInNextStep } from './authClient';
 import { ConnectionResolutionScreen } from './ConnectionResolutionScreen';
 import { getOperatorConfig } from './operatorConfig';
 import { navSections, type NavSection } from './operatorData';
@@ -13,7 +13,6 @@ import { MapSidePanel } from './MapSidePanel';
 import { ContextPanel } from './ContextPanel';
 import { CommandPalette } from './CommandPalette';
 import { ForgotPassword } from './ForgotPassword';
-import { AcceptInvite } from './AcceptInvite';
 import { WindowResizeHandles } from './WindowChrome';
 import { SignInScreen } from './SignInScreen';
 import { BlockedOrganizationScreen } from './BlockedOrganizationScreen';
@@ -95,6 +94,8 @@ function AppInner() {
   const [workspace, setWorkspace] = useState<WorkspaceId>('map');
   const [mapFilter, setMapFilter] = useState<MapFilterId>('all');
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
+  // Номер, набранный на входе, едет в «Забыли ПИН-код?» — второй раз его не набирают.
+  const [forgotPhone, setForgotPhone] = useState<string | null>(null);
   const {
     authStatus: staffAuthStatus,
     authSession: staffAuthSession,
@@ -105,7 +106,9 @@ function AppInner() {
     setAuthStatus,
     setAuthError,
     chooseClub,
-    handleSignIn,
+    handleSignInByPhone,
+    handleSignInByLogin,
+    handleAcceptInvite,
     handleChooseClub,
     cancelChooseClub,
     handleSignOut
@@ -375,10 +378,7 @@ function AppInner() {
 
   if (authStatus !== 'signed-in' || authSession === null) {
     if (authView === 'forgot') {
-      return <ForgotPassword onBackToSignIn={() => setAuthView('signIn')} />;
-    }
-    if (authView === 'invite') {
-      return <AcceptInvite onBackToSignIn={() => setAuthView('signIn')} />;
+      return <ForgotPassword initialPhone={forgotPhone} onBackToSignIn={() => setAuthView('signIn')} />;
     }
     return (
       <SignInScreen
@@ -386,11 +386,19 @@ function AppInner() {
         authStatus={authStatus}
         hostError={authError}
         chooseClub={chooseClub}
-        onSignIn={handleSignIn}
+        actions={{
+          nextStep: staffSignInNextStep,
+          signInByPhone: handleSignInByPhone,
+          signInByLogin: handleSignInByLogin,
+          checkInviteCode: checkStaffInviteCode,
+          acceptInvite: handleAcceptInvite
+        }}
         onChooseClub={handleChooseClub}
         onCancelChooseClub={cancelChooseClub}
-        onForgotPassword={() => setAuthView('forgot')}
-        onAcceptInvite={() => setAuthView('invite')}
+        onForgotPassword={(localPhone) => {
+          setForgotPhone(localPhone);
+          setAuthView('forgot');
+        }}
       />
     );
   }

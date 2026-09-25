@@ -231,11 +231,23 @@ internal static class StaffOnboardingEndpoints
             // Мастер установки заводит сотрудников на месте: проверка версии панели к нему не применяется.
             .AllowNonOrganizationAdminClients();
 
+        // Сверка кода первого входа до ПИНа. Отказы — те же, что у приёма.
+        app.MapPost(StaffAuthRoutes.CheckInvite, async (
+            CheckStaffInviteRequest request,
+            IStaffInviteService staffInviteService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await staffInviteService.CheckInviteAsync(request.PhoneNumber, request.Code, cancellationToken);
+            return result.Succeeded ? Results.NoContent() : InviteRefusal(result);
+        }).RequireRateLimiting("staff-reset");
+
         // Приём приглашения. Отвечает теми же словами, что сброс пароля по телефону: человек по
         // ту сторону тот же самый, и два разных языка отказов он читал бы как два разных сбоя.
-        app.MapPost("/api/staff/invites/accept", async (
+        app.MapPost(StaffAuthRoutes.AcceptInvite, async (
             AcceptStaffInviteRequest request,
             IStaffInviteService staffInviteService,
+            IStaffTokenService tokenService,
+            PlatformDbContext db,
             CancellationToken cancellationToken) =>
         {
             var passwordValidation = ValidateStaffPin(request.Password);
@@ -247,6 +259,18 @@ internal static class StaffOnboardingEndpoints
             var result = await staffInviteService.AcceptInviteAsync(
                 request.PhoneNumber, request.Code, request.Password, cancellationToken);
 
+            if (!result.Succeeded)
+            {
+                return InviteRefusal(result);
+            }
+
+            var staffUser = await db.StaffUsers.SingleAsync(user => user.StaffUserId == result.StaffUserId, cancellationToken);
+            var signIn = await tokenService.IssueAsync(staffUser, cancellationToken);
+            return Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName, signIn));
+        }).RequireRateLimiting("staff-reset");
+
+        static IResult InviteRefusal(StaffInviteAcceptResult result)
+        {
             if (result.PlanLimit is not null)
             {
                 return Results.Conflict(new { Error = result.Error, result.PlanLimit.Code, PlanLimit = result.PlanLimit });
@@ -254,8 +278,6 @@ internal static class StaffOnboardingEndpoints
 
             return result.Status switch
             {
-                StaffInviteAcceptStatus.Success => Results.Ok(
-                    new AcceptStaffInviteResponse(result.OrganizationId, result.UserName)),
                 StaffInviteAcceptStatus.InvalidCode => Results.Json(
                     new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
                     statusCode: StatusCodes.Status400BadRequest),
@@ -267,7 +289,7 @@ internal static class StaffOnboardingEndpoints
                     new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
                 _ => Results.BadRequest(new { error = result.Error }),
             };
-        }).RequireRateLimiting("staff-reset");
+        }
 
     }
 }
