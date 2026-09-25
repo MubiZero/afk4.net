@@ -1,4 +1,4 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package
       Name="AFK4.NET Agent"
       Manufacturer="AFK4.NET"
@@ -44,7 +44,21 @@
           Type="ownProcess"
           Start="auto"
           ErrorControl="normal"
-          Account="LocalSystem" />
+          Account="LocalSystem">
+        <!--
+          Упавшего агента поднимает Windows (спека оболочки, §6.1): без него на ПК нет ни экрана
+          игрока, ни запретов, ни сердцебиения. Три перезапуска через 10 с, счёт падений
+          сбрасывается раз в сутки. util:ServiceConfig, а не встроенные ServiceConfig и
+          ServiceConfigFailureActions: те, по документации Windows Installer, «работают не так,
+          как ожидается», и WiX сам предупреждает о них при сборке.
+        -->
+        <util:ServiceConfig
+            FirstFailureActionType="restart"
+            SecondFailureActionType="restart"
+            ThirdFailureActionType="restart"
+            RestartServiceDelayInSeconds="10"
+            ResetPeriodInDays="1" />
+      </ServiceInstall>
       <ServiceControl
           Id="AgentServiceControl"
           Name="AFK4.Agent.Service"

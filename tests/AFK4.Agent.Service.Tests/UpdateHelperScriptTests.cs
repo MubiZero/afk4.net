@@ -169,6 +169,34 @@ public sealed class UpdateHelperScriptTests
         Assert.DoesNotContain(" Exclude=", package, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Упавшего агента поднимает Windows (спека оболочки, §6.1): без него на ПК нет ни экрана игрока,
+    /// ни запретов. util:ServiceConfig, а не встроенные элементы MSI — те WiX сам помечает как
+    /// ненадёжные; и сборка агента обязана подключать расширение Util, иначе элемент не соберётся.
+    /// </summary>
+    [Fact]
+    public void AgentWixPackage_TellsWindowsToRestartAFailedService()
+    {
+        var root = GetRepositoryRoot();
+        var document = System.Xml.Linq.XDocument.Load(Path.Combine(root, "installers", "agent", "Package.wxs"));
+        System.Xml.Linq.XNamespace wix = "http://wixtoolset.org/schemas/v4/wxs";
+        System.Xml.Linq.XNamespace util = "http://wixtoolset.org/schemas/v4/wxs/util";
+        var service = document.Descendants(wix + "ServiceInstall").Single(element => (string?)element.Attribute("Name") == "AFK4.Agent.Service");
+
+        var recovery = service.Element(util + "ServiceConfig");
+        Assert.NotNull(recovery);
+        Assert.Equal("restart", (string?)recovery.Attribute("FirstFailureActionType"));
+        Assert.Equal("restart", (string?)recovery.Attribute("SecondFailureActionType"));
+        Assert.Equal("restart", (string?)recovery.Attribute("ThirdFailureActionType"));
+        Assert.Equal("1", (string?)recovery.Attribute("ResetPeriodInDays"));
+        Assert.Null(service.Element(wix + "ServiceConfigFailureActions"));
+
+        var script = File.ReadAllText(Path.Combine(root, "scripts", "build-client-packages.ps1"));
+        var agentBuild = script[script.IndexOf("installers/agent/Package.wxs", StringComparison.Ordinal)..];
+        agentBuild = agentBuild[..agentBuild.IndexOf("-o $agentMsiPath", StringComparison.Ordinal)];
+        Assert.Contains("-ext WixToolset.Util.wixext", agentBuild, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void SingleAgentWixPackage_InstallsSetupWizardAndFirstRunLaunch()
     {
