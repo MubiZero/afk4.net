@@ -1115,6 +1115,7 @@
   "ledgerTypeReservationHold": "Придержано под бронь",
   "ledgerTypeReservationNoShowFee": "Удержано за неявку",
   "ledgerTypeReversal": "Отмена операции",
+  "ledgerTypeTip": "Чаевые",
   "ledgerTypeTopUp": "Пополнение",
   "ledgerTypeTournamentEntryFee": "Взнос за событие",
   "ledgerTypeTournamentEntryRefund": "Возврат взноса",

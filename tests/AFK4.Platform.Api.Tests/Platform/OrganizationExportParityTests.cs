@@ -61,6 +61,8 @@ public sealed class OrganizationExportParityTests
         ["BranchGames"] = "библиотека игр ПК — настройка, заводится заново",
         ["BranchGameLibraries"] = "версия библиотеки игр — служебный счётчик",
         ["DeviceHardware"] = "опись железа ПК — снимается агентом заново",
+        ["OrganizationTipSettings"] = "включены ли чаевые — настройка, заводится заново",
+        ["ShiftTipPayouts"] = "выдачи чаевых — сама выдача уже в движении наличных смены",
         ["AdImpressionsDaily"] = "показы рекламы платформы — счёт рекламодателю, а не данные клуба",
         ["AdImpressionBatches"] = "ключи принятых пачек показов — служебная защита от повтора",
         ["StaffRoleAssignments"] = "роли уходят колонкой roles в staff.csv",

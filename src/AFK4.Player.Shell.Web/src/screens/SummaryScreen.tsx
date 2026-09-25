@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import type { PlayerShellStateDto, PlayerVisitReceiptDto } from '@afk4/contracts';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { formatMoney } from '@afk4/money';
@@ -7,6 +7,7 @@ import { PlayerApiError, getJson, postJson } from '../api/playerApi';
 import { INTL_LOCALES, durationKey } from '../model/offers';
 import { playedMinutes, type EndedVisit } from '../model/visit';
 import { SeatBadge } from '../ui/SeatBadge';
+import { TipPanel } from './summary/TipPanel';
 
 /** Итог держится 25 секунд тишины (спека, §3): прочесть и уйти; дальше ПК сам выводит вошедшего. */
 export const SUMMARY_SECONDS = 25;
@@ -39,6 +40,8 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
   const [comment, setComment] = useState('');
   const [ratingState, setRatingState] = useState<RatingState>('idle');
   const [touched, setTouched] = useState(0);
+  const [held, setHeld] = useState(false);
+  const hold = useCallback((value: boolean) => setHeld(value), []);
 
   useEffect(() => {
     if (!baseUrl) return;
@@ -48,11 +51,13 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
       .catch(() => {});
   }, [baseUrl, visit.sessionId]);
 
-  // Тишина 25 секунд — выход. Любое касание, клавиша или ввод начинают отсчёт заново.
+  // Тишина 25 секунд — выход. Любое касание, клавиша или ввод начинают отсчёт заново; пока человек
+  // решает, списать ли чаевые, отсчёта нет вовсе.
   useEffect(() => {
+    if (held) return undefined;
     const timer = window.setTimeout(onLeave, SUMMARY_SECONDS * 1000);
     return () => window.clearTimeout(timer);
-  }, [onLeave, activity, touched]);
+  }, [onLeave, activity, touched, held]);
 
   const currency = receipt?.currencyCode ?? visit.selfEnd?.refunded.currencyCode ?? 'TJS';
   const money = (minorUnits: number, code = currency) => formatMoney(minorUnits, code, INTL_LOCALES[locale]);
@@ -151,6 +156,8 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
           )}
         </section>
       ) : null}
+
+      {baseUrl ? <TipPanel baseUrl={baseUrl} sessionId={visit.sessionId} onHold={hold} /> : null}
 
       <footer className="summary__actions">
         <button type="button" className="btn btn--ghost" onClick={onLeave}>{t('playerShell.signOut')}</button>

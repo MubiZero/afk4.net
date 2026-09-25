@@ -19,6 +19,7 @@ import type {
 } from '../operatorApiClients';
 import { CashRegisterRows } from './CashTerminalFrame';
 import { CashShiftCommandBar } from './CashShiftCommandBar';
+import { ShiftTipsSection } from './ShiftTipsSection';
 import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
 import { useShownFor } from '../useShownFor';
 
@@ -227,6 +228,8 @@ export function CashShiftWorkspace({
                 <footer><span>{t('op.cash.shift.movementTotal')}</span><strong><Money minorUnits={movementTotal} currencyCode={currencyCode} signed /></strong></footer>
                 </>}
               </section>
+
+              <ShiftTipsSection client={built?.tips ?? null} session={session} shiftId={current.shiftId} currencyCode={currencyCode} shiftNonce={shiftNonce} onShiftChanged={onShiftChanged} />
             </div>
 
             <section className="cash-shift-history-panel">

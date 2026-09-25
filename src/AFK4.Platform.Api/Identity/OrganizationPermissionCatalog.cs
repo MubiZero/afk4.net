@@ -74,7 +74,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageTournaments,
                 OrganizationPermissionNames.ManageGameLibrary,
                 OrganizationPermissionNames.ViewReviews,
-                OrganizationPermissionNames.AcceptDeviceHardware
+                OrganizationPermissionNames.AcceptDeviceHardware,
+                OrganizationPermissionNames.ManageTips
             },
             [OrganizationRoleNames.BranchManager] = new HashSet<string>
             {
@@ -137,7 +138,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageTournaments,
                 OrganizationPermissionNames.ManageGameLibrary,
                 OrganizationPermissionNames.ViewReviews,
-                OrganizationPermissionNames.AcceptDeviceHardware
+                OrganizationPermissionNames.AcceptDeviceHardware,
+                OrganizationPermissionNames.ManageTips
             },
             [OrganizationRoleNames.ShiftSupervisor] = new HashSet<string>
             {

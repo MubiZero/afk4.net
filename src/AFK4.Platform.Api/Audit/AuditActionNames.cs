@@ -297,6 +297,15 @@ public static class AuditActionNames
 
     public const string UpdateCatalogGame = "platform.games.update";
 
+    /// <summary>Клуб включил или выключил чаевые на экране ПК.</summary>
+    public const string UpdateTipSettings = "tips.settings.update";
+
+    /// <summary>Чаевые возвращены игроку, пока смена открыта.</summary>
+    public const string ReverseTip = "tips.reverse";
+
+    /// <summary>Чаевые смены выданы администратору из кассы.</summary>
+    public const string PayOutTips = "tips.payout";
+
     public const string UpsertAdvertiser = "platform.ads.advertisers.upsert";
 
     public const string UpsertAdCampaign = "platform.ads.campaigns.upsert";

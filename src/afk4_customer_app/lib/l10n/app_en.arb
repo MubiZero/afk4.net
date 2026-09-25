@@ -1115,6 +1115,7 @@
   "ledgerTypeReservationHold": "Held for a booking",
   "ledgerTypeReservationNoShowFee": "Kept for a no-show",
   "ledgerTypeReversal": "Operation reversed",
+  "ledgerTypeTip": "Tip",
   "ledgerTypeTopUp": "Top-up",
   "ledgerTypeTournamentEntryFee": "Event entry fee",
   "ledgerTypeTournamentEntryRefund": "Entry fee returned",

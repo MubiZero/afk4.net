@@ -413,6 +413,8 @@ export const LedgerEntryTypeNames = {
    * возврата, чтобы в выписке было видно, за что деньги вернулись.
    */
   TournamentEntryRefund: 'tournament_entry_refund',
+  /** Чаевые администратору смены с кошелька игрока. Не выручка клуба: клуб их должен сотруднику. */
+  Tip: 'tip',
 } as const;
 export type LedgerEntryTypeName = (typeof LedgerEntryTypeNames)[keyof typeof LedgerEntryTypeNames];
 
@@ -586,6 +588,11 @@ export const OrganizationPermissionNames = {
    * владелец, управляющий, техник.
    */
   AcceptDeviceHardware: 'organization.devices.hardware.accept',
+  /**
+   * Чаевые администратору с экрана ПК: включить у клуба и вернуть игроку, пока смена открыта.
+   * Это движение денег, поэтому у владельца и управляющего, а не у стойки.
+   */
+  ManageTips: 'organization.tips.manage',
 } as const;
 export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
 
@@ -1342,6 +1349,29 @@ export const TariffErrorCodeNames = {
   NameTaken: 'tariff_name_taken',
 } as const;
 export type TariffErrorCodeName = (typeof TariffErrorCodeNames)[keyof typeof TariffErrorCodeNames];
+
+/** Словарь: Tips/TipContracts.cs */
+export const TipErrorCodeNames = {
+  /** Вернуть чаевые можно только из открытой смены. */
+  ShiftClosed: 'tip_shift_closed',
+  AlreadyReversed: 'tip_already_reversed',
+  /** Всё, что пришло за смену, уже выдано. */
+  NothingToPay: 'tip_nothing_to_pay',
+} as const;
+export type TipErrorCodeName = (typeof TipErrorCodeNames)[keyof typeof TipErrorCodeNames];
+
+/** Словарь: Tips/TipContracts.cs */
+export const TipUnavailableReasonNames = {
+  Disabled: 'disabled',
+  /** В филиале нет открытой смены — деньги некому отдать. */
+  NoShift: 'no_shift',
+  NotEnded: 'not_ended',
+  TooLate: 'too_late',
+  AlreadyTipped: 'already_tipped',
+  NotEnoughBalance: 'not_enough_balance',
+  InvalidAmount: 'invalid_amount',
+} as const;
+export type TipUnavailableReasonName = (typeof TipUnavailableReasonNames)[keyof typeof TipUnavailableReasonNames];
 
 /**
  * Что с записью игрока на событие.
@@ -4506,6 +4536,11 @@ export interface PaymentPartDto {
   amount: MoneyDto;
 }
 
+/** Контракт: Tips/TipContracts.cs */
+export interface PayOutShiftTipsRequest {
+  idempotencyKey: string;
+}
+
 /**
  * A finished visit that has not been reviewed yet — what the app offers to rate.
  * Оценить предлагается один раз и только пока вечер свежий в памяти.
@@ -5540,6 +5575,36 @@ export interface PlayerTariffOfferDto {
   /** Когда тариф откроется, если сейчас он не действует; вариантов у такого тарифа нет. */
   startsAtUtc: IsoDateTime | null;
   options: PlayerDurationOfferDto[];
+}
+
+/**
+ * Можно ли оставить чаевые за этот визит — и сколько.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface PlayerTipOfferDto {
+  available: boolean;
+  /** Одно из TipUnavailableReasonNames; пусто, если можно. */
+  unavailableReason: TipUnavailableReasonName | null;
+  presets: MoneyDto[];
+  balance: MoneyDto;
+  /** Имя администратора смены — первое слово: «Чаевые Шерзоду». */
+  recipientName: string | null;
+  /** Чаевые, уже оставленные за этот визит. */
+  given: MoneyDto | null;
+}
+
+/** Контракт: Tips/TipContracts.cs */
+export interface PlayerTipRequest {
+  amount: MoneyDto;
+  idempotencyKey: string;
+}
+
+/** Контракт: Tips/TipContracts.cs */
+export interface PlayerTipResponse {
+  amount: MoneyDto;
+  balanceAfter: MoneyDto;
+  recipientName: string | null;
 }
 
 /**
@@ -6876,6 +6941,31 @@ export interface ShiftSummaryDto {
   difference: MoneyDto;
 }
 
+/** Контракт: Tips/TipContracts.cs */
+export interface ShiftTipDto {
+  ledgerEntryId: Guid;
+  amount: MoneyDto;
+  seatLabel: string | null;
+  createdAtUtc: IsoDateTime;
+  /** Возвращены игроку — в сумму смены не входят. */
+  reversed: boolean;
+}
+
+/**
+ * Чаевые смены для Панели. Имени игрока нет: администратору важны сумма и ПК.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface ShiftTipsDto {
+  shiftId: Guid;
+  recipientStaffUserId: Guid;
+  recipientName: string;
+  total: MoneyDto;
+  tips: ShiftTipDto[];
+  /** Уже выдано из кассы за эту смену: выдать ту же сумму второй раз нельзя. */
+  paidOut?: MoneyDto | null;
+}
+
 /**
  * Позиция меню бара: что можно заказать к месту прямо во время сессии.
  *
@@ -7360,6 +7450,16 @@ export interface TariffVersionDto {
   effectiveFromUtc: IsoDateTime;
   retiredAtUtc: IsoDateTime | null;
   createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Чаевые администратору смены с экрана итога (спека `2026-09-25-visit-tips-design.md`). Клуб их
+ * включает сам; деньги уходят с кошелька игрока записью журнала `tip` и выручкой не считаются.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface TipSettingsDto {
+  enabled: boolean;
 }
 
 /** Контракт: Billing/TopUpWalletRequest.cs */
@@ -7874,6 +7974,11 @@ export interface UpdateTariffVersionRequest {
   roundingIncrementMinutes: number;
   effectiveFromUtc: IsoDateTime;
   isActive: boolean;
+}
+
+/** Контракт: Tips/TipContracts.cs */
+export interface UpdateTipSettingsRequest {
+  enabled: boolean;
 }
 
 /**

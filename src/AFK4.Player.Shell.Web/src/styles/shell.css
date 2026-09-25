@@ -1664,3 +1664,51 @@ button {
   border: 1px solid var(--border-soft);
   font-variant-numeric: tabular-nums;
 }
+
+/* Чаевые администратору на итоге — под оценкой, тем же тихим блоком. */
+.tip {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
+  width: min(34rem, 100%);
+  margin: 0 auto;
+}
+
+.tip__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tip__amounts,
+.tip__actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.tip__amount {
+  min-width: 6.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tip__confirm {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+}
+
+.tip__confirm p,
+.tip__thanks {
+  margin: 0;
+  font-weight: 600;
+}
+
+.tip__thanks {
+  text-align: center;
+}
+
+.tip__failed {
+  margin: 0;
+  color: var(--danger-text);
+}

@@ -6,6 +6,7 @@ import { useOrganizationFeatures } from '../../useOrganizationFeatures';
 import { PaymentMethodsSection } from './payments/PaymentMethodsSection';
 import { LoyaltySection } from './payments/LoyaltySection';
 import { ReferralSection } from './payments/ReferralSection';
+import { TipsSection } from './payments/TipsSection';
 import { PaymentsSetupSection } from './payments/PaymentsSetupSection';
 import { useLoyaltySettings } from './payments/useLoyaltySettings';
 import { useReferralSettings } from './payments/useReferralSettings';
@@ -19,6 +20,7 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
   const { t } = useI18n();
   const canGateways = hasPermission(session, permissionNames.managePaymentGateways);
   const canLoyalty = hasPermission(session, permissionNames.manageLoyaltySettings);
+  const canTips = hasPermission(session, permissionNames.manageTips);
 
   // Configuring a disabled feature is pointless — hide the whole loyalty zone when the
   // organization's `loyalty` feature is off, not just the settings within it. The payments zone
@@ -74,6 +76,17 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
             lead={t('op.payments.zone.referral.lead')}
           >
             <ReferralSection controller={referral} currencyCode={currencyCode} hasBackend={backend !== null} />
+          </PaymentsSetupSection>
+        )}
+
+        {/* Чаевые — не программа лояльности и не её фича: у них своё право и своя секция. */}
+        {canTips && backend !== null && (
+          <PaymentsSetupSection
+            direction="out"
+            title={t('op.payments.zone.tips')}
+            lead={t('op.payments.zone.tips.lead')}
+          >
+            <TipsSection backend={backend} />
           </PaymentsSetupSection>
         )}
       </div>

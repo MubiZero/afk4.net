@@ -228,6 +228,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<AdImpressionBatchEntity> AdImpressionBatches => Set<AdImpressionBatchEntity>();
 
+    public DbSet<OrganizationTipSettingsEntity> OrganizationTipSettings => Set<OrganizationTipSettingsEntity>();
+
+    public DbSet<ShiftTipPayoutEntity> ShiftTipPayouts => Set<ShiftTipPayoutEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -1595,6 +1599,21 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(settings => settings.BranchId);
             entity.Property(settings => settings.AcceptanceMode).HasMaxLength(16).IsRequired();
             entity.HasIndex(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<OrganizationTipSettingsEntity>(entity =>
+        {
+            entity.ToTable("organization_tip_settings");
+            entity.HasKey(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<ShiftTipPayoutEntity>(entity =>
+        {
+            entity.ToTable("shift_tip_payouts");
+            entity.HasKey(payout => payout.ShiftTipPayoutId);
+            entity.HasIndex(payout => payout.CashMovementId).IsUnique();
+            entity.HasIndex(payout => payout.ShiftId);
+            entity.HasIndex(payout => payout.OrganizationId);
         });
 
         modelBuilder.Entity<AdAdvertiserEntity>(entity =>

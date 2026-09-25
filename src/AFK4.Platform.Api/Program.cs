@@ -224,6 +224,7 @@ builder.Services.Configure<InstallOptions>(
 builder.Services.AddScoped<IInstallService, EfInstallService>();
 builder.Services.AddScoped<IInstallCodeService, EfInstallCodeService>();
 builder.Services.AddScoped<AFK4.Platform.Api.Showcase.DeviceShowcase>();
+builder.Services.AddScoped<AFK4.Platform.Api.Tips.VisitTips>();
 builder.Services.AddSingleton<IInstallRequestThrottle, InMemoryInstallRequestThrottle>();
 builder.Services.AddScoped<IPlatformOrganizationService, EfPlatformOrganizationService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
@@ -650,6 +651,7 @@ app.MapGameLibraryEndpoints(organizations);
 app.MapDeviceHardwareEndpoints(organizations);
 app.MapShowcaseEndpoints();
 app.MapAdEndpoints();
+app.MapTipEndpoints(organizations);
 organizations.MapMediaEndpoints();
 app.MapAuthEndpoints(organizations);
 organizations.MapEskhataConfigEndpoints();

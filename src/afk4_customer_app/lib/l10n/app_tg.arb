@@ -1115,6 +1115,7 @@
   "ledgerTypeReservationHold": "Барои брон нигоҳ дошта шуд",
   "ledgerTypeReservationNoShowFee": "Барои наомадан нигоҳ дошта шуд",
   "ledgerTypeReversal": "Амалиёт бекор карда шуд",
+  "ledgerTypeTip": "Чойпулӣ",
   "ledgerTypeTopUp": "Пуркунӣ",
   "ledgerTypeTournamentEntryFee": "Пардохти чорабинӣ",
   "ledgerTypeTournamentEntryRefund": "Баргардонидани пардохт",

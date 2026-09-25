@@ -53,7 +53,8 @@ const LEDGER_TYPE_KEYS: Record<string, MessageKey> = {
   reservation_hold: 'ledger.type.reservation_hold',
   reservation_no_show_fee: 'ledger.type.reservation_no_show_fee',
   tournament_entry_fee: 'ledger.type.tournament_entry_fee',
-  tournament_entry_refund: 'ledger.type.tournament_entry_refund'
+  tournament_entry_refund: 'ledger.type.tournament_entry_refund',
+  tip: 'ledger.type.tip'
 };
 
 export function ledgerTypeLabel(entryType: string, t: TFunc): string {

@@ -39,4 +39,7 @@ public static class LedgerEntryTypeNames
     /// возврата, чтобы в выписке было видно, за что деньги вернулись.
     /// </summary>
     public const string TournamentEntryRefund = "tournament_entry_refund";
+
+    /// <summary>Чаевые администратору смены с кошелька игрока. Не выручка клуба: клуб их должен сотруднику.</summary>
+    public const string Tip = "tip";
 }

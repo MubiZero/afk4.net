@@ -539,6 +539,22 @@ function packageOptions() {
 
 // Настройки приглашений: те же правила превью, что у лояльности рядом.
 let mutableReferralSettings: Record<string, unknown> | null = null;
+
+// Чаевые за открытую смену учебного клуба: два ПК оставили, один раз вернули.
+let mockTipsEnabled = true;
+let mockTipsPaidOut = 0;
+const mockTips = [
+  { ledgerEntryId: 'tip-1', amount: money(1000), seatLabel: 'ПК 07', createdAtUtc: minutesAgoUtc(40), reversed: false },
+  { ledgerEntryId: 'tip-2', amount: money(2000), seatLabel: 'ПК 12', createdAtUtc: minutesAgoUtc(25), reversed: false },
+  { ledgerEntryId: 'tip-3', amount: money(500), seatLabel: 'ПК 03', createdAtUtc: minutesAgoUtc(12), reversed: false }
+];
+function shiftTips() {
+  const total = mockTips.filter((tip) => !tip.reversed).reduce((sum, tip) => sum + tip.amount.minorUnits, 0);
+  return {
+    shiftId: 'sh1', recipientStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', recipientName: 'Шерзод',
+    total: money(total), paidOut: money(mockTipsPaidOut), tips: mockTips
+  };
+}
 function referralSettings(): Record<string, unknown> {
   if (mutableReferralSettings === null) {
     mutableReferralSettings = {
@@ -598,6 +614,8 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
+  if (pathname.endsWith('/tip-settings') && method === 'GET') return { enabled: mockTipsEnabled };
+  if (/\/shifts\/[^/]+\/tips$/.test(pathname) && method === 'GET') return shiftTips();
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
@@ -1079,6 +1097,20 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     };
     prependLedger(entry);
     return json(entry);
+  }
+  if (url.pathname.endsWith('/tip-settings') && method === 'PUT') {
+    mockTipsEnabled = Boolean((JSON.parse(String(init?.body ?? '{}')) as { enabled?: boolean }).enabled);
+    return json({ enabled: mockTipsEnabled });
+  }
+  if (/\/tips\/payout$/.test(url.pathname) && method === 'POST') {
+    mockTipsPaidOut = shiftTips().total.minorUnits;
+    return json(shiftTips());
+  }
+  const reversedTip = /\/tips\/([^/]+)\/reverse$/.exec(url.pathname);
+  if (reversedTip && method === 'POST') {
+    const tip = mockTips.find((candidate) => candidate.ledgerEntryId === reversedTip[1]);
+    if (tip) tip.reversed = true;
+    return json(shiftTips());
   }
   if (url.pathname.endsWith('/referral-settings') && method === 'POST') {
     let req: Record<string, unknown> = {};

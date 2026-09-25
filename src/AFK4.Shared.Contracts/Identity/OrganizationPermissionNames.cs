@@ -173,4 +173,8 @@ public static class OrganizationPermissionNames
     /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
     /// владелец, управляющий, техник.
     public const string AcceptDeviceHardware = "organization.devices.hardware.accept";
+
+    /// Чаевые администратору с экрана ПК: включить у клуба и вернуть игроку, пока смена открыта.
+    /// Это движение денег, поэтому у владельца и управляющего, а не у стойки.
+    public const string ManageTips = "organization.tips.manage";
 }

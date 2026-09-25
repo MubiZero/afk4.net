@@ -39,7 +39,8 @@ public static class PlayerLedgerFilter
         LedgerEntryTypeNames.Cashback,
         LedgerEntryTypeNames.ReferralBonus,
         LedgerEntryTypeNames.ReservationHold,
-        LedgerEntryTypeNames.ReservationNoShowFee
+        LedgerEntryTypeNames.ReservationNoShowFee,
+        LedgerEntryTypeNames.Tip
     };
 
     private static readonly HashSet<string> KnownAccountTypes = new(StringComparer.Ordinal)

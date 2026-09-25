@@ -8,7 +8,13 @@ import { SummaryScreen } from './SummaryScreen';
 const realFetch = globalThis.fetch;
 let posted: unknown[] = [];
 
-function serve(options: { receipt?: boolean; reviewStatus?: number; reviewError?: string } = {}) {
+const tipOffer = {
+  available: true, unavailableReason: null, recipientName: 'Шерзод', given: null,
+  balance: { currencyCode: 'TJS', minorUnits: 1_500 },
+  presets: [500, 1_000, 2_000].map((minorUnits) => ({ currencyCode: 'TJS', minorUnits }))
+};
+
+function serve(options: { receipt?: boolean; reviewStatus?: number; reviewError?: string; tip?: Record<string, unknown> | null } = {}) {
   globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof URL ? input.href : String(input));
     const reply = (status: number, body: unknown) =>
@@ -21,6 +27,13 @@ function serve(options: { receipt?: boolean; reviewStatus?: number; reviewError?
             startedAtUtc: '2026-09-25T10:00:00Z', endedAtUtc: '2026-09-25T11:35:00Z',
             timeChargeMinorUnits: 1_600, posLines: [], posTotalMinorUnits: 2_400, grandTotalMinorUnits: 4_000, currencyCode: 'TJS'
           });
+    }
+    if (url.pathname.endsWith('/tip')) {
+      if (init?.method === 'POST') {
+        posted.push(JSON.parse(String(init.body)));
+        return reply(200, { amount: { currencyCode: 'TJS', minorUnits: 1_000 }, balanceAfter: { currencyCode: 'TJS', minorUnits: 500 }, recipientName: 'Шерзод' });
+      }
+      return options.tip === null ? reply(404, {}) : reply(200, options.tip ?? tipOffer);
     }
     if (url.pathname === '/api/me/reviews') {
       posted.push(JSON.parse(String(init?.body)));
@@ -116,4 +129,30 @@ describe('итог визита', () => {
     expect(onPlayMore).toHaveBeenCalledTimes(1);
     expect(onLeave).toHaveBeenCalledTimes(1);
   });
+
+  it('чаевые администратору: сумма, подтверждение, «спасибо» — только после ответа', async () => {
+    serve();
+    renderSummary();
+
+    const ten = await screen.findByRole('button', { name: '10 с.' });
+    // 20 с. больше баланса — сумма серая.
+    expect((screen.getByRole('button', { name: '20 с.' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(ten);
+    expect(screen.getByText(/^С баланса спишется 10\s?с\.$/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Оставить чаевые' }));
+
+    expect(await screen.findByText(/^Спасибо! 10\s?с\. — Шерзод\.$/)).toBeTruthy();
+    const body = posted.at(-1) as { amount: { minorUnits: number }; idempotencyKey: string };
+    expect(body.amount.minorUnits).toBe(1_000);
+    expect(body.idempotencyKey).toBeTruthy();
+  });
+
+  it('клуб чаевые не включил — блока нет', async () => {
+    serve({ tip: { ...tipOffer, available: false, unavailableReason: 'disabled' } });
+    renderSummary();
+
+    await screen.findByText(/Итого/);
+    expect(screen.queryByRole('button', { name: '10 с.' })).toBeNull();
+  });
 });
+

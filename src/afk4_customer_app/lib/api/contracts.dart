@@ -339,6 +339,8 @@ abstract final class LedgerEntryTypeNames {
   /// Возврат взноса: игрок снялся до начала или клуб отменил событие. Отдельно от общего
   /// возврата, чтобы в выписке было видно, за что деньги вернулись.
   static const String tournamentEntryRefund = 'tournament_entry_refund';
+  /// Чаевые администратору смены с кошелька игрока. Не выручка клуба: клуб их должен сотруднику.
+  static const String tip = 'tip';
 }
 
 /// Словарь: Media/MediaPurposeNames.cs
@@ -486,6 +488,9 @@ abstract final class OrganizationPermissionNames {
   /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
   /// владелец, управляющий, техник.
   static const String acceptDeviceHardware = 'organization.devices.hardware.accept';
+  /// Чаевые администратору с экрана ПК: включить у клуба и вернуть игроку, пока смена открыта.
+  /// Это движение денег, поэтому у владельца и управляющего, а не у стойки.
+  static const String manageTips = 'organization.tips.manage';
 }
 
 /// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
@@ -1122,6 +1127,27 @@ abstract final class SubscriptionStatusNames {
 abstract final class TariffErrorCodeNames {
   /// Тариф с таким именем в филиале уже есть.
   static const String nameTaken = 'tariff_name_taken';
+}
+
+/// Словарь: Tips/TipContracts.cs
+abstract final class TipErrorCodeNames {
+  /// Вернуть чаевые можно только из открытой смены.
+  static const String shiftClosed = 'tip_shift_closed';
+  static const String alreadyReversed = 'tip_already_reversed';
+  /// Всё, что пришло за смену, уже выдано.
+  static const String nothingToPay = 'tip_nothing_to_pay';
+}
+
+/// Словарь: Tips/TipContracts.cs
+abstract final class TipUnavailableReasonNames {
+  static const String disabled = 'disabled';
+  /// В филиале нет открытой смены — деньги некому отдать.
+  static const String noShift = 'no_shift';
+  static const String notEnded = 'not_ended';
+  static const String tooLate = 'too_late';
+  static const String alreadyTipped = 'already_tipped';
+  static const String notEnoughBalance = 'not_enough_balance';
+  static const String invalidAmount = 'invalid_amount';
 }
 
 /// Что с записью игрока на событие.
@@ -10658,6 +10684,23 @@ class PaymentPartDto {
       };
 }
 
+/// Контракт: Tips/TipContracts.cs
+class PayOutShiftTipsRequest {
+  const PayOutShiftTipsRequest({
+    required this.idempotencyKey,
+  });
+
+  final String idempotencyKey;
+
+  factory PayOutShiftTipsRequest.fromJson(Map<String, dynamic> json) => PayOutShiftTipsRequest(
+        idempotencyKey: json['idempotencyKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'idempotencyKey': idempotencyKey,
+      };
+}
+
 /// A finished visit that has not been reviewed yet — what the app offers to rate.
 /// Оценить предлагается один раз и только пока вечер свежий в памяти.
 ///
@@ -13407,6 +13450,97 @@ class PlayerTariffOfferDto {
         'appliesNow': appliesNow,
         'startsAtUtc': startsAtUtc?.toIso8601String(),
         'options': options.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Можно ли оставить чаевые за этот визит — и сколько.
+///
+/// Контракт: Tips/TipContracts.cs
+class PlayerTipOfferDto {
+  const PlayerTipOfferDto({
+    required this.available,
+    this.unavailableReason,
+    required this.presets,
+    required this.balance,
+    this.recipientName,
+    this.given,
+  });
+
+  final bool available;
+
+  /// Одно из TipUnavailableReasonNames; пусто, если можно.
+  final String? unavailableReason;
+  final List<MoneyDto> presets;
+  final MoneyDto balance;
+
+  /// Имя администратора смены — первое слово: «Чаевые Шерзоду».
+  final String? recipientName;
+
+  /// Чаевые, уже оставленные за этот визит.
+  final MoneyDto? given;
+
+  factory PlayerTipOfferDto.fromJson(Map<String, dynamic> json) => PlayerTipOfferDto(
+        available: json['available'] as bool,
+        unavailableReason: json['unavailableReason'] == null ? null : json['unavailableReason'] as String,
+        presets: (json['presets'] as List<dynamic>).map((item) => MoneyDto.fromJson(item as Map<String, dynamic>)).toList(),
+        balance: MoneyDto.fromJson(json['balance'] as Map<String, dynamic>),
+        recipientName: json['recipientName'] == null ? null : json['recipientName'] as String,
+        given: json['given'] == null ? null : MoneyDto.fromJson(json['given'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'available': available,
+        'unavailableReason': unavailableReason,
+        'presets': presets.map((item) => item.toJson()).toList(),
+        'balance': balance.toJson(),
+        'recipientName': recipientName,
+        'given': given?.toJson(),
+      };
+}
+
+/// Контракт: Tips/TipContracts.cs
+class PlayerTipRequest {
+  const PlayerTipRequest({
+    required this.amount,
+    required this.idempotencyKey,
+  });
+
+  final MoneyDto amount;
+  final String idempotencyKey;
+
+  factory PlayerTipRequest.fromJson(Map<String, dynamic> json) => PlayerTipRequest(
+        amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
+        idempotencyKey: json['idempotencyKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'amount': amount.toJson(),
+        'idempotencyKey': idempotencyKey,
+      };
+}
+
+/// Контракт: Tips/TipContracts.cs
+class PlayerTipResponse {
+  const PlayerTipResponse({
+    required this.amount,
+    required this.balanceAfter,
+    this.recipientName,
+  });
+
+  final MoneyDto amount;
+  final MoneyDto balanceAfter;
+  final String? recipientName;
+
+  factory PlayerTipResponse.fromJson(Map<String, dynamic> json) => PlayerTipResponse(
+        amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
+        balanceAfter: MoneyDto.fromJson(json['balanceAfter'] as Map<String, dynamic>),
+        recipientName: json['recipientName'] == null ? null : json['recipientName'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'amount': amount.toJson(),
+        'balanceAfter': balanceAfter.toJson(),
+        'recipientName': recipientName,
       };
 }
 
@@ -17296,6 +17430,82 @@ class ShiftSummaryDto {
       };
 }
 
+/// Контракт: Tips/TipContracts.cs
+class ShiftTipDto {
+  const ShiftTipDto({
+    required this.ledgerEntryId,
+    required this.amount,
+    this.seatLabel,
+    required this.createdAtUtc,
+    required this.reversed,
+  });
+
+  final String ledgerEntryId;
+  final MoneyDto amount;
+  final String? seatLabel;
+  final DateTime createdAtUtc;
+
+  /// Возвращены игроку — в сумму смены не входят.
+  final bool reversed;
+
+  factory ShiftTipDto.fromJson(Map<String, dynamic> json) => ShiftTipDto(
+        ledgerEntryId: json['ledgerEntryId'] as String,
+        amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
+        seatLabel: json['seatLabel'] == null ? null : json['seatLabel'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        reversed: json['reversed'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ledgerEntryId': ledgerEntryId,
+        'amount': amount.toJson(),
+        'seatLabel': seatLabel,
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'reversed': reversed,
+      };
+}
+
+/// Чаевые смены для Панели. Имени игрока нет: администратору важны сумма и ПК.
+///
+/// Контракт: Tips/TipContracts.cs
+class ShiftTipsDto {
+  const ShiftTipsDto({
+    required this.shiftId,
+    required this.recipientStaffUserId,
+    required this.recipientName,
+    required this.total,
+    required this.tips,
+    this.paidOut,
+  });
+
+  final String shiftId;
+  final String recipientStaffUserId;
+  final String recipientName;
+  final MoneyDto total;
+  final List<ShiftTipDto> tips;
+
+  /// Уже выдано из кассы за эту смену: выдать ту же сумму второй раз нельзя.
+  final MoneyDto? paidOut;
+
+  factory ShiftTipsDto.fromJson(Map<String, dynamic> json) => ShiftTipsDto(
+        shiftId: json['shiftId'] as String,
+        recipientStaffUserId: json['recipientStaffUserId'] as String,
+        recipientName: json['recipientName'] as String,
+        total: MoneyDto.fromJson(json['total'] as Map<String, dynamic>),
+        tips: (json['tips'] as List<dynamic>).map((item) => ShiftTipDto.fromJson(item as Map<String, dynamic>)).toList(),
+        paidOut: json['paidOut'] == null ? null : MoneyDto.fromJson(json['paidOut'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'shiftId': shiftId,
+        'recipientStaffUserId': recipientStaffUserId,
+        'recipientName': recipientName,
+        'total': total.toJson(),
+        'tips': tips.map((item) => item.toJson()).toList(),
+        'paidOut': paidOut?.toJson(),
+      };
+}
+
 /// Позиция меню бара: что можно заказать к месту прямо во время сессии.
 ///
 /// Контракт: Shop/ShopCatalogItemDto.cs
@@ -18758,6 +18968,26 @@ class TariffVersionDto {
         'effectiveFromUtc': effectiveFromUtc.toIso8601String(),
         'retiredAtUtc': retiredAtUtc?.toIso8601String(),
         'createdAtUtc': createdAtUtc.toIso8601String(),
+      };
+}
+
+/// Чаевые администратору смены с экрана итога (спека `2026-09-25-visit-tips-design.md`). Клуб их
+/// включает сам; деньги уходят с кошелька игрока записью журнала `tip` и выручкой не считаются.
+///
+/// Контракт: Tips/TipContracts.cs
+class TipSettingsDto {
+  const TipSettingsDto({
+    required this.enabled,
+  });
+
+  final bool enabled;
+
+  factory TipSettingsDto.fromJson(Map<String, dynamic> json) => TipSettingsDto(
+        enabled: json['enabled'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
       };
 }
 
@@ -20452,6 +20682,23 @@ class UpdateTariffVersionRequest {
         'roundingIncrementMinutes': roundingIncrementMinutes,
         'effectiveFromUtc': effectiveFromUtc.toIso8601String(),
         'isActive': isActive,
+      };
+}
+
+/// Контракт: Tips/TipContracts.cs
+class UpdateTipSettingsRequest {
+  const UpdateTipSettingsRequest({
+    required this.enabled,
+  });
+
+  final bool enabled;
+
+  factory UpdateTipSettingsRequest.fromJson(Map<String, dynamic> json) => UpdateTipSettingsRequest(
+        enabled: json['enabled'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
       };
 }
 
