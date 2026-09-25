@@ -309,6 +309,13 @@
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }.auth-pin-cell[data-filled] {
   border-color: var(--border-strong);
+}/* Точка рисуется, а не набирается символом «•»: у символа размер зависит от шрифта, и в
+   Segoe UI он выходит булавочной головкой. */
+.auth-pin-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
 }.auth-pin-input:focus ~ .auth-pin-cells .auth-pin-cell[data-next] {
   border-color: var(--accent-hover);
   box-shadow: 0 0 0 3px var(--accent-ring);

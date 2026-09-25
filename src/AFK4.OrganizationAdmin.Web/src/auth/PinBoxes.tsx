@@ -73,7 +73,7 @@ export function PinBoxes({
             data-filled={index < value.length || undefined}
             data-next={index === value.length || undefined}
           >
-            {index < value.length ? (secret ? '•' : value[index]) : ''}
+            {index < value.length ? (secret ? <span className="auth-pin-dot" /> : value[index]) : null}
           </span>
         ))}
       </div>
