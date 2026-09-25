@@ -27,6 +27,7 @@ import {
 import { supportVisibleWorkspaces } from './support/supportWorkspaces';
 import { SupportModeBanner } from './support/SupportModeBanner';
 import { BillingStatusBanner } from './billing/BillingStatusBanner';
+import { DemoBanner } from './demo/DemoBanner';
 import { useBillingStatus } from './billing/useBillingStatus';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { NoActiveBranchScreen } from './NoActiveBranchScreen';
@@ -440,7 +441,9 @@ function AppInner() {
 
   return (
     <>
-      {activeSupportSession !== null ? (
+      {baseConfig.demo === true ? (
+        <DemoBanner />
+      ) : activeSupportSession !== null ? (
         <SupportModeBanner session={activeSupportSession} onExit={handleExitSupportMode} />
       ) : billingStatus !== null && showBillingBanner ? (
         <BillingStatusBanner status={billingStatus} />
@@ -455,7 +458,7 @@ function AppInner() {
         style={{
           '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px',
           '--shell-context-col': contextCol,
-          '--shell-banner-h': activeSupportSession !== null || showBillingBanner || platformMessages.unread.length > 0
+          '--shell-banner-h': baseConfig.demo === true || activeSupportSession !== null || showBillingBanner || platformMessages.unread.length > 0
             ? '40px'
             : '0px'
         } as CSSProperties}

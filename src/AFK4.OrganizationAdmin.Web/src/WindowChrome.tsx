@@ -2,6 +2,10 @@ import { Maximize2, Minus, X } from 'lucide-react';
 import { type MouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
+import { getOperatorConfig } from './operatorConfig';
+
+// Демо открыто во вкладке браузера: окна приложения нет — свернуть, закрыть и растянуть нечего.
+const hasAppWindow = () => getOperatorConfig().demo !== true;
 
 export function handleWindowDragStart(event: MouseEvent<HTMLElement>) {
   if (event.button !== 0) {
@@ -27,6 +31,9 @@ export function handleWindowTitleDoubleClick(event: MouseEvent<HTMLElement>) {
 
 export function WindowControls() {
   const { t } = useI18n();
+  if (!hasAppWindow()) {
+    return null;
+  }
   return (
     <div className="window-controls" aria-label={t('op.shell.window')}>
       <button type="button" title={t('op.shell.minimize')} aria-label={t('op.shell.minimize')} onClick={() => postHostWindowCommand('minimize')}>
@@ -44,6 +51,9 @@ export function WindowControls() {
 
 export function WindowResizeHandles() {
   const edges: HostWindowResizeEdge[] = ['top', 'right', 'bottom', 'left', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+  if (!hasAppWindow()) {
+    return null;
+  }
 
   return (
     <div className="window-resize-handles" aria-hidden="true">

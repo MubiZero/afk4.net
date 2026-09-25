@@ -1078,11 +1078,19 @@ thrown away rather than polished.
    the command pipe has no ACL for a standard user; `IsOnline` is hardcoded and
    `offline`/`ending`/`maintenance` are never produced; the shell's API address
    is set by nobody, so it would call production from staging. None of this was
-   seen on a PC — reading only.
-2. **Pricing was never set in somoni.** The seeded Starter price of 2 900 TJS
-   was a ruble figure relabelled; the owner set free up to 10 PCs, then 10 TJS
-   per PC (billing spec §6a). Until the plans are reworked, do not show the old
-   prices to a club.
+   seen on a PC — reading only. By 2026-09-25 plans P1–P9 are built as stacked
+   PRs up to #490 (P6 multi-seat, game library, shell settings and reviews; P7
+   showcase and platform ads; P8 tips; P9 hardware snapshot), none merged and
+   none proven on a live PC.
+2. **The launch set is built, not merged (2026-09-25).** Per-PC pricing with
+   trial, promised payment and free-plan fallback (#491 — the ruble Starter
+   price is retired and no longer shown), agentless console seats (#492), guest
+   import with opening balances (#493), «refer a club» (#494) and a public demo
+   of the Organization Admin on sample data (#495, runbook
+   `docs/operations/demo-panel.md`). Owner questions: tips recipient and taxes,
+   the advertising law, «PCs above ten» versus «all from the eleventh», a club
+   of ten PCs or fewer that needs a second hall, and PCs above ten on the free
+   plan after non-payment.
 3. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
    There are no clubs yet, so a package still reaches everyone at once, on purpose
    and guarded by a test. Before the first clubs, decide waves together with a view

@@ -603,6 +603,15 @@ live runs for:
 - A public demo of the Organization Admin on sample data; «refer a club».
 - Agentless console and TV seats.
 
+Status 2026-09-25: every item above and the shell-rewrite items P6–P9 are
+built as stacked PRs #480–#495, none merged. Specs:
+`2026-09-25-club-plans-per-pc-design.md` (pricing, trial, promised payment,
+free-plan fallback, «refer a club»), `2026-09-25-visit-tips-design.md`; plans
+`2026-09-25-console-seats.md`, `2026-09-25-guest-import.md`; the demo runbook
+`docs/operations/demo-panel.md` (hosting it is the owner's step). Open owner
+questions are listed at the end of each spec. Advertising stays blocked on the
+media bucket and the advertising-law check.
+
 **After the first club — by what it asks for:**
 
 - Organization Admin: Telegram alerts to the owner (one platform bot), staff

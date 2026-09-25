@@ -978,8 +978,60 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
       deviceCommands: []
     });
   }
-  if (url.pathname.endsWith('/checkout') && method === 'POST') {
-    return json(checkoutResult(init));
+  // Остальная жизнь сессии на карте: без неё в демо «Завершить», «+15 мин» и «Перенос» молча
+  // соглашались и ничего не меняли. Сервер закрыл бы сессию после ответа ПК — здесь сразу.
+  const sessionActionMatch = url.pathname.match(/\/sessions\/([^/]+)\/(end|extend|transfer|checkout)$/);
+  if (sessionActionMatch && method === 'POST') {
+    const [, sessionId, action] = sessionActionMatch;
+    let request: Record<string, unknown> = {};
+    try { request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { request = {}; }
+    const seats = currentPreviewFloorMap().seats;
+    const seat = seats.find((item) => item.activeSessionId === sessionId);
+    if (seat === undefined) {
+      // Расчёт сессии не с карты (например, из истории) превью всегда принимало — так и оставлено.
+      if (action === 'checkout') return json(checkoutResult(init));
+      return jsonError(409, 'session_not_active', 'The session has already ended.');
+    }
+    const acknowledged = (state: string) => json({
+      idempotencyKey: typeof request.idempotencyKey === 'string' ? request.idempotencyKey : `preview-session-${action}`,
+      session: { sessionId, state },
+      deviceCommands: []
+    });
+
+    if (action === 'extend') {
+      if (seat.remainingSeconds !== null) {
+        seat.remainingSeconds += Number(request.additionalMinutes ?? 0) * 60;
+      }
+      return acknowledged('Active');
+    }
+    if (action === 'transfer') {
+      const target = seats.find((item) => item.seatId === request.targetSeatId);
+      if (target === undefined || target.state !== 'Free') {
+        return jsonError(409, 'target_seat_busy', 'The target seat is not free.');
+      }
+      Object.assign(target, {
+        state: seat.state,
+        activeSessionId: seat.activeSessionId,
+        remainingSeconds: seat.remainingSeconds,
+        playerDisplayName: seat.playerDisplayName,
+        tariffName: seat.tariffName,
+        sessionStartedAtUtc: seat.sessionStartedAtUtc,
+        accruedCostMinorUnits: seat.accruedCostMinorUnits,
+        currencyCode: seat.currencyCode,
+        isDeviceLocked: false
+      });
+    }
+    Object.assign(seat, {
+      state: 'Free',
+      activeSessionId: null,
+      remainingSeconds: null,
+      playerDisplayName: undefined,
+      tariffName: undefined,
+      sessionStartedAtUtc: undefined,
+      accruedCostMinorUnits: undefined,
+      isDeviceLocked: true
+    });
+    return action === 'checkout' ? json(checkoutResult(init)) : acknowledged(action === 'transfer' ? 'Active' : 'Ended');
   }
   // Защита ПК в превью: помнит сохранённое и растит версию, как сервер; чужая версия — 409.
   if (url.pathname.endsWith('/settings/protection') && method === 'PUT') {
