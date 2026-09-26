@@ -5,8 +5,9 @@ import type { AdsTab } from '@/routing/platformRoute';
 import { AdvertisersTab, type AdvertisersClient } from './AdvertisersTab';
 import { CampaignsTab, type CampaignsClient } from './CampaignsTab';
 import { ReportTab, type ReportClient } from './ReportTab';
+import { ComplaintsTab, type ComplaintsClient } from './ComplaintsTab';
 
-export type AdsClient = AdvertisersClient & CampaignsClient & ReportClient;
+export type AdsClient = AdvertisersClient & CampaignsClient & ReportClient & ComplaintsClient;
 
 // Раздел «Реклама»: AFK4 продаёт место в витрине свободного ПК у клубов на бесплатном тарифе.
 // Модерация — на странице кампании, рядом с креативами: отдельного права и отдельной очереди
@@ -27,7 +28,8 @@ export function AdsScreen({ client, tab, onTabChange, onOpenCampaign }: {
         items={[
           { value: 'campaigns', label: t('platform.ads.tab.campaigns') },
           { value: 'advertisers', label: t('platform.ads.tab.advertisers') },
-          { value: 'report', label: t('platform.ads.tab.report') }
+          { value: 'report', label: t('platform.ads.tab.report') },
+          { value: 'complaints', label: t('platform.ads.tab.complaints') }
         ]}
       />
 
@@ -35,6 +37,7 @@ export function AdsScreen({ client, tab, onTabChange, onOpenCampaign }: {
         {tab === 'campaigns' ? <CampaignsTab client={client} onOpenCampaign={onOpenCampaign} onOpenAdvertisers={() => onTabChange('advertisers')} /> : null}
         {tab === 'advertisers' ? <AdvertisersTab client={client} /> : null}
         {tab === 'report' ? <ReportTab client={client} /> : null}
+        {tab === 'complaints' ? <ComplaintsTab client={client} onOpenCampaign={onOpenCampaign} /> : null}
       </div>
     </Page>
   );

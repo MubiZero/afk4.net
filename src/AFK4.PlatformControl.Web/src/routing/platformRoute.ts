@@ -13,7 +13,7 @@ export type OrganizationTab =
 
 export type BillingTab = 'plans' | 'subscriptions' | 'invoices' | 'analytics';
 
-export type AdsTab = 'campaigns' | 'advertisers' | 'report';
+export type AdsTab = 'campaigns' | 'advertisers' | 'report' | 'complaints';
 
 export type PlatformRoute =
   | { kind: 'overview'; view: PulseView }
@@ -35,7 +35,7 @@ const ORGANIZATION_TABS = new Set<OrganizationTab>([
   'clubs', 'invoices', 'limits', 'updates', 'access', 'history', 'dynamics', 'features', 'offboarding'
 ]);
 const BILLING_TABS = new Set<BillingTab>(['plans', 'subscriptions', 'invoices', 'analytics']);
-const ADS_TABS = new Set<AdsTab>(['campaigns', 'advertisers', 'report']);
+const ADS_TABS = new Set<AdsTab>(['campaigns', 'advertisers', 'report', 'complaints']);
 const PULSE_VIEWS = new Set<PulseView>(['now', 'all', 'debt']);
 
 export function resolvePlatformRoute(pathname: string, search = ''): PlatformRoute {

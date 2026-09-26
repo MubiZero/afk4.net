@@ -172,6 +172,9 @@ describe('приведи клуб', () => {
     );
 
     expect(await screen.findByText('AFK-7Q2MXR')).toBeInTheDocument();
+    // Условия бесплатного тарифа — простыми словами, под тарифом (владелец, 2026-09-26).
+    expect(screen.getByText('Условия бесплатного тарифа')).toBeInTheDocument();
+    expect(screen.getByText(/нажмите «Пожаловаться»/)).toBeInTheDocument();
     expect(screen.getByText('Приведено клубов: 1 · бесплатных месяцев впереди: 1')).toBeInTheDocument();
   });
 });

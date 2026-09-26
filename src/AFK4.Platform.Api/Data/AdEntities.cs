@@ -147,3 +147,28 @@ public sealed class AdCreativeImageEntity
 
     public DateTimeOffset StoredAtUtc { get; set; }
 }
+
+/// <summary>Жалоба клуба на рекламу на его ПК. Решает платформа: снять креатив или ответить, почему нет.</summary>
+public sealed class AdComplaintEntity
+{
+    public Guid ComplaintId { get; set; }
+
+    public Guid OrganizationId { get; set; }
+
+    public Guid CreativeId { get; set; }
+
+    /// <summary><see cref="AFK4.Shared.Contracts.Ads.AdComplaintReasonNames"/>.</summary>
+    public string Reason { get; set; } = string.Empty;
+
+    public string? Comment { get; set; }
+
+    public Guid ReportedByStaffUserId { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public DateTimeOffset? ResolvedAtUtc { get; set; }
+
+    public Guid? ResolvedByPlatformAdminUserId { get; set; }
+
+    public string? Resolution { get; set; }
+}

@@ -200,6 +200,47 @@ public sealed class PlatformAdsTests
             new ModerateAdCreativeRequest(true, null, AdModerationCheckNames.RequiredFor(AdCategoryNames.Finance)))).StatusCode);
     }
 
+    // Клуб — распространитель, но снять рекламу сам не может: жалуется, платформа решает (§8.4).
+    [Fact]
+    public async Task AClub_ReportsAnAdOnItsPcs_AndThePlatformResolvesIt()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        await PrepareClubAsync(fixture, city: "Душанбе", ads: true);
+        using var platform = fixture.Factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(fixture.Factory, platform, roles: [PlatformAdminRoleNames.PlatformAdmin], clock: fixture.Clock);
+        var (campaignId, creativeId) = await SeedActiveCampaignAsync(fixture, cities: []);
+        var complaints = $"/api/organizations/{fixture.Device.OrganizationId:D}/platform-ads/{creativeId:D}/complaints";
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await fixture.Client.PostAsJsonAsync(complaints, new ReportClubAdRequest("nope", null))).StatusCode);
+        var reported = await ReadAsync<ClubAdsDto>(await fixture.Client.PostAsJsonAsync(complaints,
+            new ReportClubAdRequest(AdComplaintReasonNames.Minors, "Показывают детям ночью")));
+        Assert.True(Assert.Single(reported.Ads).ComplaintOpen);
+        // Повторное нажатие не плодит жалобы; на рекламу, которой у клуба не было, — нельзя.
+        await fixture.Client.PostAsJsonAsync(complaints, new ReportClubAdRequest(AdComplaintReasonNames.Other, null));
+        var stranger = await fixture.Client.PostAsJsonAsync(
+            $"/api/organizations/{fixture.Device.OrganizationId:D}/platform-ads/{Guid.NewGuid():D}/complaints", new ReportClubAdRequest(AdComplaintReasonNames.Other, null));
+        Assert.Equal(HttpStatusCode.NotFound, stranger.StatusCode);
+
+        var open = (await platform.GetFromJsonAsync<AdComplaintDto[]>(AdRoutes.Complaints))!;
+        var complaint = Assert.Single(open);
+        Assert.Equal(AdComplaintReasonNames.Minors, complaint.Reason);
+        Assert.Equal(campaignId, complaint.CampaignId);
+        Assert.Equal("Показывают детям ночью", complaint.Comment);
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await platform.PostAsJsonAsync($"{AdRoutes.Complaints}/{complaint.ComplaintId:D}/resolve", new ResolveAdComplaintRequest(" "))).StatusCode);
+        var resolved = await ReadAsync<AdComplaintDto>(await platform.PostAsJsonAsync(
+            $"{AdRoutes.Complaints}/{complaint.ComplaintId:D}/resolve", new ResolveAdComplaintRequest("Проверили: реклама допустима")));
+        Assert.NotNull(resolved.ResolvedAtUtc);
+        Assert.Empty((await platform.GetFromJsonAsync<AdComplaintDto[]>(AdRoutes.Complaints))!);
+        Assert.Single((await platform.GetFromJsonAsync<AdComplaintDto[]>($"{AdRoutes.Complaints}?open=false"))!);
+        var club = (await fixture.Client.GetFromJsonAsync<ClubAdsDto>($"/api/organizations/{fixture.Device.OrganizationId:D}/platform-ads"))!;
+        var answered = Assert.Single(club.Ads);
+        Assert.False(answered.ComplaintOpen);
+        Assert.Equal("Проверили: реклама допустима", answered.ComplaintAnswer);
+    }
+
     [Fact]
     public void TheLaw_AsCodeChecksIt()
     {

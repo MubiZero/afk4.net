@@ -7,6 +7,8 @@ export type {
   AdCampaignComplianceDto,
   AdCampaignDto,
   AdCampaignStateName,
+  AdComplaintDto,
+  AdComplaintReasonName,
   AdCategoryName,
   AdCreativeDto,
   AdImpressionRowDto,

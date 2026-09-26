@@ -568,6 +568,7 @@ let mockPlan: Record<string, unknown> = PREVIEW_OVER_PLAN
 
 // «Сеть → Реклама»: учебный клуб на бесплатном тарифе — одна реклама идёт, другая уже кончилась.
 // Без картинок: демо ничего не качает из сети.
+const mockComplainedAds = new Set<string>();
 function mockClubAds() {
   const day = (daysAgo: number) => minutesAgoUtc(60 * 24 * daysAgo).slice(0, 10);
   return {
@@ -580,13 +581,14 @@ function mockClubAds() {
         startsAtUtc: minutesAgoUtc(60 * 24 * 10), endsAtUtc: minutesAgoUtc(-60 * 24 * 20), running: mockPlan.kind === 'free',
         impressions: 1240, shownSeconds: 11160, lastShownDay: day(0),
         seller: { legalName: 'ООО «Сомон Телеком»', taxId: '123456789', address: 'Душанбе, пр. Рудаки 1' },
-        requiresCertification: false, offerUntilUtc: minutesAgoUtc(-60 * 24 * 20)
+        requiresCertification: false, offerUntilUtc: minutesAgoUtc(-60 * 24 * 20), complaintOpen: mockComplainedAds.has('ad-mock-1')
       },
       {
         creativeId: 'ad-mock-2', advertiser: 'Техномир', category: 'electronics',
         title: 'Тахфиф ба ноутбукҳо', body: 'То охири моҳ — 10%.', titleRu: 'Скидка на ноутбуки', bodyRu: 'До конца месяца — 10%.',
         imageUrl: null, startsAtUtc: minutesAgoUtc(60 * 24 * 40), endsAtUtc: minutesAgoUtc(60 * 24 * 12), running: false,
-        impressions: 380, shownSeconds: 3420, lastShownDay: day(12), seller: null, requiresCertification: true, offerUntilUtc: null
+        impressions: 380, shownSeconds: 3420, lastShownDay: day(12), seller: null, requiresCertification: true, offerUntilUtc: null,
+        complaintOpen: mockComplainedAds.has('ad-mock-2')
       }
     ]
   };
@@ -1232,6 +1234,11 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (url.pathname.endsWith('/plan/trial') && method === 'POST') {
     mockPlan = { ...mockPlan, planCode: 'per_pc', kind: 'trial', trialAvailable: false, canSwitchToPerPc: false, trialEndsAtUtc: minutesAgoUtc(-60 * 24 * 30) };
     return json(mockPlan);
+  }
+  const complaint = url.pathname.match(/\/platform-ads\/([^/]+)\/complaints$/);
+  if (complaint && method === 'POST') {
+    mockComplainedAds.add(complaint[1]);
+    return json(mockClubAds());
   }
   if (url.pathname.endsWith('/plan/devices') && method === 'PUT') {
     const ids = (JSON.parse(String(init?.body ?? '{}')) as { deviceIds?: string[] }).deviceIds ?? [];

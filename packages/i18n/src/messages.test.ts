@@ -45,6 +45,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'nav.platform.ads', 'platform.permission.group.ads', 'platform.ads.preview.label', 'platform.ads.campaign.field.category',
     'platform.ads.creatives.column.creative', 'platform.ads.report.column.creative', 'platform.ads.report.column.club',
     'platform.ads.report.column.branch',
+    // Жалобы: «Клуб» и «Реклама» — те же заимствования, что в отчёте.
+    'platform.ads.complaints.column.club', 'platform.ads.complaints.column.ad',
     // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
     // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
     'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',

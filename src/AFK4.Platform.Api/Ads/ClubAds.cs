@@ -46,6 +46,14 @@ public static class ClubAds
         var campaigns = await db.AdCampaigns.AsNoTracking().Where(campaign => campaignIds.Contains(campaign.CampaignId)).ToDictionaryAsync(campaign => campaign.CampaignId, ct);
         var advertiserIds = campaigns.Values.Select(campaign => campaign.AdvertiserId).Distinct().ToList();
         var advertisers = await db.AdAdvertisers.AsNoTracking().Where(advertiser => advertiserIds.Contains(advertiser.AdvertiserId)).ToDictionaryAsync(advertiser => advertiser.AdvertiserId, ct);
+        var clubComplaints = await db.AdComplaints.AsNoTracking()
+            .Where(complaint => complaint.OrganizationId == organizationId && ids.Contains(complaint.CreativeId))
+            .ToListAsync(ct);
+        var complained = clubComplaints.Where(complaint => complaint.ResolvedAtUtc == null).Select(complaint => complaint.CreativeId).ToHashSet();
+        var answers = clubComplaints
+            .Where(complaint => complaint.ResolvedAtUtc != null)
+            .GroupBy(complaint => complaint.CreativeId)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(complaint => complaint.ResolvedAtUtc).First().Resolution);
         var images = await db.AdCreativeImages.AsNoTracking()
             .Where(image => ids.Contains(image.CreativeId))
             .Select(image => new { image.CreativeId, image.ContentType, image.Sha256 })
@@ -75,7 +83,9 @@ public static class ClubAds
                     counted?.LastDay.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     campaign.DistanceSelling && advertiser is not null ? new ShowcaseSellerDto(advertiser.LegalName, advertiser.TaxId, advertiser.Address) : null,
                     campaign.RequiresCertification,
-                    campaign.ContainsOffer ? campaign.EndsAtUtc : null);
+                    campaign.ContainsOffer ? campaign.EndsAtUtc : null,
+                    complained.Contains(creative.CreativeId),
+                    answers.GetValueOrDefault(creative.CreativeId));
             })
             .OrderByDescending(ad => ad.Running)
             .ThenByDescending(ad => ad.LastShownDay)

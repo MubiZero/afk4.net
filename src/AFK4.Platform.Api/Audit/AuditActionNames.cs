@@ -342,6 +342,12 @@ public static class AuditActionNames
     /// <summary>Креатив снят с показа — хранится, но на ПК не идёт.</summary>
     public const string ArchiveAdCreative = "platform.ads.creative.archive";
 
+    /// <summary>Клуб пожаловался на рекламу на своих ПК.</summary>
+    public const string ReportPlatformAd = "ads.complaint.report";
+
+    /// <summary>Платформа закрыла жалобу клуба на рекламу.</summary>
+    public const string ResolveAdComplaint = "platform.ads.complaint.resolve";
+
     public const string AddBranchGame = "games.library.add";
 
     public const string UpdateBranchGame = "games.library.update";

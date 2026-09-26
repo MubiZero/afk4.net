@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useI18n } from '@afk4/i18n';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ClubPlanKindNames, type ClubPlanDto } from '@afk4/contracts';
 import { Money } from '../../operatorPrimitives';
 import { projectOperatorError } from '../../apiErrors';
@@ -130,7 +130,32 @@ export function ClubPlanPanel({
         <FreePlanDevices client={client} canManage={canManage} onChanged={() => void client.getPlan().then(setPlan).catch(() => {})} />
       ) : null}
       {plan.referralCode ? <ReferralBlock plan={plan} /> : null}
+      <FreePlanTerms />
     </div>
+  );
+}
+
+/**
+ * Условия бесплатного тарифа — коротко и простыми словами (владелец, 2026-09-26): что клуб получает,
+ * что показывается на его ПК и что клуб может сделать, если реклама не подходит.
+ */
+function FreePlanTerms() {
+  const { t } = useI18n();
+  const points: MessageKey[] = [
+    'op.network.plan.terms.pcs',
+    'op.network.plan.terms.ads',
+    'op.network.plan.terms.checked',
+    'op.network.plan.terms.distributor',
+    'op.network.plan.terms.money',
+    'op.network.plan.terms.unpaid'
+  ];
+  return (
+    <details className="network-plan-terms">
+      <summary>{t('op.network.plan.terms.title')}</summary>
+      <ol>
+        {points.map((key) => <li key={key}>{t(key)}</li>)}
+      </ol>
+    </details>
   );
 }
 

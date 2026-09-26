@@ -35,9 +35,75 @@ public sealed record ClubAdDto(
     string? LastShownDay,
     ShowcaseSellerDto? Seller = null,
     bool RequiresCertification = false,
-    DateTimeOffset? OfferUntilUtc = null);
+    DateTimeOffset? OfferUntilUtc = null,
+    // Клуб уже пожаловался, и платформа ещё не ответила.
+    bool ComplaintOpen = false,
+    // Ответ платформы на последнюю закрытую жалобу клуба на эту рекламу.
+    string? ComplaintAnswer = null);
 
 public static class ClubAdsLimits
 {
     public const int WindowDays = 30;
+}
+
+/// <summary>
+/// Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
+/// рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
+/// </summary>
+public sealed record ReportClubAdRequest(
+    // Одно из AdComplaintReasonNames
+    string Reason,
+    string? Comment);
+
+public sealed record AdComplaintDto(
+    Guid ComplaintId,
+    Guid OrganizationId,
+    string OrganizationName,
+    Guid CampaignId,
+    string CampaignName,
+    Guid CreativeId,
+    string CreativeTitle,
+    string Advertiser,
+    // Одно из AdComplaintReasonNames
+    string Reason,
+    string? Comment,
+    string ReportedBy,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? ResolvedAtUtc,
+    string? Resolution,
+    // Креатив уже снят с показа.
+    bool CreativeArchived);
+
+public sealed record ResolveAdComplaintRequest(string Resolution);
+
+public static class AdComplaintReasonNames
+{
+    /// <summary>Товар, запрещённый законом (ст. 17).</summary>
+    public const string BannedGoods = "banned_goods";
+
+    /// <summary>Не подходит детям и подросткам (ст. 21).</summary>
+    public const string Minors = "minors";
+
+    /// <summary>Неправда или обман (ст. 7, 9).</summary>
+    public const string Misleading = "misleading";
+
+    /// <summary>Реклама другого клуба.</summary>
+    public const string OtherClub = "other_club";
+
+    public const string Other = "other";
+
+    public static readonly IReadOnlyList<string> All = [BannedGoods, Minors, Misleading, OtherClub, Other];
+}
+
+public static class AdComplaintLimits
+{
+    public const int CommentMax = 500;
+
+    public const int ResolutionMax = 500;
+}
+
+public static class AdComplaintErrorCodeNames
+{
+    /// <summary>Жалоба на рекламу, которой на ПК клуба не было.</summary>
+    public const string NotShown = "ad_complaint_not_shown";
 }

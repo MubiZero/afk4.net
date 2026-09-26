@@ -26,7 +26,34 @@ internal static class AdEndpoints
         MapCampaigns(app);
         MapCreatives(app);
         MapReport(app);
+        MapComplaints(app);
         MapDevice(app);
+    }
+
+    private static void MapComplaints(WebApplication app)
+    {
+        app.MapGet(AdRoutes.Complaints, async (bool? open, PlatformAdminAuthorizationService authorizationService, PlatformDbContext db,
+            CancellationToken ct) =>
+        {
+            if (Deny(authorizationService) is { } denied) return denied;
+            return Results.Ok(await AdComplaints.ListAsync(db, open ?? true, ct));
+        });
+
+        app.MapPost($"{AdRoutes.Complaints}/{{complaintId:guid}}/resolve", async (Guid complaintId, ResolveAdComplaintRequest request,
+            PlatformAdminAuthorizationService authorizationService, IAuditRecordWriter audit, PlatformDbContext db, TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (Deny(authorizationService) is { } denied) return denied;
+            if (string.IsNullOrWhiteSpace(request.Resolution) || request.Resolution.Trim().Length > AdComplaintLimits.ResolutionMax)
+                return Invalid($"A resolution of at most {AdComplaintLimits.ResolutionMax} characters is required.");
+
+            var actor = Actor(authorizationService);
+            var resolved = await AdComplaints.ResolveAsync(db, complaintId, request.Resolution, actor, clock.GetUtcNow(), ct);
+            if (resolved is null) return Results.NotFound();
+            await WritePlatformAuditAsync(audit, resolved.OrganizationId, actor, AuditActionNames.ResolveAdComplaint, "AdComplaint",
+                complaintId.ToString("N"), AuditOutcome.Succeeded, new { request.Resolution, resolved.CreativeArchived }, ct);
+            return Results.Ok(resolved);
+        });
     }
 
     private static void MapAdvertisers(WebApplication app)

@@ -1,5 +1,6 @@
 import type { PlatformTransport } from '../platformTransport';
 import type {
+  AdComplaintDto,
   AdCampaignDto,
   AdCampaignStateName,
   AdCreativeDto,
@@ -18,7 +19,8 @@ import type {
 export const AD_ROUTES = {
   advertisers: '/api/platform/ads/advertisers',
   campaigns: '/api/platform/ads/campaigns',
-  report: '/api/platform/ads/report'
+  report: '/api/platform/ads/report',
+  complaints: '/api/platform/ads/complaints'
 } as const;
 
 export interface AdReportQuery {
@@ -84,6 +86,15 @@ export class AdsApi {
   /** Снять с показа. Обратного действия нет: чтобы показывать другое, добавляют новый креатив. */
   public archiveCreative(campaignId: string, creativeId: string): Promise<AdCreativeDto> {
     return this.transport.send<AdCreativeDto>('POST', `${creativePath(campaignId, creativeId)}/archive`);
+  }
+
+  // Жалобы клубов на рекламу на их ПК: клуб — распространитель, снять рекламу решает платформа.
+  public listComplaints(open: boolean): Promise<AdComplaintDto[]> {
+    return this.transport.send<AdComplaintDto[]>('GET', `${AD_ROUTES.complaints}?open=${open ? 'true' : 'false'}`);
+  }
+
+  public resolveComplaint(complaintId: string, resolution: string): Promise<AdComplaintDto> {
+    return this.transport.send<AdComplaintDto>('POST', `${AD_ROUTES.complaints}/${encodeURIComponent(complaintId)}/resolve`, { resolution });
   }
 
   public report(query: AdReportQuery): Promise<AdImpressionRowDto[]> {

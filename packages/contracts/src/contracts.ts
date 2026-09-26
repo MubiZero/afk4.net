@@ -43,6 +43,27 @@ export const AdCategoryNames = {
 } as const;
 export type AdCategoryName = (typeof AdCategoryNames)[keyof typeof AdCategoryNames];
 
+/** Словарь: Ads/ClubAdsContracts.cs */
+export const AdComplaintErrorCodeNames = {
+  /** Жалоба на рекламу, которой на ПК клуба не было. */
+  NotShown: 'ad_complaint_not_shown',
+} as const;
+export type AdComplaintErrorCodeName = (typeof AdComplaintErrorCodeNames)[keyof typeof AdComplaintErrorCodeNames];
+
+/** Словарь: Ads/ClubAdsContracts.cs */
+export const AdComplaintReasonNames = {
+  /** Товар, запрещённый законом (ст. 17). */
+  BannedGoods: 'banned_goods',
+  /** Не подходит детям и подросткам (ст. 21). */
+  Minors: 'minors',
+  /** Неправда или обман (ст. 7, 9). */
+  Misleading: 'misleading',
+  /** Реклама другого клуба. */
+  OtherClub: 'other_club',
+  Other: 'other',
+} as const;
+export type AdComplaintReasonName = (typeof AdComplaintReasonNames)[keyof typeof AdComplaintReasonNames];
+
 /** Словарь: Ads/AdContracts.cs */
 export const AdErrorCodeNames = {
   Invalid: 'ad_invalid',
@@ -1699,6 +1720,27 @@ export interface AdCampaignDto {
   compliance?: AdCampaignComplianceDto | null;
 }
 
+/** Контракт: Ads/ClubAdsContracts.cs */
+export interface AdComplaintDto {
+  complaintId: Guid;
+  organizationId: Guid;
+  organizationName: string;
+  campaignId: Guid;
+  campaignName: string;
+  creativeId: Guid;
+  creativeTitle: string;
+  advertiser: string;
+  /** Одно из AdComplaintReasonNames */
+  reason: AdComplaintReasonName;
+  comment: string | null;
+  reportedBy: string;
+  createdAtUtc: IsoDateTime;
+  resolvedAtUtc: IsoDateTime | null;
+  resolution: string | null;
+  /** Креатив уже снят с показа. */
+  creativeArchived: boolean;
+}
+
 /** Контракт: Ads/AdContracts.cs */
 export interface AdCreativeDto {
   creativeId: Guid;
@@ -2279,6 +2321,10 @@ export interface ClubAdDto {
   seller?: ShowcaseSellerDto | null;
   requiresCertification?: boolean;
   offerUntilUtc?: IsoDateTime | null;
+  /** Клуб уже пожаловался, и платформа ещё не ответила. */
+  complaintOpen?: boolean;
+  /** Ответ платформы на последнюю закрытую жалобу клуба на эту рекламу. */
+  complaintAnswer?: string | null;
 }
 
 /**
@@ -6470,6 +6516,18 @@ export interface ReorderProductCategoriesRequest {
 }
 
 /**
+ * Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
+ * рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
+ *
+ * Контракт: Ads/ClubAdsContracts.cs
+ */
+export interface ReportClubAdRequest {
+  /** Одно из AdComplaintReasonNames */
+  reason: AdComplaintReasonName;
+  comment: string | null;
+}
+
+/**
  * A configured report schedule.
  *
  * Контракт: Reports/ReportScheduleContracts.cs
@@ -6650,6 +6708,11 @@ export interface ReservationSeatAvailabilityDto {
 export interface ResetStaffUserPasswordRequest {
   organizationId: Guid;
   newPassword: string;
+}
+
+/** Контракт: Ads/ClubAdsContracts.cs */
+export interface ResolveAdComplaintRequest {
+  resolution: string;
 }
 
 /** Контракт: Platform/Operator/ResolveOperatorConnectionRequest.cs */

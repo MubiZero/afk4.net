@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { PlatformApiError } from '@/api/platformTransport';
-import type { AdCampaignDto, AdCreativeDto, AdImpressionRowDto, AdvertiserDto } from '@/api/types';
+import type { AdComplaintDto, AdCampaignDto, AdCreativeDto, AdImpressionRowDto, AdvertiserDto } from '@/api/types';
 import type { AdsTab } from '@/routing/platformRoute';
 import { AdsScreen, type AdsClient } from './AdsScreen';
 
@@ -88,6 +88,8 @@ function reportRow(overrides: Partial<AdImpressionRowDto> = {}): AdImpressionRow
 
 function makeClient(overrides: Partial<AdsClient> = {}): AdsClient {
   return {
+    listComplaints: mock(async () => [] as AdComplaintDto[]),
+    resolveComplaint: mock(async () => { throw new Error('not in this test'); }),
     listAdvertisers: mock(async () => [advertiser()]),
     createAdvertiser: mock(async () => advertiser()),
     updateAdvertiser: mock(async () => advertiser()),
@@ -493,5 +495,40 @@ describe('AdsScreen — отчёт', () => {
   it('без показов говорит, когда ждать свежие', async () => {
     renderScreen(makeClient({ report: mock(async () => []) }), 'report');
     expect(await screen.findByText(/^За эти дни показов нет\. ПК присылают показы раз в час/)).toBeInTheDocument();
+  });
+});
+
+describe('AdsScreen — жалобы', () => {
+  // Клуб снять рекламу не может — решает платформа: жалоба видна, закрывается ответом.
+  it('показывает открытую жалобу клуба и закрывает её ответом', async () => {
+    const complaint: AdComplaintDto = {
+      complaintId: 'd1', organizationId: 'o1', organizationName: 'Кибер Арена', campaignId: CAMPAIGN_ID, campaignName: 'Осень',
+      creativeId: 'c1', creativeTitle: 'Тахфиф ба ноутбукҳо', advertiser: 'Техномир', reason: 'minors', comment: 'Ночью у детей',
+      reportedBy: 'Шерзод', createdAtUtc: '2026-09-26T10:00:00Z', resolvedAtUtc: null, resolution: null, creativeArchived: false
+    };
+    const client = makeClient({
+      listComplaints: mock(async () => [complaint]),
+      resolveComplaint: mock(async () => ({ ...complaint, resolvedAtUtc: '2026-09-26T11:00:00Z', resolution: 'Сняли' }))
+    });
+    const onOpenCampaign = mock(() => {});
+    render(
+      <I18nProvider><ToastProvider>
+        <AdsScreen client={client} tab="complaints" onTabChange={() => {}} onOpenCampaign={onOpenCampaign} />
+      </ToastProvider></I18nProvider>
+    );
+
+    expect(await screen.findByText('Кибер Арена')).toBeInTheDocument();
+    expect(screen.getByText('Не подходит детям')).toBeInTheDocument();
+    expect(screen.getByText('Ночью у детей')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Открыть кампанию' }));
+    expect(onOpenCampaign).toHaveBeenCalledWith(CAMPAIGN_ID);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Закрыть жалобу' }));
+    const dialog = screen.getByRole('dialog', { name: 'Закрыть жалобу' });
+    const close = within(dialog).getByRole('button', { name: 'Закрыть жалобу' });
+    expect(close).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText('Ответ клубу'), 'Сняли');
+    await userEvent.click(close);
+    await waitFor(() => expect(client.resolveComplaint).toHaveBeenCalledWith('d1', 'Сняли'));
   });
 });

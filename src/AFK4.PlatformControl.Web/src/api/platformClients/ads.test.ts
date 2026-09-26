@@ -73,7 +73,8 @@ describe('AdsApi', () => {
     expect({ ...AD_ROUTES } as Record<string, string>).toEqual({
       advertisers: route('Advertisers'),
       campaigns: route('Campaigns'),
-      report: route('Report')
+      report: route('Report'),
+      complaints: route('Complaints')
     });
   });
 });

@@ -281,6 +281,8 @@ public static class AdRoutes
 
     public const string Report = "/api/platform/ads/report";
 
+    public const string Complaints = "/api/platform/ads/complaints";
+
     public static string DeviceImpressions(Guid deviceId) => string.Create(
         CultureInfo.InvariantCulture, $"/api/devices/{deviceId:D}/showcase/impressions");
 

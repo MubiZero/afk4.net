@@ -45,6 +45,7 @@ describe('platformRoute', () => {
   it('round-trips the ads tabs and a campaign page', () => {
     expect(resolvePlatformRoute('/admin/ads')).toEqual({ kind: 'ads', tab: 'campaigns' });
     expect(resolvePlatformRoute('/admin/ads', '?tab=report')).toEqual({ kind: 'ads', tab: 'report' });
+    expect(resolvePlatformRoute('/admin/ads', '?tab=complaints')).toEqual({ kind: 'ads', tab: 'complaints' });
     // Неизвестная вкладка из старой закладки открывает кампании, а не 404.
     expect(resolvePlatformRoute('/admin/ads', '?tab=moderation')).toEqual({ kind: 'ads', tab: 'campaigns' });
     expect(pathForPlatformRoute({ kind: 'ads', tab: 'campaigns' })).toBe('/admin/ads');

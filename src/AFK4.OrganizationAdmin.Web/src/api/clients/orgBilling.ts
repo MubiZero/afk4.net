@@ -1,7 +1,9 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import type {
+  AdComplaintReasonName,
   ClubAdsDto,
+  ReportClubAdRequest,
   ClubPlanDevicesDto,
   ClubPlanDto,
   SetClubPlanDevicesRequest,
@@ -50,6 +52,10 @@ export function createOrgBillingClient(api: PlatformApiClient) {
     // «Сеть → Реклама»: что из рекламы платформы идёт и шло на ПК клуба (клуб — тоже распространитель).
     listPlatformAds(): Promise<ClubAdsDto> {
       return api.get<ClubAdsDto>('platform-ads');
+    },
+    // «Пожаловаться»: снять рекламу клуб не может — сообщает платформе. Ответ — свежий список.
+    reportPlatformAd(creativeId: string, reason: AdComplaintReasonName, comment: string | null): Promise<ClubAdsDto> {
+      return api.post<ClubAdsDto, ReportClubAdRequest>(`platform-ads/${creativeId}/complaints`, { reason, comment });
     }
   };
 }

@@ -29,6 +29,25 @@ abstract final class AdCategoryNames {
   static const String social = 'social';
 }
 
+/// Словарь: Ads/ClubAdsContracts.cs
+abstract final class AdComplaintErrorCodeNames {
+  /// Жалоба на рекламу, которой на ПК клуба не было.
+  static const String notShown = 'ad_complaint_not_shown';
+}
+
+/// Словарь: Ads/ClubAdsContracts.cs
+abstract final class AdComplaintReasonNames {
+  /// Товар, запрещённый законом (ст. 17).
+  static const String bannedGoods = 'banned_goods';
+  /// Не подходит детям и подросткам (ст. 21).
+  static const String minors = 'minors';
+  /// Неправда или обман (ст. 7, 9).
+  static const String misleading = 'misleading';
+  /// Реклама другого клуба.
+  static const String otherClub = 'other_club';
+  static const String other = 'other';
+}
+
 /// Словарь: Ads/AdContracts.cs
 abstract final class AdErrorCodeNames {
   static const String invalid = 'ad_invalid';
@@ -1630,6 +1649,83 @@ class AdCampaignDto {
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
         'compliance': compliance?.toJson(),
+      };
+}
+
+/// Контракт: Ads/ClubAdsContracts.cs
+class AdComplaintDto {
+  const AdComplaintDto({
+    required this.complaintId,
+    required this.organizationId,
+    required this.organizationName,
+    required this.campaignId,
+    required this.campaignName,
+    required this.creativeId,
+    required this.creativeTitle,
+    required this.advertiser,
+    required this.reason,
+    this.comment,
+    required this.reportedBy,
+    required this.createdAtUtc,
+    this.resolvedAtUtc,
+    this.resolution,
+    required this.creativeArchived,
+  });
+
+  final String complaintId;
+  final String organizationId;
+  final String organizationName;
+  final String campaignId;
+  final String campaignName;
+  final String creativeId;
+  final String creativeTitle;
+  final String advertiser;
+
+  /// Одно из AdComplaintReasonNames
+  final String reason;
+  final String? comment;
+  final String reportedBy;
+  final DateTime createdAtUtc;
+  final DateTime? resolvedAtUtc;
+  final String? resolution;
+
+  /// Креатив уже снят с показа.
+  final bool creativeArchived;
+
+  factory AdComplaintDto.fromJson(Map<String, dynamic> json) => AdComplaintDto(
+        complaintId: json['complaintId'] as String,
+        organizationId: json['organizationId'] as String,
+        organizationName: json['organizationName'] as String,
+        campaignId: json['campaignId'] as String,
+        campaignName: json['campaignName'] as String,
+        creativeId: json['creativeId'] as String,
+        creativeTitle: json['creativeTitle'] as String,
+        advertiser: json['advertiser'] as String,
+        reason: json['reason'] as String,
+        comment: json['comment'] == null ? null : json['comment'] as String,
+        reportedBy: json['reportedBy'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        resolvedAtUtc: json['resolvedAtUtc'] == null ? null : DateTime.parse(json['resolvedAtUtc'] as String),
+        resolution: json['resolution'] == null ? null : json['resolution'] as String,
+        creativeArchived: json['creativeArchived'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'complaintId': complaintId,
+        'organizationId': organizationId,
+        'organizationName': organizationName,
+        'campaignId': campaignId,
+        'campaignName': campaignName,
+        'creativeId': creativeId,
+        'creativeTitle': creativeTitle,
+        'advertiser': advertiser,
+        'reason': reason,
+        'comment': comment,
+        'reportedBy': reportedBy,
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'resolvedAtUtc': resolvedAtUtc?.toIso8601String(),
+        'resolution': resolution,
+        'creativeArchived': creativeArchived,
       };
 }
 
@@ -3276,6 +3372,8 @@ class ClubAdDto {
     this.seller,
     this.requiresCertification,
     this.offerUntilUtc,
+    this.complaintOpen,
+    this.complaintAnswer,
   });
 
   final String creativeId;
@@ -3304,6 +3402,12 @@ class ClubAdDto {
   final bool? requiresCertification;
   final DateTime? offerUntilUtc;
 
+  /// Клуб уже пожаловался, и платформа ещё не ответила.
+  final bool? complaintOpen;
+
+  /// Ответ платформы на последнюю закрытую жалобу клуба на эту рекламу.
+  final String? complaintAnswer;
+
   factory ClubAdDto.fromJson(Map<String, dynamic> json) => ClubAdDto(
         creativeId: json['creativeId'] as String,
         advertiser: json['advertiser'] as String,
@@ -3322,6 +3426,8 @@ class ClubAdDto {
         seller: json['seller'] == null ? null : ShowcaseSellerDto.fromJson(json['seller'] as Map<String, dynamic>),
         requiresCertification: json['requiresCertification'] == null ? null : json['requiresCertification'] as bool,
         offerUntilUtc: json['offerUntilUtc'] == null ? null : DateTime.parse(json['offerUntilUtc'] as String),
+        complaintOpen: json['complaintOpen'] == null ? null : json['complaintOpen'] as bool,
+        complaintAnswer: json['complaintAnswer'] == null ? null : json['complaintAnswer'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3342,6 +3448,8 @@ class ClubAdDto {
         'seller': seller?.toJson(),
         'requiresCertification': requiresCertification,
         'offerUntilUtc': offerUntilUtc?.toIso8601String(),
+        'complaintOpen': complaintOpen,
+        'complaintAnswer': complaintAnswer,
       };
 }
 
@@ -15745,6 +15853,32 @@ class ReorderProductCategoriesRequest {
       };
 }
 
+/// Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
+/// рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
+///
+/// Контракт: Ads/ClubAdsContracts.cs
+class ReportClubAdRequest {
+  const ReportClubAdRequest({
+    required this.reason,
+    this.comment,
+  });
+
+
+  /// Одно из AdComplaintReasonNames
+  final String reason;
+  final String? comment;
+
+  factory ReportClubAdRequest.fromJson(Map<String, dynamic> json) => ReportClubAdRequest(
+        reason: json['reason'] as String,
+        comment: json['comment'] == null ? null : json['comment'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reason': reason,
+        'comment': comment,
+      };
+}
+
 /// A configured report schedule.
 ///
 /// Контракт: Reports/ReportScheduleContracts.cs
@@ -16223,6 +16357,23 @@ class ResetStaffUserPasswordRequest {
   Map<String, dynamic> toJson() => {
         'organizationId': organizationId,
         'newPassword': newPassword,
+      };
+}
+
+/// Контракт: Ads/ClubAdsContracts.cs
+class ResolveAdComplaintRequest {
+  const ResolveAdComplaintRequest({
+    required this.resolution,
+  });
+
+  final String resolution;
+
+  factory ResolveAdComplaintRequest.fromJson(Map<String, dynamic> json) => ResolveAdComplaintRequest(
+        resolution: json['resolution'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'resolution': resolution,
       };
 }
 

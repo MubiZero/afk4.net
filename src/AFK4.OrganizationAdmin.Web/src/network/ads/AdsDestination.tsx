@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { Megaphone } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
@@ -11,8 +11,9 @@ import { projectOperatorError } from '../../apiErrors';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import { SkeletonTiles } from '../../LoadingSkeleton';
 import { useSection } from '../useSection';
+import { ReportAdModal, type ReportAdClient } from './ReportAdModal';
 
-export interface ClubAdsClient {
+export interface ClubAdsClient extends ReportAdClient {
   listPlatformAds(): Promise<ClubAdsDto>;
 }
 
@@ -55,6 +56,8 @@ export function AdsDestination({
     backend?.session.organizationId ?? (injectedClient ? 'test' : '')
   );
   const state = ads.status === 'ready' ? 'ready' : ads.status === 'error' ? 'error' : 'loading';
+  const [reporting, setReporting] = useState<ClubAdDto | null>(null);
+  const [reported, setReported] = useState(false);
 
   return (
     <ManagementScreen
@@ -66,12 +69,25 @@ export function AdsDestination({
       failure={ads.status === 'error' ? projectOperatorError(ads.error, t) : undefined}
       onRetry={ads.status === 'error' ? ads.retry : undefined}
     >
-      {ads.status === 'ready' ? <AdsList data={ads.data} /> : null}
+      {reported ? <p className="network-ads-reported" role="status">{t('op.ads.report.sent')}</p> : null}
+      {ads.status === 'ready' ? <AdsList data={ads.data} onReport={client ? setReporting : undefined} /> : null}
+      {reporting && client ? (
+        <ReportAdModal
+          ad={reporting}
+          client={client}
+          onReported={(next) => {
+            if (ads.status === 'ready') ads.apply(next);
+            setReporting(null);
+            setReported(true);
+          }}
+          onClose={() => setReporting(null)}
+        />
+      ) : null}
     </ManagementScreen>
   );
 }
 
-function AdsList({ data }: { data: ClubAdsDto }) {
+function AdsList({ data, onReport }: { data: ClubAdsDto; onReport?: (ad: ClubAdDto) => void }) {
   const { t } = useI18n();
   const icon = <Megaphone size={20} aria-hidden="true" />;
 
@@ -86,13 +102,13 @@ function AdsList({ data }: { data: ClubAdsDto }) {
       <p className="network-ads-lead">{t('op.ads.lead')}</p>
       {!data.adsEnabled ? <p className="network-ads-lead">{t('op.ads.disabledNow')}</p> : null}
       <ul className="network-ads-grid">
-        {data.ads.map((ad) => <AdCard key={ad.creativeId} ad={ad} />)}
+        {data.ads.map((ad) => <AdCard key={ad.creativeId} ad={ad} onReport={onReport} />)}
       </ul>
     </>
   );
 }
 
-function AdCard({ ad }: { ad: ClubAdDto }) {
+function AdCard({ ad, onReport }: { ad: ClubAdDto; onReport?: (ad: ClubAdDto) => void }) {
   const { t, locale } = useI18n();
   const day = (iso: string) => formatDateParts(iso, locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const legal = [
@@ -132,6 +148,18 @@ function AdCard({ ad }: { ad: ClubAdDto }) {
           {ad.lastShownDay ? <div><dt>{t('op.ads.fact.lastShown')}</dt><dd>{day(`${ad.lastShownDay}T12:00:00Z`)}</dd></div> : null}
         </dl>
         {legal.length > 0 ? <p className="network-ad-legal">{legal.join(' · ')}</p> : null}
+        {ad.complaintAnswer && !ad.complaintOpen ? (
+          <p className="network-ad-answer">{t('op.ads.report.answer', { answer: ad.complaintAnswer })}</p>
+        ) : null}
+        {onReport ? (
+          <div className="network-ad-actions">
+            {ad.complaintOpen ? (
+              <span className="network-ad-complained">{t('op.ads.report.open')}</span>
+            ) : (
+              <button type="button" className="ui-btn ui-btn--sm" onClick={() => onReport(ad)}>{t('op.ads.report.button')}</button>
+            )}
+          </div>
+        ) : null}
       </div>
     </li>
   );

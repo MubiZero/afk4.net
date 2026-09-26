@@ -228,6 +228,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<AdCreativeImageEntity> AdCreativeImages => Set<AdCreativeImageEntity>();
 
+    public DbSet<AdComplaintEntity> AdComplaints => Set<AdComplaintEntity>();
+
     public DbSet<AdImpressionDailyEntity> AdImpressionsDaily => Set<AdImpressionDailyEntity>();
 
     public DbSet<AdImpressionBatchEntity> AdImpressionBatches => Set<AdImpressionBatchEntity>();
@@ -1666,6 +1668,21 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(creative => creative.Moderation).HasMaxLength(16).IsRequired();
             entity.Property(creative => creative.RejectedReason).HasMaxLength(400);
             entity.HasIndex(creative => creative.CampaignId);
+        });
+
+        modelBuilder.Entity<AdComplaintEntity>(entity =>
+        {
+            entity.ToTable("ad_complaints");
+            entity.HasKey(complaint => complaint.ComplaintId);
+            entity.Property(complaint => complaint.Reason).HasMaxLength(32).IsRequired();
+            entity.Property(complaint => complaint.Comment).HasMaxLength(500);
+            entity.Property(complaint => complaint.Resolution).HasMaxLength(500);
+            // Одна открытая жалоба клуба на креатив: повторное нажатие не плодит очередь платформе.
+            entity.HasIndex(complaint => new { complaint.OrganizationId, complaint.CreativeId })
+                .IsUnique()
+                .HasFilter("\"ResolvedAtUtc\" IS NULL")
+                .HasDatabaseName("IX_ad_complaints_open_per_club");
+            entity.HasIndex(complaint => new { complaint.ResolvedAtUtc, complaint.CreatedAtUtc });
         });
 
         modelBuilder.Entity<AdCreativeImageEntity>(entity =>

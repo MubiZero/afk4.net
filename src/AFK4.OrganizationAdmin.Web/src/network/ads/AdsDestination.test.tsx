@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { ClubAdDto, ClubAdsDto } from '@afk4/contracts';
 import { AdsDestination } from './AdsDestination';
@@ -19,8 +19,8 @@ const ended: ClubAdDto = {
   running: false, impressions: 0, shownSeconds: 0, lastShownDay: null, seller: null, requiresCertification: false, offerUntilUtc: null
 };
 
-function show(data: ClubAdsDto) {
-  const client = { listPlatformAds: mock(async () => data) };
+function show(data: ClubAdsDto, afterReport?: ClubAdsDto) {
+  const client = { listPlatformAds: mock(async () => data), reportPlatformAd: mock(async () => afterReport ?? data) };
   render(<I18nProvider initialLocale="ru"><AdsDestination backend={null} client={client} /></I18nProvider>);
   return client;
 }
@@ -46,6 +46,12 @@ describe('Сеть → Реклама', () => {
     expect(within(old).getByText('Ещё не показывалась')).toBeInTheDocument();
   });
 
+  it('показывает ответ AFK4 на закрытую жалобу', async () => {
+    show({ adsEnabled: true, from: '2026-08-28', to: '2026-09-26', ads: [{ ...running, complaintAnswer: 'Проверили — реклама допустима' }] });
+
+    expect(await screen.findByText('Ответ AFK4 на вашу жалобу: Проверили — реклама допустима')).toBeInTheDocument();
+  });
+
   it('на тарифе без рекламы говорит, почему её нет', async () => {
     show({ adsEnabled: false, from: '2026-08-28', to: '2026-09-26', ads: [] });
 
@@ -57,5 +63,27 @@ describe('Сеть → Реклама', () => {
     show({ adsEnabled: true, from: '2026-08-28', to: '2026-09-26', ads: [] });
 
     expect(await screen.findByText('Сейчас на ваших ПК рекламы нет')).toBeInTheDocument();
+  });
+
+  // Снять рекламу клуб не может — жалуется платформе; «Отправлено» — только после ответа сервера.
+  it('жалоба: причина обязательна, после отправки карточка говорит, что AFK4 проверит', async () => {
+    const client = show(
+      { adsEnabled: true, from: '2026-08-28', to: '2026-09-26', ads: [running] },
+      { adsEnabled: true, from: '2026-08-28', to: '2026-09-26', ads: [{ ...running, complaintOpen: true }] }
+    );
+
+    const card = (await screen.findByText('Интернети бемаҳдуд')).closest('li')!;
+    fireEvent.click(within(card).getByRole('button', { name: 'Пожаловаться' }));
+    const send = screen.getByRole('button', { name: 'Отправить жалобу' });
+    expect(send).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Не подходит детям и подросткам'));
+    fireEvent.change(screen.getByLabelText('Подробности (необязательно)'), { target: { value: 'Ночью у детей' } });
+    fireEvent.click(send);
+
+    await waitFor(() => expect(client.reportPlatformAd).toHaveBeenCalledWith('c1', 'minors', 'Ночью у детей'));
+    expect(await screen.findByText('Жалоба отправлена. AFK4 проверит рекламу и ответит.')).toBeInTheDocument();
+    const after = screen.getByText('Интернети бемаҳдуд').closest('li')!;
+    expect(within(after).getByText('Жалоба отправлена — AFK4 проверит')).toBeInTheDocument();
+    expect(within(after).queryByRole('button', { name: 'Пожаловаться' })).toBeNull();
   });
 });
