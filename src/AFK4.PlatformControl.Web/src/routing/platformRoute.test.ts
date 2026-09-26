@@ -42,6 +42,17 @@ describe('platformRoute', () => {
     });
   });
 
+  it('round-trips the ads tabs and a campaign page', () => {
+    expect(resolvePlatformRoute('/admin/ads')).toEqual({ kind: 'ads', tab: 'campaigns' });
+    expect(resolvePlatformRoute('/admin/ads', '?tab=report')).toEqual({ kind: 'ads', tab: 'report' });
+    // Неизвестная вкладка из старой закладки открывает кампании, а не 404.
+    expect(resolvePlatformRoute('/admin/ads', '?tab=moderation')).toEqual({ kind: 'ads', tab: 'campaigns' });
+    expect(pathForPlatformRoute({ kind: 'ads', tab: 'campaigns' })).toBe('/admin/ads');
+    expect(pathForPlatformRoute({ kind: 'ads', tab: 'advertisers' })).toBe('/admin/ads?tab=advertisers');
+    const campaign = { kind: 'adCampaign', campaignId: '33333333-3333-3333-3333-333333333333' } as const;
+    expect(resolvePlatformRoute(pathForPlatformRoute(campaign))).toEqual(campaign);
+  });
+
   it('round-trips global workspace tabs and audit filters', () => {
     expect(resolvePlatformRoute('/admin/money', '?tab=invoices')).toEqual({ kind: 'billing', tab: 'invoices' });
     const audit = { kind: 'audit', organizationId: 'org-1', action: 'updates.rollout.create', outcome: 'succeeded', from: '2026-07-01', to: '2026-07-30' } as const;
@@ -57,8 +68,10 @@ describe('platformRoute', () => {
       resolvePlatformRoute('/admin/updates').kind,
       resolvePlatformRoute('/admin/journal').kind,
       resolvePlatformRoute('/admin/settings').kind,
-      resolvePlatformRoute('/admin/games').kind
-    ]).toEqual(['overview', 'organizationNew', 'organization', 'billing', 'updates', 'audit', 'settings', 'games']);
+      resolvePlatformRoute('/admin/games').kind,
+      resolvePlatformRoute('/admin/ads').kind,
+      resolvePlatformRoute('/admin/ads/campaigns/c-1').kind
+    ]).toEqual(['overview', 'organizationNew', 'organization', 'billing', 'updates', 'audit', 'settings', 'games', 'ads', 'adCampaign']);
     expect(pathForPlatformRoute({ kind: 'games' })).toBe('/admin/games');
     // Закладка на удалённый экран профиля ведёт на главный, а не в 404.
     expect(resolvePlatformRoute('/admin/profile')).toEqual({ kind: 'overview', view: 'now' });

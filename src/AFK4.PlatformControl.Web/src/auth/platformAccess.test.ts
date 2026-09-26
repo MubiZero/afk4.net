@@ -73,6 +73,7 @@ describe('platformAccess', () => {
     ['support.access', 'platform.support.access', 'platform.organizations.support_notes.manage'],
     ['organizations.support_notes.manage', 'platform.organizations.support_notes.manage', 'platform.organizations.support_notes.view'],
     ['games.manage', 'platform.games.manage', 'platform.announcements.manage'],
+    ['ads.manage', 'platform.ads.manage', 'platform.announcements.manage'],
   ] as const)('%s — ровно по %s, а не по %s', (capability, exact, neighbour) => {
     expect(can(session([exact]), capability)).toBe(true);
     expect(can(session([neighbour]), capability)).toBe(false);
