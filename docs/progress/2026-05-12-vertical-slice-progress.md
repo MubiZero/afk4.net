@@ -1078,22 +1078,24 @@ thrown away rather than polished.
    the command pipe has no ACL for a standard user; `IsOnline` is hardcoded and
    `offline`/`ending`/`maintenance` are never produced; the shell's API address
    is set by nobody, so it would call production from staging. None of this was
-   seen on a PC — reading only. By 2026-09-25 plans P1–P9 are built as stacked
-   PRs up to #490 (P6 multi-seat, game library, shell settings and reviews; P7
-   showcase and platform ads; P8 tips; P9 hardware snapshot), none merged and
-   none proven on a live PC.
-2. **The launch set is built, not merged (2026-09-25).** Per-PC pricing with
-   trial, promised payment and free-plan fallback (#491 — the ruble Starter
-   price is retired and no longer shown), agentless console seats (#492), guest
-   import with opening balances (#493), «refer a club» (#494) and a public demo
-   of the Organization Admin on sample data (#495, runbook
-   `docs/operations/demo-panel.md`). The owner answered on 2026-09-26: the plan
-   is PC count only, PCs above ten stop taking new sessions after the grace,
-   plans and payment terms are set in Platform Control (#496); the advertising
-   law is enforced in the ads-law PR (ads spec §8), with lawyer questions in
-   §8.4. Chromium has no Tajik date data (Intl turns tg-TJ into en-US: English
-   months, AM/PM time); `@afk4/formatting` now formats Tajik dates itself and
-   the customer app does the same.
+   seen on a PC — reading only. **Merged on 2026-09-26:** plans P1–P9 (#443–#490:
+   host and bridge v2, the new interface, kiosk and protection, multi-seat
+   commands, game library, shell settings, reviews, hardware snapshot, showcase
+   and platform ads, tips). None of it is proven on a live PC — that is the P5
+   acceptance and the frozen live runs below.
+2. **The launch set is merged (2026-09-26).** Per-PC pricing with trial,
+   promised payment and free-plan fallback (#491), agentless console seats
+   (#492), guest import with opening balances (#493), «refer a club» (#494), the
+   public demo of the Organization Admin (#495, runbook
+   `docs/operations/demo-panel.md`; hosting it is the owner's step), then the
+   owner's answers of 2026-09-26: the plan is PC count only and PCs above ten
+   stop taking new sessions after the grace, plans and payment terms are set in
+   Platform Control (#496); the Tajik advertising law is enforced (#497, ads spec
+   §8); Tajik dates are formatted by `@afk4/formatting` (#498); the club sees
+   the ads on its PCs and can report one (#499–#500, «Сеть → Реклама»), and the
+   free-plan terms are written out in «Сеть → Подписка». Open: none from the
+   owner's side; a native WebView2 pass of the new screens is part of the live
+   runs.
 3. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
    There are no clubs yet, so a package still reaches everyone at once, on purpose
    and guarded by a test. Before the first clubs, decide waves together with a view
