@@ -53,6 +53,8 @@ PushDestination? pushDestinationFor(String? template) => switch (template) {
       'player.reservation_confirmed' || 'player.reservation_rejected' =>
         PushDestination.reservations,
       'player.balance_topped_up' => PushDestination.wallet,
+      // Подарок на день рождения лёг на баланс — там его и видно.
+      'player.birthday_gift' => PushDestination.wallet,
       // Заказ живёт в магазине: там его состояние и отмена.
       'player.order_ready' => PushDestination.shop,
       // Объявление клуба или платформы читается на главной, в ленте новостей.

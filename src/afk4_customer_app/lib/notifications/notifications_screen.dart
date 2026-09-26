@@ -72,6 +72,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'player.order_ready' => Icons.restaurant_outlined,
         'player.reservation_soon' => Icons.event_outlined,
         'player.session_ending' => Icons.timer_outlined,
+        'player.birthday_gift' => Icons.cake_outlined,
         _ => Icons.notifications_outlined,
       };
 

@@ -536,6 +536,8 @@ export const LedgerEntryTypeNames = {
    * себя. Не выручка и не наличные смены.
    */
   OpeningBalance: 'opening_balance',
+  /** Подарок клуба на день рождения игрока — на кошелёк, как кешбэк и бонус за друга. */
+  BirthdayBonus: 'birthday_bonus',
 } as const;
 export type LedgerEntryTypeName = (typeof LedgerEntryTypeNames)[keyof typeof LedgerEntryTypeNames];
 
@@ -1998,6 +2000,18 @@ export interface BillingTermsDto {
   fallbackAfterOverdueDays: number;
   /** Пусто — условия ещё не меняли, действуют значения по умолчанию. */
   updatedAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Подарок на день рождения: сумма на баланс в сам день и кому он положен.
+ *
+ * Контракт: Loyalty/BirthdayGiftContracts.cs
+ */
+export interface BirthdayGiftSettingsDto {
+  enabled: boolean;
+  amountMinorUnits: number;
+  /** Только тем, кто был в клубе за столько дней; 0 — всем. */
+  recentVisitDays: number;
 }
 
 /**
@@ -3546,6 +3560,11 @@ export interface DeviceSessionOwnerDto {
   kind: DeviceSessionOwnerKindName;
   /** Счёт игрока; только у Kind = player. */
   playerAccountId?: Guid | null;
+  /**
+   * Полных лет игроку, если он ввёл день рождения: агент запирает игры старше его возраста.
+   * null — возраст неизвестен, и ничего не запирается (дата по желанию, владелец 2026-09-26).
+   */
+  playerAge?: number | null;
 }
 
 /** Контракт: Sessions/DeviceSessionSnapshotRequest.cs */
@@ -4172,8 +4191,13 @@ export interface LauncherAppDto {
   category: string;
   iconUri: string | null;
   isAvailable: boolean;
-  /** Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения. */
+  /** Возрастная отметка игры (0, 12, 16, 18). */
   minAge?: number | null;
+  /**
+   * Игрок моложе отметки: плитка заперта, агент игру не запустит. Возраст неизвестен (дата
+   * рождения по желанию) — не заперта.
+   */
+  ageLocked?: boolean;
 }
 
 /** Контракт: Billing/LedgerEntryDto.cs */
@@ -4293,6 +4317,8 @@ export interface MePersonDto {
    * приложения — и он идёт спорить к стойке, которая его не ставила.
    */
   networkBanReason: string | null;
+  /** День рождения, если человек его ввёл: по желанию, для подарка клуба и игр с возрастом. */
+  birthDate?: IsoDate | null;
 }
 
 /** Контракт: Ads/AdContracts.cs */
@@ -5876,6 +5902,11 @@ export interface PlayerSearchResultDto {
    */
   platformPersonId?: Guid | null;
   createdFromApp?: boolean;
+  /**
+   * День рождения, если гость ввёл его в приложении (по желанию): стойка поздравит, а игры с
+   * возрастом проверит глазами.
+   */
+  birthDate?: IsoDate | null;
 }
 
 /**
@@ -7237,6 +7268,15 @@ export interface SetAdCampaignStateRequest {
 }
 
 /**
+ * День рождения в профиле; null стирает его.
+ *
+ * Контракт: Players/MeDto.cs
+ */
+export interface SetBirthDateRequest {
+  birthDate: IsoDate | null;
+}
+
+/**
  * Какие ПК работают на бесплатном тарифе — не больше предела; пустой список снимает выбор.
  *
  * Контракт: Platform/Billing/ClubPlanContracts.cs
@@ -8177,6 +8217,13 @@ export interface UpdateBillingTermsRequest {
   trialDays: number;
   promisedPaymentDays: number;
   fallbackAfterOverdueDays: number;
+}
+
+/** Контракт: Loyalty/BirthdayGiftContracts.cs */
+export interface UpdateBirthdayGiftSettingsRequest {
+  enabled: boolean;
+  amountMinorUnits: number;
+  recentVisitDays: number;
 }
 
 /** Контракт: Branches/UpdateBranchBookingSettingsRequest.cs */

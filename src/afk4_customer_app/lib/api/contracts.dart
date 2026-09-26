@@ -447,6 +447,8 @@ abstract final class LedgerEntryTypeNames {
   /// Начальный остаток из прежней программы клуба: деньги гость заплатил туда, клуб берёт долг на
   /// себя. Не выручка и не наличные смены.
   static const String openingBalance = 'opening_balance';
+  /// Подарок клуба на день рождения игрока — на кошелёк, как кешбэк и бонус за друга.
+  static const String birthdayBonus = 'birthday_bonus';
 }
 
 /// Словарь: Media/MediaPurposeNames.cs
@@ -2313,6 +2315,35 @@ class BillingTermsDto {
         'promisedPaymentDays': promisedPaymentDays,
         'fallbackAfterOverdueDays': fallbackAfterOverdueDays,
         'updatedAtUtc': updatedAtUtc?.toIso8601String(),
+      };
+}
+
+/// Подарок на день рождения: сумма на баланс в сам день и кому он положен.
+///
+/// Контракт: Loyalty/BirthdayGiftContracts.cs
+class BirthdayGiftSettingsDto {
+  const BirthdayGiftSettingsDto({
+    required this.enabled,
+    required this.amountMinorUnits,
+    required this.recentVisitDays,
+  });
+
+  final bool enabled;
+  final int amountMinorUnits;
+
+  /// Только тем, кто был в клубе за столько дней; 0 — всем.
+  final int recentVisitDays;
+
+  factory BirthdayGiftSettingsDto.fromJson(Map<String, dynamic> json) => BirthdayGiftSettingsDto(
+        enabled: json['enabled'] as bool,
+        amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
+        recentVisitDays: (json['recentVisitDays'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'amountMinorUnits': amountMinorUnits,
+        'recentVisitDays': recentVisitDays,
       };
 }
 
@@ -6920,6 +6951,7 @@ class DeviceSessionOwnerDto {
   const DeviceSessionOwnerDto({
     required this.kind,
     this.playerAccountId,
+    this.playerAge,
   });
 
 
@@ -6929,14 +6961,20 @@ class DeviceSessionOwnerDto {
   /// Счёт игрока; только у Kind = player.
   final String? playerAccountId;
 
+  /// Полных лет игроку, если он ввёл день рождения: агент запирает игры старше его возраста.
+  /// null — возраст неизвестен, и ничего не запирается (дата по желанию, владелец 2026-09-26).
+  final int? playerAge;
+
   factory DeviceSessionOwnerDto.fromJson(Map<String, dynamic> json) => DeviceSessionOwnerDto(
         kind: json['kind'] as String,
         playerAccountId: json['playerAccountId'] == null ? null : json['playerAccountId'] as String,
+        playerAge: json['playerAge'] == null ? null : (json['playerAge'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'kind': kind,
         'playerAccountId': playerAccountId,
+        'playerAge': playerAge,
       };
 }
 
@@ -8872,6 +8910,7 @@ class LauncherAppDto {
     this.iconUri,
     required this.isAvailable,
     this.minAge,
+    this.ageLocked,
   });
 
   final String appId;
@@ -8880,8 +8919,12 @@ class LauncherAppDto {
   final String? iconUri;
   final bool isAvailable;
 
-  /// Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения.
+  /// Возрастная отметка игры (0, 12, 16, 18).
   final int? minAge;
+
+  /// Игрок моложе отметки: плитка заперта, агент игру не запустит. Возраст неизвестен (дата
+  /// рождения по желанию) — не заперта.
+  final bool? ageLocked;
 
   factory LauncherAppDto.fromJson(Map<String, dynamic> json) => LauncherAppDto(
         appId: json['appId'] as String,
@@ -8890,6 +8933,7 @@ class LauncherAppDto {
         iconUri: json['iconUri'] == null ? null : json['iconUri'] as String,
         isAvailable: json['isAvailable'] as bool,
         minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
+        ageLocked: json['ageLocked'] == null ? null : json['ageLocked'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -8899,6 +8943,7 @@ class LauncherAppDto {
         'iconUri': iconUri,
         'isAvailable': isAvailable,
         'minAge': minAge,
+        'ageLocked': ageLocked,
       };
 }
 
@@ -9226,6 +9271,7 @@ class MePersonDto {
     required this.pinSet,
     required this.networkBanned,
     this.networkBanReason,
+    this.birthDate,
   });
 
   final String platformPersonId;
@@ -9240,6 +9286,9 @@ class MePersonDto {
   /// приложения — и он идёт спорить к стойке, которая его не ставила.
   final String? networkBanReason;
 
+  /// День рождения, если человек его ввёл: по желанию, для подарка клуба и игр с возрастом.
+  final String? birthDate;
+
   factory MePersonDto.fromJson(Map<String, dynamic> json) => MePersonDto(
         platformPersonId: json['platformPersonId'] as String,
         phoneNumber: json['phoneNumber'] as String,
@@ -9249,6 +9298,7 @@ class MePersonDto {
         pinSet: json['pinSet'] as bool,
         networkBanned: json['networkBanned'] as bool,
         networkBanReason: json['networkBanReason'] == null ? null : json['networkBanReason'] as String,
+        birthDate: json['birthDate'] == null ? null : json['birthDate'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -9260,6 +9310,7 @@ class MePersonDto {
         'pinSet': pinSet,
         'networkBanned': networkBanned,
         'networkBanReason': networkBanReason,
+        'birthDate': birthDate,
       };
 }
 
@@ -13917,6 +13968,7 @@ class PlayerSearchResultDto {
     required this.activePackageRemainingMinutes,
     this.platformPersonId,
     this.createdFromApp,
+    this.birthDate,
   });
 
   final String playerAccountId;
@@ -13936,6 +13988,10 @@ class PlayerSearchResultDto {
   final String? platformPersonId;
   final bool? createdFromApp;
 
+  /// День рождения, если гость ввёл его в приложении (по желанию): стойка поздравит, а игры с
+  /// возрастом проверит глазами.
+  final String? birthDate;
+
   factory PlayerSearchResultDto.fromJson(Map<String, dynamic> json) => PlayerSearchResultDto(
         playerAccountId: json['playerAccountId'] as String,
         displayName: json['displayName'] as String,
@@ -13950,6 +14006,7 @@ class PlayerSearchResultDto {
         activePackageRemainingMinutes: (json['activePackageRemainingMinutes'] as num).toInt(),
         platformPersonId: json['platformPersonId'] == null ? null : json['platformPersonId'] as String,
         createdFromApp: json['createdFromApp'] == null ? null : json['createdFromApp'] as bool,
+        birthDate: json['birthDate'] == null ? null : json['birthDate'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -13966,6 +14023,7 @@ class PlayerSearchResultDto {
         'activePackageRemainingMinutes': activePackageRemainingMinutes,
         'platformPersonId': platformPersonId,
         'createdFromApp': createdFromApp,
+        'birthDate': birthDate,
       };
 }
 
@@ -17776,6 +17834,25 @@ class SetAdCampaignStateRequest {
       };
 }
 
+/// День рождения в профиле; null стирает его.
+///
+/// Контракт: Players/MeDto.cs
+class SetBirthDateRequest {
+  const SetBirthDateRequest({
+    this.birthDate,
+  });
+
+  final String? birthDate;
+
+  factory SetBirthDateRequest.fromJson(Map<String, dynamic> json) => SetBirthDateRequest(
+        birthDate: json['birthDate'] == null ? null : json['birthDate'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'birthDate': birthDate,
+      };
+}
+
 /// Какие ПК работают на бесплатном тарифе — не больше предела; пустой список снимает выбор.
 ///
 /// Контракт: Platform/Billing/ClubPlanContracts.cs
@@ -20589,6 +20666,31 @@ class UpdateBillingTermsRequest {
         'trialDays': trialDays,
         'promisedPaymentDays': promisedPaymentDays,
         'fallbackAfterOverdueDays': fallbackAfterOverdueDays,
+      };
+}
+
+/// Контракт: Loyalty/BirthdayGiftContracts.cs
+class UpdateBirthdayGiftSettingsRequest {
+  const UpdateBirthdayGiftSettingsRequest({
+    required this.enabled,
+    required this.amountMinorUnits,
+    required this.recentVisitDays,
+  });
+
+  final bool enabled;
+  final int amountMinorUnits;
+  final int recentVisitDays;
+
+  factory UpdateBirthdayGiftSettingsRequest.fromJson(Map<String, dynamic> json) => UpdateBirthdayGiftSettingsRequest(
+        enabled: json['enabled'] as bool,
+        amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
+        recentVisitDays: (json['recentVisitDays'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'amountMinorUnits': amountMinorUnits,
+        'recentVisitDays': recentVisitDays,
       };
 }
 

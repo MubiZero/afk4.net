@@ -18,7 +18,10 @@ public sealed record DeviceSessionOwnerDto(
     // Одно из DeviceSessionOwnerKindNames.
     string Kind,
     // Счёт игрока; только у Kind = player.
-    Guid? PlayerAccountId = null);
+    Guid? PlayerAccountId = null,
+    // Полных лет игроку, если он ввёл день рождения: агент запирает игры старше его возраста.
+    // null — возраст неизвестен, и ничего не запирается (дата по желанию, владелец 2026-09-26).
+    int? PlayerAge = null);
 
 public static class DeviceSessionOwnerKindNames
 {

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using AFK4.Agent.Service.Games;
+using AFK4.Agent.Service.Shell;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service.Enforcement;
@@ -13,14 +14,17 @@ public sealed class ProcessPolicyEnforcer(
     IOptions<AgentOptions> options,
     IRunningProcessTerminator processTerminator,
     ILogger<ProcessPolicyEnforcer> logger,
-    ILauncherCatalog? catalog = null) : IProcessPolicyEnforcer
+    ILauncherCatalog? catalog = null,
+    IShellHeartbeatSnapshot? heartbeatSnapshot = null) : IProcessPolicyEnforcer
 {
     public AgentLauncherAppOptions? FindAllowedLauncherApp(string appId)
     {
-        // Разрешено ровно то, что игрок видит в библиотеке: список один на показ и на запуск.
+        // Разрешено ровно то, что игрок видит в библиотеке: список один на показ и на запуск. Запертая
+        // по возрасту плитка не запускается и в обход экрана.
         if (catalog is not null)
         {
             return catalog.Find(appId) is { } entry
+                   && !GameAgeGate.IsLocked(entry.MinAge, heartbeatSnapshot?.SessionOwner?.PlayerAge)
                 ? new AgentLauncherAppOptions
                 {
                     AppId = entry.AppId,

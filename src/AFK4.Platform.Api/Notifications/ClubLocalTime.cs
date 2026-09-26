@@ -9,21 +9,26 @@ namespace AFK4.Platform.Api.Notifications;
 /// </summary>
 public static class ClubLocalTime
 {
-    public static string At(DateTimeOffset instant, string? timeZoneId)
+    /// <summary>Какой сейчас день у клуба: день рождения и «сегодня» считаются по его календарю.</summary>
+    public static DateOnly Today(DateTimeOffset instant, string? timeZoneId) =>
+        DateOnly.FromDateTime(Local(instant, timeZoneId).DateTime);
+
+    public static string At(DateTimeOffset instant, string? timeZoneId) => Local(instant, timeZoneId).ToString("HH:mm");
+
+    private static DateTimeOffset Local(DateTimeOffset instant, string? timeZoneId)
     {
         if (string.IsNullOrWhiteSpace(timeZoneId))
         {
-            return instant.ToString("HH:mm");
+            return instant;
         }
 
         try
         {
-            var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            return TimeZoneInfo.ConvertTime(instant, zone).ToString("HH:mm");
+            return TimeZoneInfo.ConvertTime(instant, TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
         }
         catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
         {
-            return instant.ToString("HH:mm");
+            return instant;
         }
     }
 }

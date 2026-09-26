@@ -28,6 +28,9 @@ public static class PlatformJobNames
     /// <summary>Суточный пересчёт сетевой репутации: клуб видит вчерашнюю правду, а не живой счётчик.</summary>
     public const string ReputationSnapshot = "reputation_snapshot";
 
+    /// <summary>Подарки клубов на день рождения игроков.</summary>
+    public const string BirthdayGifts = "birthday_gifts";
+
     /// <summary>Доставка оповещений мимо очереди — результат тоже записывается как прогон.</summary>
     public const string AlertDelivery = "alert_delivery";
 
@@ -51,6 +54,7 @@ public static class PlatformJobNames
         ReservationRequestExpiry,
         DeviceMaintenanceExpiry,
         PlayerReminders,
-        ReputationSnapshot
+        ReputationSnapshot,
+        BirthdayGifts
     ];
 }

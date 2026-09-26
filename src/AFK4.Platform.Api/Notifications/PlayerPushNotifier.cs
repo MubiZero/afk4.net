@@ -108,6 +108,36 @@ public sealed class PlayerPushNotifier(
             cancellationToken);
     }
 
+    /// <summary>Клуб подарил деньги на день рождения: одно поздравление на подарок.</summary>
+    public async Task BirthdayGiftAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        long amountMinorUnits,
+        string currencyCode,
+        Guid giftId,
+        CancellationToken cancellationToken)
+    {
+        var locale = await LocaleAsync(playerAccountId, cancellationToken);
+        var club = await dbContext.Organizations
+            .AsNoTracking()
+            .Where(organization => organization.OrganizationId == organizationId)
+            .Select(organization => organization.Name)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+        await SendAsync(
+            NotificationTemplateKeys.PlayerBirthdayGift,
+            playerAccountId,
+            organizationId,
+            branchId,
+            new Dictionary<string, string>
+            {
+                ["amount"] = MoneyFormatting.ToDisplayString(amountMinorUnits, currencyCode, locale),
+                ["club"] = club,
+            },
+            $"player.birthday_gift:{giftId}",
+            cancellationToken);
+    }
+
     private async Task<string> LocaleAsync(Guid playerAccountId, CancellationToken cancellationToken) =>
         await dbContext.PlayerAccounts
             .AsNoTracking()

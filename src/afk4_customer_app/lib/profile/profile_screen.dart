@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/contracts.dart';
 import '../api/player_api_client.dart';
+import '../format/date_time.dart';
 import '../push/push_service.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
@@ -286,6 +287,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await widget.onPersonChanged?.call();
   }
 
+  /// День рождения — по желанию: клуб поздравит, а игры с возрастом откроются по нему. Выбор
+  /// календарём, а не вводом цифр: «03.04» по-разному читают в разных странах.
+  Future<void> _chooseBirthDate(String? current) async {
+    final l = L.of(context);
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current != null ? DateTime.parse(current) : DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(now.year - 110),
+      lastDate: DateTime(now.year - 5, now.month, now.day),
+      initialDatePickerMode: DatePickerMode.year,
+      helpText: l.customerProfileBirthdayTitle,
+    );
+    if (picked == null || !mounted) return;
+    final iso = '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-'
+        '${picked.day.toString().padLeft(2, '0')}';
+    await _saveBirthDate(iso);
+  }
+
+  Future<void> _saveBirthDate(String? birthDate) async {
+    final l = L.of(context);
+    setState(() => _saving = true);
+    try {
+      await widget.api.setBirthDate(birthDate);
+      await widget.onPersonChanged?.call();
+      if (mounted) _say(l.customerProfileSaved);
+    } on PlayerApiException catch (error) {
+      if (!mounted) return;
+      _say(switch (error.message) {
+        _ when error.isOffline => l.customerErrorOffline,
+        'invalid_birth_date' => l.customerProfileBirthdayInvalid,
+        _ => l.customerProfileSaveError,
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -398,6 +437,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: _saving ? null : () => _changePin(pinSet),
                 child: Text(pinSet ? l.customerPinChange : l.customerPinSet),
               ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
+      if (person != null) ...[
+        _Group(
+          children: [
+            Text(l.customerProfileBirthdayTitle, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              person.birthDate != null
+                  ? formatCalendarDate(person.birthDate!, current)
+                  : l.customerProfileBirthdayUnset,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l.customerProfileBirthdayHint,
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: _saving ? null : () => _chooseBirthDate(person.birthDate),
+                  child: Text(person.birthDate != null
+                      ? l.customerProfileBirthdayChange
+                      : l.customerProfileBirthdaySet),
+                ),
+                if (person.birthDate != null)
+                  TextButton(
+                    onPressed: _saving ? null : () => _saveBirthDate(null),
+                    child: Text(l.customerProfileBirthdayClear),
+                  ),
+              ],
             ),
           ],
         ),
