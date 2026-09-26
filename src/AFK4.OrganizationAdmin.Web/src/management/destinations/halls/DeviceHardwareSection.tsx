@@ -12,7 +12,9 @@ const COMPONENT_LABELS: Record<string, MessageKey> = {
   [HardwareComponentNames.Memory]: 'op.hardware.memory',
   [HardwareComponentNames.Gpu]: 'op.hardware.gpu',
   [HardwareComponentNames.Motherboard]: 'op.hardware.motherboard',
-  [HardwareComponentNames.Disk]: 'op.hardware.disks'
+  [HardwareComponentNames.Disk]: 'op.hardware.disks',
+  [HardwareComponentNames.PhysicalDisk]: 'op.hardware.physicalDisks',
+  [HardwareComponentNames.Monitor]: 'op.hardware.monitors'
 };
 
 /**
@@ -101,9 +103,20 @@ function HardwareList({ snapshot }: { snapshot: HardwareSnapshotDto }) {
     ['op.hardware.memory', snapshot.memoryGb > 0 ? `${snapshot.memoryGb} GB` : null],
     ['op.hardware.gpu', snapshot.gpus.map((gpu) => (gpu.memoryGb ? `${gpu.name} · ${gpu.memoryGb} GB` : gpu.name)).join(', ') || null],
     ['op.hardware.motherboard', snapshot.motherboard],
-    ['op.hardware.disks', snapshot.disks.map((disk) => `${disk.name} ${disk.sizeGb} GB`).join(', ') || null],
-    ['op.hardware.os', snapshot.os]
+    ['op.hardware.disks', snapshot.disks.map((disk) => `${disk.name} ${disk.sizeGb} GB`).join(', ') || null]
   ];
+  // null — агент этого не присылает (старая версия или не прочиталось): строки нет, а не «—».
+  if (snapshot.physicalDisks) {
+    rows.push(['op.hardware.physicalDisks', snapshot.physicalDisks
+      .map((disk) => [disk.model, `${disk.sizeGb} GB`, disk.interface].filter(Boolean).join(' · '))
+      .join(', ') || null]);
+  }
+  if (snapshot.monitors) {
+    rows.push(['op.hardware.monitors', snapshot.monitors
+      .map((monitor) => (monitor.serial ? `${monitor.name} (${monitor.serial})` : monitor.name))
+      .join(', ') || null]);
+  }
+  rows.push(['op.hardware.os', snapshot.os]);
   return (
     <div className="settings-device-detail-grid">
       {rows.map(([label, value]) => (

@@ -16,12 +16,32 @@ public sealed record HardwareSnapshotDto(
     IReadOnlyList<HardwareDiskDto> Disks,
     /// Windows и её сборка — видна, но не считается изменением железа: обновления идут каждый месяц.
     string? Os,
-    string? Bios);
+    string? Bios,
+    /// Физические накопители внутри корпуса, без флешек. null — агент их не знает (старый агент
+    /// или не прочиталось), а не «накопителей нет».
+    IReadOnlyList<HardwarePhysicalDiskDto>? PhysicalDisks = null,
+    /// Подключённые мониторы. null — неизвестно; пустой список — мониторов нет.
+    IReadOnlyList<HardwareMonitorDto>? Monitors = null);
 
 public sealed record HardwareGpuDto(string Name, int? MemoryGb);
 
 /// <param name="Name">Буква диска: «C:».</param>
 public sealed record HardwareDiskDto(string Name, int SizeGb);
+
+public sealed record HardwarePhysicalDiskDto(
+    /// Модель накопителя: «Samsung SSD 980 PRO 1TB».
+    string Model,
+    int SizeGb,
+    /// Шина: «NVMe», «SATA»; null — не определилась.
+    string? Interface);
+
+public sealed record HardwareMonitorDto(
+    /// Модель из EDID монитора; нет её — код производителя и продукта: «SAM0F9A».
+    string Name,
+    /// Код производителя PnP: «SAM», «DEL».
+    string? Manufacturer,
+    /// Серийный номер из EDID — отличает подменённый монитор той же модели.
+    string? Serial);
 
 public sealed record DeviceHardwareReportRequest(
     Guid OrganizationId,
@@ -44,6 +64,8 @@ public static class HardwareComponentNames
     public const string Gpu = "gpu";
     public const string Motherboard = "motherboard";
     public const string Disk = "disk";
+    public const string PhysicalDisk = "physical_disk";
+    public const string Monitor = "monitor";
 }
 
 /// <summary>Железо ПК для карточки в Панели: сейчас, принятое и чем они отличаются.</summary>
