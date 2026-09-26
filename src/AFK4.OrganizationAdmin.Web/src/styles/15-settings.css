@@ -539,7 +539,21 @@
 
 .reviews-editor textarea {
   width: 100%;
+  min-height: 72px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
   resize: vertical;
+}
+
+.reviews-editor textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .reviews-item .reviews-editor-hint {
