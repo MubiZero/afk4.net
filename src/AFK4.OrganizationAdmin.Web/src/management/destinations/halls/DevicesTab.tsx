@@ -38,7 +38,9 @@ import { useBlockedReason } from '../../../components/BlockedReason';
 // сервера, и поле, которого в ответе нет, теперь заметит компилятор.
 type Device = DeviceInventoryItemDto;
 
-const DEVICES_GRID = '1.1fr 160px 1fr 1.7fr';
+// Статус — по ширине своих слов («онлайн · разблокирован» не лезла в прежние 160 px на русском),
+// остальным — доли того, что осталось.
+const DEVICES_GRID = 'minmax(0, 1.1fr) max-content minmax(0, 1fr) minmax(0, 1.7fr)';
 
 // Форма вкладки, пока ПК грузятся. Полосу «ждут подтверждения» не рисуем: её может и не быть.
 export function DevicesTabSkeleton() {

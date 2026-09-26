@@ -160,11 +160,21 @@
   white-space: nowrap;
 }
 
+/* Правая колонка прижимает содержимое вправо внутри своей ячейки, а не саму ячейку к краю строки:
+   с justify-self: end ячейка вырастала до ширины текста и наезжала на соседние колонки. */
 .mgmt-cell--end {
-  justify-self: end;
   justify-content: flex-end;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* Текст ячейки: у flex-ячейки многоточие ставит только вложенный элемент, сама ячейка текст
+   просто обрезает. Полный текст — в подсказке. */
+.mgmt-cell-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Ячейка ⋯-меню: overflow видимый, чтобы дропдаун не обрезался. */

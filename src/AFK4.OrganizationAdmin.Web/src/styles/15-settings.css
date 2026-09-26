@@ -29,6 +29,12 @@
   font-weight: 500;
 }
 
+/* Статус — две половины («онлайн · заблокирован»): в четверть карточки он не влезал и резался
+   посреди слова. */
+.settings-device-detail-grid span:first-child {
+  grid-column: span 2;
+}
+
 /* Управление — shared scaffold every management destination screen mounts into
    (header + scrollable body + optional sticky save bar). Fills the workspace
    height the same way the shell does. */

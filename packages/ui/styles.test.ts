@@ -26,6 +26,14 @@ describe('@afk4/ui shared layer', () => {
     expect(kitCss).toMatch(/\.ui-scanner-badge\s*\{[^}]*color:\s*var\(--accent-bright\)/s);
   });
 
+  // Правая колонка таблиц «Управления» не прижимает саму ячейку к краю: с justify-self: end ячейка
+  // растёт до ширины текста и наезжает на соседние колонки (карточка ПК в «Залах и ПК»).
+  it('keeps end-aligned management cells inside their own column', () => {
+    const mgmtCss = read('mgmt.css');
+    expect(mgmtCss).not.toMatch(/\.mgmt-cell--end\s*\{[^}]*justify-self:\s*end/s);
+    expect(mgmtCss).toMatch(/\.mgmt-cell-text\s*\{[^}]*text-overflow:\s*ellipsis/s);
+  });
+
   // Неактивная строка гасится подложкой, а не opacity: opacity топит и текст, и границу,
   // роняя контраст ниже AA сразу во всей строке.
   it('dims inactive table rows by surface, not opacity', () => {
