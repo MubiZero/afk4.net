@@ -943,7 +943,7 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 ## Known Gaps
 
 - **The PC does not use its own sign-in yet.** Since P2a (2026-09-24,
-  `docs/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
+  `docs/archive/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
   sign in on a gaming PC through the agent (`/api/devices/{id}/player-sign-in`):
   attempts are counted per machine, a player never gets into someone else's
   session, and the tokens are bound to the PC and revoked by the server — five
@@ -985,7 +985,7 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   Windows restarting a crashed agent, silent install by code for a whole hall, and
   wiping the player's sign-ins after a session. None of it is proven until the
   P5 acceptance on a real club PC. Earlier steps of the same rewrite: plan P1 (2026-09-24,
-  `docs/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
+  `docs/archive/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
   tell the shell the truth: one persistent pipe `afk4-shell-v2` with an ACL
   instead of two open per-message pipes, state pushed on change instead of
   polled, `offline` and `ending` actually produced, `IsOnline` from the last
