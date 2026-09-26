@@ -116,3 +116,24 @@
   color: var(--text-tertiary);
   font-size: 12px;
 }
+
+/* Тарифы и условия оплаты — одна вкладка, две карточки друг под другом. */
+.pc-plans-stack {
+  display: grid;
+  gap: 16px;
+}
+
+/* Функции тарифа в его редакторе: переключатели столбиком под подписью группы. */
+.pc-plan-features {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pc-plan-features legend {
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}

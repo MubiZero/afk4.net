@@ -11,7 +11,8 @@ public sealed class EfInvoiceService(
     IInvoiceGenerationRunner generationRunner,
     IInvoiceNotifier invoiceNotifier,
     TimeProvider timeProvider,
-    IOptions<BillingOptions> options) : IInvoiceService
+    IOptions<BillingOptions> options,
+    AFK4.Platform.Api.Audit.IAuditRecordWriter? auditRecordWriter = null) : IInvoiceService
 {
     private const int MaxVoidReasonLength = 512;
 
@@ -231,6 +232,7 @@ public sealed class EfInvoiceService(
         invoice.UpdatedAtUtc = now;
         await dbContext.SaveChangesAsync(cancellationToken);
         await RestoreSubscriptionIfSettledAsync(invoice.OrganizationId, now, cancellationToken);
+        await ClubReferrals.RewardIfFirstPaidAsync(dbContext, auditRecordWriter, invoice, now, cancellationToken);
         await invoiceNotifier.NotifyPaidAsync(invoice, cancellationToken);
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }

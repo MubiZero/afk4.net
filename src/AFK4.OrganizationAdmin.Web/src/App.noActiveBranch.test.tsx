@@ -130,7 +130,7 @@ describe('App — no active branch', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Выйти из аккаунта' }));
 
-    expect(await screen.findByRole('button', { name: /Войти/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
   });
 });

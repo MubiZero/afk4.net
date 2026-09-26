@@ -6,7 +6,9 @@ import {
   INVOICE_STATUS_VARIANT,
   SUBSCRIPTION_STATUS_VARIANT,
   emptyPlanForm,
-  planFormToCreateRequest
+  planFormToCreateRequest,
+  planFormToUpdateRequest,
+  planToForm
 } from './billingModel';
 import type { InvoiceListItem, SubscriptionListItem } from '@/api/types';
 
@@ -72,5 +74,21 @@ describe('validatePlanForm', () => {
     expect(req.planCode).toBe('pro');
     expect(req.priceMinorUnits).toBe(100);
     expect(req.billingInterval).toBe('monthly');
+  });
+
+  // Пустой предел ПК — снять его: «не передан» сервер понимает как «оставить прежним».
+  it('turns an emptied PC cap into an explicit removal and carries the per-PC terms', () => {
+    const plan = {
+      planCode: 'free', name: 'Бесплатный', priceMinorUnits: 0, currencyCode: 'TJS', billingInterval: 'monthly',
+      maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null,
+      isActive: true, sortOrder: 0, pricePerDeviceMinorUnits: 0, includedDevices: 0, maxDevices: 10, clubs: 3,
+      features: [{ featureKey: 'platform_ads', name: 'Реклама', isIncluded: true }]
+    };
+    const form = planToForm(plan);
+    expect(form.includedFeatures).toEqual(['platform_ads']);
+    expect(planFormToUpdateRequest(form)).toMatchObject({ maxDevices: 10, removeMaxDevices: false, includedFeatures: ['platform_ads'] });
+    expect(planFormToUpdateRequest({ ...form, maxDevices: null, applyLimitsToClubs: true })).toMatchObject({
+      maxDevices: null, removeMaxDevices: true, applyLimitsToClubs: true
+    });
   });
 });

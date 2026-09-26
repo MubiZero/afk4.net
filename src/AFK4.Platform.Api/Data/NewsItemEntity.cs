@@ -9,6 +9,7 @@ public sealed class NewsItemEntity
     public string Body { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
     public bool IsPublished { get; set; }
+    public bool ShowOnPcs { get; set; }
     public DateTimeOffset? PublishAtUtc { get; set; }
     public DateTimeOffset? ExpiresAtUtc { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }

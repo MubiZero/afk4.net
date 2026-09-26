@@ -169,6 +169,76 @@ public sealed class UpdateHelperScriptTests
         Assert.DoesNotContain(" Exclude=", package, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Упавшего агента поднимает Windows (спека оболочки, §6.1): без него на ПК нет ни экрана игрока,
+    /// ни запретов. util:ServiceConfig, а не встроенные элементы MSI — те WiX сам помечает как
+    /// ненадёжные; и сборка агента обязана подключать расширение Util, иначе элемент не соберётся.
+    /// </summary>
+    [Fact]
+    public void AgentWixPackage_TellsWindowsToRestartAFailedService()
+    {
+        var root = GetRepositoryRoot();
+        var document = System.Xml.Linq.XDocument.Load(Path.Combine(root, "installers", "agent", "Package.wxs"));
+        System.Xml.Linq.XNamespace wix = "http://wixtoolset.org/schemas/v4/wxs";
+        System.Xml.Linq.XNamespace util = "http://wixtoolset.org/schemas/v4/wxs/util";
+        var service = document.Descendants(wix + "ServiceInstall").Single(element => (string?)element.Attribute("Name") == "AFK4.Agent.Service");
+
+        var recovery = service.Element(util + "ServiceConfig");
+        Assert.NotNull(recovery);
+        Assert.Equal("restart", (string?)recovery.Attribute("FirstFailureActionType"));
+        Assert.Equal("restart", (string?)recovery.Attribute("SecondFailureActionType"));
+        Assert.Equal("restart", (string?)recovery.Attribute("ThirdFailureActionType"));
+        Assert.Equal("1", (string?)recovery.Attribute("ResetPeriodInDays"));
+        Assert.Null(service.Element(wix + "ServiceConfigFailureActions"));
+
+        var script = File.ReadAllText(Path.Combine(root, "scripts", "build-client-packages.ps1"));
+        var agentBuild = script[script.IndexOf("installers/agent/Package.wxs", StringComparison.Ordinal)..];
+        agentBuild = agentBuild[..agentBuild.IndexOf("-o $agentMsiPath", StringComparison.Ordinal)];
+        Assert.Contains("-ext WixToolset.Util.wixext", agentBuild, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Тихая установка по коду: код доезжает от командной строки установщика до мастера и нигде по
+    /// дороге не пишется в журнал — ни Burn, ни MSI. Окно мастера при коде не открывается.
+    /// </summary>
+    [Fact]
+    public void Installers_CarryTheInstallCodeToTheWizard_WithoutLoggingIt()
+    {
+        var root = GetRepositoryRoot();
+        System.Xml.Linq.XNamespace wix = "http://wixtoolset.org/schemas/v4/wxs";
+        System.Xml.Linq.XNamespace bal = "http://wixtoolset.org/schemas/v4/wxs/bal";
+
+        var package = System.Xml.Linq.XDocument.Load(Path.Combine(root, "installers", "agent", "Package.wxs"));
+        var codeProperty = package.Descendants(wix + "Property").Single(element => (string?)element.Attribute("Id") == "AFK4_INSTALL_CODE");
+        Assert.Equal("yes", (string?)codeProperty.Attribute("Hidden"));
+        Assert.Equal("yes", (string?)codeProperty.Attribute("Secure"));
+        Assert.Equal("yes", (string?)package.Descendants(wix + "Property").Single(element => (string?)element.Attribute("Id") == "AFK4_SEAT").Attribute("Secure"));
+
+        var silent = package.Descendants(wix + "CustomAction").Single(element => (string?)element.Attribute("Id") == "LaunchSetupWizardSilently");
+        Assert.Equal("SetupWizardExe", (string?)silent.Attribute("FileRef"));
+        Assert.Equal("--install-code \"[AFK4_INSTALL_CODE]\" --seat \"[AFK4_SEAT]\"", (string?)silent.Attribute("ExeCommand"));
+        Assert.Equal("yes", (string?)silent.Attribute("HideTarget"));
+        Assert.Equal("asyncNoWait", (string?)silent.Attribute("Return"));
+
+        var sequence = package.Descendants(wix + "Custom").ToDictionary(element => (string)element.Attribute("Action")!, element => (string)element.Attribute("Condition")!);
+        Assert.StartsWith("AFK4_INSTALL_CODE", sequence["LaunchSetupWizardSilently"], StringComparison.Ordinal);
+        Assert.Contains("NOT AFK4_INSTALL_CODE", sequence["LaunchSetupWizard"], StringComparison.Ordinal);
+
+        var bundle = System.Xml.Linq.XDocument.Load(Path.Combine(root, "installers", "bundle", "Bundle.wxs"));
+        var variables = bundle.Descendants(wix + "Variable").ToDictionary(element => (string)element.Attribute("Name")!);
+        Assert.Equal("yes", (string?)variables["AFK4_INSTALL_CODE"].Attribute(bal + "Overridable"));
+        Assert.Equal("yes", (string?)variables["AFK4_INSTALL_CODE"].Attribute("Hidden"));
+        Assert.Equal("yes", (string?)variables["AFK4_SEAT"].Attribute(bal + "Overridable"));
+        var forwarded = bundle.Descendants(wix + "MsiProperty").ToDictionary(element => (string)element.Attribute("Name")!, element => (string?)element.Attribute("Value"));
+        Assert.Equal("[AFK4_INSTALL_CODE]", forwarded["AFK4_INSTALL_CODE"]);
+        Assert.Equal("[AFK4_SEAT]", forwarded["AFK4_SEAT"]);
+
+        // Аргументы, которые MSI передаёт мастеру, мастер и разбирает.
+        var options = File.ReadAllText(Path.Combine(root, "src", "AFK4.SetupWizard.Core", "SilentInstall", "SilentInstallOptions.cs"));
+        Assert.Contains("CodeArgument = \"--install-code\"", options, StringComparison.Ordinal);
+        Assert.Contains("SeatArgument = \"--seat\"", options, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void SingleAgentWixPackage_InstallsSetupWizardAndFirstRunLaunch()
     {
@@ -187,7 +257,7 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("Id=\"SetupWizardRegistration\"", package, StringComparison.Ordinal);
         Assert.Contains("Condition=\"NOT WIX_UPGRADE_DETECTED\"", package, StringComparison.Ordinal);
         Assert.Contains(
-            "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)\"",
+            "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT AFK4_INSTALL_CODE AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)\"",
             package,
             StringComparison.Ordinal);
         Assert.Contains("Start=\"auto\"", package, StringComparison.Ordinal);
@@ -203,9 +273,12 @@ public sealed class UpdateHelperScriptTests
         var action = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "src", "AFK4.SetupWizard", "AgentServiceCompletionAction.cs"));
         var registration = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "src", "AFK4.SetupWizard", "SetupWizardFirstRunRegistration.cs"));
 
-        var startCheckIndex = action.IndexOf("if (startResult is not 0 and not ServiceAlreadyRunning)", StringComparison.Ordinal);
+        var startCheckIndex = action.IndexOf("if (startResult != 0)", StringComparison.Ordinal);
         var clearIndex = action.IndexOf("SetupWizardFirstRunRegistration.Clear();", StringComparison.Ordinal);
 
+        // Обе строки должны найтись: прежняя искала проверку, которой в коде давно нет, получала -1
+        // и проходила всегда — порядок никто не проверял.
+        Assert.True(startCheckIndex >= 0, "The Agent start check was not found; update this test with the code.");
         Assert.True(clearIndex > startCheckIndex, "The first-run marker should be cleared only after Agent service startup succeeds.");
         Assert.Contains(@"Software\AFK4\SetupWizard", registration, StringComparison.Ordinal);
         Assert.Contains(@"Software\Microsoft\Windows\CurrentVersion\RunOnce", registration, StringComparison.Ordinal);

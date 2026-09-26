@@ -36,4 +36,15 @@ public sealed record DeviceHeartbeatResponse(
     IReadOnlyList<string>? Features = null,
     /// Заявка на вход с телефона, которую ПК ещё не забрал, — на случай, если сигнал SignalR
     /// потерялся. null — ждать нечего.
-    PlayerSignInClaimedDto? PendingSignInClaim = null);
+    PlayerSignInClaimedDto? PendingSignInClaim = null,
+    /// ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+    /// догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+    bool Maintenance = false,
+    /// С какого момента и кто включил обслуживание: оболочка пишет это на полосе поверх рабочего
+    /// стола, чтобы техник у ПК видел, чей это ПК сейчас и с каких пор.
+    DateTimeOffset? MaintenanceSinceUtc = null,
+    string? MaintenanceByName = null,
+    /// Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет.
+    int PolicyProfileVersion = 0,
+    /// Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6).
+    int GameLibraryVersion = 0);

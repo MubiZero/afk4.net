@@ -1,13 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CalendarCheck, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper, Trophy } from 'lucide-react';
+import { Building2, CalendarCheck, MonitorCog, ShieldCheck, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper, Trophy, Gamepad2, MessageSquareText } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission } from '../operatorPermissions';
 import { permissionNames } from '../permissionNames';
 
 export type ManagementDestinationId =
-  | 'club' | 'booking' | 'halls' | 'tariffs' | 'staff' | 'goods'
-  | 'payments' | 'news' | 'events';
+  | 'club' | 'booking' | 'halls' | 'protection' | 'games' | 'tariffs' | 'staff' | 'goods'
+  | 'payments' | 'news' | 'events' | 'reviews';
 
 export interface ManagementDestination {
   id: ManagementDestinationId;
@@ -53,6 +53,23 @@ export const managementDestinations: readonly ManagementDestination[] = [
     ]
   },
   {
+    id: 'protection',
+    labelKey: 'op.management.dest.protection',
+    subtitleKey: 'op.management.dest.protection.subtitle',
+    Icon: ShieldCheck,
+    // Правила клуба для всех ПК филиала — настройка филиала, как приём броней: её задают владелец
+    // и управляющий, а не техник, который чинит ПК.
+    permissions: [permissionNames.manageBranchSettings]
+  },
+  {
+    id: 'games',
+    labelKey: 'op.management.dest.games',
+    subtitleKey: 'op.management.dest.games.subtitle',
+    Icon: Gamepad2,
+    // Библиотеку собирает тот, кто ставит ПК и игры: владелец, управляющий и техник.
+    permissions: [permissionNames.manageGameLibrary]
+  },
+  {
     id: 'tariffs',
     labelKey: 'op.management.dest.tariffs',
     subtitleKey: 'op.management.dest.tariffs.subtitle',
@@ -96,6 +113,13 @@ export const managementDestinations: readonly ManagementDestination[] = [
     subtitleKey: 'op.management.dest.events.subtitle',
     Icon: Trophy,
     permissions: [permissionNames.manageTournaments]
+  },
+  {
+    id: 'reviews',
+    labelKey: 'op.management.dest.reviews',
+    subtitleKey: 'op.management.dest.reviews.subtitle',
+    Icon: MessageSquareText,
+    permissions: [permissionNames.viewReviews]
   }
 ];
 

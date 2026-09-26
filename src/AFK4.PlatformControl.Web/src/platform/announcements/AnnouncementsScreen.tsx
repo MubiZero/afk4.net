@@ -17,11 +17,10 @@ import {
   audienceIsLocked,
   audienceLabelKey,
   describeAnnouncementError,
-  fromLocalInput,
   severityLabelKey,
-  statusLabelKey,
-  toLocalInput
+  statusLabelKey
 } from './announcementsModel';
+import { fromLocalInput, toLocalInput } from '@/lib/localDateTime';
 import { useLoadable } from '../useLoadable';
 
 type Client = Pick<AnnouncementsApi,

@@ -13,7 +13,7 @@ describe('design tokens', () => {
   });
 
   it('declares no colour values of its own in the local layers', () => {
-    for (const layer of ['01-base', '02-shell', '10-clubs', '11-organization', '12-money', '13-forms']) {
+    for (const layer of ['01-base', '02-shell', '10-clubs', '11-organization', '12-money', '13-forms', '14-games']) {
       const css = readFileSync(new URL(`../styles/${layer}.css`, import.meta.url), 'utf8');
       expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     }

@@ -19,14 +19,14 @@ public sealed class StaffInvitePlanLimitTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static EfStaffInviteService CreateService(PlatformDbContext db) =>
+    private static EfStaffInviteService CreateService(PlatformDbContext db, DateTimeOffset? at = null) =>
         new(db,
             new RecordingNotificationService(),
             new AFK4.Platform.Api.Identity.PhoneOtp.RandomPhoneOtpGenerator(),
             new AFK4.Platform.Api.Identity.PhoneOtp.Sha256PhoneOtpHasher(),
-            new FixedTimeProvider(Now),
+            new FixedTimeProvider(at ?? Now),
             Options.Create(new NotificationOptions { DefaultLocale = "ru" }),
-            new EfPlanLimitGuard(db));
+            new EfPlanLimitGuard(db, new FixedTimeProvider(at ?? Now)));
 
     private static async Task<(Guid OrganizationId, Guid BranchId)> SeedOrganizationAsync(
         PlatformDbContext db, int? maxStaffUsersPerBranch, string planCode = "growth")
@@ -126,6 +126,23 @@ public sealed class StaffInvitePlanLimitTests
         Assert.Equal(2, second.PlanLimit.Limit);
         Assert.Equal(2, second.PlanLimit.Current);
         Assert.Equal(1, await db.StaffInvites.CountAsync());
+    }
+
+    /// <summary>Истёкший код в сотрудника уже не превратится — место в тарифе он не держит.</summary>
+    [Fact]
+    public async Task AnExpiredInvite_NoLongerTakesASeat()
+    {
+        await using var db = CreateDb();
+        var (organizationId, branchId) = await SeedOrganizationAsync(db, maxStaffUsersPerBranch: 2);
+        await SeedActiveStaffUserAsync(db, organizationId, branchId);
+        var first = await CreateService(db).CreateInviteAsync(
+            organizationId, branchId, "firstinvite", "First Invite", NextPhone(), null, Roles, CancellationToken.None);
+        Assert.True(first.Succeeded);
+
+        var nextDay = await CreateService(db, Now.AddHours(25)).CreateInviteAsync(
+            organizationId, branchId, "secondinvite", "Second Invite", NextPhone(), null, Roles, CancellationToken.None);
+
+        Assert.True(nextDay.Succeeded);
     }
 
     [Fact]

@@ -10,9 +10,20 @@ public interface IPlanLimitGuard
 {
     Task<PlanLimitExceededDto?> CheckBranchAsync(Guid organizationId, CancellationToken cancellationToken);
 
-    Task<PlanLimitExceededDto?> CheckDeviceAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Лимит ПК филиала. Считаются только игровые ПК: рабочее место управляющего играм не служит и
+    /// место в лимите бесплатного тарифа («до десяти ПК») не занимает — его регистрация не упирается.
+    /// </summary>
+    Task<PlanLimitExceededDto?> CheckDeviceAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken, string role = AFK4.Shared.Contracts.Install.DeviceRoleNames.GamingPc);
 
     Task<PlanLimitExceededDto?> CheckConcurrentSessionAsync(Guid organizationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// ПК «вне тарифа» — сверх предела ПК на клуб (спека тарифов клуба, §5a): новую сессию на нём не
+    /// начать и чужую на него не перенести. Идущая сессия доживает — её эта проверка не трогает.
+    /// </summary>
+    Task<PlanLimitExceededDto?> CheckDeviceOnPlanAsync(Guid organizationId, Guid deviceId, CancellationToken cancellationToken);
 
     /// <param name="excludingInviteId">
     /// Приглашение, которое не считать «непринятым» — при приёме именно оно превращается в

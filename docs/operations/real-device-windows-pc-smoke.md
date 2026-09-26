@@ -556,6 +556,46 @@ sc.exe query AFK4.Agent.Service
 Get-Content C:\ProgramData\AFK4\Agent\runtime-state.json
 ```
 
+## Kiosk Account And Autologon
+
+For a `gaming_pc` the wizard also sets up the kiosk (Player Shell spec §6.1,
+slice P5c) after the Player Shell MSI installs and before it starts the Agent:
+
+- a standard local user `AFK4 Player` with a random 32-character password that
+  nobody knows — Windows reads it from the LSA secret `DefaultPassword`;
+- autologon: `Winlogon\AutoAdminLogon=1`, `DefaultUserName=AFK4 Player`,
+  `DefaultDomainName=.`; a plain-text `DefaultPassword` value is removed;
+- the Player Shell host as that user's own shell
+  (`HKU\<SID>\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell`);
+  the administrator account keeps Explorer;
+- Windows Hello requirement, lock screen and first-logon animation off;
+- the account SID in `C:\ProgramData\AFK4\Agent\kiosk.json`, which the Agent
+  reads for the pipe ACL.
+
+The finish screen says whether the kiosk is ready and offers **Restart now**.
+Autologon only takes effect after a restart.
+
+Check after the restart:
+
+```powershell
+# The PC signed in by itself as AFK4 Player and shows the Player Shell, not a desktop.
+query user
+Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' |
+  Select-Object AutoAdminLogon, DefaultUserName, DefaultDomainName, DefaultPassword
+Get-Content C:\ProgramData\AFK4\Agent\kiosk.json
+Get-Content C:\ProgramData\AFK4\SetupWizard\kiosk-state.json
+```
+
+Pass: `AFK4 Player` is the console user, `DefaultPassword` is empty, the shell
+connects to the Agent (the pipe ACL admits the player SID), and signing in as
+the administrator still opens Explorer.
+
+To roll back, run the wizard from the Start Menu as an administrator and choose
+**Remove the kiosk from this PC** under the sign-in form. It restores the
+Winlogon and policy values recorded in `kiosk-state.json`, deletes the LSA
+secret, the account and its profile, removes `kiosk.json` and restarts the
+Agent.
+
 ## Baseline Device Evidence
 
 On the release workstation, verify heartbeat, installed apps, diagnostics, and
@@ -1027,7 +1067,8 @@ Fail the smoke, or mark it partial, when:
 
 ## Cleanup
 
-On the PC, remove machine-scoped smoke secrets after the run:
+On the PC, remove the kiosk first if the run set it up (wizard →
+**Remove the kiosk from this PC**), then remove machine-scoped smoke secrets:
 
 ```powershell
 Stop-Service -Name AFK4.Agent.Service -ErrorAction SilentlyContinue

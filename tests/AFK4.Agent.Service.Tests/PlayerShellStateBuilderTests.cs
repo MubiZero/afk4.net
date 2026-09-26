@@ -252,7 +252,97 @@ public sealed class PlayerShellStateBuilderTests
         Assert.False(ShellConnectivity.IsOnline(null, intervalSeconds: 10, Now));
     }
 
-    private sealed class Fixture(string? clubName = null)
+    [Fact]
+    public void SeatOwnerAndFeatures_FromTheHeartbeat_ReachTheScreen()
+    {
+        var fixture = new Fixture();
+        fixture.Contact(Now.AddSeconds(-2), intervalSeconds: 10);
+        var owner = Guid.NewGuid();
+        fixture.Heartbeat.RecordPlace(
+            new AFK4.Shared.Contracts.Devices.DeviceSeatDto("ПК 07", "Общий зал"),
+            new AFK4.Shared.Contracts.Devices.DeviceSessionOwnerDto(AFK4.Shared.Contracts.Devices.DeviceSessionOwnerKindNames.Player, owner),
+            ["player_shop"]);
+
+        var state = fixture.Build();
+
+        Assert.Equal("ПК 07", state.SeatLabel);
+        Assert.Equal("Общий зал", state.ZoneName);
+        Assert.Equal(AFK4.Shared.Contracts.Devices.DeviceSessionOwnerKindNames.Player, state.SessionOwnerKind);
+        Assert.Equal(owner, state.SessionOwnerPlayerAccountId);
+        Assert.Equal(["player_shop"], state.Features);
+    }
+
+    [Fact]
+    public void Maintenance_StaysMaintenanceWithoutConnection_AndShowsNoSeatingCode()
+    {
+        // «Нет связи» позвало бы разбираться с сетью; клуб закрыл машину сам, и код к ней звать не должен.
+        var fixture = new Fixture();
+        fixture.Heartbeat.Record("418207", Now.AddMinutes(1), branding: null, intervalSeconds: 10);
+        fixture.RuntimeState.Save(AgentRuntimeState.Maintenance(Now));
+
+        var state = fixture.Build();
+
+        Assert.Equal(PlayerShellStateNames.Maintenance, state.State);
+        Assert.Null(state.SeatingCode);
+    }
+
+    /// <summary>Полоса обслуживания пишет, кто и когда: оболочка берёт это из состояния.</summary>
+    [Fact]
+    public void Maintenance_CarriesWhoTurnedItOnAndSince_AndOnlyThere()
+    {
+        var fixture = new Fixture();
+        fixture.Heartbeat.RecordMaintenance(Now.AddMinutes(-30), "Шерзод");
+        fixture.RuntimeState.Save(AgentRuntimeState.Maintenance(Now));
+
+        var maintenance = fixture.Build();
+
+        Assert.Equal(Now.AddMinutes(-30), maintenance.MaintenanceSinceUtc);
+        Assert.Equal("Шерзод", maintenance.MaintenanceByName);
+
+        fixture.RuntimeState.Save(AgentRuntimeState.Locked(Now));
+        var locked = fixture.Build();
+
+        Assert.Null(locked.MaintenanceSinceUtc);
+        Assert.Null(locked.MaintenanceByName);
+    }
+
+    /// <summary>Правила закрытия окон едут хосту; в обслуживании технику нужны и командная строка, и реестр.</summary>
+    [Fact]
+    public void BlockedWindows_TravelToTheHost_ExceptUnderMaintenance()
+    {
+        var rules = new List<AFK4.Shared.Contracts.Devices.BlockedWindowRuleDto> { new("Командная строка", null) };
+        var fixture = new Fixture(protection: new StubProtection(rules));
+
+        Assert.Equal(rules, fixture.Build().BlockedWindows);
+
+        fixture.RuntimeState.Save(AgentRuntimeState.Maintenance(Now));
+        Assert.Empty(fixture.Build().BlockedWindows!);
+    }
+
+    private sealed class StubProtection(IReadOnlyList<AFK4.Shared.Contracts.Devices.BlockedWindowRuleDto> rules)
+        : AFK4.Agent.Service.Protection.IProtectionEnforcer
+    {
+        public IReadOnlyList<AFK4.Shared.Contracts.Devices.BlockedWindowRuleDto> BlockedWindows => rules;
+
+        public IReadOnlyList<string> ClearAfterSession => [];
+
+        public AFK4.Shared.Contracts.Devices.ProtectionProfileDto Profile => new(0, false, false, false, false, [], [], [], ClearAfterSession);
+
+        public Task ApplyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task ReleaseAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task SyncAsync(int serverVersion, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<SessionEnforcementResult> RefreshAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(SessionEnforcementResult.Accepted("ok", "protection-applied"));
+    }
+
+    private sealed class Fixture(
+        string? clubName = null,
+        AFK4.Agent.Service.Protection.IProtectionEnforcer? protection = null,
+        AFK4.Agent.Service.Games.ILauncherCatalog? catalog = null,
+        AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null)
     {
         public AgentOptions Options { get; } = new()
         {
@@ -305,7 +395,71 @@ public sealed class PlayerShellStateBuilderTests
             Grace,
             Heartbeat,
             Warnings,
-            new FixedTimeProvider(Now)).Build();
+            new FixedTimeProvider(Now),
+            protection,
+            catalog,
+            showcase: showcase).Build();
+    }
+
+    // Библиотека клуба: обложка из кэша ПК и возраст — на плитке; лаунчера на ПК нет — плитка видна
+    // недоступной, а не пропадает.
+    [Fact]
+    public void TheClubLibrary_ReachesTheShell_WithCoversAges_AndHonestAvailability()
+    {
+        var present = typeof(PlayerShellStateBuilderTests).Assembly.Location;
+        var catalog = new FixedCatalog(
+        [
+            new AFK4.Agent.Service.Games.LauncherEntry("g1", "Dota 2", "MOBA", present, "-applaunch 570", false, "https://showcase.afk4.local/covers/g1.a.webp", 12),
+            new AFK4.Agent.Service.Games.LauncherEntry("g2", "Valorant", "Шутер", null, "", false, null, 16)
+        ]);
+
+        var apps = new Fixture(catalog: catalog).Build().LauncherApps;
+
+        Assert.Equal(2, apps.Count);
+        Assert.Equal("https://showcase.afk4.local/covers/g1.a.webp", apps[0].IconUri);
+        Assert.Equal(12, apps[0].MinAge);
+        Assert.True(apps[0].IsAvailable);
+        Assert.False(apps[1].IsAvailable);
+    }
+
+    // Витрина едет экрану тем же состоянием: без сети он крутит то, что агент уже положил на диск.
+    [Fact]
+    public void TheShowcase_ReachesTheScreen_WithCachedImages()
+    {
+        var card = new AFK4.Shared.Contracts.Showcase.ShowcaseCardDto(
+            "news:1", AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.News, "Ночь CS2",
+            ImageUrl: "https://showcase.afk4.local/cards/a.webp");
+
+        var state = new Fixture(showcase: new FixedShowcase([card])).Build();
+
+        Assert.Equal("https://showcase.afk4.local/cards/a.webp", Assert.Single(state.Showcase!).ImageUrl);
+    }
+
+    // Реклама платформы — только на свободном ПК: в сессии её в состоянии нет, карточки клуба остаются.
+    [Fact]
+    public void DuringASession_TheShowcaseCarriesNoAds()
+    {
+        var news = new AFK4.Shared.Contracts.Showcase.ShowcaseCardDto("news:1", AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.News, "Ночь CS2");
+        var ad = new AFK4.Shared.Contracts.Showcase.ShowcaseCardDto("ad:1", AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.Ad, "Безлимит", Advertiser: "Сомон");
+        var fixture = new Fixture(showcase: new FixedShowcase([news, ad]));
+        fixture.Contact(Now, intervalSeconds: 10);
+
+        Assert.Equal(2, fixture.Build().Showcase!.Count);
+
+        fixture.StartSession(Now.AddHours(1));
+        Assert.Equal(["news:1"], fixture.Build().Showcase!.Select(card => card.CardId));
+    }
+
+    private sealed class FixedShowcase(IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto> cards) : AFK4.Agent.Service.Showcase.IShowcaseSource
+    {
+        public IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto> Cards() => cards;
+    }
+
+    private sealed class FixedCatalog(IReadOnlyList<AFK4.Agent.Service.Games.LauncherEntry> entries) : AFK4.Agent.Service.Games.ILauncherCatalog
+    {
+        public IReadOnlyList<AFK4.Agent.Service.Games.LauncherEntry> Entries() => entries;
+
+        public AFK4.Agent.Service.Games.LauncherEntry? Find(string appId) => entries.FirstOrDefault(entry => entry.AppId == appId);
     }
 
     internal sealed class MemoryRuntimeStateStore(AgentRuntimeState initial) : IAgentRuntimeStateStore

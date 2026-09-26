@@ -14,8 +14,16 @@ public static class MediaPurposeNames
     /// Остальные фото зала: их несколько, и новая загрузка не заменяет прежние.
     public const string BranchGallery = "branch-gallery";
 
-    /// Назначения, у которых объект ровно один: загрузка нового удаляет прежний. Галерея
-    /// сюда не входит — иначе второе фото стирало бы первое.
+    /// Картинка новости: её показывают приложение игрока и витрина свободного ПК.
+    public const string NewsImage = "news-image";
+
+    /// Фото товара бара — для витрины ПК и меню бара.
+    public const string ProductImage = "product-image";
+
+    /// Назначения, у которых объект ровно один: загрузка нового удаляет прежний. Галерея,
+    /// новости и товары сюда не входят — иначе второе фото стирало бы первое.
     public static bool IsSingle(string purpose) => purpose is BranchLogo or BranchCover or OrganizationLogo;
-    // news-image добавится, когда Новости перейдут на upload (вне этого под-проекта)
+
+    public static bool IsKnown(string? purpose) =>
+        purpose is BranchLogo or OrganizationLogo or BranchCover or BranchGallery or NewsImage or ProductImage;
 }

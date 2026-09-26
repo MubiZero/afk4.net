@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
@@ -66,7 +67,7 @@ public sealed class EfFloorMapReadService(
         activeAssignments = activeAssignments
             .Where(assignment =>
                 devices.TryGetValue(assignment.DeviceId, out var device) &&
-                device.Role == DeviceRoleNames.GamingPc)
+                DeviceRoleNames.IsPlayable(device.Role))
             .ToList();
         var sessions = await dbContext.Sessions
             .AsNoTracking()
@@ -114,8 +115,9 @@ public sealed class EfFloorMapReadService(
                 .Where(account => playerAccountIds.Contains(account.PlayerAccountId))
                 .ToDictionaryAsync(account => account.PlayerAccountId, cancellationToken);
 
+        var allowance = await PlanDevices.ForOrganizationAsync(dbContext, branch.OrganizationId, cancellationToken);
         var seatStatuses = seats
-            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, tariffsById, playerAccountsById, now))
+            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, tariffsById, playerAccountsById, allowance, now))
             .OrderBy(seat => zonesById.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
@@ -148,6 +150,7 @@ public sealed class EfFloorMapReadService(
         IReadOnlyDictionary<Guid, TariffVersionEntity> tariffVersionsById,
         IReadOnlyDictionary<Guid, TariffEntity> tariffsById,
         IReadOnlyDictionary<Guid, PlayerAccountEntity> playerAccountsById,
+        PlanDevices.Allowance allowance,
         DateTimeOffset now)
     {
         zones.TryGetValue(seat.ZoneId, out var zone);
@@ -159,7 +162,9 @@ public sealed class EfFloorMapReadService(
         }
 
         sessionsBySeat.TryGetValue(seat.SeatId, out var activeSession);
-        var isDeviceOnline = device is null ? (bool?)null : IsHeartbeatFresh(device, now);
+        var isConsole = device?.Role == DeviceRoleNames.Console;
+        // У консоли нет агента и нет «на связи»: вопрос о связи к ней не относится.
+        var isDeviceOnline = device is null || isConsole ? (bool?)null : IsHeartbeatFresh(device, now);
         var (accruedCostMinorUnits, currencyCode) = GetAccruedCost(activeSession, tariffVersionsById, now);
 
         return new SeatStatusDto(
@@ -184,7 +189,10 @@ public sealed class EfFloorMapReadService(
             PlayerDisplayName: GetPlayerDisplayName(activeSession, playerAccountsById),
             TariffName: GetTariffName(activeSession, tariffVersionsById, tariffsById),
             SessionStartedAtUtc: activeSession?.StartedAtUtc,
-            AssistanceRequestedAtUtc: device?.AssistanceRequestedAtUtc);
+            AssistanceRequestedAtUtc: device?.AssistanceRequestedAtUtc,
+            MaintenanceSinceUtc: device?.MaintenanceSinceUtc,
+            IsConsole: isConsole,
+            IsOutsidePlan: device is not null && allowance.Outside.Contains(device.DeviceId));
     }
 
     private static string? GetPlayerDisplayName(
@@ -283,6 +291,19 @@ public sealed class EfFloorMapReadService(
         if (device.EnrollmentState != DeviceEnrollmentStateNames.Approved)
         {
             return SeatStateNames.Maintenance;
+        }
+
+        // Выключенный ПК на обслуживании — всё равно обслуживание: клуб закрыл его сам, и «офлайн»
+        // звал бы идти разбираться с сетью.
+        if (device.MaintenanceSinceUtc is not null)
+        {
+            return SeatStateNames.Maintenance;
+        }
+
+        // Консоль свободна, пока на ней нет сессии: запирать и отпирать её некому.
+        if (device.Role == DeviceRoleNames.Console)
+        {
+            return SeatStateNames.Free;
         }
 
         if (isDeviceOnline != true)

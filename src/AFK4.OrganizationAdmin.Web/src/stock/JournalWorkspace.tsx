@@ -16,6 +16,7 @@ import {
   mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv, movementStatusTone,
   type JournalTypeFilter, type JournalPeriod, type MovementType,
 } from './journalModel';
+import { formatDateParts } from '@afk4/formatting';
 
 const TYPE_FILTERS: JournalTypeFilter[] = ['all', 'purchase', 'sale', 'refund', 'adjustment'];
 const PERIODS: JournalPeriod[] = ['today', 'week', 'all'];
@@ -95,8 +96,9 @@ export function JournalWorkspace({
       .catch((error) => setCatalogError(projectOperatorError(error, t)));
   };
 
-  const dateTimeFmt = useMemo(() => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }), [locale]);
-  const dayFmt = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), [locale]);
+  // Через общий форматтер: у таджикского Intl браузера — английские месяцы и «PM».
+  const timeOf = (date: Date) => formatDateParts(date, locale, { hour: '2-digit', minute: '2-digit' });
+  const dayOf = (date: Date) => formatDateParts(date, locale, { day: 'numeric', month: 'long' });
 
   const showSkeleton = useDeferredFlag(loading);
 
@@ -126,7 +128,7 @@ export function JournalWorkspace({
     const yesterdayKey = new Date(nowMs - 86_400_000).toISOString().slice(0, 10);
     if (dayKey === todayKey) return t('op.stock.journal.today');
     if (dayKey === yesterdayKey) return t('op.stock.journal.yesterday');
-    return dayFmt.format(new Date(`${dayKey}T00:00:00Z`));
+    return dayOf(new Date(`${dayKey}T00:00:00Z`));
   };
 
   const exportCsv = () => {
@@ -210,7 +212,7 @@ export function JournalWorkspace({
                 <ul className="jlist ui-ledger-list">
                   {group.rows.map((row) => (
                     <li key={row.id} className="ui-ledger-row stock-ledger-row">
-                      <span className="ui-ledger-time">{dateTimeFmt.format(new Date(row.createdAtUtc))}</span>
+                      <span className="ui-ledger-time">{timeOf(new Date(row.createdAtUtc))}</span>
                       <div className="ui-ledger-body">
                         <span className="ui-ledger-title">
                           <span className={`ui-chip ui-chip--status ${movementStatusTone(row.type as MovementType, row.quantityDelta)}`}>

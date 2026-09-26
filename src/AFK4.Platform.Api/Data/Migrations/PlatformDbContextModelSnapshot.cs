@@ -22,6 +22,315 @@ namespace AFK4.Platform.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.AdAdvertiserEntity", b =>
+                {
+                    b.Property<Guid>("AdvertiserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Contact")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LegalName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("TaxId")
+                        .IsRequired()
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
+                    b.HasKey("AdvertiserId");
+
+                    b.ToTable("ad_advertisers", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.AdCampaignEntity", b =>
+                {
+                    b.Property<Guid>("CampaignId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdvertiserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("CitiesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ContainsOffer")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("DistanceSelling")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("OrganizationIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PermitNumber")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<bool>("RequiresCertification")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CampaignId");
+
+                    b.HasIndex("AdvertiserId");
+
+                    b.HasIndex("State", "EndsAtUtc");
+
+                    b.ToTable("ad_campaigns", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.AdComplaintEntity", b =>
+                {
+                    b.Property<Guid>("ComplaintId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreativeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("ReportedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ResolvedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ComplaintId");
+
+                    b.HasIndex("OrganizationId", "CreativeId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ad_complaints_open_per_club")
+                        .HasFilter("\"ResolvedAtUtc\" IS NULL");
+
+                    b.HasIndex("ResolvedAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("ad_complaints", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.AdCreativeEntity", b =>
+                {
+                    b.Property<Guid>("CreativeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ArchivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)");
+
+                    b.Property<string>("BodyRu")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTimeOffset?>("ModeratedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModeratedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Moderation")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("RejectedReason")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("TitleRu")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("CreativeId");
+
+                    b.HasIndex("CampaignId");
+
+                    b.ToTable("ad_creatives", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.AdCreativeImageEntity", b =>
+                {
+                    b.Property<Guid>("CreativeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTimeOffset>("StoredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CreativeId");
+
+                    b.ToTable("ad_creative_images", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.AdImpressionBatchEntity", b =>
+                {
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BatchId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("DeviceId", "BatchId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("ad_impression_batches", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.AdImpressionDailyEntity", b =>
+                {
+                    b.Property<Guid>("AdImpressionDailyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreativeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<long>("Impressions")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ShownMs")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("AdImpressionDailyId");
+
+                    b.HasIndex("Day");
+
+                    b.HasIndex("OrganizationId", "Day");
+
+                    b.HasIndex("CreativeId", "BranchId", "Day")
+                        .IsUnique();
+
+                    b.ToTable("ad_impressions_daily", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.AnnouncementReadEntity", b =>
                 {
                     b.Property<Guid>("PlatformAnnouncementId")
@@ -378,6 +687,170 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("branches", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.BranchGameEntity", b =>
+                {
+                    b.Property<Guid>("BranchGameId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Arguments")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<bool>("AvailableWithoutSession")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CatalogGameId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CoverUrl")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExecutablePath")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Genre")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LaunchKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("LaunchOnSessionStart")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LaunchTarget")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("MinAge")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("BranchGameId");
+
+                    b.HasIndex("CatalogGameId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("BranchId", "SortOrder");
+
+                    b.ToTable("branch_games", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.BranchGameLibraryEntity", b =>
+                {
+                    b.Property<Guid>("BranchId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("BranchId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("branch_game_libraries", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.BranchProtectionProfileEntity", b =>
+                {
+                    b.Property<Guid>("BranchId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("BlockBrowserDownloads")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("BlockBrowserIncognito")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("BlockRemovableStorage")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("BlockedWindowsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClearAfterSessionJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[\"steam\",\"browsers\",\"launchers\",\"messengers\"]");
+
+                    b.Property<string>("ClubRules")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("DisableRunDialog")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("HiddenDrives")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<int?>("IdleShutdownMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UrlBlocklistJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("BranchId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("branch_protection_profiles", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.CashMovementEntity", b =>
                 {
                     b.Property<Guid>("CashMovementId")
@@ -422,6 +895,60 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("ShiftId", "CreatedAtUtc");
 
                     b.ToTable("cash_movements", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.CatalogGameEntity", b =>
+                {
+                    b.Property<Guid>("CatalogGameId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CoverUrl")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Genre")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LaunchKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("LaunchTarget")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("MinAge")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CatalogGameId");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("catalog_games", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.ClubReviewEntity", b =>
@@ -663,6 +1190,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<bool>("IsOnline")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("KeptOnFreePlan")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("LastHeartbeatAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -670,6 +1200,15 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<string>("MaintenanceByName")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("MaintenanceByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("MaintenanceSinceUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NetworkBroadcastAddress")
                         .HasMaxLength(64)
@@ -692,6 +1231,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("PlayerSignInWindowStartedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ProtectionReportJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -709,6 +1251,56 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "EnrollmentState");
 
                     b.ToTable("devices", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.DeviceHardwareEntity", b =>
+                {
+                    b.Property<Guid>("DeviceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AcceptedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("AcceptedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AcceptedFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("AcceptedJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrentFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("CurrentJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("DeviceId");
+
+                    b.HasIndex("OrganizationId", "BranchId");
+
+                    b.ToTable("device_hardware", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.DeviceInstalledAppEntity", b =>
@@ -932,6 +1524,49 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("eskhata_merchant_configs", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.InstallCodeEntity", b =>
+                {
+                    b.Property<Guid>("InstallCodeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MaxDevices")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("UsedDevices")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("InstallCodeId");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "BranchId");
+
+                    b.ToTable("install_codes", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.InvoiceEntity", b =>
@@ -1210,6 +1845,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("PublishAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("ShowOnPcs")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1441,6 +2079,16 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("PurgedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ReferralCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("ReferralRewardedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReferredByOrganizationId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1471,6 +2119,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("OrganizationId");
+
+                    b.HasIndex("ReferralCode")
+                        .IsUnique();
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -1709,6 +2360,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("DiscountUntilUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("FreeMonths")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("NextInvoiceUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1723,10 +2377,16 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<Guid?>("PromisedPaymentInvoiceId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("TrialStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -1767,6 +2427,26 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "CreatedAtUtc");
 
                     b.ToTable("tenant_support_notes", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationTipSettingsEntity", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("OrganizationId");
+
+                    b.ToTable("organization_tip_settings", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.OutboxMessageEntity", b =>
@@ -2412,6 +3092,31 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("Status", "ShowUntilUtc");
 
                     b.ToTable("platform_announcements", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformBillingTermsEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FallbackAfterOverdueDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PromisedPaymentDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TrialDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("platform_billing_terms", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformFeatureEntity", b =>
@@ -3352,6 +4057,13 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 
+                    b.Property<bool>("FeaturedOnPcs")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -4171,6 +4883,42 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("shifts", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.ShiftTipPayoutEntity", b =>
+                {
+                    b.Property<Guid>("ShiftTipPayoutId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("AmountMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CashMovementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ShiftId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ShiftTipPayoutId");
+
+                    b.HasIndex("CashMovementId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.ToTable("shift_tip_payouts", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.ShopOrderEntity", b =>
                 {
                     b.Property<Guid>("ShopOrderId")
@@ -4715,6 +5463,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 
+                    b.Property<int>("IncludedDevices")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -4722,6 +5473,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int?>("MaxConcurrentSessions")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("MaxDevices")
                         .HasColumnType("integer");
 
                     b.Property<int?>("MaxDevicesPerBranch")
@@ -4736,6 +5490,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("character varying(160)");
 
                     b.Property<long>("PriceMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PricePerDeviceMinorUnits")
                         .HasColumnType("bigint");
 
                     b.Property<int>("SortOrder")
@@ -4773,6 +5530,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("FeaturedOnPcs")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");

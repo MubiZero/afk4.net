@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
+using AFK4.Shared.Contracts.Platform.Features;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,39 @@ public sealed class BillingPlanSeedHostedService(
 {
     private static readonly SubscriptionPlanEntity[] DefaultPlans =
     [
+        // Спека тарифов клуба, §2: бесплатно до десяти ПК с рекламой платформы, дальше — за ПК.
+        new()
+        {
+            PlanCode = OrganizationPlanCodeNames.Free,
+            Name = "Бесплатный",
+            PriceMinorUnits = 0,
+            CurrencyCode = "TJS",
+            BillingInterval = BillingIntervalNames.Monthly,
+            // Только число ПК на весь клуб: залы и сотрудники не ограничены (владелец, 2026-09-26).
+            MaxBranches = null,
+            MaxDevicesPerBranch = null,
+            MaxConcurrentSessions = null,
+            MaxStaffUsersPerBranch = null,
+            MaxDevices = ClubPlanLimits.FreeDevices,
+            IsActive = true,
+            SortOrder = 0
+        },
+        new()
+        {
+            PlanCode = OrganizationPlanCodeNames.PerPc,
+            Name = "За ПК",
+            PriceMinorUnits = 0,
+            PricePerDeviceMinorUnits = ClubPlanLimits.PricePerDeviceMinorUnits,
+            IncludedDevices = ClubPlanLimits.FreeDevices,
+            CurrencyCode = "TJS",
+            BillingInterval = BillingIntervalNames.Monthly,
+            MaxBranches = null,
+            MaxDevicesPerBranch = null,
+            MaxConcurrentSessions = null,
+            MaxStaffUsersPerBranch = null,
+            IsActive = true,
+            SortOrder = 0
+        },
         new()
         {
             PlanCode = OrganizationPlanCodeNames.Starter,
@@ -26,7 +60,8 @@ public sealed class BillingPlanSeedHostedService(
             MaxDevicesPerBranch = 30,
             MaxConcurrentSessions = 40,
             MaxStaffUsersPerBranch = 10,
-            IsActive = true,
+            // Прежняя сетка снята с продажи (спека тарифов клуба, §2): 2 900 были рублями без пересчёта.
+            IsActive = false,
             SortOrder = 1
         },
         new()
@@ -40,7 +75,8 @@ public sealed class BillingPlanSeedHostedService(
             MaxDevicesPerBranch = 60,
             MaxConcurrentSessions = 80,
             MaxStaffUsersPerBranch = 20,
-            IsActive = true,
+            // Прежняя сетка снята с продажи (спека тарифов клуба, §2): 2 900 были рублями без пересчёта.
+            IsActive = false,
             SortOrder = 2
         },
         new()
@@ -54,7 +90,8 @@ public sealed class BillingPlanSeedHostedService(
             MaxDevicesPerBranch = 120,
             MaxConcurrentSessions = 200,
             MaxStaffUsersPerBranch = 50,
-            IsActive = true,
+            // Прежняя сетка снята с продажи (спека тарифов клуба, §2): 2 900 были рублями без пересчёта.
+            IsActive = false,
             SortOrder = 3
         },
         new()
@@ -68,7 +105,8 @@ public sealed class BillingPlanSeedHostedService(
             MaxDevicesPerBranch = 30,
             MaxConcurrentSessions = 40,
             MaxStaffUsersPerBranch = 10,
-            IsActive = true,
+            // Прежняя сетка снята с продажи (спека тарифов клуба, §2): 2 900 были рублями без пересчёта.
+            IsActive = false,
             SortOrder = 4
         },
         new()
@@ -82,7 +120,8 @@ public sealed class BillingPlanSeedHostedService(
             MaxDevicesPerBranch = 60,
             MaxConcurrentSessions = 80,
             MaxStaffUsersPerBranch = 20,
-            IsActive = true,
+            // Прежняя сетка снята с продажи (спека тарифов клуба, §2): 2 900 были рублями без пересчёта.
+            IsActive = false,
             SortOrder = 5
         },
         new()
@@ -96,7 +135,8 @@ public sealed class BillingPlanSeedHostedService(
             MaxDevicesPerBranch = 120,
             MaxConcurrentSessions = 200,
             MaxStaffUsersPerBranch = 50,
-            IsActive = true,
+            // Прежняя сетка снята с продажи (спека тарифов клуба, §2): 2 900 были рублями без пересчёта.
+            IsActive = false,
             SortOrder = 6
         }
     ];
@@ -139,10 +179,27 @@ public sealed class BillingPlanSeedHostedService(
                 MaxDevicesPerBranch = template.MaxDevicesPerBranch,
                 MaxConcurrentSessions = template.MaxConcurrentSessions,
                 MaxStaffUsersPerBranch = template.MaxStaffUsersPerBranch,
+                MaxDevices = template.MaxDevices,
+                PricePerDeviceMinorUnits = template.PricePerDeviceMinorUnits,
+                IncludedDevices = template.IncludedDevices,
                 IsActive = template.IsActive,
                 SortOrder = template.SortOrder,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
+            });
+            added++;
+        }
+
+        // Реклама платформы — у бесплатного тарифа и только у него. Строки нет — решает значение
+        // фичи по умолчанию; здесь оно записано явно, чтобы клуб на бесплатном её получил.
+        foreach (var (planCode, included) in new[] { (OrganizationPlanCodeNames.Free, true), (OrganizationPlanCodeNames.PerPc, false) })
+        {
+            var known = await dbContext.PlanFeatures.AnyAsync(
+                feature => feature.PlanCode == planCode && feature.FeatureKey == PlatformFeatureNames.PlatformAds, cancellationToken);
+            if (known) continue;
+            dbContext.PlanFeatures.Add(new PlanFeatureEntity
+            {
+                PlanFeatureId = Guid.NewGuid(), PlanCode = planCode, FeatureKey = PlatformFeatureNames.PlatformAds, IsIncluded = included
             });
             added++;
         }

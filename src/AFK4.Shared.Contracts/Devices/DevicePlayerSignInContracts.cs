@@ -25,6 +25,9 @@ public static class DevicePlayerSignInErrorCodeNames
 
     /// <summary>На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего.</summary>
     public const string SessionNotYours = "session_not_yours";
+
+    /// <summary>Клуб закрыл этот ПК на обслуживание: входить на нём некуда.</summary>
+    public const string DeviceInMaintenance = "device_in_maintenance";
 }
 
 /// <summary>Отказ входа на ПК. <see cref="RetryAfterUtc"/> — только у too_many_attempts.</summary>

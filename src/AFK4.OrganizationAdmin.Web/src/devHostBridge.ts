@@ -13,14 +13,18 @@
 // sign-in is mocked by intercepting fetch (installMockFetch below), which serves `/api/auth/staff/*`
 // from devMockFetch — see devMockBackend.ts.
 
-import { devMockFetch } from './devMockBackend';
+import { createMockSession, devMockFetch } from './devMockBackend';
+import { readStoredSession, sessionFromSignInResponse, writeStoredSession } from './auth/staffSessionStore';
+import type { StaffSignInResponse } from '@afk4/contracts';
 
 const ORG = '0169044b-2f74-46a7-8e52-7656a39a8f8c';
 const BRANCH = 'f77b708c-1dc9-4cb3-9c19-21797f7035fc';
 
 // UI-preview mode (default): serve a fake session + mock platform data so the console renders
 // without a backend. Append `?live` to the dev URL to instead proxy sign-in to the staging API.
-const PREVIEW_MOCK = !location.search.includes('live');
+// Публичное демо: только учебный бэкенд и сразу вошедший администратор — стенда за ним нет.
+const DEMO = import.meta.env.VITE_AFK4_DEMO === '1';
+const PREVIEW_MOCK = DEMO || !location.search.includes('live');
 
 interface DevBridgeMessage {
   type?: string;
@@ -49,6 +53,12 @@ export function installDevHostBridge(): void {
   }
 
   window.__AFK4_ORGANIZATION_ADMIN_CONFIG__ = createDevOperatorConfig();
+
+  // ?signedIn=1 — сразу вошедший администратор превью: экраны за входом видно без формы и без
+  // ПИН-кода. Только заглушка dev-сборки; боевая сборка этого модуля не содержит.
+  if ((DEMO || new URLSearchParams(window.location.search).get('signedIn') === '1') && readStoredSession() === null) {
+    writeStoredSession(sessionFromSignInResponse(createMockSession() as unknown as StaffSignInResponse));
+  }
 
   const listeners = new Set<(event: { data: unknown }) => void>();
 
@@ -100,7 +110,8 @@ export function createDevOperatorConfig() {
     shellMode: PREVIEW_MOCK ? 'vite-dev-preview' : 'vite-dev',
     platformBaseUrl: location.origin + '/',
     currencyCode: 'TJS',
-    appVersion: 'dev',
+    appVersion: DEMO ? 'demo' : 'dev',
+    demo: DEMO,
     organizationId: ORG,
     branchId: BRANCH
   };

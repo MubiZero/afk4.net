@@ -1,4 +1,5 @@
-﻿using AFK4.Shared.Contracts.Sessions;
+﻿using System.Text.Json.Serialization;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Agent.Service.Enforcement;
@@ -8,7 +9,13 @@ public sealed record AgentRuntimeState(
     bool IsLocked,
     Guid? ActiveSessionId,
     DateTimeOffset? LeaseExpiresAtUtc,
-    DateTimeOffset UpdatedAtUtc)
+    DateTimeOffset UpdatedAtUtc,
+    // Проводник для техника запустил агент — значит, при возврате в зал его и закрывать. Если
+    // проводник работал до обслуживания (ПК ещё не переведён в киоск), он чужой и остаётся.
+    bool MaintenanceDesktopOpened = false,
+    // Когда ПК открылся игроку. По нему уборка отличает запущенное за сессию от того, что работало
+    // раньше: утилиты мыши и звука, стартовавшие при входе в Windows, закрывать нельзя.
+    DateTimeOffset? SessionStartedAtUtc = null)
 {
     public static AgentRuntimeState Locked(DateTimeOffset updatedAtUtc)
     {
@@ -30,23 +37,49 @@ public sealed record AgentRuntimeState(
     public static AgentRuntimeState Grace(
         Guid sessionId,
         DateTimeOffset? leaseExpiresAtUtc,
-        DateTimeOffset updatedAtUtc)
+        DateTimeOffset updatedAtUtc,
+        DateTimeOffset? sessionStartedAtUtc = null)
     {
         return new AgentRuntimeState(
             PlayerShellStateNames.Grace,
             IsLocked: false,
             sessionId,
             leaseExpiresAtUtc,
-            updatedAtUtc);
+            updatedAtUtc,
+            SessionStartedAtUtc: sessionStartedAtUtc);
     }
 
-    public static AgentRuntimeState Active(SessionLeaseDto lease, DateTimeOffset updatedAtUtc)
+    /// <summary>
+    /// ПК на обслуживании: открыт для техника, игрокам вход закрыт (спека оболочки, §6.5).
+    /// <c>IsLocked</c> остаётся true: для платформы и обновлений это «за ПК нет игрока», а не
+    /// «экран заперт». Состояние живёт файлом — перезапуск службы не возвращает машину в зал.
+    /// </summary>
+    public static AgentRuntimeState Maintenance(DateTimeOffset updatedAtUtc, bool desktopOpened = false)
+    {
+        return new AgentRuntimeState(
+            PlayerShellStateNames.Maintenance,
+            IsLocked: true,
+            ActiveSessionId: null,
+            LeaseExpiresAtUtc: null,
+            updatedAtUtc,
+            desktopOpened);
+    }
+
+    /// <summary>За ПК играют: по аренде или в льготном окне после обрыва связи.</summary>
+    [JsonIgnore]
+    public bool SessionRuns => State is PlayerShellStateNames.Active or PlayerShellStateNames.Grace;
+
+    public static AgentRuntimeState Active(
+        SessionLeaseDto lease,
+        DateTimeOffset updatedAtUtc,
+        DateTimeOffset? sessionStartedAtUtc = null)
     {
         return new AgentRuntimeState(
             PlayerShellStateNames.Active,
             IsLocked: false,
             lease.SessionId,
             lease.ExpiresAtUtc,
-            updatedAtUtc);
+            updatedAtUtc,
+            SessionStartedAtUtc: sessionStartedAtUtc ?? updatedAtUtc);
     }
 }

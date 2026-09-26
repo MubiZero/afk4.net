@@ -45,4 +45,8 @@ public sealed record CreateProductRequest
     public int ReorderThreshold { get; init; }
 
     public bool AvailableInShell { get; init; }
+
+    public bool FeaturedOnPcs { get; init; }
+
+    public string? ImageUrl { get; init; }
 }

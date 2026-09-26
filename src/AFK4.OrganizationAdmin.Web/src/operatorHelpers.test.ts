@@ -148,3 +148,28 @@ describe('matchesMapFilter (all/ready/active/endingSoon/offline)', () => {
     expect(matchesMapFilter(seat({ tone: 'ready' }), 'all')).toBe(true);
   });
 });
+
+describe('подписи команд ПК', () => {
+  // Каждый тип команды из контракта назван словами: журнал не должен писать «Команда» вместо
+  // «Перезагрузка» — так было, пока подписей было шесть на двенадцать типов.
+  it('у каждого типа команды из контракта своя подпись', async () => {
+    const { DeviceCommandTypeNames } = await import('@afk4/contracts');
+    const { commandTypeLabel } = await import('./operatorHelpers');
+    const t = createTranslator('ru');
+    const fallback = t('op.helper.command.type.fallback');
+
+    for (const type of Object.values(DeviceCommandTypeNames)) {
+      expect(commandTypeLabel(type, t)).not.toBe(fallback);
+    }
+  });
+
+  it('статусы неповторяемых команд — словами', async () => {
+    const { DeviceCommandStatusNames } = await import('@afk4/contracts');
+    const { commandStatusLabel } = await import('./operatorHelpers');
+    const t = createTranslator('ru');
+
+    for (const status of Object.values(DeviceCommandStatusNames)) {
+      expect(commandStatusLabel(status, t)).not.toBe(status);
+    }
+  });
+});

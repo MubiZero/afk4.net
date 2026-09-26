@@ -25,7 +25,10 @@ import {
   createTariff,
   getBootstrapConfig,
   inviteStaff,
+  kioskStatus,
   provisionShell,
+  rebootPc,
+  removeKiosk,
   saveBranding,
   uploadLogo,
   type WizardBranch,
@@ -35,6 +38,7 @@ import {
   type WizardRole,
   type WizardSeat,
 } from './wizardApi';
+import { KioskRemoval } from './Kiosk';
 
 /// Введённое на шагах, которые принадлежат филиалу: приглашённые, заведённые места и тариф есть
 /// у одного филиала, и на другом показывать их значило бы соврать, что там уже всё настроено.
@@ -521,6 +525,7 @@ export function App() {
             onDiscovered={handlePhoneDiscovered}
             onForgotPassword={goToForgotPassword}
             initialIdentity={state.signInPrefill?.identity}
+            footer={<KioskRemoval loadStatus={kioskStatus} remove={removeKiosk} reboot={rebootPc} />}
           />
         )}
 
@@ -620,6 +625,7 @@ export function App() {
             selectedSeat={state.selectedSeat}
             stepNumber={stepNumber}
             provisionShell={provisionShell}
+            reboot={rebootPc}
             onClose={closeWizard}
           />
         )}

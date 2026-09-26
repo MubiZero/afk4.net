@@ -37,10 +37,12 @@ public sealed class ShellPipeServer(
     IPlayerShellLaunchContext launchContext,
     TimeProvider timeProvider,
     ILogger<ShellPipeServer> logger,
-    ShellPipeTimings? timings = null) : BackgroundService
+    ShellPipeTimings? timings = null,
+    ShellHostChannel? hostChannel = null) : BackgroundService
 {
     private static readonly JsonSerializerOptions SignatureJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ShellPipeTimings timings = timings ?? ShellPipeTimings.Default;
+    private readonly ShellHostChannel hostChannel = hostChannel ?? new ShellHostChannel();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -114,15 +116,18 @@ public sealed class ShellPipeServer(
         logger.LogInformation("Shell host {HostVersion} connected from session {SessionId}.", hello.HostVersion, clientSessionId);
 
         using var connection = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        var frames = hostChannel.Attach();
         var pushing = PushStatesAsync(pipe, writeLock, connection.Token);
         var reading = ReadRequestsAsync(pipe, writeLock, connection.Token);
+        var forwarding = ForwardFramesAsync(pipe, writeLock, frames, connection.Token);
 
         // Кто первым закончил — хост закрылся или запись упала, — тот и закрывает соединение.
-        var finished = await Task.WhenAny(pushing, reading);
+        var finished = await Task.WhenAny(pushing, reading, forwarding);
+        hostChannel.Detach(frames);
         await connection.CancelAsync();
         try
         {
-            await Task.WhenAll(pushing, reading);
+            await Task.WhenAll(pushing, reading, forwarding);
         }
         catch (OperationCanceledException) when (connection.IsCancellationRequested)
         {
@@ -171,6 +176,22 @@ public sealed class ShellPipeServer(
 
             await stateSignal.WaitAsync(timings.RebuildInterval, cancellationToken);
         }
+    }
+
+    /// <summary>Кадры без запроса хоста: команды клуба и вход игрока.</summary>
+    private async Task ForwardFramesAsync(
+        Stream pipe,
+        SemaphoreSlim writeLock,
+        System.Threading.Channels.ChannelReader<ShellPipeMessage> frames,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var frame in frames.ReadAllAsync(cancellationToken))
+        {
+            await SendAsync(pipe, writeLock, frame, cancellationToken);
+        }
+
+        // Очередь закрыли — соединение кончается. Ждём отмены вместе с остальными, а не закрываем его сами.
+        await Task.Delay(Timeout.Infinite, cancellationToken);
     }
 
     private async Task ReadRequestsAsync(Stream pipe, SemaphoreSlim writeLock, CancellationToken cancellationToken)
@@ -280,11 +301,9 @@ public sealed class ShellPipeServer(
     /// системы или прочитать чужое состояние.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    internal static PipeSecurity CreatePipeSecurity(string? clientSid)
+    public static PipeSecurity CreatePipeSecurity(string? clientSid)
     {
-        var client = string.IsNullOrWhiteSpace(clientSid)
-            ? new SecurityIdentifier(WellKnownSidType.InteractiveSid, null)
-            : new SecurityIdentifier(clientSid);
+        var client = PipeClient(clientSid);
 
         var security = new PipeSecurity();
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
@@ -298,6 +317,29 @@ public sealed class ShellPipeServer(
             AccessControlType.Allow));
         security.AddAccessRule(new PipeAccessRule(client, PipeAccessRights.ReadWrite, AccessControlType.Allow));
         return security;
+    }
+
+    /// <summary>
+    /// Учётка игрока из настройки киоска; без киоска — любой интерактивный пользователь. Кривой
+    /// SID не должен ронять канал на каждом круге: тогда оболочка не подключилась бы вовсе, и ПК
+    /// стоял бы без экрана. Он откатывается к интерактивному пользователю — как машина без киоска.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static SecurityIdentifier PipeClient(string? clientSid)
+    {
+        if (!string.IsNullOrWhiteSpace(clientSid))
+        {
+            try
+            {
+                return new SecurityIdentifier(clientSid);
+            }
+            catch (ArgumentException)
+            {
+                Console.Error.WriteLine($"ShellPipeClientSid '{clientSid}' is not a SID; any interactive user may connect.");
+            }
+        }
+
+        return new SecurityIdentifier(WellKnownSidType.InteractiveSid, null);
     }
 
     /// <summary>

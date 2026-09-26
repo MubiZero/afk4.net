@@ -20,10 +20,43 @@ export function formatCurrency(amount: number, currencyCode: string, locale: str
 }
 
 /** Format an ISO string or `Date` with the given locale and `Intl.DateTimeFormat`
- * options. Returns the formatter output; callers handle empty/invalid inputs. */
+ * options. Returns the formatter output; callers handle empty/invalid inputs.
+ * Tajik (`tg`, `tg-TJ`) is formatted here, not by `Intl` — see {@link formatTajikDate}. */
 export function formatDateParts(value: Date | string, locale: string, options: Intl.DateTimeFormatOptions): string {
   const date = typeof value === 'string' ? new Date(value) : value;
-  return new Intl.DateTimeFormat(locale, options).format(date);
+  return isTajikLocale(locale) ? formatTajikDate(date, options) : new Intl.DateTimeFormat(locale, options).format(date);
+}
+
+export function isTajikLocale(locale: string): boolean {
+  return locale === 'tg' || locale.startsWith('tg-');
+}
+
+// Названия по-таджикски — в именительном падеже, как их пишут в датах: «31 октябр 2026».
+const TAJIK_MONTHS = ['январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
+// По порядку Date.getDay(): воскресенье первым.
+const TAJIK_WEEKDAYS = ['якшанбе', 'душанбе', 'сешанбе', 'чоршанбе', 'панҷшанбе', 'ҷумъа', 'шанбе'];
+const EN_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * Дата по-таджикски. Браузеры таджикского не знают: `Intl` сводит `tg-TJ` к `en-US` — месяцы
+ * выходят по-английски, а время — двенадцатичасовым с AM/PM. Раскладка берётся у `en-GB` (тот же
+ * порядок «день месяц год» и 24 часа), названия месяцев и дней недели подставляются таджикские.
+ * Всегда здесь, а не только когда `Intl` не знает таджикского, — чтобы на всех машинах одинаково.
+ */
+export function formatTajikDate(date: Date, options: Intl.DateTimeFormatOptions): string {
+  const timeZone = options.timeZone;
+  const monthIndex = Number(new Intl.DateTimeFormat('en-GB', { month: 'numeric', timeZone }).format(date)) - 1;
+  const weekdayIndex = EN_WEEKDAYS.indexOf(new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(date));
+  return new Intl.DateTimeFormat('en-GB', options)
+    .formatToParts(date)
+    .map((part) => {
+      if (part.type === 'month' && !/^\d+$/.test(part.value)) return TAJIK_MONTHS[monthIndex] ?? part.value;
+      if (part.type === 'weekday') return TAJIK_WEEKDAYS[weekdayIndex] ?? part.value;
+      // «31 October 2026 at 14:00» у en-GB — по-таджикски через запятую; «31/10/2026» — через точку.
+      if (part.type === 'literal') return part.value.replace(' at ', ', ').replace('/', '.');
+      return part.value;
+    })
+    .join('');
 }
 
 /**

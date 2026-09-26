@@ -54,3 +54,33 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Публичное демо (demo/DemoBanner.tsx): тот же слот и та же высота — тон акцентный, а не
+ * тревожный: это не проблема клуба, а напоминание, что данные выдуманы. */
+.demo-banner {
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent-ring);
+  color: var(--accent-on-soft);
+}
+
+.demo-banner .billing-status-banner-badge {
+  background: var(--accent);
+}
+
+.demo-banner-restart {
+  flex-shrink: 0;
+  margin-left: auto;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent-ring);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.demo-banner-restart:hover {
+  background: var(--accent-ring);
+}

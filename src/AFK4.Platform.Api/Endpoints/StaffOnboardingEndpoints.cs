@@ -231,11 +231,97 @@ internal static class StaffOnboardingEndpoints
             // Мастер установки заводит сотрудников на месте: проверка версии панели к нему не применяется.
             .AllowNonOrganizationAdminClients();
 
+        // Кого добавили, но кто ещё не входил. Без этого списка выданный код нельзя было ни
+        // увидеть, ни отозвать — только добавить человека заново и надеяться на лучшее.
+        organizations.MapGet("branches/{branchId:guid}/staff/invites", async (
+            Guid branchId,
+            StaffAuthorizationService authorizationService,
+            IStaffInviteService staffInviteService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ManageBranchStaff, cancellationToken);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter, authorization.StaffContext!.OrganizationId, branchId, authorization.StaffContext.StaffUserId,
+                    AuditActionNames.ViewStaffInvites, "StaffInvite", null, AuditOutcome.Denied,
+                    new { authorization.DenialReason }, cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            return Results.Ok(await staffInviteService.ListPendingAsync(
+                authorization.StaffContext!.OrganizationId, branchId, cancellationToken));
+        });
+
+        organizations.MapDelete("branches/{branchId:guid}/staff/invites/{staffInviteId:guid}", async (
+            Guid branchId,
+            Guid staffInviteId,
+            StaffAuthorizationService authorizationService,
+            IStaffInviteService staffInviteService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ManageBranchStaff, cancellationToken);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            var staff = authorization.StaffContext!;
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter, staff.OrganizationId, branchId, staff.StaffUserId,
+                    AuditActionNames.RevokeStaffInvite, "StaffInvite", staffInviteId.ToString("D"), AuditOutcome.Denied,
+                    new { authorization.DenialReason }, cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (!await staffInviteService.RevokeAsync(staff.OrganizationId, branchId, staffInviteId, cancellationToken))
+            {
+                return Results.NotFound();
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter, staff.OrganizationId, branchId, staff.StaffUserId,
+                AuditActionNames.RevokeStaffInvite, "StaffInvite", staffInviteId.ToString("D"), AuditOutcome.Succeeded,
+                new { }, cancellationToken);
+            return Results.NoContent();
+        });
+
+        // Сверка кода первого входа до ПИНа. Отказы — те же, что у приёма.
+        app.MapPost(StaffAuthRoutes.CheckInvite, async (
+            CheckStaffInviteRequest request,
+            IStaffInviteService staffInviteService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await staffInviteService.CheckInviteAsync(request.PhoneNumber, request.Code, cancellationToken);
+            if (result.Succeeded)
+            {
+                return Results.NoContent();
+            }
+
+            await AuditRefusalAsync(auditRecordWriter, result, cancellationToken);
+            return InviteRefusal(result);
+        }).RequireRateLimiting("staff-reset");
+
         // Приём приглашения. Отвечает теми же словами, что сброс пароля по телефону: человек по
         // ту сторону тот же самый, и два разных языка отказов он читал бы как два разных сбоя.
-        app.MapPost("/api/staff/invites/accept", async (
+        app.MapPost(StaffAuthRoutes.AcceptInvite, async (
             AcceptStaffInviteRequest request,
             IStaffInviteService staffInviteService,
+            IStaffTokenService tokenService,
+            IAuditRecordWriter auditRecordWriter,
+            PlatformDbContext db,
             CancellationToken cancellationToken) =>
         {
             var passwordValidation = ValidateStaffPin(request.Password);
@@ -247,6 +333,40 @@ internal static class StaffOnboardingEndpoints
             var result = await staffInviteService.AcceptInviteAsync(
                 request.PhoneNumber, request.Code, request.Password, cancellationToken);
 
+            if (!result.Succeeded)
+            {
+                await AuditRefusalAsync(auditRecordWriter, result, cancellationToken);
+                return InviteRefusal(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter, result.OrganizationId, result.BranchId, result.StaffUserId,
+                AuditActionNames.AcceptStaffInvite, "StaffInvite", result.StaffInviteId?.ToString("D"), AuditOutcome.Succeeded,
+                new { result.UserName }, cancellationToken);
+            var staffUser = await db.StaffUsers.SingleAsync(user => user.StaffUserId == result.StaffUserId, cancellationToken);
+            var signIn = await tokenService.IssueAsync(staffUser, cancellationToken);
+            return Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName, signIn));
+        }).RequireRateLimiting("staff-reset");
+
+        // Неверный код первого входа — след в журнале клуба: три попытки на подбор шести цифр
+        // руководитель должен видеть, а не узнать по «код больше не действует» у сотрудника.
+        static Task AuditRefusalAsync(IAuditRecordWriter auditRecordWriter, StaffInviteAcceptResult result, CancellationToken cancellationToken) =>
+            result.OrganizationId == Guid.Empty
+                ? Task.CompletedTask
+                : auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                    OrganizationId: result.OrganizationId,
+                    BranchId: result.BranchId,
+                    ActorStaffUserId: null,
+                    Action: AuditActionNames.AcceptStaffInvite,
+                    TargetType: "StaffInvite",
+                    TargetId: result.StaffInviteId?.ToString("D"),
+                    Outcome: AuditOutcome.Denied,
+                    SourceApp: "PlatformApi",
+                    DetailsJson: JsonSerializer.Serialize(new { Status = result.Status.ToString(), result.RemainingAttempts })),
+                    cancellationToken);
+
+        static IResult InviteRefusal(StaffInviteAcceptResult result)
+        {
             if (result.PlanLimit is not null)
             {
                 return Results.Conflict(new { Error = result.Error, result.PlanLimit.Code, PlanLimit = result.PlanLimit });
@@ -254,8 +374,6 @@ internal static class StaffOnboardingEndpoints
 
             return result.Status switch
             {
-                StaffInviteAcceptStatus.Success => Results.Ok(
-                    new AcceptStaffInviteResponse(result.OrganizationId, result.UserName)),
                 StaffInviteAcceptStatus.InvalidCode => Results.Json(
                     new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
                     statusCode: StatusCodes.Status400BadRequest),
@@ -267,7 +385,7 @@ internal static class StaffOnboardingEndpoints
                     new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
                 _ => Results.BadRequest(new { error = result.Error }),
             };
-        }).RequireRateLimiting("staff-reset");
+        }
 
     }
 }

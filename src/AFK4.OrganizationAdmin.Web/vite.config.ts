@@ -11,6 +11,10 @@ import { defineConfig } from 'vite';
 // build environment (e.g. `VITE_PLATFORM_BASE_URL=https://<platform-host> bun run build`). See
 // src/operatorConfig.ts — a production build without it throws a configuration error rather than
 // silently falling back to localhost.
+//
+// Public demo (`bun run build:demo`, VITE_AFK4_DEMO=1): the same stub plus the mock backend, built into
+// dist-demo/ as a static site. No platform URL is needed — nothing leaves the page. See
+// docs/operations/demo-panel.md.
 export default defineConfig({
   base: './',
   plugins: [react()],

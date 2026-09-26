@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using AFK4.Agent.Service.Commands;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
@@ -13,7 +14,8 @@ public sealed class DefaultDeviceCommandHandler(
     ISessionEnforcementCoordinator enforcementCoordinator,
     IShellWarningStore shellWarningStore,
     ILogger<DefaultDeviceCommandHandler> logger,
-    IShellStateSignal? shellStateSignal = null) : IDeviceCommandHandler
+    IShellStateSignal? shellStateSignal = null,
+    IMachineCommandHandler? machineCommands = null) : IDeviceCommandHandler
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -118,6 +120,13 @@ public sealed class DefaultDeviceCommandHandler(
                 outcome = DeviceCommandOutcomeNames.WarningReasonUnknown;
                 logger.LogWarning("Warn command carried an unknown reason '{Reason}'; nothing was shown to the player.", reason);
             }
+        }
+        else if (machineCommands?.Handles(command.Type) == true)
+        {
+            var result = await machineCommands.HandleAsync(command, cancellationToken);
+            status = result.Status;
+            message = result.Message;
+            outcome = result.Outcome;
         }
         else
         {

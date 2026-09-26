@@ -16,6 +16,102 @@ export type IsoTime = string;
 /** Длительность, ISO-8601: `PT2H30M`. */
 export type IsoDuration = string;
 
+/** Словарь: Ads/AdContracts.cs */
+export const AdCampaignStateNames = {
+  Draft: 'draft',
+  /** Идёт в своих датах, если у неё есть одобренный креатив. */
+  Active: 'active',
+  Paused: 'paused',
+} as const;
+export type AdCampaignStateName = (typeof AdCampaignStateNames)[keyof typeof AdCampaignStateNames];
+
+/** Словарь: Ads/AdContracts.cs */
+export const AdCategoryNames = {
+  Food: 'food',
+  Electronics: 'electronics',
+  Games: 'games',
+  Education: 'education',
+  Services: 'services',
+  Telecom: 'telecom',
+  Other: 'other',
+  /** Лекарства без рецепта, медтехника, БАД, косметика, методы лечения — только с разрешением Минздрава (ст. 17). */
+  HealthBeauty: 'health_beauty',
+  /** Банки, страхование, инвестиции — без обещаний доходности (ст. 18). */
+  Finance: 'finance',
+  /** Социальная реклама — без брендов (ст. 19); считается отдельно. */
+  Social: 'social',
+} as const;
+export type AdCategoryName = (typeof AdCategoryNames)[keyof typeof AdCategoryNames];
+
+/** Словарь: Ads/ClubAdsContracts.cs */
+export const AdComplaintErrorCodeNames = {
+  /** Жалоба на рекламу, которой на ПК клуба не было. */
+  NotShown: 'ad_complaint_not_shown',
+} as const;
+export type AdComplaintErrorCodeName = (typeof AdComplaintErrorCodeNames)[keyof typeof AdComplaintErrorCodeNames];
+
+/** Словарь: Ads/ClubAdsContracts.cs */
+export const AdComplaintReasonNames = {
+  /** Товар, запрещённый законом (ст. 17). */
+  BannedGoods: 'banned_goods',
+  /** Не подходит детям и подросткам (ст. 21). */
+  Minors: 'minors',
+  /** Неправда или обман (ст. 7, 9). */
+  Misleading: 'misleading',
+  /** Реклама другого клуба. */
+  OtherClub: 'other_club',
+  Other: 'other',
+} as const;
+export type AdComplaintReasonName = (typeof AdComplaintReasonNames)[keyof typeof AdComplaintReasonNames];
+
+/** Словарь: Ads/AdContracts.cs */
+export const AdErrorCodeNames = {
+  Invalid: 'ad_invalid',
+  NotApproved: 'ad_campaign_without_approved_creative',
+  ConfirmationRequired: 'ad_moderation_confirmation_required',
+  /** Для «Здоровья и красоты» нужен номер разрешения Минздрава. */
+  PermitRequired: 'ad_permit_required',
+  /** Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив. */
+  CreativeLocked: 'ad_creative_locked',
+  /** Картинку не удалось скачать для хранения — одобрить без копии нельзя. */
+  ImageUnavailable: 'ad_image_unavailable',
+} as const;
+export type AdErrorCodeName = (typeof AdErrorCodeNames)[keyof typeof AdErrorCodeNames];
+
+/**
+ * Отметки модератора при одобрении — по статьям закона РТ «О рекламе» (спека рекламы, §8.2).
+ *
+ * Словарь: Ads/AdContracts.cs
+ */
+export const AdModerationCheckNames = {
+  /** Не другой клуб, не ставки и не казино — правило платформы. */
+  NotClubOrBetting: 'not_club_or_betting',
+  /** Нет запрещённого товара (ст. 17), рекламодатель не производит алкоголь и табак (ст. 20). */
+  NoBannedGoods: 'no_banned_goods',
+  /** Защита несовершеннолетних (ст. 21). */
+  Minors: 'minors',
+  /** Достоверно: превосходные степени — только с документом (ст. 7). */
+  Truthful: 'truthful',
+  /** Этично и честно: без оскорблений, порочащих сравнений, скрытых вставок (ст. 6, 8, 9, 10). */
+  Ethical: 'ethical',
+  /** Текст на картинке — на таджикском или есть и на таджикском (ст. 5). */
+  TajikOnImage: 'tajik_on_image',
+  /**
+   * Только у кампаний «Финансы» (ст. 18): без обещаний доходности и гарантий, без умолчания
+   * условий договора. В All не входит — у остальных категорий её нет.
+   */
+  FinanceTerms: 'finance_terms',
+} as const;
+export type AdModerationCheckName = (typeof AdModerationCheckNames)[keyof typeof AdModerationCheckNames];
+
+/** Словарь: Ads/AdContracts.cs */
+export const AdModerationNames = {
+  Pending: 'pending',
+  Approved: 'approved',
+  Rejected: 'rejected',
+} as const;
+export type AdModerationName = (typeof AdModerationNames)[keyof typeof AdModerationNames];
+
 /** Словарь: Platform/Billing/BillingIntervalNames.cs */
 export const BillingIntervalNames = {
   Monthly: 'monthly',
@@ -52,6 +148,43 @@ export const CashMovementTypeNames = {
   CashOut: 'cash_out',
 } as const;
 export type CashMovementTypeName = (typeof CashMovementTypeNames)[keyof typeof CashMovementTypeNames];
+
+/** Словарь: Platform/Billing/ClubPlanContracts.cs */
+export const ClubPlanErrorCodeNames = {
+  TrialUsed: 'plan_trial_used',
+  /** Сначала оплатить просроченное — потом снова на тариф за ПК. */
+  OverdueInvoices: 'plan_overdue_invoices',
+  NothingToPromise: 'plan_nothing_to_promise',
+  PromiseUsed: 'plan_promise_used',
+  /** Платформа выключила пробный период (ноль дней в условиях оплаты). */
+  TrialUnavailable: 'plan_trial_unavailable',
+  /** Платформа выключила обещанный платёж (ноль дней в условиях оплаты). */
+  PromiseUnavailable: 'plan_promise_unavailable',
+  AlreadyOnPlan: 'plan_already_on_plan',
+  /** Отмечено больше ПК, чем разрешает тариф. */
+  TooManyDevices: 'plan_devices_too_many',
+  /** В списке не игровой ПК клуба или неподтверждённый. */
+  UnknownDevice: 'plan_device_unknown',
+} as const;
+export type ClubPlanErrorCodeName = (typeof ClubPlanErrorCodeNames)[keyof typeof ClubPlanErrorCodeNames];
+
+/** Словарь: Platform/Billing/ClubPlanContracts.cs */
+export const ClubPlanKindNames = {
+  Free: 'free',
+  PerPc: 'per_pc',
+  Trial: 'trial',
+  /** Прежняя сетка тарифов: условия у поддержки, цену экран не показывает. */
+  Legacy: 'legacy',
+} as const;
+export type ClubPlanKindName = (typeof ClubPlanKindNames)[keyof typeof ClubPlanKindNames];
+
+/** Словарь: Consoles/ConsoleSeatContracts.cs */
+export const ConsoleSeatErrorCodeNames = {
+  /** На месте уже стоит ПК или консоль. */
+  SeatTaken: 'console_seat_taken',
+  SeatNotFound: 'console_seat_not_found',
+} as const;
+export type ConsoleSeatErrorCodeName = (typeof ConsoleSeatErrorCodeNames)[keyof typeof ConsoleSeatErrorCodeNames];
 
 /**
  * Почему сервер не принял команду администратора.
@@ -113,6 +246,28 @@ export const DeviceCommandOutcomeNames = {
   LeaseUnreadable: 'lease-unreadable',
   /** Аренда не прошла проверку подписи или срока. */
   LeaseInvalid: 'lease-invalid',
+  /** Windows перезагрузит ПК через десять секунд: ответ ушёл раньше. */
+  RebootScheduled: 'reboot-scheduled',
+  /** Windows выключит ПК через десять секунд. */
+  ShutdownScheduled: 'shutdown-scheduled',
+  /** На ПК идёт сессия: чужую игру агент не выключает и в обслуживание не уводит. */
+  SessionInProgress: 'session-in-progress',
+  /** Сосед отправил волшебный пакет. Проснулся ли ПК, скажет его сердцебиение. */
+  WakePacketSent: 'wake-packet-sent',
+  /** MAC или широковещательный адрес не годятся — или сосед уже в другой подсети. */
+  WakeTargetInvalid: 'wake-target-invalid',
+  MaintenanceStarted: 'maintenance-started',
+  MaintenanceEnded: 'maintenance-ended',
+  /** Выход игрока или сообщение переданы на экран ПК. */
+  DeliveredToShell: 'delivered-to-shell',
+  /** Экран игрока не запущен или не отвечает — передать некому. */
+  ShellNotConnected: 'shell-not-connected',
+  /** Профиля защиты у ПК пока нет — обновлять нечего. */
+  NothingToRefresh: 'nothing-to-refresh',
+  /** Профиль защиты перечитан и применён; что вышло по пунктам — в отчёте ПК. */
+  ProtectionApplied: 'protection-applied',
+  /** Профиль не удалось получить с сервера — ПК остаётся на прежнем. */
+  ProtectionUnavailable: 'protection-unavailable',
 } as const;
 export type DeviceCommandOutcomeName = (typeof DeviceCommandOutcomeNames)[keyof typeof DeviceCommandOutcomeNames];
 
@@ -198,6 +353,8 @@ export const DevicePlayerSignInErrorCodeNames = {
   TooManyAttempts: 'too_many_attempts',
   /** На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего. */
   SessionNotYours: 'session_not_yours',
+  /** Клуб закрыл этот ПК на обслуживание: входить на нём некуда. */
+  DeviceInMaintenance: 'device_in_maintenance',
 } as const;
 export type DevicePlayerSignInErrorCodeName = (typeof DevicePlayerSignInErrorCodeNames)[keyof typeof DevicePlayerSignInErrorCodeNames];
 
@@ -205,6 +362,12 @@ export type DevicePlayerSignInErrorCodeName = (typeof DevicePlayerSignInErrorCod
 export const DeviceRoleNames = {
   GamingPc: 'gaming_pc',
   ManagerWorkstation: 'manager_workstation',
+  /**
+   * Консоль на месте — без агента: сессию ведёт администратор, ПК не отпирается и не запирается,
+   * сердцебиения нет. Запись устройства нужна, чтобы у сессии, кассы и отчётов было то же место,
+   * что у ПК.
+   */
+  Console: 'console',
 } as const;
 export type DeviceRoleName = (typeof DeviceRoleNames)[keyof typeof DeviceRoleNames];
 
@@ -234,6 +397,56 @@ export const FriendshipStateNames = {
 export type FriendshipStateName = (typeof FriendshipStateNames)[keyof typeof FriendshipStateNames];
 
 /**
+ * Чем запускается игра (спека оболочки, §6.6). Путь к лаунчеру на каждом ПК свой — его находит
+ * агент; сервер хранит только что запускать.
+ *
+ * Словарь: Games/GameLibraryContracts.cs
+ */
+export const GameLaunchKindNames = {
+  /** Через Steam по AppID: `steam.exe -applaunch 730`. */
+  Steam: 'steam',
+  /** Через Epic Games Launcher по имени приложения: `Fortnite`. */
+  Epic: 'epic',
+  /** Через Riot Client по продукту: `league_of_legends`, `valorant`. */
+  Riot: 'riot',
+  /** Через Battle.net по коду игры: `WoW`, `Pro`. */
+  BattleNet: 'battlenet',
+  /** Своим exe по пути на ПК. */
+  Executable: 'exe',
+} as const;
+export type GameLaunchKindName = (typeof GameLaunchKindNames)[keyof typeof GameLaunchKindNames];
+
+/** Словарь: Games/GameLibraryContracts.cs */
+export const GameLibraryErrorCodeNames = {
+  InvalidGame: 'invalid_game',
+  CatalogGameNotFound: 'catalog_game_not_found',
+  LibraryFull: 'game_library_full',
+} as const;
+export type GameLibraryErrorCodeName = (typeof GameLibraryErrorCodeNames)[keyof typeof GameLibraryErrorCodeNames];
+
+/** Словарь: Players/GuestImportContracts.cs */
+export const GuestImportIssueNames = {
+  InvalidPhone: 'invalid_phone',
+  MissingName: 'missing_name',
+  NegativeAmount: 'negative_amount',
+  /** Тот же номер уже встречался выше в этом файле. */
+  DuplicateInFile: 'duplicate_in_file',
+  /** Гостю уже переносили остатки — второй перенос удвоил бы деньги. */
+  AlreadyImported: 'already_imported',
+} as const;
+export type GuestImportIssueName = (typeof GuestImportIssueNames)[keyof typeof GuestImportIssueNames];
+
+/** Словарь: Devices/DeviceHardwareContracts.cs */
+export const HardwareComponentNames = {
+  Cpu: 'cpu',
+  Memory: 'memory',
+  Gpu: 'gpu',
+  Motherboard: 'motherboard',
+  Disk: 'disk',
+} as const;
+export type HardwareComponentName = (typeof HardwareComponentNames)[keyof typeof HardwareComponentNames];
+
+/**
  * Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
  * текст отказа с сервера — всегда английский: показать его человеку у ПК нельзя, а назвать
  * причину своими словами по коду — можно.
@@ -243,6 +456,11 @@ export type FriendshipStateName = (typeof FriendshipStateNames)[keyof typeof Fri
 export const InstallErrorCodeNames = {
   /** На выбранное место уже привязан другой ПК. */
   SeatOccupied: 'seat_occupied',
+  /**
+   * Код установки не подходит: неизвестен, истёк, отозван или исчерпан. Одна причина на все
+   * четыре: угадывающему код не надо подсказывать, какой из них был почти верным.
+   */
+  InstallCodeInvalid: 'install_code_invalid',
 } as const;
 export type InstallErrorCodeName = (typeof InstallErrorCodeNames)[keyof typeof InstallErrorCodeNames];
 
@@ -309,6 +527,13 @@ export const LedgerEntryTypeNames = {
    * возврата, чтобы в выписке было видно, за что деньги вернулись.
    */
   TournamentEntryRefund: 'tournament_entry_refund',
+  /** Чаевые администратору смены с кошелька игрока. Не выручка клуба: клуб их должен сотруднику. */
+  Tip: 'tip',
+  /**
+   * Начальный остаток из прежней программы клуба: деньги гость заплатил туда, клуб берёт долг на
+   * себя. Не выручка и не наличные смены.
+   */
+  OpeningBalance: 'opening_balance',
 } as const;
 export type LedgerEntryTypeName = (typeof LedgerEntryTypeNames)[keyof typeof LedgerEntryTypeNames];
 
@@ -324,6 +549,10 @@ export const MediaPurposeNames = {
   BranchCover: 'branch-cover',
   /** Остальные фото зала: их несколько, и новая загрузка не заменяет прежние. */
   BranchGallery: 'branch-gallery',
+  /** Картинка новости: её показывают приложение игрока и витрина свободного ПК. */
+  NewsImage: 'news-image',
+  /** Фото товара бара — для витрины ПК и меню бара. */
+  ProductImage: 'product-image',
 } as const;
 export type MediaPurposeName = (typeof MediaPurposeNames)[keyof typeof MediaPurposeNames];
 
@@ -392,6 +621,16 @@ export const OrganizationPermissionNames = {
   /** Anti-fraud (§5.2/D2): approve an over-threshold high-risk money action raised by another actor. */
   ApproveMoneyAction: 'organization.billing.money_action.approve',
   ViewSubscription: 'organization.billing.subscription.view',
+  /**
+   * Сменить тариф клуба, начать пробный период, взять обещанный платёж. Это обязательство
+   * платить — только у владельца.
+   */
+  ManageSubscription: 'organization.billing.subscription.manage',
+  /**
+   * Перенести гостей с балансами из прежней программы. Это деньги, которые клуб берёт на себя, —
+   * только у владельца.
+   */
+  ImportPlayers: 'organization.players.import',
   ManageTariffs: 'organization.tariffs.manage',
   ViewTariffs: 'organization.tariffs.view',
   ManagePackages: 'organization.packages.manage',
@@ -463,11 +702,36 @@ export const OrganizationPermissionNames = {
    * при отмене, и это право сильнее права написать объявление.
    */
   ManageTournaments: 'organization.tournaments.manage',
+  /**
+   * Библиотека игр филиала — что игрок запустит на ПК (спека оболочки, §6.6). У того, кто
+   * ставит ПК и игры: владелец, управляющий, техник.
+   */
+  ManageGameLibrary: 'organization.games.manage',
+  /**
+   * Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
+   * управляющего, а не у всей стойки.
+   */
+  ViewReviews: 'organization.reviews.view',
+  /**
+   * Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
+   * владелец, управляющий, техник.
+   */
+  AcceptDeviceHardware: 'organization.devices.hardware.accept',
+  /**
+   * Чаевые администратору с экрана ПК: включить у клуба и вернуть игроку, пока смена открыта.
+   * Это движение денег, поэтому у владельца и управляющего, а не у стойки.
+   */
+  ManageTips: 'organization.tips.manage',
 } as const;
 export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
 
 /** Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs */
 export const OrganizationPlanCodeNames = {
+  /** Бесплатно: до 10 ПК, 1 зал, 3 сотрудника, с рекламой платформы. */
+  Free: 'free',
+  /** 10 сомони в месяц за каждый ПК сверх десяти; без лимитов и рекламы. */
+  PerPc: 'per_pc',
+  /** Прежняя сетка — снята с продажи (спека тарифов клуба, §2); клубы на ней остаются. */
   Starter: 'starter',
   Growth: 'growth',
   Scale: 'scale',
@@ -504,8 +768,15 @@ export type PaymentMethodName = (typeof PaymentMethodNames)[keyof typeof Payment
  */
 export const PlanLimitNames = {
   ReachedCode: 'plan_limit_reached',
+  /**
+   * Отказ запустить сессию на ПК «вне тарифа» — сверх предела ПК бесплатного тарифа (спека
+   * тарифов клуба, §5a). Числа — в PlanLimitExceededDto с пределом Devices.
+   */
+  DeviceOutsidePlanCode: 'device_outside_plan',
   Branches: 'branches',
   DevicesPerBranch: 'devices_per_branch',
+  /** Игровые ПК на весь клуб, без деления по залам. */
+  Devices: 'devices',
   ConcurrentSessions: 'concurrent_sessions',
   StaffUsersPerBranch: 'staff_users_per_branch',
 } as const;
@@ -546,6 +817,13 @@ export const PlatformAdminPermissionNames = {
    * тот их и читает — лишнее право усложнило бы модель, ничего не добавив.
    */
   ManageAnnouncements: 'platform.announcements.manage',
+  /** Каталог игр, из которого клубы собирают библиотеку ПК (спека оболочки, §6.6). */
+  ManageGameCatalog: 'platform.games.manage',
+  /**
+   * Реклама платформы в витрине ПК: рекламодатели, кампании, модерация креативов, отчёт
+   * показов. Модерация — внутри этого же права: команда платформы маленькая.
+   */
+  ManageAds: 'platform.ads.manage',
   /**
    * Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
    * вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
@@ -625,6 +903,8 @@ export const PlatformFeatureNames = {
   OnlineTopUp: 'online_topup',
   PlayerShop: 'player_shop',
   Tournaments: 'tournaments',
+  /** Реклама платформы в витрине свободного ПК. Её включает бесплатный тариф. */
+  PlatformAds: 'platform_ads',
 } as const;
 export type PlatformFeatureName = (typeof PlatformFeatureNames)[keyof typeof PlatformFeatureNames];
 
@@ -672,6 +952,8 @@ export const PlayerSignInClaimErrorCodeNames = {
   Expired: 'claim_expired',
   /** Заявку уже забрали: одна заявка — один вход. */
   AlreadyRedeemed: 'claim_already_redeemed',
+  /** Клуб закрыл этот ПК на обслуживание, пока заявка ждала. */
+  DeviceInMaintenance: 'device_in_maintenance',
 } as const;
 export type PlayerSignInClaimErrorCodeName = (typeof PlayerSignInClaimErrorCodeNames)[keyof typeof PlayerSignInClaimErrorCodeNames];
 
@@ -695,6 +977,48 @@ export const PosSaleStateNames = {
   Voided: 'voided',
 } as const;
 export type PosSaleStateName = (typeof PosSaleStateNames)[keyof typeof PosSaleStateNames];
+
+/**
+ * Что именно агент запрещает на ПК — по пункту на строку отчёта.
+ *
+ * Словарь: Devices/ProtectionProfileContracts.cs
+ */
+export const ProtectionItemNames = {
+  /** Постоянная основа киоска: меню Ctrl+Alt+Del без блокировки, выхода, смены пользователя и данных входа. */
+  KioskBaseline: 'kiosk-baseline',
+  RemovableStorage: 'removable-storage',
+  BrowserDownloads: 'browser-downloads',
+  BrowserIncognito: 'browser-incognito',
+  BrowserUrlBlocklist: 'browser-url-blocklist',
+  RunDialog: 'run-dialog',
+  HiddenDrives: 'hidden-drives',
+} as const;
+export type ProtectionItemName = (typeof ProtectionItemNames)[keyof typeof ProtectionItemNames];
+
+/**
+ * Что получилось с пунктом. Скрытие дисков — отдельный исход: диск пропал из Проводника, но
+ * программа откроет его по пути, и называть это «запрещено» было бы неправдой (§6.3).
+ *
+ * Словарь: Devices/ProtectionProfileContracts.cs
+ */
+export const ProtectionItemStatusNames = {
+  Applied: 'applied',
+  /** Действует только в Проводнике: это не запрет. */
+  ExplorerOnly: 'explorer-only',
+  Failed: 'failed',
+  /** Здесь не применить: ПК не на Windows или агент без доступа к политикам машины. */
+  Unsupported: 'unsupported',
+  /** Снято на время обслуживания. */
+  Released: 'released',
+} as const;
+export type ProtectionItemStatusName = (typeof ProtectionItemStatusNames)[keyof typeof ProtectionItemStatusNames];
+
+/** Словарь: Devices/ProtectionProfileContracts.cs */
+export const ProtectionProfileErrorCodeNames = {
+  /** Профиль успели сохранить после того, как его открыли: нужно перечитать. */
+  VersionConflict: 'protection_profile_version_conflict',
+} as const;
+export type ProtectionProfileErrorCodeName = (typeof ProtectionProfileErrorCodeNames)[keyof typeof ProtectionProfileErrorCodeNames];
 
 /** Словарь: Platform/Pulse/PlatformPulseContracts.cs */
 export const PulseAlertKindNames = {
@@ -872,6 +1196,107 @@ export const SessionStateNames = {
 } as const;
 export type SessionStateName = (typeof SessionStateNames)[keyof typeof SessionStateNames];
 
+/**
+ * Следы, которые агент стирает, когда сессия кончилась и ПК заперт (спека оболочки, §6.4). Пути
+ * у каждого пункта точные и зашиты в агента: из Панели приезжает только «стирать или нет», а не
+ * путь — иначе профиль защиты стал бы пультом удаления любых файлов на ПК зала. Сохранения игр в
+ * этих путях не лежат.
+ *
+ * Словарь: Devices/ProtectionProfileContracts.cs
+ */
+export const SessionTraceNames = {
+  /** Вход в Steam: запомненные аккаунты, автовход, кэш входа, куки магазина. */
+  Steam: 'steam',
+  /** Профили браузеров целиком: пароли, куки, история, открытые вкладки. */
+  Browsers: 'browsers',
+  /** Вход в Epic, Battle.net, Riot и Ubisoft Connect. */
+  Launchers: 'launchers',
+  /** Discord и Telegram Desktop: вход и переписка. */
+  Messengers: 'messengers',
+} as const;
+export type SessionTraceName = (typeof SessionTraceNames)[keyof typeof SessionTraceNames];
+
+/** Словарь: Shell/ShellBridgeContracts.cs */
+export const ShellBridgeErrorCodeNames = {
+  /** Номер или ПИН-код не подошли. */
+  SignInRefused: 'sign_in_refused',
+  /** С этого ПК слишком много неудачных входов. */
+  TooManyAttempts: 'too_many_attempts',
+  /** На ПК идёт чужая сессия. */
+  SessionNotYours: 'session_not_yours',
+  /** Агента нет на связи — войти и запустить игру сейчас нельзя. */
+  AgentUnavailable: 'agent_unavailable',
+  /** Агент на месте, а до сервера клуба не достучался. */
+  PlatformUnreachable: 'platform_unreachable',
+  /** Такого хост пока не умеет: запрос из более новой страницы или раздел следующего этапа. */
+  NotSupported: 'not_supported',
+  /** Windows не дала поменять звук, микрофон или раскладку — например, нет устройства. */
+  SystemUnavailable: 'system_unavailable',
+} as const;
+export type ShellBridgeErrorCodeName = (typeof ShellBridgeErrorCodeNames)[keyof typeof ShellBridgeErrorCodeNames];
+
+/** Словарь: Shell/ShellBridgeContracts.cs */
+export const ShellBridgeEventTypeNames = {
+  /** Состояние ПК от агента — PlayerShellStateDto. */
+  StateChanged: 'state.changed',
+  /** Вошёл ли игрок на этом ПК — ShellAuthStateDto. */
+  AuthChanged: 'auth.changed',
+  /** Мышь или клавиатура тронуты: витрина уступает место окну входа. */
+  InputActivity: 'input.activity',
+  /** Тишина дольше порога: окно входа закрывается, вошедший выходит. */
+  InputIdle: 'input.idle',
+  /** Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр. */
+  GameForeground: 'game.foreground',
+  /** Громкость, микрофон, раскладка — ShellSystemStateDto. */
+  SystemChanged: 'system.changed',
+  ShowcaseChanged: 'showcase.changed',
+} as const;
+export type ShellBridgeEventTypeName = (typeof ShellBridgeEventTypeNames)[keyof typeof ShellBridgeEventTypeNames];
+
+/**
+ * Мост хост ↔ интерфейс оболочки, версия 2 (спека оболочки, §4.4). Конверт запроса и ответа —
+ * общий, из @afk4/host-bridge; здесь — имена и тела. Записи C# дают типы и хосту, и странице:
+ * две руками написанные копии однажды разошлись бы.
+ *
+ * Словарь: Shell/ShellBridgeContracts.cs
+ */
+export const ShellBridgeRequestTypeNames = {
+  /**
+   * Страница загрузилась и слушает. Ответ — ShellSnapshotDto: всё, что хост уже знает. Без
+   * этого состояние, отправленное до того, как React подписался, терялось бы, и экран ждал бы
+   * следующего пульса агента.
+   */
+  ShellReady: 'shell.ready',
+  /** Войти номером и ПИН-кодом — через агента, токены привязаны к этому ПК. */
+  AuthSignIn: 'auth.signIn',
+  AuthSignOut: 'auth.signOut',
+  /** Запустить игру из библиотеки клуба. */
+  AppLaunch: 'app.launch',
+  /** Позвать администратора к этому ПК. */
+  AssistCall: 'assist.call',
+  SystemSetVolume: 'system.setVolume',
+  SystemSetMicMuted: 'system.setMicMuted',
+  SystemSetLayout: 'system.setLayout',
+  /** Язык интерфейса выбран на экране: хост запоминает его до выхода игрока. */
+  UiSetLocale: 'ui.setLocale',
+  /**
+   * Рекламная карточка витрины ушла с экрана — ShellShowcaseImpressionDto. Хост передаёт агенту,
+   * тот копит суммы и отправляет пачками; карточки клуба не считаются.
+   */
+  ShowcaseImpression: 'showcase.impression',
+  /** Кнопка «Вернуть в зал» на полосе обслуживания. */
+  MaintenanceReturn: 'maintenance.return',
+} as const;
+export type ShellBridgeRequestTypeName = (typeof ShellBridgeRequestTypeNames)[keyof typeof ShellBridgeRequestTypeNames];
+
+/** Словарь: Shell/ShellBridgeContracts.cs */
+export const ShellKeyboardLayoutNames = {
+  Russian: 'RU',
+  English: 'EN',
+  Tajik: 'TG',
+} as const;
+export type ShellKeyboardLayoutName = (typeof ShellKeyboardLayoutNames)[keyof typeof ShellKeyboardLayoutNames];
+
 /** Словарь: Shell/ShellPipeProtocol.cs */
 export const ShellPipeErrorCodeNames = {
   ProtocolMismatch: 'protocol_mismatch',
@@ -892,6 +1317,13 @@ export const ShellPipeErrorCodeNames = {
   PlatformUnreachable: 'platform_unreachable',
   /** Хосту некуда отправить запрос: агента нет на другом конце канала. */
   AgentUnavailable: 'agent_unavailable',
+  /** Номер или ПИН-код не подошли. Те же имена, что у сервера и моста к странице. */
+  SignInRefused: 'sign_in_refused',
+  TooManyAttempts: 'too_many_attempts',
+  /** На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего. */
+  SessionNotYours: 'session_not_yours',
+  /** Клуб закрыл этот ПК на обслуживание — вход на нём закрыт. */
+  DeviceInMaintenance: 'device_in_maintenance',
 } as const;
 export type ShellPipeErrorCodeName = (typeof ShellPipeErrorCodeNames)[keyof typeof ShellPipeErrorCodeNames];
 
@@ -904,6 +1336,13 @@ export const ShellPipeMessageTypeNames = {
   State: 'state',
   Request: 'request',
   Reply: 'reply',
+  /** Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение. */
+  Command: 'command',
+  /**
+   * Игрок вошёл: агент отдаёт хосту токены. Один кадр на оба пути — ПИН-код и QR: вход по QR
+   * приходит без запроса хоста, и отвечать на него нечем, кроме отдельного кадра.
+   */
+  Auth: 'auth',
 } as const;
 export type ShellPipeMessageTypeName = (typeof ShellPipeMessageTypeNames)[keyof typeof ShellPipeMessageTypeNames];
 
@@ -913,6 +1352,26 @@ export const ShellPipeRequestTypeNames = {
   Launch: 'launch',
   /** Позвать администратора к этому ПК. */
   Assist: 'assist',
+  /**
+   * Войти номером и ПИН-кодом. В теле — `phone` и `pin`. Удачный ответ пуст: токены
+   * приходят кадром ShellPipeMessageTypeNames.Auth.
+   */
+  SignInPin: 'signIn.pin',
+  /**
+   * «Вернуть в зал» с самого ПК (спека оболочки, §6.5): агент говорит серверу и закрывает
+   * рабочий стол техника. Тело пустое.
+   */
+  MaintenanceReturn: 'maintenance.return',
+  /**
+   * За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в 20 секунд; по нему агент не
+   * выключает простаивающий ПК под рукой человека и отменяет уже назначенное выключение. Тело пустое.
+   */
+  Activity: 'activity',
+  /**
+   * Рекламная карточка витрины отстояла на экране. В теле — `cardId` и `shownMs`.
+   * Агент считает только рекламу и только на свободном ПК.
+   */
+  ShowcaseImpression: 'showcase.impression',
 } as const;
 export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
 
@@ -957,6 +1416,19 @@ export const ShopOrderStatusNames = {
 } as const;
 export type ShopOrderStatusName = (typeof ShopOrderStatusNames)[keyof typeof ShopOrderStatusNames];
 
+/** Словарь: Showcase/ShowcaseContracts.cs */
+export const ShowcaseCardKindNames = {
+  News: 'news',
+  Tariff: 'tariff',
+  Product: 'product',
+  Tournament: 'tournament',
+  Packages: 'packages',
+  BarHit: 'bar_hit',
+  /** Реклама платформы: только на свободном ПК и с меткой «Реклама · рекламодатель». */
+  Ad: 'ad',
+} as const;
+export type ShowcaseCardKindName = (typeof ShowcaseCardKindNames)[keyof typeof ShowcaseCardKindNames];
+
 /**
  * Машинные причины отказа на входе сотрудника. Клиент по ним и подбирает слова: текст сервера
  * английский, а мастер и приложение клуба работают на трёх языках.
@@ -989,6 +1461,35 @@ export const StaffInviteErrorCodeNames = {
 } as const;
 export type StaffInviteErrorCodeName = (typeof StaffInviteErrorCodeNames)[keyof typeof StaffInviteErrorCodeNames];
 
+/** Словарь: Identity/StaffInviteDto.cs */
+export const StaffInviteStatusNames = {
+  /** Код действует: сотрудник может войти. */
+  Pending: 'pending',
+  /** Сутки прошли — нужен новый код. */
+  Expired: 'expired',
+  /** Три неверных кода — этот больше не пустит. */
+  Exhausted: 'exhausted',
+} as const;
+export type StaffInviteStatusName = (typeof StaffInviteStatusNames)[keyof typeof StaffInviteStatusNames];
+
+/**
+ * Второй шаг входа по номеру. Код первого входа нужен, потому что номер — не секрет: без него
+ * ПИН новому сотруднику успел бы назначить любой, кто знает его номер.
+ *
+ * Словарь: Identity/StaffSignInNextStepContracts.cs
+ */
+export const StaffSignInStepNames = {
+  /** У номера есть ПИН — спросить его. */
+  Pin: 'pin',
+  /** Руководитель добавил сотрудника, тот ещё не входил: спросить код первого входа, потом новый ПИН. */
+  InviteCode: 'invite-code',
+  /** Код первого входа истёк или исчерпал попытки — нужен новый от руководителя. */
+  InviteExpired: 'invite-expired',
+  /** Номер не заведён ни в одном клубе. */
+  Unknown: 'unknown',
+} as const;
+export type StaffSignInStepName = (typeof StaffSignInStepNames)[keyof typeof StaffSignInStepNames];
+
 /** Словарь: Inventory/StockMovementTypeNames.cs */
 export const StockMovementTypeNames = {
   Purchase: 'purchase',
@@ -1018,6 +1519,29 @@ export const TariffErrorCodeNames = {
   NameTaken: 'tariff_name_taken',
 } as const;
 export type TariffErrorCodeName = (typeof TariffErrorCodeNames)[keyof typeof TariffErrorCodeNames];
+
+/** Словарь: Tips/TipContracts.cs */
+export const TipErrorCodeNames = {
+  /** Вернуть чаевые можно только из открытой смены. */
+  ShiftClosed: 'tip_shift_closed',
+  AlreadyReversed: 'tip_already_reversed',
+  /** Всё, что пришло за смену, уже выдано. */
+  NothingToPay: 'tip_nothing_to_pay',
+} as const;
+export type TipErrorCodeName = (typeof TipErrorCodeNames)[keyof typeof TipErrorCodeNames];
+
+/** Словарь: Tips/TipContracts.cs */
+export const TipUnavailableReasonNames = {
+  Disabled: 'disabled',
+  /** В филиале нет открытой смены — деньги некому отдать. */
+  NoShift: 'no_shift',
+  NotEnded: 'not_ended',
+  TooLate: 'too_late',
+  AlreadyTipped: 'already_tipped',
+  NotEnoughBalance: 'not_enough_balance',
+  InvalidAmount: 'invalid_amount',
+} as const;
+export type TipUnavailableReasonName = (typeof TipUnavailableReasonNames)[keyof typeof TipUnavailableReasonNames];
 
 /**
  * Что с записью игрока на событие.
@@ -1137,7 +1661,8 @@ export interface AcceptPlatformAdminInvitationRequest {
 }
 
 /**
- * Приём приглашения: номер, код из SMS и пароль, который человек придумывает себе сам.
+ * Приём приглашения: номер, код первого входа от руководителя (SMS его только дублирует) и ПИН,
+ * который человек придумывает себе сам.
  *
  * Контракт: Identity/AcceptStaffInviteRequest.cs
  */
@@ -1148,13 +1673,14 @@ export interface AcceptStaffInviteRequest {
 }
 
 /**
- * Кем человек стал: клуб и его логин в нём.
+ * Кем человек стал — клуб и логин — и сразу вход: придумав ПИН, он не вводит его второй раз.
  *
  * Контракт: Identity/AcceptStaffInviteRequest.cs
  */
 export interface AcceptStaffInviteResponse {
   organizationId: Guid;
   userName: string;
+  signIn: StaffSignInResponse;
 }
 
 /** Контракт: Players/ActiveSessionDto.cs */
@@ -1186,11 +1712,140 @@ export interface ActiveSessionDto {
   zoneName?: string | null;
 }
 
+/**
+ * Что кампания обязана сказать на карточке по закону РТ «О рекламе» (спека рекламы, §8):
+ * номер разрешения Минздрава, продажа на расстоянии, обязательная сертификация, условия сделки.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface AdCampaignComplianceDto {
+  /** Разрешение или лицензия Минздрава — обязательно для «Здоровья и красоты» (ст. 17). */
+  permitNumber?: string | null;
+  /** Продажа на расстоянии: карточка печатает наименование, ИНН и адрес продавца (ст. 14(1)). */
+  distanceSelling?: boolean;
+  /** Товар подлежит обязательной сертификации: карточка печатает пометку (ст. 5). */
+  requiresCertification?: boolean;
+  /** В рекламе цена или условия сделки: карточка печатает срок предложения — конец кампании (ст. 26). */
+  containsOffer?: boolean;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface AdCampaignDto {
+  campaignId: Guid;
+  advertiserId: Guid;
+  advertiserName: string;
+  name: string;
+  /** Одно из AdCategoryNames */
+  category: AdCategoryName;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  /** Пусто — все города. */
+  cities: string[];
+  /** Пусто — все клубы. */
+  organizationIds: Guid[];
+  /** Одно из AdCampaignStateNames */
+  state: AdCampaignStateName;
+  creatives: AdCreativeDto[];
+  createdAtUtc: IsoDateTime;
+  updatedAtUtc: IsoDateTime;
+  compliance?: AdCampaignComplianceDto | null;
+}
+
+/** Контракт: Ads/ClubAdsContracts.cs */
+export interface AdComplaintDto {
+  complaintId: Guid;
+  organizationId: Guid;
+  organizationName: string;
+  campaignId: Guid;
+  campaignName: string;
+  creativeId: Guid;
+  creativeTitle: string;
+  advertiser: string;
+  /** Одно из AdComplaintReasonNames */
+  reason: AdComplaintReasonName;
+  comment: string | null;
+  reportedBy: string;
+  createdAtUtc: IsoDateTime;
+  resolvedAtUtc: IsoDateTime | null;
+  resolution: string | null;
+  /** Креатив уже снят с показа. */
+  creativeArchived: boolean;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface AdCreativeDto {
+  creativeId: Guid;
+  campaignId: Guid;
+  /**
+   * Заголовок и текст на государственном языке — таджикском (ст. 5 закона о рекламе, закон о
+   * госязыке): обязательны и идут на карточке первыми.
+   */
+  title: string;
+  body: string | null;
+  imageUrl: string | null;
+  /** Одно из AdModerationNames */
+  moderation: AdModerationName;
+  rejectedReason: string | null;
+  moderatedAtUtc: IsoDateTime | null;
+  createdAtUtc: IsoDateTime;
+  /** Русский — второй строкой по желанию рекламодателя. */
+  titleRu?: string | null;
+  bodyRu?: string | null;
+  /**
+   * Слова, которые закон разрешает только с документом («лучший», «№ 1», ст. 7): модератору —
+   * подсказка, а не запрет.
+   */
+  wordingFlags?: string[] | null;
+  /** Снят с показа. Показанный креатив не правится и не удаляется: игроки видели именно его. */
+  archivedAtUtc?: IsoDateTime | null;
+}
+
 /** Контракт: Inventory/AddProductBarcodeRequest.cs */
 export interface AddProductBarcodeRequest {
   organizationId: Guid;
   code: string;
   isPrimary?: boolean;
+}
+
+/**
+ * Строка отчёта показов: креатив в филиале за день. Игрока в строке нет и быть не может.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface AdImpressionRowDto {
+  day: string;
+  campaignId: Guid;
+  campaignName: string;
+  creativeId: Guid;
+  creativeTitle: string;
+  organizationId: Guid;
+  organizationName: string;
+  branchId: Guid;
+  branchName: string;
+  city: string;
+  impressions: number;
+  shownSeconds: number;
+}
+
+/**
+ * Реклама платформы в витрине свободного ПК (спека `2026-09-25-platform-ads-design.md`). Продаёт
+ * её AFK4, показывается она только клубам с фичей `platform_ads` — это бесплатный тариф.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface AdvertiserDto {
+  advertiserId: Guid;
+  /** Имя на карточке: «Реклама · {Name}». */
+  name: string;
+  contact: string;
+  createdAtUtc: IsoDateTime;
+  /**
+   * Реквизиты для договора и рекламы с продажей на расстоянии (закон РТ «О рекламе», ст. 14(1)):
+   * наименование, ИНН (единый идентификационный номер) и место нахождения.
+   */
+  legalName?: string;
+  taxId?: string;
+  address?: string;
 }
 
 /**
@@ -1286,6 +1941,30 @@ export interface AuthenticatedInstallEnrollRequest {
 }
 
 /**
+ * Условия оплаты для клубов (спека тарифов клуба, §3–§5): сколько длится пробный период,
+ * обещанный платёж и льгота после срока счёта до перехода на бесплатный тариф. Задаёт платформа.
+ *
+ * Контракт: Platform/Billing/BillingTermsContracts.cs
+ */
+export interface BillingTermsDto {
+  trialDays: number;
+  promisedPaymentDays: number;
+  fallbackAfterOverdueDays: number;
+  /** Пусто — условия ещё не меняли, действуют значения по умолчанию. */
+  updatedAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Правило закрытия окна: часть заголовка, класс окна или оба сразу.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface BlockedWindowRuleDto {
+  titleContains: string | null;
+  className: string | null;
+}
+
+/**
  * Настройки приёма гостей у филиала — то, что видит и правит клуб.
  * UpdatedAtUtc пуст, пока филиал ничего не настраивал: значения в этом случае
  * не «нулевые», а по умолчанию, и админу полезно отличать одно от другого.
@@ -1345,6 +2024,33 @@ export interface BranchDynamicsDto {
 }
 
 /**
+ * Игра в библиотеке филиала — то, что увидит игрок на ПК.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface BranchGameDto {
+  branchGameId: Guid;
+  /** Из каталога — тогда обложка и возраст берутся оттуда; null — своя игра клуба. */
+  catalogGameId: Guid | null;
+  name: string;
+  genre: string | null;
+  minAge: number | null;
+  coverUrl: string | null;
+  /** Одно из GameLaunchKindNames. */
+  launchKind: GameLaunchKindName;
+  launchTarget: string | null;
+  /** Свой путь к exe вместо лаунчера — когда игра стоит не там, где её ищет агент. */
+  executablePath: string | null;
+  arguments: string | null;
+  /** Запускается и без сессии: лаунчер для пополнения Steam, например. */
+  availableWithoutSession: boolean;
+  isEnabled: boolean;
+  sortOrder: number;
+  /** Запускается сам в начале сессии: Discord, клиент Steam. */
+  launchOnSessionStart?: boolean;
+}
+
+/**
  * Одно фото зала. MediaId нужен, чтобы удалить объект из хранилища вместе со
  * строкой галереи; у фото, добавленного ссылкой, его нет.
  *
@@ -1378,6 +2084,51 @@ export interface BranchProfileDto {
   locale: string;
   workingHours: BranchWorkingHoursDayDto[];
   createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Профиль защиты филиала для Панели: сам профиль и кто его менял последним.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface BranchProtectionProfileDto {
+  organizationId: Guid;
+  branchId: Guid;
+  profile: ProtectionProfileDto;
+  updatedAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Отзыв для клуба: кто, за каким ПК и когда — чтобы «мышь липкая» можно было найти на ПК 07,
+ * а не гадать, о каком из тридцати речь.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface BranchReviewDto {
+  reviewId: Guid;
+  playerAccountId: Guid;
+  authorName: string;
+  rating: number;
+  comment: string | null;
+  createdAtUtc: IsoDateTime;
+  sessionId: Guid;
+  seatName: string | null;
+}
+
+/**
+ * Отзывы филиала для Панели: итог по всем оценкам и страница списка.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface BranchReviewsPageDto {
+  /** Пусто — оценок пока нет. Это не ноль звёзд. */
+  rating: number | null;
+  reviewCount: number;
+  /** Сколько оценок на каждую звезду: [1★, 2★, 3★, 4★, 5★]. */
+  countsByRating: number[];
+  items: BranchReviewDto[];
+  /** Следующая страница — отзывы раньше этого времени; null — дальше нет. */
+  nextBefore: IsoDateTime | null;
 }
 
 /**
@@ -1526,6 +2277,27 @@ export interface CashReconciliationDto {
   difference: MoneyDto | null;
 }
 
+/**
+ * Игра в каталоге платформы — из него клубы добавляют игры себе.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface CatalogGameDto {
+  catalogGameId: Guid;
+  name: string;
+  description: string | null;
+  genre: string | null;
+  /** Возрастная отметка: 0, 12, 16, 18. Даты рождения у игрока нет — отметка только видна. */
+  minAge: number | null;
+  /** Одно из GameLaunchKindNames. */
+  launchKind: GameLaunchKindName;
+  /** AppID Steam, имя приложения Epic, продукт Riot, код Battle.net; для exe — путь по умолчанию. */
+  launchTarget: string | null;
+  coverUrl: string | null;
+  isPublished: boolean;
+  updatedAtUtc: IsoDateTime;
+}
+
 /** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
 export interface ChangePlatformUpdatePackageStateRequest {
   state: string;
@@ -1536,6 +2308,16 @@ export interface ChangePlatformUpdatePackageStateRequest {
 export interface ChangePlatformUpdateRolloutStateRequest {
   state: string;
   reason: string;
+}
+
+/**
+ * Проверка кода первого входа до того, как человек придумывает ПИН.
+ *
+ * Контракт: Identity/StaffSignInNextStepContracts.cs
+ */
+export interface CheckStaffInviteRequest {
+  phoneNumber: string;
+  code: string;
 }
 
 /** Контракт: Loyalty/ReferralContracts.cs */
@@ -1555,6 +2337,50 @@ export interface CloseShiftRequest {
    */
   managerSignOffStaffUserId?: Guid | null;
   signOffReason?: string | null;
+}
+
+/** Контракт: Ads/ClubAdsContracts.cs */
+export interface ClubAdDto {
+  creativeId: Guid;
+  advertiser: string;
+  /** Одно из AdCategoryNames */
+  category: AdCategoryName;
+  /** Таджикский текст — первым; русский — по желанию рекламодателя. */
+  title: string;
+  body: string | null;
+  titleRu: string | null;
+  bodyRu: string | null;
+  imageUrl: string | null;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  /** Идёт на ПК клуба сейчас. */
+  running: boolean;
+  /** Показы и секунды на экране на ПК клуба за окно From–To. */
+  impressions: number;
+  shownSeconds: number;
+  lastShownDay: string | null;
+  seller?: ShowcaseSellerDto | null;
+  requiresCertification?: boolean;
+  offerUntilUtc?: IsoDateTime | null;
+  /** Клуб уже пожаловался, и платформа ещё не ответила. */
+  complaintOpen?: boolean;
+  /** Ответ платформы на последнюю закрытую жалобу клуба на эту рекламу. */
+  complaintAnswer?: string | null;
+}
+
+/**
+ * Реклама платформы на ПК клуба — глазами клуба (спека рекламы, §8.4): клуб по закону тоже
+ * распространитель рекламы и должен видеть, что идёт на его ПК, и уметь ответить проверяющему.
+ *
+ * Контракт: Ads/ClubAdsContracts.cs
+ */
+export interface ClubAdsDto {
+  /** Реклама платформы включена клубу — это бесплатный тариф. */
+  adsEnabled: boolean;
+  /** Показы считаются за эти дни по UTC, «2026-09-01». */
+  from: string;
+  to: string;
+  ads: ClubAdDto[];
 }
 
 /**
@@ -1587,6 +2413,64 @@ export interface ClubPlaceDto {
    * Считается независимо от расписания — «открыт ли зал» решает тот, кто показывает число.
    */
   freeSeatCount?: number;
+}
+
+/** Контракт: Platform/Billing/ClubPlanContracts.cs */
+export interface ClubPlanDeviceDto {
+  deviceId: Guid;
+  name: string;
+  branchName: string;
+  /** Новые сессии на нём запускаются. */
+  works: boolean;
+  /** Владелец отметил его работающим на бесплатном тарифе. */
+  kept: boolean;
+}
+
+/**
+ * Игровые ПК клуба глазами тарифа: какие работают на бесплатном и какие отметил владелец.
+ *
+ * Контракт: Platform/Billing/ClubPlanContracts.cs
+ */
+export interface ClubPlanDevicesDto {
+  /** Предел ПК на клуб; пусто — у тарифа предела нет, работают все. */
+  limit: number | null;
+  devices: ClubPlanDeviceDto[];
+}
+
+/**
+ * Тариф клуба словами (спека `2026-09-25-club-plans-per-pc-design.md`): сколько ПК, сколько из них
+ * платных, во что выйдет месяц и что клуб может сделать сам. Цену прежней сетки клуб не видит.
+ *
+ * Контракт: Platform/Billing/ClubPlanContracts.cs
+ */
+export interface ClubPlanDto {
+  planCode: string;
+  /** Одно из ClubPlanKindNames */
+  kind: ClubPlanKindName;
+  devices: number;
+  includedDevices: number;
+  billableDevices: number;
+  pricePerDevice: MoneyDto;
+  /** Счёт за месяц при сегодняшнем числе ПК. У бесплатного и пробного — ноль. */
+  estimatedMonthly: MoneyDto;
+  trialEndsAtUtc: IsoDateTime | null;
+  trialAvailable: boolean;
+  canSwitchToPerPc: boolean;
+  promisedPaymentAvailable: boolean;
+  promisedPaymentUntilUtc: IsoDateTime | null;
+  /** Просроченное; пусто — долга нет. */
+  overdue: MoneyDto | null;
+  /** «Приведи клуб»: код клуба и сколько бесплатных месяцев накоплено за приведённых. */
+  referralCode?: string | null;
+  freeMonths?: number;
+  referredClubs?: number;
+  /** ПК, на которых новые сессии не запускаются: сверх предела бесплатного тарифа (§5a). */
+  devicesOutsidePlan?: number;
+  /** Когда клуб перейдёт на бесплатный тариф, если не оплатит просроченное. Пусто — не грозит. */
+  fallbackAtUtc?: IsoDateTime | null;
+  /** Условия, которые задала платформа: экран не должен обещать свои числа. */
+  trialDays?: number;
+  promisedPaymentDays?: number;
 }
 
 /**
@@ -1673,6 +2557,19 @@ export interface CreateClubReviewRequest {
   comment: string | null;
 }
 
+/**
+ * Консоль на месте — без агента (план `2026-09-25-console-seats.md`): администратор сам начинает и
+ * заканчивает сессию, тарифы, касса и отчёты — как у ПК. Снимается консоль тем же «Снять
+ * устройство», что и ПК.
+ *
+ * Контракт: Consoles/ConsoleSeatContracts.cs
+ */
+export interface CreateConsoleSeatRequest {
+  organizationId: Guid;
+  seatId: Guid;
+  displayName: string;
+}
+
 /** Контракт: Payments/DcTopUpDtos.cs */
 export interface CreateDcTopUpRequest {
   playerAccountId: Guid;
@@ -1684,6 +2581,18 @@ export interface CreateDcTopUpRequest {
 export interface CreateDeviceEnrollmentCodeRequest {
   organizationId: Guid;
   expiresInSeconds: number;
+}
+
+/**
+ * Код установки: техник ставит AFK4 на ПК зала без мастера —
+ * `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
+ * числом новых ПК; сервер хранит его хешем, открытым он виден один раз — при выдаче.
+ *
+ * Контракт: Install/InstallCodeContracts.cs
+ */
+export interface CreateInstallCodeRequest {
+  lifetimeHours: number;
+  maxDevices: number;
 }
 
 /** Контракт: Platform/Billing/CreateInvoiceRequest.cs */
@@ -1703,6 +2612,7 @@ export interface CreateNewsItemRequest {
   isPublished: boolean;
   publishAtUtc: IsoDateTime | null;
   expiresAtUtc: IsoDateTime | null;
+  showOnPcs?: boolean;
 }
 
 /** Контракт: Identity/AccountActivation/CreateOrganizationOwnerInviteRequest.cs */
@@ -1727,6 +2637,8 @@ export interface CreateOrganizationRequest {
   ownerUserName: string | null;
   ownerDisplayName: string | null;
   organizationOwnerInviteLifetime: IsoDuration | null;
+  /** Код «Приведи клуб» того, кто привёл этот клуб. Пусто — клуб пришёл сам. */
+  referralCode?: string | null;
 }
 
 /** Контракт: Platform/Organizations/CreateOrganizationResponse.cs */
@@ -1763,6 +2675,11 @@ export interface CreatePlanRequest {
   maxConcurrentSessions: number | null;
   maxStaffUsersPerBranch: number | null;
   sortOrder: number;
+  pricePerDeviceMinorUnits?: number;
+  includedDevices?: number;
+  maxDevices?: number | null;
+  /** Ключи функций, которые тариф включает; пусто — решают значения функций по умолчанию. */
+  includedFeatures?: string[] | null;
 }
 
 /** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
@@ -1940,6 +2857,8 @@ export interface CreateProductRequest {
   idempotencyKey: string;
   reorderThreshold: number;
   availableInShell: boolean;
+  featuredOnPcs: boolean;
+  imageUrl: string | null;
 }
 
 /**
@@ -2246,6 +3165,10 @@ export interface DeviceDetailDto {
   displayName?: string;
   role?: string;
   enrollmentState?: string;
+  /** Последний отчёт ПК о защите; null — ПК ещё не докладывал. */
+  protectionReport?: DeviceProtectionReportDto | null;
+  /** Текущая версия профиля филиала: отчёт со старой версией значит «ПК ещё не применил». */
+  branchProtectionVersion?: number;
 }
 
 /** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
@@ -2285,6 +3208,60 @@ export interface DeviceEnrollmentResponse {
   credentialId: Guid;
   credentialSecret: string;
   enrolledAtUtc: IsoDateTime;
+}
+
+/**
+ * Игра для агента: всё, чтобы найти лаунчер на этом ПК и показать плитку.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface DeviceGameDto {
+  appId: string;
+  displayName: string;
+  genre: string | null;
+  minAge: number | null;
+  coverUrl: string | null;
+  /** Одно из GameLaunchKindNames. */
+  launchKind: GameLaunchKindName;
+  launchTarget: string | null;
+  executablePath: string | null;
+  arguments: string | null;
+  availableWithoutSession: boolean;
+  launchOnSessionStart?: boolean;
+}
+
+/**
+ * Библиотека филиала для агента. Версия едет в сердцебиении.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface DeviceGameLibraryDto {
+  version: number;
+  games: DeviceGameDto[];
+}
+
+/**
+ * Железо ПК для карточки в Панели: сейчас, принятое и чем они отличаются.
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface DeviceHardwareDto {
+  current: HardwareSnapshotDto | null;
+  reportedAtUtc: IsoDateTime | null;
+  accepted: HardwareSnapshotDto | null;
+  acceptedAtUtc: IsoDateTime | null;
+  /** Кто принял; null — первый снимок, принятый сам. */
+  acceptedByName: string | null;
+  changes: HardwareChangeDto[];
+}
+
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface DeviceHardwareReportRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  collectedAtUtc: IsoDateTime;
+  snapshot: HardwareSnapshotDto;
 }
 
 /** Контракт: Devices/DeviceHeartbeatRequest.cs */
@@ -2357,6 +3334,21 @@ export interface DeviceHeartbeatResponse {
    * потерялся. null — ждать нечего.
    */
   pendingSignInClaim?: PlayerSignInClaimedDto | null;
+  /**
+   * ПК на обслуживании. Команду maintenance-on агент получает сразу, а по этому признаку
+   * догоняет, если её пропустил, и выходит из обслуживания, если пропустил maintenance-off.
+   */
+  maintenance?: boolean;
+  /**
+   * С какого момента и кто включил обслуживание: оболочка пишет это на полосе поверх рабочего
+   * стола, чтобы техник у ПК видел, чей это ПК сейчас и с каких пор.
+   */
+  maintenanceSinceUtc?: IsoDateTime | null;
+  maintenanceByName?: string | null;
+  /** Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет. */
+  policyProfileVersion?: number;
+  /** Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6). */
+  gameLibraryVersion?: number;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -2382,6 +3374,21 @@ export interface DeviceInventoryItemDto {
   displayName?: string;
   role?: string;
   enrollmentState?: string;
+  /** Железо отличается от принятого — в карточке видно, что поменялось, и кнопка «Принять». */
+  hardwareChanged?: boolean;
+}
+
+/**
+ * «Вернуть в зал» с самого ПК (спека оболочки, §6.5): техник закончил и нажал кнопку на полосе.
+ * Агент зовёт сервер ключом устройства, а не ждёт Панель — иначе ПК стоял бы открытым, пока
+ * кто-нибудь не дойдёт до стойки.
+ *
+ * Контракт: Devices/DeviceMaintenanceContracts.cs
+ */
+export interface DeviceMaintenanceReturnRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
 }
 
 /**
@@ -2408,6 +3415,31 @@ export interface DevicePlayerSignInRequest {
   deviceId: Guid;
   phoneNumber: string;
   pin: string;
+}
+
+/**
+ * Последний отчёт ПК о защите — для карточки ПК в Панели.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface DeviceProtectionReportDto {
+  version: number;
+  appliedAtUtc: IsoDateTime;
+  items: ProtectionItemReportDto[];
+}
+
+/**
+ * Агент применил профиль (или снял его на обслуживание) и докладывает, что вышло.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface DeviceProtectionReportRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  version: number;
+  appliedAtUtc: IsoDateTime;
+  items: ProtectionItemReportDto[];
 }
 
 /**
@@ -2468,6 +3500,30 @@ export interface DeviceSessionSnapshotRequest {
   isLocked: boolean;
   pendingLocalEventCount: number;
   observedAtUtc: IsoDateTime;
+}
+
+/**
+ * Витрина свободного ПК (спека оболочки, §5.7): что показывает экран, пока за ПК никто не сидит.
+ * Тексты — словами клуба, как их написали в Панели; подписи вроде «Турнир» переводит оболочка.
+ *
+ * Контракт: Showcase/ShowcaseContracts.cs
+ */
+export interface DeviceShowcaseDto {
+  cards: ShowcaseCardDto[];
+}
+
+/**
+ * Пачка показов с ПК: суммы по карточке за день.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface DeviceShowcaseImpressionsRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  /** Ключ пачки: повтор той же пачки после обрыва связи не удваивает счёт. */
+  batchId: string;
+  items: ShowcaseImpressionDto[];
 }
 
 /** Контракт: Devices/DeviceStateChangeRequest.cs */
@@ -2734,6 +3790,102 @@ export interface GameplayTimeReportRowDto {
   endsAtUtc: IsoDateTime | null;
 }
 
+/** Контракт: Players/GuestImportContracts.cs */
+export interface GuestImportIssueDto {
+  /** Номер строки в файле, с единицы, без заголовка. */
+  row: number;
+  /** Одно из GuestImportIssueNames */
+  code: GuestImportIssueName;
+}
+
+/** Контракт: Players/GuestImportContracts.cs */
+export interface GuestImportRequest {
+  organizationId: Guid;
+  currencyCode: string;
+  /** Откуда перенос — «SmartShell», «Langame»: в журнал и в описание остатков. */
+  source: string;
+  rows: GuestImportRowDto[];
+  /** true — только проверить и посчитать, ничего не записывать. */
+  dryRun: boolean;
+  idempotencyKey: string;
+}
+
+/** Контракт: Players/GuestImportContracts.cs */
+export interface GuestImportResultDto {
+  committed: boolean;
+  total: number;
+  /** Новых карточек гостей. */
+  created: number;
+  /** Гость с этим номером уже есть в клубе — остатки легли на его карточку. */
+  matched: number;
+  /** Строки, которые не переносятся (причина — в Issues). */
+  skipped: number;
+  balanceTotal: MoneyDto;
+  bonusTotal: MoneyDto;
+  issues: GuestImportIssueDto[];
+}
+
+/**
+ * Перенос гостей из прежней программы клуба (план `2026-09-25-guest-import.md`): номер, имя,
+ * баланс и бонусы становятся карточкой гостя и начальными остатками в журнале. Выгрузку делает
+ * владелец клуба; сначала — пробный прогон без записи, потом перенос.
+ *
+ * Контракт: Players/GuestImportContracts.cs
+ */
+export interface GuestImportRowDto {
+  phone: string | null;
+  name: string | null;
+  balanceMinorUnits: number;
+  bonusMinorUnits: number;
+}
+
+/**
+ * Что в железе отличается от принятого: было → стало.
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface HardwareChangeDto {
+  /** Одно из HardwareComponentNames. */
+  component: HardwareComponentName;
+  was: string | null;
+  now: string | null;
+}
+
+/**
+ * <param name="Name">Буква диска: «C:».</param>
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface HardwareDiskDto {
+  name: string;
+  sizeGb: number;
+}
+
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface HardwareGpuDto {
+  name: string;
+  memoryGb: number | null;
+}
+
+/**
+ * Снимок железа ПК (спека оболочки, P9): что стоит внутри. Сравнивается с принятым — поменяли
+ * видеокарту или вынули планку памяти, и клуб видит это в карточке ПК, а не узнаёт от игрока.
+ *
+ * Контракт: Devices/DeviceHardwareContracts.cs
+ */
+export interface HardwareSnapshotDto {
+  cpu: string | null;
+  cpuThreads: number;
+  /** Вся память в гигабайтах, округлённо: 15,9 ГБ Windows — это 16 ГБ в корпусе. */
+  memoryGb: number;
+  gpus: HardwareGpuDto[];
+  motherboard: string | null;
+  disks: HardwareDiskDto[];
+  /** Windows и её сборка — видна, но не считается изменением железа: обновления идут каждый месяц. */
+  os: string | null;
+  bios: string | null;
+}
+
 /** Контракт: Platform/Health/PlatformHealthContracts.cs */
 export interface IncidentDto {
   incidentId: Guid;
@@ -2764,6 +3916,41 @@ export interface InstallBranchDto {
   hasTariff?: boolean;
   /** В зале есть кто-то кроме владельца: приглашать первого сотрудника уже не нужно. */
   hasStaffBesidesOwner?: boolean;
+}
+
+/**
+ * Действующий код установки филиала.
+ * <param name="Code">Сам код — только в ответе на выдачу; в списке его нет.</param>
+ * <param name="UsedDevices">Сколько новых ПК уже встало по коду. Переустановка того же ПК код не тратит.</param>
+ *
+ * Контракт: Install/InstallCodeContracts.cs
+ */
+export interface InstallCodeDto {
+  installCodeId: Guid;
+  branchId: Guid;
+  code: string | null;
+  createdAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+  maxDevices: number;
+  usedDevices: number;
+}
+
+/**
+ * Тихая регистрация ПК по коду.
+ * <param name="SeatName">
+ * Место по имени. Не названо — ищется место с именем компьютера. Не нашлось или занято другим
+ * ПК — ПК встаёт без места, и его привязывают в Панели: отказ из-за опечатки в имени оставил бы
+ * ПК вовсе не зарегистрированным, а узнал бы о нём техник только обходом зала.
+ * </param>
+ *
+ * Контракт: Install/InstallCodeContracts.cs
+ */
+export interface InstallCodeEnrollRequest {
+  code: string;
+  seatName: string | null;
+  displayName: string | null;
+  machineName: string;
+  devicePublicKey: string;
 }
 
 /** Контракт: Install/InstallCreateSeatResponse.cs */
@@ -2819,6 +4006,8 @@ export interface InstallEnrollResponse {
   enrolledAtUtc: IsoDateTime;
   leaseSigningPublicKeyPem: string;
   updatePackageSigningPublicKeyPem: string;
+  /** На какое место встал ПК. Null — без места: при тихой установке место по имени не нашлось или занято. */
+  assignedSeatName: string | null;
 }
 
 /** Контракт: Inventory/InventoryStockDto.cs */
@@ -2889,6 +4078,8 @@ export interface LauncherAppDto {
   category: string;
   iconUri: string | null;
   isAvailable: boolean;
+  /** Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения. */
+  minAge?: number | null;
 }
 
 /** Контракт: Billing/LedgerEntryDto.cs */
@@ -3008,6 +4199,18 @@ export interface MePersonDto {
    * приложения — и он идёт спорить к стойке, которая его не ставила.
    */
   networkBanReason: string | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface ModerateAdCreativeRequest {
+  approve: boolean;
+  /** Причина отказа — рекламодателю через менеджера платформы. Обязательна при отказе. */
+  reason: string | null;
+  /**
+   * Модератор подтверждает то, чего код не проверит, — каждую строку AdModerationCheckNames.
+   * Без всех отметок одобрить нельзя.
+   */
+  confirmed?: string[] | null;
 }
 
 /**
@@ -3157,6 +4360,8 @@ export interface NewsItemDto {
   expiresAtUtc: IsoDateTime | null;
   createdAtUtc: IsoDateTime;
   updatedAtUtc: IsoDateTime;
+  /** Новость крутится и на экране свободного ПК (витрина), а не только в приложении. */
+  showOnPcs?: boolean;
 }
 
 /**
@@ -3553,6 +4758,11 @@ export interface OrganizationLimitsDto {
   maxDevicesPerBranch: number | null;
   maxConcurrentSessions: number | null;
   maxStaffUsersPerBranch: number | null;
+  /**
+   * Игровых ПК на весь клуб, без деления по залам: бесплатный тариф — «до десяти ПК», сколько бы
+   * залов ни было (спека тарифов клуба, §2). Консоли не считаются.
+   */
+  maxDevices?: number | null;
 }
 
 /**
@@ -3759,6 +4969,11 @@ export interface PaymentPartDto {
   amount: MoneyDto;
 }
 
+/** Контракт: Tips/TipContracts.cs */
+export interface PayOutShiftTipsRequest {
+  idempotencyKey: string;
+}
+
 /**
  * A finished visit that has not been reviewed yet — what the app offers to rate.
  * Оценить предлагается один раз и только пока вечер свежий в памяти.
@@ -3776,6 +4991,13 @@ export interface PendingClubReviewDto {
 export interface PlaceShopOrderRequest {
   lines: ShopOrderLineInput[];
   idempotencyKey: string;
+}
+
+/** Контракт: Platform/Billing/SubscriptionPlanDto.cs */
+export interface PlanFeatureDto {
+  featureKey: string;
+  name: string;
+  isIncluded: boolean;
 }
 
 /**
@@ -4617,10 +5839,13 @@ export interface PlayerSelfExtendRequest {
  * что занять свободный ПК можно было не приходя в клуб: сервер видел «игрок назвал устройство» и
  * доказательства присутствия не имел никакого. Код видно только с экрана — он и есть
  * доказательство, и живёт минуты, чтобы снятая на телефон цифра никому не пригодилась.
+ * Оболочка ПК кода не шлёт: её токен привязан к машине и сам доказывает, где человек сидит
+ * (спека оболочки, §5.3). Код ей и не годится — вход по QR его гасит.
  *
  * Контракт: Players/PlayerSelfStartRequest.cs
  */
 export interface PlayerSelfStartRequest {
+  /** Код с монитора; пусто — только с токеном, привязанным к ПК. */
   seatingCode: string;
   tariffRuleVersionId: string;
   durationMinutes: number;
@@ -4666,6 +5891,39 @@ export interface PlayerShellStateDto {
   lastContactUtc?: IsoDateTime | null;
   /** Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить. */
   apiBaseUrl?: string | null;
+  /** Место этого ПК — «ПК 07»: первое, что читается на экране, и видно от стойки. */
+  seatLabel?: string | null;
+  /** Зона места — «Общий зал». */
+  zoneName?: string | null;
+  /**
+   * Чья сессия идёт: none, guest или player. Вошедшему не владельцу экран говорит «эта сессия
+   * не ваша» и ничего не открывает.
+   */
+  sessionOwnerKind?: string | null;
+  /** Счёт владельца сессии — только у player. */
+  sessionOwnerPlayerAccountId?: Guid | null;
+  /** Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека. */
+  features?: string[] | null;
+  /**
+   * Обслуживание: с какого момента и кто его включил — для полосы «Включено из Панели AFK4.net
+   * в 14:05 · Шерзод». Пусто вне обслуживания; имя пусто, если его включила поддержка без имени.
+   */
+  maintenanceSinceUtc?: IsoDateTime | null;
+  maintenanceByName?: string | null;
+  /**
+   * Окна, которые хост закрывает, едва они появятся (профиль защиты, §6.3). Служба в сессии 0
+   * окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
+   */
+  blockedWindows?: BlockedWindowRuleDto[] | null;
+  /** Правила клуба из настроек ПК: кнопка на экране свободного ПК их открывает. */
+  clubRules?: string | null;
+  /**
+   * Свободный ПК выключится от простоя в это время: экран показывает отсчёт, движение мыши его
+   * отменяет. null — выключение не назначено.
+   */
+  idleShutdownAtUtc?: IsoDateTime | null;
+  /** Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба. */
+  showcase?: ShowcaseCardDto[] | null;
 }
 
 /**
@@ -4757,6 +6015,36 @@ export interface PlayerTariffOfferDto {
   /** Когда тариф откроется, если сейчас он не действует; вариантов у такого тарифа нет. */
   startsAtUtc: IsoDateTime | null;
   options: PlayerDurationOfferDto[];
+}
+
+/**
+ * Можно ли оставить чаевые за этот визит — и сколько.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface PlayerTipOfferDto {
+  available: boolean;
+  /** Одно из TipUnavailableReasonNames; пусто, если можно. */
+  unavailableReason: TipUnavailableReasonName | null;
+  presets: MoneyDto[];
+  balance: MoneyDto;
+  /** Имя администратора смены — первое слово: «Чаевые Шерзоду». */
+  recipientName: string | null;
+  /** Чаевые, уже оставленные за этот визит. */
+  given: MoneyDto | null;
+}
+
+/** Контракт: Tips/TipContracts.cs */
+export interface PlayerTipRequest {
+  amount: MoneyDto;
+  idempotencyKey: string;
+}
+
+/** Контракт: Tips/TipContracts.cs */
+export interface PlayerTipResponse {
+  amount: MoneyDto;
+  balanceAfter: MoneyDto;
+  recipientName: string | null;
 }
 
 /**
@@ -4916,6 +6204,8 @@ export interface PosProductDto {
   availableInShell?: boolean;
   avgCostMinorUnits?: number;
   barcodes?: string[] | null;
+  featuredOnPcs?: boolean;
+  imageUrl?: string | null;
 }
 
 /** Контракт: Pos/PosSaleDto.cs */
@@ -4959,6 +6249,50 @@ export interface ProductBarcodeDto {
   productId: Guid;
   code: string;
   isPrimary: boolean;
+}
+
+/**
+ * Строка отчёта: пункт, исход (ProtectionItemStatusNames) и подробность для разбора.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface ProtectionItemReportDto {
+  /** Одно из ProtectionItemNames. */
+  item: ProtectionItemName;
+  /** Одно из ProtectionItemStatusNames. */
+  status: ProtectionItemStatusName;
+  detail: string | null;
+}
+
+/**
+ * Профиль защиты ПК филиала (спека оболочки, §6.3): что агент запрещает на игровом ПК. Версия
+ * растёт с каждым сохранением и едет в сердцебиении — по её смене агент перечитывает профиль.
+ * Версия 0 — клуб профиль не настраивал, действует только постоянная база киоска.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface ProtectionProfileDto {
+  version: number;
+  /** Флешки и внешние диски — запрет Windows на все съёмные накопители. */
+  blockRemovableStorage: boolean;
+  /** Скачивание в Chrome и Edge. */
+  blockBrowserDownloads: boolean;
+  /** Режим инкогнито в Chrome и InPrivate в Edge. */
+  blockBrowserIncognito: boolean;
+  /** Окно «Выполнить» (Win+R). */
+  disableRunDialog: boolean;
+  /** Буквы дисков, скрытых в Проводнике. Это не запрет: программа откроет диск по пути. */
+  hiddenDrives: string[];
+  /** Адреса и шаблоны, которые Chrome и Edge не открывают (формат URLBlocklist). */
+  urlBlocklist: string[];
+  /** Окна, которые оболочка закрывает, едва они появятся. */
+  blockedWindows: BlockedWindowRuleDto[];
+  /** Что стереть после сессии игрока (§6.4). Каждый пункт — из SessionTraceNames. */
+  clearAfterSession: string[];
+  /** Выключить свободный ПК, за которым столько минут никого нет; null — не выключать. */
+  idleShutdownMinutes?: number | null;
+  /** Правила клуба на экране ПК — текст клуба как есть, на его языке. */
+  clubRules?: string | null;
 }
 
 /**
@@ -5200,6 +6534,16 @@ export interface RenameDeviceRequest {
 }
 
 /**
+ * Порядок игр в библиотеке: все игры филиала в новом порядке.
+ *
+ * Контракт: Games/GameLibraryContracts.cs
+ */
+export interface ReorderBranchGamesRequest {
+  organizationId: Guid;
+  branchGameIds: Guid[];
+}
+
+/**
  * Новый порядок категорий филиала: весь список целиком, сверху вниз.
  * Список, а не пара «категория + номер»: порядок — свойство набора, и присланный целиком он не
  * оставляет места расхождению. Пара «id + номер» на каждое перетаскивание порождала бы дыры и
@@ -5210,6 +6554,18 @@ export interface RenameDeviceRequest {
 export interface ReorderProductCategoriesRequest {
   organizationId: Guid;
   categoryIds: Guid[];
+}
+
+/**
+ * Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
+ * рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
+ *
+ * Контракт: Ads/ClubAdsContracts.cs
+ */
+export interface ReportClubAdRequest {
+  /** Одно из AdComplaintReasonNames */
+  reason: AdComplaintReasonName;
+  comment: string | null;
 }
 
 /**
@@ -5395,6 +6751,11 @@ export interface ResetStaffUserPasswordRequest {
   newPassword: string;
 }
 
+/** Контракт: Ads/ClubAdsContracts.cs */
+export interface ResolveAdComplaintRequest {
+  resolution: string;
+}
+
 /** Контракт: Platform/Operator/ResolveOperatorConnectionRequest.cs */
 export interface ResolveOperatorConnectionRequest {
   organizationSlug: string | null;
@@ -5560,6 +6921,16 @@ export interface SeatStatusDto {
    * кто ждёт дольше.
    */
   assistanceRequestedAtUtc?: IsoDateTime | null;
+  /**
+   * С какого момента ПК на обслуживании по решению клуба. Null — ПК в зале. Отдельно от State:
+   * «обслуживание» на карте бывает и у неподтверждённого ПК, а вернуть в зал можно только того,
+   * кого туда увели.
+   */
+  maintenanceSinceUtc?: IsoDateTime | null;
+  /** Место с консолью без агента: сессию ведёт администратор, команд ПК у места нет. */
+  isConsole?: boolean;
+  /** ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются, идущая доживает. */
+  isOutsidePlan?: boolean;
 }
 
 /**
@@ -5751,6 +7122,21 @@ export interface SessionTimelineResult {
   sessions: SessionTimelineItemDto[];
 }
 
+/** Контракт: Ads/AdContracts.cs */
+export interface SetAdCampaignStateRequest {
+  /** Одно из AdCampaignStateNames */
+  state: AdCampaignStateName;
+}
+
+/**
+ * Какие ПК работают на бесплатном тарифе — не больше предела; пустой список снимает выбор.
+ *
+ * Контракт: Platform/Billing/ClubPlanContracts.cs
+ */
+export interface SetClubPlanDevicesRequest {
+  deviceIds: Guid[];
+}
+
 /**
  * Постановка ручного исключения для клуба. Причина обязательна.
  *
@@ -5795,11 +7181,51 @@ export interface SettlePosSaleRequest {
   idempotencyKey: string;
 }
 
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellAuthSignInRequest {
+  phone: string;
+  pin: string;
+}
+
+/**
+ * Кто вошёл на этом ПК. Токены страница не видит: их держит хост.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
+export interface ShellAuthStateDto {
+  signedIn: boolean;
+  displayName?: string | null;
+  playerAccountId?: Guid | null;
+}
+
 /** Контракт: Shell/ShellBrandingDto.cs */
 export interface ShellBrandingDto {
   clubName: string;
   logoUrl: string | null;
   accentColor: string | null;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellGameForegroundDto {
+  active: boolean;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellLaunchRequest {
+  appId: string;
+}
+
+/**
+ * Команда клуба, которую исполняет хост: у агента нет ни окна, ни аккаунта игрока.
+ *
+ * Контракт: Shell/ShellPipeMessage.cs
+ */
+export interface ShellPipeCommandDto {
+  commandId: Guid;
+  /** DeviceCommandTypeNames.SignOut или DeviceCommandTypeNames.Message. */
+  type: DeviceCommandTypeName;
+  /** Текст сообщения; только у message. */
+  text?: string | null;
 }
 
 /** Контракт: Shell/ShellPipeMessage.cs */
@@ -5828,6 +7254,12 @@ export interface ShellPipeMessage {
   reply?: ShellPipeReplyDto | null;
   /** Почему агент попрощался; только у bye. */
   reason?: string | null;
+  command?: ShellPipeCommandDto | null;
+  /**
+   * Игрок вошёл на этом ПК — номером и ПИН-кодом или по QR с телефона. Токены привязаны к ПК;
+   * хост держит их в памяти и странице не отдаёт.
+   */
+  auth?: PlatformPersonSessionResponse | null;
 }
 
 /** Контракт: Shell/ShellPipeMessage.cs */
@@ -5845,6 +7277,59 @@ export interface ShellPipeRequestDto {
   /** Одно из ShellPipeRequestTypeNames. */
   type: ShellPipeRequestTypeName;
   payload: Record<string, string>;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellSetLayoutRequest {
+  /** Одно из ShellKeyboardLayoutNames. */
+  layout: ShellKeyboardLayoutName;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellSetMicMutedRequest {
+  micMuted: boolean;
+}
+
+/** Контракт: Shell/ShellBridgeContracts.cs */
+export interface ShellSetVolumeRequest {
+  /** 0–100. */
+  volume: number;
+}
+
+/**
+ * Показ карточки витрины: какая и сколько миллисекунд стояла на экране.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
+export interface ShellShowcaseImpressionDto {
+  cardId: string;
+  shownMs: number;
+}
+
+/**
+ * Всё, что хост знает к моменту, когда страница загрузилась.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
+export interface ShellSnapshotDto {
+  /** Пусто — агент ещё не прислал состояния: экран говорит «подключаемся к ПК». */
+  state: PlayerShellStateDto | null;
+  auth: ShellAuthStateDto;
+  system?: ShellSystemStateDto | null;
+}
+
+/**
+ * Звук, микрофон и раскладка ПК. Пусто — у ПК этого нет или Windows не ответила (нет
+ * микрофона, звуковая карта отключена): страница прячет кнопку, а не показывает выдуманное.
+ *
+ * Контракт: Shell/ShellBridgeContracts.cs
+ */
+export interface ShellSystemStateDto {
+  /** 0–100. */
+  volume: number | null;
+  micMuted: boolean | null;
+  /** Раскладка клавиатуры — одно из ShellKeyboardLayoutNames. */
+  layout: ShellKeyboardLayoutName | null;
 }
 
 /** Контракт: Shifts/ShiftDto.cs */
@@ -5926,6 +7411,31 @@ export interface ShiftSummaryDto {
   difference: MoneyDto;
 }
 
+/** Контракт: Tips/TipContracts.cs */
+export interface ShiftTipDto {
+  ledgerEntryId: Guid;
+  amount: MoneyDto;
+  seatLabel: string | null;
+  createdAtUtc: IsoDateTime;
+  /** Возвращены игроку — в сумму смены не входят. */
+  reversed: boolean;
+}
+
+/**
+ * Чаевые смены для Панели. Имени игрока нет: администратору важны сумма и ПК.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface ShiftTipsDto {
+  shiftId: Guid;
+  recipientStaffUserId: Guid;
+  recipientName: string;
+  total: MoneyDto;
+  tips: ShiftTipDto[];
+  /** Уже выдано из кассы за эту смену: выдать ту же сумму второй раз нельзя. */
+  paidOut?: MoneyDto | null;
+}
+
 /**
  * Позиция меню бара: что можно заказать к месту прямо во время сессии.
  *
@@ -5997,6 +7507,72 @@ export interface ShopOrderLineInput {
   quantity: number;
 }
 
+/** Контракт: Showcase/ShowcaseContracts.cs */
+export interface ShowcaseCardDto {
+  /**
+   * Стабильный ключ карточки: «news:…», «tariff:…». По нему агент узнаёт карточку между
+   * обновлениями, а экран не перезапускает показ, когда список не изменился.
+   */
+  cardId: string;
+  /** Одно из ShowcaseCardKindNames */
+  kind: ShowcaseCardKindName;
+  /** У «Пакетов» заголовок пуст: его пишет оболочка на языке экрана. */
+  title: string;
+  body?: string | null;
+  /** Короткая строка рядом с видом карточки: дисциплина турнира («Dota 2»). */
+  subtitle?: string | null;
+  /**
+   * Адрес картинки. С сервера — адрес в медиа-хранилище, на экран — адрес в кэше ПК: чужих
+   * адресов экран не получает.
+   */
+  imageUrl?: string | null;
+  /** Цена: час тарифа, товар, взнос турнира. Пусто — цены у карточки нет (или взнос бесплатный). */
+  price?: MoneyDto | null;
+  /** Часы тарифа по времени клуба, «22:00–06:00». Пусто — круглые сутки. */
+  timeWindow?: string | null;
+  /** Начало турнира. */
+  startsAtUtc?: IsoDateTime | null;
+  /** Строки карточки «Пакеты». */
+  packages?: ShowcasePackageLineDto[] | null;
+  /** Рекламодатель — только у рекламы: экран пишет «Реклама · {рекламодатель}». */
+  advertiser?: string | null;
+  /** Реклама: русский вариант — второй строкой под таджикским. */
+  secondaryTitle?: string | null;
+  secondaryBody?: string | null;
+  /**
+   * Реклама с продажей на расстоянии: наименование, ИНН и адрес продавца (закон о рекламе,
+   * ст. 14(1)). Подписи к ним экран пишет на своём языке.
+   */
+  seller?: ShowcaseSellerDto | null;
+  /** Реклама: пометка «подлежит обязательной сертификации» (ст. 5). */
+  requiresCertification?: boolean;
+  /** Реклама с ценой или условиями: до какого дня действует предложение (ст. 26). */
+  offerUntilUtc?: IsoDateTime | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface ShowcaseImpressionDto {
+  cardId: string;
+  /** День показа по UTC, «2026-09-25». */
+  day: string;
+  impressions: number;
+  shownMs: number;
+}
+
+/** Контракт: Showcase/ShowcaseContracts.cs */
+export interface ShowcasePackageLineDto {
+  name: string;
+  price: MoneyDto;
+  minutes: number;
+}
+
+/** Контракт: Showcase/ShowcaseContracts.cs */
+export interface ShowcaseSellerDto {
+  legalName: string;
+  taxId: string;
+  address: string;
+}
+
 /**
  * Сотрудник организации, которого нет в этом филиале: его можно добавить сюда ролями. Филиалы, где
  * он уже работает, — названиями; пустой список значит, что назначений у него не осталось вовсе и
@@ -6039,6 +7615,26 @@ export interface StaffInviteDto {
   staffInviteId: Guid;
   code: string;
   expiresAtUtc: IsoDateTime;
+}
+
+/**
+ * Сотрудник, которого добавили, но он ещё не входил: код первого входа живой, истёк или исчерпал
+ * попытки. Сам код не отдаётся — он хранится хешем; нужен новый — руководитель выдаёт новый.
+ *
+ * Контракт: Identity/StaffInviteDto.cs
+ */
+export interface StaffInviteSummaryDto {
+  staffInviteId: Guid;
+  userName: string;
+  displayName: string;
+  phoneNumber: string;
+  email: string | null;
+  roleNames: string[];
+  createdAtUtc: IsoDateTime;
+  expiresAtUtc: IsoDateTime;
+  attemptsLeft: number;
+  /** Одно из StaffInviteStatusNames. */
+  status: StaffInviteStatusName;
 }
 
 /** Контракт: Identity/StaffPhoneVerificationContracts.cs */
@@ -6129,6 +7725,24 @@ export interface StaffSignInChooseClubResponse {
 export interface StaffSignInClubChoice {
   organizationId: Guid;
   name: string;
+}
+
+/**
+ * Первый шаг входа сотрудника: только номер.
+ *
+ * Контракт: Identity/StaffSignInNextStepContracts.cs
+ */
+export interface StaffSignInNextStepRequest {
+  phoneNumber: string;
+}
+
+/**
+ * Что спросить у человека вторым шагом (StaffSignInStepNames).
+ *
+ * Контракт: Identity/StaffSignInNextStepContracts.cs
+ */
+export interface StaffSignInNextStepResponse {
+  step: string;
 }
 
 /** Контракт: Identity/StaffSignInRequest.cs */
@@ -6263,6 +7877,15 @@ export interface SubscriptionPlanDto {
   maxStaffUsersPerBranch: number | null;
   isActive: boolean;
   sortOrder: number;
+  /** Цена каждого ПК сверх включённых — у тарифа за ПК; у прочих ноль. */
+  pricePerDeviceMinorUnits?: number;
+  includedDevices?: number;
+  /** Игровых ПК на весь клуб; пусто — без предела. */
+  maxDevices?: number | null;
+  /** Каждая функция платформы и включена ли она этим тарифом. */
+  features?: PlanFeatureDto[] | null;
+  /** Сколько клубов сейчас на этом тарифе — им «применить лимиты» при правке. */
+  clubs?: number;
 }
 
 /** Контракт: Tariffs/TariffCalculationResult.cs */
@@ -6292,6 +7915,8 @@ export interface TariffDto {
   appliesOnDaysMask?: number;
   appliesFromMinuteOfDay?: number | null;
   appliesToMinuteOfDay?: number | null;
+  /** Тариф крутится в витрине свободного ПК. */
+  featuredOnPcs?: boolean;
 }
 
 /**
@@ -6327,6 +7952,8 @@ export interface TariffOptionDto {
    * начинают сию секунду; для брони на завтра ответ никакого значения не имеет.
    */
   appliesNow?: boolean;
+  /** Тариф крутится в витрине свободного ПК. */
+  featuredOnPcs?: boolean;
 }
 
 /**
@@ -6359,6 +7986,16 @@ export interface TariffVersionDto {
   effectiveFromUtc: IsoDateTime;
   retiredAtUtc: IsoDateTime | null;
   createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Чаевые администратору смены с экрана итога (спека `2026-09-25-visit-tips-design.md`). Клуб их
+ * включает сам; деньги уходят с кошелька игрока записью журнала `tip` и выручкой не считаются.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface TipSettingsDto {
+  enabled: boolean;
 }
 
 /** Контракт: Billing/TopUpWalletRequest.cs */
@@ -6418,6 +8055,13 @@ export interface TransferSessionRequest {
   expectedVersion?: number | null;
 }
 
+/** Контракт: Platform/Billing/BillingTermsContracts.cs */
+export interface UpdateBillingTermsRequest {
+  trialDays: number;
+  promisedPaymentDays: number;
+  fallbackAfterOverdueDays: number;
+}
+
 /** Контракт: Branches/UpdateBranchBookingSettingsRequest.cs */
 export interface UpdateBranchBookingSettingsRequest {
   organizationId: Guid;
@@ -6455,6 +8099,27 @@ export interface UpdateBranchProfileRequest {
   photos?: BranchPhotoDto[] | null;
   latitude?: number | null;
   longitude?: number | null;
+}
+
+/**
+ * Сохранить профиль. ExpectedVersion — версия, которую человек открыл: если
+ * профиль успели поменять, сохранение отказывает, а не затирает чужую правку молча.
+ *
+ * Контракт: Devices/ProtectionProfileContracts.cs
+ */
+export interface UpdateBranchProtectionProfileRequest {
+  organizationId: Guid;
+  expectedVersion: number;
+  blockRemovableStorage: boolean;
+  blockBrowserDownloads: boolean;
+  blockBrowserIncognito: boolean;
+  disableRunDialog: boolean;
+  hiddenDrives: string[];
+  urlBlocklist: string[];
+  blockedWindows: BlockedWindowRuleDto[];
+  clearAfterSession: string[];
+  idleShutdownMinutes?: number | null;
+  clubRules?: string | null;
 }
 
 /** Контракт: Branches/UpdateBranchSettingsRequest.cs */
@@ -6529,6 +8194,7 @@ export interface UpdateNewsItemRequest {
   isPublished: boolean;
   publishAtUtc: IsoDateTime | null;
   expiresAtUtc: IsoDateTime | null;
+  showOnPcs?: boolean;
 }
 
 /** Контракт: Updates/UpdateOrganizationAdminUpdatePreferenceRequest.cs */
@@ -6628,6 +8294,19 @@ export interface UpdatePlanRequest {
   maxStaffUsersPerBranch: number | null;
   isActive: boolean;
   sortOrder: number;
+  /** Не переданы — остаются прежними: старый редактор тарифов о них не знает. */
+  pricePerDeviceMinorUnits?: number | null;
+  includedDevices?: number | null;
+  /** Не передан — остаётся прежним; снять предел — RemoveMaxDevices. */
+  maxDevices?: number | null;
+  removeMaxDevices?: boolean;
+  /** Передан — заменяет набор функций тарифа целиком. */
+  includedFeatures?: string[] | null;
+  /**
+   * Клубы на этом тарифе получают его новые лимиты. Без отметки лимиты клубов не меняются:
+   * платформа могла задать клубу свои.
+   */
+  applyLimitsToClubs?: boolean;
 }
 
 /** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
@@ -6695,6 +8374,10 @@ export interface UpdateProductRequest {
   isActive: boolean;
   reorderThreshold?: number;
   availableInShell?: boolean;
+  /** Товар крутится в витрине свободного ПК. */
+  featuredOnPcs?: boolean;
+  /** Фото товара: адрес загрузки с назначением product-image. Пусто — без фото. */
+  imageUrl?: string | null;
 }
 
 /** Контракт: Loyalty/ReferralContracts.cs */
@@ -6825,7 +8508,8 @@ export interface UpdateSubscriptionRequest {
 
 /**
  * `Schedule` не передан — расписание остаётся прежним. Снятие тарифа с продажи и
- * переименование не должны требовать от вызывающего знания о часах.
+ * переименование не должны требовать от вызывающего знания о часах. Так же и
+ * `FeaturedOnPcs`: не передан — отметка в витрине не меняется.
  *
  * Контракт: Tariffs/UpdateTariffRequest.cs
  */
@@ -6834,6 +8518,7 @@ export interface UpdateTariffRequest {
   name: string;
   isActive: boolean;
   schedule?: TariffScheduleDto | null;
+  featuredOnPcs?: boolean | null;
 }
 
 /** Контракт: Tariffs/UpdateTariffVersionRequest.cs */
@@ -6845,6 +8530,11 @@ export interface UpdateTariffVersionRequest {
   roundingIncrementMinutes: number;
   effectiveFromUtc: IsoDateTime;
   isActive: boolean;
+}
+
+/** Контракт: Tips/TipContracts.cs */
+export interface UpdateTipSettingsRequest {
+  enabled: boolean;
 }
 
 /**
@@ -6876,6 +8566,64 @@ export interface UploadedMediaDto {
   url: string;
   contentType: string;
   sizeBytes: number;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface UpsertAdCampaignRequest {
+  advertiserId: Guid;
+  name: string;
+  category: string;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  cities: string[] | null;
+  organizationIds: Guid[] | null;
+  compliance?: AdCampaignComplianceDto | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface UpsertAdCreativeRequest {
+  title: string;
+  body: string | null;
+  imageUrl: string | null;
+  titleRu?: string | null;
+  bodyRu?: string | null;
+}
+
+/** Контракт: Ads/AdContracts.cs */
+export interface UpsertAdvertiserRequest {
+  name: string;
+  contact: string | null;
+  legalName?: string | null;
+  taxId?: string | null;
+  address?: string | null;
+}
+
+/** Контракт: Games/GameLibraryContracts.cs */
+export interface UpsertBranchGameRequest {
+  organizationId: Guid;
+  catalogGameId: Guid | null;
+  name: string;
+  genre: string | null;
+  minAge: number | null;
+  launchKind: string;
+  launchTarget: string | null;
+  executablePath: string | null;
+  arguments: string | null;
+  availableWithoutSession: boolean;
+  isEnabled: boolean;
+  launchOnSessionStart?: boolean;
+}
+
+/** Контракт: Games/GameLibraryContracts.cs */
+export interface UpsertCatalogGameRequest {
+  name: string;
+  description: string | null;
+  genre: string | null;
+  minAge: number | null;
+  launchKind: string;
+  launchTarget: string | null;
+  coverUrl: string | null;
+  isPublished: boolean;
 }
 
 /** Контракт: Platform/Billing/VoidInvoiceRequest.cs */

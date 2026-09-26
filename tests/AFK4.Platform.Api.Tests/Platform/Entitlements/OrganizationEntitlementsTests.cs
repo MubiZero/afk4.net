@@ -44,7 +44,8 @@ public sealed class OrganizationEntitlementsTests
         Assert.Equal(PlatformFeatureNames.All.Count, states.Count);
         Assert.All(states, state =>
         {
-            Assert.True(state.IsEnabled);
+            // Значение по умолчанию и решает: реклама платформы выключена, остальное включено.
+            Assert.Equal(state.FeatureKey != PlatformFeatureNames.PlatformAds, state.IsEnabled);
             Assert.Equal(FeatureDecisionLevels.Default, state.DecisionLevel);
         });
     }
@@ -209,8 +210,10 @@ public sealed class OrganizationEntitlementsTests
         var enabled = await entitlements.ListEnabledAsync(organizationId, CancellationToken.None);
 
         Assert.DoesNotContain(PlatformFeatureNames.Loyalty, enabled);
-        Assert.Equal(PlatformFeatureNames.All.Count - 1, enabled.Count);
-        foreach (var featureKey in PlatformFeatureNames.All.Where(key => key != PlatformFeatureNames.Loyalty))
+        // Реклама платформы выключена по умолчанию — её включает бесплатный тариф.
+        var enabledByDefault = FeatureCatalog.Declared.Where(declaration => declaration.EnabledByDefault).Select(declaration => declaration.FeatureKey).ToList();
+        Assert.Equal(enabledByDefault.Count - 1, enabled.Count);
+        foreach (var featureKey in enabledByDefault.Where(key => key != PlatformFeatureNames.Loyalty))
         {
             Assert.Contains(featureKey, enabled);
         }

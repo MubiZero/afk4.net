@@ -124,7 +124,7 @@
 
 .network-install-get h3,
 .network-install-steps h3,
-.network-install-branches h3 {
+.network-install-codes h3 {
   margin: 0;
   color: var(--text-strong);
   font-size: 16px;
@@ -164,14 +164,108 @@
   font-size: 13px;
 }
 
-.network-install-branch-list {
+.network-install-codes-lead,
+.network-install-codes-hint,
+.network-install-codes-once {
   margin: 0;
-  padding-left: 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.network-install-codes-once {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+/* Три поля и кнопка — одной строкой: это одна просьба «выдай код», а не анкета. На узком окне
+   строка переносится. */
+.network-install-codes-form {
+  grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(110px, 0.6fr) auto;
+  align-items: end;
+}
+
+.network-install-codes-form .mgmt-form-actions {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .network-install-codes-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.network-install-codes-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.network-install-codes-issued {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+.network-install-codes-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* Код и команда переносятся, а не режутся: их переписывают с экрана, и обрезанный хвост
+   кода — это код, который не подойдёт. */
+.network-install-codes-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.network-install-codes-copy code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+  font-family: var(--font-mono);
+  color: var(--text-strong);
+}
+
+.network-install-codes-value {
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.network-install-codes-command {
+  font-size: 13px;
+}
+
+.network-install-codes-copy .ui-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.network-install-codes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.network-install-codes-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   color: var(--text-strong);
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Сеть → Журнал: фильтры (.mgmt-form переиспускается) + org-audit таблица на существующих
@@ -270,3 +364,56 @@
 .network-updates-actions .network-updates-hint {
   margin: 0;
 }
+
+/* Тариф клуба словами — над сеткой подписки: что за тариф, сколько ПК, что можно сделать самим. */
+.network-plan { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border-soft); }
+.network-plan-head strong { font-size: 16px; }
+.network-plan-head p { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }
+.network-plan-note { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.network-plan-note--attention { color: var(--danger-text, var(--danger)); }
+.network-plan-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.network-stat--attention dd { color: var(--danger); }
+.network-plan-referral { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-soft); }
+.network-plan-referral p { margin: 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }
+.network-plan-referral-code { display: flex; align-items: center; gap: var(--space-3); }
+.network-plan-referral-code code { font-family: var(--font-mono); font-size: 18px; letter-spacing: 0.08em; color: var(--text-strong); }
+
+/* ПК сверх предела бесплатного тарифа (network/billing/FreePlanDevices.tsx): список с отметками,
+ * которые включаются только в режиме выбора — иначе случайный щелчок менял бы, где играют. */
+.network-plan-outside { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-soft); }
+.network-plan-outside p { margin: 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }
+.network-plan-outside-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-1) var(--space-3); }
+.network-plan-outside-list label { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; font-size: 13px; }
+.network-plan-outside-name { font-weight: 600; color: var(--text-strong); }
+.network-plan-outside-hall { color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.network-plan-outside-tag { margin-left: auto; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--surface-muted, var(--border-soft)); color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+
+/* «Сеть → Реклама» (network/ads/AdsDestination.tsx): карточки рекламы в том виде, в каком её видит
+ * игрок, — таджикский первым, пометки закона внизу. Идущая выделена рамкой. */
+.network-ads-lead { margin: 0 0 var(--space-3); color: var(--text-secondary); font-size: 13px; max-width: 80ch; }
+.network-ads-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-3); }
+.network-ad { display: flex; flex-direction: column; border: 1px solid var(--border-soft); border-radius: var(--radius-lg, 10px); overflow: hidden; background: var(--surface-card); }
+.network-ad.is-running { border-color: var(--accent-ring, var(--border-soft)); }
+.network-ad-image { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--border-soft); }
+.network-ad-body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); }
+.network-ad-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.network-ad-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-text, var(--text-secondary)); }
+.network-ad-title { font-size: 16px; line-height: 1.25; color: var(--text-strong); }
+.network-ad-text { margin: 0; font-size: 13px; color: var(--text-primary); }
+.network-ad-ru { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.network-ad-facts { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); font-size: 12px; }
+.network-ad-facts dt { color: var(--text-tertiary); }
+.network-ad-facts dd { margin: 0; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.network-ad-legal { margin: 0; font-size: 11px; color: var(--text-secondary); border-top: 1px dashed var(--border-soft); padding-top: var(--space-2); }
+.network-ad-actions { display: flex; justify-content: flex-end; }
+.network-ad-complained { font-size: 12px; color: var(--text-secondary); }
+.network-ads-reported { margin: 0 0 var(--space-3); font-size: 13px; color: var(--success-text, var(--text-primary)); }
+.network-ad-report-reasons { display: grid; gap: var(--space-2); margin: 0 0 var(--space-3); padding: 0; border: 0; }
+.network-ad-report-reasons legend { margin-bottom: var(--space-1); font-size: 13px; font-weight: 600; }
+.network-ad-report-reason { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; }
+
+/* Условия бесплатного тарифа в «Сеть → Подписка»: свёрнуты, чтобы не заслонять тариф. */
+.network-plan-terms { padding-top: var(--space-3); border-top: 1px dashed var(--border-soft); font-size: 13px; }
+.network-plan-terms summary { cursor: pointer; font-weight: 600; color: var(--text-strong); }
+.network-plan-terms ol { margin: var(--space-2) 0 0; padding-left: 1.25em; display: grid; gap: var(--space-1); color: var(--text-secondary); max-width: 80ch; }
+.network-ad-answer { margin: 0; padding: var(--space-2); border-radius: var(--radius-md); background: var(--surface-sunken); font-size: 12px; color: var(--text-primary); }

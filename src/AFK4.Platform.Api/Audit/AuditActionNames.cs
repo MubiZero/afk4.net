@@ -6,6 +6,15 @@ public static class AuditActionNames
 
     public const string DispatchDeviceCommand = "devices.commands.dispatch";
 
+    /// <summary>Профиль защиты ПК филиала сохранён (спека оболочки, §6.3).</summary>
+    public const string UpdateProtectionProfile = "branches.protection_profile.update";
+
+    /// <summary>Техник вернул ПК в зал кнопкой на самом ПК.</summary>
+    public const string ReturnDeviceFromMaintenance = "devices.maintenance.return";
+
+    /// <summary>Обслуживание сняло себя само: ПК простоял открытым восемь часов.</summary>
+    public const string ExpireDeviceMaintenance = "devices.maintenance.expire";
+
     public const string ViewDeviceCommandStatus = "devices.commands.status.view";
 
     public const string RotateDeviceCredential = "devices.credentials.rotate";
@@ -198,6 +207,14 @@ public static class AuditActionNames
 
     public const string CreateStaffInvite = "identity.staff.invite.create";
 
+    /// <summary>Сотрудник вошёл первым входом — или код первого входа не подошёл (Denied).</summary>
+    public const string AcceptStaffInvite = "identity.staff.invite.accept";
+
+    /// <summary>Руководитель отозвал код первого входа.</summary>
+    public const string RevokeStaffInvite = "identity.staff.invite.revoke";
+
+    public const string ViewStaffInvites = "identity.staff.invite.view";
+
     public const string ViewStaffUsers = "identity.staff.view";
 
     public const string UpdateStaffProfile = "identity.staff.profile.update";
@@ -277,6 +294,84 @@ public static class AuditActionNames
     public const string InstallEnrollSucceeded = "install.enroll.succeeded";
 
     public const string InstallEnrollRejected = "install.enroll.rejected";
+
+    /// <summary>Выдан код установки ПК (тихая установка).</summary>
+    public const string CreateInstallCode = "install.codes.create";
+
+    /// <summary>Код установки отозван.</summary>
+    public const string RevokeInstallCode = "install.codes.revoke";
+
+    public const string CreateCatalogGame = "platform.games.create";
+
+    public const string UpdateCatalogGame = "platform.games.update";
+
+    /// <summary>Клуб включил или выключил чаевые на экране ПК.</summary>
+    public const string UpdateTipSettings = "tips.settings.update";
+
+    /// <summary>Чаевые возвращены игроку, пока смена открыта.</summary>
+    public const string ReverseTip = "tips.reverse";
+
+    /// <summary>Чаевые смены выданы администратору из кассы.</summary>
+    public const string PayOutTips = "tips.payout";
+
+    /// <summary>Клуб сам начал пробный период тарифа за ПК.</summary>
+    public const string StartPlanTrial = "billing.plan.trial.start";
+
+    /// <summary>Пробный период кончился: клуб на тарифе за ПК или на бесплатном.</summary>
+    public const string EndPlanTrial = "billing.plan.trial.end";
+
+    public const string SwitchPlanToPerPc = "billing.plan.per_pc";
+
+    /// <summary>Клуб взял обещанный платёж на неделю.</summary>
+    public const string PromisePlanPayment = "billing.plan.promised_payment";
+
+    /// <summary>Счёт просрочен — клуб перешёл на бесплатный тариф вместо блокировки.</summary>
+    public const string FallBackToFreePlan = "billing.plan.fallback_free";
+
+    public const string KeepPlanDevices = "billing.plan.keep_devices";
+
+    /// <summary>Платформа поменяла условия оплаты: пробный период, обещанный платёж, льготу.</summary>
+    public const string UpdateBillingTerms = "platform.billing.terms.update";
+
+    /// <summary>Приведённый клуб оплатил первый счёт — пригласившему начислен бесплатный месяц.</summary>
+    public const string RewardClubReferral = "billing.referral.reward";
+
+    public const string UpsertAdvertiser = "platform.ads.advertisers.upsert";
+
+    public const string UpsertAdCampaign = "platform.ads.campaigns.upsert";
+
+    public const string SetAdCampaignState = "platform.ads.campaigns.state";
+
+    public const string UpsertAdCreative = "platform.ads.creatives.upsert";
+
+    /// <summary>Креатив одобрен или отклонён — с подтверждением, что это не клуб, алкоголь, табак или ставки.</summary>
+    public const string ModerateAdCreative = "platform.ads.creatives.moderate";
+
+    /// <summary>Креатив снят с показа — хранится, но на ПК не идёт.</summary>
+    public const string ArchiveAdCreative = "platform.ads.creative.archive";
+
+    /// <summary>Клуб пожаловался на рекламу на своих ПК.</summary>
+    public const string ReportPlatformAd = "ads.complaint.report";
+
+    /// <summary>Платформа закрыла жалобу клуба на рекламу.</summary>
+    public const string ResolveAdComplaint = "platform.ads.complaint.resolve";
+
+    public const string AddBranchGame = "games.library.add";
+
+    public const string UpdateBranchGame = "games.library.update";
+
+    public const string RemoveBranchGame = "games.library.remove";
+
+    public const string ReorderBranchGames = "games.library.reorder";
+
+    /// <summary>Гости перенесены из прежней программы с начальными остатками.</summary>
+    public const string ImportPlayers = "players.import";
+
+    /// <summary>Место стало консольным: консоль без агента, сессию ведёт администратор.</summary>
+    public const string CreateConsoleSeat = "devices.console.create";
+
+    /// <summary>Новое железо ПК принято как норма.</summary>
+    public const string AcceptDeviceHardware = "devices.hardware.accept";
 
     public const string ViewBranchSettings = "branches.settings.view";
 

@@ -60,6 +60,14 @@ public static class OrganizationPermissionNames
 
     public const string ViewSubscription = "organization.billing.subscription.view";
 
+    /// Сменить тариф клуба, начать пробный период, взять обещанный платёж. Это обязательство
+    /// платить — только у владельца.
+    public const string ManageSubscription = "organization.billing.subscription.manage";
+
+    /// Перенести гостей с балансами из прежней программы. Это деньги, которые клуб берёт на себя, —
+    /// только у владельца.
+    public const string ImportPlayers = "organization.players.import";
+
     public const string ManageTariffs = "organization.tariffs.manage";
 
     public const string ViewTariffs = "organization.tariffs.view";
@@ -161,4 +169,20 @@ public static class OrganizationPermissionNames
     /// Заводить и отменять события клуба. Отдельно от новостей: событие возвращает деньги
     /// при отмене, и это право сильнее права написать объявление.
     public const string ManageTournaments = "organization.tournaments.manage";
+
+    /// Библиотека игр филиала — что игрок запустит на ПК (спека оболочки, §6.6). У того, кто
+    /// ставит ПК и игры: владелец, управляющий, техник.
+    public const string ManageGameLibrary = "organization.games.manage";
+
+    /// Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
+    /// управляющего, а не у всей стойки.
+    public const string ViewReviews = "organization.reviews.view";
+
+    /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
+    /// владелец, управляющий, техник.
+    public const string AcceptDeviceHardware = "organization.devices.hardware.accept";
+
+    /// Чаевые администратору с экрана ПК: включить у клуба и вернуть игроку, пока смена открыта.
+    /// Это движение денег, поэтому у владельца и управляющего, а не у стойки.
+    public const string ManageTips = "organization.tips.manage";
 }

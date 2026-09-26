@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { KeyRound, Lock, MonitorSmartphone, Unlock, Wifi, WifiOff } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { SkeletonTable } from '../../../LoadingSkeleton';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { PendingDevicesSection } from './PendingDevicesSection';
+import { DeviceProtectionReport } from './DeviceProtectionReport';
+import { DeviceHardwareSection } from './DeviceHardwareSection';
+import { ConsoleSeatDialog } from './ConsoleSeatDialog';
 import { commandOutcomeLabelKey } from './deviceCommandOutcomes';
 import { CriticalActionConfirmation, EmptyState, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
@@ -35,7 +38,9 @@ import { useBlockedReason } from '../../../components/BlockedReason';
 // сервера, и поле, которого в ответе нет, теперь заметит компилятор.
 type Device = DeviceInventoryItemDto;
 
-const DEVICES_GRID = '1.1fr 160px 1fr 1.7fr';
+// Статус — по ширине своих слов («онлайн · разблокирован» не лезла в прежние 160 px на русском),
+// остальным — доли того, что осталось.
+const DEVICES_GRID = 'minmax(0, 1.1fr) max-content minmax(0, 1fr) minmax(0, 1.7fr)';
 
 // Форма вкладки, пока ПК грузятся. Полосу «ждут подтверждения» не рисуем: её может и не быть.
 export function DevicesTabSkeleton() {
@@ -107,8 +112,42 @@ export function DevicesTab({
   const [displayName, setDisplayName] = useState('');
   const [removeReason, setRemoveReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  // Консоль ставится только на место без устройства: две машины на месте — две правды о сессии.
+  const takenSeatIds = new Set(deviceInventory
+    .filter((device) => device.enrollmentState !== 'removed' && device.enrollmentState !== 'rejected')
+    .map((device) => device.seatId)
+    .filter((seatId): seatId is string => Boolean(seatId)));
+  const freeSeats = layoutSeatOptions.filter((seat) => !takenSeatIds.has(seat.seatId));
+
+  const createConsole = async (seatId: string, name: string) => {
+    const label = t('op.settings.devices.console.create');
+    setBusy(true);
+    onFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await apiClients.settings.createConsoleSeat(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        seatId,
+        displayName: name
+      });
+      setConsoleOpen(false);
+      await onReload(nextBackend);
+      onFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const selectedDevice = deviceInventory.find((device) => readString(device, 'deviceId') === selectedDeviceId) ?? null;
+  // Один набор клиентов на сессию: раздел «Железо» грузится заново только при смене ПК.
+  const hardwareClients = useMemo(
+    () => (backend ? createAuthenticatedOperatorClients(backend.config, backend.session) : null),
+    [backend?.config, backend?.session]
+  );
 
   const loadDeviceCard = async (deviceId: string) => {
     const label = t('op.settings.action.openDeviceCard');
@@ -360,6 +399,9 @@ export function DevicesTab({
               key: 'status',
               header: t('op.settings.devices.detail.status'),
               render: (device) => {
+                if (device.role === 'console') {
+                  return <span className="mgmt-status-pair">{t('op.settings.devices.console')} · {t('op.settings.devices.console.noAgent')}</span>;
+                }
                 const online = readBoolean(device, 'isOnline');
                 const locked = readBoolean(device, 'isLocked');
                 return (
@@ -369,6 +411,7 @@ export function DevicesTab({
                     <span aria-hidden="true">·</span>
                     {locked ? <Lock size={13} aria-hidden="true" /> : <Unlock size={13} aria-hidden="true" />}
                     {locked ? t('op.settings.devices.locked') : t('op.settings.devices.unlocked')}
+                    {device.hardwareChanged && <span className="ui-chip ui-chip--status ui-chip--xs is-warning">{t('op.hardware.changedChip')}</span>}
                   </span>
                 );
               }
@@ -382,7 +425,7 @@ export function DevicesTab({
               key: 'health',
               header: t('op.management.halls.col.health'),
               align: 'end',
-              render: (device) => t('op.settings.devices.deviceSummary', {
+              render: (device) => device.role === 'console' ? '—' : t('op.settings.devices.deviceSummary', {
                 agentVersion: readString(device, 'agentVersion', '—'),
                 appCount: readNumber(device, 'installedAppCount', 0),
                 pending: readNumber(device, 'pendingCommandCount', 0),
@@ -396,7 +439,10 @@ export function DevicesTab({
           gridTemplate={DEVICES_GRID}
           selectedKey={selectedDeviceId}
           onSelectRow={(device) => setSelectedDeviceId(readString(device, 'deviceId'))}
-          toolbar={{ title: t('op.management.halls.devicesTable.title') }}
+          toolbar={{
+            title: t('op.management.halls.devicesTable.title'),
+            primary: canAssignDeviceSeat ? { label: t('op.settings.devices.addConsole'), onClick: () => setConsoleOpen(true) } : undefined
+          }}
           empty={{
             icon: <MonitorSmartphone size={22} aria-hidden="true" />,
             title: t('op.management.halls.devicesEmpty.title'),
@@ -428,6 +474,25 @@ export function DevicesTab({
                 <p className="mgmt-drawer-hint">{t('op.settings.devices.deviceCardNotOpen')}</p>
               )}
             </div>
+
+            {deviceDetail && !detailLoading && (
+              <div className="mgmt-drawer-section">
+                <div className="mgmt-section-title"><span>{t('op.settings.devices.protectionReport')}</span></div>
+                <DeviceProtectionReport report={deviceDetail.protectionReport} branchVersion={deviceDetail.branchProtectionVersion ?? 0} />
+              </div>
+            )}
+
+            {canViewDeviceDetail && (
+              <div className="mgmt-drawer-section">
+                <div className="mgmt-section-title"><span>{t('op.hardware.title')}</span></div>
+                <DeviceHardwareSection
+                  clients={hardwareClients}
+                  deviceId={readString(selectedDevice, 'deviceId')}
+                  canAccept={hasPermission(backend?.session ?? null, permissionNames.acceptDeviceHardware)}
+                  onAccepted={() => { if (backend) void onReload(backend); }}
+                />
+              </div>
+            )}
 
             {canViewDeviceCommands && (
               <div className="mgmt-drawer-section">
@@ -549,6 +614,14 @@ export function DevicesTab({
           confirmLabel={t('op.settings.devices.remove')}
           onCancel={() => setCriticalAction(null)}
           onConfirm={() => void confirmRemove()}
+        />
+      )}
+      {consoleOpen && (
+        <ConsoleSeatDialog
+          freeSeats={freeSeats}
+          busy={busy}
+          onSubmit={(seatId, name) => void createConsole(seatId, name)}
+          onClose={() => setConsoleOpen(false)}
         />
       )}
     </>

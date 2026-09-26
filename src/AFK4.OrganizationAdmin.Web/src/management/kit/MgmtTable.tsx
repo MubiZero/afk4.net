@@ -124,7 +124,7 @@ export function MgmtTable<T>({
               >
                 {columns.map((column) => (
                   <span key={column.key} className={`mgmt-cell${column.align === 'end' ? ' mgmt-cell--end' : ''}`}>
-                    {column.render(row)}
+                    {cellContent(column.render(row))}
                   </span>
                 ))}
                 {rowActions && (
@@ -146,4 +146,11 @@ export function MgmtTable<T>({
       </div>
     </section>
   );
+}
+
+// Текст, не влезший в колонку, обрезается многоточием, а целиком виден в подсказке.
+function cellContent(content: ReactNode): ReactNode {
+  return typeof content === 'string' || typeof content === 'number'
+    ? <span className="mgmt-cell-text" title={String(content)}>{content}</span>
+    : content;
 }

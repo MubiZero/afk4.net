@@ -26,6 +26,8 @@ export type PlatformCapability =
   | 'audit.read'
   | 'admins.manage'
   | 'announcements.manage'
+  | 'games.manage'
+  | 'ads.manage'
   | 'offboarding.manage'
   | 'people.network_ban.manage'
   | 'health.read'
@@ -101,6 +103,9 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'audit.read': ['platform.audit.view'],
   'admins.manage': ['platform.admins.manage'],
   'announcements.manage': ['platform.announcements.manage'],
+  'games.manage': ['platform.games.manage'],
+  // Модерация креативов — внутри того же права: отдельного сервер не заводит.
+  'ads.manage': ['platform.ads.manage'],
   'offboarding.manage': ['platform.organizations.offboarding.manage'],
   'people.network_ban.manage': ['platform.people.network_ban.manage'],
   'health.read': ['platform.health.view'],

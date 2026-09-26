@@ -152,6 +152,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlanFeatureEntity> PlanFeatures => Set<PlanFeatureEntity>();
 
+    public DbSet<PlatformBillingTermsEntity> PlatformBillingTerms => Set<PlatformBillingTermsEntity>();
+
     public DbSet<OrganizationFeatureOverrideEntity> OrganizationFeatureOverrides => Set<OrganizationFeatureOverrideEntity>();
 
     public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
@@ -206,11 +208,43 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchBookingSettingsEntity> BranchBookingSettings => Set<BranchBookingSettingsEntity>();
 
+    public DbSet<BranchProtectionProfileEntity> BranchProtectionProfiles => Set<BranchProtectionProfileEntity>();
+
+    public DbSet<InstallCodeEntity> InstallCodes => Set<InstallCodeEntity>();
+
+    public DbSet<CatalogGameEntity> CatalogGames => Set<CatalogGameEntity>();
+
+    public DbSet<BranchGameEntity> BranchGames => Set<BranchGameEntity>();
+
+    public DbSet<BranchGameLibraryEntity> BranchGameLibraries => Set<BranchGameLibraryEntity>();
+
+    public DbSet<DeviceHardwareEntity> DeviceHardware => Set<DeviceHardwareEntity>();
+
+    public DbSet<AdAdvertiserEntity> AdAdvertisers => Set<AdAdvertiserEntity>();
+
+    public DbSet<AdCampaignEntity> AdCampaigns => Set<AdCampaignEntity>();
+
+    public DbSet<AdCreativeEntity> AdCreatives => Set<AdCreativeEntity>();
+
+    public DbSet<AdCreativeImageEntity> AdCreativeImages => Set<AdCreativeImageEntity>();
+
+    public DbSet<AdComplaintEntity> AdComplaints => Set<AdComplaintEntity>();
+
+    public DbSet<AdImpressionDailyEntity> AdImpressionsDaily => Set<AdImpressionDailyEntity>();
+
+    public DbSet<AdImpressionBatchEntity> AdImpressionBatches => Set<AdImpressionBatchEntity>();
+
+    public DbSet<OrganizationTipSettingsEntity> OrganizationTipSettings => Set<OrganizationTipSettingsEntity>();
+
+    public DbSet<ShiftTipPayoutEntity> ShiftTipPayouts => Set<ShiftTipPayoutEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
         {
             entity.ToTable("organizations");
+            entity.Property(organization => organization.ReferralCode).HasMaxLength(16);
+            entity.HasIndex(organization => organization.ReferralCode).IsUnique();
             entity.HasKey(organization => organization.OrganizationId);
             entity.Property(organization => organization.Slug).HasMaxLength(64).IsRequired();
             entity.Property(organization => organization.Name).HasMaxLength(160).IsRequired();
@@ -822,6 +856,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(product => product.Name).HasMaxLength(160).IsRequired();
             entity.Property(product => product.Sku).HasMaxLength(80).IsRequired();
             entity.Property(product => product.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(product => product.ImageUrl).HasMaxLength(2048);
             entity.HasIndex(product => new
             {
                 product.OrganizationId,
@@ -1279,6 +1314,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .HasDatabaseName("IX_plan_features_Plan_Feature");
         });
 
+        modelBuilder.Entity<PlatformBillingTermsEntity>(entity =>
+        {
+            entity.ToTable("platform_billing_terms");
+            entity.HasKey(terms => terms.Id);
+            entity.Property(terms => terms.Id).ValueGeneratedNever();
+        });
+
         modelBuilder.Entity<OrganizationFeatureOverrideEntity>(entity =>
         {
             entity.ToTable("organization_feature_overrides");
@@ -1572,6 +1614,177 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(settings => settings.BranchId);
             entity.Property(settings => settings.AcceptanceMode).HasMaxLength(16).IsRequired();
             entity.HasIndex(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<OrganizationTipSettingsEntity>(entity =>
+        {
+            entity.ToTable("organization_tip_settings");
+            entity.HasKey(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<ShiftTipPayoutEntity>(entity =>
+        {
+            entity.ToTable("shift_tip_payouts");
+            entity.HasKey(payout => payout.ShiftTipPayoutId);
+            entity.HasIndex(payout => payout.CashMovementId).IsUnique();
+            entity.HasIndex(payout => payout.ShiftId);
+            entity.HasIndex(payout => payout.OrganizationId);
+        });
+
+        modelBuilder.Entity<AdAdvertiserEntity>(entity =>
+        {
+            entity.ToTable("ad_advertisers");
+            entity.HasKey(advertiser => advertiser.AdvertiserId);
+            entity.Property(advertiser => advertiser.Name).HasMaxLength(160).IsRequired();
+            entity.Property(advertiser => advertiser.Contact).HasMaxLength(400).IsRequired();
+            entity.Property(advertiser => advertiser.LegalName).HasMaxLength(200).IsRequired();
+            entity.Property(advertiser => advertiser.TaxId).HasMaxLength(14).IsRequired();
+            entity.Property(advertiser => advertiser.Address).HasMaxLength(300).IsRequired();
+        });
+
+        modelBuilder.Entity<AdCampaignEntity>(entity =>
+        {
+            entity.ToTable("ad_campaigns");
+            entity.HasKey(campaign => campaign.CampaignId);
+            entity.Property(campaign => campaign.Name).HasMaxLength(160).IsRequired();
+            entity.Property(campaign => campaign.Category).HasMaxLength(32).IsRequired();
+            entity.Property(campaign => campaign.State).HasMaxLength(16).IsRequired();
+            entity.Property(campaign => campaign.CitiesJson).IsRequired();
+            entity.Property(campaign => campaign.OrganizationIdsJson).IsRequired();
+            entity.Property(campaign => campaign.PermitNumber).HasMaxLength(120);
+            entity.HasIndex(campaign => campaign.AdvertiserId);
+            entity.HasIndex(campaign => new { campaign.State, campaign.EndsAtUtc });
+        });
+
+        modelBuilder.Entity<AdCreativeEntity>(entity =>
+        {
+            entity.ToTable("ad_creatives");
+            entity.HasKey(creative => creative.CreativeId);
+            entity.Property(creative => creative.Title).HasMaxLength(120).IsRequired();
+            entity.Property(creative => creative.Body).HasMaxLength(280);
+            entity.Property(creative => creative.TitleRu).HasMaxLength(120);
+            entity.Property(creative => creative.BodyRu).HasMaxLength(280);
+            entity.Property(creative => creative.ImageUrl).HasMaxLength(2048);
+            entity.Property(creative => creative.Moderation).HasMaxLength(16).IsRequired();
+            entity.Property(creative => creative.RejectedReason).HasMaxLength(400);
+            entity.HasIndex(creative => creative.CampaignId);
+        });
+
+        modelBuilder.Entity<AdComplaintEntity>(entity =>
+        {
+            entity.ToTable("ad_complaints");
+            entity.HasKey(complaint => complaint.ComplaintId);
+            entity.Property(complaint => complaint.Reason).HasMaxLength(32).IsRequired();
+            entity.Property(complaint => complaint.Comment).HasMaxLength(500);
+            entity.Property(complaint => complaint.Resolution).HasMaxLength(500);
+            // Одна открытая жалоба клуба на креатив: повторное нажатие не плодит очередь платформе.
+            entity.HasIndex(complaint => new { complaint.OrganizationId, complaint.CreativeId })
+                .IsUnique()
+                .HasFilter("\"ResolvedAtUtc\" IS NULL")
+                .HasDatabaseName("IX_ad_complaints_open_per_club");
+            entity.HasIndex(complaint => new { complaint.ResolvedAtUtc, complaint.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<AdCreativeImageEntity>(entity =>
+        {
+            entity.ToTable("ad_creative_images");
+            entity.HasKey(image => image.CreativeId);
+            entity.Property(image => image.ContentType).HasMaxLength(64).IsRequired();
+            entity.Property(image => image.Sha256).HasMaxLength(64).IsRequired();
+            entity.Property(image => image.SourceUrl).HasMaxLength(2048).IsRequired();
+            entity.Property(image => image.Bytes).IsRequired();
+        });
+
+        modelBuilder.Entity<AdImpressionDailyEntity>(entity =>
+        {
+            entity.ToTable("ad_impressions_daily");
+            entity.HasKey(row => row.AdImpressionDailyId);
+            entity.HasIndex(row => new { row.CreativeId, row.BranchId, row.Day }).IsUnique();
+            entity.HasIndex(row => new { row.OrganizationId, row.Day });
+            entity.HasIndex(row => row.Day);
+        });
+
+        modelBuilder.Entity<AdImpressionBatchEntity>(entity =>
+        {
+            entity.ToTable("ad_impression_batches");
+            entity.HasKey(batch => new { batch.DeviceId, batch.BatchId });
+            entity.Property(batch => batch.BatchId).HasMaxLength(64);
+            entity.HasIndex(batch => batch.OrganizationId);
+        });
+
+        modelBuilder.Entity<CatalogGameEntity>(entity =>
+        {
+            entity.ToTable("catalog_games");
+            entity.HasKey(game => game.CatalogGameId);
+            entity.Property(game => game.Name).HasMaxLength(120).IsRequired();
+            entity.Property(game => game.Description).HasMaxLength(2000);
+            entity.Property(game => game.Genre).HasMaxLength(60);
+            entity.Property(game => game.LaunchKind).HasMaxLength(20).IsRequired();
+            entity.Property(game => game.LaunchTarget).HasMaxLength(200);
+            entity.Property(game => game.CoverUrl).HasMaxLength(1024);
+            entity.HasIndex(game => game.Name);
+        });
+
+        modelBuilder.Entity<BranchGameEntity>(entity =>
+        {
+            entity.ToTable("branch_games");
+            entity.HasKey(game => game.BranchGameId);
+            entity.Property(game => game.Name).HasMaxLength(120).IsRequired();
+            entity.Property(game => game.Genre).HasMaxLength(60);
+            entity.Property(game => game.CoverUrl).HasMaxLength(1024);
+            entity.Property(game => game.LaunchKind).HasMaxLength(20).IsRequired();
+            entity.Property(game => game.LaunchTarget).HasMaxLength(200);
+            entity.Property(game => game.ExecutablePath).HasMaxLength(512);
+            entity.Property(game => game.Arguments).HasMaxLength(512);
+            entity.HasIndex(game => new { game.BranchId, game.SortOrder });
+            entity.HasIndex(game => game.CatalogGameId);
+            entity.HasIndex(game => game.OrganizationId);
+        });
+
+        modelBuilder.Entity<DeviceHardwareEntity>(entity =>
+        {
+            entity.ToTable("device_hardware");
+            entity.HasKey(hardware => hardware.DeviceId);
+            entity.Property(hardware => hardware.CurrentJson).IsRequired();
+            entity.Property(hardware => hardware.AcceptedJson).IsRequired();
+            entity.Property(hardware => hardware.CurrentFingerprint).HasMaxLength(2000).IsRequired();
+            entity.Property(hardware => hardware.AcceptedFingerprint).HasMaxLength(2000).IsRequired();
+            entity.Property(hardware => hardware.AcceptedByName).HasMaxLength(200);
+            entity.HasIndex(hardware => new { hardware.OrganizationId, hardware.BranchId });
+        });
+
+        modelBuilder.Entity<BranchGameLibraryEntity>(entity =>
+        {
+            entity.ToTable("branch_game_libraries");
+            entity.HasKey(library => library.BranchId);
+            entity.Property(library => library.Version).IsConcurrencyToken();
+            entity.HasIndex(library => library.OrganizationId);
+        });
+
+        modelBuilder.Entity<InstallCodeEntity>(entity =>
+        {
+            entity.ToTable("install_codes");
+            entity.HasKey(code => code.InstallCodeId);
+            entity.Property(code => code.CodeHash).HasMaxLength(64).IsRequired();
+            entity.Property(code => code.UsedDevices).IsConcurrencyToken();
+            entity.HasIndex(code => code.CodeHash).IsUnique();
+            entity.HasIndex(code => new { code.OrganizationId, code.BranchId });
+        });
+
+        modelBuilder.Entity<BranchProtectionProfileEntity>(entity =>
+        {
+            entity.ToTable("branch_protection_profiles");
+            entity.HasKey(profile => profile.BranchId);
+            entity.Property(profile => profile.Version).IsConcurrencyToken();
+            entity.Property(profile => profile.HiddenDrives).HasMaxLength(26).IsRequired();
+            entity.Property(profile => profile.UrlBlocklistJson).IsRequired();
+            entity.Property(profile => profile.BlockedWindowsJson).IsRequired();
+            // Строки, заведённые до стирания следов, получают «стирать всё» — как ПК без профиля.
+            entity.Property(profile => profile.ClubRules).HasMaxLength(2000);
+            entity.Property(profile => profile.ClearAfterSessionJson)
+                .IsRequired()
+                .HasDefaultValue(BranchProtectionProfileEntity.DefaultClearAfterSessionJson);
+            entity.HasIndex(profile => profile.OrganizationId);
         });
     }
 }

@@ -6,6 +6,7 @@
 // Fixtures mirror the shapes the test suite already exercises. Unmapped endpoints fall back to an
 // empty list, so secondary screens render their (themed) empty/error states rather than crashing.
 import { permissionNames } from './operatorPermissions';
+import type { BranchGameDto, CatalogGameDto } from '@afk4/contracts';
 
 const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const BRANCH = 'acfc0212-967f-4d84-94be-9003387b09c2';
@@ -14,6 +15,9 @@ const FAR_FUTURE = '2099-01-01T00:00:00Z';
 // `?nobranch` в адресе превью — вход сотрудника без единого назначения в филиал, чтобы глазами
 // посмотреть экран «Нет активного филиала». «Проверить снова» тоже вернёт такую сессию.
 const PREVIEW_WITHOUT_BRANCH = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nobranch');
+// `?overPlan` в адресе превью: клуб после неоплаты на бесплатном тарифе, двенадцать ПК при пределе
+// десять — два «вне тарифа» на карте и выбор ПК в «Сеть → Подписка».
+const PREVIEW_OVER_PLAN = typeof location !== 'undefined' && new URLSearchParams(location.search).has('overPlan');
 
 export function createMockSession({ withoutBranch = false }: { withoutBranch?: boolean } = {}): Record<string, unknown> {
   if (withoutBranch) {
@@ -386,6 +390,24 @@ function booking(
 
 // Набор на день: две онлайн-заявки без места (уходят в лейн «новых заявок») + размещённые брони
 // разных статусов на дорожках мест, чтобы превью показывало все тона таймлайна и drawer.
+// Защита ПК филиала в превью: флешки закрыты, сайты казино заблокированы, диск D скрыт.
+let previewProtection = {
+  organizationId: ORG,
+  branchId: BRANCH,
+  profile: {
+    version: 3,
+    blockRemovableStorage: true,
+    blockBrowserDownloads: true,
+    blockBrowserIncognito: false,
+    disableRunDialog: true,
+    hiddenDrives: ['D'],
+    urlBlocklist: ['*.casino.example', 'betting.example'],
+    blockedWindows: [{ titleContains: 'Командная строка', className: null }],
+    clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers']
+  },
+  updatedAtUtc: '2026-09-20T12:00:00Z' as string | null
+};
+
 let previewBookingSettings = {
   organizationId: ORG, branchId: BRANCH,
   acceptanceMode: 'auto', respondWithinMinutes: 15,
@@ -436,7 +458,19 @@ function deviceDetail() {
     deviceId: 'preview-device', agentVersion: '0.4', shellVersion: '0.4',
     isOnline: true, isLocked: true,
     enrolledAtUtc: '2026-05-21T08:30:00Z', lastHeartbeatAtUtc: '2026-05-21T10:00:00Z',
-    activeCredentialCount: 1, installedAppCount: 2, recentCommands: []
+    activeCredentialCount: 1, installedAppCount: 2, recentCommands: [],
+    // Отчёт о защите на версию позади филиала: карточка показывает и пункты, и «ещё не применил».
+    protectionReport: {
+      version: previewProtection.profile.version - 1,
+      appliedAtUtc: '2026-09-25T09:40:00Z',
+      items: [
+        { item: 'kiosk-baseline', status: 'applied', detail: null },
+        { item: 'removable-storage', status: 'applied', detail: null },
+        { item: 'browser-downloads', status: 'failed', detail: 'Access to the registry key is denied.' },
+        { item: 'hidden-drives', status: 'explorer-only', detail: null }
+      ]
+    },
+    branchProtectionVersion: previewProtection.profile.version
   };
 }
 
@@ -508,6 +542,89 @@ function packageOptions() {
 
 // Настройки приглашений: те же правила превью, что у лояльности рядом.
 let mutableReferralSettings: Record<string, unknown> | null = null;
+
+// Чаевые за открытую смену учебного клуба: два ПК оставили, один раз вернули.
+let mockTipsEnabled = true;
+let mockTipsPaidOut = 0;
+const mockTips = [
+  { ledgerEntryId: 'tip-1', amount: money(1000), seatLabel: 'ПК 07', createdAtUtc: minutesAgoUtc(40), reversed: false },
+  { ledgerEntryId: 'tip-2', amount: money(2000), seatLabel: 'ПК 12', createdAtUtc: minutesAgoUtc(25), reversed: false },
+  { ledgerEntryId: 'tip-3', amount: money(500), seatLabel: 'ПК 03', createdAtUtc: minutesAgoUtc(12), reversed: false }
+];
+// Тариф учебного клуба: бесплатный, 7 ПК, пробный период ещё не брали.
+let mockPlan: Record<string, unknown> = PREVIEW_OVER_PLAN
+  ? {
+    planCode: 'free', kind: 'free', devices: 12, includedDevices: 10, billableDevices: 2,
+    pricePerDevice: money(1000), estimatedMonthly: money(0), trialEndsAtUtc: null, trialAvailable: false,
+    canSwitchToPerPc: false, promisedPaymentAvailable: false, promisedPaymentUntilUtc: null, overdue: money(2000),
+    devicesOutsidePlan: 2, trialDays: 30, promisedPaymentDays: 7
+  }
+  : {
+    planCode: 'free', kind: 'free', devices: 7, includedDevices: 10, billableDevices: 0,
+    pricePerDevice: money(1000), estimatedMonthly: money(0), trialEndsAtUtc: null, trialAvailable: true,
+    canSwitchToPerPc: true, promisedPaymentAvailable: false, promisedPaymentUntilUtc: null, overdue: null,
+    devicesOutsidePlan: 0, trialDays: 30, promisedPaymentDays: 7
+  };
+
+// «Сеть → Реклама»: учебный клуб на бесплатном тарифе — одна реклама идёт, другая уже кончилась.
+// Без картинок: демо ничего не качает из сети.
+const mockComplainedAds = new Set<string>();
+function mockClubAds() {
+  const day = (daysAgo: number) => minutesAgoUtc(60 * 24 * daysAgo).slice(0, 10);
+  return {
+    adsEnabled: mockPlan.kind === 'free', from: day(29), to: day(0),
+    ads: [
+      {
+        creativeId: 'ad-mock-1', advertiser: 'Сомон Телеком', category: 'telecom',
+        title: 'Интернети бемаҳдуд барои як моҳ', body: 'Интернет барои бозӣ бе маҳдудияти трафик.',
+        titleRu: 'Безлимит на месяц', bodyRu: 'Интернет для игр без ограничений по трафику.', imageUrl: null,
+        startsAtUtc: minutesAgoUtc(60 * 24 * 10), endsAtUtc: minutesAgoUtc(-60 * 24 * 20), running: mockPlan.kind === 'free',
+        impressions: 1240, shownSeconds: 11160, lastShownDay: day(0),
+        seller: { legalName: 'ООО «Сомон Телеком»', taxId: '123456789', address: 'Душанбе, пр. Рудаки 1' },
+        requiresCertification: false, offerUntilUtc: minutesAgoUtc(-60 * 24 * 20), complaintOpen: mockComplainedAds.has('ad-mock-1')
+      },
+      {
+        creativeId: 'ad-mock-2', advertiser: 'Техномир', category: 'electronics',
+        title: 'Тахфиф ба ноутбукҳо', body: 'То охири моҳ — 10%.', titleRu: 'Скидка на ноутбуки', bodyRu: 'До конца месяца — 10%.',
+        imageUrl: null, startsAtUtc: minutesAgoUtc(60 * 24 * 40), endsAtUtc: minutesAgoUtc(60 * 24 * 12), running: false,
+        impressions: 380, shownSeconds: 3420, lastShownDay: day(12), seller: null, requiresCertification: true, offerUntilUtc: null,
+        complaintOpen: mockComplainedAds.has('ad-mock-2')
+      }
+    ]
+  };
+}
+
+// Какие ПК работают на бесплатном тарифе: без выбора — первые десять по порядку карты.
+let mockKeptDevices: string[] = [];
+function mockPlanDevices() {
+  const seats = currentPreviewFloorMap().seats;
+  const kept = new Set(mockKeptDevices);
+  const ordered = [...seats.filter((seat) => kept.has(seat.deviceId)), ...seats.filter((seat) => !kept.has(seat.deviceId))];
+  const works = new Set(ordered.slice(0, 10).map((seat) => seat.deviceId));
+  return {
+    limit: 10,
+    devices: seats.map((seat) => ({
+      deviceId: seat.deviceId, name: seat.seatName, branchName: seat.zoneName, works: works.has(seat.deviceId), kept: kept.has(seat.deviceId)
+    }))
+  };
+}
+function mockSubscription() {
+  return {
+    organizationSubscriptionId: 'sub1', organizationId: ORG, planCode: mockPlan.planCode, status: mockPlan.kind === 'trial' ? 'trial' : 'active',
+    currentPeriodStartUtc: minutesAgoUtc(60 * 24 * 5), currentPeriodEndUtc: minutesAgoUtc(-60 * 24 * 25), nextInvoiceUtc: null,
+    amountMinorUnits: 0, currencyCode: 'TJS', billingInterval: 'monthly', cancelAtPeriodEnd: false,
+    createdAtUtc: minutesAgoUtc(60 * 24 * 40), updatedAtUtc: minutesAgoUtc(60), paymentGraceUntilUtc: null,
+    discountPercent: null, discountAmountMinorUnits: null, discountUntilUtc: null, discountReason: null
+  };
+}
+
+function shiftTips() {
+  const total = mockTips.filter((tip) => !tip.reversed).reduce((sum, tip) => sum + tip.amount.minorUnits, 0);
+  return {
+    shiftId: 'sh1', recipientStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', recipientName: 'Шерзод',
+    total: money(total), paidOut: money(mockTipsPaidOut), tips: mockTips
+  };
+}
 function referralSettings(): Record<string, unknown> {
   if (mutableReferralSettings === null) {
     mutableReferralSettings = {
@@ -562,18 +679,29 @@ function eskhataConfig(): Record<string, unknown> {
 function route(pathname: string, method: string): unknown | undefined {
   // Preview sign-in: any credentials succeed (no real backend behind the mock), mirroring what the
   // dev host-bridge stub used to fake over the WebView2 auth bridge before auth moved to plain HTTP.
-  if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
+  if (pathname.endsWith('/tip-settings') && method === 'GET') return { enabled: mockTipsEnabled };
+  if (pathname.endsWith('/plan') && method === 'GET') return mockPlan;
+  if (pathname.endsWith('/platform-ads') && method === 'GET') return mockClubAds();
+  if (pathname.endsWith('/subscription') && method === 'GET') return mockSubscription();
+  if (pathname.endsWith('/invoices') && method === 'GET') return [];
+  if (/\/shifts\/[^/]+\/tips$/.test(pathname) && method === 'GET') return shiftTips();
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
   if (pathname.endsWith('/packages/options')) return packageOptions();
-  if (pathname.endsWith('/floor-map')) return currentPreviewFloorMap();
+  if (pathname.endsWith('/floor-map')) {
+    const map = currentPreviewFloorMap();
+    if (!PREVIEW_OVER_PLAN) return map;
+    const works = new Set(mockPlanDevices().devices.filter((device) => device.works).map((device) => device.deviceId));
+    return { ...map, seats: map.seats.map((seat) => ({ ...seat, isOutsidePlan: !works.has(seat.deviceId) })) };
+  }
   if (pathname.endsWith('/layout/zones')) return previewLayoutZones();
   if (pathname.endsWith('/staff')) return previewStaff();
+  if (pathname.endsWith('/staff/invites') && method === 'GET') return previewInvites;
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
   if (pathname.endsWith('/shifts/revenue/current')) return currentShiftRevenue();
   if (pathname.endsWith('/shifts/revenue')) return shiftHistory();
@@ -592,6 +720,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
   if (pathname.endsWith('/pos/categories')) return posCategories();
   if (pathname.endsWith('/booking-settings') && method === 'GET') return previewBookingSettings;
+  if (pathname.endsWith('/settings/protection') && method === 'GET') return previewProtection;
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return stockMovementsFixture();
@@ -755,9 +884,99 @@ function groupReservationResult(init?: RequestInit): unknown {
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
 
+let previewHardwareAccepted = false;
+
+const previewReviews = [
+  { reviewId: 'preview-review-1', playerAccountId: 'p1', authorName: 'Азиз К.', rating: 5, comment: 'Мощные ПК, тишина, администратор помог с Steam.', createdAtUtc: '2026-09-24T21:10:00Z', sessionId: 's1', seatName: 'PC-04' },
+  { reviewId: 'preview-review-2', playerAccountId: 'p2', authorName: 'Мадина С.', rating: 4, comment: null, createdAtUtc: '2026-09-24T19:40:00Z', sessionId: 's2', seatName: 'VIP-01' },
+  { reviewId: 'preview-review-3', playerAccountId: 'p3', authorName: 'Гость', rating: 2, comment: 'Мышь на PC-07 липкая, наушники шумят.', createdAtUtc: '2026-09-23T23:05:00Z', sessionId: 's3', seatName: 'PC-07' },
+  { reviewId: 'preview-review-4', playerAccountId: 'p4', authorName: 'Фарход', rating: 5, comment: 'Лучший клуб в районе.', createdAtUtc: '2026-09-22T17:15:00Z', sessionId: 's4', seatName: 'PC-01' }
+];
+
+const previewCatalogGames: CatalogGameDto[] = [
+  { catalogGameId: 'preview-catalog-cs2', name: 'Counter-Strike 2', description: null, genre: 'Шутер', minAge: 16, launchKind: 'steam', launchTarget: '730', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
+  { catalogGameId: 'preview-catalog-dota', name: 'Dota 2', description: null, genre: 'MOBA', minAge: 12, launchKind: 'steam', launchTarget: '570', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' },
+  { catalogGameId: 'preview-catalog-valorant', name: 'Valorant', description: null, genre: 'Шутер', minAge: 16, launchKind: 'riot', launchTarget: 'valorant', coverUrl: null, isPublished: true, updatedAtUtc: '2026-09-20T12:00:00Z' }
+];
+
+let previewBranchGames: BranchGameDto[] = [
+  { branchGameId: 'preview-game-1', catalogGameId: 'preview-catalog-dota', name: 'Dota 2', genre: 'MOBA', minAge: 12, coverUrl: null, launchKind: 'steam', launchTarget: '570', executablePath: null, arguments: null, availableWithoutSession: false, isEnabled: true, sortOrder: 0 },
+  { branchGameId: 'preview-game-2', catalogGameId: null, name: 'Steam', genre: null, minAge: null, coverUrl: null, launchKind: 'exe', launchTarget: null, executablePath: 'C:\\Program Files (x86)\\Steam\\steam.exe', arguments: null, availableWithoutSession: true, isEnabled: true, sortOrder: 1 }
+];
+
+const previewOwnerBranches = [
+  { branchId: BRANCH, name: 'Центр' },
+  { branchId: '5b6f3c1e-8a2d-4f0b-9c7e-1d2a3b4c5d6e', name: 'Сино' }
+];
+
+let previewInstallCodes = [
+  {
+    installCodeId: 'preview-install-code-0',
+    branchId: BRANCH,
+    code: null as string | null,
+    createdAtUtc: new Date(Date.now() - 3_600_000).toISOString(),
+    expiresAtUtc: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    maxDevices: 30,
+    usedDevices: 12
+  }
+];
+
+// Вход в превью. Любой номер входит по любому ПИН-коду, кроме двух, показывающих другие ветки:
+// 93 000 00 00 — новый сотрудник (код первого входа 123456), 93 000 00 01 — номер нигде не заведён.
+// ПИН-код 000000 показывает отказ, 999999 — запертый после промахов вход.
+const PREVIEW_NEW_STAFF_PHONE = '992930000000';
+const PREVIEW_UNKNOWN_PHONE = '992930000001';
+const PREVIEW_FIRST_SIGN_IN_CODE = '123456';
+
+function previewSignIn(pathname: string, method: string, init?: RequestInit): Response | null {
+  if (method !== 'POST') return null;
+  let req: Record<string, unknown> = {};
+  try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+  const phone = typeof req.phoneNumber === 'string' ? req.phoneNumber : '';
+  if (pathname.endsWith('/auth/staff/next-step')) {
+    const step = phone === PREVIEW_NEW_STAFF_PHONE ? 'invite-code' : phone === PREVIEW_UNKNOWN_PHONE ? 'unknown' : 'pin';
+    return json({ step });
+  }
+  if (pathname.endsWith('/staff/invites/check') || pathname.endsWith('/staff/invites/accept')) {
+    if (req.code !== PREVIEW_FIRST_SIGN_IN_CODE) {
+      return new Response(JSON.stringify({ error: 'invalid_code', remainingAttempts: 2 }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+    return pathname.endsWith('/check')
+      ? noContent()
+      : json({ organizationId: ORG, userName: phone, signIn: createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH }) });
+  }
+  if (pathname.endsWith('/auth/staff/sign-in-by-phone') || pathname.endsWith('/auth/staff/sign-in-by-login')) {
+    if (req.password === '000000') return new Response(null, { status: 401 });
+    if (req.password === '999999') return jsonError(429, 'too_many_password_attempts', 'Too many failed password attempts.');
+    return json(createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH }));
+  }
+  return null;
+}
+
+// «Ждут первого входа» в превью: один живой код и один истёкший.
+let previewInvites = [
+  {
+    staffInviteId: 'preview-invite-1', userName: '992930000010', displayName: 'Фарход', phoneNumber: '+992930000010', email: null,
+    roleNames: ['operator'], createdAtUtc: '2026-09-25T08:00:00Z', expiresAtUtc: '2026-09-26T08:00:00Z', attemptsLeft: 3, status: 'pending'
+  },
+  {
+    staffInviteId: 'preview-invite-2', userName: '992930000011', displayName: 'Нигора', phoneNumber: '+992930000011', email: null,
+    roleNames: ['shift_supervisor'], createdAtUtc: '2026-09-22T08:00:00Z', expiresAtUtc: '2026-09-23T08:00:00Z', attemptsLeft: 3, status: 'expired'
+  }
+];
+
 export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
+  const revokeInvite = url.pathname.match(/\/staff\/invites\/([^/]+)$/);
+  if (revokeInvite && method === 'DELETE') {
+    previewInvites = previewInvites.filter((invite) => invite.staffInviteId !== revokeInvite[1]);
+    return noContent();
+  }
+  const signIn = previewSignIn(url.pathname, method, init);
+  if (signIn !== null) {
+    return signIn;
+  }
   if (url.pathname.endsWith('/players') && method === 'GET') {
     return json(filterPlayers(url.searchParams.get('query'), url.searchParams.get('includeInactive') === 'true'));
   }
@@ -872,8 +1091,74 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
       deviceCommands: []
     });
   }
-  if (url.pathname.endsWith('/checkout') && method === 'POST') {
-    return json(checkoutResult(init));
+  // Остальная жизнь сессии на карте: без неё в демо «Завершить», «+15 мин» и «Перенос» молча
+  // соглашались и ничего не меняли. Сервер закрыл бы сессию после ответа ПК — здесь сразу.
+  const sessionActionMatch = url.pathname.match(/\/sessions\/([^/]+)\/(end|extend|transfer|checkout)$/);
+  if (sessionActionMatch && method === 'POST') {
+    const [, sessionId, action] = sessionActionMatch;
+    let request: Record<string, unknown> = {};
+    try { request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { request = {}; }
+    const seats = currentPreviewFloorMap().seats;
+    const seat = seats.find((item) => item.activeSessionId === sessionId);
+    if (seat === undefined) {
+      // Расчёт сессии не с карты (например, из истории) превью всегда принимало — так и оставлено.
+      if (action === 'checkout') return json(checkoutResult(init));
+      return jsonError(409, 'session_not_active', 'The session has already ended.');
+    }
+    const acknowledged = (state: string) => json({
+      idempotencyKey: typeof request.idempotencyKey === 'string' ? request.idempotencyKey : `preview-session-${action}`,
+      session: { sessionId, state },
+      deviceCommands: []
+    });
+
+    if (action === 'extend') {
+      if (seat.remainingSeconds !== null) {
+        seat.remainingSeconds += Number(request.additionalMinutes ?? 0) * 60;
+      }
+      return acknowledged('Active');
+    }
+    if (action === 'transfer') {
+      const target = seats.find((item) => item.seatId === request.targetSeatId);
+      if (target === undefined || target.state !== 'Free') {
+        return jsonError(409, 'target_seat_busy', 'The target seat is not free.');
+      }
+      Object.assign(target, {
+        state: seat.state,
+        activeSessionId: seat.activeSessionId,
+        remainingSeconds: seat.remainingSeconds,
+        playerDisplayName: seat.playerDisplayName,
+        tariffName: seat.tariffName,
+        sessionStartedAtUtc: seat.sessionStartedAtUtc,
+        accruedCostMinorUnits: seat.accruedCostMinorUnits,
+        currencyCode: seat.currencyCode,
+        isDeviceLocked: false
+      });
+    }
+    Object.assign(seat, {
+      state: 'Free',
+      activeSessionId: null,
+      remainingSeconds: null,
+      playerDisplayName: undefined,
+      tariffName: undefined,
+      sessionStartedAtUtc: undefined,
+      accruedCostMinorUnits: undefined,
+      isDeviceLocked: true
+    });
+    return action === 'checkout' ? json(checkoutResult(init)) : acknowledged(action === 'transfer' ? 'Active' : 'Ended');
+  }
+  // Защита ПК в превью: помнит сохранённое и растит версию, как сервер; чужая версия — 409.
+  if (url.pathname.endsWith('/settings/protection') && method === 'PUT') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown> & { expectedVersion?: number };
+    if (request.expectedVersion !== previewProtection.profile.version) {
+      return jsonError(409, 'protection_profile_version_conflict', 'The protection profile was saved by someone else.');
+    }
+    const { organizationId: _organization, expectedVersion: _expected, ...profile } = request;
+    previewProtection = {
+      ...previewProtection,
+      profile: { ...previewProtection.profile, ...profile, version: previewProtection.profile.version + 1 },
+      updatedAtUtc: new Date().toISOString()
+    } as typeof previewProtection;
+    return json(previewProtection);
   }
   if (url.pathname.endsWith('/booking-settings') && method === 'PUT') {
     const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
@@ -909,6 +1194,8 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (url.pathname.endsWith('/packages/purchases') && method === 'POST') {
     return json(playerPackages()[0]);
   }
+  // Раньше общего списка ПК: «/plan/devices» тоже кончается на «/devices».
+  if (url.pathname.endsWith('/plan/devices') && method === 'GET') return json(mockPlanDevices());
   if (url.pathname.endsWith('/devices') && method === 'GET') {
     return json(previewDevices);
   }
@@ -997,6 +1284,35 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     prependLedger(entry);
     return json(entry);
   }
+  if (url.pathname.endsWith('/plan/trial') && method === 'POST') {
+    mockPlan = { ...mockPlan, planCode: 'per_pc', kind: 'trial', trialAvailable: false, canSwitchToPerPc: false, trialEndsAtUtc: minutesAgoUtc(-60 * 24 * 30) };
+    return json(mockPlan);
+  }
+  const complaint = url.pathname.match(/\/platform-ads\/([^/]+)\/complaints$/);
+  if (complaint && method === 'POST') {
+    mockComplainedAds.add(complaint[1]);
+    return json(mockClubAds());
+  }
+  if (url.pathname.endsWith('/plan/devices') && method === 'PUT') {
+    const ids = (JSON.parse(String(init?.body ?? '{}')) as { deviceIds?: string[] }).deviceIds ?? [];
+    if (ids.length > 10) return jsonError(409, 'plan_devices_too_many', 'Too many PCs for the free plan.');
+    mockKeptDevices = ids;
+    return json(mockPlanDevices());
+  }
+  if (url.pathname.endsWith('/tip-settings') && method === 'PUT') {
+    mockTipsEnabled = Boolean((JSON.parse(String(init?.body ?? '{}')) as { enabled?: boolean }).enabled);
+    return json({ enabled: mockTipsEnabled });
+  }
+  if (/\/tips\/payout$/.test(url.pathname) && method === 'POST') {
+    mockTipsPaidOut = shiftTips().total.minorUnits;
+    return json(shiftTips());
+  }
+  const reversedTip = /\/tips\/([^/]+)\/reverse$/.exec(url.pathname);
+  if (reversedTip && method === 'POST') {
+    const tip = mockTips.find((candidate) => candidate.ledgerEntryId === reversedTip[1]);
+    if (tip) tip.reversed = true;
+    return json(shiftTips());
+  }
   if (url.pathname.endsWith('/referral-settings') && method === 'POST') {
     let req: Record<string, unknown> = {};
     try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
@@ -1059,6 +1375,88 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/staff/candidates') && method === 'GET') {
     return json(previewStaffCandidates);
+  }
+  // Железо в превью: у первого ПК поменяли видеокарту — видно «было → стало».
+  const hardwareMatch = url.pathname.match(/\/devices\/[^/]+\/hardware(\/accept)?$/);
+  if (hardwareMatch) {
+    const snapshot = (gpu: string) => ({
+      cpu: 'AMD Ryzen 5 5600X 6-Core Processor', cpuThreads: 12, memoryGb: 16, gpus: [{ name: gpu, memoryGb: 12 }],
+      motherboard: 'ASUSTeK PRIME B550M-A', disks: [{ name: 'C:', sizeGb: 500 }, { name: 'D:', sizeGb: 1000 }],
+      os: 'Windows 11 Pro 23H2 build 22631', bios: 'American Megatrends 2803'
+    });
+    if (hardwareMatch[1] || previewHardwareAccepted) {
+      previewHardwareAccepted = true;
+      return json({ current: snapshot('NVIDIA GeForce RTX 4060'), reportedAtUtc: '2026-09-25T09:00:00Z', accepted: snapshot('NVIDIA GeForce RTX 4060'), acceptedAtUtc: new Date().toISOString(), acceptedByName: 'Администратор смены', changes: [] });
+    }
+    return json({
+      current: snapshot('NVIDIA GeForce RTX 4060'), reportedAtUtc: '2026-09-25T09:00:00Z',
+      accepted: snapshot('NVIDIA GeForce RTX 3060'), acceptedAtUtc: '2026-09-01T09:00:00Z', acceptedByName: null,
+      changes: [{ component: 'gpu', was: 'NVIDIA GeForce RTX 3060 12 GB', now: 'NVIDIA GeForce RTX 4060 12 GB' }]
+    });
+  }
+  // Отзывы в превью: итог, разбивка и отбор по звёздам и тексту.
+  if (/\/branches\/[^/]+\/reviews$/.test(url.pathname) && method === 'GET') {
+    const rating = Number(url.searchParams.get('rating') ?? '0');
+    const withComment = url.searchParams.get('withComment') === 'true';
+    const items = previewReviews.filter((review) => (!rating || review.rating === rating) && (!withComment || Boolean(review.comment)));
+    const counts = [1, 2, 3, 4, 5].map((stars) => previewReviews.filter((review) => review.rating === stars).length);
+    const average = Math.round((previewReviews.reduce((sum, review) => sum + review.rating, 0) / previewReviews.length) * 10) / 10;
+    return json({ rating: average, reviewCount: previewReviews.length, countsByRating: counts, items, nextBefore: null });
+  }
+  // Библиотека игр в превью: каталог платформы и игры филиала, правки живут до перезагрузки.
+  if (url.pathname.endsWith('/game-catalog') && method === 'GET') {
+    const query = (url.searchParams.get('query') ?? '').toLowerCase();
+    return json(previewCatalogGames.filter((game) => game.name.toLowerCase().includes(query)));
+  }
+  const branchGamesMatch = url.pathname.match(/\/branches\/[^/]+\/games(?:\/([^/]+))?$/);
+  if (branchGamesMatch && method === 'GET') return json(previewBranchGames);
+  if (branchGamesMatch && !branchGamesMatch[1] && method === 'POST') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    const catalog = previewCatalogGames.find((game) => game.catalogGameId === request.catalogGameId);
+    const added: BranchGameDto = {
+      branchGameId: `preview-game-${previewBranchGames.length + 1}`,
+      catalogGameId: (request.catalogGameId as string | null) ?? null,
+      name: String(request.name ?? ''),
+      genre: catalog?.genre ?? (request.genre as string | null) ?? null,
+      minAge: catalog?.minAge ?? (request.minAge as number | null) ?? null,
+      coverUrl: catalog?.coverUrl ?? null,
+      launchKind: String(request.launchKind ?? 'exe') as BranchGameDto['launchKind'],
+      launchTarget: (request.launchTarget as string | null) ?? catalog?.launchTarget ?? null,
+      executablePath: (request.executablePath as string | null) ?? null,
+      arguments: (request.arguments as string | null) ?? null,
+      availableWithoutSession: Boolean(request.availableWithoutSession),
+      isEnabled: request.isEnabled !== false,
+      sortOrder: previewBranchGames.length
+    };
+    previewBranchGames = [...previewBranchGames, added];
+    return json(added);
+  }
+  if (/\/organizations\/[^/]+\/branches$/.test(url.pathname) && method === 'GET') {
+    return json(previewOwnerBranches);
+  }
+  // Коды тихой установки в превью: выданный код виден один раз, в списке — только срок и счёт.
+  const installCodesMatch = url.pathname.match(/\/branches\/([^/]+)\/install-codes(?:\/([^/]+))?$/);
+  if (installCodesMatch && method === 'GET') {
+    return json(previewInstallCodes.filter((code) => code.branchId === installCodesMatch[1]));
+  }
+  if (installCodesMatch && method === 'POST') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as { lifetimeHours?: number; maxDevices?: number };
+    const now = new Date();
+    const issued = {
+      installCodeId: `preview-install-code-${previewInstallCodes.length + 1}`,
+      branchId: installCodesMatch[1],
+      code: null as string | null,
+      createdAtUtc: now.toISOString(),
+      expiresAtUtc: new Date(now.getTime() + (request.lifetimeHours ?? 24) * 3_600_000).toISOString(),
+      maxDevices: request.maxDevices ?? 30,
+      usedDevices: 0
+    };
+    previewInstallCodes.unshift(issued);
+    return json({ ...issued, code: '7KQ2-M9XD-4TPV-HB3R' });
+  }
+  if (installCodesMatch?.[2] && method === 'DELETE') {
+    previewInstallCodes = previewInstallCodes.filter((code) => code.installCodeId !== installCodesMatch[2]);
+    return noContent();
   }
   const staffRemoveMatch = url.pathname.match(/\/branches\/[^/]+\/staff\/([^/]+)$/);
   if (staffRemoveMatch && method === 'DELETE') {

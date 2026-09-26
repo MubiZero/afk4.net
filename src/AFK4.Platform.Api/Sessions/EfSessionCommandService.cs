@@ -17,7 +17,8 @@ public sealed class EfSessionCommandService(
     TimeProvider timeProvider,
     ISessionBillingService sessionBillingService,
     ISessionLifecycleNotifier lifecycleNotifier,
-    ISessionStartWorkflow sessionStartWorkflow) : ISessionCommandService
+    ISessionStartWorkflow sessionStartWorkflow,
+    AFK4.Platform.Api.Platform.Entitlements.IPlanLimitGuard? planLimitGuard = null) : ISessionCommandService
 {
     private const int LeaseMinutes = 15;
 
@@ -332,6 +333,22 @@ public sealed class EfSessionCommandService(
         if (assignment is null)
         {
             return SessionCommandServiceResult.Invalid("Target seat has no active approved device assignment.");
+        }
+
+        if (await dbContext.Devices.AnyAsync(
+            device => device.DeviceId == assignment.DeviceId && device.MaintenanceSinceUtc != null,
+            cancellationToken))
+        {
+            return SessionCommandServiceResult.RequestConflict(
+                "The PC at the target seat is under maintenance.",
+                "device_in_maintenance");
+        }
+
+        // Перенос — та же новая сессия для ПК, на который её несут: на ПК вне тарифа её не перенести.
+        if (planLimitGuard is not null
+            && await planLimitGuard.CheckDeviceOnPlanAsync(session.OrganizationId, assignment.DeviceId, cancellationToken) is { } outsidePlan)
+        {
+            return SessionCommandServiceResult.OutsidePlan(outsidePlan);
         }
 
         if (await HasBlockingSessionAsync(

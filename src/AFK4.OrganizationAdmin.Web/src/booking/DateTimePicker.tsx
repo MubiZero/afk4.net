@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { toDateTimeInputValue } from '../operatorHelpers';
 import { PanelSelect } from '../PanelSelect';
+import { formatDateParts } from '@afk4/formatting';
 
 const LOCALE_TAG: Record<string, string> = { ru: 'ru-RU', en: 'en-US', tg: 'tg' };
 const MINUTE_STEPS = [0, 15, 30, 45];
@@ -36,7 +37,8 @@ export function DateTimePicker({
   const { t, locale } = useI18n();
   const tag = LOCALE_TAG[locale] ?? 'ru-RU';
   const selected = parse(value);
-  const dateFmt = useMemo(() => new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long' }), [tag]);
+  // Таджикские месяцы — из общего форматтера: Intl браузера пишет их по-английски.
+  const formatDay = (date: Date) => formatDateParts(date, tag, { day: 'numeric', month: 'long' });
 
   const hourOptions = useMemo(() => Array.from({ length: 24 }, (_, hour) => ({ value: String(hour), label: pad(hour) })), []);
   const minuteOptions = useMemo(() => MINUTE_STEPS.map((minute) => ({ value: String(minute), label: pad(minute) })), []);
@@ -58,7 +60,7 @@ export function DateTimePicker({
     <div className="booking-dtp" aria-label={ariaLabel}>
       <div className="booking-dtp-date">
         <button type="button" aria-label={t('op.booking.dateNav.prev')} disabled={disabled} onClick={() => shiftDay(-1)}><ChevronLeft size={15} /></button>
-        <strong>{capitalize(dateFmt.format(selected))}</strong>
+        <strong>{capitalize(formatDay(selected))}</strong>
         <button type="button" aria-label={t('op.booking.dateNav.next')} disabled={disabled} onClick={() => shiftDay(1)}><ChevronRight size={15} /></button>
       </div>
       <div className="booking-dtp-time">

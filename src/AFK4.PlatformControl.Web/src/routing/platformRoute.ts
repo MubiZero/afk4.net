@@ -13,6 +13,8 @@ export type OrganizationTab =
 
 export type BillingTab = 'plans' | 'subscriptions' | 'invoices' | 'analytics';
 
+export type AdsTab = 'campaigns' | 'advertisers' | 'report' | 'complaints';
+
 export type PlatformRoute =
   | { kind: 'overview'; view: PulseView }
   | { kind: 'organization'; organizationId: string; tab: OrganizationTab }
@@ -22,6 +24,9 @@ export type PlatformRoute =
   | { kind: 'audit'; organizationId: string; action: string; outcome: string; from: string; to: string }
   | { kind: 'settings' }
   | { kind: 'announcements' }
+  | { kind: 'games' }
+  | { kind: 'ads'; tab: AdsTab }
+  | { kind: 'adCampaign'; campaignId: string }
   | { kind: 'people' }
   | { kind: 'health' }
   | { kind: 'notFound'; path: string };
@@ -30,6 +35,7 @@ const ORGANIZATION_TABS = new Set<OrganizationTab>([
   'clubs', 'invoices', 'limits', 'updates', 'access', 'history', 'dynamics', 'features', 'offboarding'
 ]);
 const BILLING_TABS = new Set<BillingTab>(['plans', 'subscriptions', 'invoices', 'analytics']);
+const ADS_TABS = new Set<AdsTab>(['campaigns', 'advertisers', 'report', 'complaints']);
 const PULSE_VIEWS = new Set<PulseView>(['now', 'all', 'debt']);
 
 export function resolvePlatformRoute(pathname: string, search = ''): PlatformRoute {
@@ -72,6 +78,16 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
   if (path === '/admin/journal') return { kind: 'audit', organizationId: query.get('organizationId') ?? '', action: query.get('action') ?? '', outcome: query.get('outcome') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '' };
   if (path === '/admin/settings') return { kind: 'settings' };
   if (path === '/admin/announcements') return { kind: 'announcements' };
+  if (path === '/admin/games') return { kind: 'games' };
+  if (path === '/admin/ads') {
+    const requestedTab = query.get('tab');
+    return {
+      kind: 'ads',
+      tab: requestedTab !== null && ADS_TABS.has(requestedTab as AdsTab) ? requestedTab as AdsTab : 'campaigns'
+    };
+  }
+  const campaignMatch = /^\/admin\/ads\/campaigns\/([^/]+)$/u.exec(path);
+  if (campaignMatch !== null) return { kind: 'adCampaign', campaignId: decodeSegment(campaignMatch[1]) };
   if (path === '/admin/people') return { kind: 'people' };
   if (path === '/admin/health') return { kind: 'health' };
   // '/admin/profile' — закладка на удалённый экран профиля: учётная запись переехала в меню
@@ -99,6 +115,9 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
     }
     case 'settings': return '/admin/settings';
     case 'announcements': return '/admin/announcements';
+    case 'games': return '/admin/games';
+    case 'ads': return `/admin/ads${route.tab === 'campaigns' ? '' : `?tab=${route.tab}`}`;
+    case 'adCampaign': return `/admin/ads/campaigns/${encodeURIComponent(route.campaignId)}`;
     case 'people': return '/admin/people';
     case 'health': return '/admin/health';
     case 'notFound': return route.path;

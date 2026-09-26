@@ -33,6 +33,7 @@ export function OrganizationLimitsSection({ client, organization, onUpdated }: P
   const [maxDevices, setMaxDevices] = useState(toField(organization.limits.maxDevicesPerBranch));
   const [maxSessions, setMaxSessions] = useState(toField(organization.limits.maxConcurrentSessions));
   const [maxStaff, setMaxStaff] = useState(toField(organization.limits.maxStaffUsersPerBranch));
+  const [maxDevicesTotal, setMaxDevicesTotal] = useState(toField(organization.limits.maxDevices ?? null));
   const [pending, setPending] = useState(false);
 
   async function submit() {
@@ -41,7 +42,8 @@ export function OrganizationLimitsSection({ client, organization, onUpdated }: P
       maxBranches: toLimit(maxBranches),
       maxDevicesPerBranch: toLimit(maxDevices),
       maxConcurrentSessions: toLimit(maxSessions),
-      maxStaffUsersPerBranch: toLimit(maxStaff)
+      maxStaffUsersPerBranch: toLimit(maxStaff),
+      maxDevices: toLimit(maxDevicesTotal)
     };
     try {
       const next = await client.updateLimits(organization.organizationId, limits);
@@ -65,6 +67,7 @@ export function OrganizationLimitsSection({ client, organization, onUpdated }: P
     <Card>
       <CardHeader><CardTitle>{t('platform.organization.section.limits')}</CardTitle></CardHeader>
       <CardContent>
+        {field(t('platform.organization.limitsForm.maxDevicesTotal'), maxDevicesTotal, setMaxDevicesTotal)}
         {field(t('platform.organization.limitsForm.maxBranches'), maxBranches, setMaxBranches)}
         {field(t('platform.organization.limitsForm.maxDevices'), maxDevices, setMaxDevices)}
         {field(t('platform.organization.limitsForm.maxSessions'), maxSessions, setMaxSessions)}

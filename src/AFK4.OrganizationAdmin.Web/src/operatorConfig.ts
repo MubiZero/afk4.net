@@ -9,6 +9,8 @@ export interface OperatorConfig {
   organizationId?: string;
   branchId?: string;
   setupInstallerUrl?: string; // configured at release; empty => show "obtain from IT" (no broken link)
+  // Публичное демо на примерах данных: полоса «Демо» и учебный бэкенд вместо сервера.
+  demo?: boolean;
 }
 
 const fallbackConfig: OperatorConfig = {

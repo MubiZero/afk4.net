@@ -2,17 +2,31 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
 using AFK4.SetupWizard.Core;
+using AFK4.SetupWizard.Core.Kiosk;
+using AFK4.SetupWizard.Core.SilentInstall;
 using AFK4.SetupWizard.Web;
 
 namespace AFK4.SetupWizard;
 
 public partial class App : Application
 {
+    // Тихая установка: окон нет, и сообщение об ошибке некому закрыть — скрипт развёртывания
+    // висел бы на нём до таймаута.
+    private bool silent;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         // Backstop for anything that escapes the per-message guards (e.g. an unexpected failure
         // during enrollment). Log it and show a message instead of a raw .NET crash dialog.
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+
+        var silentInstall = SilentInstallOptions.Parse(e.Args);
+        if (silentInstall.Requested)
+        {
+            silent = true;
+            Shutdown(RunSilentInstall(silentInstall));
+            return;
+        }
 
 #if DEBUG
         if (e.Args.Contains("--preview"))
@@ -39,33 +53,76 @@ public partial class App : Application
             return;
         }
 
-        var machineInfo = new SetupWizardMachineInfo(Environment.MachineName);
-        var httpClient = new HttpClient
-        {
-            BaseAddress = SetupWizardDefaults.PlatformBaseUrl
-        };
-        var payloadResolver = new SetupWizardPayloadResolver(AppContext.BaseDirectory);
-        var processRunner = new SystemProcessRunner();
+        var machine = new WizardMachine();
         var bridge = new SetupWizardWebHostBridge(
-            new SetupWizardApiClient(httpClient),
-            new FileDeviceKeyStore(),
-            new CompositeBootstrapWriter(
-                new FileBootstrapWriter(machineInfo.MachineName),
-                new EnvironmentBootstrapWriter(machineInfo.MachineName)),
-            machineInfo,
-            new AgentServiceCompletionAction(),
-            new MsiexecPlayerShellProvisioner(payloadResolver, processRunner),
-            new MsiexecOrganizationAdminProvisioner(payloadResolver, processRunner),
-            new ExplorerOrganizationAdminLauncher(),
-            new OpenFileDialogLogoPicker());
+            machine.ApiClient,
+            machine.KeyStore,
+            machine.BootstrapWriter,
+            machine.Info,
+            machine.CompletionAction,
+            machine.ShellProvisioner,
+            machine.OperatorProvisioner,
+            machine.OperatorLauncher,
+            new OpenFileDialogLogoPicker(),
+            machine.Kiosk,
+            new ShutdownRebootAction(machine.ProcessRunner));
 
-        LaunchWebShell(bridge, machineInfo, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
+        LaunchWebShell(bridge, machine.Info, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
         base.OnStartup(e);
+    }
+
+    /// <summary>
+    /// <c>--install-code</c>: установка без окна (план P5f-2). Прав администратора не просим —
+    /// окна UAC на ПК, который ставят скриптом, никто не увидит; без них выходим с кодом.
+    /// </summary>
+    private static int RunSilentInstall(SilentInstallParse silentInstall)
+    {
+        if (silentInstall.Options is null)
+        {
+            SetupWizardStartupLog.Write($"Silent install could not start: {silentInstall.Error}");
+            return SilentInstallExitCodes.BadArguments;
+        }
+
+        if (!ElevationGuard.IsElevated())
+        {
+            SetupWizardStartupLog.Write("Silent install needs administrator rights: run the installer from an elevated deployment tool.");
+            return SilentInstallExitCodes.NotElevated;
+        }
+
+        var machine = new WizardMachine();
+        var installer = new SilentInstaller(
+            machine.ApiClient,
+            machine.KeyStore,
+            machine.Info,
+            new SetupWizardDeviceSetup(
+                machine.BootstrapWriter,
+                machine.CompletionAction,
+                machine.ShellProvisioner,
+                machine.OperatorProvisioner,
+                machine.OperatorLauncher,
+                machine.Kiosk));
+
+        try
+        {
+            // Окна нет, и ждать в потоке запуска можно: ни одно сообщение ему не придёт.
+            return Task.Run(() => installer.RunAsync(silentInstall.Options, CancellationToken.None)).GetAwaiter().GetResult();
+        }
+        catch (Exception exception)
+        {
+            SetupWizardStartupLog.Write("Silent install failed unexpectedly.", exception);
+            return SilentInstallExitCodes.SetupFailed;
+        }
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         SetupWizardStartupLog.Write("Unhandled dispatcher exception in the setup wizard.", e.Exception);
+        if (silent)
+        {
+            e.Handled = true;
+            Shutdown(SilentInstallExitCodes.SetupFailed);
+            return;
+        }
 
         // Mark handled so WPF doesn't tear the process down with a raw crash dialog. Best-effort
         // message to the user; the device may be partially enrolled — the log holds the detail.

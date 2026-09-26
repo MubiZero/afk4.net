@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Sessions;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Entitlements;
 
-public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGuard
+public sealed class EfPlanLimitGuard(PlatformDbContext dbContext, TimeProvider? timeProvider = null) : IPlanLimitGuard
 {
     // Снятое и отклонённое устройство места на филиале не занимает; ожидающее одобрения — занимает,
     // иначе очередь из ожидающих перепрыгнет лимит в момент одобрения.
@@ -31,10 +32,35 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
         return Verdict(PlanLimitNames.Branches, limit, current, plan.PlanCode);
     }
 
-    public async Task<PlanLimitExceededDto?> CheckDeviceAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken)
+    public async Task<PlanLimitExceededDto?> CheckDeviceAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken, string role = DeviceRoleNames.GamingPc)
     {
+        if (role != DeviceRoleNames.GamingPc)
+        {
+            return null;
+        }
+
         var plan = await LoadPlanAsync(organizationId, cancellationToken);
-        if (plan?.Limits.MaxDevicesPerBranch is not { } limit)
+        if (plan is null)
+        {
+            return null;
+        }
+
+        if (plan.Limits.MaxDevices is { } organizationLimit)
+        {
+            var inOrganization = await dbContext.Devices
+                .CountAsync(
+                    device => device.OrganizationId == organizationId
+                        && device.Role == DeviceRoleNames.GamingPc
+                        && LiveDeviceStates.Contains(device.EnrollmentState),
+                    cancellationToken);
+            if (Verdict(PlanLimitNames.Devices, organizationLimit, inOrganization, plan.PlanCode) is { } refused)
+            {
+                return refused;
+            }
+        }
+
+        if (plan.Limits.MaxDevicesPerBranch is not { } limit)
         {
             return null;
         }
@@ -43,10 +69,26 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
             .CountAsync(
                 device => device.OrganizationId == organizationId
                     && device.BranchId == branchId
+                    && device.Role == DeviceRoleNames.GamingPc
                     && LiveDeviceStates.Contains(device.EnrollmentState),
                 cancellationToken);
 
         return Verdict(PlanLimitNames.DevicesPerBranch, limit, current, plan.PlanCode);
+    }
+
+    public async Task<PlanLimitExceededDto?> CheckDeviceOnPlanAsync(Guid organizationId, Guid deviceId, CancellationToken cancellationToken)
+    {
+        var allowance = await PlanDevices.ForOrganizationAsync(dbContext, organizationId, cancellationToken);
+        if (allowance.Limit is not { } limit || !allowance.Outside.Contains(deviceId))
+        {
+            return null;
+        }
+
+        var planCode = await dbContext.Organizations.AsNoTracking()
+            .Where(organization => organization.OrganizationId == organizationId)
+            .Select(organization => organization.PlanCode)
+            .SingleAsync(cancellationToken);
+        return new PlanLimitExceededDto(PlanLimitNames.ReachedCode, PlanLimitNames.Devices, limit, allowance.Count, planCode);
     }
 
     public async Task<PlanLimitExceededDto?> CheckConcurrentSessionAsync(Guid organizationId, CancellationToken cancellationToken)
@@ -86,12 +128,16 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
         // Непринятое живое приглашение занимает место заранее: иначе три приглашения на филиал
         // с лимитом два пройдут проверку по очереди и перепрыгнут границу в момент приёма.
         // Само принимаемое приглашение (excludingInviteId) — исключение: приём не добавляет
-        // место сверх занятого, он превращает это же приглашение в сотрудника.
+        // место сверх занятого, он превращает это же приглашение в сотрудника. Истёкший или
+        // исчерпавший попытки код в сотрудника уже не превратится — места он не держит.
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         var pendingInvites = await dbContext.StaffInvites
             .CountAsync(
                 invite => invite.OrganizationId == organizationId
                     && invite.BranchId == branchId
                     && invite.AcceptedAtUtc == null
+                    && invite.ExpiresAtUtc > now
+                    && invite.AttemptCount < EfStaffInviteService.MaxAttempts
                     && invite.StaffInviteId != excludingInviteId,
                 cancellationToken);
 

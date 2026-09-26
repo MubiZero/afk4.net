@@ -30,10 +30,12 @@ interface FormState {
   subscriptionStatus: string;
   ownerUserName: string;
   ownerDisplayName: string;
+  referralCode: string;
   maxBranches: string;
   maxDevicesPerBranch: string;
   maxConcurrentSessions: string;
   maxStaffUsersPerBranch: string;
+  maxDevices: string;
 }
 
 const defaultState: FormState = {
@@ -42,14 +44,17 @@ const defaultState: FormState = {
   branchSlug: 'main',
   branchName: '',
   branchCity: '',
-  planCode: OrganizationPlanCode.Starter,
-  subscriptionStatus: SubscriptionStatus.Trial,
+  // Новый клуб — на бесплатном тарифе; пробный период тарифа за ПК клуб начинает сам из Панели.
+  planCode: OrganizationPlanCode.Free,
+  subscriptionStatus: SubscriptionStatus.Active,
   ownerUserName: '',
   ownerDisplayName: '',
+  referralCode: '',
   maxBranches: '',
   maxDevicesPerBranch: '',
   maxConcurrentSessions: '',
-  maxStaffUsersPerBranch: ''
+  maxStaffUsersPerBranch: '',
+  maxDevices: ''
 };
 
 const REQUIRED_FIELDS: readonly (keyof FormState)[] = [
@@ -93,7 +98,9 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         limits: buildLimits(form),
         ownerUserName: form.ownerUserName.trim() === '' ? null : form.ownerUserName.trim(),
         ownerDisplayName: form.ownerDisplayName.trim() === '' ? null : form.ownerDisplayName.trim(),
-        organizationOwnerInviteLifetime: null
+        organizationOwnerInviteLifetime: null,
+        // «Приведи клуб»: пусто — клуб пришёл сам.
+        referralCode: form.referralCode.trim() === '' ? null : form.referralCode.trim()
       };
       const response = await client.createOrganization(request, attempt.forSubject(request));
       attempt.done();
@@ -146,9 +153,8 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
           <label className="ui-field">
             <span>{t('platform.newOrganization.field.planCode')}</span>
             <Select value={form.planCode} onChange={event => update('planCode', event.target.value)}>
-                <option value={OrganizationPlanCode.Starter}>{t('platform.plan.starter')}</option>
-                <option value={OrganizationPlanCode.Growth}>{t('platform.plan.growth')}</option>
-                <option value={OrganizationPlanCode.Scale}>{t('platform.plan.scale')}</option>
+                <option value={OrganizationPlanCode.Free}>{t('platform.plan.free')}</option>
+                <option value={OrganizationPlanCode.PerPc}>{t('platform.plan.perPc')}</option>
             </Select>
           </label>
           <label className="ui-field">
@@ -166,6 +172,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
       <Card>
         <CardHeader><CardTitle>{t('platform.newOrganization.section.limits')}</CardTitle></CardHeader>
         <CardContent>
+          <LabeledInput label={t('platform.newOrganization.field.maxDevicesTotal')} type="number" value={form.maxDevices} onChange={v => update('maxDevices', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxBranches')} type="number" value={form.maxBranches} onChange={v => update('maxBranches', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxDevices')} type="number" value={form.maxDevicesPerBranch} onChange={v => update('maxDevicesPerBranch', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxSessions')} type="number" value={form.maxConcurrentSessions} onChange={v => update('maxConcurrentSessions', v)} />
@@ -178,6 +185,8 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         <CardContent>
           <LabeledInput label={t('platform.newOrganization.field.ownerUserName')} value={form.ownerUserName} onChange={v => update('ownerUserName', v)} />
           <LabeledInput label={t('platform.newOrganization.field.ownerDisplayName')} value={form.ownerDisplayName} onChange={v => update('ownerDisplayName', v)} />
+          <LabeledInput label={t('platform.newOrganization.field.referralCode')} value={form.referralCode} onChange={v => update('referralCode', v)} />
+          <p className="ui-field-hint">{t('platform.newOrganization.field.referralCodeHint')}</p>
         </CardContent>
       </Card>
 
@@ -217,7 +226,8 @@ function buildLimits(form: FormState): OrganizationLimits | null {
     maxBranches: parseOptional(form.maxBranches),
     maxDevicesPerBranch: parseOptional(form.maxDevicesPerBranch),
     maxConcurrentSessions: parseOptional(form.maxConcurrentSessions),
-    maxStaffUsersPerBranch: parseOptional(form.maxStaffUsersPerBranch)
+    maxStaffUsersPerBranch: parseOptional(form.maxStaffUsersPerBranch),
+    maxDevices: parseOptional(form.maxDevices)
   };
   if (Object.values(parsed).every(value => value === null)) {
     return null;

@@ -71,7 +71,13 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManagePaymentGateways,
                 OrganizationPermissionNames.ManageLoyaltySettings,
                 OrganizationPermissionNames.ManageNews,
-                OrganizationPermissionNames.ManageTournaments
+                OrganizationPermissionNames.ManageTournaments,
+                OrganizationPermissionNames.ManageGameLibrary,
+                OrganizationPermissionNames.ViewReviews,
+                OrganizationPermissionNames.AcceptDeviceHardware,
+                OrganizationPermissionNames.ManageTips,
+                OrganizationPermissionNames.ManageSubscription,
+                OrganizationPermissionNames.ImportPlayers
             },
             [OrganizationRoleNames.BranchManager] = new HashSet<string>
             {
@@ -131,7 +137,11 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewAudit,
                 OrganizationPermissionNames.ManageBranchSettings,
                 OrganizationPermissionNames.ManageNews,
-                OrganizationPermissionNames.ManageTournaments
+                OrganizationPermissionNames.ManageTournaments,
+                OrganizationPermissionNames.ManageGameLibrary,
+                OrganizationPermissionNames.ViewReviews,
+                OrganizationPermissionNames.AcceptDeviceHardware,
+                OrganizationPermissionNames.ManageTips
             },
             [OrganizationRoleNames.ShiftSupervisor] = new HashSet<string>
             {
@@ -216,6 +226,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.AssignDeviceSeat,
                 OrganizationPermissionNames.ViewDeviceDetail,
                 OrganizationPermissionNames.InstallDevice,
+                OrganizationPermissionNames.ManageGameLibrary,
+                OrganizationPermissionNames.AcceptDeviceHardware,
                 OrganizationPermissionNames.ViewFloorMap,
                 OrganizationPermissionNames.ViewInventory,
                 OrganizationPermissionNames.ViewUpdateStatus,

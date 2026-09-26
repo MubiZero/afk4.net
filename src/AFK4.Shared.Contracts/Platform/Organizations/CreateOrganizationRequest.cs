@@ -11,4 +11,6 @@ public sealed record CreateOrganizationRequest(
     OrganizationLimitsDto? Limits,
     string? OwnerUserName,
     string? OwnerDisplayName,
-    TimeSpan? OrganizationOwnerInviteLifetime);
+    TimeSpan? OrganizationOwnerInviteLifetime,
+    // Код «Приведи клуб» того, кто привёл этот клуб. Пусто — клуб пришёл сам.
+    string? ReferralCode = null);

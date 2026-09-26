@@ -12,11 +12,12 @@ type Step = 'request' | 'verify' | 'done';
 
 // Both channels follow the same shape: request a 6-digit code, then enter it with a new password.
 // Email mails the code; SMS texts it — the verify step is identical from there on.
-export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void }) {
+export function ForgotPassword({ onBackToSignIn, initialPhone = null }: { onBackToSignIn: () => void; initialPhone?: string | null }) {
   const { t } = useI18n();
-  const [channel, setChannel] = useState<Channel>('email');
+  // Пришли со входа по номеру — номер уже набран, и восстановление идёт по нему же.
+  const [channel, setChannel] = useState<Channel>(initialPhone ? 'phone' : 'email');
   const [emailLogin, setEmailLogin] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(initialPhone ?? '');
   const [step, setStep] = useState<Step>('request');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');

@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Media;
 using AFK4.Shared.Contracts.News;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,6 @@ public sealed class EfNewsService(PlatformDbContext db, TimeProvider timeProvide
 {
     private const int TitleMax = 200;
     private const int BodyMax = 4000;
-    private const int ImageUrlMax = 2048;
 
     public async Task<IReadOnlyList<NewsItemDto>> ListForOwnerAsync(Guid orgId, CancellationToken ct)
     {
@@ -33,8 +33,9 @@ public sealed class EfNewsService(PlatformDbContext db, TimeProvider timeProvide
             BranchId = request.BranchId,
             Title = request.Title.Trim(),
             Body = request.Body.Trim(),
-            ImageUrl = NormalizeImageUrl(request.ImageUrl),
+            ImageUrl = ImageUrlRules.Normalize(request.ImageUrl),
             IsPublished = request.IsPublished,
+            ShowOnPcs = request.ShowOnPcs,
             PublishAtUtc = request.PublishAtUtc,
             ExpiresAtUtc = request.ExpiresAtUtc,
             CreatedAtUtc = now,
@@ -57,8 +58,9 @@ public sealed class EfNewsService(PlatformDbContext db, TimeProvider timeProvide
         entity.BranchId = request.BranchId;
         entity.Title = request.Title.Trim();
         entity.Body = request.Body.Trim();
-        entity.ImageUrl = NormalizeImageUrl(request.ImageUrl);
+        entity.ImageUrl = ImageUrlRules.Normalize(request.ImageUrl);
         entity.IsPublished = request.IsPublished;
+        entity.ShowOnPcs = request.ShowOnPcs;
         entity.PublishAtUtc = request.PublishAtUtc;
         entity.ExpiresAtUtc = request.ExpiresAtUtc;
         entity.UpdatedAtUtc = timeProvider.GetUtcNow();
@@ -100,15 +102,7 @@ public sealed class EfNewsService(PlatformDbContext db, TimeProvider timeProvide
         if (title.Trim().Length > TitleMax) return $"Title must be at most {TitleMax} characters.";
         if (string.IsNullOrWhiteSpace(body)) return "Body is required.";
         if (body.Trim().Length > BodyMax) return $"Body must be at most {BodyMax} characters.";
-        if (!string.IsNullOrWhiteSpace(imageUrl))
-        {
-            if (imageUrl.Length > ImageUrlMax) return $"Image URL must be at most {ImageUrlMax} characters.";
-            if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)
-                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                return "Image URL must be an absolute http or https address.";
-            }
-        }
+        if (ImageUrlRules.Validate(imageUrl) is { } imageError) return imageError;
         if (publishAt is not null && expiresAt is not null && publishAt >= expiresAt)
         {
             return "PublishAtUtc must be earlier than ExpiresAtUtc.";
@@ -122,10 +116,7 @@ public sealed class EfNewsService(PlatformDbContext db, TimeProvider timeProvide
         return null;
     }
 
-    private static string? NormalizeImageUrl(string? imageUrl) =>
-        string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
-
     private static NewsItemDto ToDto(NewsItemEntity news) =>
         new(news.Id, news.BranchId, news.Title, news.Body, news.ImageUrl, news.IsPublished,
-            news.PublishAtUtc, news.ExpiresAtUtc, news.CreatedAtUtc, news.UpdatedAtUtc);
+            news.PublishAtUtc, news.ExpiresAtUtc, news.CreatedAtUtc, news.UpdatedAtUtc, news.ShowOnPcs);
 }

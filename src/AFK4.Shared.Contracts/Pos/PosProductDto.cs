@@ -18,7 +18,9 @@ public sealed record PosProductDto(
     int ReorderThreshold = 0,
     bool AvailableInShell = false,
     long AvgCostMinorUnits = 0,
-    IReadOnlyList<string>? Barcodes = null)
+    IReadOnlyList<string>? Barcodes = null,
+    bool FeaturedOnPcs = false,
+    string? ImageUrl = null)
 {
     public IReadOnlyList<string> Barcodes { get; init; } = Barcodes ?? Array.Empty<string>();
 }

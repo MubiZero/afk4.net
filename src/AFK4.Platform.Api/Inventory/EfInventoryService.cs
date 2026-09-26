@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Media;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Pos;
@@ -303,6 +304,8 @@ public sealed class EfInventoryService(
                 AllowNegativeStock = request.AllowNegativeStock,
                 ReorderThreshold = request.ReorderThreshold,
                 AvailableInShell = request.AvailableInShell,
+                FeaturedOnPcs = request.FeaturedOnPcs,
+                ImageUrl = ImageUrlRules.Normalize(request.ImageUrl),
                 IsActive = true,
                 CreatedAtUtc = now
             };
@@ -423,6 +426,8 @@ public sealed class EfInventoryService(
             product.AllowNegativeStock = request.AllowNegativeStock;
             product.ReorderThreshold = request.ReorderThreshold;
             product.AvailableInShell = request.AvailableInShell;
+            product.FeaturedOnPcs = request.FeaturedOnPcs;
+            product.ImageUrl = ImageUrlRules.Normalize(request.ImageUrl);
             product.IsActive = request.IsActive;
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -831,7 +836,7 @@ public sealed class EfInventoryService(
             return "Reorder threshold cannot be negative.";
         }
 
-        return null;
+        return ImageUrlRules.Validate(request.ImageUrl);
     }
 
     private static string? ValidateUpdateProductRequest(UpdateProductRequest request)
@@ -866,7 +871,7 @@ public sealed class EfInventoryService(
             return "Reorder threshold cannot be negative.";
         }
 
-        return null;
+        return ImageUrlRules.Validate(request.ImageUrl);
     }
 
     private static string? ValidateCreateStockMovementRequest(CreateStockMovementRequest request)
@@ -1095,7 +1100,9 @@ public sealed class EfInventoryService(
             product.ReorderThreshold,
             product.AvailableInShell,
             product.AvgCostMinorUnits,
-            barcodes);
+            barcodes,
+            product.FeaturedOnPcs,
+            product.ImageUrl);
     }
 
     private static StockMovementDto ToDto(StockMovementEntity movement, string? createdByDisplayName = null)

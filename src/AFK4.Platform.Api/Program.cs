@@ -31,6 +31,7 @@ using AFK4.Platform.Api.Platform.Offboarding;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Health;
+using AFK4.Platform.Api.Platform.Http;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Shop;
 using AFK4.Platform.Api.Platform.Identity;
@@ -82,6 +83,7 @@ using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -107,26 +109,30 @@ string[] ResolveCorsOrigins(string configurationKey, string[] developerDefaults)
         developerDefaults,
         allowDeveloperCorsOrigins);
 
-var organizationAdminWebOrigins = ResolveCorsOrigins(
+var organizationAdminBrowserOrigins = ResolveCorsOrigins(
     "Cors:OperatorWebOrigins",
     [
-        "https://operator.afk4.local",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
         "http://localhost:4174",
         "http://127.0.0.1:4174"
     ]);
 
-var platformWebOrigins = ResolveCorsOrigins(
+var platformBrowserOrigins = ResolveCorsOrigins(
     "Cors:PlatformWebOrigins",
     [
         "https://platform.afk4.local",
-        "https://player.afk4.local",
         "http://localhost:5175",
         "http://127.0.0.1:5175",
         "http://localhost:4175",
         "http://127.0.0.1:4175"
     ]);
+
+// Страницы собственных приложений пускаются всегда, и в проде тоже: см. CorsOrigins.WithNativeApp.
+// Раньше они стояли в адресах разработчика, и в Production Панель и экран игрока получили бы
+// отказ CORS на каждом запросе — на стенде (Staging) этого не видно.
+var organizationAdminWebOrigins = CorsOrigins.WithNativeApp(organizationAdminBrowserOrigins, CorsOrigins.OrganizationAdminApp);
+var platformWebOrigins = CorsOrigins.WithNativeApp(platformBrowserOrigins, CorsOrigins.PlayerShellApp);
 
 var combinedWebOrigins = organizationAdminWebOrigins
     .Concat(platformWebOrigins)
@@ -222,6 +228,10 @@ builder.Services.AddSingleton<IOrganizationOwnerInviteCodeGenerator, RandomOrgan
 builder.Services.Configure<InstallOptions>(
     builder.Configuration.GetSection(InstallOptions.SectionName));
 builder.Services.AddScoped<IInstallService, EfInstallService>();
+builder.Services.AddScoped<IInstallCodeService, EfInstallCodeService>();
+builder.Services.AddScoped<AFK4.Platform.Api.Showcase.DeviceShowcase>();
+builder.Services.AddScoped<AFK4.Platform.Api.Tips.VisitTips>();
+builder.Services.AddScoped<AFK4.Platform.Api.Players.GuestImport>();
 builder.Services.AddSingleton<IInstallRequestThrottle, InMemoryInstallRequestThrottle>();
 builder.Services.AddScoped<IPlatformOrganizationService, EfPlatformOrganizationService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
@@ -236,6 +246,7 @@ builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolv
 builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
 builder.Services.AddScoped<IDunningRunner, EfDunningRunner>();
+builder.Services.AddScoped<ClubPlans>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
@@ -321,6 +332,7 @@ builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ReservationNoShowHostedService>();
 builder.Services.AddHostedService<ReservationRequestExpiryHostedService>();
+builder.Services.AddHostedService<DeviceMaintenanceExpiryHostedService>();
 builder.Services.AddHostedService<ReputationSnapshotHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.Configure<PlatformHealthOptions>(
@@ -385,6 +397,8 @@ builder.Services.AddSingleton(new ReservationNoShowOptions());
 builder.Services.AddScoped<ReservationNoShowRunner>();
 builder.Services.AddSingleton(new ReservationRequestExpiryOptions());
 builder.Services.AddScoped<ReservationRequestExpiryRunner>();
+builder.Services.AddSingleton(new DeviceMaintenanceExpiryOptions());
+builder.Services.AddScoped<DeviceMaintenanceExpiryRunner>();
 builder.Services.AddSingleton(new ReputationSnapshotOptions());
 builder.Services.AddScoped<ReputationSnapshotRunner>();
 builder.Services.AddScoped<IPlayerReputationService, EfPlayerReputationService>();
@@ -429,7 +443,12 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 });
 
 builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
+// Копия картинки рекламы при одобрении: короткий срок — модератор ждёт ответа.
+builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddScoped<IEskhataMerchantClientFactory, EskhataMerchantClientFactory>();
+
+// Адрес клиента за Traefik (см. TrustedProxies): без этого все ограничения «по IP» считают адрес прокси.
+builder.Services.Configure<ForwardedHeadersOptions>(options => TrustedProxies.Configure(options, builder.Configuration));
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -506,6 +525,17 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1)
             }));
 
+    // Тихая установка по коду. Зал ставят разом, и тридцать ПК за одним адресом клуба приходят
+    // в одну минуту — потолок под это, а не под перебор: код в 80 бит перебором не взять.
+    options.AddPolicy("install-code", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
     // Вход в платформенную панель. За этой дверью — заведение клубов, деньги и права, и до сих
     // пор она была единственной во всей системе без ограничения частоты.
     options.AddPolicy("platform-sign-in", httpContext =>
@@ -538,7 +568,7 @@ app.UseStaticFiles();
 
 // Прод без перечисленных источников не пускает браузерные кабинеты вовсе. Это лучше открытого
 // localhost, но узнать об этом из логов надо раньше, чем из «кнопка не работает».
-if (!allowDeveloperCorsOrigins && combinedWebOrigins.Length == 0)
+if (!allowDeveloperCorsOrigins && organizationAdminBrowserOrigins.Length + platformBrowserOrigins.Length == 0)
 {
     app.Logger.LogWarning(
         "CORS origins are not configured for this environment; browser clients will be refused. " +
@@ -590,6 +620,9 @@ app.Services.GetRequiredService<ITemplateProvider>().EnsureKeysPresent(Notificat
 // policy unions OperatorWebOrigins and PlatformWebOrigins so both SPAs share
 // one preflight handler; the per-SPA named policies remain registered for
 // endpoint-scoped RequireCors usage if we ever need to split them again.
+// Первым делом — настоящий адрес клиента: его читают троттлы и ограничители частоты ниже.
+app.UseForwardedHeaders();
+
 app.UseCors(CombinedWebCorsPolicyName);
 app.Use(async (httpContext, next) =>
 {
@@ -628,6 +661,17 @@ var organizations = app.MapGroup("/api/organizations/{organizationId:guid}")
 app.MapHealthEndpoints();
 organizations.MapFloorMapEndpoints();
 organizations.MapBranchSettingsEndpoints();
+app.MapProtectionProfileEndpoints(organizations);
+app.MapInstallCodeEndpoints(organizations);
+app.MapGameLibraryEndpoints(organizations);
+app.MapDeviceHardwareEndpoints(organizations);
+app.MapShowcaseEndpoints();
+app.MapAdEndpoints();
+app.MapTipEndpoints(organizations);
+organizations.MapClubPlanEndpoints();
+organizations.MapClubAdEndpoints();
+organizations.MapConsoleSeatEndpoints();
+organizations.MapGuestImportEndpoints();
 organizations.MapMediaEndpoints();
 app.MapAuthEndpoints(organizations);
 organizations.MapEskhataConfigEndpoints();
@@ -650,7 +694,7 @@ app.MapPlayerLoyaltyEndpoints();
 app.MapPlayerReferralEndpoints();
 app.MapPlayerFeatureEndpoints();
 app.MapPlayerNewsEndpoints();
-app.MapClubReviewEndpoints();
+app.MapClubReviewEndpoints(organizations);
 app.MapPlayerDeviceEndpoints();
 organizations.MapShopOrderEndpoints();
 organizations.MapWalletEndpoints();

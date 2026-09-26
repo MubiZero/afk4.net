@@ -461,8 +461,10 @@ foreach ($helperScript in $updateHelperScripts) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/$helperScript") -Destination $updateHelperDir -Force
 }
 
+# Util — для util:ServiceConfig: правила перезапуска службы агента после падения.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/agent/Package.wxs') `
     -arch x64 `
+    -ext WixToolset.Util.wixext `
     -d "PackageVersion=$msiVersion" `
     -d "AgentServicePublishDir=$agentServicePublishDir" `
     -d "AgentServiceSupportDir=$agentServiceSupportDir" `

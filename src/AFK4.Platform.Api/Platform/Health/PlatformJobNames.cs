@@ -19,6 +19,9 @@ public static class PlatformJobNames
     /// <summary>Снятие заявок, на которые клуб не ответил в обещанный срок, с полным возвратом денег.</summary>
     public const string ReservationRequestExpiry = "reservation_request_expiry";
 
+    /// <summary>Возврат в зал ПК, забытых на обслуживании дольше восьми часов.</summary>
+    public const string DeviceMaintenanceExpiry = "device_maintenance_expiry";
+
     /// <summary>Напоминания игроку, у которых нет события: конец сессии и приближающаяся бронь.</summary>
     public const string PlayerReminders = "player_reminders";
 
@@ -46,6 +49,7 @@ public static class PlatformJobNames
         BranchSnapshots,
         ReservationNoShow,
         ReservationRequestExpiry,
+        DeviceMaintenanceExpiry,
         PlayerReminders,
         ReputationSnapshot
     ];

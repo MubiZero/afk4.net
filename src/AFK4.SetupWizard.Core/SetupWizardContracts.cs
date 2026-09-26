@@ -116,6 +116,12 @@ public interface ISetupWizardApiClient
         CancellationToken cancellationToken);
 }
 
+/// <summary>Тихая установка: ПК предъявляет код установки вместо входа сотрудника.</summary>
+public interface IInstallCodeEnrollmentClient
+{
+    Task<InstallEnrollResponse> EnrollByCodeAsync(InstallCodeEnrollRequest request, CancellationToken cancellationToken);
+}
+
 public interface IDeviceKeyStore
 {
     Task<string> GetOrCreatePublicKeyPemAsync(CancellationToken cancellationToken);
@@ -129,6 +135,26 @@ public interface ISetupWizardBootstrapWriter
 public interface ISetupWizardCompletionAction
 {
     void Complete();
+}
+
+/// <summary>Перезагрузить ПК: автовход в учётку игрока срабатывает только при запуске Windows.</summary>
+public interface ISetupWizardRebootAction
+{
+    void Reboot();
+}
+
+/// <summary>Перезагрузка через shutdown.exe с паузой: мастер успевает ответить экрану и закрыться.</summary>
+public sealed class ShutdownRebootAction(IProcessRunner processRunner) : ISetupWizardRebootAction
+{
+    public void Reboot()
+    {
+        var shutdown = Path.Combine(Environment.SystemDirectory, "shutdown.exe");
+        var result = processRunner.Run(shutdown, ["/r", "/t", "5", "/c", "AFK4: the PC restarts to sign in to the player account.", "/d", "p:4:1"]);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"shutdown.exe exited with {result.ExitCode}.");
+        }
+    }
 }
 
 /// <summary>

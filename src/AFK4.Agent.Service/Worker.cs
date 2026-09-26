@@ -1,6 +1,9 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Games;
+using AFK4.Agent.Service.Network;
+using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.Extensions.Options;
@@ -27,7 +30,16 @@ public sealed class Worker(
     IShellStateSignal shellStateSignal,
     TimeProvider timeProvider,
     IProcessPolicyEnforcer? processPolicyEnforcer = null,
-    IPlatformClockSynchronizer? platformClockSynchronizer = null) : BackgroundService
+    IPlatformClockSynchronizer? platformClockSynchronizer = null,
+    INetworkIdentityProvider? networkIdentity = null,
+    IMaintenanceMode? maintenanceMode = null,
+    IPlayerSignIn? playerSignIn = null,
+    IProtectionEnforcer? protection = null,
+    IGameLibrarySync? games = null,
+    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null,
+    AFK4.Agent.Service.Hardware.IHardwareReporter? hardware = null,
+    AFK4.Agent.Service.Showcase.IShowcaseSync? showcase = null,
+    AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -68,6 +80,7 @@ public sealed class Worker(
         await TryMaintainPlayerShellAsync(stoppingToken);
         await TryReconcileSessionAsync(stoppingToken);
         await TryReportInstalledAppsAsync(stoppingToken);
+        await TryProtectAsync(() => protection!.ApplyAsync(stoppingToken), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -96,7 +109,8 @@ public sealed class Worker(
                 agentOptions,
                 runtimeState.IsLocked,
                 timeProvider.GetUtcNow(),
-                leaseStore);
+                leaseStore,
+                networkIdentity?.Current);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -131,6 +145,25 @@ public sealed class Worker(
                     heartbeat.SeatingCodeExpiresAtUtc,
                     heartbeat.Branding,
                     heartbeat.HeartbeatIntervalSeconds);
+                shellHeartbeatSnapshot.RecordPlace(heartbeat.Seat, heartbeat.SessionOwner, heartbeat.Features);
+                shellHeartbeatSnapshot.RecordMaintenance(heartbeat.MaintenanceSinceUtc, heartbeat.MaintenanceByName);
+                if (maintenanceMode is not null)
+                {
+                    await maintenanceMode.ReconcileAsync(heartbeat.Maintenance, cancellationToken);
+                }
+
+                // Профиль защиты — после обслуживания: в обслуживании запреты сняты и остаются снятыми.
+                await TryProtectAsync(() => protection!.SyncAsync(heartbeat.PolicyProfileVersion, cancellationToken), cancellationToken);
+                await TryStepAsync("Game library", () => games?.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
+                // Простой — по профилю, который только что сверили.
+                idleShutdown?.Check();
+                // Железо — раз в несколько часов; своё расписание у отправителя.
+                await TryStepAsync("Hardware report", () => hardware?.ReportIfDueAsync(cancellationToken), cancellationToken);
+                // Витрина — раз в 10 минут по ETag; своё расписание у витрины.
+                await TryStepAsync("Showcase", () => showcase?.SyncIfDueAsync(cancellationToken), cancellationToken);
+                // Показы рекламы — пачкой раз в час.
+                await TryStepAsync("Showcase impressions", () => impressions?.FlushIfDueAsync(cancellationToken), cancellationToken);
+
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
                 {
@@ -138,6 +171,12 @@ public sealed class Worker(
                 }
 
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
+
+                // Страховка на случай, если событие хаба о заявке QR потерялось.
+                if (heartbeat.PendingSignInClaim is { } claim && playerSignIn is not null)
+                {
+                    await playerSignIn.RedeemClaimAsync(claim.ClaimId, cancellationToken);
+                }
             }
 
             var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? HeartbeatRetryIntervalSeconds;
@@ -436,6 +475,50 @@ public sealed class Worker(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Installed app inventory report failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    private async Task TryProtectAsync(Func<Task> action, CancellationToken cancellationToken)
+    {
+        if (protection is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await action();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Protection profile step failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    /// <summary>
+    /// Шаг после сердцебиения, который не должен ронять круг: библиотека игр, опись железа, витрина.
+    /// Шаг, которого на этом ПК нет, возвращает null и просто пропускается.
+    /// </summary>
+    private async Task TryStepAsync(string step, Func<Task?> action, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (action() is { } running)
+            {
+                await running;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "{Step} step failed. Continuing with heartbeat loop.", step);
         }
     }
 

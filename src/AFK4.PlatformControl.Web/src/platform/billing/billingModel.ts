@@ -82,21 +82,36 @@ export interface PlanForm {
   maxStaffUsersPerBranch: number | null;
   isActive: boolean;
   sortOrder: number;
+  pricePerDeviceMinorUnits: number;
+  includedDevices: number;
+  maxDevices: number | null;
+  // Все функции платформы — чтобы отметить, какие включает тариф.
+  features: { featureKey: string; name: string }[];
+  includedFeatures: string[];
+  applyLimitsToClubs: boolean;
+  clubs: number;
 }
 
-export function emptyPlanForm(): PlanForm {
+export function emptyPlanForm(features: { featureKey: string; name: string }[] = []): PlanForm {
   return {
     planCode: '',
     name: '',
     priceMinorUnits: 0,
-    currencyCode: 'RUB',
+    currencyCode: 'TJS',
     billingInterval: 'monthly',
     maxBranches: null,
     maxDevicesPerBranch: null,
     maxConcurrentSessions: null,
     maxStaffUsersPerBranch: null,
     isActive: true,
-    sortOrder: 0
+    sortOrder: 0,
+    pricePerDeviceMinorUnits: 0,
+    includedDevices: 0,
+    maxDevices: null,
+    features,
+    includedFeatures: [],
+    applyLimitsToClubs: false,
+    clubs: 0
   };
 }
 
@@ -112,7 +127,14 @@ export function planToForm(plan: SubscriptionPlan): PlanForm {
     maxConcurrentSessions: plan.maxConcurrentSessions,
     maxStaffUsersPerBranch: plan.maxStaffUsersPerBranch,
     isActive: plan.isActive,
-    sortOrder: plan.sortOrder
+    sortOrder: plan.sortOrder,
+    pricePerDeviceMinorUnits: plan.pricePerDeviceMinorUnits ?? 0,
+    includedDevices: plan.includedDevices ?? 0,
+    maxDevices: plan.maxDevices ?? null,
+    features: (plan.features ?? []).map(({ featureKey, name }) => ({ featureKey, name })),
+    includedFeatures: (plan.features ?? []).filter(feature => feature.isIncluded).map(feature => feature.featureKey),
+    applyLimitsToClubs: false,
+    clubs: plan.clubs ?? 0
   };
 }
 
@@ -134,7 +156,11 @@ export function planFormToCreateRequest(form: PlanForm): CreatePlanRequest {
     maxDevicesPerBranch: form.maxDevicesPerBranch,
     maxConcurrentSessions: form.maxConcurrentSessions,
     maxStaffUsersPerBranch: form.maxStaffUsersPerBranch,
-    sortOrder: form.sortOrder
+    sortOrder: form.sortOrder,
+    pricePerDeviceMinorUnits: form.pricePerDeviceMinorUnits,
+    includedDevices: form.includedDevices,
+    maxDevices: form.maxDevices,
+    includedFeatures: form.features.length > 0 ? form.includedFeatures : null
   };
 }
 
@@ -149,7 +175,14 @@ export function planFormToUpdateRequest(form: PlanForm): UpdatePlanRequest {
     maxConcurrentSessions: form.maxConcurrentSessions,
     maxStaffUsersPerBranch: form.maxStaffUsersPerBranch,
     isActive: form.isActive,
-    sortOrder: form.sortOrder
+    sortOrder: form.sortOrder,
+    pricePerDeviceMinorUnits: form.pricePerDeviceMinorUnits,
+    includedDevices: form.includedDevices,
+    // Пустое поле — снять предел: «не передан» на сервере значит «оставить прежним».
+    maxDevices: form.maxDevices,
+    removeMaxDevices: form.maxDevices === null,
+    includedFeatures: form.features.length > 0 ? form.includedFeatures : null,
+    applyLimitsToClubs: form.applyLimitsToClubs
   };
 }
 

@@ -224,6 +224,14 @@ public sealed class OrganizationPurgeService(PlatformDbContext dbContext, TimePr
         await DeleteAsync(dbContext.DeviceSeatAssignments.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.DeviceCredentials.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.DeviceEnrollmentCodes.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.InstallCodes.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.BranchGames.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.BranchGameLibraries.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.DeviceHardware.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.OrganizationTipSettings.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.ShiftTipPayouts.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.AdImpressionsDaily.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.AdImpressionBatches.Where(row => row.OrganizationId == organizationId), cancellationToken);
         return await DeleteAsync(dbContext.Devices.Where(row => row.OrganizationId == organizationId), cancellationToken);
     }
 
@@ -232,6 +240,7 @@ public sealed class OrganizationPurgeService(PlatformDbContext dbContext, TimePr
         await DeleteAsync(dbContext.Seats.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.Zones.Where(row => row.OrganizationId == organizationId), cancellationToken);
         await DeleteAsync(dbContext.BranchDailySnapshots.Where(row => row.OrganizationId == organizationId), cancellationToken);
+        await DeleteAsync(dbContext.BranchProtectionProfiles.Where(row => row.OrganizationId == organizationId), cancellationToken);
         return await DeleteAsync(dbContext.Branches.Where(row => row.OrganizationId == organizationId), cancellationToken);
     }
 

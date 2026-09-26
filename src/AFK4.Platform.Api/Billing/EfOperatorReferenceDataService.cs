@@ -235,7 +235,8 @@ public sealed class EfOperatorReferenceDataService(
                     row.Tariff.AppliesFromMinuteOfDay,
                     row.Tariff.AppliesToMinuteOfDay,
                     now,
-                    zone)))
+                    zone),
+                row.Tariff.FeaturedOnPcs))
             .ToList();
     }
 

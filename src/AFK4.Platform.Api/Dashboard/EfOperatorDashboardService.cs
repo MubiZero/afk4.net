@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Install;
 ﻿using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Endpoints;
@@ -48,7 +49,8 @@ public sealed class EfOperatorDashboardService(
             .ToListAsync(cancellationToken);
         var devices = await dbContext.Devices
             .AsNoTracking()
-            .Where(device => device.OrganizationId == organizationId && device.BranchId == branchId)
+            .Where(device => device.OrganizationId == organizationId && device.BranchId == branchId
+                && device.Role != DeviceRoleNames.Console)
             .ToListAsync(cancellationToken);
         var deviceIds = devices.Select(device => device.DeviceId).ToHashSet();
         var sessions = await dbContext.Sessions

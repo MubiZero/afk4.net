@@ -60,6 +60,29 @@ public sealed class ShellPipeClientTests
     }
 
     [Fact]
+    public async Task ASignInAndAClubCommand_AreDeliveredInOrder_WithoutBeingAskedFor()
+    {
+        await using var agent = FakeAgent.Start();
+        var (client, run, lifetime) = StartClient(agent.PipeName);
+        await agent.AcceptAsync();
+        await agent.SendAsync(new ShellPipeMessage(ShellPipeMessageTypeNames.State, State: State(PlayerShellStateNames.Locked)));
+
+        await agent.SendAsync(new ShellPipeMessage(ShellPipeMessageTypeNames.Auth, Auth: Session()));
+        await agent.SendAsync(new ShellPipeMessage(
+            ShellPipeMessageTypeNames.Command,
+            Command: new ShellPipeCommandDto(Guid.NewGuid(), "sign-out")));
+
+        await using var pushes = client.ReadPushesAsync(lifetime.Token).GetAsyncEnumerator();
+        Assert.True(await pushes.MoveNextAsync().AsTask().WaitAsync(Timeout));
+        Assert.Equal("access-token", pushes.Current.Auth!.AccessToken);
+        Assert.True(await pushes.MoveNextAsync().AsTask().WaitAsync(Timeout));
+        Assert.Equal("sign-out", pushes.Current.Command!.Type);
+
+        await lifetime.CancelAsync();
+        await run;
+    }
+
+    [Fact]
     public async Task WithoutTheAgent_ARequestSaysSoAtOnce()
     {
         var client = new ShellPipeClient(Options($"afk4-none-{Guid.NewGuid():N}"[..20]), verifyAgentSession: false);
@@ -117,6 +140,10 @@ public sealed class ShellPipeClientTests
             await Task.Delay(20);
         }
     }
+
+    private static AFK4.Shared.Contracts.Identity.PlatformPersonSessionResponse Session() => new(
+        Guid.NewGuid(), Guid.NewGuid(), "Фарход", true, "access-token", DateTimeOffset.UtcNow.AddMinutes(15),
+        "refresh-token", DateTimeOffset.UtcNow.AddHours(12), Guid.NewGuid(), "ru", true);
 
     private static PlayerShellStateDto State(string state) => new(
         OrganizationId: Guid.NewGuid(),

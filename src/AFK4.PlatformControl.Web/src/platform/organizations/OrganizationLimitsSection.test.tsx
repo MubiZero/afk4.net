@@ -25,7 +25,21 @@ it('submits limits with blanks coerced to null', async () => {
   );
   fireEvent.click(screen.getByRole('button', { name: 'Применить лимиты' }));
   await waitFor(() => expect(client.updateLimits).toHaveBeenCalledWith('o1', {
-    maxBranches: 3, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null
+    maxBranches: 3, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null, maxDevices: null
   }));
   expect(onUpdated).toHaveBeenCalled();
+});
+
+// Бесплатный тариф ограничивает ПК на весь клуб: сохранение других лимитов этот предел не стирает.
+it('keeps the club-wide PC limit when other limits are saved', async () => {
+  const club = detail({ planCode: 'free', limits: { maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null, maxDevices: 10 } });
+  const client = { updateLimits: mock().mockResolvedValue(club) } as any;
+  render(
+    <I18nProvider><ToastProvider>
+      <OrganizationLimitsSection client={client} organization={club} onUpdated={mock()} />
+    </ToastProvider></I18nProvider>
+  );
+  expect(screen.getByLabelText('ПК на весь клуб')).toHaveValue(10);
+  fireEvent.click(screen.getByRole('button', { name: 'Применить лимиты' }));
+  await waitFor(() => expect(client.updateLimits).toHaveBeenCalledWith('o1', expect.objectContaining({ maxDevices: 10 })));
 });

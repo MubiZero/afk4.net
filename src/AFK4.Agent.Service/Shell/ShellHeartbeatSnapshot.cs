@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Agent.Service.Shell;
@@ -21,6 +22,29 @@ public interface IShellHeartbeatSnapshot
     int? IntervalSeconds { get; }
 
     void Record(string? seatingCode, DateTimeOffset? seatingCodeExpiresAtUtc, ShellBrandingDto? branding, int intervalSeconds);
+
+    /// <summary>Место этого ПК — «ПК 07 · Общий зал». null — ПК не привязан или сервер ещё не отвечал.</summary>
+    DeviceSeatDto? Seat { get; }
+
+    /// <summary>Чья сессия идёт на ПК — по словам сервера.</summary>
+    DeviceSessionOwnerDto? SessionOwner { get; }
+
+    /// <summary>Права организации по тарифу: без них экран прячет разделы, которых у клуба нет.</summary>
+    IReadOnlyList<string>? Features { get; }
+
+    /// <summary>
+    /// Место, владелец сессии и права из того же сердцебиения. Отдельно от <see cref="Record"/>:
+    /// у них нет своей логики «пустое значит не прислали» — сервер отвечает всем трём сразу.
+    /// </summary>
+    void RecordPlace(DeviceSeatDto? seat, DeviceSessionOwnerDto? sessionOwner, IReadOnlyList<string>? features);
+
+    /// <summary>С какого момента ПК на обслуживании — по словам сервера.</summary>
+    DateTimeOffset? MaintenanceSinceUtc { get; }
+
+    /// <summary>Кто включил обслуживание.</summary>
+    string? MaintenanceByName { get; }
+
+    void RecordMaintenance(DateTimeOffset? sinceUtc, string? byName);
 }
 
 public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
@@ -30,6 +54,11 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
     private DateTimeOffset? seatingCodeExpiresAtUtc;
     private ShellBrandingDto? branding;
     private int? intervalSeconds;
+    private DeviceSeatDto? seat;
+    private DeviceSessionOwnerDto? sessionOwner;
+    private IReadOnlyList<string>? features;
+    private DateTimeOffset? maintenanceSinceUtc;
+    private string? maintenanceByName;
 
     public string? SeatingCode { get { lock (gate) { return seatingCode; } } }
 
@@ -38,6 +67,35 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
     public ShellBrandingDto? Branding { get { lock (gate) { return branding; } } }
 
     public int? IntervalSeconds { get { lock (gate) { return intervalSeconds; } } }
+
+    public DeviceSeatDto? Seat { get { lock (gate) { return seat; } } }
+
+    public DeviceSessionOwnerDto? SessionOwner { get { lock (gate) { return sessionOwner; } } }
+
+    public IReadOnlyList<string>? Features { get { lock (gate) { return features; } } }
+
+    public DateTimeOffset? MaintenanceSinceUtc { get { lock (gate) { return maintenanceSinceUtc; } } }
+
+    public string? MaintenanceByName { get { lock (gate) { return maintenanceByName; } } }
+
+    public void RecordMaintenance(DateTimeOffset? sinceUtc, string? byName)
+    {
+        lock (gate)
+        {
+            maintenanceSinceUtc = sinceUtc;
+            maintenanceByName = byName;
+        }
+    }
+
+    public void RecordPlace(DeviceSeatDto? seat, DeviceSessionOwnerDto? sessionOwner, IReadOnlyList<string>? features)
+    {
+        lock (gate)
+        {
+            this.seat = seat;
+            this.sessionOwner = sessionOwner;
+            this.features = features;
+        }
+    }
 
     public void Record(
         string? seatingCode,

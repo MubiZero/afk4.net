@@ -1147,32 +1147,19 @@ internal static class PlayerSelfServiceEndpoints
                 playerContextAccessor.Current?.PlayerAccountId, timeProvider, cancellationToken);
             if (replay is not null) return Results.Ok(replay);
 
-            var attemptScope = SeatingCodeAttemptScopeId(playerContextAccessor, personContextAccessor);
-            if (attemptScope is null) return Results.Unauthorized();
-            var blockedUntil = await attemptGuard.BlockedUntilAsync(
-                attemptScope.Value, organizationId.Value, cancellationToken);
-            if (blockedUntil is not null)
-            {
-                return Results.Json(
-                    new { error = SeatingCodeErrorCodeNames.AttemptsExceeded, retryAfterUtc = blockedUntil },
-                    statusCode: StatusCodes.Status429TooManyRequests);
-            }
-
             // Код с монитора и есть доказательство, что человек стоит перед этой машиной. Не
             // подошёл — отвечаем одним отказом на все случаи: чужой клуб, истёкший код и опечатка
-            // снаружи неразличимы, иначе перебор шестизначных цифр становится осмысленным.
-            var deviceId = await seatingCodes.FindDeviceAsync(
-                organizationId.Value, request.SeatingCode, cancellationToken);
-            if (deviceId is null)
-            {
-                await attemptGuard.RecordFailureAsync(attemptScope.Value, organizationId.Value, cancellationToken);
-                return Results.BadRequest(new { error = SeatingCodeErrorCodeNames.Invalid });
-            }
+            // снаружи неразличимы, иначе перебор шестизначных цифр становится осмысленным. Оболочка
+            // кода не шлёт: её токен привязан к ПК.
+            var (deviceId, refusal) = await ResolveSeatDeviceAsync(
+                request.SeatingCode, organizationId.Value, playerContextAccessor, personContextAccessor,
+                seatingCodes, attemptGuard, cancellationToken);
+            if (refusal is not null) return refusal;
 
             var assignment = await (
                 from a in dbContext.DeviceSeatAssignments.AsNoTracking()
                 join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
-                where a.DeviceId == deviceId.Value &&
+                where a.DeviceId == deviceId &&
                       a.OrganizationId == organizationId &&
                       a.DetachedAtUtc == null &&
                       d.EnrollmentState == DeviceEnrollmentStateNames.Approved
@@ -1249,114 +1236,29 @@ internal static class PlayerSelfServiceEndpoints
                 SessionOriginNames.SelfService,
                 cancellationToken);
 
-            if (result.Conflict) return Results.Conflict(new { error = result.Error });
+            // Код отказа, если он есть, а не английская фраза: приложение отличает «место заняли»
+            // от «ПК на обслуживании» по нему.
+            if (result.Conflict) return Results.Conflict(new { error = result.Code ?? result.Error });
             if (result.NotFound) return Results.NotFound(new { error = result.Error });
             if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
 
             // Сели — код своё отработал. Машина получит новый на ближайшем сердцебиении.
-            await seatingCodes.TryConsumeAsync(deviceId.Value, request.SeatingCode, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(request.SeatingCode))
+            {
+                await seatingCodes.TryConsumeAsync(deviceId, request.SeatingCode, cancellationToken);
+            }
             return Results.Ok(result.Response);
         }).RequireRateLimiting("player-me").OpensClubAccount();
 
         // Что можно купить, сев за этот ПК (спека оболочки, §5.5): действующие тарифы филиала с
         // готовыми суммами и пакеты игрока. Код с монитора — тот же пропуск, что у старта, и
         // неверный код считается так же: иначе этот маршрут стал бы бесплатным перебором.
-        app.MapGet("/api/me/devices/{seatingCode}/start-offers", async (
-            string seatingCode,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
-            PlatformDbContext dbContext,
-            EfSeatingCodeService seatingCodes,
-            SeatingCodeAttemptGuard attemptGuard,
-            IOperatorReferenceDataService referenceData,
-            TimeProvider timeProvider,
-            CancellationToken cancellationToken) =>
-        {
-            var organizationId = playerContextAccessor.Current?.OrganizationId
-                ?? personContextAccessor.Current?.SelectedOrganizationId;
-            if (organizationId is null) return Results.Unauthorized();
+        app.MapGet("/api/me/devices/{seatingCode}/start-offers", StartOffersAsync).RequireRateLimiting("player-me");
 
-            var attemptScope = SeatingCodeAttemptScopeId(playerContextAccessor, personContextAccessor);
-            if (attemptScope is null) return Results.Unauthorized();
-            var blockedUntil = await attemptGuard.BlockedUntilAsync(
-                attemptScope.Value, organizationId.Value, cancellationToken);
-            if (blockedUntil is not null)
-            {
-                return Results.Json(
-                    new { error = SeatingCodeErrorCodeNames.AttemptsExceeded, retryAfterUtc = blockedUntil },
-                    statusCode: StatusCodes.Status429TooManyRequests);
-            }
-
-            var deviceId = await seatingCodes.FindDeviceAsync(organizationId.Value, seatingCode, cancellationToken);
-            if (deviceId is null)
-            {
-                await attemptGuard.RecordFailureAsync(attemptScope.Value, organizationId.Value, cancellationToken);
-                return Results.BadRequest(new { error = SeatingCodeErrorCodeNames.Invalid });
-            }
-
-            var seat = await (
-                from a in dbContext.DeviceSeatAssignments.AsNoTracking()
-                join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
-                join seatRow in dbContext.Seats.AsNoTracking() on a.SeatId equals seatRow.SeatId
-                where a.DeviceId == deviceId.Value &&
-                      a.OrganizationId == organizationId &&
-                      a.DetachedAtUtc == null &&
-                      d.EnrollmentState == DeviceEnrollmentStateNames.Approved
-                orderby a.AttachedAtUtc descending
-                select new
-                {
-                    a.BranchId,
-                    Label = seatRow.Name,
-                    ZoneName = dbContext.Zones.Where(zone => zone.ZoneId == seatRow.ZoneId).Select(zone => zone.Name).FirstOrDefault()
-                }).FirstOrDefaultAsync(cancellationToken);
-            if (seat is null) return Results.NotFound(new { error = "device_not_assigned" });
-
-            var now = timeProvider.GetUtcNow();
-            var timeZoneId = await dbContext.Branches.AsNoTracking()
-                .Where(branch => branch.BranchId == seat.BranchId)
-                .Select(branch => branch.PreferredTimeZone)
-                .SingleOrDefaultAsync(cancellationToken) ?? "UTC";
-            var zone = BranchLocalTime.ResolveZone(timeZoneId);
-
-            // Счёта ещё может не быть — тогда баланс ноль и пакетов нет; открывать счёт ради
-            // просмотра цен не нужно.
-            var player = playerContextAccessor.Current;
-            var wallet = player is null
-                ? null
-                : await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, player.PlayerAccountId, cancellationToken);
-            var tariffs = await referenceData.GetTariffOptionsAsync(organizationId.Value, seat.BranchId, cancellationToken);
-            var currency = wallet?.WalletBalance.CurrencyCode ?? tariffs.FirstOrDefault()?.CurrencyCode ?? "TJS";
-            var balance = wallet?.WalletBalance.MinorUnits ?? 0;
-
-            var packages = new List<PlayerPackageOfferDto>();
-            if (player is not null)
-            {
-                var owned = await dbContext.PlayerPackages.AsNoTracking()
-                    .Where(package => package.PlayerAccountId == player.PlayerAccountId
-                        && package.BranchId == seat.BranchId
-                        && (package.ExpiresAtUtc == null || package.ExpiresAtUtc > now))
-                    .Select(package => new { package.PlayerPackageId, package.Name, package.ExpiresAtUtc })
-                    .ToListAsync(cancellationToken);
-                var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
-                    dbContext, owned.Select(package => package.PlayerPackageId).ToList(), cancellationToken);
-                packages = owned
-                    .Select(package => new PlayerPackageOfferDto(
-                        package.PlayerPackageId,
-                        package.Name,
-                        (remaining[package.PlayerPackageId].IncludedSeconds + remaining[package.PlayerPackageId].BonusSeconds) / 60,
-                        package.ExpiresAtUtc))
-                    .Where(package => package.RemainingMinutes > 0)
-                    .ToList();
-            }
-
-            return Results.Ok(new PlayerStartOffersDto(
-                seat.Label,
-                seat.ZoneName,
-                timeZoneId,
-                new MoneyDto(currency, balance),
-                tariffs.Select(tariff => PlayerOffers.ForTariff(tariff, balance, now, zone)).ToList(),
-                packages));
-        }).RequireRateLimiting("player-me");
+        // Те же цены для ПК, на котором человек вошёл сам (спека оболочки, §5.3): токен привязан к
+        // машине и сам доказывает, где человек сидит. Код с монитора оболочке не годится — вход по
+        // QR его гасит, а новый приходит только со следующим сердцебиением.
+        app.MapGet("/api/me/this-pc/start-offers", StartOffersAsync).RequireRateLimiting("player-me");
 
         // Чем продлить идущую сессию — по тарифу, на котором она началась, с готовыми суммами.
         app.MapGet("/api/me/sessions/{sessionId:guid}/extend-offers", async (
@@ -1684,6 +1586,131 @@ internal static class PlayerSelfServiceEndpoints
                 quote.PackageSecondsReturned / 60));
         }).RequireRateLimiting("player-me");
 
+    }
+
+    private static async Task<IResult> StartOffersAsync(
+        string? seatingCode,
+        IPlayerContextAccessor playerContextAccessor,
+        IPlatformPersonContextAccessor personContextAccessor,
+        PlatformDbContext dbContext,
+        EfSeatingCodeService seatingCodes,
+        SeatingCodeAttemptGuard attemptGuard,
+        IOperatorReferenceDataService referenceData,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = playerContextAccessor.Current?.OrganizationId
+            ?? personContextAccessor.Current?.SelectedOrganizationId;
+        if (organizationId is null) return Results.Unauthorized();
+
+        var (deviceId, refusal) = await ResolveSeatDeviceAsync(
+            seatingCode, organizationId.Value, playerContextAccessor, personContextAccessor,
+            seatingCodes, attemptGuard, cancellationToken);
+        if (refusal is not null) return refusal;
+
+        var seat = await (
+            from a in dbContext.DeviceSeatAssignments.AsNoTracking()
+            join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
+            join seatRow in dbContext.Seats.AsNoTracking() on a.SeatId equals seatRow.SeatId
+            where a.DeviceId == deviceId &&
+                  a.OrganizationId == organizationId &&
+                  a.DetachedAtUtc == null &&
+                  d.EnrollmentState == DeviceEnrollmentStateNames.Approved
+            orderby a.AttachedAtUtc descending
+            select new
+            {
+                a.BranchId,
+                Label = seatRow.Name,
+                ZoneName = dbContext.Zones.Where(zone => zone.ZoneId == seatRow.ZoneId).Select(zone => zone.Name).FirstOrDefault()
+            }).FirstOrDefaultAsync(cancellationToken);
+        if (seat is null) return Results.NotFound(new { error = "device_not_assigned" });
+
+        var now = timeProvider.GetUtcNow();
+        var timeZoneId = await dbContext.Branches.AsNoTracking()
+            .Where(branch => branch.BranchId == seat.BranchId)
+            .Select(branch => branch.PreferredTimeZone)
+            .SingleOrDefaultAsync(cancellationToken) ?? "UTC";
+        var zone = BranchLocalTime.ResolveZone(timeZoneId);
+
+        // Счёта ещё может не быть — тогда баланс ноль и пакетов нет; открывать счёт ради
+        // просмотра цен не нужно.
+        var player = playerContextAccessor.Current;
+        var wallet = player is null
+            ? null
+            : await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, player.PlayerAccountId, cancellationToken);
+        var tariffs = await referenceData.GetTariffOptionsAsync(organizationId.Value, seat.BranchId, cancellationToken);
+        var currency = wallet?.WalletBalance.CurrencyCode ?? tariffs.FirstOrDefault()?.CurrencyCode ?? "TJS";
+        var balance = wallet?.WalletBalance.MinorUnits ?? 0;
+
+        var packages = new List<PlayerPackageOfferDto>();
+        if (player is not null)
+        {
+            var owned = await dbContext.PlayerPackages.AsNoTracking()
+                .Where(package => package.PlayerAccountId == player.PlayerAccountId
+                    && package.BranchId == seat.BranchId
+                    && (package.ExpiresAtUtc == null || package.ExpiresAtUtc > now))
+                .Select(package => new { package.PlayerPackageId, package.Name, package.ExpiresAtUtc })
+                .ToListAsync(cancellationToken);
+            var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
+                dbContext, owned.Select(package => package.PlayerPackageId).ToList(), cancellationToken);
+            packages = owned
+                .Select(package => new PlayerPackageOfferDto(
+                    package.PlayerPackageId,
+                    package.Name,
+                    (remaining[package.PlayerPackageId].IncludedSeconds + remaining[package.PlayerPackageId].BonusSeconds) / 60,
+                    package.ExpiresAtUtc))
+                .Where(package => package.RemainingMinutes > 0)
+                .ToList();
+        }
+
+        return Results.Ok(new PlayerStartOffersDto(
+            seat.Label,
+            seat.ZoneName,
+            timeZoneId,
+            new MoneyDto(currency, balance),
+            tariffs.Select(tariff => PlayerOffers.ForTariff(tariff, balance, now, zone)).ToList(),
+            packages));
+    }
+
+    /// <summary>
+    /// За каким ПК стоит человек. Код с монитора — пропуск телефона: неверный считается попыткой, и
+    /// перебор упирается в предел. Без кода — только токен, привязанный к ПК: вход был ключом этой
+    /// машины, другой ПК им не открыть.
+    /// </summary>
+    private static async Task<(Guid DeviceId, IResult? Refusal)> ResolveSeatDeviceAsync(
+        string? seatingCode,
+        Guid organizationId,
+        IPlayerContextAccessor playerContextAccessor,
+        IPlatformPersonContextAccessor personContextAccessor,
+        EfSeatingCodeService seatingCodes,
+        SeatingCodeAttemptGuard attemptGuard,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(seatingCode))
+        {
+            return personContextAccessor.Current?.DeviceId is { } boundDevice
+                ? (boundDevice, null)
+                : (Guid.Empty, Results.BadRequest(new { error = SeatingCodeErrorCodeNames.Invalid }));
+        }
+
+        var attemptScope = SeatingCodeAttemptScopeId(playerContextAccessor, personContextAccessor);
+        if (attemptScope is null) return (Guid.Empty, Results.Unauthorized());
+        var blockedUntil = await attemptGuard.BlockedUntilAsync(attemptScope.Value, organizationId, cancellationToken);
+        if (blockedUntil is not null)
+        {
+            return (Guid.Empty, Results.Json(
+                new { error = SeatingCodeErrorCodeNames.AttemptsExceeded, retryAfterUtc = blockedUntil },
+                statusCode: StatusCodes.Status429TooManyRequests));
+        }
+
+        var deviceId = await seatingCodes.FindDeviceAsync(organizationId, seatingCode, cancellationToken);
+        if (deviceId is null)
+        {
+            await attemptGuard.RecordFailureAsync(attemptScope.Value, organizationId, cancellationToken);
+            return (Guid.Empty, Results.BadRequest(new { error = SeatingCodeErrorCodeNames.Invalid }));
+        }
+
+        return (deviceId.Value, null);
     }
 
     /// <summary>

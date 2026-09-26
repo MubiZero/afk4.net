@@ -13,12 +13,18 @@ namespace AFK4.Platform.Api.Identity;
 /// Платформа закрыла человеку самообслуживание во всей сети. Читается на каждом запросе вместе с
 /// самой личностью: запрет обязан начать действовать сразу, а не со следующим входом.
 /// </param>
+/// <param name="DeviceId">
+/// ПК, к которому привязан токен (вход на самом ПК, спека оболочки, §5.3). Такой токен выдаётся
+/// только ключом этого ПК и гаснет, когда за ним никого нет, — он сам доказывает, что человек
+/// сидит за этой машиной, и код посадки с монитора ему не нужен.
+/// </param>
 public sealed record PlatformPersonContext(
     Guid PlatformPersonId,
     Guid? PinnedOrganizationId,
     bool PhoneVerified,
     Guid? SelectedOrganizationId = null,
-    bool NetworkBanned = false);
+    bool NetworkBanned = false,
+    Guid? DeviceId = null);
 
 public interface IPlatformPersonContextAccessor
 {

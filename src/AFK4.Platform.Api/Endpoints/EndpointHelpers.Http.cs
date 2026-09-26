@@ -155,50 +155,12 @@ internal static partial class EndpointHelpers
         };
     }
 
-    public static string GetSourceIp(HttpContext httpContext)
-    {
-        var remoteIp = httpContext.Connection.RemoteIpAddress;
-        if (ShouldTrustForwardedFor(remoteIp))
-        {
-            var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
-            var firstForwardedFor = forwardedFor
-                .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-                .FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(firstForwardedFor))
-            {
-                return firstForwardedFor;
-            }
-        }
-
-        return remoteIp?.ToString() ?? "unknown";
-    }
-
-    public static bool ShouldTrustForwardedFor(IPAddress? remoteIp)
-    {
-        if (remoteIp is null || IPAddress.IsLoopback(remoteIp))
-        {
-            return true;
-        }
-
-        if (remoteIp.IsIPv4MappedToIPv6)
-        {
-            remoteIp = remoteIp.MapToIPv4();
-        }
-
-        if (remoteIp.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var bytes = remoteIp.GetAddressBytes();
-            return bytes[0] == 10 ||
-                (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) ||
-                (bytes[0] == 192 && bytes[1] == 168);
-        }
-
-        if (remoteIp.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            var bytes = remoteIp.GetAddressBytes();
-            return remoteIp.IsIPv6LinkLocal || (bytes[0] & 0xfe) == 0xfc;
-        }
-
-        return false;
-    }
+    /// <summary>
+    /// Адрес клиента. <c>X-Forwarded-For</c> здесь больше не разбирается: это делает
+    /// <c>UseForwardedHeaders</c> в начале конвейера и только для соседа из внутренней сети
+    /// (<see cref="Platform.Http.TrustedProxies"/>). Прежний ручной разбор брал первый адрес
+    /// заголовка — тот, что может подставить сам клиент.
+    /// </summary>
+    public static string GetSourceIp(HttpContext httpContext) =>
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

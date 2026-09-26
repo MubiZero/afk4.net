@@ -162,6 +162,15 @@ public sealed class DeviceHeartbeatService(
             .Select(branch => new
             {
                 branch.GraceLeaseMinutes,
+                // Версия профиля защиты — тем же запросом: число, которое меняется раз в неделю.
+                PolicyProfileVersion = dbContext.BranchProtectionProfiles
+                    .Where(profile => profile.BranchId == branch.BranchId)
+                    .Select(profile => profile.Version)
+                    .FirstOrDefault(),
+                GameLibraryVersion = dbContext.BranchGameLibraries
+                    .Where(library => library.BranchId == branch.BranchId)
+                    .Select(library => library.Version)
+                    .FirstOrDefault(),
                 Branding = dbContext.Organizations
                     .Where(organization => organization.OrganizationId == branch.OrganizationId)
                     .Select(organization => new ShellBrandingDto(
@@ -186,7 +195,10 @@ public sealed class DeviceHeartbeatService(
             .FirstOrDefaultAsync(cancellationToken);
         var busy = liveSession is not null;
 
-        var seatingCode = busy || !allowOperationalCommands
+        // На обслуживании ПК закрыт для игроков: код посадки звал бы к нему человека.
+        var inMaintenance = device?.MaintenanceSinceUtc is not null;
+
+        var seatingCode = busy || inMaintenance || !allowOperationalCommands
             ? null
             : await seatingCodes.IssueAsync(request.OrganizationId, request.DeviceId, cancellationToken);
 
@@ -202,7 +214,7 @@ public sealed class DeviceHeartbeatService(
             : null;
 
         // Заявку на вход с телефона ПК получает по SignalR; сердцебиение — страховка на обрыв.
-        var pendingSignInClaim = allowOperationalCommands
+        var pendingSignInClaim = allowOperationalCommands && !inMaintenance
             ? await signInClaims.PendingForDeviceAsync(deviceId, cancellationToken)
             : null;
 
@@ -228,7 +240,12 @@ public sealed class DeviceHeartbeatService(
                 _ => new DeviceSessionOwnerDto(DeviceSessionOwnerKindNames.Guest)
             },
             Features: features,
-            PendingSignInClaim: pendingSignInClaim);
+            PendingSignInClaim: pendingSignInClaim,
+            Maintenance: allowOperationalCommands && inMaintenance,
+            MaintenanceSinceUtc: allowOperationalCommands ? device?.MaintenanceSinceUtc : null,
+            MaintenanceByName: allowOperationalCommands && inMaintenance ? device?.MaintenanceByName : null,
+            PolicyProfileVersion: allowOperationalCommands ? branchInfo?.PolicyProfileVersion ?? 0 : 0,
+            GameLibraryVersion: allowOperationalCommands ? branchInfo?.GameLibraryVersion ?? 0 : 0);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

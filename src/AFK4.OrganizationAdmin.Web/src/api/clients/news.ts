@@ -10,6 +10,7 @@ export interface NewsItemInput {
   isPublished: boolean;
   publishAtUtc: string | null;
   expiresAtUtc: string | null;
+  showOnPcs: boolean;
 }
 
 export function createNewsClient(api: PlatformApiClient) {

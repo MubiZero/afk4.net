@@ -1,22 +1,25 @@
 import type { MessageKey } from '@afk4/i18n';
 import type { PcControlActionId } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
+import { pcCommandsFor, type PcCommandId } from './pc/pcCommandOptions';
+import { PC_COMMAND_LABELS, type PcCommandOrLock } from './pc/pcCommandCopy';
+import { bulkCommands, shortBlockReason } from './pc/pcBulk';
 
-// Что делает пункт меню. Здесь только то, что исполняется сразу: старт гостя, продление,
-// управление ПК. Завершение/оплата/пересадка/билленый старт сюда НЕ попадают: они требуют
-// подтверждения и quote, которые живут в карточке справа (правый клик уже выбирает место и
-// раскрывает карточку).
+// Что делает пункт меню. Завершение, оплата, пересадка и старт с тарифом сюда не попадают: им
+// нужны расчёт и подтверждение, которые живут в карточке справа (правый клик уже выбирает место
+// и раскрывает карточку).
 //
-// Пунктов «скоро» здесь тоже нет. Перезагрузка, выключение, wake-on-LAN, активное окно, штраф и
-// «уведомить игрока» полгода стояли в меню и отвечали тостом: команд для них нет ни в контракте
-// устройств, ни в агенте. Меню, где половина пунктов не работает, перестаёт быть картой
-// возможностей — оно просто врёт. Вернутся вместе с командами на игровом ПК.
+// Пунктов «скоро» здесь тоже нет: меню, где половина пунктов не работает, перестаёт быть картой
+// возможностей — оно просто врёт. Команды ПК, которые спрашивают «точно?» или просят текст,
+// открывают окно подтверждения: пункт меню не исполняет их молча.
 export type SeatMenuRun =
   | { kind: 'start-guest' }
   | { kind: 'extend'; minutes: number }
   | { kind: 'pause' }
   | { kind: 'resume' }
   | { kind: 'pc'; action: PcControlActionId }
+  | { kind: 'pc-command'; command: PcCommandId }
+  | { kind: 'bulk'; command: PcCommandOrLock }
   | { kind: 'resolve-assistance' };
 
 export interface SeatMenuCaps {
@@ -27,6 +30,8 @@ export interface SeatMenuCaps {
   canLockUnlock: boolean;
   canResolveAssistance: boolean;
   canPause: boolean;
+  /** organization.devices.maintenance — обслуживание, своё право. */
+  canMaintain: boolean;
 }
 
 export interface SeatMenuItem {
@@ -57,7 +62,8 @@ function seatHasSession(seat: SeatSummary): boolean {
 export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSection[] {
   const hasSession = seatHasSession(seat);
   const isFree = seat.tone === 'ready' && !seat.activeSessionId && !hasSession;
-  const hasDevice = Boolean(seat.deviceId);
+  // У консоли нет агента — запереть, отпереть или перезагрузить её некому.
+  const hasDevice = Boolean(seat.deviceId) && !seat.isConsole;
 
   // Вызов оператора идёт первым пунктом: место зовёт человека, а не ждёт настройки.
   const session: SeatMenuItem[] = [];
@@ -131,9 +137,35 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
     }
   }
 
+  // Остальные команды ПК — те же, что в карточке места, и закрыты по тем же причинам: почему,
+  // сказано подсказкой у пункта, а не отказом после.
+  for (const option of hasDevice ? pcCommandsFor(seat, { canDispatch: caps.canLockUnlock, canMaintain: caps.canMaintain }) : []) {
+    pc.push({
+      id: `pc-${option.id}`,
+      labelKey: PC_COMMAND_LABELS[option.id],
+      feedbackKey: PC_COMMAND_LABELS[option.id],
+      hintKey: option.blockedReason === null ? undefined : shortBlockReason(option.blockedReason),
+      run: { kind: 'pc-command', command: option.id },
+      disabled: option.blockedReason !== null
+    });
+  }
+
   const sections: SeatMenuSection[] = [
     { id: 'session', titleKey: null, items: session },
     { id: 'pc', titleKey: 'op.map.menu.sectionPc', items: pc }
   ];
   return sections.filter((section) => section.items.length > 0);
+}
+
+/** Меню нескольких выбранных мест: только команды ПК, по одной на всех. */
+export function buildBulkMenu(seats: SeatSummary[], caps: SeatMenuCaps): SeatMenuSection[] {
+  const items = bulkCommands(seats, { canDispatch: caps.canLockUnlock, canMaintain: caps.canMaintain })
+    .map((command): SeatMenuItem => ({
+      id: `bulk-${command}`,
+      labelKey: PC_COMMAND_LABELS[command],
+      feedbackKey: PC_COMMAND_LABELS[command],
+      run: { kind: 'bulk', command },
+      disabled: false
+    }));
+  return items.length > 0 ? [{ id: 'bulk', titleKey: 'op.map.menu.sectionPc', items }] : [];
 }

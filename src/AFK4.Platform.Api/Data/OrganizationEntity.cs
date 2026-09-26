@@ -26,6 +26,15 @@ public sealed class OrganizationEntity
 
     public string PlanCode { get; set; } = "starter";
 
+    /// <summary>Код «Приведи клуб»: клуб, подключившийся по нему и начавший платить, дарит месяц.</summary>
+    public string? ReferralCode { get; set; }
+
+    /// <summary>Кто привёл этот клуб.</summary>
+    public Guid? ReferredByOrganizationId { get; set; }
+
+    /// <summary>Когда пригласившему начислен бесплатный месяц — один раз за клуб.</summary>
+    public DateTimeOffset? ReferralRewardedAtUtc { get; set; }
+
     public string SubscriptionStatus { get; set; } = "trial";
 
     public string LimitsJson { get; set; } = "{}";

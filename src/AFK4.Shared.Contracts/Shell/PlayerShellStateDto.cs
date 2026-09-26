@@ -1,3 +1,6 @@
+using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Showcase;
+
 namespace AFK4.Shared.Contracts.Shell;
 
 public sealed record PlayerShellStateDto(
@@ -28,4 +31,29 @@ public sealed record PlayerShellStateDto(
     // Когда агент в последний раз достучался до платформы. Пусто — ни разу с запуска службы.
     DateTimeOffset? LastContactUtc = null,
     // Адрес платформы из настроек агента: хосту больше не нужно угадывать, куда ходить.
-    string? ApiBaseUrl = null);
+    string? ApiBaseUrl = null,
+    // Место этого ПК — «ПК 07»: первое, что читается на экране, и видно от стойки.
+    string? SeatLabel = null,
+    // Зона места — «Общий зал».
+    string? ZoneName = null,
+    // Чья сессия идёт: none, guest или player. Вошедшему не владельцу экран говорит «эта сессия
+    // не ваша» и ничего не открывает.
+    string? SessionOwnerKind = null,
+    // Счёт владельца сессии — только у player.
+    Guid? SessionOwnerPlayerAccountId = null,
+    // Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека.
+    IReadOnlyList<string>? Features = null,
+    // Обслуживание: с какого момента и кто его включил — для полосы «Включено из Панели AFK4.net
+    // в 14:05 · Шерзод». Пусто вне обслуживания; имя пусто, если его включила поддержка без имени.
+    DateTimeOffset? MaintenanceSinceUtc = null,
+    string? MaintenanceByName = null,
+    // Окна, которые хост закрывает, едва они появятся (профиль защиты, §6.3). Служба в сессии 0
+    // окон игрока не видит, поэтому правила едут хосту. В обслуживании список пуст.
+    IReadOnlyList<BlockedWindowRuleDto>? BlockedWindows = null,
+    // Правила клуба из настроек ПК: кнопка на экране свободного ПК их открывает.
+    string? ClubRules = null,
+    // Свободный ПК выключится от простоя в это время: экран показывает отсчёт, движение мыши его
+    // отменяет. null — выключение не назначено.
+    DateTimeOffset? IdleShutdownAtUtc = null,
+    // Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба.
+    IReadOnlyList<ShowcaseCardDto>? Showcase = null);

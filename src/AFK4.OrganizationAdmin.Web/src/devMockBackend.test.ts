@@ -212,6 +212,43 @@ describe('devMockFetch session preview', () => {
   });
 });
 
+// Демо-Панель стоит на этой заглушке: «+15 мин», перенос и завершение должны менять карту, иначе
+// посетитель жмёт кнопку, получает «готово» и видит, что ничего не случилось.
+describe('devMockFetch session lifecycle on the map', () => {
+  const org = 'https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
+  const post = (path: string, body: Record<string, unknown>) =>
+    devMockFetch(`${org}${path}`, { method: 'POST', body: JSON.stringify(body) });
+  const seatById = async (seatId: string) => {
+    const map = await (await devMockFetch(`${org}/branches/branch/floor-map`)).json();
+    return map.seats.find((item: { seatId: string }) => item.seatId === seatId);
+  };
+
+  it('adds the bought minutes to the remaining time', async () => {
+    const before = (await seatById('a1')).remainingSeconds as number;
+    expect((await post('/sessions/s1/extend', { additionalMinutes: 15, idempotencyKey: 'k-extend' })).status).toBe(200);
+    expect((await seatById('a1')).remainingSeconds).toBe(before + 15 * 60);
+  });
+
+  // Свободные ПК заглушки заняты бронями соседних тестов — место под перенос освобождает конец сессии.
+  it('frees the seat when the session ends', async () => {
+    expect((await post('/sessions/s9/end', { reason: 'operator', idempotencyKey: 'k-end' })).status).toBe(200);
+    expect(await seatById('c3')).toMatchObject({ state: 'Free', activeSessionId: null, isDeviceLocked: true });
+    expect((await post('/sessions/s9/end', { reason: 'operator', idempotencyKey: 'k-end-again' })).status).toBe(409);
+  });
+
+  it('moves the session to a free seat and frees the old one', async () => {
+    expect((await post('/sessions/s5/transfer', { targetSeatId: 'c3', idempotencyKey: 'k-transfer' })).status).toBe(200);
+    expect(await seatById('c3')).toMatchObject({ state: 'Active', activeSessionId: 's5', playerDisplayName: 'Мадина С.' });
+    expect(await seatById('b1')).toMatchObject({ state: 'Free', activeSessionId: null });
+  });
+
+  it('refuses to move a session onto a busy seat', async () => {
+    const response = await post('/sessions/s5/transfer', { targetSeatId: 'a1', idempotencyKey: 'k-transfer-busy' });
+    expect(response.status).toBe(409);
+    expect(await seatById('c3')).toMatchObject({ state: 'Active', activeSessionId: 's5' });
+  });
+});
+
 describe('devMockFetch reservation session start', () => {
   it('links one session, replays the same request, and rejects changed re-use', async () => {
     const before = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/reservations')).json();

@@ -1,10 +1,14 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
+import type { CreateConsoleSeatRequest, DeviceInventoryItemDto } from '@afk4/contracts';
 import type { PosProductDto, PosProductCategoryDto } from './pos';
 import type {
   AddProductBarcodeRequest,
   AssignDeviceSeatRequest,
   BranchBookingSettingsDto,
+  BranchProtectionProfileDto,
+  UpdateBranchProtectionProfileRequest,
+  StaffInviteSummaryDto,
   BranchProfileDto,
   BranchSettingsDto,
   CreatePackageDefinitionRequest,
@@ -47,6 +51,8 @@ export type {
   AddProductBarcodeRequest,
   AssignDeviceSeatRequest,
   BranchBookingSettingsDto,
+  BranchProtectionProfileDto,
+  UpdateBranchProtectionProfileRequest,
   BranchPhotoDto,
   BranchProfileDto,
   BranchSettingsDto,
@@ -122,8 +128,22 @@ export function createSettingsClient(api: PlatformApiClient) {
     updateBookingSettings(branchId: Guid, request: UpdateBranchBookingSettingsRequest): Promise<BranchBookingSettingsDto> {
       return api.put<BranchBookingSettingsDto, UpdateBranchBookingSettingsRequest>(`branches/${branchId}/booking-settings`, request);
     },
+    // Профиль защиты ПК филиала (спека оболочки, §6.3): агенты перечитывают его по версии.
+    getProtectionProfile(branchId: Guid): Promise<BranchProtectionProfileDto> {
+      return api.get<BranchProtectionProfileDto>(`branches/${branchId}/settings/protection`);
+    },
+    updateProtectionProfile(branchId: Guid, request: UpdateBranchProtectionProfileRequest): Promise<BranchProtectionProfileDto> {
+      return api.put<BranchProtectionProfileDto, UpdateBranchProtectionProfileRequest>(`branches/${branchId}/settings/protection`, request);
+    },
     getStaffUsers(branchId: Guid): Promise<StaffUserDto[]> {
       return api.get<StaffUserDto[]>(`branches/${branchId}/staff`);
+    },
+    // Добавленные, но ещё не входившие сотрудники — со статусом кода первого входа.
+    listStaffInvites(branchId: Guid): Promise<StaffInviteSummaryDto[]> {
+      return api.get<StaffInviteSummaryDto[]>(`branches/${branchId}/staff/invites`);
+    },
+    revokeStaffInvite(branchId: Guid, staffInviteId: Guid): Promise<void> {
+      return api.delete<void>(`branches/${branchId}/staff/invites/${staffInviteId}`);
     },
     createStaffInvite(branchId: Guid, request: CreateStaffInviteRequest): Promise<StaffInviteDto> {
       return api.post<StaffInviteDto, CreateStaffInviteRequest>(`branches/${branchId}/staff/invites`, request);
@@ -225,6 +245,10 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     assignDeviceSeat(branchId: Guid, deviceId: Guid, request: AssignDeviceSeatRequest): Promise<DeviceSeatAssignmentDto> {
       return api.post<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(`branches/${branchId}/devices/${deviceId}/seat-assignment`, request);
+    },
+    // Консоль без агента на месте: сессию ведёт администратор.
+    createConsoleSeat(branchId: Guid, request: CreateConsoleSeatRequest): Promise<DeviceInventoryItemDto> {
+      return api.post<DeviceInventoryItemDto, CreateConsoleSeatRequest>(`branches/${branchId}/consoles`, request);
     }
   };
 }

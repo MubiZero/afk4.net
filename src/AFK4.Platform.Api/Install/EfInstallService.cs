@@ -2,6 +2,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
@@ -18,8 +19,15 @@ public sealed class EfInstallService(
     IOptions<InstallOptions> options,
     IOptions<SessionLeaseOptions> sessionLeaseOptions,
     TimeProvider timeProvider,
+    IPlanLimitGuard planLimitGuard,
     IDeviceBoundPlayerTokens? deviceTokens = null) : IInstallService
 {
+    /// <summary>
+    /// Сколько раз повторить установку по коду, если в ту же секунду код потратил соседний ПК.
+    /// Зал ставят разом, и соседи сталкиваются на счётчике кода — это не ошибка, а очередь.
+    /// </summary>
+    private const int CodeEnrollAttempts = 5;
+
     private const int MaxMachineNameLength = 128;
     private const int MinDisplayNameLength = 3;
     private const int MaxDisplayNameLength = 32;
@@ -42,6 +50,142 @@ public sealed class EfInstallService(
             cancellationToken);
     }
 
+    public async Task<InstallOperationResult<InstallCodeEnrollment>> EnrollByCodeAsync(
+        InstallCodeEnrollRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedCode = InstallCodes.Normalize(request.Code);
+        if (normalizedCode is null)
+        {
+            return InvalidCode();
+        }
+
+        var codeHash = InstallCodes.Hash(normalizedCode);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await EnrollByCodeOnceAsync(codeHash, request, cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < CodeEnrollAttempts)
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<InstallOperationResult<InstallCodeEnrollment>> EnrollByCodeOnceAsync(
+        string codeHash,
+        InstallCodeEnrollRequest request,
+        CancellationToken cancellationToken)
+    {
+        var code = await dbContext.InstallCodes.SingleOrDefaultAsync(
+            candidate => candidate.CodeHash == codeHash, cancellationToken);
+        if (code is null || code.ExpiresAtUtc <= timeProvider.GetUtcNow())
+        {
+            return InvalidCode();
+        }
+
+        var devicePublicKey = (request.DevicePublicKey ?? string.Empty).Trim();
+        var knownDevice = devicePublicKey.Length > 0 && await dbContext.Devices.AnyAsync(
+            device =>
+                device.OrganizationId == code.OrganizationId &&
+                device.BranchId == code.BranchId &&
+                device.DevicePublicKey == devicePublicKey,
+            cancellationToken);
+        // Переустановка того же ПК код не тратит — и исчерпанный код её пускает: иначе ПК, у
+        // которого слетела система, не вернуть в зал тем же скриптом, которым его туда ставили.
+        if (!knownDevice && code.UsedDevices >= code.MaxDevices)
+        {
+            return InvalidCode();
+        }
+
+        var seatName = string.IsNullOrWhiteSpace(request.SeatName) ? request.MachineName : request.SeatName;
+        var seatId = await FindFreeSeatByNameAsync(
+            code.OrganizationId, code.BranchId, seatName ?? string.Empty, devicePublicKey, cancellationToken);
+
+        var result = await EnrollResolvedAsync(
+            code.OrganizationId,
+            code.BranchId,
+            seatId,
+            DeviceRoleNames.GamingPc,
+            request.DisplayName,
+            request.MachineName ?? string.Empty,
+            devicePublicKey,
+            cancellationToken,
+            seatRequired: false,
+            installCode: knownDevice ? null : code);
+
+        return result.Succeeded
+            ? InstallOperationResult<InstallCodeEnrollment>.Success(
+                new InstallCodeEnrollment(result.Value!, code.InstallCodeId, code.CreatedByStaffUserId, !knownDevice),
+                code.OrganizationId,
+                code.BranchId,
+                code.CreatedByStaffUserId)
+            : new InstallOperationResult<InstallCodeEnrollment>(
+                result.Status,
+                Value: null,
+                result.Error,
+                code.OrganizationId,
+                code.BranchId,
+                code.CreatedByStaffUserId,
+                result.Code);
+    }
+
+    // Одна причина на «неизвестен, истёк, отозван, исчерпан»: угадывающему не надо знать, какой
+    // из кодов был почти настоящим.
+    private static InstallOperationResult<InstallCodeEnrollment> InvalidCode() =>
+        InstallOperationResult<InstallCodeEnrollment>.BadRequest(
+            "Install code is not valid.",
+            code: InstallErrorCodeNames.InstallCodeInvalid);
+
+    /// <summary>
+    /// Место по имени — если оно одно такое в филиале и свободно (или за ним этот же ПК). Иначе
+    /// null, и ПК встаёт без места: два «PC-07» в разных залах — не повод угадывать.
+    /// </summary>
+    private async Task<Guid?> FindFreeSeatByNameAsync(
+        Guid organizationId,
+        Guid branchId,
+        string seatName,
+        string devicePublicKey,
+        CancellationToken cancellationToken)
+    {
+        var normalizedName = seatName.Trim().ToUpperInvariant();
+        if (normalizedName.Length == 0)
+        {
+            return null;
+        }
+
+        var matches = await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat =>
+                seat.OrganizationId == organizationId &&
+                seat.BranchId == branchId &&
+                seat.Name.ToUpper() == normalizedName)
+            .Select(seat => seat.SeatId)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (matches.Count != 1)
+        {
+            return null;
+        }
+
+        var seatId = matches[0];
+        var occupantKey = await dbContext.DeviceSeatAssignments
+            .Where(assignment => assignment.SeatId == seatId && assignment.DetachedAtUtc == null)
+            .SelectMany(assignment => dbContext.Devices
+                .Where(device => device.DeviceId == assignment.DeviceId)
+                .Select(device => device.DevicePublicKey))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return occupantKey is null || occupantKey == devicePublicKey ? seatId : null;
+    }
+
+    /// <param name="seatRequired">
+    /// Мастер без места игровой ПК не ставит: место выбирает человек. Тихая установка ставит и
+    /// без места — человека рядом нет, и ПК привязывают в Панели.
+    /// </param>
+    /// <param name="installCode">Код, которым ставят новый ПК: одна его установка тратится вместе с регистрацией.</param>
     private async Task<InstallOperationResult<InstallEnrollResponse>> EnrollResolvedAsync(
         Guid organizationId,
         Guid branchId,
@@ -50,7 +194,9 @@ public sealed class EfInstallService(
         string? requestedDisplayName,
         string requestedMachineName,
         string requestedDevicePublicKey,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool seatRequired = true,
+        InstallCodeEntity? installCode = null)
     {
         var organization = await dbContext.Organizations
             .AsNoTracking()
@@ -115,13 +261,14 @@ public sealed class EfInstallService(
                 $"Device public key must be {MaxDevicePublicKeyLength} characters or fewer.");
         }
 
-        if (requiresSeatAssignment && (requestedSeatId is null || requestedSeatId == Guid.Empty))
+        var hasSeat = requestedSeatId is not null && requestedSeatId != Guid.Empty;
+        if (requiresSeatAssignment && seatRequired && !hasSeat)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
                 "Seat is required for gaming PC enrollment.");
         }
 
-        if (!requiresSeatAssignment && requestedSeatId is not null && requestedSeatId != Guid.Empty)
+        if (!requiresSeatAssignment && hasSeat)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
                 "Manager workstation enrollment must not target a seat.");
@@ -139,8 +286,20 @@ public sealed class EfInstallService(
                 candidate.DevicePublicKey == devicePublicKey,
             cancellationToken);
 
+        // Лимит тарифа — только для нового ПК: переустановка того же места в зале не добавляет.
+        // Раньше его проверял лишь старый вход по коду, и мастер ставил ПК сверх тарифа.
+        if (existingDevice is null &&
+            await planLimitGuard.CheckDeviceAsync(organizationId, branchId, cancellationToken, normalizedRole) is not null)
+        {
+            return InstallOperationResult<InstallEnrollResponse>.Conflict(
+                "Plan device limit for this branch has been reached.",
+                organizationId,
+                branchId,
+                PlanLimitNames.ReachedCode);
+        }
+
         SeatEntity? seat = null;
-        if (requiresSeatAssignment)
+        if (requiresSeatAssignment && hasSeat)
         {
             var seatId = requestedSeatId!.Value;
             seat = await dbContext.Seats
@@ -228,18 +387,29 @@ public sealed class EfInstallService(
             CreatedAtUtc = now
         });
 
-        if (requiresSeatAssignment)
+        if (seat is not null)
         {
-            await AttachToSeatAsync(organizationId, branchId, seat!.SeatId, deviceId, now, cancellationToken);
+            await AttachToSeatAsync(organizationId, branchId, seat.SeatId, deviceId, now, cancellationToken);
         }
-        else if (existingDevice is not null)
+        else if (!requiresSeatAssignment && existingDevice is not null)
         {
             // Машина была игровой, а стала рабочим местом управляющего: место надо освободить,
             // иначе оно навсегда числится занятым тем, кого за ним больше нет.
             await DetachFromSeatsAsync(organizationId, deviceId, now, cancellationToken);
         }
 
+        if (existingDevice is null && installCode is not null)
+        {
+            // Тем же сохранением, что и сам ПК: счётчик — метка параллельности, и сосед, успевший
+            // потратить последнюю установку раньше, отменит всю регистрацию, а не только счёт.
+            installCode.UsedDevices++;
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        var assignedSeatName = seat?.Name ?? (requiresSeatAssignment && existingDevice is not null
+            ? await CurrentSeatNameAsync(deviceId, cancellationToken)
+            : null);
 
         var response = new InstallEnrollResponse(
             organizationId,
@@ -253,7 +423,8 @@ public sealed class EfInstallService(
             now)
         {
             LeaseSigningPublicKeyPem = ResolveLeaseSigningPublicKeyPem(),
-            UpdatePackageSigningPublicKeyPem = options.Value.UpdatePackageSigningPublicKeyPem
+            UpdatePackageSigningPublicKeyPem = options.Value.UpdatePackageSigningPublicKeyPem,
+            AssignedSeatName = assignedSeatName
         };
 
         return InstallOperationResult<InstallEnrollResponse>.Success(
@@ -261,6 +432,14 @@ public sealed class EfInstallService(
             organizationId,
             branchId);
     }
+
+    private Task<string?> CurrentSeatNameAsync(Guid deviceId, CancellationToken cancellationToken) =>
+        dbContext.DeviceSeatAssignments
+            .Where(assignment => assignment.DeviceId == deviceId && assignment.DetachedAtUtc == null)
+            .SelectMany(assignment => dbContext.Seats
+                .Where(candidate => candidate.SeatId == assignment.SeatId)
+                .Select(candidate => candidate.Name))
+            .FirstOrDefaultAsync(cancellationToken);
 
     private async Task RevokeActiveCredentialsAsync(
         Guid deviceId,

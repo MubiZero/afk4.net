@@ -21,6 +21,13 @@ public sealed class InvoiceGenerationHostedService(
     {
         var now = GetUtcNow();
 
+        // Сначала переходы тарифов: кончившийся пробный период должен встать на своё место до счетов.
+        var moved = await scopedServices.GetRequiredService<ClubPlans>().RunTransitionsAsync(now, cancellationToken);
+        if (moved > 0)
+        {
+            logger.LogInformation("Club plan transitions: {Count} club(s) moved.", moved);
+        }
+
         var issued = await scopedServices.GetRequiredService<IInvoiceGenerationRunner>().RunAsync(now, cancellationToken);
         if (issued > 0)
         {
@@ -33,6 +40,6 @@ public sealed class InvoiceGenerationHostedService(
             logger.LogInformation("Dunning tick sent {Count} notice(s).", notified);
         }
 
-        return issued + notified;
+        return moved + issued + notified;
     }
 }

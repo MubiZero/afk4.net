@@ -27,6 +27,10 @@ namespace AFK4.Platform.Api.Tests.Platform.Entitlements;
 /// </summary>
 public sealed class FeatureGateTests
 {
+    // Реклама платформы выключена по умолчанию: её включает бесплатный тариф, а не «всё и всем».
+    private static readonly IReadOnlyList<string> EnabledByDefault =
+        FeatureCatalog.Declared.Where(declaration => declaration.EnabledByDefault).Select(declaration => declaration.FeatureKey).ToList();
+
     private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
 
     private sealed record SeededPlayer(Guid OrgId, Guid BranchId, Guid PlayerId, string Phone);
@@ -433,7 +437,7 @@ public sealed class FeatureGateTests
         Assert.Contains(PlatformFeatureNames.OnlineBooking, dto.Features);
         Assert.Contains(PlatformFeatureNames.OnlineTopUp, dto.Features);
         Assert.Contains(PlatformFeatureNames.Loyalty, dto.Features);
-        Assert.Equal(PlatformFeatureNames.All.Count - 1, dto.Features.Count);
+        Assert.Equal(EnabledByDefault.Count - 1, dto.Features.Count);
     }
 
     [Fact]
@@ -468,7 +472,7 @@ public sealed class FeatureGateTests
         Assert.Contains(PlatformFeatureNames.OnlineBooking, dto.Features);
         Assert.Contains(PlatformFeatureNames.OnlineTopUp, dto.Features);
         Assert.Contains(PlatformFeatureNames.Loyalty, dto.Features);
-        Assert.Equal(PlatformFeatureNames.All.Count - 1, dto.Features.Count);
+        Assert.Equal(EnabledByDefault.Count - 1, dto.Features.Count);
     }
 
     [Fact]

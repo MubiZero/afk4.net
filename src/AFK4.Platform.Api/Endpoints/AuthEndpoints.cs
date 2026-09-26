@@ -184,6 +184,17 @@ internal static class AuthEndpoints
             return SignInResult(await credentialService.SignInByPhoneAsync(request, cancellationToken));
         }).RequireRateLimiting("staff-sign-in");
 
+        // Первый шаг входа: по номеру решается, спросить ПИН или код первого входа. Ответ говорит,
+        // заведён ли номер как сотрудник где-то в сети, — но не где и не кем; по тому же лимиту,
+        // что и сам вход.
+        app.MapPost(StaffAuthRoutes.NextStep, async (
+            StaffSignInNextStepRequest request,
+            IStaffInviteService staffInviteService,
+            CancellationToken cancellationToken) =>
+            Results.Ok(new StaffSignInNextStepResponse(
+                await staffInviteService.ResolveSignInStepAsync(request.PhoneNumber, cancellationToken))))
+            .RequireRateLimiting("staff-sign-in");
+
         organizations.MapPost("auth/staff/refresh", async (
             Guid organizationId,
             StaffRefreshTokenRequest request,

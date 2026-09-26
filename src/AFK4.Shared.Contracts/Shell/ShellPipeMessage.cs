@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Identity;
+
 namespace AFK4.Shared.Contracts.Shell;
 
 /// <summary>
@@ -12,7 +14,11 @@ public sealed record ShellPipeMessage(
     ShellPipeRequestDto? Request = null,
     ShellPipeReplyDto? Reply = null,
     // Почему агент попрощался; только у bye.
-    string? Reason = null);
+    string? Reason = null,
+    ShellPipeCommandDto? Command = null,
+    // Игрок вошёл на этом ПК — номером и ПИН-кодом или по QR с телефона. Токены привязаны к ПК;
+    // хост держит их в памяти и странице не отдаёт.
+    PlatformPersonSessionResponse? Auth = null);
 
 public sealed record ShellPipeHelloDto(
     int Protocol,
@@ -26,6 +32,14 @@ public sealed record ShellPipeRequestDto(
     // Одно из ShellPipeRequestTypeNames.
     string Type,
     IReadOnlyDictionary<string, string> Payload);
+
+/// <summary>Команда клуба, которую исполняет хост: у агента нет ни окна, ни аккаунта игрока.</summary>
+public sealed record ShellPipeCommandDto(
+    Guid CommandId,
+    // DeviceCommandTypeNames.SignOut или DeviceCommandTypeNames.Message.
+    string Type,
+    // Текст сообщения; только у message.
+    string? Text = null);
 
 public sealed record ShellPipeReplyDto(
     Guid RequestId,

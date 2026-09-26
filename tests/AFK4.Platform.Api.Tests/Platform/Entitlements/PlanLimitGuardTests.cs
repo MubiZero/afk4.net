@@ -117,6 +117,29 @@ public sealed class PlanLimitGuardTests
         Assert.Equal("starter", verdict.PlanCode);
     }
 
+    // Бесплатный тариф — «до десяти ПК на весь клуб»: ПК второго зала считаются вместе с первым.
+    [Fact]
+    public async Task Device_CountsTheWholeClub_WhenThePlanLimitsPcsPerClub()
+    {
+        await using var factory = new PlatformApiFactory();
+        _ = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var (organizationId, branchId) = await SeedAsync(db, new OrganizationLimitsDto(null, null, null, null, MaxDevices: 2), "free");
+        var secondHall = Guid.NewGuid();
+        db.Branches.Add(new BranchEntity { BranchId = secondHall, OrganizationId = organizationId, Slug = "hall-2-" + secondHall.ToString("N")[..8], Name = "Зал 2", CreatedAtUtc = Now });
+        SeedDevice(db, organizationId, branchId, DeviceEnrollmentStateNames.Approved);
+        SeedDevice(db, organizationId, secondHall, DeviceEnrollmentStateNames.Pending);
+        await db.SaveChangesAsync();
+        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+
+        var verdict = await guard.CheckDeviceAsync(organizationId, secondHall, CancellationToken.None);
+
+        Assert.Equal(PlanLimitNames.Devices, verdict!.LimitName);
+        Assert.Equal(2, verdict.Current);
+        Assert.Null(await guard.CheckDeviceAsync(organizationId, secondHall, CancellationToken.None, DeviceRoleNames.Console));
+    }
+
     [Fact]
     public async Task Branch_AllowsWhileBelowLimit()
     {
@@ -250,7 +273,8 @@ public sealed class PlanLimitGuardTests
             NormalizedPhone = "992937380099",
             CodeHash = "hash",
             CreatedAtUtc = Now,
-            ExpiresAtUtc = Now.AddDays(7)
+            // Живое приглашение по часам сервера: истёкшее места уже не держит.
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(7)
         });
         await db.SaveChangesAsync();
 

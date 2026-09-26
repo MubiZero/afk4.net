@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using AFK4.Agent.Service.Games;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service.Enforcement;
@@ -11,10 +12,27 @@ public interface IRunningProcessTerminator
 public sealed class ProcessPolicyEnforcer(
     IOptions<AgentOptions> options,
     IRunningProcessTerminator processTerminator,
-    ILogger<ProcessPolicyEnforcer> logger) : IProcessPolicyEnforcer
+    ILogger<ProcessPolicyEnforcer> logger,
+    ILauncherCatalog? catalog = null) : IProcessPolicyEnforcer
 {
     public AgentLauncherAppOptions? FindAllowedLauncherApp(string appId)
     {
+        // Разрешено ровно то, что игрок видит в библиотеке: список один на показ и на запуск.
+        if (catalog is not null)
+        {
+            return catalog.Find(appId) is { } entry
+                ? new AgentLauncherAppOptions
+                {
+                    AppId = entry.AppId,
+                    DisplayName = entry.DisplayName,
+                    Category = entry.Category,
+                    ExecutablePath = entry.ExecutablePath ?? string.Empty,
+                    Arguments = entry.Arguments,
+                    AllowWithoutSession = entry.AllowWithoutSession
+                }
+                : null;
+        }
+
         return options.Value.LauncherApps.FirstOrDefault(app =>
             app.IsEnabled &&
             string.Equals(app.AppId, appId, StringComparison.OrdinalIgnoreCase) &&

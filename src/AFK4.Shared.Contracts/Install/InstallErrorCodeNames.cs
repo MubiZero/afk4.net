@@ -9,4 +9,10 @@ public static class InstallErrorCodeNames
 {
     /// <summary>На выбранное место уже привязан другой ПК.</summary>
     public const string SeatOccupied = "seat_occupied";
+
+    /// <summary>
+    /// Код установки не подходит: неизвестен, истёк, отозван или исчерпан. Одна причина на все
+    /// четыре: угадывающему код не надо подсказывать, какой из них был почти верным.
+    /// </summary>
+    public const string InstallCodeInvalid = "install_code_invalid";
 }

@@ -138,6 +138,35 @@ export function postHostRequest<TPayload>(
   });
 }
 
+/**
+ * Подписка на сообщение, которое хост шлёт сам, без запроса: состояние ПК, вход игрока, тишина
+ * у клавиатуры. Раньше каждый клиент писал свою — мастер слушал `window:state` руками, оболочка
+ * держала свою копию моста целиком.
+ *
+ * Возвращает отписку. Без хоста подписка ничего не делает и отписка тоже: страница в браузере
+ * просто не получит событий, падать ей незачем.
+ */
+export function onHostMessage<TPayload>(
+  type: string,
+  handler: (payload: TPayload) => void
+): () => void {
+  const webview = window.chrome?.webview;
+  const addEventListener = webview?.addEventListener;
+  const removeEventListener = webview?.removeEventListener;
+  if (!webview || !addEventListener || !removeEventListener) {
+    return () => {};
+  }
+
+  const listener = (event: HostBridgeMessageEvent) => {
+    const message = event.data as { type?: unknown; payload?: unknown } | undefined;
+    if (message?.type === type) {
+      handler(message.payload as TPayload);
+    }
+  };
+  addEventListener.call(webview, 'message', listener);
+  return () => removeEventListener.call(webview, 'message', listener);
+}
+
 function createRequestId(): string {
   return window.crypto?.randomUUID?.() ?? `request-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

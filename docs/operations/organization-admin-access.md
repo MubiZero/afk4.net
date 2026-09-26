@@ -83,7 +83,12 @@ refuses to hand the answer back.
 `devMockBackend.ts`, not against a real API. Use it for UI work, never to verify
 behaviour.
 
-Sign-in is the ordinary staff sign-in — phone or email/login plus password.
+Sign-in is the ordinary staff sign-in in two steps: the phone number, then the
+six-digit PIN (or, for someone the manager has just added, the first sign-in
+code and a new PIN). The browser build knows no club, so it signs in through the
+network-wide routes under `/api/auth/staff/*` and the server finds the club from
+the number. Accounts without a number — an owner activated by email — use the
+«login or email» link under the phone field.
 
 ### Production lists its own origins
 
@@ -98,8 +103,16 @@ Cors__OperatorWebOrigins__0=https://admin.afk4.example
 Cors__PlatformWebOrigins__0=https://platform.afk4.example
 ```
 
-Miss that and browser clients are refused outright; the API logs a warning at
-startup saying so. That is the deliberate trade: a visible misconfiguration
+The two native apps are not on that list and need no configuration: the
+Organization Admin page (`https://operator.afk4.local`) and the Player Shell
+screen (`https://player.afk4.local`) are the WebView2 virtual hosts the apps load
+their own pages from, so the API allows them in every environment
+(`CorsOrigins.WithNativeApp`). They used to sit among the developer defaults,
+which would have refused every API call from both apps in Production — Staging
+never showed it.
+
+Miss the browser origins and browser clients are refused outright; the API logs
+a warning at startup saying so. That is the deliberate trade: a visible misconfiguration
 instead of a quietly open `localhost:4174` on every deployment.
 
 The exposure that was closed was narrow to begin with. The API has no cookie

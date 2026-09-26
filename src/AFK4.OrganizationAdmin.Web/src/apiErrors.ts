@@ -30,6 +30,8 @@ const codeMessageKeys = {
   // Пять промахов подряд запирают вход на четверть часа. Под общим «неверный логин или пароль»
   // человек продолжал бы подбирать и злиться, не понимая, почему верный пароль не подходит.
   too_many_password_attempts: 'op.error.code.tooManyPasswordAttempts',
+  // Двое правили профиль защиты одновременно: второму нужно перечитать, а не затереть первого.
+  protection_profile_version_conflict: 'op.error.code.protectionProfileConflict',
   open_shift_required: 'op.error.code.openShiftRequired',
   invalid_payment_split: 'op.error.code.invalidPaymentSplit',
   mixed_currency: 'op.error.code.mixedCurrency',
@@ -42,6 +44,13 @@ const codeMessageKeys = {
   reservation_already_started: 'op.error.code.reservationAlreadyStarted',
   reservation_expired: 'op.error.code.reservationExpired',
   seat_unavailable: 'op.error.code.seatUnavailable',
+  // Команды ПК: сервер отказывает по правилу, и повтор его не изменит — нужно действие человека.
+  device_has_active_session: 'op.error.code.deviceHasActiveSession',
+  wake_target_unknown: 'op.error.code.wakeTargetUnknown',
+  no_wake_helper: 'op.error.code.noWakeHelper',
+  invalid_command_payload: 'op.error.code.invalidCommandPayload',
+  // Клуб сам закрыл этот ПК на обслуживание: «место недоступно» не сказало бы, что делать дальше.
+  device_in_maintenance: 'op.error.code.deviceInMaintenance',
   version_conflict: 'op.error.code.versionConflict',
   // Сессию изменили с тех пор, как оператор её открыл. Отдельно от version_conflict: там речь про
   // бронь, и оператору полезно знать, что именно устарело.
@@ -51,6 +60,7 @@ const codeMessageKeys = {
   session_start_invalid: 'op.error.code.sessionStartInvalid',
   session_start_conflict: 'op.error.code.sessionStartConflict',
   plan_limit_reached: 'op.error.code.planLimitReached',
+  device_outside_plan: 'op.error.code.deviceOutsidePlan',
   // Касса и смены: до сих пор эти отказы не имели машинного имени, и кассир видел на экране
   // английскую фразу сервера вместе с сырым телом ответа.
   shift_already_open: 'op.error.code.shiftAlreadyOpen',
@@ -145,7 +155,7 @@ export function knownErrorMessage(error: unknown, t: TFn): string | null {
   if (!(error instanceof PlatformApiError)) return null;
   const code = readKnownErrorCode(error.body);
   if (code === null) return null;
-  const planLimit = code === 'plan_limit_reached' ? readPlanLimit(error.body) : null;
+  const planLimit = code === 'plan_limit_reached' || code === 'device_outside_plan' ? readPlanLimit(error.body) : null;
   return t(codeMessageKeys[code], planLimit ?? undefined);
 }
 

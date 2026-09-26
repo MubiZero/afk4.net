@@ -243,6 +243,24 @@ void main() {
     expect(find.textContaining('не хватает денег'), findsOneWidget);
   });
 
+  // Клуб увёл ПК на обслуживание: это не «место заняли», и сказать надо именно это.
+  testWidgets('ПК на обслуживании назван своей причиной', (tester) async {
+    final http = _serve(
+      seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]),
+      start: ('{"error":"device_in_maintenance"}', 409),
+    );
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Начать за'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('на обслуживании'), findsOneWidget);
+    expect(find.textContaining('только что заняли'), findsNothing);
+  });
+
   // Место могли занять за те секунды, что игрок выбирал: об этом надо сказать прямо.
   testWidgets('занятое за секунду до старта место просит выбрать другое', (tester) async {
     final http = _serve(

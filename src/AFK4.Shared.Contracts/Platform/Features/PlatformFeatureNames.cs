@@ -19,6 +19,9 @@ public static class PlatformFeatureNames
 
     public const string Tournaments = "tournaments";
 
+    /// <summary>Реклама платформы в витрине свободного ПК. Её включает бесплатный тариф.</summary>
+    public const string PlatformAds = "platform_ads";
+
     public static readonly IReadOnlyList<string> All =
-        [OnlineBooking, Loyalty, OnlineTopUp, PlayerShop, Tournaments];
+        [OnlineBooking, Loyalty, OnlineTopUp, PlayerShop, Tournaments, PlatformAds];
 }

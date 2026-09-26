@@ -3,6 +3,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import type { WizardEnrollResult, WizardRole, WizardSeat, WizardShellOutcome } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
+import { KioskStatusRow } from './Kiosk';
 
 interface FinishedScreenProps {
   result: WizardEnrollResult;
@@ -18,6 +19,8 @@ interface FinishedScreenProps {
   /// файлами одного прогона, и частичная подмена в соседнем тесте оставляла этот экран без
   /// импорта — сборка падала на «Export named 'closeWizard' not found».
   provisionShell: (role: WizardRole) => Promise<WizardShellOutcome>;
+  /// Перезагрузка — после киоска: автовход срабатывает только при запуске Windows.
+  reboot: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -34,6 +37,7 @@ export function FinishedScreen({
   selectedSeat,
   stepNumber,
   provisionShell,
+  reboot,
   onClose,
 }: FinishedScreenProps) {
   const { t } = useI18n();
@@ -98,6 +102,10 @@ export function FinishedScreen({
 
         {result.shell.status !== 'skipped' && (
           <ShellStatusRow initial={result.shell} role={result.role} provisionShell={provisionShell} />
+        )}
+
+        {result.shell.kiosk && (
+          <KioskStatusRow initial={result.shell.kiosk} role={result.role} provisionShell={provisionShell} reboot={reboot} />
         )}
 
         {isPending && (

@@ -5,6 +5,7 @@ import {
   hostBridgeTimeoutCode,
   isHostBridgeAvailable,
   isHostBridgeUnavailableError,
+  onHostMessage,
   postHostRequest,
   postHostWindowMessage,
   type HostBridgeMessageEvent
@@ -154,5 +155,39 @@ describe('isHostBridgeUnavailableError', () => {
     expect(isHostBridgeUnavailableError(new Error('Native host bridge is unavailable.'))).toBe(true);
     expect(isHostBridgeUnavailableError(
       new HostBridgeRequestError('timed out', hostBridgeTimeoutCode, null))).toBe(false);
+  });
+});
+
+describe('onHostMessage', () => {
+  it('delivers the payload of the named message and ignores the others', () => {
+    const host = respondingHost(() => undefined);
+    const seen: unknown[] = [];
+
+    onHostMessage<{ state: string }>('state.changed', (payload) => seen.push(payload));
+    for (const listener of host.listeners) {
+      listener({ data: { type: 'auth.changed', payload: { signedIn: true } } });
+      listener({ data: { type: 'state.changed', payload: { state: 'locked' } } });
+    }
+
+    expect(seen).toEqual([{ state: 'locked' }]);
+  });
+
+  it('stops delivering after unsubscribe', () => {
+    const host = respondingHost(() => undefined);
+    const seen: unknown[] = [];
+
+    const unsubscribe = onHostMessage('state.changed', (payload) => seen.push(payload));
+    unsubscribe();
+
+    expect(host.listeners.size).toBe(0);
+    expect(seen).toEqual([]);
+  });
+
+  it('is a harmless no-op without a host', () => {
+    window.chrome = undefined;
+
+    const unsubscribe = onHostMessage('state.changed', () => {});
+
+    expect(() => unsubscribe()).not.toThrow();
   });
 });

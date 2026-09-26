@@ -29,6 +29,12 @@
   font-weight: 500;
 }
 
+/* Статус — две половины («онлайн · заблокирован»): в четверть карточки он не влезал и резался
+   посреди слова. */
+.settings-device-detail-grid span:first-child {
+  grid-column: span 2;
+}
+
 /* Управление — shared scaffold every management destination screen mounts into
    (header + scrollable body + optional sticky save bar). Fills the workspace
    height the same way the shell does. */
@@ -204,3 +210,309 @@
 .settings-device-commands b { color: var(--text-strong); font-size: 12px; font-weight: 500; }
 .settings-device-commands small { color: var(--text-tertiary); font-size: 11px; }
 .settings-device-commands em { grid-column: 1 / -1; color: var(--text-tertiary); font-size: 11px; font-style: normal; }
+
+/* Защита ПК в карточке устройства: пункт и что с ним на самом деле. Не применилось — красным,
+   «только в Проводнике» — предупреждением: это не запрет, и клуб должен это видеть. */
+.device-protection {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.device-protection .mgmt-drawer-hint {
+  padding: 0;
+}
+
+.device-protection-behind {
+  margin: 0;
+  color: var(--warning-text);
+  font-size: 12px;
+}
+
+.device-protection-items {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device-protection-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+  font-size: 12px;
+}
+
+.device-protection-items b {
+  font-weight: 600;
+  color: var(--text-strong);
+  text-align: right;
+}
+
+.device-protection-items li[data-status='explorer-only'] b {
+  color: var(--warning-text);
+}
+
+.device-protection-items li[data-status='failed'] b,
+.device-protection-items li[data-status='unsupported'] b {
+  color: var(--danger-text);
+}
+
+/* Управление → Игры: обложки в списке и в каталоге. Без обложки — первая буква названия. */
+.games-cover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+.games-cover--large {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.games-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.games-catalog-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-catalog-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.games-catalog-item:hover,
+.games-catalog-item:focus-visible {
+  border-color: var(--border-accent);
+  outline: none;
+}
+
+.games-catalog-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.games-catalog-text span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* Управление → Отзывы: итог с разбивкой по звёздам (полоса — отбор) и список. */
+.reviews-screen {
+  display: grid;
+  gap: 14px;
+}
+
+.reviews-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.reviews-average {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.reviews-average strong {
+  color: var(--text-strong);
+  font-size: 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviews-average span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.reviews-bars {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviews-bar {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reviews-bar[aria-pressed='true'],
+.reviews-bar:hover,
+.reviews-bar:focus-visible {
+  border-color: var(--border-accent);
+  outline: none;
+}
+
+.reviews-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviews-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.reviews-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.reviews-bar-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviews-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.reviews-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviews-item header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.reviews-item time {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.reviews-item p {
+  margin: 8px 0 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  white-space: pre-line;
+}
+
+.reviews-item .reviews-no-comment {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.reviews-stars {
+  display: inline-flex;
+  gap: 1px;
+  color: var(--border-strong);
+}
+
+.reviews-stars .is-on {
+  color: var(--accent);
+  fill: currentColor;
+}
+
+.reviews-more {
+  justify-self: center;
+}
+
+/* Карточка ПК → Железо: что поменялось — зачёркнутое было и жирное стало. */
+.device-hardware {
+  display: grid;
+  gap: 10px;
+}
+
+.device-hardware-changes {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+}
+
+.device-hardware-changes ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.device-hardware-changes li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.device-hardware-changes li span {
+  color: var(--text-tertiary);
+}
+
+.device-hardware-changes li s {
+  color: var(--text-tertiary);
+}
+
+.device-hardware-changes .ui-btn {
+  justify-self: start;
+}

@@ -190,6 +190,12 @@ internal static partial class EndpointHelpers
             .GroupBy(command => command.DeviceId)
             .Select(group => new { DeviceId = group.Key, Count = group.Count() })
             .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+        // Железо, отличное от принятого: сравнение по отпечатку, без чтения самих снимков.
+        var hardwareChanged = await dbContext.DeviceHardware
+            .AsNoTracking()
+            .Where(hardware => deviceIds.Contains(hardware.DeviceId) && hardware.CurrentFingerprint != hardware.AcceptedFingerprint)
+            .Select(hardware => hardware.DeviceId)
+            .ToListAsync(cancellationToken);
         var failedCommandCounts = await dbContext.DeviceCommands
             .AsNoTracking()
             .Where(command => deviceIds.Contains(command.DeviceId) && (command.Status == "Failed" || command.Status == "Rejected"))
@@ -229,7 +235,8 @@ internal static partial class EndpointHelpers
                 FailedCommandCount: failedCommandCounts.GetValueOrDefault(device.DeviceId),
                 DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
                 Role: device.Role,
-                EnrollmentState: device.EnrollmentState);
+                EnrollmentState: device.EnrollmentState,
+                HardwareChanged: hardwareChanged.Contains(device.DeviceId));
         }).ToList();
     }
 

@@ -1,4 +1,4 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package
       Name="AFK4.NET Agent"
       Manufacturer="AFK4.NET"
@@ -44,7 +44,21 @@
           Type="ownProcess"
           Start="auto"
           ErrorControl="normal"
-          Account="LocalSystem" />
+          Account="LocalSystem">
+        <!--
+          Упавшего агента поднимает Windows (спека оболочки, §6.1): без него на ПК нет ни экрана
+          игрока, ни запретов, ни сердцебиения. Три перезапуска через 10 с, счёт падений
+          сбрасывается раз в сутки. util:ServiceConfig, а не встроенные ServiceConfig и
+          ServiceConfigFailureActions: те, по документации Windows Installer, «работают не так,
+          как ожидается», и WiX сам предупреждает о них при сборке.
+        -->
+        <util:ServiceConfig
+            FirstFailureActionType="restart"
+            SecondFailureActionType="restart"
+            ThirdFailureActionType="restart"
+            RestartServiceDelayInSeconds="10"
+            ResetPeriodInDays="1" />
+      </ServiceInstall>
       <ServiceControl
           Id="AgentServiceControl"
           Name="AFK4.Agent.Service"
@@ -114,6 +128,16 @@
     -->
     <Property Id="LAUNCHWIZARD" Secure="yes" />
 
+    <!--
+      Тихая установка по коду (план P5f-2): `afk4-client.exe /quiet AFK4_INSTALL_CODE=… [AFK4_SEAT=…]`
+      или `msiexec /i … /qn AFK4_INSTALL_CODE=…`. Код открывает регистрацию ПК в филиале, поэтому
+      он Hidden — его значения нет в журнале MSI, — а у действия, которое его передаёт, скрыта
+      командная строка. Окно мастера при коде не открывается: ставят скриптом, и смотреть на него
+      некому.
+    -->
+    <Property Id="AFK4_INSTALL_CODE" Secure="yes" Hidden="yes" />
+    <Property Id="AFK4_SEAT" Secure="yes" />
+
     <CustomAction
         Id="LaunchSetupWizard"
         FileRef="SetupWizardExe"
@@ -122,8 +146,22 @@
         Return="asyncNoWait"
         Impersonate="yes" />
 
+    <!--
+      После InstallFinalize и без ожидания: мастер сам ставит оболочку отдельным msiexec, а пока
+      эта сессия не закрыта, Windows Installer занят (1618) — мастер переждёт его сам.
+    -->
+    <CustomAction
+        Id="LaunchSetupWizardSilently"
+        FileRef="SetupWizardExe"
+        ExeCommand="--install-code &quot;[AFK4_INSTALL_CODE]&quot; --seat &quot;[AFK4_SEAT]&quot;"
+        Execute="immediate"
+        Return="asyncNoWait"
+        HideTarget="yes"
+        Impersonate="yes" />
+
     <InstallExecuteSequence>
-      <Custom Action="LaunchSetupWizard" After="InstallFinalize" Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)" />
+      <Custom Action="LaunchSetupWizard" After="InstallFinalize" Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT AFK4_INSTALL_CODE AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)" />
+      <Custom Action="LaunchSetupWizardSilently" After="InstallFinalize" Condition="AFK4_INSTALL_CODE AND NOT (REMOVE = &quot;ALL&quot;)" />
     </InstallExecuteSequence>
   </Package>
 </Wix>

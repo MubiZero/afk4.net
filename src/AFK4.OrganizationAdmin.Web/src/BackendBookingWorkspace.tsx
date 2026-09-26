@@ -58,6 +58,7 @@ import { BookingTimeline } from './booking/BookingTimeline';
 import { BookingRequestsLane } from './booking/BookingRequestsLane';
 import { useReputation } from './players/useReputation';
 import type { SeatSummary } from './operatorData';
+import { formatDateParts } from '@afk4/formatting';
 import { PanelModal } from './PanelModal';
 import { useBlockedReason } from './components/BlockedReason';
 import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
@@ -780,7 +781,7 @@ export function BackendBookingWorkspace({
   const isToday = dateValue === todayValue;
   const dateLabel = isToday
     ? t('op.booking.dateNav.today')
-    : new Date(selectedDate).toLocaleDateString(locale, { day: '2-digit', month: 'long' });
+    : formatDateParts(new Date(selectedDate), locale, { day: '2-digit', month: 'long' });
 
   return (
     <main className="workspace-screen booking-screen">

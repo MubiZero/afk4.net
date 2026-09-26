@@ -73,6 +73,60 @@ update channel according to the enrolled device role.
     environment values, component versions, and Shell executable paths are
     loaded by the running service.
 
+## Silent Install By Code (gaming PCs, a whole hall at once)
+
+For a hall installed from a deployment script — no wizard window, no staff
+sign-in on each PC (plan P5f-2):
+
+1. In the AFK4.net Panel: **Сеть → Установка → Весь зал разом**. Pick the
+   branch, the lifetime (a day, three days or a week) and how many new PCs the
+   code may install (1–200), then **Выдать код**. The code is shown once, with
+   the ready command; the list keeps only its expiry and the count installed.
+   Issuing needs the `organization.devices.install` right in that branch
+   (owner, technician).
+2. Run the client installer elevated (a deployment tool, an admin console):
+
+   ```
+   afk4-client-<version>-<channel>.exe /quiet AFK4_INSTALL_CODE=XXXX-XXXX-XXXX-XXXX [AFK4_SEAT=PC-07]
+   ```
+
+   Variable names are upper case. `msiexec /i afk4-agent-….msi /qn
+   AFK4_INSTALL_CODE=…` works too, but the bundle also installs the .NET
+   runtime and WebView2 the PC needs.
+3. The agent MSI hands the code to `AFK4.SetupWizard.exe --install-code … --seat …`
+   without a window. The wizard enrolls the PC as a `gaming_pc` by
+   `POST /api/install/code/enroll`, writes the Agent bootstrap, installs the
+   Player Shell (waiting out a busy Windows Installer, exit 1618), sets up the
+   kiosk account and starts the Agent — the same steps the wizard window runs.
+4. Seat: `AFK4_SEAT` names it; without it the seat is looked up by the PC's
+   Windows name. A seat that is not found, not unique in the branch or held by
+   another PC is not a failure — the PC enrolls without a seat and is assigned
+   under **Залы и ПК**. With manual approval on in the branch, new PCs wait in
+   **Новые ПК** as usual.
+5. Restart the PC: the kiosk autologon starts the player screen.
+
+The installer returns before the wizard finishes; the outcome is in
+`%ProgramData%\AFK4\logs\setup-wizard.log` and in the wizard's exit code:
+`0` installed, `1` no code on the command line, `2` not elevated, `3` refused by
+the platform (code unknown, expired, revoked or used up, or the plan's device
+limit — retrying will not help), `4` platform unreachable after about eight
+minutes of retries, `5` enrolled but the configuration, shell or agent did not
+come up, `6` works but without the kiosk. If the silent run fails, the HKLM
+`RunOnce` entry stays and the wizard window opens at the next admin logon.
+
+Code rules the platform enforces:
+
+- stored as a SHA-256 hash; the value itself is never in the audit journal, the
+  MSI log (`Hidden` property, `HideTarget` action) or the Burn log (`Hidden`
+  variable);
+- one refusal for unknown, expired, revoked and used-up codes, so a guesser
+  learns nothing; 80 random bits in Crockford base32 are not guessable, and the
+  door is rate-limited per address anyway;
+- reinstalling the same PC (same device key) spends nothing and works even with
+  a used-up code;
+- the code equals the right to install gaming PCs in its branch and nothing
+  wider: no workstation role, no other branch.
+
 The legacy PC enrollment code path and coordinated `afk4-gaming-pc` MSI are
 retired from the default onboarding/publishing flow. Use them only as explicit
 staging recovery fallbacks for old test devices.

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatDateParts } from '@afk4/formatting';
 
 const systemNow = () => new Date();
 
@@ -24,8 +25,9 @@ export function useMinuteClock(locale: string, nowProvider: () => Date = systemN
     };
   }, [nowProvider]);
 
-  return new Intl.DateTimeFormat(locale, {
+  // Через общий форматтер: у таджикского Intl браузера выдал бы «09:40 PM».
+  return formatDateParts(now, locale, {
     hour: '2-digit',
     minute: '2-digit'
-  }).format(now);
+  });
 }

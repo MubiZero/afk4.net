@@ -34,6 +34,15 @@ public static class ShellPipeMessageTypeNames
     public const string Request = "request";
 
     public const string Reply = "reply";
+
+    /// <summary>Агент передаёт хосту команду клуба: выйти из аккаунта игрока или показать сообщение.</summary>
+    public const string Command = "command";
+
+    /// <summary>
+    /// Игрок вошёл: агент отдаёт хосту токены. Один кадр на оба пути — ПИН-код и QR: вход по QR
+    /// приходит без запроса хоста, и отвечать на него нечем, кроме отдельного кадра.
+    /// </summary>
+    public const string Auth = "auth";
 }
 
 public static class ShellPipeRequestTypeNames
@@ -43,6 +52,30 @@ public static class ShellPipeRequestTypeNames
 
     /// <summary>Позвать администратора к этому ПК.</summary>
     public const string Assist = "assist";
+
+    /// <summary>
+    /// Войти номером и ПИН-кодом. В теле — <c>phone</c> и <c>pin</c>. Удачный ответ пуст: токены
+    /// приходят кадром <see cref="ShellPipeMessageTypeNames.Auth"/>.
+    /// </summary>
+    public const string SignInPin = "signIn.pin";
+
+    /// <summary>
+    /// «Вернуть в зал» с самого ПК (спека оболочки, §6.5): агент говорит серверу и закрывает
+    /// рабочий стол техника. Тело пустое.
+    /// </summary>
+    public const string MaintenanceReturn = "maintenance.return";
+
+    /// <summary>
+    /// За ПК кто-то есть: тронуты мышь или клавиатура. Не чаще раза в 20 секунд; по нему агент не
+    /// выключает простаивающий ПК под рукой человека и отменяет уже назначенное выключение. Тело пустое.
+    /// </summary>
+    public const string Activity = "activity";
+
+    /// <summary>
+    /// Рекламная карточка витрины отстояла на экране. В теле — <c>cardId</c> и <c>shownMs</c>.
+    /// Агент считает только рекламу и только на свободном ПК.
+    /// </summary>
+    public const string ShowcaseImpression = "showcase.impression";
 }
 
 public static class ShellPipeErrorCodeNames
@@ -74,4 +107,15 @@ public static class ShellPipeErrorCodeNames
 
     /// <summary>Хосту некуда отправить запрос: агента нет на другом конце канала.</summary>
     public const string AgentUnavailable = "agent_unavailable";
+
+    /// <summary>Номер или ПИН-код не подошли. Те же имена, что у сервера и моста к странице.</summary>
+    public const string SignInRefused = "sign_in_refused";
+
+    public const string TooManyAttempts = "too_many_attempts";
+
+    /// <summary>На ПК идёт чужая сессия: вход верный, но открыть вошедшему нечего.</summary>
+    public const string SessionNotYours = "session_not_yours";
+
+    /// <summary>Клуб закрыл этот ПК на обслуживание — вход на нём закрыт.</summary>
+    public const string DeviceInMaintenance = "device_in_maintenance";
 }

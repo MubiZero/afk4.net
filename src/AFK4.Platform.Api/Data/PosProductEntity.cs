@@ -39,5 +39,11 @@ public sealed class PosProductEntity
     /// <summary>True when this product is offered to players in the shell shop (delivery to seat).</summary>
     public bool AvailableInShell { get; set; }
 
+    /// <summary>Товар крутится в витрине свободного ПК.</summary>
+    public bool FeaturedOnPcs { get; set; }
+
+    /// <summary>Фото товара — адрес в медиа-хранилище (загрузка с назначением product-image).</summary>
+    public string? ImageUrl { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

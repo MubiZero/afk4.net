@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { LockKeyhole, Plus, TimerReset, UnlockKeyhole } from 'lucide-react';
+import { LockKeyhole, LogOut, MessageSquare, Plus, Power, RotateCw, Sunrise, TimerReset, UnlockKeyhole, Wrench } from 'lucide-react';
 import type { ComponentType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
@@ -13,13 +13,29 @@ const ITEM_ICON: Record<string, IconType> = {
   'extend-15': Plus,
   'extend-30': TimerReset,
   'pc-lock': LockKeyhole,
-  'pc-unlock': UnlockKeyhole
+  'pc-unlock': UnlockKeyhole,
+  'pc-reboot': RotateCw,
+  'pc-shutdown': Power,
+  'pc-wake': Sunrise,
+  'pc-message': MessageSquare,
+  'pc-sign-out': LogOut,
+  'pc-maintenance-on': Wrench,
+  'pc-maintenance-off': Wrench,
+  'bulk-lock': LockKeyhole,
+  'bulk-reboot': RotateCw,
+  'bulk-shutdown': Power,
+  'bulk-wake': Sunrise,
+  'bulk-message': MessageSquare,
+  'bulk-sign-out': LogOut,
+  'bulk-maintenance-on': Wrench,
+  'bulk-maintenance-off': Wrench
 };
 
 const MENU_MARGIN = 8;
 
 export function SeatContextMenu({
   seat,
+  heading,
   sections,
   x,
   y,
@@ -27,6 +43,8 @@ export function SeatContextMenu({
   onSelect
 }: {
   seat: SeatSummary;
+  /** Заголовок вместо имени места — у меню нескольких выбранных мест. */
+  heading?: { title: string; subtitle: string };
   sections: SeatMenuSection[];
   x: number;
   y: number;
@@ -121,12 +139,12 @@ export function SeatContextMenu({
       ref={menuRef}
       className="seat-menu"
       role="menu"
-      aria-label={t('op.map.menu.label', { seat: seat.name })}
+      aria-label={t('op.map.menu.label', { seat: heading?.title ?? seat.name })}
       style={{ left: pos.x, top: pos.y }}
     >
       <header className="seat-menu-head">
-        <strong>{seat.name}</strong>
-        <span>{seat.stateLabel}</span>
+        <strong>{heading?.title ?? seat.name}</strong>
+        <span>{heading?.subtitle ?? seat.stateLabel}</span>
       </header>
       {sections.length === 0 && <p className="seat-menu-empty">{t('op.map.menu.empty')}</p>}
       {sections.map((section) => (

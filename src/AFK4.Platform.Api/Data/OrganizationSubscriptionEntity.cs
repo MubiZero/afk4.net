@@ -20,4 +20,10 @@ public sealed class OrganizationSubscriptionEntity
     public long? DiscountAmountMinorUnits { get; set; }
     public DateTimeOffset? DiscountUntilUtc { get; set; }
     public string? DiscountReason { get; set; }
+    /// <summary>Клуб сам начал пробный период — второй раз нельзя.</summary>
+    public DateTimeOffset? TrialStartedAtUtc { get; set; }
+    /// <summary>Счёт, под который клуб взял обещанный платёж: один раз на счёт.</summary>
+    public Guid? PromisedPaymentInvoiceId { get; set; }
+    /// <summary>Бесплатные месяцы за приведённые клубы: каждый обнуляет один счёт за подписку.</summary>
+    public int FreeMonths { get; set; }
 }

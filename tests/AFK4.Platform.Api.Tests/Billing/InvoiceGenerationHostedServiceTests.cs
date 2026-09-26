@@ -21,6 +21,10 @@ public sealed class InvoiceGenerationHostedServiceTests
         services.AddDbContext<PlatformDbContext>(options => options.UseInMemoryDatabase(dbName));
         services.AddScoped<IInvoiceNotifier, RecordingInvoiceNotifier>();
         services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
+        // Переходы тарифов клуба идут в том же тике, до счетов.
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<AFK4.Platform.Api.Audit.IAuditRecordWriter, SilentAuditWriter>();
+        services.AddScoped<ClubPlans>();
         services.Configure<BillingOptions>(options => options.GenerationInterval = TimeSpan.FromHours(1));
         await using var provider = services.BuildServiceProvider();
 
@@ -66,5 +70,10 @@ public sealed class InvoiceGenerationHostedServiceTests
 
         Assert.NotNull(invoice);
         Assert.Equal(290000, invoice!.AmountMinorUnits);
+    }
+
+    private sealed class SilentAuditWriter : AFK4.Platform.Api.Audit.IAuditRecordWriter
+    {
+        public Task WriteAsync(AFK4.Platform.Api.Audit.AuditRecordWriteRequest request, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

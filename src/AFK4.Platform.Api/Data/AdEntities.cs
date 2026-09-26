@@ -1,0 +1,174 @@
+namespace AFK4.Platform.Api.Data;
+
+/// <summary>Рекламодатель платформы. Контакт — для менеджера AFK4, наружу не уходит.</summary>
+public sealed class AdAdvertiserEntity
+{
+    public Guid AdvertiserId { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public string Contact { get; set; } = string.Empty;
+
+    /// <summary>Наименование продавца для договора и для рекламы с продажей на расстоянии (ст. 14(1)).</summary>
+    public string LegalName { get; set; } = string.Empty;
+
+    /// <summary>ИНН (единый идентификационный номер) — цифры.</summary>
+    public string TaxId { get; set; } = string.Empty;
+
+    public string Address { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public Guid? CreatedByPlatformAdminUserId { get; set; }
+}
+
+/// <summary>Кампания: кого, где и когда показывать. Нацеливание — только город и клуб, не игрок.</summary>
+public sealed class AdCampaignEntity
+{
+    public Guid CampaignId { get; set; }
+
+    public Guid AdvertiserId { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary><see cref="AFK4.Shared.Contracts.Ads.AdCategoryNames"/>.</summary>
+    public string Category { get; set; } = string.Empty;
+
+    public DateTimeOffset StartsAtUtc { get; set; }
+
+    public DateTimeOffset EndsAtUtc { get; set; }
+
+    /// <summary>Города JSON-массивом; пустой — все города.</summary>
+    public string CitiesJson { get; set; } = "[]";
+
+    /// <summary>Клубы JSON-массивом; пустой — все клубы.</summary>
+    public string OrganizationIdsJson { get; set; } = "[]";
+
+    /// <summary><see cref="AFK4.Shared.Contracts.Ads.AdCampaignStateNames"/>.</summary>
+    public string State { get; set; } = string.Empty;
+
+    /// <summary>Разрешение или лицензия Минздрава — у «Здоровья и красоты» (ст. 17).</summary>
+    public string? PermitNumber { get; set; }
+
+    public bool DistanceSelling { get; set; }
+
+    public bool RequiresCertification { get; set; }
+
+    public bool ContainsOffer { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+
+    public Guid? UpdatedByPlatformAdminUserId { get; set; }
+}
+
+/// <summary>Креатив кампании: то, что видно на экране. Показывается только одобренный.</summary>
+public sealed class AdCreativeEntity
+{
+    public Guid CreativeId { get; set; }
+
+    public Guid CampaignId { get; set; }
+
+    /// <summary>Заголовок на таджикском — обязателен и идёт первым (ст. 5).</summary>
+    public string Title { get; set; } = string.Empty;
+
+    public string? Body { get; set; }
+
+    public string? TitleRu { get; set; }
+
+    public string? BodyRu { get; set; }
+
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// Снят с показа. Одобренный креатив не правится и не удаляется: игроки видели именно его, на него
+    /// ссылаются отчёт показов и ответ проверяющему (ст. 25).
+    /// </summary>
+    public DateTimeOffset? ArchivedAtUtc { get; set; }
+
+    /// <summary><see cref="AFK4.Shared.Contracts.Ads.AdModerationNames"/>.</summary>
+    public string Moderation { get; set; } = string.Empty;
+
+    public string? RejectedReason { get; set; }
+
+    public DateTimeOffset? ModeratedAtUtc { get; set; }
+
+    public Guid? ModeratedByPlatformAdminUserId { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; }
+}
+
+/// <summary>Показы креатива в филиале за день — только суммы, строки по игроку нет.</summary>
+public sealed class AdImpressionDailyEntity
+{
+    public Guid AdImpressionDailyId { get; set; }
+
+    public Guid CreativeId { get; set; }
+
+    public Guid OrganizationId { get; set; }
+
+    public Guid BranchId { get; set; }
+
+    public DateOnly Day { get; set; }
+
+    public long Impressions { get; set; }
+
+    public long ShownMs { get; set; }
+}
+
+/// <summary>Принятая пачка показов с ПК: повтор той же пачки не удваивает счёт.</summary>
+public sealed class AdImpressionBatchEntity
+{
+    public Guid OrganizationId { get; set; }
+
+    public Guid DeviceId { get; set; }
+
+    public string BatchId { get; set; } = string.Empty;
+
+    public DateTimeOffset ReceivedAtUtc { get; set; }
+}
+
+/// <summary>
+/// Копия картинки одобренного креатива. Её хранит сервер и отдаёт ПК вместо чужого адреса: картинку по
+/// ссылке рекламодатель мог бы заменить после модерации.
+/// </summary>
+public sealed class AdCreativeImageEntity
+{
+    public Guid CreativeId { get; set; }
+
+    public string ContentType { get; set; } = string.Empty;
+
+    public byte[] Bytes { get; set; } = [];
+
+    public string Sha256 { get; set; } = string.Empty;
+
+    public string SourceUrl { get; set; } = string.Empty;
+
+    public DateTimeOffset StoredAtUtc { get; set; }
+}
+
+/// <summary>Жалоба клуба на рекламу на его ПК. Решает платформа: снять креатив или ответить, почему нет.</summary>
+public sealed class AdComplaintEntity
+{
+    public Guid ComplaintId { get; set; }
+
+    public Guid OrganizationId { get; set; }
+
+    public Guid CreativeId { get; set; }
+
+    /// <summary><see cref="AFK4.Shared.Contracts.Ads.AdComplaintReasonNames"/>.</summary>
+    public string Reason { get; set; } = string.Empty;
+
+    public string? Comment { get; set; }
+
+    public Guid ReportedByStaffUserId { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public DateTimeOffset? ResolvedAtUtc { get; set; }
+
+    public Guid? ResolvedByPlatformAdminUserId { get; set; }
+
+    public string? Resolution { get; set; }
+}

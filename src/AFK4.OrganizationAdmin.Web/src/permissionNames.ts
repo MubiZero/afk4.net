@@ -67,5 +67,11 @@ export const permissionNames = {
   managePaymentGateways: 'organization.payments.gateways.manage',
   manageLoyaltySettings: 'organization.loyalty.settings.manage',
   manageNews: 'organization.news.manage',
-  manageTournaments: 'organization.tournaments.manage'
+  manageTournaments: 'organization.tournaments.manage',
+  manageGameLibrary: 'organization.games.manage',
+  viewReviews: 'organization.reviews.view',
+  acceptDeviceHardware: 'organization.devices.hardware.accept',
+  manageTips: 'organization.tips.manage',
+  manageSubscription: 'organization.billing.subscription.manage',
+  importPlayers: 'organization.players.import'
 } as const;

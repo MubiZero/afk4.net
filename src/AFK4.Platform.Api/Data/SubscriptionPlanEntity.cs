@@ -11,8 +11,14 @@ public sealed class SubscriptionPlanEntity
     public int? MaxDevicesPerBranch { get; set; }
     public int? MaxConcurrentSessions { get; set; }
     public int? MaxStaffUsersPerBranch { get; set; }
+
+    /// <summary>Игровых ПК на весь клуб, без деления по залам. Пусто — без предела.</summary>
+    public int? MaxDevices { get; set; }
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
+    /// <summary>Цена каждого подтверждённого ПК сверх <see cref="IncludedDevices"/> за период.</summary>
+    public long PricePerDeviceMinorUnits { get; set; }
+    public int IncludedDevices { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }

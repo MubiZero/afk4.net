@@ -50,7 +50,7 @@ describe('BillingDestination — одна секция не пришла', () =>
       </I18nProvider>
     );
 
-    expect(await screen.findByText('PRO')).toBeInTheDocument();
+    expect(await screen.findByText('Активна')).toBeInTheDocument();
     expect(screen.getByText('Не удалось загрузить счета')).toBeInTheDocument();
     expect(screen.getByText('Сервер вернул ошибку. Повторите позже.')).toBeInTheDocument();
 
@@ -59,6 +59,6 @@ describe('BillingDestination — одна секция не пришла', () =>
     expect(await screen.findByText('42')).toBeInTheDocument();
     await waitFor(() => expect(listInvoices).toHaveBeenCalledTimes(2));
     expect(getSubscription).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('PRO')).toBeInTheDocument();
+    expect(screen.getByText('Активна')).toBeInTheDocument();
   });
 });

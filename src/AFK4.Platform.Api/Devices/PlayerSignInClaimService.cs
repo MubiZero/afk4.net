@@ -134,6 +134,12 @@ public sealed class PlayerSignInClaimService(
             return new PlayerSignInClaimRedeemResult(null, PlayerSignInClaimErrorCodeNames.Expired);
         }
 
+        // Код посадки, выданный до обслуживания, живёт ещё минуты — заявка по нему закрытый ПК не открывает.
+        if (device.MaintenanceSinceUtc is not null)
+        {
+            return new PlayerSignInClaimRedeemResult(null, PlayerSignInClaimErrorCodeNames.DeviceInMaintenance);
+        }
+
         var person = await dbContext.PlatformPersons.SingleOrDefaultAsync(
             candidate => candidate.PlatformPersonId == claim.PlatformPersonId, cancellationToken);
         var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(

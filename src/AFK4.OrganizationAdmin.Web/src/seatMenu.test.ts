@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { SeatSummary } from './operatorData';
-import { buildSeatMenu, type SeatMenuCaps, type SeatMenuItem } from './seatMenu';
+import { buildBulkMenu, buildSeatMenu, type SeatMenuCaps, type SeatMenuItem } from './seatMenu';
 
 function seat(overrides: Partial<SeatSummary>): SeatSummary {
   return {
@@ -25,7 +25,8 @@ const allCaps: SeatMenuCaps = {
   canExtend: true,
   canLockUnlock: true,
   canResolveAssistance: true,
-  canPause: true
+  canPause: true,
+  canMaintain: true
 };
 const noCaps: SeatMenuCaps = {
   actionsEnabled: false,
@@ -33,7 +34,8 @@ const noCaps: SeatMenuCaps = {
   canPause: false,
   canStart: false,
   canExtend: false,
-  canLockUnlock: false
+  canLockUnlock: false,
+  canMaintain: false
 };
 
 function flat(sections: ReturnType<typeof buildSeatMenu>): SeatMenuItem[] {
@@ -75,7 +77,7 @@ describe('buildSeatMenu', () => {
   });
 
   it('hides PC actions a role cannot perform, and the device-less seat has none', () => {
-    const noPc = buildSeatMenu(seat({ tone: 'ready' }), { ...allCaps, canLockUnlock: false });
+    const noPc = buildSeatMenu(seat({ tone: 'ready' }), { ...allCaps, canLockUnlock: false, canMaintain: false });
     expect(ids(noPc).some((id) => id.startsWith('pc-'))).toBe(false);
     const noDevice = buildSeatMenu(seat({ tone: 'ready', deviceId: null }), allCaps);
     expect(ids(noDevice).some((id) => id.startsWith('pc-'))).toBe(false);
@@ -91,9 +93,34 @@ describe('buildSeatMenu', () => {
   });
 
   it('каждый пункт ведёт к живому действию, а не к тосту', () => {
-    const live = new Set(['start-guest', 'extend', 'pause', 'resume', 'pc']);
+    const live = new Set(['start-guest', 'extend', 'pause', 'resume', 'pc', 'pc-command']);
     const sections = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);
     expect(flat(sections).every((item) => live.has(item.run.kind))).toBe(true);
+  });
+
+  // Полное меню места: команды ПК из карточки — и здесь, закрытые по тем же причинам.
+  it('несёт команды ПК из карточки и говорит, почему занятый ПК не перезагрузить', () => {
+    const free = buildSeatMenu(seat({ tone: 'ready' }), allCaps);
+    expect(ids(free)).toEqual(expect.arrayContaining(['pc-reboot', 'pc-shutdown', 'pc-message', 'pc-sign-out', 'pc-maintenance-on']));
+
+    const busy = flat(buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps));
+    const reboot = busy.find((item) => item.id === 'pc-reboot');
+    expect(reboot?.disabled).toBe(true);
+    expect(reboot?.hintKey).toBe('op.pc.bulk.skip.session');
+    expect(busy.find((item) => item.id === 'pc-message')?.disabled).toBe(false);
+  });
+
+  it('обслуживание — своё право: без него пункта нет', () => {
+    const sections = buildSeatMenu(seat({ tone: 'ready' }), { ...allCaps, canMaintain: false });
+    expect(ids(sections)).not.toContain('pc-maintenance-on');
+  });
+
+  it('меню нескольких мест — только общие команды ПК', () => {
+    const sections = buildBulkMenu([seat({ id: 'a' }), seat({ id: 'b', tone: 'active', activeSessionId: 's' })], allCaps);
+    expect(flat(sections).every((item) => item.run.kind === 'bulk')).toBe(true);
+    expect(ids(sections)).toEqual(expect.arrayContaining(['bulk-lock', 'bulk-reboot', 'bulk-message']));
+    // Будить некого: все выбранные на связи.
+    expect(ids(sections)).not.toContain('bulk-wake');
   });
 
   // Пауза и снятие — одна кнопка в двух состояниях: ставить паузу на паузе нечего.
@@ -140,3 +167,13 @@ describe('buildSeatMenu', () => {
     expect(ids(sections)).not.toContain('resolve-assistance');
   });
 });
+
+describe('консольное место', () => {
+  it('без команд ПК: запереть, отпереть и перезагрузить консоль некому', () => {
+    const sections = buildSeatMenu(seat({ isConsole: true, isDeviceOnline: true }), allCaps);
+
+    expect(sections.find((section) => section.id === 'pc')).toBeUndefined();
+    expect(sections.flatMap((section) => section.items).map((item) => item.id)).toContain('start-guest');
+  });
+});
+

@@ -23,4 +23,6 @@ public sealed record DeviceInventoryItemDto(
     int FailedCommandCount,
     string DisplayName = "",
     string Role = DeviceRoleNames.GamingPc,
-    string EnrollmentState = DeviceEnrollmentStateNames.Approved);
+    string EnrollmentState = DeviceEnrollmentStateNames.Approved,
+    /// Железо отличается от принятого — в карточке видно, что поменялось, и кнопка «Принять».
+    bool HardwareChanged = false);

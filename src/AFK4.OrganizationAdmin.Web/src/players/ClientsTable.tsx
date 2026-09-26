@@ -28,6 +28,8 @@ export function ClientsTable({
   liveContextByClient,
   nowMs,
   onNewClient,
+  canImport = false,
+  onImport,
   onSearchChange,
   onSelectSegment,
   onSelectClient
@@ -46,6 +48,9 @@ export function ClientsTable({
   liveContextByClient: Map<string, ClientLiveContext>;
   nowMs: number;
   onNewClient: () => void;
+  // Перенос гостей из прежней программы — у владельца.
+  canImport?: boolean;
+  onImport?: () => void;
   onSearchChange: (value: string) => void;
   onSelectSegment: (id: ClientSegmentId) => void;
   onSelectClient: (playerAccountId: string | null) => void;
@@ -80,6 +85,9 @@ export function ClientsTable({
 
         <div className="tt-spacer" />
 
+        {canImport && onImport ? (
+          <button type="button" className="ui-btn" onClick={onImport}>{t('op.players.import.openBtn')}</button>
+        ) : null}
         {canCreatePlayer && (
           <button type="button" className="ui-btn ui-btn--primary" onClick={onNewClient}>
             <UserRoundPlus size={14} aria-hidden="true" />{t('op.players.newClient.openBtn')}

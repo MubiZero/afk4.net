@@ -160,11 +160,21 @@
   white-space: nowrap;
 }
 
+/* Правая колонка прижимает содержимое вправо внутри своей ячейки, а не саму ячейку к краю строки:
+   с justify-self: end ячейка вырастала до ширины текста и наезжала на соседние колонки. */
 .mgmt-cell--end {
-  justify-self: end;
   justify-content: flex-end;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* Текст ячейки: у flex-ячейки многоточие ставит только вложенный элемент, сама ячейка текст
+   просто обрезает. Полный текст — в подсказке. */
+.mgmt-cell-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Ячейка ⋯-меню: overflow видимый, чтобы дропдаун не обрезался. */
@@ -672,4 +682,66 @@
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 500;
+}
+/* Код первого входа сотрудника: его диктуют вслух и переписывают с экрана, поэтому крупно. */
+.mgmt-first-sign-in-code input {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* «Ждут первого входа» под списком сотрудников: кто добавлен, что с его кодом, и два действия. */
+.staff-pending {
+  margin-top: 16px;
+}
+
+.staff-pending-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.staff-pending-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.staff-pending-who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.staff-pending-who span,
+.staff-pending-state {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staff-pending-list li[data-status='expired'] .staff-pending-state,
+.staff-pending-list li[data-status='exhausted'] .staff-pending-state {
+  color: var(--warning-text);
+}
+
+.staff-pending-code {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.staff-pending-actions {
+  display: flex;
+  gap: 6px;
 }

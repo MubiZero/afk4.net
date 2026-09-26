@@ -6,6 +6,7 @@ import type {
   DeviceCommandDto,
   DeviceCommandStatusDto,
   DeviceDetailDto,
+  DeviceHardwareDto,
   DeviceInventoryItemDto,
   DeviceStateChangeRequest,
   DispatchDeviceCommandRequest,
@@ -18,6 +19,7 @@ export type {
   DeviceCommandDto,
   DeviceCommandStatusDto,
   DeviceDetailDto,
+  DeviceHardwareDto,
   DeviceInventoryItemDto,
   DeviceStateChangeRequest,
   DispatchDeviceCommandRequest,
@@ -55,6 +57,13 @@ export function createDeviceClient(api: PlatformApiClient) {
     },
     getDeviceDetail(deviceId: Guid): Promise<DeviceDetailDto> {
       return api.get<DeviceDetailDto>(`devices/${deviceId}`);
+    },
+    // Железо ПК: сейчас, принятое и что поменялось (P9).
+    getHardware(deviceId: Guid): Promise<DeviceHardwareDto> {
+      return api.get<DeviceHardwareDto>(`devices/${deviceId}/hardware`);
+    },
+    acceptHardware(deviceId: Guid): Promise<DeviceHardwareDto> {
+      return api.post<DeviceHardwareDto>(`devices/${deviceId}/hardware/accept`);
     },
     renameDevice(deviceId: Guid, request: RenameDeviceRequest): Promise<DeviceInventoryItemDto> {
       return api.post<DeviceInventoryItemDto, RenameDeviceRequest>(`devices/${deviceId}/rename`, request);

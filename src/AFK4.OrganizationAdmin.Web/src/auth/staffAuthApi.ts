@@ -1,5 +1,11 @@
 import { organizationAdminHeaders } from '../organizationAdminCompatibility';
-import type { StaffSignInResponse } from '@afk4/contracts';
+import type {
+  AcceptStaffInviteResponse,
+  StaffSignInChooseClubResponse,
+  StaffSignInNextStepResponse,
+  StaffSignInResponse,
+  StaffSignInStepName
+} from '@afk4/contracts';
 export type { StaffSignInResponse } from '@afk4/contracts';
 
 export interface ClubChoice { organizationId: string; name: string; }
@@ -70,10 +76,31 @@ export class StaffAuthApi {
     return res.status === 204 ? (null as T) : (await res.json() as T);
   }
 
-  signInByLogin(organizationId: string, login: string, password: string): Promise<StaffSignInResponse> {
+  /**
+   * Вход по логину или почте. Панель, подключённая к клубу, спрашивает свой клуб; браузерная клуба
+   * не знает — сервер находит его по логину, а совпадение в нескольких клубах приходит 409 со
+   * списком, из которого человек выбирает.
+   */
+  signInByLogin(organizationId: string | null, login: string, password: string): Promise<StaffSignInResponse> {
+    return organizationId
+      ? this.post<StaffSignInResponse>(`api/organizations/${organizationId}/auth/staff/sign-in-by-login`, { login, password })
+      : this.post<StaffSignInResponse>('api/auth/staff/sign-in-by-login', { login, password }, async (res) => {
+          const body = await res.json() as StaffSignInChooseClubResponse;
+          throw new ChooseClubError(body.clubs.map((club) => ({ organizationId: club.organizationId, name: club.name })));
+        });
+  }
+
+  /** Вход по номеру. Номер уникален по сети, клуб выводится из него; подключённая панель чужой клуб не пускает (403). */
+  signInByPhone(organizationId: string | null, phoneNumber: string, password: string): Promise<StaffSignInResponse> {
     return this.post<StaffSignInResponse>(
-      `api/organizations/${organizationId}/auth/staff/sign-in-by-login`,
-      { login, password });
+      organizationId ? `api/organizations/${organizationId}/auth/staff/sign-in-by-phone` : 'api/auth/staff/sign-in-by-phone',
+      { phoneNumber, password });
+  }
+
+  /** Первый шаг входа: что спросить у этого номера — ПИН или код первого входа. */
+  async nextStep(phoneNumber: string): Promise<StaffSignInStepName> {
+    const response = await this.post<StaffSignInNextStepResponse>('api/auth/staff/next-step', { phoneNumber });
+    return response.step as StaffSignInStepName;
   }
 
   signInToClub(organizationId: string, login: string, password: string): Promise<StaffSignInResponse> {
@@ -105,9 +132,13 @@ export class StaffAuthApi {
   forgotByPhone(phoneNumber: string) { return this.post<void>('api/auth/staff/forgot-password-by-phone', { phoneNumber }); }
   resetByPhone(phoneNumber: string, code: string, newPassword: string) { return this.post<void>('api/auth/staff/reset-password-by-phone', { phoneNumber, code, newPassword }); }
 
-  /** Приём приглашения: код из SMS и пароль, который человек придумывает себе сам. */
-  acceptInvite(phoneNumber: string, code: string, password: string) {
-    return this.post<{ organizationId: string; userName: string }>(
-      'api/staff/invites/accept', { phoneNumber, code, password });
+  /** Сверить код первого входа до того, как человек придумывает ПИН. */
+  checkInvite(phoneNumber: string, code: string): Promise<void> {
+    return this.post<void>('api/staff/invites/check', { phoneNumber, code });
+  }
+
+  /** Первый вход: код от руководителя и новый ПИН. Ответ сразу несёт вход. */
+  acceptInvite(phoneNumber: string, code: string, password: string): Promise<AcceptStaffInviteResponse> {
+    return this.post<AcceptStaffInviteResponse>('api/staff/invites/accept', { phoneNumber, code, password });
   }
 }

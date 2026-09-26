@@ -186,9 +186,48 @@ internal static class PlatformBillingEndpoints
                 targetType: "SubscriptionPlan",
                 targetId: planCode,
                 outcome: AuditOutcome.Succeeded,
-                details: new { result.Value!.PlanCode, result.Value.PriceMinorUnits, result.Value.IsActive },
+                details: new
+                {
+                    result.Value!.PlanCode, result.Value.PriceMinorUnits, result.Value.IsActive, result.Value.PricePerDeviceMinorUnits,
+                    result.Value.IncludedDevices, result.Value.MaxDevices, request.IncludedFeatures, request.ApplyLimitsToClubs
+                },
                 cancellationToken);
             return Results.Ok(result.Value);
+        });
+
+        // Условия оплаты для клубов: пробный период, обещанный платёж, льгота до бесплатного тарифа.
+        app.MapGet(BillingTermsRoutes.Terms, async (
+            PlatformAdminAuthorizationService authorizationService, PlatformDbContext db, CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            return Results.Ok(await BillingTerms.LoadAsync(db, cancellationToken));
+        });
+
+        app.MapPut(BillingTermsRoutes.Terms, async (
+            UpdateBillingTermsRequest request, PlatformAdminAuthorizationService authorizationService, PlatformDbContext db,
+            IAuditRecordWriter auditRecordWriter, TimeProvider clock, CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManagePlans);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (BillingTerms.Validate(request) is { } invalid) return Results.BadRequest(new { error = invalid });
+
+            var actor = authorization.PlatformAdminContext!.PlatformAdminUserId;
+            var before = await BillingTerms.LoadAsync(db, cancellationToken);
+            var saved = await BillingTerms.SaveAsync(db, request, actor, clock.GetUtcNow(), cancellationToken);
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: Guid.Empty,
+                actorPlatformAdminUserId: actor,
+                action: AuditActionNames.UpdateBillingTerms,
+                targetType: "BillingTerms",
+                targetId: null,
+                outcome: AuditOutcome.Succeeded,
+                details: new { Before = before, After = request },
+                cancellationToken);
+            return Results.Ok(saved);
         });
 
         app.MapGet("/api/platform/organizations/{organizationId:guid}/subscription", async (

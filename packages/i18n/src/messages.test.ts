@@ -32,15 +32,29 @@ it('ru, en and tg have identical key sets (catalog parity)', () => {
 // never to silence the check. Native-Tajik review may move entries out of this list.
 const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Тариф» — заимствование, в таджикском пишется так же; переводить его нечем.
-    'customer.reservations.tariff', 'setup.wizard.stepper.tariff',
+    'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
+    // «Реклама» — так и пишется по-таджикски на вывесках и в эфире; метку сверит носитель языка.
+    'playerShell.showcase.kind.ad',
+    // «Реклама» в Панели — то же слово, что метка на ПК; «Реклама · {advertiser}» повторяет её.
+    'op.network.dest.ads', 'op.ads.label',
+    // Название-пример консоли — марка и номер, переводить нечего.
+    'op.settings.devices.console.namePlaceholder',
+    // Раздел рекламы в Platform Control: «Реклама», «Креатив», «Категория», «Клуб», «Филиал» —
+    // заимствования, которыми таджикский каталог и пользуется; «Реклама · {advertiser}» повторяет
+    // метку карточки на ПК.
+    'nav.platform.ads', 'platform.permission.group.ads', 'platform.ads.preview.label', 'platform.ads.campaign.field.category',
+    'platform.ads.creatives.column.creative', 'platform.ads.report.column.creative', 'platform.ads.report.column.club',
+    'platform.ads.report.column.branch',
+    // Жалобы: «Клуб» и «Реклама» — те же заимствования, что в отчёте.
+    'platform.ads.complaints.column.club', 'platform.ads.complaints.column.ad',
     // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
     // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
     'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',
-    'platform.organization.invites.branch', 'op.status.club', 'platform.search.kind.club', 'op.cash.shift.cashier',
+    'platform.organization.invites.branch', 'op.network.install.codes.branch', 'op.pc.bulk.seats', 'op.hardware.os', 'op.games.age', 'op.games.kind.steam', 'op.games.kind.epic', 'op.games.kind.riot', 'op.games.kind.battlenet', 'op.games.field.genre', 'op.status.club', 'platform.search.kind.club', 'op.cash.shift.cashier',
     'platform.audit.target', 'platform.organization.history.target',
     'roles.technician',
     'op.network.billing.col.number',
-    'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone', 'op.network.billing.plan',
+    'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone',
     'platform.health.queue.billing_outbox', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
     'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
@@ -53,6 +67,12 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.club.ph.latitude', 'op.club.ph.longitude',
     // «Марафон» — заимствование, в таджикском пишется так же.
     'customer.achievement.marathon',
+    // «Бар» — вкладка оболочки; заимствование, в таджикском пишется так же.
+    'playerShell.tabs.bar', 'playerShell.summary.barTotal',
+    // Лаунчеры — имена продуктов: Steam, Epic Games, Riot, Battle.net не переводятся ни на один язык.
+    'platform.games.kind.steam', 'platform.games.kind.epic', 'platform.games.kind.riot', 'platform.games.kind.battlenet',
+    // «Жанр» — заимствование, в таджикском пишется так же.
+    'platform.games.column.genre', 'platform.games.field.genre',
     // «{club}, {hall}» — две подстановки и запятая: переводить нечего.
     'customer.friends.inHall',
     'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',
@@ -271,7 +291,7 @@ it('includes the network section keys', () => {
     'op.network.install.download', 'op.network.install.noUrl', 'op.network.install.steps.title',
     'op.network.install.step.run', 'op.network.install.step.signIn', 'op.network.install.step.branch',
     'op.network.install.step.role', 'op.network.install.step.name', 'op.network.install.step.done',
-    'op.network.install.branches.title', 'op.network.install.branches.empty'
+    'op.network.install.branches.empty', 'op.network.install.codes.title', 'op.network.install.codes.issue'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();
@@ -282,9 +302,7 @@ it('includes the network section keys', () => {
 it('includes the network billing (subscription) screen keys', () => {
   for (const key of [
     'op.network.billing.subscription',
-    'op.network.billing.plan',
     'op.network.billing.status',
-    'op.network.billing.amount',
     'op.network.billing.period',
     'op.network.billing.nextInvoice',
     'op.network.billing.invoices',

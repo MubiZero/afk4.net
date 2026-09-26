@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
 using AFK4.SetupWizard.Core;
+using AFK4.SetupWizard.Core.Kiosk;
+using AFK4.SetupWizard.Tests.Kiosk;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
@@ -459,6 +461,105 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.True(bridge.Deps.Launcher.Launched);
     }
 
+    // --- киоск (спека оболочки, §6.1) -------------------------------------------------------
+
+    [Fact]
+    public async Task Enroll_ForGamingPc_SetsUpTheKiosk_BeforeTheAgentStarts()
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.Completion.SidProbe = () => bridge.Deps.KioskAgent.Sid;
+
+        var response = await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+
+        var kiosk = response.GetProperty("payload").GetProperty("shell").GetProperty("kiosk");
+        Assert.Equal("ready", kiosk.GetProperty("status").GetString());
+        Assert.Equal(KioskSettings.UserName, bridge.Deps.KioskMachine.Users.Single().Name);
+        // Агент поднялся, уже зная учётку игрока: права на канал он строит один раз, при старте.
+        Assert.Equal(KioskProvisionerTests.FakeMachine.PlayerSid, bridge.Deps.Completion.SidAtStart);
+    }
+
+    /// <summary>Без киоска ПК работает как раньше — агент поднимается, экран говорит, что киоска нет.</summary>
+    [Fact]
+    public async Task Enroll_WhenTheKioskFails_StillStartsTheAgent_AndSaysSo()
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.KioskMachine.EnsureUserFailure = new InvalidOperationException("The password does not meet the policy.");
+
+        var response = await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+
+        var shell = response.GetProperty("payload").GetProperty("shell");
+        Assert.Equal("installed", shell.GetProperty("status").GetString());
+        Assert.Equal("failed", shell.GetProperty("kiosk").GetProperty("status").GetString());
+        Assert.Contains("policy", shell.GetProperty("kiosk").GetProperty("message").GetString(), StringComparison.Ordinal);
+        Assert.True(bridge.Deps.Completion.Completed);
+    }
+
+    [Fact]
+    public async Task Enroll_WhenTheAppInstallFails_LeavesNoKiosk()
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.Shell.Result = ShellProvisionResult.Failed(1603, "msiexec 1603");
+
+        await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+
+        // Учётка с оболочкой, которой нет на диске, после перезагрузки показала бы чёрный экран.
+        Assert.Empty(bridge.Deps.KioskMachine.Users);
+    }
+
+    [Fact]
+    public async Task Enroll_ForManagerWorkstation_LeavesNoKiosk()
+    {
+        var bridge = await SignedIn();
+
+        var response = await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","role":"manager_workstation"}""");
+
+        Assert.False(response.GetProperty("payload").GetProperty("shell").TryGetProperty("kiosk", out _));
+        Assert.Empty(bridge.Deps.KioskMachine.Users);
+    }
+
+    [Fact]
+    public async Task RemovingTheKiosk_UndoesIt_AndRestartsTheAgent()
+    {
+        var bridge = await SignedIn();
+        await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+        Assert.True((await Send(bridge.Bridge, "wizard:kioskStatus", "{}")).GetProperty("payload").GetProperty("installed").GetBoolean());
+
+        var removed = await Send(bridge.Bridge, "wizard:removeKiosk", "{}");
+
+        Assert.True(removed.GetProperty("ok").GetBoolean());
+        Assert.False(removed.GetProperty("payload").GetProperty("installed").GetBoolean());
+        Assert.Empty(bridge.Deps.KioskMachine.Users);
+        Assert.Null(bridge.Deps.KioskAgent.Sid);
+        // Агент перезапущен без SID — канал снова пускает любого вошедшего.
+        Assert.Equal(2, bridge.Deps.Completion.Calls);
+    }
+
+    [Fact]
+    public async Task Reboot_AsksWindowsToRestart()
+    {
+        var bridge = CreateBridge(out var dependencies);
+
+        var response = await Send(bridge, "wizard:reboot", "{}");
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(1, dependencies.Reboot.Calls);
+    }
+
     /// <summary>
     /// Самое дорогое место всего мастера: установка приложения провалилась — служба агента
     /// стартовать не должна. Иначе ПК числится готовым, показывает экран блокировки и не может
@@ -789,6 +890,10 @@ public sealed class SetupWizardWebHostBridgeTests
         public FakeProvisioner Shell { get; } = new();
         public FakeProvisioner Operator { get; } = new();
         public FakeLauncher Launcher { get; } = new();
+        public KioskProvisionerTests.FakeMachine KioskMachine { get; } = new();
+        public KioskProvisionerTests.MemoryState KioskState { get; } = new();
+        public KioskProvisionerTests.RecordingAgentConfig KioskAgent { get; } = new();
+        public RecordingReboot Reboot { get; } = new();
 
         public SetupWizardWebHostBridge Build(ILogoFilePicker? logoFilePicker = null) => new(
             Api,
@@ -799,7 +904,16 @@ public sealed class SetupWizardWebHostBridgeTests
             Shell,
             Operator,
             Launcher,
-            logoFilePicker);
+            logoFilePicker,
+            new KioskProvisioner(KioskMachine, KioskState, KioskAgent),
+            Reboot);
+    }
+
+    private sealed class RecordingReboot : ISetupWizardRebootAction
+    {
+        public int Calls { get; private set; }
+
+        public void Reboot() => Calls++;
     }
 
     private sealed class FakeApiClient : ISetupWizardApiClient
@@ -995,11 +1109,20 @@ public sealed class SetupWizardWebHostBridgeTests
     {
         public bool Completed { get; private set; }
 
+        public int Calls { get; private set; }
+
+        /// Что знал агент о киоске в момент запуска: SID он читает один раз, при старте.
+        public Func<string?>? SidProbe { get; set; }
+
+        public string? SidAtStart { get; private set; }
+
         /// Изображает службу, которая не поднялась: sc.exe вернул код, отличный от нуля.
         public Exception? Failure { get; set; }
 
         public void Complete()
         {
+            Calls++;
+            SidAtStart = SidProbe?.Invoke();
             if (Failure is not null)
             {
                 throw Failure;

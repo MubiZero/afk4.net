@@ -7,4 +7,5 @@ public sealed record UpdateNewsItemRequest(
     string? ImageUrl,
     bool IsPublished,
     DateTimeOffset? PublishAtUtc,
-    DateTimeOffset? ExpiresAtUtc);
+    DateTimeOffset? ExpiresAtUtc,
+    bool ShowOnPcs = false);

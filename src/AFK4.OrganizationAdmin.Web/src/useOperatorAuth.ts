@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import {
+  acceptStaffInvite,
   loadOperatorSession,
   refreshOperatorSession,
   signInByLoginOperator,
+  signInByPhoneOperator,
   signInToClubOperator,
   signOutOperator,
   ChooseClubError,
@@ -28,14 +30,16 @@ export interface ChooseClubState {
 // навигационного feedback не знаем — её вешает вызывающий через onSignedIn/onSignedOut, чтобы
 // хук не зависел от состояния навигации.
 export function useOperatorAuth(
-  _config: OperatorConfig,
+  config: OperatorConfig,
   options: { onSignedIn?: () => void; onSignedOut?: () => void } = {}
 ) {
   const { t } = useI18n();
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [authView, setAuthView] = useState<'signIn' | 'forgot' | 'invite'>('signIn');
+  const [authView, setAuthView] = useState<'signIn' | 'forgot'>('signIn');
+  // Клуб подключённой панели; в браузере его нет, и сервер находит клуб по номеру или логину.
+  const connectedOrganizationId = config.organizationId?.trim() || null;
   const [chooseClub, setChooseClub] = useState<ChooseClubState | null>(null);
 
   useEffect(() => {
@@ -92,14 +96,25 @@ export function useOperatorAuth(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSignIn = async (login: string, password: string) => {
+  const signedIn = (session: OperatorAuthSession) => {
+    setChooseClub(null);
+    setAuthSession(session);
+    setAuthStatus('signed-in');
+    setAuthError(null);
+    options.onSignedIn?.();
+  };
+
+  const handleSignInByPhone = async (phoneNumber: string, password: string) => {
+    signedIn(await signInByPhoneOperator(connectedOrganizationId, phoneNumber, password));
+  };
+
+  const handleAcceptInvite = async (phoneNumber: string, code: string, password: string) => {
+    signedIn(await acceptStaffInvite(phoneNumber, code, password));
+  };
+
+  const handleSignInByLogin = async (login: string, password: string) => {
     try {
-      const session = await signInByLoginOperator(login, password);
-      setChooseClub(null);
-      setAuthSession(session);
-      setAuthStatus('signed-in');
-      setAuthError(null);
-      options.onSignedIn?.();
+      signedIn(await signInByLoginOperator(connectedOrganizationId, login, password));
     } catch (error) {
       if (error instanceof ChooseClubError) {
         // Логин совпал в нескольких клубах — просим выбрать; логин/пароль держим в памяти
@@ -117,12 +132,7 @@ export function useOperatorAuth(
       return;
     }
 
-    const session = await signInToClubOperator(organizationId, chooseClub.login, chooseClub.password);
-    setChooseClub(null);
-    setAuthSession(session);
-    setAuthStatus('signed-in');
-    setAuthError(null);
-    options.onSignedIn?.();
+    signedIn(await signInToClubOperator(organizationId, chooseClub.login, chooseClub.password));
   };
 
   const cancelChooseClub = () => {
@@ -153,7 +163,9 @@ export function useOperatorAuth(
     setAuthStatus,
     setAuthError,
     chooseClub,
-    handleSignIn,
+    handleSignInByPhone,
+    handleSignInByLogin,
+    handleAcceptInvite,
     handleChooseClub,
     cancelChooseClub,
     handleSignOut

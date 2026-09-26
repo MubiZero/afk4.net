@@ -34,6 +34,15 @@ describe('MgmtTable', () => {
     expect(onSelectRow.mock.calls[0][0].id).toBe('z1');
   });
 
+  // Текст, не влезший в колонку, режется многоточием и целиком виден в подсказке.
+  it('gives a text cell its full value as a tooltip', () => {
+    wrap(<MgmtTable columns={columns} rows={zones} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Пусто', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
+    const name = screen.getByText('Зал А');
+    expect(name.className).toBe('mgmt-cell-text');
+    expect(name.getAttribute('title')).toBe('Зал А');
+    expect(screen.getByText('6').closest('.mgmt-cell')?.className).toContain('mgmt-cell--end');
+  });
+
   it('shows the empty state when there are no rows and not loading', () => {
     wrap(<MgmtTable columns={columns} rows={[]} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Залов нет', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
     expect(screen.getByText('Залов нет')).toBeTruthy();

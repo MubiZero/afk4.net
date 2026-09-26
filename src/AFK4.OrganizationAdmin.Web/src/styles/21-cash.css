@@ -629,3 +629,10 @@
   .cash-terminal-inspector,
   .cash-register-row { transition: none; }
 }
+
+/* Чаевые за смену — тот же журнал, что движение наличных, только короче: без высоты журнала. */
+.cash-shift-tips { min-height: 0; flex: none; }
+.cash-shift-tips > header strong { color: var(--accent-text); font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.cash-shift-tips-lead { margin: 0; padding: var(--space-2) var(--space-4) 0; color: var(--text-secondary); font-size: 13px; }
+.cash-shift-tips .cash-shift-movements li.reversed > b { color: var(--text-tertiary); text-decoration: line-through; }
+.cash-shift-tips > footer { gap: var(--space-3); }

@@ -53,6 +53,30 @@ public sealed class EfInvoiceGenerationRunner(
             return null;
         }
 
+        // Тариф за ПК считает ПК в момент счёта: подписка хранит лишь последнюю оценку.
+        var plan = await dbContext.SubscriptionPlans.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.PlanCode == subscription.PlanCode, cancellationToken);
+        var devices = 0;
+        if (plan is not null && ClubPlans.IsPerDevice(plan))
+        {
+            devices = await ClubPlans.ApprovedDevicesAsync(dbContext, subscription.OrganizationId, cancellationToken);
+            subscription.AmountMinorUnits = ClubPlans.AmountFor(plan, devices);
+            if (subscription.AmountMinorUnits <= 0)
+            {
+                // Десять ПК и меньше — платить не за что: «платный» тариф без платы отменил бы
+                // бесплатный с его рекламой и лимитами (спека тарифов клуба, §2).
+                var free = await dbContext.SubscriptionPlans.AsNoTracking()
+                    .SingleOrDefaultAsync(candidate => candidate.PlanCode == OrganizationPlanCodeNames.Free, cancellationToken);
+                var organization = await dbContext.Organizations
+                    .SingleOrDefaultAsync(candidate => candidate.OrganizationId == subscription.OrganizationId, cancellationToken);
+                if (free is not null && organization is not null)
+                {
+                    ClubPlans.MoveToFree(organization, subscription, free, now);
+                    return null;
+                }
+            }
+        }
+
         var number = await InvoiceNumbering.NextNumberAsync(dbContext, cancellationToken);
 
         var gross = subscription.AmountMinorUnits;
@@ -60,6 +84,13 @@ public sealed class EfInvoiceGenerationRunner(
         var discount = discountApplies
             ? SubscriptionDiscount.Apply(gross, subscription.DiscountPercent, subscription.DiscountAmountMinorUnits)
             : 0;
+        // Бесплатный месяц за приведённый клуб обнуляет счёт целиком и тратится одним счётом.
+        var freeMonth = gross > 0 && subscription.FreeMonths > 0;
+        if (freeMonth)
+        {
+            discount = gross;
+            subscription.FreeMonths--;
+        }
 
         var invoice = new InvoiceEntity
         {
@@ -77,7 +108,9 @@ public sealed class EfInvoiceGenerationRunner(
             CurrencyCode = subscription.CurrencyCode,
             Status = InvoiceStatusNames.Issued,
             Description = $"Subscription {subscription.PlanCode} " +
-                $"({subscription.CurrentPeriodStartUtc:yyyy-MM-dd} – {subscription.CurrentPeriodEndUtc:yyyy-MM-dd})",
+                $"({subscription.CurrentPeriodStartUtc:yyyy-MM-dd} – {subscription.CurrentPeriodEndUtc:yyyy-MM-dd})" +
+                (plan is not null && ClubPlans.IsPerDevice(plan) ? $", PCs: {devices}, billable: {Math.Max(0, devices - plan.IncludedDevices)}" : string.Empty) +
+                (freeMonth ? ", free month for a referred club" : string.Empty),
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };

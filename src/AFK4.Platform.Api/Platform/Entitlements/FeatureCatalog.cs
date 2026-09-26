@@ -18,6 +18,9 @@ public static class FeatureCatalog
         new(PlatformFeatureNames.PlayerShop, "Магазин и заказы игрока",
             "Заказ еды и товаров с игрового места.", EnabledByDefault: true),
         new(PlatformFeatureNames.Tournaments, "События и турниры",
-            "Расписание событий клуба и запись игрока со взносом с кошелька.", EnabledByDefault: true)
+            "Расписание событий клуба и запись игрока со взносом с кошелька.", EnabledByDefault: true),
+        // Выключена по умолчанию: платный тариф рекламы не показывает, включает её бесплатный.
+        new(PlatformFeatureNames.PlatformAds, "Реклама платформы на ПК",
+            "Каждая третья карточка витрины свободного ПК — реклама, которую продаёт AFK4.", EnabledByDefault: false)
     ];
 }

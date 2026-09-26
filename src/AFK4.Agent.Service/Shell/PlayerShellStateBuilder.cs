@@ -1,4 +1,6 @@
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Games;
+using AFK4.Agent.Service.Protection;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
 
@@ -23,7 +25,11 @@ public sealed class PlayerShellStateBuilder(
     IOfflineGraceState offlineGraceState,
     IShellHeartbeatSnapshot heartbeatSnapshot,
     IShellWarningStore shellWarningStore,
-    TimeProvider timeProvider) : IPlayerShellStateBuilder
+    TimeProvider timeProvider,
+    IProtectionEnforcer? protection = null,
+    ILauncherCatalog? catalog = null,
+    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null,
+    AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null) : IPlayerShellStateBuilder
 {
     /// <summary>Последняя минута сессии — отдельное состояние: экран готовит игрока к концу.</summary>
     public const int EndingThresholdSeconds = 60;
@@ -42,6 +48,7 @@ public sealed class PlayerShellStateBuilder(
             : Math.Max(0, (int)(lease.ExpiresAtUtc - now).TotalSeconds);
         var state = ResolveState(runtimeState.State, remainingSeconds, isOnline);
         var isGraceMode = string.Equals(state, PlayerShellStateNames.Grace, StringComparison.Ordinal);
+        var inMaintenance = string.Equals(state, PlayerShellStateNames.Maintenance, StringComparison.Ordinal);
         var threshold = agentOptions.ShellWarningThresholdSeconds;
         var sessionId = lease?.SessionId ?? runtimeState.ActiveSessionId;
 
@@ -60,7 +67,10 @@ public sealed class PlayerShellStateBuilder(
             IsGraceMode: isGraceMode,
             WarningThresholdSeconds: threshold,
             Message: CreateMessage(state),
-            LauncherApps: CreateLauncherApps(agentOptions),
+            LauncherApps: catalog is null ? CreateLauncherApps(agentOptions) : CreateLauncherApps(catalog),
+            ClubRules: protection?.Profile.ClubRules,
+            IdleShutdownAtUtc: idleShutdown?.ShutdownAtUtc,
+            Showcase: ShowcaseFor(state),
             Locale: agentOptions.PreferredLocale,
             WarningKind: ResolveWarning(state, remainingSeconds, threshold, isGraceMode, isOnline),
             // Оформление приходит сердцебиением; значения из конфига остаются запасным вариантом
@@ -72,7 +82,30 @@ public sealed class PlayerShellStateBuilder(
             SeatingCodeExpiresAtUtc: seatingCodeExpiresAtUtc,
             ObservedAtUtc: now,
             LastContactUtc: lastContactUtc,
-            ApiBaseUrl: agentOptions.PlatformBaseUrl.ToString());
+            ApiBaseUrl: agentOptions.PlatformBaseUrl.ToString(),
+            // Место и права — последние, что сервер назвал: без связи экран всё равно пишет «ПК 07».
+            SeatLabel: heartbeatSnapshot.Seat?.Label,
+            ZoneName: heartbeatSnapshot.Seat?.ZoneName,
+            SessionOwnerKind: heartbeatSnapshot.SessionOwner?.Kind,
+            SessionOwnerPlayerAccountId: heartbeatSnapshot.SessionOwner?.PlayerAccountId,
+            Features: heartbeatSnapshot.Features,
+            // Кто и когда — только в обслуживании: вне его полосе нечего писать.
+            MaintenanceSinceUtc: inMaintenance ? heartbeatSnapshot.MaintenanceSinceUtc : null,
+            MaintenanceByName: inMaintenance ? heartbeatSnapshot.MaintenanceByName : null,
+            // В обслуживании технику нужны и командная строка, и реестр — окна не закрываются.
+            BlockedWindows: inMaintenance || protection is null ? [] : protection.BlockedWindows);
+    }
+
+    /// <summary>
+    /// Реклама платформы — только на свободном ПК (PRD): во время сессии, в её последнюю минуту и в
+    /// обслуживании её в состоянии нет, даже если экран по ошибке решит показать витрину.
+    /// </summary>
+    private IReadOnlyList<AFK4.Shared.Contracts.Showcase.ShowcaseCardDto>? ShowcaseFor(string state)
+    {
+        var cards = showcase?.Cards();
+        return cards is null || state is PlayerShellStateNames.Locked or PlayerShellStateNames.Offline
+            ? cards
+            : cards.Where(card => card.Kind != AFK4.Shared.Contracts.Showcase.ShowcaseCardKindNames.Ad).ToList();
     }
 
     private static string ResolveState(string runtimeState, int? remainingSeconds, bool isOnline) => runtimeState switch
@@ -147,6 +180,18 @@ public sealed class PlayerShellStateBuilder(
                 Category: string.IsNullOrWhiteSpace(app.Category) ? "Games" : app.Category,
                 IconUri: null,
                 IsAvailable: File.Exists(app.ExecutablePath)))
+            .ToList();
+
+    /// <summary>Библиотека клуба: лаунчера на ПК нет — плитка видна недоступной, а не пропадает.</summary>
+    private static IReadOnlyList<LauncherAppDto> CreateLauncherApps(ILauncherCatalog catalog) =>
+        catalog.Entries()
+            .Select(entry => new LauncherAppDto(
+                AppId: entry.AppId,
+                DisplayName: entry.DisplayName,
+                Category: entry.Category,
+                IconUri: entry.IconUri,
+                IsAvailable: entry.ExecutablePath is not null && File.Exists(entry.ExecutablePath),
+                MinAge: entry.MinAge))
             .ToList();
 
     private static string CreateMessage(string state) => state switch

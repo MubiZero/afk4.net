@@ -391,6 +391,8 @@ describe('operator API clients', () => {
       allowNegativeStock: false,
       reorderThreshold: 5,
       availableInShell: true,
+      featuredOnPcs: false,
+      imageUrl: null,
       idempotencyKey: 'idem-product'
     });
     await clients.settings.updateProduct(branchId, '77777777-7777-7777-7777-777777777777', {

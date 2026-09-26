@@ -17,7 +17,7 @@ describe('networkNav', () => {
         'organization.audit.organization.view'
       ])
     ).map((d) => d.id);
-    expect(ids).toEqual(['branches', 'billing', 'install', 'journal']);
+    expect(ids).toEqual(['branches', 'billing', 'ads', 'install', 'journal']);
   });
 
   it('a session with only audit.view (branch-scoped, not owner-only audit.organization.view) no longer sees journal', () => {

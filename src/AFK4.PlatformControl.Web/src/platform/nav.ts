@@ -1,4 +1,4 @@
-import { Activity, Building2, DownloadCloud, Megaphone, ScrollText, Settings, UserRoundX, Wallet } from 'lucide-react';
+import { Activity, Building2, DownloadCloud, Gamepad2, Megaphone, MonitorPlay, ScrollText, Settings, UserRoundX, Wallet } from 'lucide-react';
 import type { NavItem } from '@/components/shell/navModel';
 import type { PlatformAdminSession } from '@/auth/tokenStore';
 import { can, type PlatformCapability } from '@/auth/platformAccess';
@@ -15,6 +15,9 @@ const platformNav: GatedNavItem[] = [
   { key: 'journal', labelKey: 'nav.platform.journal', path: '/admin/journal', icon: ScrollText, capability: 'audit.read' },
   { key: 'health', labelKey: 'nav.platform.health', path: '/admin/health', icon: Activity, capability: 'health.read' },
   { key: 'announcements', labelKey: 'nav.platform.announcements', path: '/admin/announcements', icon: Megaphone, capability: 'announcements.manage' },
+  { key: 'games', labelKey: 'nav.platform.games', path: '/admin/games', icon: Gamepad2, capability: 'games.manage' },
+  // Мегафон уже у «Сообщений»: реклама крутится на экране свободного ПК.
+  { key: 'ads', labelKey: 'nav.platform.ads', path: '/admin/ads', icon: MonitorPlay, capability: 'ads.manage' },
   { key: 'people', labelKey: 'nav.platform.people', path: '/admin/people', icon: UserRoundX, capability: 'people.network_ban.manage' },
   { key: 'settings', labelKey: 'nav.platform.settings', path: '/admin/settings', icon: Settings, capability: 'admins.manage' }
 ];

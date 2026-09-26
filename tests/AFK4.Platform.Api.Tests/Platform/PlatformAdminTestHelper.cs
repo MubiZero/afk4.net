@@ -81,7 +81,10 @@ internal static class PlatformAdminTestHelper
         HttpClient client,
         string userName = DefaultUserName,
         string password = DefaultPassword,
-        IEnumerable<string>? roles = null)
+        IEnumerable<string>? roles = null,
+        // Часы сервера, если тест их подменил: код второго шага считается по ним, иначе сервер его
+        // не примет.
+        TimeProvider? clock = null)
     {
         await SeedPlatformAdminAsync(factory, userName: userName, password: password, roles: roles);
 
@@ -93,7 +96,7 @@ internal static class PlatformAdminTestHelper
         Assert.Equal(System.Net.HttpStatusCode.OK, signIn.StatusCode);
         Assert.NotNull(challenge);
 
-        var code = TotpCodeGenerator.Generate(DefaultTotpSecret, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        var code = TotpCodeGenerator.Generate(DefaultTotpSecret, (clock?.GetUtcNow() ?? DateTimeOffset.UtcNow).ToUnixTimeSeconds());
         var verify = await client.PostAsJsonAsync(
             "/api/platform/auth/2fa/verify",
             new { ChallengeToken = challenge!.ChallengeToken, Code = code });

@@ -14,6 +14,9 @@ import { createOrgBillingClient } from './orgBilling';
 import { createOrgAuditClient } from './orgAudit';
 import { createInventoryClient } from './inventory';
 import { createDeviceClient } from './devices';
+import { createGamesClient } from './games';
+import { createReviewsClient } from './reviews';
+import { createInstallCodeClient } from './installCodes';
 import { createDiagnosticsClient } from './diagnostics';
 import { createUpdateClient } from './updates';
 import { createAuditClient } from './audit';
@@ -22,6 +25,7 @@ import { createAccountClient } from './account';
 import { createShopOrderClient } from './shopOrders';
 import { createLoyaltySettingsClient } from './loyaltySettings';
 import { createReferralSettingsClient } from './referralSettings';
+import { createTipsClient } from './tips';
 import { createFeaturesClient } from './features';
 import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
@@ -53,6 +57,9 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     orgAudit: createOrgAuditClient(organizationApi),
     inventory: createInventoryClient(organizationApi),
     devices: createDeviceClient(organizationApi),
+    games: createGamesClient(organizationApi),
+    reviews: createReviewsClient(organizationApi),
+    installCodes: createInstallCodeClient(organizationApi),
     diagnostics: createDiagnosticsClient(organizationApi),
     updates: createUpdateClient(organizationApi),
     audit: createAuditClient(organizationApi),
@@ -61,6 +68,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     shopOrders: createShopOrderClient(organizationApi),
     loyaltySettings: createLoyaltySettingsClient(organizationApi),
     referralSettings: createReferralSettingsClient(organizationApi),
+    tips: createTipsClient(organizationApi),
     features: createFeaturesClient(organizationApi),
     eskhataConfig: createEskhataConfigClient(organizationApi),
     news: createNewsClient(organizationApi),

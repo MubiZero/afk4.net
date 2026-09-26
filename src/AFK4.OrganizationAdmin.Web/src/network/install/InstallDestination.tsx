@@ -3,13 +3,12 @@ import type { JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { createAuthenticatedOperatorClients } from '../../operatorHelpers';
-import { EmptyState } from '../../operatorPrimitives';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import { getInstallerUrl } from './installModel';
+import { InstallCodesSection } from './InstallCodesSection';
 
-// Гайд по установке нового ПК через установщик-Мастер: ссылка на дистрибутив (когда задана в
-// конфиге релиза), пошаговый флоу Мастера и информационный список филиалов сети. Никакой ручной
-// генерации enrollment-кода — вход/выбор филиала/роли ПК/имя целиком ведёт сам Мастер.
+// Гайд по установке нового ПК: ссылка на дистрибутив (когда задана в конфиге релиза), пошаговый
+// флоу Мастера — для одного ПК, и код тихой установки — для зала, который ставят разом скриптом.
 export function InstallDestination({ backend }: { backend: OperatorBackendContext | null }): JSX.Element {
   const { t } = useI18n();
   const installerUrl = backend === null ? null : getInstallerUrl(backend.config);
@@ -30,7 +29,7 @@ export function InstallDestination({ backend }: { backend: OperatorBackendContex
         if (active) setBranches(list);
       })
       .catch(() => {
-        /* informational list only; a failure here shouldn't break the install guide */
+        /* без списка филиалов код выдать некуда, но гайд по мастеру от этого не ломается */
       });
     return () => {
       active = false;
@@ -69,23 +68,12 @@ export function InstallDestination({ backend }: { backend: OperatorBackendContex
         </ol>
       </section>
 
-      <section className="management-panel network-install-branches">
-        <h3>{t('op.network.install.branches.title')}</h3>
-        {branches.length === 0 ? (
-          <EmptyState
-            inline
-            className="network-install-branches-empty"
-            title={t('op.network.install.branches.empty')}
-            next={{ kind: 'elsewhere', hint: t('op.network.branches.add.viaPlatform') }}
-          />
-        ) : (
-          <ul className="network-install-branch-list">
-            {branches.map((b) => (
-              <li key={b.branchId}>{b.name}</li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <InstallCodesSection
+        clients={clients}
+        branches={branches}
+        preferredBranchId={backend?.branchId ?? null}
+        installerUrl={installerUrl}
+      />
     </ManagementScreen>
   );
 }

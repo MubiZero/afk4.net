@@ -24,4 +24,7 @@ public static class PlayerSignInClaimErrorCodeNames
 
     /// <summary>Заявку уже забрали: одна заявка — один вход.</summary>
     public const string AlreadyRedeemed = "claim_already_redeemed";
+
+    /// <summary>Клуб закрыл этот ПК на обслуживание, пока заявка ждала.</summary>
+    public const string DeviceInMaintenance = "device_in_maintenance";
 }

@@ -5,17 +5,22 @@ import { permissionNames } from '../operatorPermissions';
 const sessionWith = (perms: string[]) => ({ permissions: perms }) as never;
 
 describe('managementNav', () => {
-  it('lists exactly the nine destinations in order', () => {
+  it('lists exactly the twelve destinations in order', () => {
     expect(managementDestinations.map((d) => d.id)).toEqual([
-      'club', 'booking', 'halls', 'tariffs', 'staff', 'goods', 'payments', 'news', 'events'
+      'club', 'booking', 'halls', 'protection', 'games', 'tariffs', 'staff', 'goods', 'payments', 'news', 'events', 'reviews'
     ]);
+  });
+
+  // Библиотеку игр собирает тот, кто ставит ПК, — отдельное право, не настройки филиала.
+  it('the game-library permission opens only Games', () => {
+    expect(allowedManagementDestinations(sessionWith([permissionNames.manageGameLibrary])).map((d) => d.id)).toEqual(['games']);
   });
 
   // «Клуб» и «Приём броней» ходят под одним правом (ManageBranchSettings на сервере), поэтому
   // роль с настройками филиала видит оба раздела, а роль без него — ни одного.
-  it('branch-settings permission opens both club and booking intake', () => {
+  it('branch-settings permission opens club, booking intake and PC protection', () => {
     const settingsOnly = allowedManagementDestinations(sessionWith([permissionNames.manageBranchSettings]));
-    expect(settingsOnly.map((d) => d.id)).toEqual(['club', 'booking']);
+    expect(settingsOnly.map((d) => d.id)).toEqual(['club', 'booking', 'protection']);
   });
 
   it('shows the merged payments section for either payment or loyalty permission', () => {

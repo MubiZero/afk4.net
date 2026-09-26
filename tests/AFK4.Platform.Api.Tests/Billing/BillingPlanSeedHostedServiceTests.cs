@@ -46,8 +46,10 @@ public sealed class BillingPlanSeedHostedServiceTests
         Assert.Equal(
             new[]
             {
+                OrganizationPlanCodeNames.Free,
                 OrganizationPlanCodeNames.Growth,
                 "growth_yearly",
+                OrganizationPlanCodeNames.PerPc,
                 OrganizationPlanCodeNames.Scale,
                 "scale_yearly",
                 OrganizationPlanCodeNames.Starter,
@@ -68,7 +70,8 @@ public sealed class BillingPlanSeedHostedServiceTests
 
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        Assert.Equal(6, await db.SubscriptionPlans.CountAsync());
+        Assert.Equal(8, await db.SubscriptionPlans.CountAsync());
+        Assert.Equal(2, await db.PlanFeatures.CountAsync());
     }
 
     // Regression for a review finding: StartAsync used to bail out on AnyAsync() — a staging/prod
@@ -149,7 +152,8 @@ public sealed class BillingPlanSeedHostedServiceTests
         Assert.Equal(999999, plans["custom_negotiated"].PriceMinorUnits);
         Assert.Equal("TJS", plans["custom_negotiated"].CurrencyCode);
 
-        Assert.Equal(7, plans.Count);
+        // Семь было, бесплатный и за ПК добавились.
+        Assert.Equal(9, plans.Count);
     }
 
     [Fact]

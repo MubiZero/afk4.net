@@ -4,17 +4,35 @@
 // call this as a function, so this narrower contract is the correct one.
 import type { PlatformAdminSignInResponse } from '@afk4/contracts';
 export type {
+  AdCampaignComplianceDto,
+  AdCampaignDto,
+  AdCampaignStateName,
+  AdComplaintDto,
+  AdComplaintReasonName,
+  AdCategoryName,
+  AdCreativeDto,
+  AdImpressionRowDto,
+  AdModerationName,
+  AdvertiserDto,
+  BillingTermsDto,
+  CatalogGameDto,
   CreateBranchRequest,
   CreateOrganizationRequest,
   CreateOrganizationResponse,
   CreatePlanRequest,
   CreatePlatformUpdatePackageRequest,
   CreatePlatformUpdateRolloutRequest,
+  ModerateAdCreativeRequest,
   PlatformAdminListItem,
   PlatformAdminSignInChallengeResponse,
   PlatformAdminSignInResponse,
+  UpdateBillingTermsRequest,
   UpdatePlanRequest,
   UpdateSubscriptionRequest,
+  UpsertAdCampaignRequest,
+  UpsertAdCreativeRequest,
+  UpsertAdvertiserRequest,
+  UpsertCatalogGameRequest,
 } from '@afk4/contracts';
 
 export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -65,6 +83,8 @@ export interface OrganizationLimits {
   maxDevicesPerBranch: number | null;
   maxConcurrentSessions: number | null;
   maxStaffUsersPerBranch: number | null;
+  // Игровых ПК на весь клуб, без деления по залам (бесплатный тариф — до десяти).
+  maxDevices?: number | null;
 }
 
 export interface OrganizationDetail {
@@ -268,6 +288,9 @@ export const OrganizationStatus = {
 export type OrganizationStatusValue = (typeof OrganizationStatus)[keyof typeof OrganizationStatus];
 
 export const OrganizationPlanCode = {
+  // Спека тарифов клуба: бесплатно до 10 ПК, дальше за ПК. Прежняя сетка снята с продажи.
+  Free: 'free',
+  PerPc: 'per_pc',
   Starter: 'starter',
   Growth: 'growth',
   Scale: 'scale'
@@ -309,6 +332,14 @@ export interface SubscriptionPlan {
   maxStaffUsersPerBranch: number | null;
   isActive: boolean;
   sortOrder: number;
+  // Тариф за ПК: цена каждого ПК сверх включённых.
+  pricePerDeviceMinorUnits?: number;
+  includedDevices?: number;
+  // Игровых ПК на весь клуб; пусто — без предела.
+  maxDevices?: number | null;
+  features?: { featureKey: string; name: string; isIncluded: boolean }[] | null;
+  // Сколько клубов сейчас на тарифе.
+  clubs?: number;
 }
 
 export interface OrganizationSubscription {

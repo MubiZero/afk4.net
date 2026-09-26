@@ -36,6 +36,27 @@ public sealed class AgentRuntimeStateStoreTests
         Assert.Equal(lease.ExpiresAtUtc, restarted.Current.LeaseExpiresAtUtc);
     }
 
+    // Уборка закрывает то, что запущено за сессию, — начало сессии не должно сдвигаться с каждым
+    // продлением аренды, а новая сессия начинается заново. И начало переживает перезапуск службы.
+    [Fact]
+    public void MarkActive_KeepsTheSessionStartAcrossRefreshes_AndRestarts()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var lease = CreateLease();
+        var store = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now));
+
+        store.MarkActive(lease, Now);
+        store.MarkActive(lease, Now.AddMinutes(10));
+        var restarted = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now.AddMinutes(11)));
+        restarted.MarkActive(lease, Now.AddMinutes(20));
+
+        Assert.Equal(Now, restarted.Current.SessionStartedAtUtc);
+
+        restarted.MarkLocked(Now.AddMinutes(30));
+        restarted.MarkActive(lease with { SessionId = Guid.NewGuid() }, Now.AddMinutes(40));
+        Assert.Equal(Now.AddMinutes(40), restarted.Current.SessionStartedAtUtc);
+    }
+
     [Fact]
     public void MarkLocked_PersistsLockedRuntimeState()
     {

@@ -44,8 +44,9 @@ it('submits trimmed values with the default plan/status and calls onCreated', as
   const payload = client.createOrganization.mock.calls[0][0];
   expect(payload.organizationSlug).toBe('victory');
   expect(payload.organizationName).toBe('Victory');
-  expect(payload.planCode).toBe('starter');
-  expect(payload.subscriptionStatus).toBe('trial');
+  // Новый клуб — на бесплатном тарифе; пустые лимиты сервер берёт с тарифа.
+  expect(payload.planCode).toBe('free');
+  expect(payload.subscriptionStatus).toBe('active');
   expect(payload.limits).toBeNull();
   await waitFor(() => expect(onCreated).toHaveBeenCalledWith(response));
 });

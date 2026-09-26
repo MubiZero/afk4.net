@@ -45,7 +45,12 @@ public sealed class AgentRuntimeStateStore : IAgentRuntimeStateStore
 
     public void MarkActive(SessionLeaseDto lease, DateTimeOffset observedAtUtc)
     {
-        Save(AgentRuntimeState.Active(lease, observedAtUtc));
+        // Продление аренды той же сессии — не новая сессия: начало остаётся прежним.
+        var previous = Current;
+        var startedAtUtc = previous.SessionRuns && previous.ActiveSessionId == lease.SessionId
+            ? previous.SessionStartedAtUtc ?? observedAtUtc
+            : observedAtUtc;
+        Save(AgentRuntimeState.Active(lease, observedAtUtc, startedAtUtc));
     }
 
     private AgentRuntimeState LoadOrDefault(DateTimeOffset now)

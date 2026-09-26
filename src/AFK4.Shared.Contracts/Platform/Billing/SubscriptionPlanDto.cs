@@ -11,4 +11,15 @@ public sealed record SubscriptionPlanDto(
     int? MaxConcurrentSessions,
     int? MaxStaffUsersPerBranch,
     bool IsActive,
-    int SortOrder);
+    int SortOrder,
+    // Цена каждого ПК сверх включённых — у тарифа за ПК; у прочих ноль.
+    long PricePerDeviceMinorUnits = 0,
+    int IncludedDevices = 0,
+    // Игровых ПК на весь клуб; пусто — без предела.
+    int? MaxDevices = null,
+    // Каждая функция платформы и включена ли она этим тарифом.
+    IReadOnlyList<PlanFeatureDto>? Features = null,
+    // Сколько клубов сейчас на этом тарифе — им «применить лимиты» при правке.
+    int Clubs = 0);
+
+public sealed record PlanFeatureDto(string FeatureKey, string Name, bool IsIncluded);

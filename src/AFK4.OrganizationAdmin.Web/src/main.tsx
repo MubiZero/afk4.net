@@ -71,7 +71,9 @@ async function start(): Promise<void> {
 // In a plain-browser dev run the native WebView2 host bridge is absent, so install the dev-only
 // stub before mounting. The dynamic import is gated on import.meta.env.DEV, so Vite drops both the
 // branch and the module from the production build — the stub never ships in the MSI.
-if (import.meta.env.DEV) {
+// Публичное демо (`bun run build:demo`) — тот же учебный бэкенд, что в превью, но в собранном виде.
+// Флаг сборки подставляется константой: боевая сборка без него ветку и модуль выбрасывает.
+if (import.meta.env.DEV || import.meta.env.VITE_AFK4_DEMO === '1') {
   void import('./devHostBridge').then(({ installDevHostBridge }) => {
     installDevHostBridge();
     void start();

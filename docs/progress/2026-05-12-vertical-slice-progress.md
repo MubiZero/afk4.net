@@ -943,7 +943,7 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 ## Known Gaps
 
 - **The PC does not use its own sign-in yet.** Since P2a (2026-09-24,
-  `docs/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
+  `docs/archive/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
   sign in on a gaming PC through the agent (`/api/devices/{id}/player-sign-in`):
   attempts are counted per machine, a player never gets into someone else's
   session, and the tokens are bound to the PC and revoked by the server — five
@@ -976,16 +976,16 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   need a native WebView2 visual pass at 100%/125% scaling in dark and light
   themes together with the broader clean `manager_workstation` smoke below.
 
-- **The gaming PC still has no OS-level kiosk.** Lock now disables Task Manager
-  through machine policy and reports what it enforced (#275), the launcher list
-  and the credit-limit warning reach the player, unknown commands are refused
-  and the app inventory runs on a schedule (#274). What is still missing is the
-  half that cannot live in a service: swallowing Win/Alt+Tab and holding the
-  shell in front need a hook on the interactive desktop, and the agent sits in
-  session 0. So a player can still Alt+Tab out of a "locked" PC — the difference
-  is that the server no longer claims otherwise. That half belongs to the Player
-  Shell rewrite (plan P5). Plan P1 of the rewrite (2026-09-24,
-  `docs/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
+- **The gaming PC kiosk is built but not proven on a live PC.** Plan P5
+  (`docs/superpowers/plans/2026-09-25-shell-p5-kiosk.md`, stacked PRs #467,
+  #469–#473, #477, #478 and P5e) adds what a service in session 0 could not do: the
+  host's low-level keyboard hook (Win, Alt+Tab, Ctrl+Esc by mode), maintenance
+  mode with an expiry, the kiosk account with autologon and the shell instead of
+  Explorer, the branch protection profile with a per-item report, window rules,
+  Windows restarting a crashed agent, silent install by code for a whole hall, and
+  wiping the player's sign-ins after a session. None of it is proven until the
+  P5 acceptance on a real club PC. Earlier steps of the same rewrite: plan P1 (2026-09-24,
+  `docs/archive/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
   tell the shell the truth: one persistent pipe `afk4-shell-v2` with an ACL
   instead of two open per-message pipes, state pushed on change instead of
   polled, `offline` and `ending` actually produced, `IsOnline` from the last
@@ -993,8 +993,14 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   expired, grace no longer called a credit limit, games refused outside a
   session and started in the player's session instead of session 0. «Позвать
   оператора» now reaches the counter through the agent; the shell's «пауза» is
-  gone — pause stays the admin's (#279). **The agent and the shell must be
-  updated together:** the old and the new pipe do not talk, and until the first
+  gone — pause stays the admin's (#279). Plan P4a replaced the shell's web UI with
+  a new foundation: the `player` token theme under the contrast gate, bundled
+  Golos Text and JetBrains Mono, all text in `locales/*` under `playerShell.*`,
+  the screen chosen from the agent state by one function, a practice host for
+  the browser (`?scenario=`), and the idle, offline, maintenance, error and
+  basic session screens; sign-in, choose-time and the full session follow in
+  P4b–P4d. The new UI speaks bridge v2 and must ship with the P3 host. **The
+  agent and the shell must be updated together:** the old and the new pipe do not talk, and until the first
   club this is cheaper than a compatibility bridge. Not proven by any automated
   check: the pipe ACL against a real standard user and a game appearing on the
   player's screen — that is P5 acceptance on a live PC. Clock drift is still
@@ -1072,11 +1078,24 @@ thrown away rather than polished.
    the command pipe has no ACL for a standard user; `IsOnline` is hardcoded and
    `offline`/`ending`/`maintenance` are never produced; the shell's API address
    is set by nobody, so it would call production from staging. None of this was
-   seen on a PC — reading only.
-2. **Pricing was never set in somoni.** The seeded Starter price of 2 900 TJS
-   was a ruble figure relabelled; the owner set free up to 10 PCs, then 10 TJS
-   per PC (billing spec §6a). Until the plans are reworked, do not show the old
-   prices to a club.
+   seen on a PC — reading only. **Merged on 2026-09-26:** plans P1–P9 (#443–#490:
+   host and bridge v2, the new interface, kiosk and protection, multi-seat
+   commands, game library, shell settings, reviews, hardware snapshot, showcase
+   and platform ads, tips). None of it is proven on a live PC — that is the P5
+   acceptance and the frozen live runs below.
+2. **The launch set is merged (2026-09-26).** Per-PC pricing with trial,
+   promised payment and free-plan fallback (#491), agentless console seats
+   (#492), guest import with opening balances (#493), «refer a club» (#494), the
+   public demo of the Organization Admin (#495, runbook
+   `docs/operations/demo-panel.md`; hosting it is the owner's step), then the
+   owner's answers of 2026-09-26: the plan is PC count only and PCs above ten
+   stop taking new sessions after the grace, plans and payment terms are set in
+   Platform Control (#496); the Tajik advertising law is enforced (#497, ads spec
+   §8); Tajik dates are formatted by `@afk4/formatting` (#498); the club sees
+   the ads on its PCs and can report one (#499–#500, «Сеть → Реклама»), and the
+   free-plan terms are written out in «Сеть → Подписка». Open: none from the
+   owner's side; a native WebView2 pass of the new screens is part of the live
+   runs.
 3. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
    There are no clubs yet, so a package still reaches everyone at once, on purpose
    and guarded by a test. Before the first clubs, decide waves together with a view

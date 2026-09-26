@@ -30,4 +30,6 @@ public sealed record TariffOptionDto(
     int? AppliesToMinuteOfDay = null,
     // Действует ли тариф прямо сейчас — по часам клуба, а не телефона. Важно там, где играть
     // начинают сию секунду; для брони на завтра ответ никакого значения не имеет.
-    bool AppliesNow = true);
+    bool AppliesNow = true,
+    // Тариф крутится в витрине свободного ПК.
+    bool FeaturedOnPcs = false);

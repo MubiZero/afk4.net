@@ -12,6 +12,7 @@ const APP_STYLE_DIRS = [
   'src/AFK4.OrganizationAdmin.Web/src',
   'src/AFK4.PlatformControl.Web/src',
   'src/AFK4.SetupWizard.Web/src',
+  'src/AFK4.Player.Shell.Web/src',
 ];
 
 function appFiles(appDir: string, ext: string): string[] {
@@ -144,7 +145,7 @@ const AA_TEXT = 4.5; // WCAG 1.4.3 — обычный текст
 const AA_NON_TEXT = 3; // WCAG 1.4.11 — границы контролов, кольца фокуса
 
 describe('WCAG contrast', () => {
-  for (const theme of ['dark', 'light']) {
+  for (const theme of ['dark', 'light', 'player']) {
     const v = themeVars(tokensCss, theme);
 
     // Текстовая шкала. --text-quaternary сознательно НЕ здесь: это доля «выключено» из

@@ -49,6 +49,15 @@ export interface SeatSummary {
    * своему прежнему виду — и продление молча затиралось.
    */
   sessionVersion?: number | null;
+  /**
+   * С какого момента клуб держит ПК на обслуживании. «Обслуживание» на карте бывает и у
+   * неподтверждённого ПК; «Вернуть в зал» имеет смысл только для того, кого туда увели.
+   */
+  maintenanceSinceUtc?: string | null;
+  // Консоль без агента: сессию ведёт администратор, команд ПК у места нет.
+  isConsole?: boolean;
+  // ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются.
+  isOutsidePlan?: boolean;
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;
