@@ -22,11 +22,26 @@ String formatDateTime(L l, DateTime value, String locale, {DateTime? now}) {
   };
   if (named != null) return l.customerCommonDayAtTime(named, time);
 
-  final pattern = day.year == today.year
-      ? DateFormat.MMMd(dateLocale(locale))
-      : DateFormat.yMMMd(dateLocale(locale));
-  return l.customerCommonDayAtTime(pattern.format(local), time);
+  return l.customerCommonDayAtTime(_monthDay(local, locale, withYear: day.year != today.year), time);
 }
+
+/// «12 август», «12 август 2025». Для таджикского — свои названия месяцев: `intl` таджикского не
+/// знает, а русские «12 авг.» в таджикском интерфейсе — чужой язык.
+String _monthDay(DateTime local, String locale, {required bool withYear}) {
+  if (_isTajik(locale)) {
+    final day = '${local.day} ${_tajikMonths[local.month - 1]}';
+    return withYear ? '$day ${local.year}' : day;
+  }
+  final pattern = withYear ? DateFormat.yMMMd(dateLocale(locale)) : DateFormat.MMMd(dateLocale(locale));
+  return pattern.format(local);
+}
+
+bool _isTajik(String locale) => locale == 'tg' || locale.startsWith('tg_') || locale.startsWith('tg-');
+
+// В именительном падеже, как их пишут в датах: «31 октябр 2026».
+const _tajikMonths = [
+  'январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр',
+];
 
 /// Промежуток брони. День называется один раз: «Сегодня, 14:00 — 16:00» вместо строки,
 /// где одно и то же «Сегодня» повторяется дважды.
@@ -41,7 +56,8 @@ String formatTimeRange(L l, DateTime start, DateTime end, String locale, {DateTi
 
 DateTime _dayOnly(DateTime value) => DateTime(value.year, value.month, value.day);
 
-/// `intl` не знает таджикского и на нём падает — тот же откат на русский, что и у сумм.
+/// `intl` не знает таджикского и на нём падает — для времени откат на русский (часы и минуты —
+/// цифры), а названия месяцев подставляет [_monthDay].
 String dateLocale(String locale) =>
     Intl.verifiedLocale(locale, DateFormat.localeExists, onFailure: (_) => 'ru')!;
 

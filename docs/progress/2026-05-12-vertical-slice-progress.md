@@ -1091,8 +1091,9 @@ thrown away rather than polished.
    is PC count only, PCs above ten stop taking new sessions after the grace,
    plans and payment terms are set in Platform Control (#496); the advertising
    law is enforced in the ads-law PR (ads spec §8), with lawyer questions in
-   §8.4. Tajik month names fall back to English in Chromium (Intl has no tg
-   data) — a separate fix, not started.
+   §8.4. Chromium has no Tajik date data (Intl turns tg-TJ into en-US: English
+   months, AM/PM time); `@afk4/formatting` now formats Tajik dates itself and
+   the customer app does the same.
 3. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
    There are no clubs yet, so a package still reaches everyone at once, on purpose
    and guarded by a test. Before the first clubs, decide waves together with a view

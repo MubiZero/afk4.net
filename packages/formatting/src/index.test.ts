@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, localPhoneDigits } from './index';
+import { formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, isTajikLocale, localPhoneDigits } from './index';
 
 it('formats numbers with locale grouping and options', () => {
   // ru-RU groups thousands with a non-breaking space (U+00A0); normalise any
@@ -46,5 +46,34 @@ describe('телефон Таджикистана', () => {
   it('на сервер уходит код страны и девять цифр', () => {
     expect(fullPhoneDigits('93 738 00 70')).toBe('992937380070');
     expect(fullPhoneDigits('+992937380070')).toBe('992937380070');
+  });
+});
+
+// Браузеры не знают таджикского (tg-TJ → en-US): месяцы шли по-английски, время — с AM/PM.
+describe('таджикские даты', () => {
+  const at = new Date('2026-10-31T09:05:00.000Z');
+
+  it('пишет месяц и день недели по-таджикски', () => {
+    expect(formatDateParts(at, 'tg-TJ', { day: 'numeric', month: 'long', timeZone: 'UTC' })).toBe('31 октябр');
+    expect(formatDateParts(at, 'tg', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })).toBe('31 октябр 2026');
+    expect(formatDateParts(at, 'tg-TJ', { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' })).toBe('шанбе 31 октябр');
+  });
+
+  it('время — двадцать четыре часа, без AM/PM', () => {
+    expect(formatDateParts('2026-10-31T21:40:00.000Z', 'tg-TJ', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })).toBe('21:40');
+    expect(formatDateParts(at, 'tg-TJ', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })).toBe('31 октябр 2026, 09:05');
+  });
+
+  it('месяц и день недели берутся в поясе, в котором показывается дата', () => {
+    // 31 октября 22:00 UTC — в Душанбе уже 1 ноября, воскресенье.
+    expect(formatDateParts('2026-10-31T22:00:00.000Z', 'tg-TJ', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Dushanbe' }))
+      .toBe('якшанбе 1 ноябр');
+  });
+
+  it('цифровые даты остаются цифрами, а русский и английский — за Intl', () => {
+    expect(formatDateParts(at, 'tg-TJ', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })).toBe('31.10.2026');
+    expect(formatDateParts(at, 'ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' })).toBe('31 октября');
+    expect(isTajikLocale('tg')).toBe(true);
+    expect(isTajikLocale('ru-RU')).toBe(false);
   });
 });

@@ -5,6 +5,7 @@
 import { formatMinorUnits, formatTime, type PlayerClientItem, type TFunc } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto, ReservationDto, SessionTimelineItemDto } from '../operatorApiClients';
 import type { MessageKey } from '@afk4/i18n';
+import { formatDateParts } from '@afk4/formatting';
 
 export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '../operatorHelpers';
 
@@ -115,7 +116,7 @@ export function projectPlayerPackage(pkg: PlayerPackageDto, t: TFunc, locale: st
     remainingIncludedMinutes: includedMinutes,
     remainingBonusMinutes: bonusMinutes,
     totalRemainingMinutes: includedMinutes + bonusMinutes,
-    expiryLabel: validExpiry ? expiresAt!.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : null,
+    expiryLabel: validExpiry ? formatDateParts(expiresAt!, locale, { day: '2-digit', month: 'short', year: 'numeric' }) : null,
     isExpired: validExpiry ? expiresAt!.getTime() < Date.now() : false
   };
 }

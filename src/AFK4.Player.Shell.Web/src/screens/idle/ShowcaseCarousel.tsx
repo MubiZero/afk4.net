@@ -5,6 +5,7 @@ import { createCatalogTranslator, useI18n, type MessageKey } from '@afk4/i18n';
 import { playerShellCatalog } from '@afk4/i18n/catalogs/player-shell';
 import { formatMoney } from '@afk4/money';
 import { INTL_LOCALES } from '../../model/offers';
+import { formatDateParts } from '@afk4/formatting';
 
 /** Сколько карточка стоит на экране. Дольше — витрина кажется застывшей, короче — мельтешит. */
 export const SHOWCASE_SLIDE_MS = 9000;
@@ -145,17 +146,17 @@ const TAJIK = createCatalogTranslator(playerShellCatalog, 'tg');
 
 function AdDisclosures({ card }: { card: ShowcaseCardDto }) {
   const { t, locale } = useI18n();
-  const lines = (translate: typeof t) => {
+  const lines = (translate: typeof t, intlLocale: string) => {
     const parts: string[] = [];
     if (card.seller) parts.push(translate('playerShell.showcase.ad.seller', { ...card.seller }));
     if (card.requiresCertification) parts.push(translate('playerShell.showcase.ad.certification'));
-    if (card.offerUntilUtc) parts.push(translate('playerShell.showcase.ad.offerUntil', { date: numericDay(card.offerUntilUtc) }));
+    if (card.offerUntilUtc) parts.push(translate('playerShell.showcase.ad.offerUntil', { date: formatDateParts(card.offerUntilUtc, intlLocale, { day: 'numeric', month: 'long', year: 'numeric' }) }));
     return parts.join(' · ');
   };
 
-  const tajik = lines(TAJIK as typeof t);
+  const tajik = lines(TAJIK as typeof t, INTL_LOCALES.tg);
   if (!tajik) return null;
-  const local = locale === 'tg' ? '' : lines(t);
+  const local = locale === 'tg' ? '' : lines(t, INTL_LOCALES[locale]);
   return (
     <div className="showcase-slide__legal">
       <p lang="tg">{tajik}</p>
@@ -164,13 +165,7 @@ function AdDisclosures({ card }: { card: ShowcaseCardDto }) {
   );
 }
 
-// «31.10.2026» — одинаково на всех языках: таджикских названий месяцев в Intl браузера нет
-// (tg-TJ сводится к en-US), а по-английски срок в таджикской строке выглядел бы ошибкой.
-function numericDay(iso: string): string {
-  const date = new Date(iso);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
-}
+
 
 // «Турнир · Dota 2», «Реклама · Сомон Телеком»: у рекламы рядом с меткой всегда рекламодатель (PRD).
 function kindLine(kind: string, card: ShowcaseCardDto): string {
@@ -207,8 +202,7 @@ function duration(minutes: number, t: ReturnType<typeof useI18n>['t']): string {
 // Время турнира — по часам ПК: ПК стоит в клубе, и его часы и есть время клуба.
 function formatStart(iso: string, intlLocale: string): string {
   try {
-    return new Intl.DateTimeFormat(intlLocale, { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
-      .format(new Date(iso));
+    return formatDateParts(iso, intlLocale, { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   } catch {
     return new Date(iso).toLocaleString();
   }

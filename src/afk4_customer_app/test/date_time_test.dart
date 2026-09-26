@@ -48,11 +48,15 @@ void main() {
     expect(formatVisitDuration(l, _start, null, now: _start.add(const Duration(minutes: 20))), '20 мин');
   });
 
-  testWidgets('дата показывается с временем и не падает на таджикском', (tester) async {
+  // intl таджикского не знает: раньше дата в таджикском интерфейсе выходила по-русски («12 авг.»).
+  testWidgets('на таджикском месяц пишется по-таджикски', (tester) async {
     final l = await localizations(tester, const Locale('tg'));
+    final now = DateTime(2026, 9, 26, 12);
+    final local = _start.toLocal();
 
-    expect(formatDateTime(l, _start, 'ru'), contains(':'));
-    expect(formatDateTime(l, _start, 'tg'), formatDateTime(l, _start, 'ru'));
+    expect(formatDateTime(l, _start, 'tg', now: now), contains('${local.day} август'));
+    expect(formatDateTime(l, _start, 'tg', now: now), isNot(contains('авг.')));
+    expect(formatDateTime(l, DateTime.utc(2025, 12, 3, 10), 'tg', now: now), contains('декабр 2025'));
     expect(dateLocale('tg'), 'ru');
   });
 

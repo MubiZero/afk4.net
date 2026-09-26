@@ -6,6 +6,7 @@ import type {
 } from '@afk4/contracts';
 import type { Locale, MessageKey } from '@afk4/i18n';
 import { PlayerApiError } from '../api/playerApi';
+import { formatDateParts } from '@afk4/formatting';
 
 /** Что выбрал игрок: вариант тарифа с готовой суммой или минуты из своего пакета. */
 export type OfferChoice =
@@ -25,10 +26,10 @@ export const INTL_LOCALES: Record<Locale, string> = { ru: 'ru-RU', tg: 'tg-TJ', 
 /** «до 21:40» — по часам клуба, а не по поясу, выставленному на ПК. Пояс не пришёл — время ПК. */
 export function clubTime(isoUtc: string, timeZone: string | undefined, locale: Locale): string {
   try {
-    return new Intl.DateTimeFormat(INTL_LOCALES[locale], { hour: '2-digit', minute: '2-digit', timeZone }).format(new Date(isoUtc));
+    return formatDateParts(isoUtc, INTL_LOCALES[locale], { hour: '2-digit', minute: '2-digit', timeZone });
   } catch {
     // Неизвестный пояс — время ПК лучше, чем ничего.
-    return new Intl.DateTimeFormat(INTL_LOCALES[locale], { hour: '2-digit', minute: '2-digit' }).format(new Date(isoUtc));
+    return formatDateParts(isoUtc, INTL_LOCALES[locale], { hour: '2-digit', minute: '2-digit' });
   }
 }
 
