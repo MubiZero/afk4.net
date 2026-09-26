@@ -65,6 +65,30 @@ public sealed class CorsOriginsTests
     }
 
     [Fact]
+    public void TheAppsOwnPage_IsAllowed_EvenInProductionWithoutConfiguration()
+    {
+        // Панель и экран игрока грузят страницу из своей папки через виртуальный хост WebView2.
+        // Раньше этот адрес стоял среди адресов разработчика, и в проде оба приложения упёрлись бы
+        // в CORS на первом же запросе.
+        var browserOrigins = CorsOrigins.Resolve(
+            Configuration(), "Cors:OperatorWebOrigins", DeveloperDefaults, allowDeveloperDefaults: false);
+
+        Assert.Equal(
+            [CorsOrigins.OrganizationAdminApp],
+            CorsOrigins.WithNativeApp(browserOrigins, CorsOrigins.OrganizationAdminApp));
+        Assert.Equal("https://player.afk4.local", CorsOrigins.PlayerShellApp);
+    }
+
+    [Fact]
+    public void TheAppsOwnPage_IsNotListedTwice()
+    {
+        var origins = CorsOrigins.WithNativeApp(
+            ["https://admin.afk4.net", "HTTPS://OPERATOR.AFK4.LOCAL"], CorsOrigins.OrganizationAdminApp);
+
+        Assert.Equal(2, origins.Length);
+    }
+
+    [Fact]
     public void Resolve_NormalisesAndDeduplicates()
     {
         var origins = CorsOrigins.Resolve(

@@ -107,26 +107,30 @@ string[] ResolveCorsOrigins(string configurationKey, string[] developerDefaults)
         developerDefaults,
         allowDeveloperCorsOrigins);
 
-var organizationAdminWebOrigins = ResolveCorsOrigins(
+var organizationAdminBrowserOrigins = ResolveCorsOrigins(
     "Cors:OperatorWebOrigins",
     [
-        "https://operator.afk4.local",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
         "http://localhost:4174",
         "http://127.0.0.1:4174"
     ]);
 
-var platformWebOrigins = ResolveCorsOrigins(
+var platformBrowserOrigins = ResolveCorsOrigins(
     "Cors:PlatformWebOrigins",
     [
         "https://platform.afk4.local",
-        "https://player.afk4.local",
         "http://localhost:5175",
         "http://127.0.0.1:5175",
         "http://localhost:4175",
         "http://127.0.0.1:4175"
     ]);
+
+// Страницы собственных приложений пускаются всегда, и в проде тоже: см. CorsOrigins.WithNativeApp.
+// Раньше они стояли в адресах разработчика, и в Production Панель и экран игрока получили бы
+// отказ CORS на каждом запросе — на стенде (Staging) этого не видно.
+var organizationAdminWebOrigins = CorsOrigins.WithNativeApp(organizationAdminBrowserOrigins, CorsOrigins.OrganizationAdminApp);
+var platformWebOrigins = CorsOrigins.WithNativeApp(platformBrowserOrigins, CorsOrigins.PlayerShellApp);
 
 var combinedWebOrigins = organizationAdminWebOrigins
     .Concat(platformWebOrigins)
@@ -559,7 +563,7 @@ app.UseStaticFiles();
 
 // Прод без перечисленных источников не пускает браузерные кабинеты вовсе. Это лучше открытого
 // localhost, но узнать об этом из логов надо раньше, чем из «кнопка не работает».
-if (!allowDeveloperCorsOrigins && combinedWebOrigins.Length == 0)
+if (!allowDeveloperCorsOrigins && organizationAdminBrowserOrigins.Length + platformBrowserOrigins.Length == 0)
 {
     app.Logger.LogWarning(
         "CORS origins are not configured for this environment; browser clients will be refused. " +
