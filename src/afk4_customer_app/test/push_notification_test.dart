@@ -44,6 +44,9 @@ void main() {
       expect(pushDestinationFor('player.reservation_rejected'), PushDestination.reservations);
       expect(pushDestinationFor('player.balance_topped_up'), PushDestination.wallet);
       expect(pushDestinationFor('player.order_ready'), PushDestination.shop);
+      // Отзывы клуба живут в каталоге и требуют клуба, которого в пуше нет, — ответ читается
+      // в списке уведомлений.
+      expect(pushDestinationFor('player.review_replied'), PushDestination.notifications);
       expect(pushDestinationFor('platform.announcement'), PushDestination.home);
     });
 

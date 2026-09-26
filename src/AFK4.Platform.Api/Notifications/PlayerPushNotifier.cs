@@ -16,6 +16,12 @@ public sealed class PlayerPushNotifier(
     INotificationService notifications,
     ILogger<PlayerPushNotifier> logger)
 {
+    /// <summary>
+    /// Сколько ответа клуба уходит в пуш. Целиком его читают в приложении, а длинное шторка
+    /// всё равно обрежет — только посреди слова.
+    /// </summary>
+    internal const int ReplyExcerptLength = 120;
+
     public async Task BalanceToppedUpAsync(
         Guid playerAccountId,
         Guid organizationId,
@@ -106,6 +112,62 @@ public sealed class PlayerPushNotifier(
             tokens,
             $"player.reservation_answered:{playerAccountId}:{startsAtUtc:O}:{confirmed}",
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Клуб ответил на отзыв. Без пуша ответ читали бы только случайно: игрок пишет отзыв один
+    /// раз и в список отзывов клуба сам не возвращается. Ключ — по отзыву, а не по тексту: пуш
+    /// один на отзыв, и двойное нажатие «Ответить» не присылает его дважды.
+    /// </summary>
+    public async Task ReviewRepliedAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        Guid reviewId,
+        string reply,
+        CancellationToken cancellationToken)
+    {
+        var club = await dbContext.Branches
+            .AsNoTracking()
+            .Where(candidate => candidate.BranchId == branchId)
+            .Select(candidate => candidate.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        await SendAsync(
+            NotificationTemplateKeys.PlayerReviewReplied,
+            playerAccountId,
+            organizationId,
+            branchId,
+            new Dictionary<string, string>
+            {
+                ["club"] = club ?? string.Empty,
+                ["reply"] = Excerpt(reply, ReplyExcerptLength),
+            },
+            $"player.review_replied:{reviewId:N}",
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Начало текста по границе слова, с «…», если пришлось резать. Переводы строк схлопываются:
+    /// в шторке уведомления это одна-две строки, и абзацы в ней выглядят обрывами.
+    /// </summary>
+    internal static string Excerpt(string text, int limit)
+    {
+        var flat = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (flat.Length <= limit)
+        {
+            return flat;
+        }
+
+        var cut = flat.LastIndexOf(' ', limit);
+        if (cut <= 0)
+        {
+            // Одно длинное слово без пробелов — режем по месту, но не посреди суррогатной пары:
+            // половина эмодзи в пуше рисуется квадратиком.
+            cut = char.IsHighSurrogate(flat[limit - 1]) ? limit - 1 : limit;
+        }
+
+        return flat[..cut].TrimEnd(' ', ',', '.', ';', ':', '—', '-') + "…";
     }
 
     private async Task<string> LocaleAsync(Guid playerAccountId, CancellationToken cancellationToken) =>

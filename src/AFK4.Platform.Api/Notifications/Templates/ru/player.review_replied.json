@@ -1,0 +1,5 @@
+{
+  "subject": "Клуб ответил на ваш отзыв",
+  "bodyText": "{{club}}: {{reply}}",
+  "bodyHtml": ""
+}

@@ -129,10 +129,15 @@ internal static class MeEndpoints
                 .Select(account => account.PlayerAccountId)
                 .ToListAsync(cancellationToken);
 
+            // Список — это копия пушей, и только их. В той же очереди на тот же аккаунт лежат SMS
+            // с одноразовыми кодами (подтверждение номера): показать такой код в приложении значит
+            // подтвердить номер, не держа в руках телефон с этим номером.
+            var pushChannel = NotificationChannel.Push.ToString();
             var rows = await dbContext.NotificationOutbox
                 .AsNoTracking()
                 .Where(row => row.PlayerAccountId != null
                     && accountIds.Contains(row.PlayerAccountId.Value)
+                    && row.Channel == pushChannel
                     // Подавленное — это то, от чего человек сам отказался: показывать его в
                     // списке значит вернуть ему то, что он выключил.
                     && row.Status != NotificationOutboxStatus.Suppressed
