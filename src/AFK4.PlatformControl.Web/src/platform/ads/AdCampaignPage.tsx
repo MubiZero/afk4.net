@@ -13,14 +13,19 @@ import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
 import { PlatformApiError } from '@/api/platformTransport';
 import type { AdsApi } from '@/api/platformClients/ads';
-import type { AdCampaignDto, AdCreativeDto } from '@/api/types';
+import type { AdCampaignDto, AdCreativeDto, AdvertiserDto } from '@/api/types';
 import { CampaignFormDialog } from './CampaignFormDialog';
 import { CreativeFormDialog } from './CreativeFormDialog';
-import { ModerationDialog } from './ModerationDialog';
+import { ModerationDialog, type ModerationDecision } from './ModerationDialog';
+import { ArchiveCreativeDialog } from './ArchiveCreativeDialog';
+import { AdCreativeText } from './AdCreativePreview';
 import { AdThumb } from './AdImages';
 import {
   approvedCount,
   campaignPhase,
+  canEditCreative,
+  cardNotices,
+  creativeActions,
   describeAdError,
   describeCategory,
   describeModeration,
@@ -28,6 +33,8 @@ import {
   emptyCreativeForm,
   formFromCampaign,
   formFromCreative,
+  hasLegalDetails,
+  isArchived,
   requestFromCampaignForm,
   requestFromCreativeForm,
   stateActionLabelKey,
@@ -40,12 +47,20 @@ import {
 import { useLoadable } from '../useLoadable';
 
 export type AdCampaignClient = Pick<AdsApi,
-  'listCampaigns' | 'listAdvertisers' | 'updateCampaign' | 'setCampaignState' | 'createCreative' | 'updateCreative' | 'moderateCreative'>;
+  | 'listCampaigns'
+  | 'listAdvertisers'
+  | 'updateCampaign'
+  | 'setCampaignState'
+  | 'createCreative'
+  | 'updateCreative'
+  | 'moderateCreative'
+  | 'archiveCreative'>;
 
 type OpenDialog =
   | { kind: 'campaign'; form: CampaignForm }
   | { kind: 'creative'; creativeId: string | null; form: CreativeForm }
-  | { kind: 'moderation'; mode: 'approve' | 'reject'; creative: AdCreativeDto };
+  | { kind: 'moderation'; mode: 'approve' | 'reject'; creative: AdCreativeDto }
+  | { kind: 'archive'; creative: AdCreativeDto };
 
 export function AdCampaignPage({ client, campaignId, onBack }: {
   client: AdCampaignClient;
@@ -72,6 +87,9 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
   // заранее и говорит почему — вместо отказа после нажатия.
   const cannotStart = campaign !== null && approvedCount(campaign) === 0 && stateActions(campaign.state).includes('active');
   const startBlocked = useBlockedReason(cannotStart ? t('platform.ads.campaign.startBlocked') : null);
+  // Причина погашенной «Изменить» у одобренных — одна на таблицу, а не в каждой строке.
+  const hasLocked = campaign?.creatives.some(creative => !isArchived(creative) && !canEditCreative(creative)) ?? false;
+  const editBlocked = useBlockedReason(hasLocked ? t('platform.ads.creative.locked') : null);
 
   const back = { label: t('platform.ads.campaign.back'), onBack };
 
@@ -94,6 +112,7 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
 
   const current = campaign;
   const applyCampaign = state.apply;
+  const reloadCampaign = state.retry;
   const advertiserList = advertisers.status === 'ready' ? advertisers.data : null;
 
   function open(next: OpenDialog) {
@@ -118,6 +137,8 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
       setDialog(null);
     } catch (cause) {
       setDialogError(describeAdError(cause, t));
+      // Креатив одобрили в другой вкладке: список на экране устарел — перечитываем его тихо.
+      if (cause instanceof PlatformApiError && cause.errorCode === AdErrorCodeNames.CreativeLocked) reloadCampaign();
     } finally {
       setPending(false);
     }
@@ -131,7 +152,7 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
       toast({ title: t(stateDoneKey(next)), variant: 'success' });
     } catch (cause) {
       toast({ title: describeAdError(cause, t), variant: 'error' });
-      // Такой отказ значит, что креативы на экране устарели: одобрение сняли в другой вкладке.
+      // Такой отказ значит, что креативы на экране устарели: креатив сняли с показа в другой вкладке.
       if (cause instanceof PlatformApiError && cause.errorCode === AdErrorCodeNames.NotApproved) state.retry();
     } finally {
       setPending(false);
@@ -152,19 +173,28 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
     );
   }
 
-  function moderate(creative: AdCreativeDto, approve: boolean, reason: string | null) {
+  function moderate(creative: AdCreativeDto, approve: boolean, decision: ModerationDecision) {
     void runInDialog(
       async () => withCreative(current, await client.moderateCreative(campaignId, creative.creativeId, {
         approve,
-        reason: approve ? null : reason,
-        confirmedAllowed: approve
+        reason: approve ? null : decision.reason,
+        confirmed: approve ? decision.confirmed : []
       })),
       approve ? 'platform.ads.moderation.approvedToast' : 'platform.ads.moderation.rejectedToast'
     );
   }
 
+  function archive(creative: AdCreativeDto) {
+    void runInDialog(
+      async () => withCreative(current, await client.archiveCreative(campaignId, creative.creativeId)),
+      'platform.ads.creative.archivedToast'
+    );
+  }
+
   const phase = describePhase(current, new Date(), t);
   const actions = stateActions(current.state);
+  const advertiser = advertiserList?.find(candidate => candidate.advertiserId === current.advertiserId) ?? null;
+  const addCreative = () => open({ kind: 'creative', creativeId: null, form: emptyCreativeForm() });
 
   return (
     <Page
@@ -203,7 +233,7 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
         <CardContent>
           <dl className="pc-passport-facts pc-ad-facts">
             <Fact label={t('platform.ads.campaigns.column.state')}><Badge variant={phase.variant}>{phase.label}</Badge></Fact>
-            <CampaignFacts campaign={current} />
+            <CampaignFacts campaign={current} advertiser={advertiser} />
           </dl>
           {campaignPhase(current, new Date()) === 'nothingToShow' ? (
             <p className="mgmt-drawer-hint">{t('platform.ads.phase.nothingToShowHint')}</p>
@@ -214,24 +244,24 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
       <Card>
         <CardHeader>
           <CardTitle>{t('platform.ads.creatives.title')}</CardTitle>
-          <Button disabled={pending} onClick={() => open({ kind: 'creative', creativeId: null, form: emptyCreativeForm() })}>
-            {t('platform.ads.creatives.create')}
-          </Button>
+          <Button disabled={pending} onClick={addCreative}>{t('platform.ads.creatives.create')}</Button>
         </CardHeader>
         <CardContent>
           <p className="mgmt-drawer-hint">{t('platform.ads.creatives.description')}</p>
           {current.creatives.length === 0 ? (
-            <EmptyState
-              message={t('platform.ads.creatives.empty')}
-              next={{ label: t('platform.ads.creatives.createFirst'), onClick: () => open({ kind: 'creative', creativeId: null, form: emptyCreativeForm() }) }}
-            />
+            <EmptyState message={t('platform.ads.creatives.empty')} next={{ label: t('platform.ads.creatives.createFirst'), onClick: addCreative }} />
           ) : (
-            <CreativesTable
-              creatives={current.creatives}
-              pending={pending}
-              onEdit={creative => open({ kind: 'creative', creativeId: creative.creativeId, form: formFromCreative(creative) })}
-              onModerate={(creative, mode) => open({ kind: 'moderation', mode, creative })}
-            />
+            <>
+              {editBlocked.hint}
+              <CreativesTable
+                creatives={current.creatives}
+                pending={pending}
+                editBlockedBy={editBlocked.describedBy}
+                onEdit={creative => open({ kind: 'creative', creativeId: creative.creativeId, form: formFromCreative(creative) })}
+                onModerate={(creative, mode) => open({ kind: 'moderation', mode, creative })}
+                onArchive={creative => open({ kind: 'archive', creative })}
+              />
+            </>
           )}
         </CardContent>
       </Card>
@@ -268,7 +298,19 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
           advertiserName={current.advertiserName}
           pending={pending}
           error={dialogError}
-          onConfirm={reason => moderate(dialog.creative, dialog.mode === 'approve', reason)}
+          onConfirm={decision => moderate(dialog.creative, dialog.mode === 'approve', decision)}
+          onClose={close}
+        />
+      ) : null}
+      {dialog?.kind === 'archive' ? (
+        <ArchiveCreativeDialog
+          key={dialog.creative.creativeId}
+          creative={dialog.creative}
+          advertiserName={current.advertiserName}
+          lastOnAir={current.state === 'active' && approvedCount(current) === 1 && dialog.creative.moderation === AdModerationNames.Approved}
+          pending={pending}
+          error={dialogError}
+          onConfirm={() => archive(dialog.creative)}
           onClose={close}
         />
       ) : null}
@@ -276,11 +318,14 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
   );
 }
 
-function CampaignFacts({ campaign }: { campaign: AdCampaignDto }) {
+function CampaignFacts({ campaign, advertiser }: { campaign: AdCampaignDto; advertiser: AdvertiserDto | null }) {
   const { t, formatDate } = useI18n();
+  const permit = campaign.compliance?.permitNumber ?? null;
+  const notices = cardNotices(campaign.compliance);
   return (
     <>
       <Fact label={t('platform.ads.campaign.field.category')}>{describeCategory(campaign.category, t)}</Fact>
+      {permit !== null ? <Fact label={t('platform.ads.campaign.permit')}>{permit}</Fact> : null}
       <Fact label={t('platform.ads.campaign.field.startsAt')}>{formatDate(campaign.startsAtUtc)}</Fact>
       <Fact label={t('platform.ads.campaign.field.endsAt')}>{formatDate(campaign.endsAtUtc)}</Fact>
       <Fact label={t('platform.ads.campaign.cities')}>
@@ -290,6 +335,24 @@ function CampaignFacts({ campaign }: { campaign: AdCampaignDto }) {
         {campaign.organizationIds.length === 0
           ? t('platform.ads.campaign.allClubs')
           : t('platform.ads.campaign.clubCount', { count: campaign.organizationIds.length })}
+      </Fact>
+      {/* Что карточка скажет по закону сама — чтобы проверить до запуска, а не на экране клуба. */}
+      <Fact label={t('platform.ads.campaign.cardNotices')}>
+        {notices.length === 0 ? t('platform.ads.campaign.notice.none') : (
+          <ul className="pc-ad-notices">
+            {notices.map(notice => (
+              <li key={notice}>
+                {notice === 'seller' ? (
+                  advertiser !== null && hasLegalDetails(advertiser)
+                    ? t('platform.ads.campaign.notice.seller', { legalName: advertiser.legalName ?? '', taxId: advertiser.taxId ?? '', address: advertiser.address ?? '' })
+                    : t('platform.ads.campaign.notice.sellerUnknown')
+                ) : notice === 'certification'
+                  ? t('platform.ads.campaign.notice.certification')
+                  : t('platform.ads.campaign.notice.offer', { date: formatDate(campaign.endsAtUtc) })}
+              </li>
+            ))}
+          </ul>
+        )}
       </Fact>
     </>
   );
@@ -304,11 +367,14 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function CreativesTable({ creatives, pending, onEdit, onModerate }: {
+function CreativesTable({ creatives, pending, editBlockedBy, onEdit, onModerate, onArchive }: {
   creatives: readonly AdCreativeDto[];
   pending: boolean;
+  /** id причины, почему «Изменить» у одобренного погашена. */
+  editBlockedBy: string | undefined;
   onEdit: (creative: AdCreativeDto) => void;
   onModerate: (creative: AdCreativeDto, mode: 'approve' | 'reject') => void;
+  onArchive: (creative: AdCreativeDto) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -323,35 +389,52 @@ function CreativesTable({ creatives, pending, onEdit, onModerate }: {
       <TableBody>
         {creatives.map(creative => {
           const moderation = describeModeration(creative.moderation, t);
+          const archived = isArchived(creative);
+          const actions = creativeActions(creative);
+          const editable = canEditCreative(creative);
           return (
-            <TableRow key={creative.creativeId}>
+            <TableRow key={creative.creativeId} className={archived ? 'pc-ad-archived' : undefined}>
               <TableCell>
                 <span className="pc-ad-creative">
                   <AdThumb key={creative.imageUrl ?? ''} url={creative.imageUrl} />
                   <span>
-                    <strong>{creative.title}</strong>
-                    {creative.body !== null ? <span className="mgmt-drawer-hint">{creative.body}</span> : null}
+                    <AdCreativeText creative={creative} />
                   </span>
                 </span>
               </TableCell>
               <TableCell>
                 <span className="pc-ad-moderation">
-                  <Badge variant={moderation.variant}>{moderation.label}</Badge>
-                  {creative.moderation === AdModerationNames.Rejected && creative.rejectedReason !== null ? (
+                  {archived
+                    ? <Badge variant="secondary">{t('platform.ads.creative.archived')}</Badge>
+                    : <Badge variant={moderation.variant}>{moderation.label}</Badge>}
+                  {!archived && creative.moderation === AdModerationNames.Rejected && creative.rejectedReason !== null ? (
                     <span className="mgmt-drawer-hint">{t('platform.ads.moderation.reasonShown', { reason: creative.rejectedReason })}</span>
                   ) : null}
                 </span>
               </TableCell>
               <TableCell>
-                {/* «Изменить» есть у каждого креатива и стоит последней — на одном месте во всех строках. */}
+                {/* «Изменить» стоит последней — на одном месте во всех строках; у одобренного она погашена. */}
                 <span className="pc-cell-actions">
-                  {creative.moderation !== AdModerationNames.Approved ? (
+                  {actions.includes('approve') ? (
                     <Button size="sm" disabled={pending} onClick={() => onModerate(creative, 'approve')}>{t('platform.ads.moderation.approve')}</Button>
                   ) : null}
-                  {creative.moderation !== AdModerationNames.Rejected ? (
+                  {actions.includes('reject') ? (
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => onModerate(creative, 'reject')}>{t('platform.ads.moderation.reject')}</Button>
                   ) : null}
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => onEdit(creative)}>{t('platform.ads.edit')}</Button>
+                  {actions.includes('archive') ? (
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => onArchive(creative)}>{t('platform.ads.creative.archive')}</Button>
+                  ) : null}
+                  {actions.includes('edit') ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending || !editable}
+                      aria-describedby={editable ? undefined : editBlockedBy}
+                      onClick={() => onEdit(creative)}
+                    >
+                      {t('platform.ads.edit')}
+                    </Button>
+                  ) : null}
                 </span>
               </TableCell>
             </TableRow>

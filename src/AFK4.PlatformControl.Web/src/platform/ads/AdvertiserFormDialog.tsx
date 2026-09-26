@@ -4,11 +4,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/I18nProvider';
-import { validateAdvertiserForm, type AdvertiserForm, type AdvertiserFormField } from './adsModel';
+import { AD_LIMITS, validateAdvertiserForm, type AdvertiserForm, type AdvertiserFormField } from './adsModel';
 import { useFieldErrors } from './useFieldErrors';
 
+// Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.
 const FIELD_IDS: Record<AdvertiserFormField, string> = {
   name: 'advertiser-name',
+  legalName: 'advertiser-legal-name',
+  taxId: 'advertiser-tax-id',
+  address: 'advertiser-address',
   contact: 'advertiser-contact'
 };
 
@@ -52,6 +56,51 @@ export function AdvertiserFormDialog({ mode, form, pending, error, onChange, onS
           error={errorOf('name')}
         >
           <Input {...controlProps('name')} value={form.name} onChange={event => onChange({ ...form, name: event.target.value })} />
+        </Field>
+
+        <Field
+          label={t('platform.ads.advertiser.field.legalName')}
+          htmlFor={FIELD_IDS.legalName}
+          hint={t('platform.ads.advertiser.field.legalNameHint')}
+          error={errorOf('legalName')}
+        >
+          <Input
+            {...controlProps('legalName')}
+            autoComplete="organization"
+            value={form.legalName}
+            onChange={event => onChange({ ...form, legalName: event.target.value })}
+          />
+        </Field>
+
+        <Field
+          label={t('platform.ads.advertiser.field.taxId')}
+          htmlFor={FIELD_IDS.taxId}
+          hint={t('platform.ads.advertiser.field.taxIdHint', { min: AD_LIMITS.taxIdMinDigits, max: AD_LIMITS.taxIdMaxDigits })}
+          error={errorOf('taxId')}
+        >
+          <Input
+            {...controlProps('taxId')}
+            className="pc-mono"
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+            value={form.taxId}
+            onChange={event => onChange({ ...form, taxId: event.target.value })}
+          />
+        </Field>
+
+        <Field
+          label={t('platform.ads.advertiser.field.address')}
+          htmlFor={FIELD_IDS.address}
+          hint={t('platform.ads.advertiser.field.addressHint')}
+          error={errorOf('address')}
+        >
+          <Input
+            {...controlProps('address')}
+            autoComplete="street-address"
+            value={form.address}
+            onChange={event => onChange({ ...form, address: event.target.value })}
+          />
         </Field>
 
         <Field

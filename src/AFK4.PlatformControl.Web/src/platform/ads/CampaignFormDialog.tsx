@@ -5,10 +5,13 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/messages';
 import type { AdvertiserDto } from '@/api/types';
 import {
   AD_CATEGORIES,
+  categoryNoteKey,
   describeCategory,
+  showsPermitField,
   validateCampaignForm,
   type CampaignForm,
   type CampaignFormField
@@ -20,11 +23,23 @@ const FIELD_IDS: Record<CampaignFormField, string> = {
   advertiserId: 'campaign-advertiser',
   name: 'campaign-name',
   category: 'campaign-category',
+  permitNumber: 'campaign-permit',
   startsAt: 'campaign-starts',
   endsAt: 'campaign-ends',
   cities: 'campaign-cities',
-  organizationIds: 'campaign-organizations'
+  organizationIds: 'campaign-organizations',
+  distanceSelling: 'campaign-distance-selling',
+  requiresCertification: 'campaign-certification',
+  containsOffer: 'campaign-offer'
 };
+
+type ComplianceFlag = 'distanceSelling' | 'requiresCertification' | 'containsOffer';
+
+const COMPLIANCE_FLAGS: readonly { field: ComplianceFlag; labelKey: MessageKey }[] = [
+  { field: 'distanceSelling', labelKey: 'platform.ads.campaign.field.distanceSelling' },
+  { field: 'requiresCertification', labelKey: 'platform.ads.campaign.field.requiresCertification' },
+  { field: 'containsOffer', labelKey: 'platform.ads.campaign.field.containsOffer' }
+];
 
 export function CampaignFormDialog({ mode, form, advertisers, pending, error, onChange, onSubmit, onClose }: {
   mode: 'create' | 'edit';
@@ -46,6 +61,7 @@ export function CampaignFormDialog({ mode, form, advertisers, pending, error, on
   }
 
   const categoryKnown = (AD_CATEGORIES as readonly string[]).includes(form.category);
+  const categoryNote = categoryNoteKey(form.category);
 
   return (
     <Dialog
@@ -97,6 +113,24 @@ export function CampaignFormDialog({ mode, form, advertisers, pending, error, on
             ))}
           </Select>
         </Field>
+        {categoryNote !== null ? <p className="mgmt-drawer-hint">{t(categoryNote)}</p> : null}
+
+        {showsPermitField(form) ? (
+          <Field
+            label={t('platform.ads.campaign.field.permit')}
+            htmlFor={FIELD_IDS.permitNumber}
+            hint={t('platform.ads.campaign.field.permitHint')}
+            error={errorOf('permitNumber')}
+          >
+            <Input
+              {...controlProps('permitNumber')}
+              autoComplete="off"
+              spellCheck={false}
+              value={form.permitNumber}
+              onChange={event => onChange({ ...form, permitNumber: event.target.value })}
+            />
+          </Field>
+        ) : null}
 
         <div className="mgmt-form-grid">
           <Field label={t('platform.ads.campaign.field.startsAt')} htmlFor={FIELD_IDS.startsAt} error={errorOf('startsAt')}>
@@ -138,6 +172,22 @@ export function CampaignFormDialog({ mode, form, advertisers, pending, error, on
             onChange={event => onChange({ ...form, organizationIds: event.target.value })}
           />
         </Field>
+
+        {/* Закон требует от карточки сказать это самой (спека рекламы, §8.1): отметка — и ПК допишет. */}
+        <fieldset className="pc-ad-compliance">
+          <legend>{t('platform.ads.campaign.compliance.legend')}</legend>
+          {COMPLIANCE_FLAGS.map(({ field, labelKey }) => (
+            <label key={field} className="mgmt-check">
+              <input
+                id={FIELD_IDS[field]}
+                type="checkbox"
+                checked={form[field]}
+                onChange={event => onChange({ ...form, [field]: event.target.checked })}
+              />
+              {t(labelKey)}
+            </label>
+          ))}
+        </fieldset>
       </div>
     </Dialog>
   );

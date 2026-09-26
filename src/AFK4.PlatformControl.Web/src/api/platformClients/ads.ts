@@ -31,8 +31,9 @@ export interface AdReportQuery {
 
 /**
  * Реклама платформы в витрине свободного ПК. Удаления нет ни у чего: у показов есть креатив, у
- * креатива — кампания, и отчёт за прошлый месяц не должен терять строки. Ненужную кампанию
- * ставят на паузу или возвращают в черновик.
+ * креатива — кампания, отчёт за прошлый месяц не должен терять строки, а показанную рекламу закон
+ * велит хранить год (ст. 22). Ненужную кампанию ставят на паузу или возвращают в черновик,
+ * ненужный креатив снимают с показа.
  */
 export class AdsApi {
   public constructor(private readonly transport: PlatformTransport) {}
@@ -69,13 +70,21 @@ export class AdsApi {
     return this.transport.send<AdCreativeDto>('POST', `${campaignPath(campaignId)}/creatives`, request);
   }
 
-  /** Любая правка возвращает креатив на модерацию: одобряли другой текст и другую картинку. */
+  /**
+   * Правка возвращает креатив на модерацию: одобряли другой текст и другую картинку. Одобренный
+   * не правится вовсе (409 `ad_creative_locked`): его могли показать, а показанное хранят как было.
+   */
   public updateCreative(campaignId: string, creativeId: string, request: UpsertAdCreativeRequest): Promise<AdCreativeDto> {
     return this.transport.send<AdCreativeDto>('PUT', creativePath(campaignId, creativeId), request);
   }
 
   public moderateCreative(campaignId: string, creativeId: string, request: ModerateAdCreativeRequest): Promise<AdCreativeDto> {
     return this.transport.send<AdCreativeDto>('POST', `${creativePath(campaignId, creativeId)}/moderation`, request);
+  }
+
+  /** Снять с показа. Обратного действия нет: чтобы показывать другое, добавляют новый креатив. */
+  public archiveCreative(campaignId: string, creativeId: string): Promise<AdCreativeDto> {
+    return this.transport.send<AdCreativeDto>('POST', `${creativePath(campaignId, creativeId)}/archive`);
   }
 
   public report(query: AdReportQuery): Promise<AdImpressionRowDto[]> {

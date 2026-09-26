@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons';
@@ -12,6 +13,7 @@ import {
   describeAdError,
   emptyAdvertiserForm,
   formFromAdvertiser,
+  hasLegalDetails,
   requestFromAdvertiserForm,
   type AdvertiserForm
 } from './adsModel';
@@ -76,7 +78,7 @@ export function AdvertisersTab({ client }: { client: AdvertisersClient }) {
       <Loading>
         <SkeletonCard action>
           <p className="mgmt-drawer-hint">{t('platform.ads.advertisers.description')}</p>
-          <SkeletonTable columns={4} />
+          <SkeletonTable columns={6} />
         </SkeletonCard>
       </Loading>
     );
@@ -101,6 +103,8 @@ export function AdvertisersTab({ client }: { client: AdvertisersClient }) {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('platform.ads.advertisers.column.name')}</TableHead>
+                <TableHead>{t('platform.ads.advertisers.column.legalName')}</TableHead>
+                <TableHead>{t('platform.ads.advertisers.column.taxId')}</TableHead>
                 <TableHead>{t('platform.ads.advertisers.column.contact')}</TableHead>
                 <TableHead>{t('platform.ads.advertisers.column.createdAt')}</TableHead>
                 <TableHead>{t('platform.ads.column.actions')}</TableHead>
@@ -110,6 +114,13 @@ export function AdvertisersTab({ client }: { client: AdvertisersClient }) {
               {advertisers.map(advertiser => (
                 <TableRow key={advertiser.advertiserId}>
                   <TableCell>{advertiser.name}</TableCell>
+                  <TableCell>
+                    {/* Заведённые до закона без реквизитов: карточке с продажей на расстоянии нечего печатать. */}
+                    {hasLegalDetails(advertiser)
+                      ? advertiser.legalName
+                      : <Badge variant="warning">{t('platform.ads.advertisers.noLegalDetails')}</Badge>}
+                  </TableCell>
+                  <TableCell className="pc-mono">{(advertiser.taxId ?? '') === '' ? '—' : advertiser.taxId}</TableCell>
                   <TableCell className="pc-ad-contact">{advertiser.contact === '' ? '—' : advertiser.contact}</TableCell>
                   <TableCell>{formatDate(advertiser.createdAtUtc)}</TableCell>
                   <TableCell>

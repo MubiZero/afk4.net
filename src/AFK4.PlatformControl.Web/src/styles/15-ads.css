@@ -55,15 +55,88 @@
   font-size: 13px;
 }
 
-.pc-ad-card p {
-  margin: 0;
-  color: var(--text-secondary);
-}
-
 .pc-ad-card-label {
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 700;
+}
+
+/* Текст креатива: таджикский — первым и крупнее, как на карточке ПК; русский — ниже и мельче. */
+.pc-ad-body {
+  color: var(--text-secondary);
+}
+
+.pc-ad-ru {
+  display: grid;
+  gap: 2px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pc-ad-ru-title {
+  font-weight: 600;
+}
+
+/* Снятый с показа — история: строка остаётся, но не спорит с живыми за внимание. */
+.pc-ad-archived td {
+  color: var(--text-tertiary);
+}
+
+.pc-ad-archived .pc-ad-thumb {
+  opacity: 0.5;
+}
+
+/* Предупреждение модератору: слова «лучший», «№ 1» и последний креатив на показе. */
+.pc-ad-flags {
+  margin: 0;
+  border: 1px solid var(--warning-soft-border);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Отметки модератора и отметки кампании: длинные подписи в две строки, галка — у первой. */
+.pc-ad-checklist,
+.mgmt-form fieldset.pc-ad-compliance {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pc-ad-checklist legend,
+.mgmt-form fieldset.pc-ad-compliance legend {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pc-ad-checklist .pc-check-row,
+.mgmt-form fieldset.pc-ad-compliance label.mgmt-check {
+  align-items: flex-start;
+  line-height: 1.4;
+}
+
+.pc-ad-checklist .pc-checkbox,
+.mgmt-form fieldset.pc-ad-compliance input[type="checkbox"] {
+  margin-top: 1px;
+}
+
+/* Что карточка допечатает по закону — по пункту в строке. */
+.pc-ad-notices {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .pc-ad-moderation {

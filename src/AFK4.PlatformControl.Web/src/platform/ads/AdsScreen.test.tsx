@@ -13,14 +13,23 @@ const ADVERTISER_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const CAMPAIGN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 function advertiser(overrides: Partial<AdvertiserDto> = {}): AdvertiserDto {
-  return { advertiserId: ADVERTISER_ID, name: 'Техномир', contact: 'Фаррух, +992 93 000 00 00', createdAtUtc: '2026-09-01T10:00:00Z', ...overrides };
+  return {
+    advertiserId: ADVERTISER_ID,
+    name: 'Техномир',
+    contact: 'Фаррух, +992 93 000 00 00',
+    createdAtUtc: '2026-09-01T10:00:00Z',
+    legalName: 'ООО «Техномир»',
+    taxId: '123456789',
+    address: 'Душанбе, пр. Рудаки, 1',
+    ...overrides
+  };
 }
 
 function creative(overrides: Partial<AdCreativeDto> = {}): AdCreativeDto {
   return {
     creativeId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
     campaignId: CAMPAIGN_ID,
-    title: 'Скидка на ноутбуки',
+    title: 'Тахфиф ба ноутбукҳо',
     body: null,
     imageUrl: null,
     moderation: 'approved',
@@ -130,11 +139,28 @@ describe('AdsScreen — кампании', () => {
     expect(onOpenCampaign).toHaveBeenCalledWith('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
   });
 
-  // Правка креатива снимает одобрение — кампания «запущена», а на ПК её нет.
+  // Креатив ждёт проверки или снят с показа — кампания «запущена», а на ПК её нет.
   it('запущенную кампанию без одобренного креатива называет «нечего показывать»', async () => {
     renderScreen(makeClient({ listCampaigns: mock(async () => [campaign({ creatives: [creative({ moderation: 'pending' })] })]) }));
     await screen.findByText('Осень в Техномире');
     expect(within(rowOf('Осень в Техномире')).getByText('Нечего показывать')).toBeInTheDocument();
+  });
+
+  // Снятый с показа — история: «одобрено 1 из 2» считает только живые креативы.
+  it('снятые с показа креативы в счёт не идут', async () => {
+    const archivedAtUtc = '2026-09-20T00:00:00Z';
+    renderScreen(makeClient({
+      listCampaigns: mock(async () => [
+        campaign({ creatives: [creative(), creative({ creativeId: 'dddddddd-dddd-dddd-dddd-dddddddddddd', archivedAtUtc })] }),
+        { ...draftCampaign, state: 'active' as const, creatives: [creative({ archivedAtUtc })] }
+      ])
+    }));
+    await screen.findByText('Осень в Техномире');
+
+    expect(rowOf('Осень в Техномире')).toHaveTextContent('Одобрено 1 из 1');
+    const allArchived = rowOf('Курсы программирования');
+    expect(within(allArchived).getByText('Все креативы сняты с показа')).toBeInTheDocument();
+    expect(within(allArchived).getByText('Нечего показывать')).toBeInTheDocument();
   });
 
   it('без рекламодателей ведёт сначала завести рекламодателя', async () => {
@@ -161,6 +187,9 @@ describe('AdsScreen — кампании', () => {
     await userEvent.type(within(dialog).getByLabelText(/^Название кампании/), '  Зима ');
     await userEvent.selectOptions(within(dialog).getByLabelText(/^Категория/), 'telecom');
     await userEvent.type(within(dialog).getByLabelText(/^Города/), 'Душанбе, Худжанд');
+    // Разрешение Минздрава нужно только «Здоровью и красоте» — у связи этого поля нет.
+    expect(within(dialog).queryByLabelText(/^Номер разрешения Минздрава/)).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /^В рекламе есть цена или условия/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(client.createCampaign).toHaveBeenCalledTimes(1));
@@ -170,10 +199,77 @@ describe('AdsScreen — кампании', () => {
       name: 'Зима',
       category: 'telecom',
       cities: ['Душанбе', 'Худжанд'],
-      organizationIds: []
+      organizationIds: [],
+      compliance: { permitNumber: null, distanceSelling: false, requiresCertification: false, containsOffer: true }
     });
     expect(new Date(request.endsAtUtc).getTime() - new Date(request.startsAtUtc).getTime()).toBe(30 * 24 * 60 * 60 * 1000);
     await waitFor(() => expect(onOpenCampaign).toHaveBeenCalledWith('ffffffff-ffff-ffff-ffff-ffffffffffff'));
+  });
+
+  it('в списке категорий — здоровье, финансы и социальная реклама; у каждой сказано условие закона', async () => {
+    renderScreen(makeClient());
+    await screen.findByText('Осень в Техномире');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Новая кампания' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая кампания' });
+    const category = within(dialog).getByLabelText(/^Категория/);
+    expect(within(category).getByRole('option', { name: 'Здоровье и красота' })).toHaveValue('health_beauty');
+    expect(within(category).getByRole('option', { name: 'Финансы' })).toHaveValue('finance');
+    expect(within(category).getByRole('option', { name: 'Социальная реклама' })).toHaveValue('social');
+
+    await userEvent.selectOptions(category, 'finance');
+    expect(within(dialog).getByText(/без обещаний доходности/)).toBeInTheDocument();
+    await userEvent.selectOptions(category, 'social');
+    expect(within(dialog).getByText(/Без брендов и товарных знаков/)).toBeInTheDocument();
+  });
+
+  // Ст. 17: лекарства без рецепта, медтехника, БАД и косметика — только с разрешением Минздрава.
+  it('«Здоровье и красота» не уходит без номера разрешения Минздрава', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    await screen.findByText('Осень в Техномире');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Новая кампания' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая кампания' });
+    await userEvent.type(within(dialog).getByLabelText(/^Название кампании/), 'Витамины');
+    await userEvent.selectOptions(within(dialog).getByLabelText(/^Категория/), 'health_beauty');
+    const permit = within(dialog).getByLabelText(/^Номер разрешения Минздрава/);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    expect(client.createCampaign).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('Для «Здоровья и красоты» нужен номер разрешения Минздрава.')).toBeInTheDocument();
+    expect(permit).toHaveFocus();
+
+    await userEvent.type(permit, ' № 123/45 ');
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /^Продажа на расстоянии/ }));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /^Товар подлежит обязательной сертификации/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(client.createCampaign).toHaveBeenCalledTimes(1));
+    const request = (client.createCampaign as ReturnType<typeof mock>).mock.calls[0][0] as Parameters<AdsClient['createCampaign']>[0];
+    expect(request).toMatchObject({
+      category: 'health_beauty',
+      compliance: { permitNumber: '№ 123/45', distanceSelling: true, requiresCertification: true, containsOffer: false }
+    });
+  });
+
+  it('отказ сервера «нужно разрешение» называет словами', async () => {
+    const client = makeClient({
+      createCampaign: mock(async () => {
+        throw new PlatformApiError(400, 'Health and beauty ads need a Ministry of Health permit number.', 'ad_permit_required');
+      })
+    });
+    renderScreen(client);
+    await screen.findByText('Осень в Техномире');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Новая кампания' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая кампания' });
+    await userEvent.type(within(dialog).getByLabelText(/^Название кампании/), 'Витамины');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent('Для «Здоровья и красоты» нужен номер разрешения Минздрава.');
+    expect(alert).not.toHaveTextContent('Ministry of Health');
   });
 
   it('не отправляет кампанию, которая кончается раньше, чем начинается, и говорит это у поля', async () => {
@@ -247,36 +343,97 @@ describe('AdsScreen — кампании', () => {
 });
 
 describe('AdsScreen — рекламодатели', () => {
-  it('показывает контакт как внутренний и заводит рекламодателя', async () => {
+  it('показывает реквизиты и контакт как внутренний и заводит рекламодателя', async () => {
     const client = makeClient();
     renderScreen(client, 'advertisers');
     await screen.findByText('Фаррух, +992 93 000 00 00');
     expect(screen.getByRole('columnheader', { name: 'Контакт (для платформы)' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Наименование' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'ИНН' })).toBeInTheDocument();
+    const row = rowOf('Техномир');
+    expect(within(row).getByText('ООО «Техномир»')).toBeInTheDocument();
+    expect(within(row).getByText('123456789')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Новый рекламодатель' }));
     const dialog = screen.getByRole('dialog', { name: 'Новый рекламодатель' });
     expect(within(dialog).getByText(/Клубы и игроки этого не видят/)).toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText(/^Название/), ' Сомон Телеком ');
+    await userEvent.type(within(dialog).getByLabelText(/^Наименование по документам/), 'ООО «Сомон Телеком»');
+    // ИНН часто вставляют с разбивкой — пробелы уберутся сами.
+    await userEvent.type(within(dialog).getByLabelText(/^ИНН/), '020 012 345');
+    await userEvent.type(within(dialog).getByLabelText(/^Адрес/), 'Душанбе, ул. Айни, 24');
     await userEvent.type(within(dialog).getByLabelText(/^Контакт — только для платформы/), 'Отдел рекламы, ads@somon.tj');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(client.createAdvertiser).toHaveBeenCalledWith({ name: 'Сомон Телеком', contact: 'Отдел рекламы, ads@somon.tj' }));
+    await waitFor(() => expect(client.createAdvertiser).toHaveBeenCalledWith({
+      name: 'Сомон Телеком',
+      contact: 'Отдел рекламы, ads@somon.tj',
+      legalName: 'ООО «Сомон Телеком»',
+      taxId: '020012345',
+      address: 'Душанбе, ул. Айни, 24'
+    }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(client.listAdvertisers).toHaveBeenCalledTimes(2);
   });
 
-  it('правка сохраняет рекламодателя по id', async () => {
+  // Ст. 14(1): при продаже на расстоянии карточка печатает наименование, ИНН и адрес продавца.
+  it('без наименования, ИНН и адреса не сохраняет и говорит это у полей', async () => {
+    const client = makeClient();
+    renderScreen(client, 'advertisers');
+    await screen.findByText('Фаррух, +992 93 000 00 00');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Новый рекламодатель' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новый рекламодатель' });
+    await userEvent.type(within(dialog).getByLabelText(/^Название/), 'Сомон Телеком');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    expect(client.createAdvertiser).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('Укажите наименование по документам.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Укажите ИНН.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Укажите адрес.')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/^Наименование по документам/)).toHaveFocus();
+
+    const taxId = within(dialog).getByLabelText(/^ИНН/);
+    await userEvent.type(taxId, '12345');
+    expect(within(dialog).getByText('ИНН — от 9 до 14 цифр, без букв.')).toBeInTheDocument();
+    expect(taxId).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('рекламодатель без реквизитов помечен, а правка просит их заполнить', async () => {
+    const client = makeClient({ listAdvertisers: mock(async () => [advertiser({ legalName: '', taxId: '', address: '' })]) });
+    renderScreen(client, 'advertisers');
+    await screen.findByText('Фаррух, +992 93 000 00 00');
+
+    const row = rowOf('Техномир');
+    expect(within(row).getByText('Реквизиты не заполнены')).toBeInTheDocument();
+    expect(within(row).getByText('—')).toBeInTheDocument();
+
+    await userEvent.click(within(row).getByRole('button', { name: 'Изменить' }));
+    const dialog = screen.getByRole('dialog', { name: 'Изменить рекламодателя' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+    expect(client.updateAdvertiser).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('Укажите ИНН.')).toBeInTheDocument();
+  });
+
+  it('правка сохраняет рекламодателя по id вместе с реквизитами', async () => {
     const client = makeClient();
     renderScreen(client, 'advertisers');
     await screen.findByText('Фаррух, +992 93 000 00 00');
 
     await userEvent.click(within(rowOf('Техномир')).getByRole('button', { name: 'Изменить' }));
     const dialog = screen.getByRole('dialog', { name: 'Изменить рекламодателя' });
+    expect(within(dialog).getByLabelText(/^Наименование по документам/)).toHaveValue('ООО «Техномир»');
     const contact = within(dialog).getByLabelText(/^Контакт — только для платформы/);
     await userEvent.clear(contact);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(client.updateAdvertiser).toHaveBeenCalledWith(ADVERTISER_ID, { name: 'Техномир', contact: null }));
+    await waitFor(() => expect(client.updateAdvertiser).toHaveBeenCalledWith(ADVERTISER_ID, {
+      name: 'Техномир',
+      contact: null,
+      legalName: 'ООО «Техномир»',
+      taxId: '123456789',
+      address: 'Душанбе, пр. Рудаки, 1'
+    }));
   });
 });
 

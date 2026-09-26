@@ -3,9 +3,11 @@ import {
   AdCampaignStateNames,
   AdCategoryNames,
   AdErrorCodeNames,
+  AdModerationCheckNames,
   AdModerationNames,
   type AdCampaignStateName,
   type AdCategoryName,
+  type AdModerationCheckName,
   type AdModerationName
 } from '@afk4/contracts';
 import { PlatformApiError } from '@/api/platformTransport';
@@ -13,6 +15,7 @@ import { describeApiError } from '@/api/describeApiError';
 import type { BadgeVariant } from '@/components/ui/badge';
 import { fromLocalInput, toLocalInput } from '@/lib/localDateTime';
 import type {
+  AdCampaignComplianceDto,
   AdCampaignDto,
   AdCreativeDto,
   AdImpressionRowDto,
@@ -38,8 +41,17 @@ export const AD_LIMITS = {
   maxCities: 50,
   maxOrganizations: 200,
   reasonMax: 400,
+  legalNameMax: 200,
+  addressMax: 300,
+  taxIdMinDigits: 9,
+  taxIdMaxDigits: 14,
+  permitMax: 120,
+  imageMaxBytes: 2 * 1024 * 1024,
   reportMaxDays: 92
 } as const;
+
+/** Предел картинки в мегабайтах — для фраз: байты человеку ничего не говорят. */
+export const IMAGE_MAX_MB = AD_LIMITS.imageMaxBytes / (1024 * 1024);
 
 /** Порядок категорий в форме — тот, в котором их перечисляет контракт. */
 export const AD_CATEGORIES: readonly AdCategoryName[] = Object.values(AdCategoryNames);
@@ -69,12 +81,26 @@ const CATEGORY_LABEL_KEY: Record<AdCategoryName, MessageKey> = {
   education: 'platform.ads.category.education',
   services: 'platform.ads.category.services',
   telecom: 'platform.ads.category.telecom',
+  health_beauty: 'platform.ads.category.health_beauty',
+  finance: 'platform.ads.category.finance',
+  social: 'platform.ads.category.social',
   other: 'platform.ads.category.other'
 };
 
 /** Категория, пришедшая с сервера новее этого экрана, показывается своим машинным именем. */
 export function describeCategory(category: string, t: Translate): string {
   return (AD_CATEGORIES as readonly string[]).includes(category) ? t(CATEGORY_LABEL_KEY[category as AdCategoryName]) : category;
+}
+
+// Категории, у которых закон ставит своё условие, — форма называет его под списком.
+const CATEGORY_NOTE_KEY: Partial<Record<AdCategoryName, MessageKey>> = {
+  health_beauty: 'platform.ads.campaign.categoryNote.health_beauty',
+  finance: 'platform.ads.campaign.categoryNote.finance',
+  social: 'platform.ads.campaign.categoryNote.social'
+};
+
+export function categoryNoteKey(category: string): MessageKey | null {
+  return CATEGORY_NOTE_KEY[category as AdCategoryName] ?? null;
 }
 
 const MODERATION_LABEL_KEY: Record<AdModerationName, MessageKey> = {
@@ -101,17 +127,28 @@ export function describeModeration(moderation: string, t: Translate): { label: s
 /**
  * Что сейчас происходит с кампанией на ПК. Состояние на сервере — только черновик, запущена и
  * пауза, а «запущена» ещё не значит «показывается»: реклама идёт только в своих датах и только
- * одобренными креативами, а правка креатива снимает с него одобрение. Человек смотрит в список,
- * чтобы понять, крутится ли реклама, — поэтому здесь и сказано именно это.
+ * одобренными креативами, которые не сняты с показа. Человек смотрит в список, чтобы понять,
+ * крутится ли реклама, — поэтому здесь и сказано именно это.
  */
 export type CampaignPhase = 'draft' | 'paused' | 'scheduled' | 'running' | 'ended' | 'nothingToShow' | 'unknown';
 
+/** Снятый с показа креатив остаётся в кампании навсегда: показанную рекламу хранят год (ст. 22). */
+export function isArchived(creative: AdCreativeDto): boolean {
+  return creative.archivedAtUtc !== undefined && creative.archivedAtUtc !== null;
+}
+
+/** Креативы, которые показываются или ждут решения, — без снятых с показа. */
+export function liveCreatives(campaign: AdCampaignDto): AdCreativeDto[] {
+  return campaign.creatives.filter(creative => !isArchived(creative));
+}
+
+/** Одобренные и не снятые — ровно те, что сервер отдаёт ПК. */
 export function approvedCount(campaign: AdCampaignDto): number {
-  return campaign.creatives.filter(creative => creative.moderation === AdModerationNames.Approved).length;
+  return liveCreatives(campaign).filter(creative => creative.moderation === AdModerationNames.Approved).length;
 }
 
 export function pendingCount(campaign: AdCampaignDto): number {
-  return campaign.creatives.filter(creative => creative.moderation === AdModerationNames.Pending).length;
+  return liveCreatives(campaign).filter(creative => creative.moderation === AdModerationNames.Pending).length;
 }
 
 export function campaignPhase(campaign: AdCampaignDto, now: Date): CampaignPhase {
@@ -183,6 +220,27 @@ export function stateDoneKey(state: AdCampaignStateName): MessageKey {
   return STATE_DONE_KEY[state];
 }
 
+export type CreativeAction = 'approve' | 'reject' | 'archive' | 'edit';
+
+/**
+ * Что можно сделать с креативом. Одобренный мог быть показан, а показанную рекламу закон велит
+ * хранить год как была (ст. 22): его не правят и не отклоняют задним числом — снимают с показа и
+ * добавляют новый. «Изменить» у него остаётся на своём месте погашенной, причина — рядом.
+ * Снятый с показа — только история.
+ */
+export function creativeActions(creative: AdCreativeDto): CreativeAction[] {
+  if (isArchived(creative)) return [];
+  switch (creative.moderation) {
+    case AdModerationNames.Approved: return ['archive', 'edit'];
+    case AdModerationNames.Rejected: return ['approve', 'edit'];
+    default: return ['approve', 'reject', 'edit'];
+  }
+}
+
+export function canEditCreative(creative: AdCreativeDto): boolean {
+  return !isArchived(creative) && creative.moderation !== AdModerationNames.Approved;
+}
+
 /** Креатив из ответа сервера встаёт на своё место в кампании, новый — в конец. */
 export function withCreative(campaign: AdCampaignDto, creative: AdCreativeDto): AdCampaignDto {
   const exists = campaign.creatives.some(candidate => candidate.creativeId === creative.creativeId);
@@ -196,26 +254,66 @@ export function withCreative(campaign: AdCampaignDto, creative: AdCreativeDto): 
 
 // ── Рекламодатель ────────────────────────────────────────────────────────────────────────
 
+/**
+ * Реквизиты — наименование, ИНН и адрес — обязательны: они нужны договору, а при продаже на
+ * расстоянии карточка печатает их сама (закон РТ «О рекламе», ст. 14(1)).
+ */
 export interface AdvertiserForm {
   name: string;
+  legalName: string;
+  taxId: string;
+  address: string;
   contact: string;
 }
 
 export type AdvertiserFormField = keyof AdvertiserForm;
 
 export function emptyAdvertiserForm(): AdvertiserForm {
-  return { name: '', contact: '' };
+  return { name: '', legalName: '', taxId: '', address: '', contact: '' };
 }
 
 export function formFromAdvertiser(advertiser: AdvertiserDto): AdvertiserForm {
-  return { name: advertiser.name, contact: advertiser.contact };
+  return {
+    name: advertiser.name,
+    legalName: advertiser.legalName ?? '',
+    taxId: advertiser.taxId ?? '',
+    address: advertiser.address ?? '',
+    contact: advertiser.contact
+  };
 }
+
+/** ИНН без пробелов: номер часто вставляют с разбивкой «123 456 789», а сервер ждёт одни цифры. */
+export function normalizeTaxId(value: string): string {
+  return value.replace(/\s+/g, '');
+}
+
+// Только ASCII-цифры, как `char.IsAsciiDigit` на сервере: другие цифры Юникода он не примет.
+const TAX_ID_DIGITS = /^[0-9]+$/;
 
 export function validateAdvertiserForm(form: AdvertiserForm): Errors<AdvertiserFormField> {
   const errors: Errors<AdvertiserFormField> = {};
   const name = form.name.trim();
   if (name === '') errors.name = { key: 'platform.ads.error.nameRequired' };
   else if (name.length > AD_LIMITS.nameMax) errors.name = { key: 'platform.ads.error.nameTooLong', values: { max: AD_LIMITS.nameMax } };
+
+  const legalName = form.legalName.trim();
+  if (legalName === '') errors.legalName = { key: 'platform.ads.error.legalNameRequired' };
+  else if (legalName.length > AD_LIMITS.legalNameMax) {
+    errors.legalName = { key: 'platform.ads.error.legalNameTooLong', values: { max: AD_LIMITS.legalNameMax } };
+  }
+
+  const taxId = normalizeTaxId(form.taxId);
+  if (taxId === '') errors.taxId = { key: 'platform.ads.error.taxIdRequired' };
+  else if (!TAX_ID_DIGITS.test(taxId) || taxId.length < AD_LIMITS.taxIdMinDigits || taxId.length > AD_LIMITS.taxIdMaxDigits) {
+    errors.taxId = { key: 'platform.ads.error.taxId', values: { min: AD_LIMITS.taxIdMinDigits, max: AD_LIMITS.taxIdMaxDigits } };
+  }
+
+  const address = form.address.trim();
+  if (address === '') errors.address = { key: 'platform.ads.error.addressRequired' };
+  else if (address.length > AD_LIMITS.addressMax) {
+    errors.address = { key: 'platform.ads.error.addressTooLong', values: { max: AD_LIMITS.addressMax } };
+  }
+
   if (form.contact.trim().length > AD_LIMITS.contactMax) {
     errors.contact = { key: 'platform.ads.error.contactTooLong', values: { max: AD_LIMITS.contactMax } };
   }
@@ -223,7 +321,18 @@ export function validateAdvertiserForm(form: AdvertiserForm): Errors<AdvertiserF
 }
 
 export function requestFromAdvertiserForm(form: AdvertiserForm): UpsertAdvertiserRequest {
-  return { name: form.name.trim(), contact: blankToNull(form.contact) };
+  return {
+    name: form.name.trim(),
+    contact: blankToNull(form.contact),
+    legalName: form.legalName.trim(),
+    taxId: normalizeTaxId(form.taxId),
+    address: form.address.trim()
+  };
+}
+
+/** Реквизиты заполнены — рекламодатели, заведённые до закона, их не имеют, пока их не поправят. */
+export function hasLegalDetails(advertiser: AdvertiserDto): boolean {
+  return (advertiser.legalName ?? '') !== '' && (advertiser.taxId ?? '') !== '' && (advertiser.address ?? '') !== '';
 }
 
 // ── Кампания ─────────────────────────────────────────────────────────────────────────────
@@ -239,6 +348,12 @@ export interface CampaignForm {
   cities: string;
   /** По одному в строке или через запятую; пусто — все клубы. */
   organizationIds: string;
+  /** Номер разрешения Минздрава — обязателен для «Здоровья и красоты» (ст. 17). */
+  permitNumber: string;
+  /** Отметки, по которым карточка сама допишет то, чего требует закон. */
+  distanceSelling: boolean;
+  requiresCertification: boolean;
+  containsOffer: boolean;
 }
 
 export type CampaignFormField = keyof CampaignForm;
@@ -253,11 +368,16 @@ export function emptyCampaignForm(now: Date, advertiserId: string): CampaignForm
     startsAt: toLocalInput(now.toISOString()),
     endsAt: toLocalInput(new Date(now.getTime() + 30 * DAY_MS).toISOString()),
     cities: '',
-    organizationIds: ''
+    organizationIds: '',
+    permitNumber: '',
+    distanceSelling: false,
+    requiresCertification: false,
+    containsOffer: false
   };
 }
 
 export function formFromCampaign(campaign: AdCampaignDto): CampaignForm {
+  const compliance = campaign.compliance ?? {};
   return {
     advertiserId: campaign.advertiserId,
     name: campaign.name,
@@ -267,8 +387,20 @@ export function formFromCampaign(campaign: AdCampaignDto): CampaignForm {
     startsAt: toLocalInput(campaign.startsAtUtc),
     endsAt: toLocalInput(campaign.endsAtUtc),
     cities: campaign.cities.join(', '),
-    organizationIds: campaign.organizationIds.join('\n')
+    organizationIds: campaign.organizationIds.join('\n'),
+    permitNumber: compliance.permitNumber ?? '',
+    distanceSelling: compliance.distanceSelling ?? false,
+    requiresCertification: compliance.requiresCertification ?? false,
+    containsOffer: compliance.containsOffer ?? false
   };
+}
+
+/**
+ * Поле разрешения видно у «Здоровья и красоты» и там, где номер уже вписан: скрытое непустое поле
+ * молча уходило бы на сервер с другой категорией.
+ */
+export function showsPermitField(form: CampaignForm): boolean {
+  return form.category === AdCategoryNames.HealthBeauty || form.permitNumber.trim() !== '';
 }
 
 /** Города через запятую или с новой строки. Повтор с другим регистром сервер всё равно склеит. */
@@ -323,6 +455,12 @@ export function validateCampaignForm(form: CampaignForm): Errors<CampaignFormFie
   else if (organizations.ids.length > AD_LIMITS.maxOrganizations) {
     errors.organizationIds = { key: 'platform.ads.error.tooManyOrganizations', values: { max: AD_LIMITS.maxOrganizations } };
   }
+
+  const permit = form.permitNumber.trim();
+  if (form.category === AdCategoryNames.HealthBeauty && permit === '') errors.permitNumber = { key: 'platform.ads.error.permitRequired' };
+  else if (permit.length > AD_LIMITS.permitMax) {
+    errors.permitNumber = { key: 'platform.ads.error.permitTooLong', values: { max: AD_LIMITS.permitMax } };
+  }
   return errors;
 }
 
@@ -335,26 +473,56 @@ export function requestFromCampaignForm(form: CampaignForm): UpsertAdCampaignReq
     startsAtUtc: fromLocalInput(form.startsAt) ?? '',
     endsAtUtc: fromLocalInput(form.endsAt) ?? '',
     cities: parseCities(form.cities),
-    organizationIds: parseOrganizationIds(form.organizationIds).ids
+    organizationIds: parseOrganizationIds(form.organizationIds).ids,
+    compliance: {
+      permitNumber: blankToNull(form.permitNumber),
+      distanceSelling: form.distanceSelling,
+      requiresCertification: form.requiresCertification,
+      containsOffer: form.containsOffer
+    }
   };
+}
+
+export type CardNotice = 'seller' | 'certification' | 'offer';
+
+/** Что карточка кампании допечатает сама, кроме метки «Реклама» и рекламодателя. */
+export function cardNotices(compliance: AdCampaignComplianceDto | null | undefined): CardNotice[] {
+  const notices: CardNotice[] = [];
+  if (compliance?.distanceSelling === true) notices.push('seller');
+  if (compliance?.requiresCertification === true) notices.push('certification');
+  if (compliance?.containsOffer === true) notices.push('offer');
+  return notices;
 }
 
 // ── Креатив ──────────────────────────────────────────────────────────────────────────────
 
+/**
+ * `title` и `body` — таджикский текст: реклама идёт на государственном языке (ст. 5 закона о
+ * рекламе, закон о госязыке), заголовок на нём обязателен и стоит на карточке первым. Русский —
+ * вторая строка по желанию.
+ */
 export interface CreativeForm {
   title: string;
   body: string;
+  titleRu: string;
+  bodyRu: string;
   imageUrl: string;
 }
 
 export type CreativeFormField = keyof CreativeForm;
 
 export function emptyCreativeForm(): CreativeForm {
-  return { title: '', body: '', imageUrl: '' };
+  return { title: '', body: '', titleRu: '', bodyRu: '', imageUrl: '' };
 }
 
 export function formFromCreative(creative: AdCreativeDto): CreativeForm {
-  return { title: creative.title, body: creative.body ?? '', imageUrl: creative.imageUrl ?? '' };
+  return {
+    title: creative.title,
+    body: creative.body ?? '',
+    titleRu: creative.titleRu ?? '',
+    bodyRu: creative.bodyRu ?? '',
+    imageUrl: creative.imageUrl ?? ''
+  };
 }
 
 /** Картинка годится для показа: https-адрес, как требует сервер, — ПК качают только по https. */
@@ -376,12 +544,51 @@ export function validateCreativeForm(form: CreativeForm): Errors<CreativeFormFie
   if (form.body.trim().length > AD_LIMITS.bodyMax) {
     errors.body = { key: 'platform.ads.error.bodyTooLong', values: { max: AD_LIMITS.bodyMax } };
   }
+  if (form.titleRu.trim().length > AD_LIMITS.titleMax) {
+    errors.titleRu = { key: 'platform.ads.error.titleTooLong', values: { max: AD_LIMITS.titleMax } };
+  }
+  if (form.bodyRu.trim().length > AD_LIMITS.bodyMax) {
+    errors.bodyRu = { key: 'platform.ads.error.bodyTooLong', values: { max: AD_LIMITS.bodyMax } };
+  }
   if (form.imageUrl.trim() !== '' && !isHttpsUrl(form.imageUrl)) errors.imageUrl = { key: 'platform.ads.error.imageUrl' };
   return errors;
 }
 
 export function requestFromCreativeForm(form: CreativeForm): UpsertAdCreativeRequest {
-  return { title: form.title.trim(), body: blankToNull(form.body), imageUrl: blankToNull(form.imageUrl) };
+  return {
+    title: form.title.trim(),
+    body: blankToNull(form.body),
+    imageUrl: blankToNull(form.imageUrl),
+    titleRu: blankToNull(form.titleRu),
+    bodyRu: blankToNull(form.bodyRu)
+  };
+}
+
+// ── Модерация ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Отметки модератора — по статьям закона, в порядке контракта. Сервер не одобрит без каждой:
+ * код не отличит сок от пива, и отметка — решение человека, которое уходит в журнал.
+ */
+export const AD_MODERATION_CHECKS: readonly AdModerationCheckName[] = Object.values(AdModerationCheckNames);
+
+const MODERATION_CHECK_LABEL_KEY: Record<AdModerationCheckName, MessageKey> = {
+  not_club_or_betting: 'platform.ads.moderation.check.not_club_or_betting',
+  no_banned_goods: 'platform.ads.moderation.check.no_banned_goods',
+  minors: 'platform.ads.moderation.check.minors',
+  truthful: 'platform.ads.moderation.check.truthful',
+  ethical: 'platform.ads.moderation.check.ethical',
+  tajik_on_image: 'platform.ads.moderation.check.tajik_on_image'
+};
+
+export function moderationCheckLabelKey(check: AdModerationCheckName): MessageKey {
+  return MODERATION_CHECK_LABEL_KEY[check];
+}
+
+/** Слова, которые закон разрешает только с документом (ст. 7), — списком в кавычках. */
+export function formatWordingFlags(flags: readonly string[] | null | undefined): string | null {
+  if (flags === null || flags === undefined || flags.length === 0) return null;
+  return flags.map(flag => `«${flag}»`).join(', ');
 }
 
 // ── Отчёт ────────────────────────────────────────────────────────────────────────────────
@@ -425,16 +632,20 @@ export function reportTotals(rows: readonly AdImpressionRowDto[]): { impressions
 
 // Отказ `ad_invalid` приходит с английской фразой про поле. Формы проверяют те же правила до
 // отправки, поэтому сюда доходит только расхождение с сервером — его и называем, а не «сбой».
-const ERROR_CODE_KEY: Record<string, MessageKey> = {
-  [AdErrorCodeNames.Invalid]: 'platform.ads.error.invalid',
-  [AdErrorCodeNames.NotApproved]: 'platform.ads.error.notApproved',
-  [AdErrorCodeNames.ConfirmationRequired]: 'platform.ads.error.confirmationRequired'
+const ERROR_CODE_MESSAGE: Record<string, FieldError> = {
+  [AdErrorCodeNames.Invalid]: { key: 'platform.ads.error.invalid' },
+  [AdErrorCodeNames.NotApproved]: { key: 'platform.ads.error.notApproved' },
+  [AdErrorCodeNames.ConfirmationRequired]: { key: 'platform.ads.error.confirmationRequired' },
+  [AdErrorCodeNames.PermitRequired]: { key: 'platform.ads.error.permitRequired' },
+  // Креатив одобрили в другой вкладке, пока здесь была открыта его правка.
+  [AdErrorCodeNames.CreativeLocked]: { key: 'platform.ads.error.creativeLocked' },
+  [AdErrorCodeNames.ImageUnavailable]: { key: 'platform.ads.error.imageUnavailable', values: { mb: IMAGE_MAX_MB } }
 };
 
 export function describeAdError(cause: unknown, t: Translate): string {
   if (cause instanceof PlatformApiError && cause.errorCode !== null) {
-    const key = ERROR_CODE_KEY[cause.errorCode];
-    if (key !== undefined) return t(key);
+    const message = ERROR_CODE_MESSAGE[cause.errorCode];
+    if (message !== undefined) return t(message.key, message.values);
   }
   // 404 здесь — запись, которой уже нет: кампанию или креатив открыли по старой ссылке.
   return describeApiError(cause, t, { 404: 'platform.ads.error.notFound' });
