@@ -1,4 +1,4 @@
-import { BellRing, Hourglass, PauseCircle, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
+import { Ban, BellRing, Hourglass, PauseCircle, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
 import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
@@ -43,7 +43,8 @@ export function SeatTile({
     isAttentionTone(seat.tone) ? 'seat-tile--alert' : '',
     selected ? 'selected' : '',
     picked ? 'picked' : ''].filter(Boolean).join(' ');
-  const ProblemIcon = lead.kind === 'plain' ? PROBLEM_ICON[seat.tone] : undefined;
+  // ПК вне тарифа — не ремонт: свой знак, иначе стойка пойдёт чинить исправный ПК.
+  const ProblemIcon = lead.kind !== 'plain' ? undefined : seat.isOutsidePlan ? Ban : PROBLEM_ICON[seat.tone];
   // Сессия идёт, но ПК без связи: тон серый, время/сумма сессии остаются — значок обрыва говорит,
   // что деньги капают без контроля над ПК (сессия не теряется, см. модель SeatTone).
   const sessionOffline = seat.isDeviceOnline === false && (lead.kind === 'prepaid' || lead.kind === 'postpaid');

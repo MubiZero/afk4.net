@@ -108,7 +108,7 @@ describe('floor-map state', () => {
       ]
     }, t);
 
-    expect(state.seats[0]).toMatchObject({ tone: 'service', stateLabel: 'Вне тарифа', isOutsidePlan: true });
+    expect(state.seats[0]).toMatchObject({ tone: 'service', stateLabel: 'Вне тарифа', remaining: 'Вне тарифа', isOutsidePlan: true });
     expect(state.seats[1]).toMatchObject({ tone: 'active', isOutsidePlan: true });
     expect(isSeatReadyForGuest(createSeat({ state: 'Free', isOutsidePlan: true }))).toBe(false);
   });

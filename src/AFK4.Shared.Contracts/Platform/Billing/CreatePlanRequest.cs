@@ -12,4 +12,7 @@ public sealed record CreatePlanRequest(
     int? MaxStaffUsersPerBranch,
     int SortOrder,
     long PricePerDeviceMinorUnits = 0,
-    int IncludedDevices = 0);
+    int IncludedDevices = 0,
+    int? MaxDevices = null,
+    // Ключи функций, которые тариф включает; пусто — решают значения функций по умолчанию.
+    IReadOnlyList<string>? IncludedFeatures = null);

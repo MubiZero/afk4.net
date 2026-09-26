@@ -30,7 +30,10 @@ public sealed record ClubPlanDto(
     // ПК, на которых новые сессии не запускаются: сверх предела бесплатного тарифа (§5a).
     int DevicesOutsidePlan = 0,
     // Когда клуб перейдёт на бесплатный тариф, если не оплатит просроченное. Пусто — не грозит.
-    DateTimeOffset? FallbackAtUtc = null);
+    DateTimeOffset? FallbackAtUtc = null,
+    // Условия, которые задала платформа: экран не должен обещать свои числа.
+    int TrialDays = ClubPlanLimits.TrialDays,
+    int PromisedPaymentDays = ClubPlanLimits.PromisedPaymentDays);
 
 /// <summary>Игровые ПК клуба глазами тарифа: какие работают на бесплатном и какие отметил владелец.</summary>
 public sealed record ClubPlanDevicesDto(
@@ -73,6 +76,12 @@ public static class ClubPlanErrorCodeNames
 
     public const string PromiseUsed = "plan_promise_used";
 
+    /// <summary>Платформа выключила пробный период (ноль дней в условиях оплаты).</summary>
+    public const string TrialUnavailable = "plan_trial_unavailable";
+
+    /// <summary>Платформа выключила обещанный платёж (ноль дней в условиях оплаты).</summary>
+    public const string PromiseUnavailable = "plan_promise_unavailable";
+
     public const string AlreadyOnPlan = "plan_already_on_plan";
 
     /// <summary>Отмечено больше ПК, чем разрешает тариф.</summary>
@@ -82,6 +91,7 @@ public static class ClubPlanErrorCodeNames
     public const string UnknownDevice = "plan_device_unknown";
 }
 
+/// <summary>Значения по умолчанию; действующие условия платформа меняет в <see cref="BillingTermsDto"/>.</summary>
 public static class ClubPlanLimits
 {
     public const int TrialDays = 30;

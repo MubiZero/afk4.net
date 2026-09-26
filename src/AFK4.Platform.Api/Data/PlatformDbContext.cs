@@ -152,6 +152,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlanFeatureEntity> PlanFeatures => Set<PlanFeatureEntity>();
 
+    public DbSet<PlatformBillingTermsEntity> PlatformBillingTerms => Set<PlatformBillingTermsEntity>();
+
     public DbSet<OrganizationFeatureOverrideEntity> OrganizationFeatureOverrides => Set<OrganizationFeatureOverrideEntity>();
 
     public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
@@ -1306,6 +1308,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(planFeature => new { planFeature.PlanCode, planFeature.FeatureKey })
                 .IsUnique()
                 .HasDatabaseName("IX_plan_features_Plan_Feature");
+        });
+
+        modelBuilder.Entity<PlatformBillingTermsEntity>(entity =>
+        {
+            entity.ToTable("platform_billing_terms");
+            entity.HasKey(terms => terms.Id);
+            entity.Property(terms => terms.Id).ValueGeneratedNever();
         });
 
         modelBuilder.Entity<OrganizationFeatureOverrideEntity>(entity =>

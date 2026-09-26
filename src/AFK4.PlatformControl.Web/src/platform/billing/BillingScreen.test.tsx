@@ -11,7 +11,10 @@ function fakeClient() {
     supportNotes: { createSupportNote: mock().mockResolvedValue({}) },
     subscriptions: { listSubscriptions: mock().mockResolvedValue([]), updateSubscription: mock().mockResolvedValue({}) },
     invoices: { listInvoices: mock().mockResolvedValue([]), markInvoicePaid: mock().mockResolvedValue({}) },
-    plans: { listPlans: mock().mockResolvedValue([]) }
+    plans: {
+      listPlans: mock().mockResolvedValue([]),
+      getTerms: mock().mockResolvedValue({ trialDays: 30, promisedPaymentDays: 7, fallbackAfterOverdueDays: 14, updatedAtUtc: null })
+    }
   } as never;
 }
 
@@ -28,5 +31,8 @@ describe('BillingScreen', () => {
     render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="plans" onTabChange={() => {}} canManageInvoices={false} canManagePlans={false} debtAccess={{ canMarkPaid: false, canGrantGrace: false, canToggleStatus: false, canAddNote: false }} /></ToastProvider></I18nProvider>);
     await waitFor(() => expect(screen.getByText('Тарифов пока нет. Без тарифа организации не назначить подписку.')).toBeVisible());
     expect(screen.queryByRole('button', { name: 'Создать тариф' })).not.toBeInTheDocument();
+    // Условия оплаты видны, но без права менять тарифы — только для чтения.
+    expect(await screen.findByLabelText('Пробный период, дней')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Сохранить условия' })).not.toBeInTheDocument();
   });
 });

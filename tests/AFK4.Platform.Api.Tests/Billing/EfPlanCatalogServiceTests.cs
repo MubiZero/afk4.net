@@ -64,6 +64,49 @@ public sealed class EfPlanCatalogServiceTests
         Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
     }
 
+    // Тарифы настраиваются в Platform Control (владелец, 2026-09-26): цена за ПК, бесплатные ПК,
+    // предел ПК на клуб и функции — и новые лимиты по желанию уходят клубам на тарифе.
+    [Fact]
+    public async Task UpdateAsync_SetsPerPcTerms_Features_AndAppliesLimitsToClubsOnRequest()
+    {
+        await using var db = NewContext();
+        var now = DateTimeOffset.Parse("2026-09-26T10:00:00Z");
+        var service = new EfPlanCatalogService(db, new FixedTimeProvider(now));
+        db.PlatformFeatures.AddRange(
+            new PlatformFeatureEntity { FeatureKey = "platform_ads", Name = "Реклама", Description = "", CreatedAtUtc = now },
+            new PlatformFeatureEntity { FeatureKey = "tips", Name = "Чаевые", Description = "", EnabledByDefault = true, CreatedAtUtc = now });
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = Guid.NewGuid(), Slug = "club", Name = "Клуб", Status = "active", PlanCode = "team",
+            LimitsJson = "{\"MaxDevices\":10}", CreatedAtUtc = now, UpdatedAtUtc = now
+        });
+        await db.SaveChangesAsync();
+        await service.CreateAsync(BuildCreate() with { MaxDevices = 10, IncludedFeatures = ["platform_ads"] }, CancellationToken.None);
+
+        var created = (await service.GetAsync("team", CancellationToken.None))!;
+        Assert.Equal(10, created.MaxDevices);
+        Assert.Equal(1, created.Clubs);
+        Assert.Equal([("platform_ads", true), ("tips", false)], created.Features!.Select(feature => (feature.FeatureKey, feature.IsIncluded)));
+
+        // Без отметки «применить» лимиты клуба остаются прежними.
+        var edit = new UpdatePlanRequest("Team", 500000, "TJS", BillingIntervalNames.Monthly, null, null, null, null, true, 5,
+            PricePerDeviceMinorUnits: 800, IncludedDevices: 5, MaxDevices: 8);
+        await service.UpdateAsync("team", edit, CancellationToken.None);
+        Assert.Equal("{\"MaxDevices\":10}", (await db.Organizations.SingleAsync()).LimitsJson);
+
+        var applied = await service.UpdateAsync("team", edit with { ApplyLimitsToClubs = true, IncludedFeatures = ["tips"] }, CancellationToken.None);
+        Assert.Equal(800, applied.Value!.PricePerDeviceMinorUnits);
+        Assert.Equal(5, applied.Value.IncludedDevices);
+        Assert.Equal([("platform_ads", false), ("tips", true)], applied.Value.Features!.Select(feature => (feature.FeatureKey, feature.IsIncluded)));
+        Assert.Equal(8, AFK4.Platform.Api.Platform.Entitlements.OrganizationLimitsJson.Deserialize((await db.Organizations.SingleAsync()).LimitsJson).MaxDevices);
+
+        // Предел не передан — остаётся; снять его — только явно.
+        Assert.Equal(8, (await service.UpdateAsync("team", edit with { MaxDevices = null }, CancellationToken.None)).Value!.MaxDevices);
+        Assert.Null((await service.UpdateAsync("team", edit with { MaxDevices = null, RemoveMaxDevices = true }, CancellationToken.None)).Value!.MaxDevices);
+        Assert.Equal(BillingOperationStatus.BadRequest,
+            (await service.UpdateAsync("team", edit with { IncludedFeatures = ["nope"] }, CancellationToken.None)).Status);
+    }
+
     [Fact]
     public async Task UpdateAsync_ChangesFieldsAndBumpsUpdatedAt()
     {

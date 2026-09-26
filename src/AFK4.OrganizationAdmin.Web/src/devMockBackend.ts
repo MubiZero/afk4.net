@@ -15,6 +15,9 @@ const FAR_FUTURE = '2099-01-01T00:00:00Z';
 // `?nobranch` в адресе превью — вход сотрудника без единого назначения в филиал, чтобы глазами
 // посмотреть экран «Нет активного филиала». «Проверить снова» тоже вернёт такую сессию.
 const PREVIEW_WITHOUT_BRANCH = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nobranch');
+// `?overPlan` в адресе превью: клуб после неоплаты на бесплатном тарифе, двенадцать ПК при пределе
+// десять — два «вне тарифа» на карте и выбор ПК в «Сеть → Подписка».
+const PREVIEW_OVER_PLAN = typeof location !== 'undefined' && new URLSearchParams(location.search).has('overPlan');
 
 export function createMockSession({ withoutBranch = false }: { withoutBranch?: boolean } = {}): Record<string, unknown> {
   if (withoutBranch) {
@@ -549,11 +552,34 @@ const mockTips = [
   { ledgerEntryId: 'tip-3', amount: money(500), seatLabel: 'ПК 03', createdAtUtc: minutesAgoUtc(12), reversed: false }
 ];
 // Тариф учебного клуба: бесплатный, 7 ПК, пробный период ещё не брали.
-let mockPlan: Record<string, unknown> = {
-  planCode: 'free', kind: 'free', devices: 7, includedDevices: 10, billableDevices: 0,
-  pricePerDevice: money(1000), estimatedMonthly: money(0), trialEndsAtUtc: null, trialAvailable: true,
-  canSwitchToPerPc: true, promisedPaymentAvailable: false, promisedPaymentUntilUtc: null, overdue: null
-};
+let mockPlan: Record<string, unknown> = PREVIEW_OVER_PLAN
+  ? {
+    planCode: 'free', kind: 'free', devices: 12, includedDevices: 10, billableDevices: 2,
+    pricePerDevice: money(1000), estimatedMonthly: money(0), trialEndsAtUtc: null, trialAvailable: false,
+    canSwitchToPerPc: false, promisedPaymentAvailable: false, promisedPaymentUntilUtc: null, overdue: money(2000),
+    devicesOutsidePlan: 2, trialDays: 30, promisedPaymentDays: 7
+  }
+  : {
+    planCode: 'free', kind: 'free', devices: 7, includedDevices: 10, billableDevices: 0,
+    pricePerDevice: money(1000), estimatedMonthly: money(0), trialEndsAtUtc: null, trialAvailable: true,
+    canSwitchToPerPc: true, promisedPaymentAvailable: false, promisedPaymentUntilUtc: null, overdue: null,
+    devicesOutsidePlan: 0, trialDays: 30, promisedPaymentDays: 7
+  };
+
+// Какие ПК работают на бесплатном тарифе: без выбора — первые десять по порядку карты.
+let mockKeptDevices: string[] = [];
+function mockPlanDevices() {
+  const seats = currentPreviewFloorMap().seats;
+  const kept = new Set(mockKeptDevices);
+  const ordered = [...seats.filter((seat) => kept.has(seat.deviceId)), ...seats.filter((seat) => !kept.has(seat.deviceId))];
+  const works = new Set(ordered.slice(0, 10).map((seat) => seat.deviceId));
+  return {
+    limit: 10,
+    devices: seats.map((seat) => ({
+      deviceId: seat.deviceId, name: seat.seatName, branchName: seat.zoneName, works: works.has(seat.deviceId), kept: kept.has(seat.deviceId)
+    }))
+  };
+}
 function mockSubscription() {
   return {
     organizationSubscriptionId: 'sub1', organizationId: ORG, planCode: mockPlan.planCode, status: mockPlan.kind === 'trial' ? 'trial' : 'active',
@@ -639,7 +665,12 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
   if (pathname.endsWith('/packages/options')) return packageOptions();
-  if (pathname.endsWith('/floor-map')) return currentPreviewFloorMap();
+  if (pathname.endsWith('/floor-map')) {
+    const map = currentPreviewFloorMap();
+    if (!PREVIEW_OVER_PLAN) return map;
+    const works = new Set(mockPlanDevices().devices.filter((device) => device.works).map((device) => device.deviceId));
+    return { ...map, seats: map.seats.map((seat) => ({ ...seat, isOutsidePlan: !works.has(seat.deviceId) })) };
+  }
   if (pathname.endsWith('/layout/zones')) return previewLayoutZones();
   if (pathname.endsWith('/staff')) return previewStaff();
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
@@ -1081,6 +1112,8 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (url.pathname.endsWith('/packages/purchases') && method === 'POST') {
     return json(playerPackages()[0]);
   }
+  // Раньше общего списка ПК: «/plan/devices» тоже кончается на «/devices».
+  if (url.pathname.endsWith('/plan/devices') && method === 'GET') return json(mockPlanDevices());
   if (url.pathname.endsWith('/devices') && method === 'GET') {
     return json(previewDevices);
   }
@@ -1172,6 +1205,12 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (url.pathname.endsWith('/plan/trial') && method === 'POST') {
     mockPlan = { ...mockPlan, planCode: 'per_pc', kind: 'trial', trialAvailable: false, canSwitchToPerPc: false, trialEndsAtUtc: minutesAgoUtc(-60 * 24 * 30) };
     return json(mockPlan);
+  }
+  if (url.pathname.endsWith('/plan/devices') && method === 'PUT') {
+    const ids = (JSON.parse(String(init?.body ?? '{}')) as { deviceIds?: string[] }).deviceIds ?? [];
+    if (ids.length > 10) return jsonError(409, 'plan_devices_too_many', 'Too many PCs for the free plan.');
+    mockKeptDevices = ids;
+    return json(mockPlanDevices());
   }
   if (url.pathname.endsWith('/tip-settings') && method === 'PUT') {
     mockTipsEnabled = Boolean((JSON.parse(String(init?.body ?? '{}')) as { enabled?: boolean }).enabled);

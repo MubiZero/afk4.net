@@ -189,9 +189,11 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     tone,
     stateLabel: idleOutsidePlan ? t('op.floor.outsidePlan') : seatStatusLabel(tone, t),
     player: playerDisplayName ?? (hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none')),
-    remaining: isOpenTab
-      ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
-      : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession, t),
+    remaining: idleOutsidePlan
+      ? t('op.floor.outsidePlan')
+      : isOpenTab
+        ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
+        : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession, t),
     device: formatDeviceSummary({
       deviceName: dto.deviceName,
       isOnline: isDeviceOnline,

@@ -97,6 +97,10 @@ export const ClubPlanErrorCodeNames = {
   OverdueInvoices: 'plan_overdue_invoices',
   NothingToPromise: 'plan_nothing_to_promise',
   PromiseUsed: 'plan_promise_used',
+  /** Платформа выключила пробный период (ноль дней в условиях оплаты). */
+  TrialUnavailable: 'plan_trial_unavailable',
+  /** Платформа выключила обещанный платёж (ноль дней в условиях оплаты). */
+  PromiseUnavailable: 'plan_promise_unavailable',
   AlreadyOnPlan: 'plan_already_on_plan',
   /** Отмечено больше ПК, чем разрешает тариф. */
   TooManyDevices: 'plan_devices_too_many',
@@ -705,12 +709,14 @@ export type PaymentMethodName = (typeof PaymentMethodNames)[keyof typeof Payment
  */
 export const PlanLimitNames = {
   ReachedCode: 'plan_limit_reached',
+  /**
+   * Отказ запустить сессию на ПК «вне тарифа» — сверх предела ПК бесплатного тарифа (спека
+   * тарифов клуба, §5a). Числа — в PlanLimitExceededDto с пределом Devices.
+   */
+  DeviceOutsidePlanCode: 'device_outside_plan',
   Branches: 'branches',
   DevicesPerBranch: 'devices_per_branch',
-  /**
-   * Игровые ПК на весь клуб. Этим же пределом отказывает запуск сессии на ПК «вне тарифа» —
-   * сверх десяти на бесплатном (спека тарифов клуба, §5a).
-   */
+  /** Игровые ПК на весь клуб, без деления по залам. */
   Devices: 'devices',
   ConcurrentSessions: 'concurrent_sessions',
   StaffUsersPerBranch: 'staff_users_per_branch',
@@ -1784,6 +1790,20 @@ export interface AuthenticatedInstallEnrollRequest {
 }
 
 /**
+ * Условия оплаты для клубов (спека тарифов клуба, §3–§5): сколько длится пробный период,
+ * обещанный платёж и льгота после срока счёта до перехода на бесплатный тариф. Задаёт платформа.
+ *
+ * Контракт: Platform/Billing/BillingTermsContracts.cs
+ */
+export interface BillingTermsDto {
+  trialDays: number;
+  promisedPaymentDays: number;
+  fallbackAfterOverdueDays: number;
+  /** Пусто — условия ещё не меняли, действуют значения по умолчанию. */
+  updatedAtUtc: IsoDateTime | null;
+}
+
+/**
  * Правило закрытия окна: часть заголовка, класс окна или оба сразу.
  *
  * Контракт: Devices/ProtectionProfileContracts.cs
@@ -2243,6 +2263,9 @@ export interface ClubPlanDto {
   devicesOutsidePlan?: number;
   /** Когда клуб перейдёт на бесплатный тариф, если не оплатит просроченное. Пусто — не грозит. */
   fallbackAtUtc?: IsoDateTime | null;
+  /** Условия, которые задала платформа: экран не должен обещать свои числа. */
+  trialDays?: number;
+  promisedPaymentDays?: number;
 }
 
 /**
@@ -2449,6 +2472,9 @@ export interface CreatePlanRequest {
   sortOrder: number;
   pricePerDeviceMinorUnits?: number;
   includedDevices?: number;
+  maxDevices?: number | null;
+  /** Ключи функций, которые тариф включает; пусто — решают значения функций по умолчанию. */
+  includedFeatures?: string[] | null;
 }
 
 /** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */
@@ -4760,6 +4786,13 @@ export interface PendingClubReviewDto {
 export interface PlaceShopOrderRequest {
   lines: ShopOrderLineInput[];
   idempotencyKey: string;
+}
+
+/** Контракт: Platform/Billing/SubscriptionPlanDto.cs */
+export interface PlanFeatureDto {
+  featureKey: string;
+  name: string;
+  isIncluded: boolean;
 }
 
 /**
@@ -7568,6 +7601,12 @@ export interface SubscriptionPlanDto {
   /** Цена каждого ПК сверх включённых — у тарифа за ПК; у прочих ноль. */
   pricePerDeviceMinorUnits?: number;
   includedDevices?: number;
+  /** Игровых ПК на весь клуб; пусто — без предела. */
+  maxDevices?: number | null;
+  /** Каждая функция платформы и включена ли она этим тарифом. */
+  features?: PlanFeatureDto[] | null;
+  /** Сколько клубов сейчас на этом тарифе — им «применить лимиты» при правке. */
+  clubs?: number;
 }
 
 /** Контракт: Tariffs/TariffCalculationResult.cs */
@@ -7735,6 +7774,13 @@ export interface TransferSessionRequest {
   targetSeatId: Guid;
   idempotencyKey: string;
   expectedVersion?: number | null;
+}
+
+/** Контракт: Platform/Billing/BillingTermsContracts.cs */
+export interface UpdateBillingTermsRequest {
+  trialDays: number;
+  promisedPaymentDays: number;
+  fallbackAfterOverdueDays: number;
 }
 
 /** Контракт: Branches/UpdateBranchBookingSettingsRequest.cs */
@@ -7972,6 +8018,16 @@ export interface UpdatePlanRequest {
   /** Не переданы — остаются прежними: старый редактор тарифов о них не знает. */
   pricePerDeviceMinorUnits?: number | null;
   includedDevices?: number | null;
+  /** Не передан — остаётся прежним; снять предел — RemoveMaxDevices. */
+  maxDevices?: number | null;
+  removeMaxDevices?: boolean;
+  /** Передан — заменяет набор функций тарифа целиком. */
+  includedFeatures?: string[] | null;
+  /**
+   * Клубы на этом тарифе получают его новые лимиты. Без отметки лимиты клубов не меняются:
+   * платформа могла задать клубу свои.
+   */
+  applyLimitsToClubs?: boolean;
 }
 
 /** Контракт: Platform/Auth/PlatformAdminDirectoryContracts.cs */

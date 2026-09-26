@@ -322,6 +322,9 @@ public static class AuditActionNames
 
     public const string KeepPlanDevices = "billing.plan.keep_devices";
 
+    /// <summary>Платформа поменяла условия оплаты: пробный период, обещанный платёж, льготу.</summary>
+    public const string UpdateBillingTerms = "platform.billing.terms.update";
+
     /// <summary>Приведённый клуб оплатил первый счёт — пригласившему начислен бесплатный месяц.</summary>
     public const string RewardClubReferral = "billing.referral.reward";
 

@@ -149,6 +149,30 @@ public sealed class ClubPlansTests
             (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.FallbackAtUtc);
     }
 
+    // Условия оплаты задаёт платформа: другой срок пробного периода и льготы — и экран говорит их же.
+    [Fact]
+    public async Task TheTerms_ComeFromThePlatform_AndZeroDaysTurnsAnOfferOff()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        fixture.Db.PlatformBillingTerms.Add(new PlatformBillingTermsEntity { TrialDays = 14, PromisedPaymentDays = 0, FallbackAfterOverdueDays = 5, UpdatedAtUtc = Start });
+        await fixture.Db.SaveChangesAsync();
+
+        var free = (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!;
+        Assert.Equal(14, free.TrialDays);
+        Assert.Equal(0, free.PromisedPaymentDays);
+        Assert.Equal(string.Empty, await fixture.Plans.StartTrialAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Start.AddDays(14), (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.TrialEndsAtUtc);
+
+        await fixture.Plans.RunTransitionsAsync(Start.AddDays(14), CancellationToken.None);
+        var due = Start.AddDays(20);
+        await fixture.AddOverdueInvoiceAsync(due);
+        var plan = (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!;
+        Assert.False(plan.PromisedPaymentAvailable);
+        Assert.Equal(due.AddDays(5), plan.FallbackAtUtc);
+        Assert.Equal(ClubPlanErrorCodeNames.PromiseUnavailable, await fixture.Plans.PromisePaymentAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(1, await fixture.Plans.RunTransitionsAsync(due.AddDays(5), CancellationToken.None));
+    }
+
     [Fact]
     public async Task TheFreePlan_ShowsPlatformAds_AndThePerPcPlanDoesNot()
     {

@@ -13,6 +13,7 @@ import type { PlansApi } from '@/api/platformClients/plans';
 import type { SubscriptionPlan } from '@/api/types';
 import { usePlans } from './usePlans';
 import { PlanFormDialog } from './PlanFormDialog';
+import { BillingTermsCard } from './BillingTermsCard';
 import { emptyPlanForm, planToForm, planFormToCreateRequest, planFormToUpdateRequest, INTERVAL_LABEL, type PlanForm } from './billingModel';
 
 export function PlansTab({ client, canManage = true }: { client: PlansApi; canManage?: boolean }) {
@@ -24,7 +25,13 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
   const [form, setForm] = useState<PlanForm>(emptyPlanForm());
   const [pending, setPending] = useState(false);
 
-  function openCreate() { setMode('create'); setForm(emptyPlanForm()); setDialogOpen(true); }
+  // Список функций платформы приходит с каждым тарифом — новому тарифу берём его у любого.
+  function openCreate() {
+    const features = state.status === 'ready' ? (state.data[0]?.features ?? []).map(({ featureKey, name }) => ({ featureKey, name })) : [];
+    setMode('create');
+    setForm(emptyPlanForm(features));
+    setDialogOpen(true);
+  }
   function openEdit(plan: SubscriptionPlan) { setMode('edit'); setForm(planToForm(plan)); setDialogOpen(true); }
 
   async function submit() {
@@ -69,6 +76,8 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
               <TableRow>
                 <TableHead>{t('platform.billing.column.plan')}</TableHead>
                 <TableHead>{t('platform.billing.plans.column.price')}</TableHead>
+                <TableHead>{t('platform.billing.plans.column.perDevice')}</TableHead>
+                <TableHead>{t('platform.billing.plans.column.maxDevices')}</TableHead>
                 <TableHead>{t('platform.billing.column.interval')}</TableHead>
                 <TableHead>{t('platform.billing.plans.column.active')}</TableHead>
                 <TableHead>{t('platform.billing.column.actions')}</TableHead>
@@ -79,6 +88,15 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
                 <TableRow key={plan.planCode}>
                   <TableCell><span className="font-medium">{plan.name}</span> <code className="mgmt-drawer-hint">{plan.planCode}</code></TableCell>
                   <TableCell className="pc-num">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
+                  <TableCell className="pc-num">
+                    {(plan.pricePerDeviceMinorUnits ?? 0) > 0
+                      ? t('platform.billing.plans.perDevice', {
+                          price: formatCurrency(minorToMajor(plan.pricePerDeviceMinorUnits ?? 0), plan.currencyCode),
+                          included: plan.includedDevices ?? 0
+                        })
+                      : '—'}
+                  </TableCell>
+                  <TableCell className="pc-num">{plan.maxDevices ?? '—'}</TableCell>
                   <TableCell>{INTERVAL_LABEL[plan.billingInterval] ? t(INTERVAL_LABEL[plan.billingInterval]) : plan.billingInterval}</TableCell>
                   {/* Точка и прочерк ничего не говорят ни человеку, ни зачитывающей экран программе:
                       скрытый тариф видно только по тому, что кружок другого цвета. */}
@@ -96,5 +114,15 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
       </CardContent>
       <PlanFormDialog open={dialogOpen} mode={mode} form={form} pending={pending} onChange={setForm} onSubmit={() => void submit()} onOpenChange={setDialogOpen} />
     </Card>
+  );
+}
+
+/** Тарифы и условия оплаты — одна вкладка: и то и другое определяет, сколько и когда платит клуб. */
+export function PlansAndTermsTab({ client, canManage = true }: { client: PlansApi; canManage?: boolean }) {
+  return (
+    <div className="pc-plans-stack">
+      <PlansTab client={client} canManage={canManage} />
+      <BillingTermsCard client={client} canManage={canManage} />
+    </div>
   );
 }

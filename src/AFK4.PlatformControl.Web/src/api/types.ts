@@ -4,6 +4,7 @@
 // call this as a function, so this narrower contract is the correct one.
 import type { PlatformAdminSignInResponse } from '@afk4/contracts';
 export type {
+  BillingTermsDto,
   CatalogGameDto,
   CreateBranchRequest,
   CreateOrganizationRequest,
@@ -14,6 +15,7 @@ export type {
   PlatformAdminListItem,
   PlatformAdminSignInChallengeResponse,
   PlatformAdminSignInResponse,
+  UpdateBillingTermsRequest,
   UpdatePlanRequest,
   UpdateSubscriptionRequest,
   UpsertCatalogGameRequest,
@@ -316,6 +318,14 @@ export interface SubscriptionPlan {
   maxStaffUsersPerBranch: number | null;
   isActive: boolean;
   sortOrder: number;
+  // Тариф за ПК: цена каждого ПК сверх включённых.
+  pricePerDeviceMinorUnits?: number;
+  includedDevices?: number;
+  // Игровых ПК на весь клуб; пусто — без предела.
+  maxDevices?: number | null;
+  features?: { featureKey: string; name: string; isIncluded: boolean }[] | null;
+  // Сколько клубов сейчас на тарифе.
+  clubs?: number;
 }
 
 export interface OrganizationSubscription {

@@ -7,7 +7,7 @@ import { DebtSection, type DebtSectionAccess } from './DebtSection';
 import { PayableQueue } from './PayableQueue';
 import { SubscriptionsTab } from './SubscriptionsTab';
 import { InvoicesTab } from './InvoicesTab';
-import { PlansTab } from './PlansTab';
+import { PlansAndTermsTab } from './PlansTab';
 import { AnalyticsTab } from './AnalyticsTab';
 
 export function BillingScreen({ client, tab, onTabChange, canManageInvoices, canManagePlans, debtAccess }: {
@@ -42,7 +42,7 @@ export function BillingScreen({ client, tab, onTabChange, canManageInvoices, can
       <div role="tabpanel">
         {tab === 'subscriptions' ? <SubscriptionsTab client={client.subscriptions} /> : null}
         {tab === 'invoices' ? <InvoicesTab client={client.invoices} canManage={canManageInvoices} /> : null}
-        {tab === 'plans' ? <PlansTab client={client.plans} canManage={canManagePlans} /> : null}
+        {tab === 'plans' ? <PlansAndTermsTab client={client.plans} canManage={canManagePlans} /> : null}
         {tab === 'analytics' ? <AnalyticsTab client={client.analytics} /> : null}
       </div>
     </Page>

@@ -110,7 +110,7 @@ export function ClubPlanPanel({
         <div className="network-plan-actions">
           {plan.trialAvailable ? (
             <button type="button" className="ui-btn ui-btn--primary" disabled={busy !== null} onClick={() => void run('trial')}>
-              {t('op.network.plan.startTrial', { days: 30 })}
+              {t('op.network.plan.startTrial', { days: plan.trialDays ?? 30 })}
             </button>
           ) : null}
           {plan.canSwitchToPerPc ? (
@@ -120,7 +120,7 @@ export function ClubPlanPanel({
           ) : null}
           {plan.promisedPaymentAvailable ? (
             <button type="button" className="ui-btn" disabled={busy !== null} onClick={() => void run('promise')}>
-              {t('op.network.plan.promisePayment', { days: 7 })}
+              {t('op.network.plan.promisePayment', { days: plan.promisedPaymentDays ?? 7 })}
             </button>
           ) : null}
         </div>

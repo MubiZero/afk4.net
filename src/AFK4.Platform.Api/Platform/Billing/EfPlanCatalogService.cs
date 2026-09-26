@@ -31,7 +31,7 @@ public sealed class EfPlanCatalogService(
             .OrderBy(plan => plan.SortOrder)
             .ThenBy(plan => plan.PlanCode)
             .ToListAsync(cancellationToken);
-        return plans.Select(ToDto).ToList();
+        return await DescribeAsync(plans, cancellationToken);
     }
 
     public async Task<SubscriptionPlanDto?> GetAsync(string planCode, CancellationToken cancellationToken)
@@ -40,7 +40,7 @@ public sealed class EfPlanCatalogService(
         var plan = await dbContext.SubscriptionPlans
             .AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.PlanCode == normalized, cancellationToken);
-        return plan is null ? null : ToDto(plan);
+        return plan is null ? null : (await DescribeAsync([plan], cancellationToken))[0];
     }
 
     public async Task<BillingOperationResult<SubscriptionPlanDto>> CreateAsync(
@@ -48,7 +48,9 @@ public sealed class EfPlanCatalogService(
         CancellationToken cancellationToken)
     {
         var planCode = (request.PlanCode ?? string.Empty).Trim();
-        var validationError = ValidateCommon(planCode, request.Name, request.CurrencyCode, request.BillingInterval, request.PriceMinorUnits);
+        var validationError = ValidateCommon(planCode, request.Name, request.CurrencyCode, request.BillingInterval, request.PriceMinorUnits)
+            ?? ValidatePerDevice(request.PricePerDeviceMinorUnits, request.IncludedDevices, request.MaxDevices)
+            ?? await ValidateFeaturesAsync(request.IncludedFeatures, cancellationToken);
         if (validationError is not null)
         {
             return BillingOperationResult<SubscriptionPlanDto>.BadRequest(validationError);
@@ -74,14 +76,16 @@ public sealed class EfPlanCatalogService(
             MaxStaffUsersPerBranch = request.MaxStaffUsersPerBranch,
             PricePerDeviceMinorUnits = request.PricePerDeviceMinorUnits,
             IncludedDevices = request.IncludedDevices,
+            MaxDevices = request.MaxDevices,
             IsActive = true,
             SortOrder = request.SortOrder,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
         dbContext.SubscriptionPlans.Add(entity);
+        await SetFeaturesAsync(planCode, request.IncludedFeatures, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return BillingOperationResult<SubscriptionPlanDto>.Success(ToDto(entity));
+        return BillingOperationResult<SubscriptionPlanDto>.Success((await DescribeAsync([entity], cancellationToken))[0]);
     }
 
     public async Task<BillingOperationResult<SubscriptionPlanDto>> UpdateAsync(
@@ -90,7 +94,9 @@ public sealed class EfPlanCatalogService(
         CancellationToken cancellationToken)
     {
         var normalized = (planCode ?? string.Empty).Trim();
-        var validationError = ValidateCommon(normalized, request.Name, request.CurrencyCode, request.BillingInterval, request.PriceMinorUnits);
+        var validationError = ValidateCommon(normalized, request.Name, request.CurrencyCode, request.BillingInterval, request.PriceMinorUnits)
+            ?? ValidatePerDevice(request.PricePerDeviceMinorUnits ?? 0, request.IncludedDevices ?? 0, request.MaxDevices)
+            ?? await ValidateFeaturesAsync(request.IncludedFeatures, cancellationToken);
         if (validationError is not null)
         {
             return BillingOperationResult<SubscriptionPlanDto>.BadRequest(validationError);
@@ -113,11 +119,27 @@ public sealed class EfPlanCatalogService(
         entity.MaxStaffUsersPerBranch = request.MaxStaffUsersPerBranch;
         entity.PricePerDeviceMinorUnits = request.PricePerDeviceMinorUnits ?? entity.PricePerDeviceMinorUnits;
         entity.IncludedDevices = request.IncludedDevices ?? entity.IncludedDevices;
+        entity.MaxDevices = request.RemoveMaxDevices ? null : request.MaxDevices ?? entity.MaxDevices;
         entity.IsActive = request.IsActive;
         entity.SortOrder = request.SortOrder;
         entity.UpdatedAtUtc = timeProvider.GetUtcNow();
+        await SetFeaturesAsync(entity.PlanCode, request.IncludedFeatures, cancellationToken);
+
+        // Лимиты клуб получает при смене тарифа, поэтому правка тарифа их не трогает. Платформа
+        // просит явно — клубы на тарифе получают новые, и свои лимиты клуба тоже заменяются.
+        if (request.ApplyLimitsToClubs)
+        {
+            var limitsJson = System.Text.Json.JsonSerializer.Serialize(ClubPlans.LimitsOf(entity));
+            var clubs = await dbContext.Organizations.Where(organization => organization.PlanCode == entity.PlanCode).ToListAsync(cancellationToken);
+            foreach (var club in clubs)
+            {
+                club.LimitsJson = limitsJson;
+                club.UpdatedAtUtc = entity.UpdatedAtUtc;
+            }
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
-        return BillingOperationResult<SubscriptionPlanDto>.Success(ToDto(entity));
+        return BillingOperationResult<SubscriptionPlanDto>.Success((await DescribeAsync([entity], cancellationToken))[0]);
     }
 
     private static string? ValidateCommon(string planCode, string? name, string? currencyCode, string? interval, long price)
@@ -150,6 +172,64 @@ public sealed class EfPlanCatalogService(
         return null;
     }
 
+    private static string? ValidatePerDevice(long pricePerDevice, int includedDevices, int? maxDevices)
+    {
+        if (pricePerDevice < 0) return "PricePerDeviceMinorUnits must be non-negative.";
+        if (includedDevices < 0) return "IncludedDevices must be non-negative.";
+        if (maxDevices is < 0) return "MaxDevices must be non-negative.";
+        return null;
+    }
+
+    private async Task<string?> ValidateFeaturesAsync(IReadOnlyList<string>? features, CancellationToken cancellationToken)
+    {
+        if (features is null || features.Count == 0) return null;
+        var known = await dbContext.PlatformFeatures.Select(feature => feature.FeatureKey).ToListAsync(cancellationToken);
+        var unknown = features.Except(known, StringComparer.Ordinal).ToList();
+        return unknown.Count == 0 ? null : $"Unknown features: {string.Join(", ", unknown)}.";
+    }
+
+    /// <summary>Набор функций тарифа целиком: каждая функция платформы — включена или нет.</summary>
+    private async Task SetFeaturesAsync(string planCode, IReadOnlyList<string>? included, CancellationToken cancellationToken)
+    {
+        if (included is null) return;
+        var chosen = included.ToHashSet(StringComparer.Ordinal);
+        var rows = await dbContext.PlanFeatures.Where(row => row.PlanCode == planCode).ToDictionaryAsync(row => row.FeatureKey, cancellationToken);
+        foreach (var featureKey in await dbContext.PlatformFeatures.Select(feature => feature.FeatureKey).ToListAsync(cancellationToken))
+        {
+            if (!rows.TryGetValue(featureKey, out var row))
+            {
+                row = new PlanFeatureEntity { PlanFeatureId = Guid.NewGuid(), PlanCode = planCode, FeatureKey = featureKey };
+                dbContext.PlanFeatures.Add(row);
+            }
+
+            row.IsIncluded = chosen.Contains(featureKey);
+        }
+    }
+
+    private async Task<IReadOnlyList<SubscriptionPlanDto>> DescribeAsync(
+        IReadOnlyList<SubscriptionPlanEntity> plans, CancellationToken cancellationToken)
+    {
+        var codes = plans.Select(plan => plan.PlanCode).ToList();
+        var features = await dbContext.PlatformFeatures.AsNoTracking().OrderBy(feature => feature.FeatureKey).ToListAsync(cancellationToken);
+        var rows = await dbContext.PlanFeatures.AsNoTracking().Where(row => codes.Contains(row.PlanCode)).ToListAsync(cancellationToken);
+        var clubs = await dbContext.Organizations.AsNoTracking()
+            .Where(organization => codes.Contains(organization.PlanCode))
+            .GroupBy(organization => organization.PlanCode)
+            .Select(group => new { PlanCode = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.PlanCode, group => group.Count, cancellationToken);
+
+        return plans.Select(plan => ToDto(plan) with
+        {
+            // Строки тарифа нет — решает значение функции по умолчанию, как и у клубов.
+            Features = features.Select(feature => new PlanFeatureDto(
+                feature.FeatureKey,
+                feature.Name,
+                rows.FirstOrDefault(row => row.PlanCode == plan.PlanCode && row.FeatureKey == feature.FeatureKey)?.IsIncluded
+                    ?? feature.EnabledByDefault)).ToList(),
+            Clubs = clubs.GetValueOrDefault(plan.PlanCode)
+        }).ToList();
+    }
+
     private static SubscriptionPlanDto ToDto(SubscriptionPlanEntity entity) =>
         new(
             PlanCode: entity.PlanCode,
@@ -164,5 +244,6 @@ public sealed class EfPlanCatalogService(
             IsActive: entity.IsActive,
             SortOrder: entity.SortOrder,
             PricePerDeviceMinorUnits: entity.PricePerDeviceMinorUnits,
-            IncludedDevices: entity.IncludedDevices);
+            IncludedDevices: entity.IncludedDevices,
+            MaxDevices: entity.MaxDevices);
 }

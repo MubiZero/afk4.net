@@ -25,6 +25,27 @@ public sealed class PlatformPlanEndpointTests
     }
 
     [Fact]
+    public async Task BillingTerms_StartAsDefaults_AndThePlatformChangesThem_WithinBounds()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var defaults = await client.GetFromJsonAsync<BillingTermsDto>(BillingTermsRoutes.Terms);
+        Assert.Equal((ClubPlanLimits.TrialDays, ClubPlanLimits.PromisedPaymentDays, ClubPlanLimits.FallbackAfterOverdueDays),
+            (defaults!.TrialDays, defaults.PromisedPaymentDays, defaults.FallbackAfterOverdueDays));
+        Assert.Null(defaults.UpdatedAtUtc);
+
+        var saved = await client.PutAsJsonAsync(BillingTermsRoutes.Terms, new UpdateBillingTermsRequest(14, 3, 10));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var terms = await client.GetFromJsonAsync<BillingTermsDto>(BillingTermsRoutes.Terms);
+        Assert.Equal((14, 3, 10), (terms!.TrialDays, terms.PromisedPaymentDays, terms.FallbackAfterOverdueDays));
+
+        var tooLong = await client.PutAsJsonAsync(BillingTermsRoutes.Terms, new UpdateBillingTermsRequest(BillingTermsLimits.MaxTrialDays + 1, 3, 10));
+        Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+    }
+
+    [Fact]
     public async Task GetPlans_WithoutAuth_ReturnsUnauthorized()
     {
         await using var factory = new PlatformApiFactory();

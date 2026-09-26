@@ -61,9 +61,13 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         var devices = await ApprovedDevicesAsync(db, organizationId, ct);
         var perPc = await PlanAsync(OrganizationPlanCodeNames.PerPc, ct);
         var currency = plan?.CurrencyCode ?? subscription.CurrencyCode;
-        var included = plan is { } current && IsPerDevice(current) ? current.IncludedDevices : perPc?.IncludedDevices ?? ClubPlanLimits.FreeDevices;
-        var pricePerDevice = plan is { } priced && IsPerDevice(priced) ? priced.PricePerDeviceMinorUnits : perPc?.PricePerDeviceMinorUnits ?? ClubPlanLimits.PricePerDeviceMinorUnits;
         var kind = KindOf(subscription, plan);
+        // У бесплатного «включено» — его предел ПК на клуб, у тарифа за ПК — сколько ПК без платы.
+        var included = kind == ClubPlanKindNames.Free
+            && OrganizationLimitsJson.Deserialize(state.Value.Organization.LimitsJson).MaxDevices is { } freeLimit
+                ? freeLimit
+                : plan is { } current && IsPerDevice(current) ? current.IncludedDevices : perPc?.IncludedDevices ?? ClubPlanLimits.FreeDevices;
+        var pricePerDevice = plan is { } priced && IsPerDevice(priced) ? priced.PricePerDeviceMinorUnits : perPc?.PricePerDeviceMinorUnits ?? ClubPlanLimits.PricePerDeviceMinorUnits;
         var estimate = kind == ClubPlanKindNames.PerPc && plan is not null ? AmountFor(plan, devices) : 0;
         var overdue = await OverdueAsync(organizationId, now, ct);
         var unpaid = await OldestUnpaidAsync(organizationId, ct);
@@ -71,6 +75,7 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         var referred = await db.Organizations.AsNoTracking()
             .CountAsync(candidate => candidate.ReferredByOrganizationId == organizationId && candidate.ReferralRewardedAtUtc != null, ct);
         var allowance = await PlanDevices.ForOrganizationAsync(db, organizationId, ct);
+        var terms = await BillingTerms.LoadAsync(db, ct);
 
         return new ClubPlanDto(
             subscription.PlanCode,
@@ -81,27 +86,29 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             new MoneyDto(currency, pricePerDevice),
             new MoneyDto(currency, estimate),
             kind == ClubPlanKindNames.Trial ? subscription.CurrentPeriodEndUtc : null,
-            TrialAvailable: subscription.TrialStartedAtUtc is null && kind is ClubPlanKindNames.Free or ClubPlanKindNames.Legacy,
+            TrialAvailable: terms.TrialDays > 0 && subscription.TrialStartedAtUtc is null && kind is ClubPlanKindNames.Free or ClubPlanKindNames.Legacy,
             CanSwitchToPerPc: kind is ClubPlanKindNames.Free or ClubPlanKindNames.Legacy && overdue == 0,
-            PromisedPaymentAvailable: unpaid is not null && subscription.PromisedPaymentInvoiceId != unpaid.InvoiceId
-                && !(subscription.PaymentGraceUntilUtc > now),
+            PromisedPaymentAvailable: terms.PromisedPaymentDays > 0 && unpaid is not null
+                && subscription.PromisedPaymentInvoiceId != unpaid.InvoiceId && !(subscription.PaymentGraceUntilUtc > now),
             PromisedPaymentUntilUtc: subscription.PaymentGraceUntilUtc > now ? subscription.PaymentGraceUntilUtc : null,
             Overdue: overdue > 0 ? new MoneyDto(currency, overdue) : null,
             ReferralCode: referralCode,
             FreeMonths: subscription.FreeMonths,
             ReferredClubs: referred,
             DevicesOutsidePlan: allowance.Outside.Count,
-            FallbackAtUtc: FallbackAt(subscription, unpaid));
+            FallbackAtUtc: FallbackAt(subscription, unpaid, terms),
+            TrialDays: terms.TrialDays,
+            PromisedPaymentDays: terms.PromisedPaymentDays);
     }
 
     /// <summary>
     /// Когда клуб на тарифе за ПК уйдёт на бесплатный, если не оплатит: две недели после срока самого
     /// старого неоплаченного счёта или конец обещанного платежа, что позже (§5).
     /// </summary>
-    private static DateTimeOffset? FallbackAt(OrganizationSubscriptionEntity subscription, InvoiceEntity? unpaid)
+    private static DateTimeOffset? FallbackAt(OrganizationSubscriptionEntity subscription, InvoiceEntity? unpaid, BillingTermsDto terms)
     {
         if (unpaid is null || subscription.PlanCode != OrganizationPlanCodeNames.PerPc) return null;
-        var afterDue = unpaid.DueAtUtc.AddDays(ClubPlanLimits.FallbackAfterOverdueDays);
+        var afterDue = unpaid.DueAtUtc.AddDays(terms.FallbackAfterOverdueDays);
         return subscription.PaymentGraceUntilUtc > afterDue ? subscription.PaymentGraceUntilUtc : afterDue;
     }
 
@@ -151,13 +158,15 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         var (organization, subscription, plan) = state.Value;
         if (subscription.TrialStartedAtUtc is not null) return ClubPlanErrorCodeNames.TrialUsed;
         if (KindOf(subscription, plan) is ClubPlanKindNames.PerPc or ClubPlanKindNames.Trial) return ClubPlanErrorCodeNames.AlreadyOnPlan;
+        var terms = await BillingTerms.LoadAsync(db, ct);
+        if (terms.TrialDays == 0) return ClubPlanErrorCodeNames.TrialUnavailable;
         var perPc = await PlanAsync(OrganizationPlanCodeNames.PerPc, ct) ?? throw new InvalidOperationException("The per-PC plan is missing.");
 
         var now = clock.GetUtcNow();
         Apply(organization, subscription, perPc, SubscriptionStatusNames.Trial, 0, now);
         subscription.TrialStartedAtUtc = now;
         subscription.CurrentPeriodStartUtc = now;
-        subscription.CurrentPeriodEndUtc = now.AddDays(ClubPlanLimits.TrialDays);
+        subscription.CurrentPeriodEndUtc = now.AddDays(terms.TrialDays);
         // Пробный месяц не выставляется: следующий счёт — через месяц после его конца.
         subscription.NextInvoiceUtc = null;
         await SaveWithAuditAsync(organizationId, actorStaffUserId, AuditActionNames.StartPlanTrial, new { subscription.CurrentPeriodEndUtc }, ct);
@@ -189,8 +198,10 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         var now = clock.GetUtcNow();
         if (subscription.PromisedPaymentInvoiceId == unpaid.InvoiceId || subscription.PaymentGraceUntilUtc > now)
             return ClubPlanErrorCodeNames.PromiseUsed;
+        var terms = await BillingTerms.LoadAsync(db, ct);
+        if (terms.PromisedPaymentDays == 0) return ClubPlanErrorCodeNames.PromiseUnavailable;
 
-        subscription.PaymentGraceUntilUtc = now.AddDays(ClubPlanLimits.PromisedPaymentDays);
+        subscription.PaymentGraceUntilUtc = now.AddDays(terms.PromisedPaymentDays);
         subscription.PromisedPaymentInvoiceId = unpaid.InvoiceId;
         subscription.UpdatedAtUtc = now;
         await SaveWithAuditAsync(organizationId, actorStaffUserId, AuditActionNames.PromisePlanPayment,
@@ -225,7 +236,7 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             changed++;
         }
 
-        var fallbackBefore = now.AddDays(-ClubPlanLimits.FallbackAfterOverdueDays);
+        var fallbackBefore = now.AddDays(-(await BillingTerms.LoadAsync(db, ct)).FallbackAfterOverdueDays);
         var overdueOrganizations = await db.Invoices.AsNoTracking()
             .Where(invoice => (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue)
                 && invoice.DueAtUtc <= fallbackBefore)
