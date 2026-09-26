@@ -67,6 +67,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Threading.RateLimiting;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
@@ -300,202 +301,13 @@ internal static class AuthEndpoints
         app.MapGet("/api/public/organizations", async (
             string? query,
             PlatformDbContext dbContext,
+            IMemoryCache cache,
+            IOptions<PublicClubDirectoryOptions> directoryOptions,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
-        {
-            const int maxResults = 50;
-            var now = timeProvider.GetUtcNow();
-
-            var organizations = dbContext.Organizations
-                .AsNoTracking()
-                .Where(o => o.Status == "active");
-
-            var trimmed = query?.Trim();
-            if (!string.IsNullOrEmpty(trimmed))
-            {
-                // ToLower().Contains(), а не EF.Functions.ILike: ILike — расширение Npgsql, и на
-                // InMemory (где идут эти тесты) оно роняет запрос в 500. Каталог отдаёт максимум
-                // 50 строк, так что отсутствие индексного поиска здесь ничего не стоит.
-                var needle = trimmed.ToLowerInvariant();
-                organizations = organizations.Where(o =>
-                    o.Name.ToLower().Contains(needle) || o.Slug.ToLower().Contains(needle));
-            }
-
-            // Порядок по имени, а не по времени создания: список должен выглядеть одинаково при
-            // каждом открытии, иначе выбранный глазом клуб уезжает под пальцем.
-            var found = await organizations
-                .OrderBy(o => o.Name)
-                .Take(maxResults)
-                .Select(o => new { o.OrganizationId, o.Slug, o.Name, o.LogoUrl, o.AccentColor })
-                .ToListAsync(cancellationToken);
-
-            var organizationIds = found.Select(o => o.OrganizationId).ToList();
-
-            // Витрина собирается тремя отдельными запросами и склеивается в памяти, а не одним
-            // выражением с группировками: клубов здесь максимум полсотни, зато запросы остаются
-            // такими, какие одинаково выполняет и Postgres, и InMemory под тестами.
-            var branches = await dbContext.Branches
-                .AsNoTracking()
-                .Where(b => organizationIds.Contains(b.OrganizationId))
-                .OrderBy(b => b.City).ThenBy(b => b.Name)
-                .Select(b => new
-                {
-                    b.OrganizationId, b.BranchId, b.Name, b.City, b.Address, b.Description,
-                    b.CoverImageUrl, b.Latitude, b.Longitude, b.WorkingHoursJson, b.PhotosJson
-                })
-                .ToListAsync(cancellationToken);
-
-            // Залы с железом и числом мест — по филиалам сети. Считаем одним запросом на
-            // страницу каталога, а не по клубу: клубов здесь максимум полсотни.
-            var branchIds = branches.Select(b => b.BranchId).ToList();
-            var zones = await dbContext.Zones
-                .AsNoTracking()
-                .Where(zone => branchIds.Contains(zone.BranchId))
-                .OrderBy(zone => zone.SortOrder)
-                .Select(zone => new { zone.ZoneId, zone.BranchId, zone.Name, zone.HardwareSummary })
-                .ToListAsync(cancellationToken);
-
-            var zoneSeatCounts = await dbContext.Seats
-                .AsNoTracking()
-                .Where(seat => branchIds.Contains(seat.BranchId))
-                .GroupBy(seat => seat.ZoneId)
-                .Select(group => new { ZoneId = group.Key, Count = group.Count() })
-                .ToListAsync(cancellationToken);
-
-            // Сколько мест занято прямо сейчас. Игрок выбирает клуб, чтобы в него поехать, и
-            // «40 мест» отвечает на другой вопрос: сорок мест бывает и в забитом зале.
-            //
-            // Занято = за местом идёт сессия либо место обещано чужой броне на ближайший час.
-            // Ровно те же две причины, по которым клубный экран мест не даёт сесть
-            // (`/api/me/branches/{id}/seats`), — третью, погасший ПК, здесь не считаем: связь
-            // агента с сервером — это здоровье инфраструктуры, и мигнувшая сеть не должна
-            // объявлять полупустой клуб забитым.
-            var busySeats = await (
-                from session in dbContext.Sessions.AsNoTracking()
-                join seat in dbContext.Seats.AsNoTracking() on session.SeatId equals seat.SeatId
-                where branchIds.Contains(seat.BranchId)
-                    && (session.State == SessionStateNames.Active
-                        || session.State == SessionStateNames.Paused
-                        || session.State == SessionStateNames.Ending)
-                select new { seat.SeatId, seat.ZoneId })
-                .Distinct()
-                .ToListAsync(cancellationToken);
-
-            var soon = now.AddHours(1);
-            var reservedSeats = await (
-                from reservation in dbContext.Reservations.AsNoTracking()
-                join seat in dbContext.Seats.AsNoTracking()
-                    on reservation.SeatId equals (Guid?)seat.SeatId
-                where branchIds.Contains(seat.BranchId)
-                    && (reservation.State == ReservationStateNames.Confirmed
-                        || reservation.State == ReservationStateNames.Pending)
-                    && reservation.StartsAtUtc < soon
-                    && reservation.EndsAtUtc > now
-                select new { seat.SeatId, seat.ZoneId })
-                .Distinct()
-                .ToListAsync(cancellationToken);
-
-            // Одно место могло попасть в оба списка (сел раньше своей же брони) — считаем его
-            // занятым один раз, иначе свободных мест окажется меньше, чем их есть.
-            var takenByZone = busySeats.Concat(reservedSeats)
-                .DistinctBy(taken => taken.SeatId)
-                .GroupBy(taken => taken.ZoneId)
-                .ToDictionary(group => group.Key, group => group.Count());
-
-            int FreeInZone(Guid zoneId, int seatCount) =>
-                Math.Max(0, seatCount - (takenByZone.TryGetValue(zoneId, out var taken) ? taken : 0));
-
-            var places = branches.Select(b =>
-            {
-                var hallZones = zones.Where(zone => zone.BranchId == b.BranchId)
-                    .Select(zone =>
-                    {
-                        var seatCount = zoneSeatCounts
-                            .FirstOrDefault(count => count.ZoneId == zone.ZoneId)?.Count ?? 0;
-                        return new ClubZoneDto(
-                            zone.Name, seatCount, zone.HardwareSummary, FreeInZone(zone.ZoneId, seatCount));
-                    })
-                    .ToList();
-
-                return new
-                {
-                    b.OrganizationId,
-                    Place = new ClubPlaceDto(
-                        b.BranchId, b.Name, b.City, b.Address, b.Description,
-                        b.CoverImageUrl, b.Latitude, b.Longitude,
-                        AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson),
-                        hallZones,
-                        // Обложка идёт первой: она выбрана владельцем как лицо зала, остальные —
-                        // за ней, в заданном им порядке.
-                        [
-                            .. string.IsNullOrWhiteSpace(b.CoverImageUrl) ? Array.Empty<string>() : [b.CoverImageUrl],
-                            .. AFK4.Platform.Api.Branches.BranchPhotos.Deserialize(b.PhotosJson)
-                                .Select(photo => photo.Url)
-                        ],
-                        // Числа зала — сумма его залов-зон, а не отдельный запрос: одно и то же
-                        // число, посчитанное дважды, рано или поздно разойдётся.
-                        hallZones.Sum(zone => zone.SeatCount),
-                        hallZones.Sum(zone => zone.FreeSeatCount))
-                };
-            }).ToList();
-
-            var seatCounts = await dbContext.Seats
-                .AsNoTracking()
-                .Where(s => organizationIds.Contains(s.OrganizationId))
-                .GroupBy(s => s.OrganizationId)
-                .Select(group => new { OrganizationId = group.Key, Count = group.Count() })
-                .ToListAsync(cancellationToken);
-
-            // «Цена от» — по действующим версиям тарифов: снятые с публикации и ещё не вступившие
-            // в силу обещали бы игроку цену, которую на кассе никто не назовёт.
-            var prices = await dbContext.TariffVersions
-                .AsNoTracking()
-                .Where(v => organizationIds.Contains(v.OrganizationId)
-                    && v.RetiredAtUtc == null
-                    && v.EffectiveFromUtc <= now)
-                .Select(v => new { v.OrganizationId, v.PricePerMinuteMinorUnits, v.CurrencyCode })
-                .ToListAsync(cancellationToken);
-
-            // Оценка клуба — то же, что цена и адрес: часть витрины, по которой выбирают. Считаем
-            // её здесь же, одним запросом на всю страницу каталога.
-            var ratings = await dbContext.ClubReviews
-                .AsNoTracking()
-                .Where(review => organizationIds.Contains(review.OrganizationId))
-                .GroupBy(review => review.OrganizationId)
-                .Select(group => new
-                {
-                    OrganizationId = group.Key,
-                    Average = group.Average(review => (double)review.Rating),
-                    Count = group.Count()
-                })
-                .ToListAsync(cancellationToken);
-
-            var entries = found.Select(o =>
-            {
-                var rating = ratings.FirstOrDefault(r => r.OrganizationId == o.OrganizationId);
-                var cheapest = prices
-                    .Where(p => p.OrganizationId == o.OrganizationId)
-                    .OrderBy(p => p.PricePerMinuteMinorUnits)
-                    .FirstOrDefault();
-
-                return new OrganizationDirectoryEntryDto(
-                    o.OrganizationId,
-                    o.Slug,
-                    o.Name,
-                    o.LogoUrl,
-                    o.AccentColor,
-                    places.Where(p => p.OrganizationId == o.OrganizationId)
-                        .Select(p => p.Place)
-                        .ToList(),
-                    cheapest is null ? null : cheapest.PricePerMinuteMinorUnits * 60,
-                    cheapest?.CurrencyCode,
-                    seatCounts.FirstOrDefault(c => c.OrganizationId == o.OrganizationId)?.Count ?? 0,
-                    rating is null ? null : Math.Round(rating.Average, 1),
-                    rating?.Count ?? 0);
-            }).ToList();
-
-            return Results.Ok(entries);
-        }).RequireRateLimiting("player-public");
+            Results.Ok(await PublicClubDirectory.GetAsync(
+                dbContext, cache, directoryOptions.Value, query, timeProvider.GetUtcNow(), cancellationToken)))
+            .RequireRateLimiting("player-public");
 
         organizations.MapPost("auth/staff/sign-in-by-phone", async (
             Guid organizationId,

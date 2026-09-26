@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Players;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
@@ -53,6 +54,8 @@ public sealed class PlayerAchievementsProjectorTests
         });
     }
 
+    private static IMemoryCache NewCache() => new MemoryCache(new MemoryCacheOptions());
+
     private static PlayerAchievementDto Achievement(PlayerAchievementsDto dto, string code) =>
         dto.Achievements.Single(achievement => achievement.Code == code);
 
@@ -62,7 +65,7 @@ public sealed class PlayerAchievementsProjectorTests
         await using var db = NewContext();
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         Assert.Equal(1, dto.Level);
         Assert.Equal(0, dto.VisitCount);
@@ -81,7 +84,7 @@ public sealed class PlayerAchievementsProjectorTests
 
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         Assert.Equal(3, dto.VisitCount);
         Assert.Equal(360, dto.PlayedMinutes);
@@ -100,7 +103,7 @@ public sealed class PlayerAchievementsProjectorTests
         AddVisit(db, Day.AddHours(12), TimeSpan.FromHours(6));
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         Assert.NotNull(Achievement(dto, PlayerAchievementCodes.Marathon).UnlockedAtUtc);
     }
@@ -118,7 +121,7 @@ public sealed class PlayerAchievementsProjectorTests
 
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         var nightOwl = Achievement(dto, PlayerAchievementCodes.NightOwl);
         Assert.Equal(5, nightOwl.Progress);
@@ -137,7 +140,7 @@ public sealed class PlayerAchievementsProjectorTests
 
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         Assert.Equal(0, Achievement(dto, PlayerAchievementCodes.NightOwl).Progress);
     }
@@ -164,7 +167,7 @@ public sealed class PlayerAchievementsProjectorTests
         });
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         Assert.Equal(0, dto.VisitCount);
     }
@@ -186,7 +189,7 @@ public sealed class PlayerAchievementsProjectorTests
         });
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         Assert.NotNull(Achievement(dto, PlayerAchievementCodes.Reviewer).UnlockedAtUtc);
     }
@@ -214,9 +217,38 @@ public sealed class PlayerAchievementsProjectorTests
         });
         await db.SaveChangesAsync();
 
-        var dto = await PlayerAchievementsProjector.GetAsync(db, PlayerId, CancellationToken.None);
+        var dto = await PlayerAchievementsProjector.GetAsync(db, NewCache(), PlayerId, CancellationToken.None);
 
         Assert.Equal(1, dto.VisitCount);
         Assert.Equal(120, dto.PlayedMinutes);
+    }
+
+    // Стаж считается заново, только когда история изменилась: новый визит и визит, исправленный
+    // задним числом, видны сразу, а повторное открытие экрана историю не перечитывает.
+    [Fact]
+    public async Task TheCachedStanding_FollowsANewVisit_AndARetroactiveFix()
+    {
+        await using var db = NewContext();
+        var cache = NewCache();
+        AddVisit(db, Day.AddHours(10), TimeSpan.FromHours(1));
+        await db.SaveChangesAsync();
+
+        var first = await PlayerAchievementsProjector.GetAsync(db, cache, PlayerId, CancellationToken.None);
+        Assert.Equal(1, first.VisitCount);
+        Assert.Same(first, await PlayerAchievementsProjector.GetAsync(db, cache, PlayerId, CancellationToken.None));
+
+        AddVisit(db, Day.AddDays(1).AddHours(10), TimeSpan.FromHours(2));
+        await db.SaveChangesAsync();
+        var second = await PlayerAchievementsProjector.GetAsync(db, cache, PlayerId, CancellationToken.None);
+        Assert.Equal(2, second.VisitCount);
+        Assert.Equal(180, second.PlayedMinutes);
+
+        var fixedVisit = await db.Sessions.OrderBy(session => session.StartedAtUtc).FirstAsync();
+        fixedVisit.EndedAtUtc = fixedVisit.StartedAtUtc!.Value.AddHours(6);
+        fixedVisit.UpdatedAtUtc = Day.AddDays(2);
+        await db.SaveChangesAsync();
+        var third = await PlayerAchievementsProjector.GetAsync(db, cache, PlayerId, CancellationToken.None);
+        Assert.Equal(480, third.PlayedMinutes);
+        Assert.NotNull(Achievement(third, PlayerAchievementCodes.Marathon).UnlockedAtUtc);
     }
 }
