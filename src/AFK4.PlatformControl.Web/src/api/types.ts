@@ -4,6 +4,7 @@
 // call this as a function, so this narrower contract is the correct one.
 import type { PlatformAdminSignInResponse } from '@afk4/contracts';
 export type {
+  AdCampaignComplianceDto,
   AdCampaignDto,
   AdCampaignStateName,
   AdCategoryName,

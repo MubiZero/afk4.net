@@ -16,6 +16,7 @@ import {
   describeCategory,
   describePhase,
   emptyCampaignForm,
+  liveCreatives,
   pendingCount,
   requestFromCampaignForm,
   type CampaignForm
@@ -175,8 +176,10 @@ export function CampaignsTab({ client, onOpenCampaign, onOpenAdvertisers }: {
 
 function CreativesSummary({ campaign }: { campaign: AdCampaignDto }) {
   const { t } = useI18n();
-  const total = campaign.creatives.length;
-  if (total === 0) return <span className="mgmt-drawer-hint">{t('platform.ads.campaigns.noCreatives')}</span>;
+  // Снятые с показа — история, а не креативы кампании: «одобрено 1 из 3» считает только живые.
+  const total = liveCreatives(campaign).length;
+  if (campaign.creatives.length === 0) return <span className="mgmt-drawer-hint">{t('platform.ads.campaigns.noCreatives')}</span>;
+  if (total === 0) return <span className="mgmt-drawer-hint">{t('platform.ads.campaigns.allArchived')}</span>;
   const pending = pendingCount(campaign);
   return (
     <span>

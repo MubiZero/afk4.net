@@ -23,24 +23,29 @@ const CREATIVE = '22222222-2222-2222-2222-222222222222';
 describe('AdsApi', () => {
   it('ходит по адресам кабинета рекламы', async () => {
     const { api, calls } = recordingApi();
-    const creative = { title: 'Скидка', body: null, imageUrl: null };
+    const creative = { title: 'Тахфиф ба ноутбукҳо', body: null, imageUrl: null, titleRu: 'Скидка на ноутбуки', bodyRu: null };
+    const advertiser = { name: 'Техномир', contact: null, legalName: 'ООО «Техномир»', taxId: '123456789', address: 'Душанбе, пр. Рудаки, 1' };
+    const confirmed = ['not_club_or_betting', 'no_banned_goods', 'minors', 'truthful', 'ethical', 'tajik_on_image'];
 
-    await api.updateAdvertiser('a-1', { name: 'Техномир', contact: null });
+    await api.updateAdvertiser('a-1', advertiser);
     await api.setCampaignState(CAMPAIGN, 'active');
     await api.createCreative(CAMPAIGN, creative);
     await api.updateCreative(CAMPAIGN, CREATIVE, creative);
-    await api.moderateCreative(CAMPAIGN, CREATIVE, { approve: true, reason: null, confirmedAllowed: true });
+    await api.moderateCreative(CAMPAIGN, CREATIVE, { approve: true, reason: null, confirmed });
+    await api.archiveCreative(CAMPAIGN, CREATIVE);
 
     expect(calls).toEqual([
-      { method: 'PUT', path: '/api/platform/ads/advertisers/a-1', body: { name: 'Техномир', contact: null } },
+      { method: 'PUT', path: '/api/platform/ads/advertisers/a-1', body: advertiser },
       { method: 'POST', path: `/api/platform/ads/campaigns/${CAMPAIGN}/state`, body: { state: 'active' } },
       { method: 'POST', path: `/api/platform/ads/campaigns/${CAMPAIGN}/creatives`, body: creative },
       { method: 'PUT', path: `/api/platform/ads/campaigns/${CAMPAIGN}/creatives/${CREATIVE}`, body: creative },
       {
         method: 'POST',
         path: `/api/platform/ads/campaigns/${CAMPAIGN}/creatives/${CREATIVE}/moderation`,
-        body: { approve: true, reason: null, confirmedAllowed: true }
-      }
+        body: { approve: true, reason: null, confirmed }
+      },
+      // Снять с показа — без тела: решение одно, спрашивать нечего.
+      { method: 'POST', path: `/api/platform/ads/campaigns/${CAMPAIGN}/creatives/${CREATIVE}/archive`, body: undefined }
     ]);
   });
 
