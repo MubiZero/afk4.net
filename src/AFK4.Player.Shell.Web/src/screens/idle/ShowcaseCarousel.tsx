@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MoneyDto, ShowcaseCardDto } from '@afk4/contracts';
 import { ShowcaseCardKindNames } from '@afk4/contracts';
-import { useI18n, type MessageKey } from '@afk4/i18n';
+import { createCatalogTranslator, useI18n, type MessageKey } from '@afk4/i18n';
+import { playerShellCatalog } from '@afk4/i18n/catalogs/player-shell';
 import { formatMoney } from '@afk4/money';
 import { INTL_LOCALES } from '../../model/offers';
 
@@ -115,6 +116,11 @@ function ShowcaseSlide({ card, state }: { card: ShowcaseCardDto; state: 'current
         {kind ? <p className="showcase-slide__kind">{kindLine(kind, card)}</p> : null}
         <h2 className="showcase-slide__title">{title}</h2>
         {card.body ? <p className="showcase-slide__body">{card.body}</p> : null}
+        {card.secondaryTitle || card.secondaryBody ? (
+          <p className="showcase-slide__secondary" lang="ru">
+            {[card.secondaryTitle, card.secondaryBody].filter(Boolean).join(' — ')}
+          </p>
+        ) : null}
         {card.packages && card.packages.length > 0 ? (
           <ul className="showcase-slide__packages">
             {card.packages.map((line) => (
@@ -127,9 +133,43 @@ function ShowcaseSlide({ card, state }: { card: ShowcaseCardDto; state: 'current
           </ul>
         ) : null}
         <SlideFacts card={card} money={money} intlLocale={intlLocale} />
+        {card.kind === ShowcaseCardKindNames.Ad ? <AdDisclosures card={card} /> : null}
       </div>
     </article>
   );
+}
+
+// Пометки закона на государственном языке: карточка их пишет по-таджикски всегда, а если экран
+// на другом языке — ещё и на нём строкой ниже (закон о рекламе, ст. 5, 14(1), 26).
+const TAJIK = createCatalogTranslator(playerShellCatalog, 'tg');
+
+function AdDisclosures({ card }: { card: ShowcaseCardDto }) {
+  const { t, locale } = useI18n();
+  const lines = (translate: typeof t) => {
+    const parts: string[] = [];
+    if (card.seller) parts.push(translate('playerShell.showcase.ad.seller', { ...card.seller }));
+    if (card.requiresCertification) parts.push(translate('playerShell.showcase.ad.certification'));
+    if (card.offerUntilUtc) parts.push(translate('playerShell.showcase.ad.offerUntil', { date: numericDay(card.offerUntilUtc) }));
+    return parts.join(' · ');
+  };
+
+  const tajik = lines(TAJIK as typeof t);
+  if (!tajik) return null;
+  const local = locale === 'tg' ? '' : lines(t);
+  return (
+    <div className="showcase-slide__legal">
+      <p lang="tg">{tajik}</p>
+      {local ? <p>{local}</p> : null}
+    </div>
+  );
+}
+
+// «31.10.2026» — одинаково на всех языках: таджикских названий месяцев в Intl браузера нет
+// (tg-TJ сводится к en-US), а по-английски срок в таджикской строке выглядел бы ошибкой.
+function numericDay(iso: string): string {
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
 }
 
 // «Турнир · Dota 2», «Реклама · Сомон Телеком»: у рекламы рядом с меткой всегда рекламодатель (PRD).

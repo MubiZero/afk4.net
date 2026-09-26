@@ -340,6 +340,27 @@ button {
   overflow: hidden;
 }
 
+/* Русский вариант рекламы — под таджикским, тише: первым закон велит государственный язык. */
+.showcase-slide__secondary {
+  margin: 0.8rem 0 0;
+  font-size: 1.15rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* Пометки закона: продавец, сертификация, срок предложения. Мелко, но читаемо — их обязаны
+ * видеть, а не разглядывать. */
+.showcase-slide__legal {
+  margin: 1.2rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.showcase-slide__legal p {
+  margin: 0;
+}
+
 .showcase-slide__facts {
   margin: 1.2rem 0 0;
   font-size: 1.6rem;

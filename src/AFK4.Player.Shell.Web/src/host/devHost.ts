@@ -45,7 +45,13 @@ const DEV_SHOWCASE = (minutes: (count: number) => string): PlayerShellStateDto['
   { cardId: 'news:dev', kind: 'news', title: 'Ночь CS2 в пятницу', body: 'С 22:00 до утра — турнир на пять команд, призы от клуба и пицца в перерывах.', imageUrl: DEV_PHOTO },
   { cardId: 'tariff:dev', kind: 'tariff', title: 'Ночной', price: { currencyCode: 'TJS', minorUnits: 600 }, timeWindow: '22:00–06:00' },
   // Реклама платформы — каждой третьей, как у клуба на бесплатном тарифе.
-  { cardId: 'ad:dev', kind: 'ad', title: 'Безлимит на месяц', body: 'Интернет для игр без ограничений по трафику.', advertiser: 'Сомон Телеком' },
+  // Реклама по закону: таджикский первым, русский ниже, пометки продавца, сертификации и срока.
+  {
+    cardId: 'ad:dev', kind: 'ad', title: 'Интернети бемаҳдуд барои як моҳ', body: 'Интернет барои бозӣ бе маҳдудияти трафик.',
+    secondaryTitle: 'Безлимит на месяц', secondaryBody: 'Интернет для игр без ограничений по трафику.', advertiser: 'Сомон Телеком',
+    seller: { legalName: 'ООО «Сомон Телеком»', taxId: '123456789', address: 'Душанбе, пр. Рудаки 1' },
+    offerUntilUtc: '2026-10-31T00:00:00Z'
+  },
   { cardId: 'tournament:dev', kind: 'tournament', title: 'Кубок зала', subtitle: 'Dota 2', startsAtUtc: minutes(60 * 50) },
   {
     cardId: 'packages:dev', kind: 'packages', title: '',

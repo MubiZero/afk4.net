@@ -163,8 +163,8 @@ public static class PlatformAds
         // модерации. Версия в адресе — отпечаток, чтобы кэш ПК не держал старую.
         var images = await db.AdCreativeImages.AsNoTracking()
             .Where(image => creativeIds.Contains(image.CreativeId))
-            .Select(image => new { image.CreativeId, image.Sha256 })
-            .ToDictionaryAsync(image => image.CreativeId, image => image.Sha256, ct);
+            .Select(image => new { image.CreativeId, image.Sha256, image.ContentType })
+            .ToDictionaryAsync(image => image.CreativeId, ct);
         var cards = creatives
             .Select(creative =>
             {
@@ -175,8 +175,9 @@ public static class PlatformAds
                     ShowcaseCardKindNames.Ad,
                     creative.Title,
                     creative.Body,
-                    ImageUrl: images.TryGetValue(creative.CreativeId, out var sha)
-                        ? $"{apiBaseUrl.TrimEnd('/')}{AdRoutes.CreativeImage(creative.CreativeId)}?v={sha[..12]}"
+                    // Расширение в адресе — агент по нему называет файл в кэше ПК.
+                    ImageUrl: images.TryGetValue(creative.CreativeId, out var image)
+                        ? $"{apiBaseUrl.TrimEnd('/')}{AdRoutes.CreativeImage(creative.CreativeId)}{AdCreativeImages.Extension(image.ContentType)}?v={image.Sha256[..12]}"
                         : null,
                     Advertiser: advertiser?.Name ?? string.Empty,
                     SecondaryTitle: creative.TitleRu,

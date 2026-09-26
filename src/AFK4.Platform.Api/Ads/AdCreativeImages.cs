@@ -19,6 +19,13 @@ public static class AdCreativeImages
         "image/png", "image/jpeg", "image/webp"
     };
 
+    public static string Extension(string contentType) => contentType switch
+    {
+        "image/png" => ".png",
+        "image/webp" => ".webp",
+        _ => ".jpg"
+    };
+
     /// <summary>Скачивает картинку по адресу креатива и кладёт копию. Нет картинки — false.</summary>
     public static async Task<bool> StoreAsync(
         PlatformDbContext db, HttpClient http, AdCreativeEntity creative, DateTimeOffset now, CancellationToken ct)

@@ -89,8 +89,8 @@ public sealed class PlatformAdsTests
         Assert.Equal(endsAt, ad.OfferUntilUtc);
 
         // ПК видит копию, которую хранит сервер, а не адрес рекламодателя.
-        Assert.StartsWith("http://localhost:5074" + AdRoutes.CreativeImage(creative.CreativeId), ad.ImageUrl);
-        var image = await fixture.Client.GetAsync(AdRoutes.CreativeImage(creative.CreativeId));
+        Assert.StartsWith("http://localhost:5074" + AdRoutes.CreativeImage(creative.CreativeId) + ".png?v=", ad.ImageUrl);
+        var image = await fixture.Client.GetAsync(AdRoutes.CreativeImage(creative.CreativeId) + ".png");
         Assert.Equal(HttpStatusCode.OK, image.StatusCode);
         Assert.Equal(Png, await image.Content.ReadAsByteArrayAsync());
 

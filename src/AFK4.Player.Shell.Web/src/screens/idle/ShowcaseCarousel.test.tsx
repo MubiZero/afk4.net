@@ -74,4 +74,26 @@ describe('реклама в витрине', () => {
     await waitFor(() => expect(shown.map(([id]) => id)).toContain('ad:1'));
     expect(shown[0][1]).toBeGreaterThanOrEqual(40);
   });
+
+  // Закон о рекламе: таджикский первым, пометки — по-таджикски всегда и на языке экрана строкой ниже.
+  it('ставит таджикский первым и пишет пометки закона на государственном языке', () => {
+    const ad: ShowcaseCardDto = {
+      cardId: 'ad:2', kind: 'ad', title: 'Бемаҳдуд барои як моҳ', advertiser: 'Сомон Телеком', secondaryTitle: 'Безлимит на месяц',
+      seller: { legalName: 'ООО «Сомон Телеком»', taxId: '123456789', address: 'Душанбе' },
+      requiresCertification: true, offerUntilUtc: '2026-10-31T00:00:00Z'
+    };
+    render(<ShellI18nProvider initialLocale="ru"><ShowcaseCarousel cards={[ad]} paused slideMs={60} /></ShellI18nProvider>);
+
+    expect(screen.getByRole('heading', { name: 'Бемаҳдуд барои як моҳ' })).toBeTruthy();
+    expect(screen.getByText('Безлимит на месяц')).toBeTruthy();
+    expect(screen.getByText(/^Фурӯшанда: ООО «Сомон Телеком» · РМА 123456789 · Душанбе · Бояд ҳатман сертификатсия карда шавад · Пешниҳод то/)).toBeTruthy();
+    expect(screen.getByText(/^Продавец: ООО «Сомон Телеком» · ИНН 123456789 · Душанбе · Подлежит обязательной сертификации · Предложение действует до/)).toBeTruthy();
+  });
+
+  it('на таджикском экране пометки не повторяются', () => {
+    const ad: ShowcaseCardDto = { cardId: 'ad:3', kind: 'ad', title: 'Бемаҳдуд', advertiser: 'Сомон', requiresCertification: true };
+    render(<ShellI18nProvider initialLocale="tg"><ShowcaseCarousel cards={[ad]} paused slideMs={60} /></ShellI18nProvider>);
+
+    expect(screen.getAllByText('Бояд ҳатман сертификатсия карда шавад')).toHaveLength(1);
+  });
 });

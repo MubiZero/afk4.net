@@ -233,8 +233,9 @@ internal static class AdEndpoints
         });
 
         // Копия картинки одобренного креатива — её видит ПК. Реклама публична, адрес — со случайным id.
-        app.MapGet("/api/showcase/ad-images/{creativeId:guid}", async (Guid creativeId, HttpContext httpContext, PlatformDbContext db, CancellationToken ct) =>
+        app.MapGet("/api/showcase/ad-images/{file}", async (string file, HttpContext httpContext, PlatformDbContext db, CancellationToken ct) =>
         {
+            if (!Guid.TryParse(Path.GetFileNameWithoutExtension(file), out var creativeId)) return Results.NotFound();
             var image = await db.AdCreativeImages.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.CreativeId == creativeId, ct);
             if (image is null) return Results.NotFound();
             // Адрес несёт отпечаток (?v=), поэтому содержимое под ним не меняется.
