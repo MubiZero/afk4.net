@@ -162,6 +162,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
           (_, 'device_not_assigned') => l.customerPlayErrDeviceGone,
           // ПК сверх бесплатного тарифа клуба: место свободно, но сессию на нём не начать.
           (_, 'device_outside_plan') => l.customerPlayErrOutsidePlan,
+          // Клуб сам закрыл этот ПК: «место заняли» звало бы выбрать другое в спешке, а тут
+          // спешить некуда — ПК вернут в зал, когда закончат.
+          (_, 'device_in_maintenance') => l.customerPlayErrMaintenance,
           (_, 'invalid_tariff') => l.customerTariffGone,
           (_, 'tariff_outside_its_hours') => l.customerTariffOutsideHours,
           (_, 'invalid_duration') => l.customerSessionErrDuration,
