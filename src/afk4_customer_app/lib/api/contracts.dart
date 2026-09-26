@@ -1224,6 +1224,31 @@ abstract final class StaffInviteErrorCodeNames {
   static const String phoneTaken = 'staff_phone_taken';
 }
 
+/// Словарь: Identity/StaffInviteDto.cs
+abstract final class StaffInviteStatusNames {
+  /// Код действует: сотрудник может войти.
+  static const String pending = 'pending';
+  /// Сутки прошли — нужен новый код.
+  static const String expired = 'expired';
+  /// Три неверных кода — этот больше не пустит.
+  static const String exhausted = 'exhausted';
+}
+
+/// Второй шаг входа по номеру. Код первого входа нужен, потому что номер — не секрет: без него
+/// ПИН новому сотруднику успел бы назначить любой, кто знает его номер.
+///
+/// Словарь: Identity/StaffSignInNextStepContracts.cs
+abstract final class StaffSignInStepNames {
+  /// У номера есть ПИН — спросить его.
+  static const String pin = 'pin';
+  /// Руководитель добавил сотрудника, тот ещё не входил: спросить код первого входа, потом новый ПИН.
+  static const String inviteCode = 'invite-code';
+  /// Код первого входа истёк или исчерпал попытки — нужен новый от руководителя.
+  static const String inviteExpired = 'invite-expired';
+  /// Номер не заведён ни в одном клубе.
+  static const String unknown = 'unknown';
+}
+
 /// Словарь: Inventory/StockMovementTypeNames.cs
 abstract final class StockMovementTypeNames {
   static const String purchase = 'purchase';
@@ -1414,7 +1439,8 @@ class AcceptPlatformAdminInvitationRequest {
       };
 }
 
-/// Приём приглашения: номер, код из SMS и пароль, который человек придумывает себе сам.
+/// Приём приглашения: номер, код первого входа от руководителя (SMS его только дублирует) и ПИН,
+/// который человек придумывает себе сам.
 ///
 /// Контракт: Identity/AcceptStaffInviteRequest.cs
 class AcceptStaffInviteRequest {
@@ -1441,26 +1467,30 @@ class AcceptStaffInviteRequest {
       };
 }
 
-/// Кем человек стал: клуб и его логин в нём.
+/// Кем человек стал — клуб и логин — и сразу вход: придумав ПИН, он не вводит его второй раз.
 ///
 /// Контракт: Identity/AcceptStaffInviteRequest.cs
 class AcceptStaffInviteResponse {
   const AcceptStaffInviteResponse({
     required this.organizationId,
     required this.userName,
+    required this.signIn,
   });
 
   final String organizationId;
   final String userName;
+  final StaffSignInResponse signIn;
 
   factory AcceptStaffInviteResponse.fromJson(Map<String, dynamic> json) => AcceptStaffInviteResponse(
         organizationId: json['organizationId'] as String,
         userName: json['userName'] as String,
+        signIn: StaffSignInResponse.fromJson(json['signIn'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
         'organizationId': organizationId,
         'userName': userName,
+        'signIn': signIn.toJson(),
       };
 }
 
@@ -3292,6 +3322,29 @@ class ChangePlatformUpdateRolloutStateRequest {
   Map<String, dynamic> toJson() => {
         'state': state,
         'reason': reason,
+      };
+}
+
+/// Проверка кода первого входа до того, как человек придумывает ПИН.
+///
+/// Контракт: Identity/StaffSignInNextStepContracts.cs
+class CheckStaffInviteRequest {
+  const CheckStaffInviteRequest({
+    required this.phoneNumber,
+    required this.code,
+  });
+
+  final String phoneNumber;
+  final String code;
+
+  factory CheckStaffInviteRequest.fromJson(Map<String, dynamic> json) => CheckStaffInviteRequest(
+        phoneNumber: json['phoneNumber'] as String,
+        code: json['code'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'phoneNumber': phoneNumber,
+        'code': code,
       };
 }
 
@@ -18911,6 +18964,64 @@ class StaffInviteDto {
       };
 }
 
+/// Сотрудник, которого добавили, но он ещё не входил: код первого входа живой, истёк или исчерпал
+/// попытки. Сам код не отдаётся — он хранится хешем; нужен новый — руководитель выдаёт новый.
+///
+/// Контракт: Identity/StaffInviteDto.cs
+class StaffInviteSummaryDto {
+  const StaffInviteSummaryDto({
+    required this.staffInviteId,
+    required this.userName,
+    required this.displayName,
+    required this.phoneNumber,
+    this.email,
+    required this.roleNames,
+    required this.createdAtUtc,
+    required this.expiresAtUtc,
+    required this.attemptsLeft,
+    required this.status,
+  });
+
+  final String staffInviteId;
+  final String userName;
+  final String displayName;
+  final String phoneNumber;
+  final String? email;
+  final List<String> roleNames;
+  final DateTime createdAtUtc;
+  final DateTime expiresAtUtc;
+  final int attemptsLeft;
+
+  /// Одно из StaffInviteStatusNames.
+  final String status;
+
+  factory StaffInviteSummaryDto.fromJson(Map<String, dynamic> json) => StaffInviteSummaryDto(
+        staffInviteId: json['staffInviteId'] as String,
+        userName: json['userName'] as String,
+        displayName: json['displayName'] as String,
+        phoneNumber: json['phoneNumber'] as String,
+        email: json['email'] == null ? null : json['email'] as String,
+        roleNames: (json['roleNames'] as List<dynamic>).map((item) => item as String).toList(),
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+        attemptsLeft: (json['attemptsLeft'] as num).toInt(),
+        status: json['status'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'staffInviteId': staffInviteId,
+        'userName': userName,
+        'displayName': displayName,
+        'phoneNumber': phoneNumber,
+        'email': email,
+        'roleNames': roleNames.map((item) => item).toList(),
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
+        'attemptsLeft': attemptsLeft,
+        'status': status,
+      };
+}
+
 /// Контракт: Identity/StaffPhoneVerificationContracts.cs
 class StaffPhoneConfirmedResponse {
   const StaffPhoneConfirmedResponse({
@@ -19184,6 +19295,44 @@ class StaffSignInClubChoice {
   Map<String, dynamic> toJson() => {
         'organizationId': organizationId,
         'name': name,
+      };
+}
+
+/// Первый шаг входа сотрудника: только номер.
+///
+/// Контракт: Identity/StaffSignInNextStepContracts.cs
+class StaffSignInNextStepRequest {
+  const StaffSignInNextStepRequest({
+    required this.phoneNumber,
+  });
+
+  final String phoneNumber;
+
+  factory StaffSignInNextStepRequest.fromJson(Map<String, dynamic> json) => StaffSignInNextStepRequest(
+        phoneNumber: json['phoneNumber'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'phoneNumber': phoneNumber,
+      };
+}
+
+/// Что спросить у человека вторым шагом (StaffSignInStepNames).
+///
+/// Контракт: Identity/StaffSignInNextStepContracts.cs
+class StaffSignInNextStepResponse {
+  const StaffSignInNextStepResponse({
+    required this.step,
+  });
+
+  final String step;
+
+  factory StaffSignInNextStepResponse.fromJson(Map<String, dynamic> json) => StaffSignInNextStepResponse(
+        step: json['step'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'step': step,
       };
 }
 

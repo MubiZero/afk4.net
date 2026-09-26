@@ -268,10 +268,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Вход администратора' })).toBeInTheDocument();
     expect(screen.getByText('Войдите, чтобы открыть смену и управлять залом.')).toBeInTheDocument();
-    // Phone-first by default: the primary field is the phone number (local part after +992).
+    // Сначала номер (местная часть после +992), потом шесть клеток ПИН-кода — шестая цифра входит сама.
     fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '937380070' } });
-    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    fireEvent.change(await screen.findByLabelText('Введите ПИН-код'), { target: { value: '246813' } });
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     // The session lives in sessionStorage (staffSessionStore) — cleared on tab close, never in
@@ -335,8 +335,8 @@ describe('App', () => {
 
     render(<App />);
     fireEvent.change(await screen.findByLabelText(/номер телефона/i), { target: { value: '937380070' } });
-    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    fireEvent.change(await screen.findByLabelText('Введите ПИН-код'), { target: { value: '246813' } });
 
     expect(await screen.findByRole('heading', { name: 'Откройте смену' })).toBeInTheDocument();
     expect(screen.queryByLabelText('ПК зала')).not.toBeInTheDocument();
@@ -375,8 +375,8 @@ describe('App', () => {
     expect(screen.queryByLabelText(/логин или email/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Вход по логину или почте' }));
     fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'cashier' } });
-    fireEvent.change(screen.getByLabelText('ПИН-код'), { target: { value: '246813' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    fireEvent.change(await screen.findByLabelText('Введите ПИН-код'), { target: { value: '246813' } });
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
   });
@@ -394,8 +394,11 @@ describe('App', () => {
 
     render(<App />);
 
+    // «Забыли ПИН-код?» живёт на шаге ПИН-кода и открывает восстановление сразу по набранному номеру.
+    fireEvent.change(await screen.findByLabelText(/номер телефона/i), { target: { value: '937380070' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Забыли ПИН-код?' }));
-    expect(await screen.findByRole('button', { name: 'По SMS' })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('93 738 00 70')).toBeInTheDocument();
   });
 
   it('clears the restored session when the silent refresh is rejected', async () => {
@@ -2095,7 +2098,13 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(stored ? JSON.parse(stored) : createSession());
   }
 
-  if ((pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in-by-login') || pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in'))
+  if (pathname.endsWith('/api/auth/staff/next-step') && init?.method === 'POST') {
+    return jsonResponse({ step: 'pin' });
+  }
+
+  if ((pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in-by-login')
+    || pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in-by-phone')
+    || pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in'))
     && init?.method === 'POST') {
     return jsonResponse(createSession());
   }

@@ -27,7 +27,7 @@ const actualHelpers = await import('../../operatorHelpers');
 mock.module('../../operatorHelpers', () => ({
   ...actualHelpers,
   createAuthenticatedOperatorClients: () => ({
-    settings: { createStaffInvite, updateStaffUserProfile, updateStaffUserRoles, updateStaffUserState, resetStaffUserPassword, getStaffCandidates, removeStaffFromBranch }
+    settings: { createStaffInvite, updateStaffUserProfile, updateStaffUserRoles, updateStaffUserState, resetStaffUserPassword, getStaffCandidates, removeStaffFromBranch, listStaffInvites: async () => [] }
   })
 }));
 
@@ -164,31 +164,34 @@ describe('StaffRolesDestination', () => {
     expect(screen.getByRole('textbox', { name: 'Логин профиля' })).toHaveValue('operator1');
   });
 
-  it('"+ Сотрудник" sends every selected role and shows the invite code', async () => {
+  it('"+ Сотрудник" adds by phone, sends every selected role and shows the first sign-in code', async () => {
     const onFeedback = mock(() => {});
+    createStaffInvite.mockImplementationOnce(async () => ({ staffInviteId: 'i2', code: '482915', expiresAtUtc: '2026-09-26T10:00:00Z' }));
     wrap(<StaffRolesDestination backend={backend as never} session={session([permissionNames.manageBranchStaff])} currencyCode="TJS" staffUsers={staffUsers} onFeedback={onFeedback} />);
     fireEvent.click(screen.getByRole('button', { name: '+ Сотрудник' }));
-    expect(screen.getByRole('dialog', { name: 'Пригласить сотрудника' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Добавить сотрудника' })).toBeTruthy();
+    // Логина в форме нет: сотрудник входит номером, логином становятся цифры номера.
+    expect(screen.queryByRole('textbox', { name: 'Логин для входа' })).toBeNull();
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Логин для входа' }), { target: { value: 'operator2' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Имя в смене' }), { target: { value: 'Новый сотрудник' } });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Телефон для приглашения' }), { target: { value: '+992937380070' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Телефон сотрудника' }), { target: { value: '+992 93 738 00 70' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Email (необязательно)' }), { target: { value: 'new@club.tj' } });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Администратор' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Управляющий' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить сотрудника' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить сотрудника' }));
 
     await waitFor(() => expect(createStaffInvite).toHaveBeenCalledTimes(1));
     expect(createStaffInvite).toHaveBeenCalledWith('b1', expect.objectContaining({
       organizationId: 'org',
-      userName: 'operator2',
+      userName: '992937380070',
       displayName: 'Новый сотрудник',
-      phoneNumber: '+992937380070',
+      phoneNumber: '+992 93 738 00 70',
       email: 'new@club.tj',
       roleNames: ['branch_manager', 'technician']
     }));
-    expect(screen.getByDisplayValue('ABCD-1234')).toBeTruthy();
+    // Код диктуют вслух — тройками, как его и читают.
+    expect(await screen.findByDisplayValue('482 915')).toBeTruthy();
   });
 
   it('saves a profile edit from the drawer via updateStaffUserProfile and merges the result', async () => {

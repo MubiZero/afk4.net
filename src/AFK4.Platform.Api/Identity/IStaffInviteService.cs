@@ -1,11 +1,13 @@
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Organizations;
 
 namespace AFK4.Platform.Api.Identity;
 
 /// <summary>
-/// Единственный путь завести сотрудника клуба: владелец приглашает по номеру телефона, человек
-/// принимает приглашение коротким кодом из SMS и придумывает себе пароль сам. Заведения с готовым
-/// паролем нет намеренно — пароль должен знать только его владелец.
+/// Единственный путь завести сотрудника клуба: руководитель добавляет его по номеру телефона и
+/// получает код первого входа, человек при первом входе вводит свой номер и этот код и придумывает
+/// себе ПИН сам. SMS код только дублирует. Заведения с готовым ПИНом нет намеренно — ПИН должен
+/// знать только его владелец.
 /// </summary>
 public interface IStaffInviteService
 {
@@ -21,6 +23,22 @@ public interface IStaffInviteService
 
     Task<StaffInviteAcceptResult> AcceptInviteAsync(
         string phoneNumber, string code, string password, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Сверить код, ничего не заводя: вход спрашивает код до ПИНа, чтобы опечатка в коде
+    /// всплыла сразу, а не после двух экранов. Промах тратит ту же попытку, что и при приёме.
+    /// </summary>
+    Task<StaffInviteAcceptResult> CheckInviteAsync(
+        string phoneNumber, string code, CancellationToken cancellationToken);
+
+    /// <summary>Что спросить вторым шагом входа по номеру (<see cref="Shared.Contracts.Identity.StaffSignInStepNames"/>).</summary>
+    Task<string> ResolveSignInStepAsync(string phoneNumber, CancellationToken cancellationToken);
+
+    /// <summary>Кого добавили в филиал, но кто ещё не входил, — со статусом кода.</summary>
+    Task<IReadOnlyList<StaffInviteSummaryDto>> ListPendingAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken);
+
+    /// <summary>Отозвать код первого входа. false — такого ожидающего приглашения в филиале нет.</summary>
+    Task<bool> RevokeAsync(Guid organizationId, Guid branchId, Guid staffInviteId, CancellationToken cancellationToken);
 }
 
 /// <param name="Code">Код приглашения, который человек вводит при приёме (не путать с
@@ -69,15 +87,23 @@ public sealed record StaffInviteAcceptResult(
     Guid OrganizationId,
     string UserName,
     int RemainingAttempts = 0,
-    PlanLimitExceededDto? PlanLimit = null)
+    PlanLimitExceededDto? PlanLimit = null,
+    Guid StaffUserId = default,
+    // Какое приглашение ответило — и при отказе тоже: журнал должен видеть подбор кода.
+    Guid? StaffInviteId = null,
+    Guid BranchId = default)
 {
     public bool Succeeded => Status == StaffInviteAcceptStatus.Success;
 
     public static StaffInviteAcceptResult Failed(string error) =>
         new(StaffInviteAcceptStatus.Refused, error, Guid.Empty, string.Empty);
 
-    public static StaffInviteAcceptResult Success(Guid organizationId, string userName) =>
-        new(StaffInviteAcceptStatus.Success, null, organizationId, userName);
+    public static StaffInviteAcceptResult Success(Guid organizationId, string userName, Guid staffUserId) =>
+        new(StaffInviteAcceptStatus.Success, null, organizationId, userName, StaffUserId: staffUserId);
+
+    /// <summary>Код верный; приглашение по-прежнему ждёт ПИНа.</summary>
+    public static StaffInviteAcceptResult CodeAccepted() =>
+        new(StaffInviteAcceptStatus.Success, null, Guid.Empty, string.Empty);
 
     public static StaffInviteAcceptResult NoActiveInvite() =>
         new(StaffInviteAcceptStatus.NoActiveInvite, "There is no active invite for this phone number.",

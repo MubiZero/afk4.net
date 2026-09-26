@@ -273,7 +273,8 @@ public sealed class PlanLimitGuardTests
             NormalizedPhone = "992937380099",
             CodeHash = "hash",
             CreatedAtUtc = Now,
-            ExpiresAtUtc = Now.AddDays(7)
+            // Живое приглашение по часам сервера: истёкшее места уже не держит.
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(7)
         });
         await db.SaveChangesAsync();
 

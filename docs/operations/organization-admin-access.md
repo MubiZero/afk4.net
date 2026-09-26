@@ -83,7 +83,12 @@ refuses to hand the answer back.
 `devMockBackend.ts`, not against a real API. Use it for UI work, never to verify
 behaviour.
 
-Sign-in is the ordinary staff sign-in — phone or email/login plus password.
+Sign-in is the ordinary staff sign-in in two steps: the phone number, then the
+six-digit PIN (or, for someone the manager has just added, the first sign-in
+code and a new PIN). The browser build knows no club, so it signs in through the
+network-wide routes under `/api/auth/staff/*` and the server finds the club from
+the number. Accounts without a number — an owner activated by email — use the
+«login or email» link under the phone field.
 
 ### Production lists its own origins
 

@@ -679,7 +679,6 @@ function eskhataConfig(): Record<string, unknown> {
 function route(pathname: string, method: string): unknown | undefined {
   // Preview sign-in: any credentials succeed (no real backend behind the mock), mirroring what the
   // dev host-bridge stub used to fake over the WebView2 auth bridge before auth moved to plain HTTP.
-  if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
@@ -702,6 +701,7 @@ function route(pathname: string, method: string): unknown | undefined {
   }
   if (pathname.endsWith('/layout/zones')) return previewLayoutZones();
   if (pathname.endsWith('/staff')) return previewStaff();
+  if (pathname.endsWith('/staff/invites') && method === 'GET') return previewInvites;
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
   if (pathname.endsWith('/shifts/revenue/current')) return currentShiftRevenue();
   if (pathname.endsWith('/shifts/revenue')) return shiftHistory();
@@ -921,9 +921,62 @@ let previewInstallCodes = [
   }
 ];
 
+// Вход в превью. Любой номер входит по любому ПИН-коду, кроме двух, показывающих другие ветки:
+// 93 000 00 00 — новый сотрудник (код первого входа 123456), 93 000 00 01 — номер нигде не заведён.
+// ПИН-код 000000 показывает отказ, 999999 — запертый после промахов вход.
+const PREVIEW_NEW_STAFF_PHONE = '992930000000';
+const PREVIEW_UNKNOWN_PHONE = '992930000001';
+const PREVIEW_FIRST_SIGN_IN_CODE = '123456';
+
+function previewSignIn(pathname: string, method: string, init?: RequestInit): Response | null {
+  if (method !== 'POST') return null;
+  let req: Record<string, unknown> = {};
+  try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+  const phone = typeof req.phoneNumber === 'string' ? req.phoneNumber : '';
+  if (pathname.endsWith('/auth/staff/next-step')) {
+    const step = phone === PREVIEW_NEW_STAFF_PHONE ? 'invite-code' : phone === PREVIEW_UNKNOWN_PHONE ? 'unknown' : 'pin';
+    return json({ step });
+  }
+  if (pathname.endsWith('/staff/invites/check') || pathname.endsWith('/staff/invites/accept')) {
+    if (req.code !== PREVIEW_FIRST_SIGN_IN_CODE) {
+      return new Response(JSON.stringify({ error: 'invalid_code', remainingAttempts: 2 }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+    return pathname.endsWith('/check')
+      ? noContent()
+      : json({ organizationId: ORG, userName: phone, signIn: createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH }) });
+  }
+  if (pathname.endsWith('/auth/staff/sign-in-by-phone') || pathname.endsWith('/auth/staff/sign-in-by-login')) {
+    if (req.password === '000000') return new Response(null, { status: 401 });
+    if (req.password === '999999') return jsonError(429, 'too_many_password_attempts', 'Too many failed password attempts.');
+    return json(createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH }));
+  }
+  return null;
+}
+
+// «Ждут первого входа» в превью: один живой код и один истёкший.
+let previewInvites = [
+  {
+    staffInviteId: 'preview-invite-1', userName: '992930000010', displayName: 'Фарход', phoneNumber: '+992930000010', email: null,
+    roleNames: ['operator'], createdAtUtc: '2026-09-25T08:00:00Z', expiresAtUtc: '2026-09-26T08:00:00Z', attemptsLeft: 3, status: 'pending'
+  },
+  {
+    staffInviteId: 'preview-invite-2', userName: '992930000011', displayName: 'Нигора', phoneNumber: '+992930000011', email: null,
+    roleNames: ['shift_supervisor'], createdAtUtc: '2026-09-22T08:00:00Z', expiresAtUtc: '2026-09-23T08:00:00Z', attemptsLeft: 3, status: 'expired'
+  }
+];
+
 export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
+  const revokeInvite = url.pathname.match(/\/staff\/invites\/([^/]+)$/);
+  if (revokeInvite && method === 'DELETE') {
+    previewInvites = previewInvites.filter((invite) => invite.staffInviteId !== revokeInvite[1]);
+    return noContent();
+  }
+  const signIn = previewSignIn(url.pathname, method, init);
+  if (signIn !== null) {
+    return signIn;
+  }
   if (url.pathname.endsWith('/players') && method === 'GET') {
     return json(filterPlayers(url.searchParams.get('query'), url.searchParams.get('includeInactive') === 'true'));
   }

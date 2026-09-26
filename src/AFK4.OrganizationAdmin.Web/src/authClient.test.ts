@@ -1,14 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
 import {
-  StaffAuthApiError,
+  ChooseClubError,
+  acceptStaffInvite,
   forgotPasswordByEmail,
   loadOperatorSession,
   refreshOperatorSession,
   resetPasswordByPhone,
   signInByLoginOperator,
+  signInByPhoneOperator,
   signInToClubOperator,
-  signOutOperator
+  signOutOperator,
+  staffSignInNextStep
 } from './authClient';
+
+const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 
 // authClient.ts инстанцирует StaffAuthApi внутри (см. `function api()`) — снаружи нет способа
 // впрыснуть свой fetchImpl, кроме подмены глобального fetch. Это тот же трюк, что использует
@@ -51,7 +56,7 @@ afterEach(() => {
 
 describe('signInByLoginOperator', () => {
   it('stores the session on success', async () => {
-    const session = await signInByLoginOperator('u', 'p');
+    const session = await signInByLoginOperator(ORG, 'u', 'p');
 
     expect(session.organizationId).toBe('o');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -59,23 +64,60 @@ describe('signInByLoginOperator', () => {
     expect(sessionStorage.getItem('afk4.staff.session')).toContain('"accessToken":"a"');
   });
 
-  it('rejects a legacy club collision response without storing a session', async () => {
+  // Браузерная Панель клуба не знает: раньше она бросала ошибку до сети, и вход в ней не работал.
+  it('without a connected club asks the network-wide route and turns a collision into a club choice', async () => {
     fetchMock.mockImplementation(async () => jsonResponse(409, {
       clubs: [{ organizationId: 'o1', name: 'Club 1' }, { organizationId: 'o2', name: 'Club 2' }]
     }));
 
-    const error = await signInByLoginOperator('u', 'p').catch((cause) => cause);
+    const error = await signInByLoginOperator(null, 'u', 'p').catch((cause) => cause);
 
-    expect(error).toBeInstanceOf(StaffAuthApiError);
-    expect((error as StaffAuthApiError).status).toBe(409);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://localhost/api/auth/staff/sign-in-by-login');
+    expect(error).toBeInstanceOf(ChooseClubError);
+    expect((error as ChooseClubError).clubs.map((club) => club.name)).toEqual(['Club 1', 'Club 2']);
     expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
   });
 
   it('throws on invalid credentials (401) without storing a session', async () => {
     fetchMock.mockImplementation(async () => jsonResponse(401, {}));
 
-    await expect(signInByLoginOperator('u', 'p')).rejects.toThrow();
+    await expect(signInByLoginOperator(ORG, 'u', 'p')).rejects.toThrow();
     expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
+  });
+});
+
+describe('signInByPhoneOperator', () => {
+  it('asks the connected club when the Panel has one', async () => {
+    await signInByPhoneOperator(ORG, '992937380070', '123456');
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(`/api/organizations/${ORG}/auth/staff/sign-in-by-phone`);
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ phoneNumber: '992937380070', password: '123456' });
+    expect(sessionStorage.getItem('afk4.staff.session')).toContain('"accessToken":"a"');
+  });
+
+  it('lets the server find the club by the number in the browser', async () => {
+    await signInByPhoneOperator(null, '992937380070', '123456');
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://localhost/api/auth/staff/sign-in-by-phone');
+  });
+});
+
+describe('first sign-in', () => {
+  it('asks the server what the number needs next', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(200, { step: 'invite-code' }));
+
+    await expect(staffSignInNextStep('992937380070')).resolves.toBe('invite-code');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://localhost/api/auth/staff/next-step');
+  });
+
+  it('signs the new staff member in with the session the accept returns', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(200, { organizationId: 'o', userName: '992937380070', signIn: sampleResponse }));
+
+    const session = await acceptStaffInvite('992937380070', '123456', '654321');
+
+    expect(session.accessToken).toBe('a');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://localhost/api/staff/invites/accept');
+    expect(sessionStorage.getItem('afk4.staff.session')).toContain('"accessToken":"a"');
   });
 });
 
@@ -97,7 +139,7 @@ describe('loadOperatorSession', () => {
   });
 
   it('resolves the stored session without a network call', async () => {
-    await signInByLoginOperator('u', 'p');
+    await signInByLoginOperator(ORG, 'u', 'p');
     fetchMock.mockClear();
 
     const session = await loadOperatorSession();
@@ -113,7 +155,7 @@ describe('refreshOperatorSession', () => {
   });
 
   it('posts the stored organizationId + refreshToken and rewrites the session', async () => {
-    await signInByLoginOperator('u', 'p');
+    await signInByLoginOperator(ORG, 'u', 'p');
     fetchMock.mockClear();
     fetchMock.mockImplementation(async () => jsonResponse(200, { ...sampleResponse, accessToken: 'a2' }));
 
@@ -129,7 +171,7 @@ describe('refreshOperatorSession', () => {
 
 describe('signOutOperator', () => {
   it('revokes the token pair on the server and clears the stored session', async () => {
-    await signInByLoginOperator('u', 'p');
+    await signInByLoginOperator(ORG, 'u', 'p');
     fetchMock.mockClear();
     fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
 
@@ -144,7 +186,7 @@ describe('signOutOperator', () => {
   });
 
   it('still signs out locally when the server call fails', async () => {
-    await signInByLoginOperator('u', 'p');
+    await signInByLoginOperator(ORG, 'u', 'p');
     fetchMock.mockClear();
     fetchMock.mockImplementation(async () => { throw new Error('network down'); });
 

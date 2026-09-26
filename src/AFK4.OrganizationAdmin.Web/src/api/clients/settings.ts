@@ -8,6 +8,7 @@ import type {
   BranchBookingSettingsDto,
   BranchProtectionProfileDto,
   UpdateBranchProtectionProfileRequest,
+  StaffInviteSummaryDto,
   BranchProfileDto,
   BranchSettingsDto,
   CreatePackageDefinitionRequest,
@@ -136,6 +137,13 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     getStaffUsers(branchId: Guid): Promise<StaffUserDto[]> {
       return api.get<StaffUserDto[]>(`branches/${branchId}/staff`);
+    },
+    // Добавленные, но ещё не входившие сотрудники — со статусом кода первого входа.
+    listStaffInvites(branchId: Guid): Promise<StaffInviteSummaryDto[]> {
+      return api.get<StaffInviteSummaryDto[]>(`branches/${branchId}/staff/invites`);
+    },
+    revokeStaffInvite(branchId: Guid, staffInviteId: Guid): Promise<void> {
+      return api.delete<void>(`branches/${branchId}/staff/invites/${staffInviteId}`);
     },
     createStaffInvite(branchId: Guid, request: CreateStaffInviteRequest): Promise<StaffInviteDto> {
       return api.post<StaffInviteDto, CreateStaffInviteRequest>(`branches/${branchId}/staff/invites`, request);
