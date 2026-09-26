@@ -20,6 +20,7 @@ import {
   type GameForm,
   type GameFormField
 } from './gamesModel';
+import type { ImageResult } from '../mediaErrors';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -30,10 +31,10 @@ interface Props {
   onChange: (form: GameForm) => void;
   onSubmit: () => void;
   onClose: () => void;
-  /** Картинка магазина Steam по номеру приложения; отказ — уже человеческой фразой. */
-  onSteamCover: (steamAppId: string) => Promise<string>;
-  /** Своя картинка в хранилище платформы; возвращает её адрес. */
-  onUploadCover: (file: File) => Promise<string>;
+  /** Картинка магазина Steam по номеру приложения. */
+  onSteamCover: (steamAppId: string) => Promise<ImageResult>;
+  /** Своя картинка в хранилище платформы. */
+  onUploadCover: (file: File) => Promise<ImageResult>;
 }
 
 // Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.
@@ -87,17 +88,13 @@ export function GameFormDialog({ mode, form, pending, error, onChange, onSubmit,
   const steamAppId = form.launchKind === 'steam' && /^\d{1,10}$/.test(form.launchTarget.trim()) ? form.launchTarget.trim() : null;
 
   // Картинку ставим в поле только после ответа сервера: адрес — уже в нашем хранилище.
-  async function fetchCover(load: () => Promise<string>) {
+  async function fetchCover(load: () => Promise<ImageResult>) {
     setCoverBusy(true);
     setCoverError(null);
-    try {
-      const url = await load();
-      onChange({ ...form, coverUrl: url });
-    } catch (cause) {
-      setCoverError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setCoverBusy(false);
-    }
+    const result = await load();
+    setCoverBusy(false);
+    if (result.url !== undefined) onChange({ ...form, coverUrl: result.url });
+    else setCoverError(result.error);
   }
 
   return (

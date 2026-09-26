@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { AD_LIMITS, IMAGE_MAX_MB, validateCreativeForm, type CreativeForm, type CreativeFormField } from './adsModel';
 import { AdImagePreview } from './AdImages';
 import { useFieldErrors } from './useFieldErrors';
+import type { ImageResult } from '../mediaErrors';
 
 // Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.
 const FIELD_IDS: Record<CreativeFormField, string> = {
@@ -27,8 +28,8 @@ export function CreativeFormDialog({ mode, form, pending, error, onChange, onSub
   onChange: (form: CreativeForm) => void;
   onSubmit: () => void;
   onClose: () => void;
-  /** Картинка в хранилище платформы; возвращает её адрес, отказ — уже человеческой фразой. */
-  onUploadImage: (file: File) => Promise<string>;
+  /** Картинка в хранилище платформы. */
+  onUploadImage: (file: File) => Promise<ImageResult>;
 }) {
   const { t } = useI18n();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -38,13 +39,10 @@ export function CreativeFormDialog({ mode, form, pending, error, onChange, onSub
   async function upload(file: File) {
     setUploading(true);
     setUploadError(null);
-    try {
-      onChange({ ...form, imageUrl: await onUploadImage(file) });
-    } catch (cause) {
-      setUploadError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setUploading(false);
-    }
+    const result = await onUploadImage(file);
+    setUploading(false);
+    if (result.url !== undefined) onChange({ ...form, imageUrl: result.url });
+    else setUploadError(result.error);
   }
   const { errorOf, controlProps, readyToSubmit } = useFieldErrors(validateCreativeForm(form), FIELD_IDS);
 

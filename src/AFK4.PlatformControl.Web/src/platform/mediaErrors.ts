@@ -20,3 +20,14 @@ export function describeMediaError(cause: unknown, t: Translate): string {
   }
   return describeApiError(cause, t);
 }
+
+/** Итог загрузки картинки: адрес или уже переведённая причина отказа — форме нечего разбирать самой. */
+export type ImageResult = { url: string; error?: undefined } | { url?: undefined; error: string };
+
+export async function loadImage(load: () => Promise<{ url: string }>, t: Translate): Promise<ImageResult> {
+  try {
+    return { url: (await load()).url };
+  } catch (cause) {
+    return { error: describeMediaError(cause, t) };
+  }
+}
