@@ -1,0 +1,61 @@
+name: Demo Panel
+
+# Демо-Панель на примерах данных (docs/operations/demo-panel.md) — на GitHub Pages: статика без
+# сервера, мимо общей очереди деплоев Coolify. Пересобирается с каждой правкой Панели в main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/AFK4.OrganizationAdmin.Web/**
+      - packages/**
+      - locales/**
+      - .github/workflows/demo-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: demo-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build the demo
+        working-directory: src/AFK4.OrganizationAdmin.Web
+        run: bun run build:demo
+
+      # Своё имя сайта: без файла CNAME Pages после каждой выкладки сбрасывал бы его.
+      - name: Name the site
+        run: echo "demo.afk4.net" > src/AFK4.OrganizationAdmin.Web/dist-demo/CNAME
+
+      - name: Upload
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/AFK4.OrganizationAdmin.Web/dist-demo
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
