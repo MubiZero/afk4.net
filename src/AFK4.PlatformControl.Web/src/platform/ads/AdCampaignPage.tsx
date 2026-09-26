@@ -296,6 +296,7 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
           mode={dialog.mode}
           creative={dialog.creative}
           advertiserName={current.advertiserName}
+          category={current.category}
           pending={pending}
           error={dialogError}
           onConfirm={decision => moderate(dialog.creative, dialog.mode === 'approve', decision)}

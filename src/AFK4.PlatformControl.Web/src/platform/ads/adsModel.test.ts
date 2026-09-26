@@ -8,6 +8,7 @@ import { toLocalInput } from '@/lib/localDateTime';
 import {
   AD_LIMITS,
   AD_MODERATION_CHECKS,
+  moderationChecksFor,
   approvedCount,
   campaignPhase,
   canEditCreative,
@@ -405,9 +406,14 @@ describe('креатив', () => {
 
 describe('модерация', () => {
   it('отметки — все строки контракта, по порядку, и у каждой есть подпись', () => {
-    expect([...AD_MODERATION_CHECKS]).toEqual(Object.values(AdModerationCheckNames));
+    expect([...AD_MODERATION_CHECKS]).toEqual(Object.values(AdModerationCheckNames).filter(check => check !== 'finance_terms'));
     expect(AD_MODERATION_CHECKS).toHaveLength(6);
-    for (const check of AD_MODERATION_CHECKS) expect(moderationCheckLabelKey(check)).toBe(`platform.ads.moderation.check.${check}`);
+    for (const check of Object.values(AdModerationCheckNames)) expect(moderationCheckLabelKey(check)).toBe(`platform.ads.moderation.check.${check}`);
+  });
+
+  it('у «Финансов» — ещё своя отметка, как у сервера (ст. 18)', () => {
+    expect(moderationChecksFor('finance')).toEqual([...AD_MODERATION_CHECKS, 'finance_terms']);
+    expect(moderationChecksFor('telecom')).toEqual(AD_MODERATION_CHECKS);
   });
 
   it('слова, которые закон разрешает только с документом, — списком в кавычках', () => {

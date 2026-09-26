@@ -181,8 +181,16 @@ internal static class AdEndpoints
             IAuditRecordWriter audit, PlatformDbContext db, IHttpClientFactory httpClients, TimeProvider clock, CancellationToken ct) =>
         {
             if (Deny(authorizationService) is { } denied) return denied;
+            if (!request.Approve && (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Length > AdLimits.ReasonMax))
+                return Invalid($"A rejection needs a reason of at most {AdLimits.ReasonMax} characters.");
+
+            var creative = await db.AdCreatives.SingleOrDefaultAsync(
+                candidate => candidate.CreativeId == creativeId && candidate.CampaignId == campaignId, ct);
+            if (creative is null) return Results.NotFound();
+            var category = await db.AdCampaigns.Where(campaign => campaign.CampaignId == campaignId).Select(campaign => campaign.Category).SingleAsync(ct);
+
             // Одобрить — значит подтвердить каждую строку закона, которую код не проверит (спека, §8.2).
-            if (request.Approve && AdModerationCheckNames.All.Except(request.Confirmed ?? []).Any())
+            if (request.Approve && AdModerationCheckNames.RequiredFor(category).Except(request.Confirmed ?? []).Any())
             {
                 return Results.BadRequest(new
                 {
@@ -191,12 +199,10 @@ internal static class AdEndpoints
                 });
             }
 
-            if (!request.Approve && (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Length > AdLimits.ReasonMax))
-                return Invalid($"A rejection needs a reason of at most {AdLimits.ReasonMax} characters.");
-
-            var creative = await db.AdCreatives.SingleOrDefaultAsync(
-                candidate => candidate.CreativeId == creativeId && candidate.CampaignId == campaignId, ct);
-            if (creative is null) return Results.NotFound();
+            // Одобренный мог быть показан: отказ задним числом открыл бы его правке и переписал показанное
+            // (ст. 22). Снять с показа — через архив.
+            if (creative.Moderation == AdModerationNames.Approved)
+                return Results.Conflict(new { Error = "An approved creative is archived, not re-moderated.", Code = AdErrorCodeNames.CreativeLocked });
 
             // Одобряется то, что будет на экране: без хранимой копии картинки одобрять нечего.
             if (request.Approve && creative.ImageUrl is not null

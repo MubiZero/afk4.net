@@ -230,6 +230,22 @@ describe('AdCampaignPage', () => {
     expect(screen.getByRole('button', { name: 'Запустить' })).toBeEnabled();
   });
 
+  it('у «Финансов» — седьмая отметка, и без неё не одобрить (ст. 18)', async () => {
+    const client = makeClient(campaign({ category: 'finance' }));
+    const dialog = await openApproval(client);
+
+    expect(within(dialog).getAllByRole('checkbox')).toHaveLength(7);
+    expect(within(dialog).getByRole('checkbox', { name: /^Финансы \(ст\. 18\)/ })).toBeInTheDocument();
+    await tickAll(dialog);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Одобрить' }));
+
+    await waitFor(() => expect(client.moderateCreative).toHaveBeenCalledWith(CAMPAIGN_ID, PENDING_ID, {
+      approve: true,
+      reason: null,
+      confirmed: [...ALL_CHECKS, 'finance_terms']
+    }));
+  });
+
   it('слова вроде «лучший» подсвечивает над отметками', async () => {
     const client = makeClient(campaign({ creatives: [creative({ wordingFlags: ['лучш', 'беҳтарин'] })] }));
     const dialog = await openApproval(client);

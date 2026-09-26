@@ -570,7 +570,14 @@ export function requestFromCreativeForm(form: CreativeForm): UpsertAdCreativeReq
  * Отметки модератора — по статьям закона, в порядке контракта. Сервер не одобрит без каждой:
  * код не отличит сок от пива, и отметка — решение человека, которое уходит в журнал.
  */
-export const AD_MODERATION_CHECKS: readonly AdModerationCheckName[] = Object.values(AdModerationCheckNames);
+/** Отметки, которые нужны любой кампании; у «Финансов» к ним добавляется своя (ст. 18). */
+export const AD_MODERATION_CHECKS: readonly AdModerationCheckName[] = Object.values(AdModerationCheckNames)
+  .filter(check => check !== AdModerationCheckNames.FinanceTerms);
+
+/** Зеркало AdModerationCheckNames.RequiredFor: сервер одобрит только со всеми этими отметками. */
+export function moderationChecksFor(category: string): readonly AdModerationCheckName[] {
+  return category === AdCategoryNames.Finance ? [...AD_MODERATION_CHECKS, AdModerationCheckNames.FinanceTerms] : AD_MODERATION_CHECKS;
+}
 
 const MODERATION_CHECK_LABEL_KEY: Record<AdModerationCheckName, MessageKey> = {
   not_club_or_betting: 'platform.ads.moderation.check.not_club_or_betting',
@@ -578,7 +585,8 @@ const MODERATION_CHECK_LABEL_KEY: Record<AdModerationCheckName, MessageKey> = {
   minors: 'platform.ads.moderation.check.minors',
   truthful: 'platform.ads.moderation.check.truthful',
   ethical: 'platform.ads.moderation.check.ethical',
-  tajik_on_image: 'platform.ads.moderation.check.tajik_on_image'
+  tajik_on_image: 'platform.ads.moderation.check.tajik_on_image',
+  finance_terms: 'platform.ads.moderation.check.finance_terms'
 };
 
 export function moderationCheckLabelKey(check: AdModerationCheckName): MessageKey {

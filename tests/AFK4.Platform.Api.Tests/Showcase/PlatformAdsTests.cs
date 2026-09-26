@@ -137,6 +137,9 @@ public sealed class PlatformAdsTests
         var edit = await platform.PutAsJsonAsync(creativePath, new UpsertAdCreativeRequest("Матни нав", null, null));
         Assert.Equal(HttpStatusCode.Conflict, edit.StatusCode);
         Assert.Contains(AdErrorCodeNames.CreativeLocked, await edit.Content.ReadAsStringAsync());
+        // Отказ задним числом открыл бы одобренный правке — тоже нельзя.
+        var reject = await platform.PostAsJsonAsync($"{creativePath}/moderation", new ModerateAdCreativeRequest(false, "передумали"));
+        Assert.Equal(HttpStatusCode.Conflict, reject.StatusCode);
 
         var archived = await ReadAsync<AdCreativeDto>(await platform.PostAsync($"{creativePath}/archive", null));
         Assert.NotNull(archived.ArchivedAtUtc);
@@ -161,6 +164,26 @@ public sealed class PlatformAdsTests
 
         Assert.Equal(HttpStatusCode.Conflict, approve.StatusCode);
         Assert.Contains(AdErrorCodeNames.ImageUnavailable, await approve.Content.ReadAsStringAsync());
+    }
+
+    // «Финансы» (ст. 18): у них своя отметка — без обещаний доходности и без умолчания условий.
+    [Fact]
+    public async Task AFinanceCreative_NeedsTheFinanceCheck()
+    {
+        await using var fixture = DevicePlayerFixture.Create(Images());
+        await fixture.SeedAsync();
+        using var platform = fixture.Factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(fixture.Factory, platform, roles: [PlatformAdminRoleNames.PlatformAdmin], clock: fixture.Clock);
+        var advertiser = await ReadAsync<AdvertiserDto>(await platform.PostAsJsonAsync(AdRoutes.Advertisers, Advertiser()));
+        var campaign = await ReadAsync<AdCampaignDto>(await platform.PostAsJsonAsync(AdRoutes.Campaigns, new UpsertAdCampaignRequest(
+            advertiser.AdvertiserId, "Кредит", AdCategoryNames.Finance, DevicePlayerFixture.Start, DevicePlayerFixture.Start.AddDays(3), null, null)));
+        var creative = await ReadAsync<AdCreativeDto>(await platform.PostAsJsonAsync($"{AdRoutes.Campaigns}/{campaign.CampaignId:D}/creatives",
+            new UpsertAdCreativeRequest("Қарз бо фоизи паст", null, null)));
+        var moderation = $"{AdRoutes.Campaigns}/{campaign.CampaignId:D}/creatives/{creative.CreativeId:D}/moderation";
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await platform.PostAsJsonAsync(moderation, new ModerateAdCreativeRequest(true, null, AdModerationCheckNames.All))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(moderation,
+            new ModerateAdCreativeRequest(true, null, AdModerationCheckNames.RequiredFor(AdCategoryNames.Finance)))).StatusCode);
     }
 
     [Fact]

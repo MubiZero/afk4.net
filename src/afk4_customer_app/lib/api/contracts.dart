@@ -58,6 +58,9 @@ abstract final class AdModerationCheckNames {
   static const String ethical = 'ethical';
   /// Текст на картинке — на таджикском или есть и на таджикском (ст. 5).
   static const String tajikOnImage = 'tajik_on_image';
+  /// Только у кампаний «Финансы» (ст. 18): без обещаний доходности и гарантий, без умолчания
+  /// условий договора. В All не входит — у остальных категорий её нет.
+  static const String financeTerms = 'finance_terms';
 }
 
 /// Словарь: Ads/AdContracts.cs

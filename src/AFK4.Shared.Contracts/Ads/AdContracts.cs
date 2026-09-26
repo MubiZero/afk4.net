@@ -121,7 +121,17 @@ public static class AdModerationCheckNames
     /// <summary>Текст на картинке — на таджикском или есть и на таджикском (ст. 5).</summary>
     public const string TajikOnImage = "tajik_on_image";
 
+    /// <summary>
+    /// Только у кампаний «Финансы» (ст. 18): без обещаний доходности и гарантий, без умолчания
+    /// условий договора. В <see cref="All"/> не входит — у остальных категорий её нет.
+    /// </summary>
+    public const string FinanceTerms = "finance_terms";
+
+    /// <summary>Отметки, которые нужны любой кампании.</summary>
     public static readonly IReadOnlyList<string> All = [NotClubOrBetting, NoBannedGoods, Minors, Truthful, Ethical, TajikOnImage];
+
+    public static IReadOnlyList<string> RequiredFor(string category) =>
+        category == AdCategoryNames.Finance ? [.. All, FinanceTerms] : All;
 }
 
 /// <summary>Строка отчёта показов: креатив в филиале за день. Игрока в строке нет и быть не может.</summary>

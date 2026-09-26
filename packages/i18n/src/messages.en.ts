@@ -3380,6 +3380,7 @@ export const en = {
   "platform.ads.moderation.approved": "Approved",
   "platform.ads.moderation.approvedToast": "Creative approved",
   "platform.ads.moderation.check.ethical": "Ethical (Art. 6, 8, 9, 10): no insults, disparaging comparisons or hidden inserts",
+  "platform.ads.moderation.check.finance_terms": "Finance (art. 18): no promised returns or guarantees, no hidden contract terms",
   "platform.ads.moderation.check.minors": "Minors (Art. 21): doesn’t ask them to persuade their parents, doesn’t promise superiority over peers, doesn’t show children in danger, doesn’t say “only” or “just” about the price",
   "platform.ads.moderation.check.no_banned_goods": "No banned goods (Art. 17): alcohol, tobacco and e-cigarettes, pornography, infant formula and teats, drugs, weapons, prescription medicines; the advertiser doesn’t make alcohol or tobacco (Art. 20)",
   "platform.ads.moderation.check.not_club_or_betting": "Not another club, not betting and not a casino",

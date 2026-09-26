@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdCreativeDto } from '@/api/types';
-import { AD_LIMITS, AD_MODERATION_CHECKS, formatWordingFlags, moderationCheckLabelKey } from './adsModel';
+import { AD_LIMITS, formatWordingFlags, moderationCheckLabelKey, moderationChecksFor } from './adsModel';
 import { AdCardPreview } from './AdCreativePreview';
 
 const REASON_ID = 'moderation-reason';
@@ -23,10 +23,12 @@ export interface ModerationDecision {
  * Одобрение требует отметить каждую строку закона, которую код не проверит (спека рекламы, §8.2):
  * отметки уходят в журнал как решение человека. Отказ требует причины: её передадут рекламодателю.
  */
-export function ModerationDialog({ mode, creative, advertiserName, pending, error, onConfirm, onClose }: {
+export function ModerationDialog({ mode, creative, advertiserName, category, pending, error, onConfirm, onClose }: {
   mode: 'approve' | 'reject';
   creative: AdCreativeDto;
   advertiserName: string;
+  // Категория кампании: у «Финансов» своя отметка (ст. 18).
+  category: string;
   pending: boolean;
   /** Отказ сервера, уже переведённый в человеческую фразу. */
   error: string | null;
@@ -39,7 +41,8 @@ export function ModerationDialog({ mode, creative, advertiserName, pending, erro
 
   const trimmed = reason.trim();
   const reasonTooLong = trimmed.length > AD_LIMITS.reasonMax;
-  const allConfirmed = AD_MODERATION_CHECKS.every(check => confirmed.has(check));
+  const checks = moderationChecksFor(category);
+  const allConfirmed = checks.every(check => confirmed.has(check));
   const canConfirm = !pending && (mode === 'approve' ? allConfirmed : trimmed !== '' && !reasonTooLong);
   const flaggedWords = formatWordingFlags(creative.wordingFlags);
 
@@ -54,7 +57,7 @@ export function ModerationDialog({ mode, creative, advertiserName, pending, erro
 
   function confirm() {
     onConfirm(mode === 'approve'
-      ? { reason: null, confirmed: AD_MODERATION_CHECKS.filter(check => confirmed.has(check)) }
+      ? { reason: null, confirmed: checks.filter(check => confirmed.has(check)) }
       : { reason: trimmed, confirmed: [] });
   }
 
@@ -88,7 +91,7 @@ export function ModerationDialog({ mode, creative, advertiserName, pending, erro
             <p className="mgmt-drawer-hint">{t('platform.ads.moderation.approveHint')}</p>
             <fieldset className="pc-ad-checklist">
               <legend>{t('platform.ads.moderation.checklist')}</legend>
-              {AD_MODERATION_CHECKS.map(check => (
+              {checks.map(check => (
                 <label key={check} className="pc-check-row">
                   <input
                     type="checkbox"
