@@ -9,6 +9,14 @@ public sealed class AdAdvertiserEntity
 
     public string Contact { get; set; } = string.Empty;
 
+    /// <summary>Наименование продавца для договора и для рекламы с продажей на расстоянии (ст. 14(1)).</summary>
+    public string LegalName { get; set; } = string.Empty;
+
+    /// <summary>ИНН (единый идентификационный номер) — цифры.</summary>
+    public string TaxId { get; set; } = string.Empty;
+
+    public string Address { get; set; } = string.Empty;
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public Guid? CreatedByPlatformAdminUserId { get; set; }
@@ -39,6 +47,15 @@ public sealed class AdCampaignEntity
     /// <summary><see cref="AFK4.Shared.Contracts.Ads.AdCampaignStateNames"/>.</summary>
     public string State { get; set; } = string.Empty;
 
+    /// <summary>Разрешение или лицензия Минздрава — у «Здоровья и красоты» (ст. 17).</summary>
+    public string? PermitNumber { get; set; }
+
+    public bool DistanceSelling { get; set; }
+
+    public bool RequiresCertification { get; set; }
+
+    public bool ContainsOffer { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; }
@@ -53,11 +70,22 @@ public sealed class AdCreativeEntity
 
     public Guid CampaignId { get; set; }
 
+    /// <summary>Заголовок на таджикском — обязателен и идёт первым (ст. 5).</summary>
     public string Title { get; set; } = string.Empty;
 
     public string? Body { get; set; }
 
+    public string? TitleRu { get; set; }
+
+    public string? BodyRu { get; set; }
+
     public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// Снят с показа. Одобренный креатив не правится и не удаляется: закон велит хранить показанную
+    /// рекламу год после последнего показа (ст. 22).
+    /// </summary>
+    public DateTimeOffset? ArchivedAtUtc { get; set; }
 
     /// <summary><see cref="AFK4.Shared.Contracts.Ads.AdModerationNames"/>.</summary>
     public string Moderation { get; set; } = string.Empty;
@@ -99,4 +127,23 @@ public sealed class AdImpressionBatchEntity
     public string BatchId { get; set; } = string.Empty;
 
     public DateTimeOffset ReceivedAtUtc { get; set; }
+}
+
+/// <summary>
+/// Копия картинки одобренного креатива. Её хранит сервер (закон велит хранить материалы год, ст. 22)
+/// и отдаёт ПК вместо чужого адреса: картинку по ссылке рекламодатель мог бы заменить после модерации.
+/// </summary>
+public sealed class AdCreativeImageEntity
+{
+    public Guid CreativeId { get; set; }
+
+    public string ContentType { get; set; } = string.Empty;
+
+    public byte[] Bytes { get; set; } = [];
+
+    public string Sha256 { get; set; } = string.Empty;
+
+    public string SourceUrl { get; set; } = string.Empty;
+
+    public DateTimeOffset StoredAtUtc { get; set; }
 }

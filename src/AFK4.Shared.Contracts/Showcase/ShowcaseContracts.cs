@@ -32,9 +32,21 @@ public sealed record ShowcaseCardDto(
     // Строки карточки «Пакеты».
     IReadOnlyList<ShowcasePackageLineDto>? Packages = null,
     // Рекламодатель — только у рекламы: экран пишет «Реклама · {рекламодатель}».
-    string? Advertiser = null);
+    string? Advertiser = null,
+    // Реклама: русский вариант — второй строкой под таджикским.
+    string? SecondaryTitle = null,
+    string? SecondaryBody = null,
+    // Реклама с продажей на расстоянии: наименование, ИНН и адрес продавца (закон о рекламе,
+    // ст. 14(1)). Подписи к ним экран пишет на своём языке.
+    ShowcaseSellerDto? Seller = null,
+    // Реклама: пометка «подлежит обязательной сертификации» (ст. 5).
+    bool RequiresCertification = false,
+    // Реклама с ценой или условиями: до какого дня действует предложение (ст. 26).
+    DateTimeOffset? OfferUntilUtc = null);
 
 public sealed record ShowcasePackageLineDto(string Name, MoneyDto Price, int Minutes);
+
+public sealed record ShowcaseSellerDto(string LegalName, string TaxId, string Address);
 
 public static class ShowcaseCardKindNames
 {

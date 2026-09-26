@@ -22,7 +22,16 @@ public static class PlatformAds
     {
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > AdLimits.NameMax)
             return $"Advertiser name is required and at most {AdLimits.NameMax} characters.";
-        return request.Contact?.Length > AdLimits.ContactMax ? $"Contact must be at most {AdLimits.ContactMax} characters." : null;
+        if (request.Contact?.Length > AdLimits.ContactMax) return $"Contact must be at most {AdLimits.ContactMax} characters.";
+        // Реквизиты нужны договору и рекламе с продажей на расстоянии (закон о рекламе, ст. 14(1)).
+        if (string.IsNullOrWhiteSpace(request.LegalName) || request.LegalName.Trim().Length > AdLimits.LegalNameMax)
+            return $"The advertiser's legal name is required and at most {AdLimits.LegalNameMax} characters.";
+        var taxId = request.TaxId?.Trim() ?? string.Empty;
+        if (taxId.Length is < AdLimits.TaxIdMinDigits or > AdLimits.TaxIdMaxDigits || !taxId.All(char.IsAsciiDigit))
+            return $"The tax id must be {AdLimits.TaxIdMinDigits} to {AdLimits.TaxIdMaxDigits} digits.";
+        return string.IsNullOrWhiteSpace(request.Address) || request.Address.Trim().Length > AdLimits.AddressMax
+            ? $"The advertiser's address is required and at most {AdLimits.AddressMax} characters."
+            : null;
     }
 
     public static string? Validate(UpsertAdCampaignRequest request)
@@ -33,14 +42,27 @@ public static class PlatformAds
         if (request.EndsAtUtc <= request.StartsAtUtc) return "The campaign must end after it starts.";
         if ((request.Cities?.Count ?? 0) > AdLimits.MaxCities) return $"At most {AdLimits.MaxCities} cities.";
         if (request.Cities?.Any(string.IsNullOrWhiteSpace) == true) return "A city cannot be empty.";
-        return (request.OrganizationIds?.Count ?? 0) > AdLimits.MaxOrganizations ? $"At most {AdLimits.MaxOrganizations} clubs." : null;
+        if ((request.OrganizationIds?.Count ?? 0) > AdLimits.MaxOrganizations) return $"At most {AdLimits.MaxOrganizations} clubs.";
+        return request.Compliance?.PermitNumber?.Trim().Length > AdLimits.PermitMax
+            ? $"The permit number must be at most {AdLimits.PermitMax} characters."
+            : null;
     }
+
+    /// <summary>
+    /// Лекарства, медтехника, БАД и косметика рекламируются только с разрешением Минздрава (ст. 17):
+    /// без номера кампанию не сохранить.
+    /// </summary>
+    public static bool NeedsPermit(UpsertAdCampaignRequest request) =>
+        request.Category == AdCategoryNames.HealthBeauty && string.IsNullOrWhiteSpace(request.Compliance?.PermitNumber);
 
     public static string? Validate(UpsertAdCreativeRequest request)
     {
+        // Таджикский — государственный язык: заголовок на нём обязателен (ст. 5, закон о госязыке).
         if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > AdLimits.TitleMax)
-            return $"Title is required and at most {AdLimits.TitleMax} characters.";
+            return $"The Tajik title is required and at most {AdLimits.TitleMax} characters.";
         if (request.Body?.Trim().Length > AdLimits.BodyMax) return $"Text must be at most {AdLimits.BodyMax} characters.";
+        if (request.TitleRu?.Trim().Length > AdLimits.TitleMax) return $"The Russian title must be at most {AdLimits.TitleMax} characters.";
+        if (request.BodyRu?.Trim().Length > AdLimits.BodyMax) return $"The Russian text must be at most {AdLimits.BodyMax} characters.";
         if (ImageUrlRules.Validate(request.ImageUrl) is { } imageError) return imageError;
         // ПК качает картинки только по https: http-адрес экран не показал бы никогда.
         return request.ImageUrl is { Length: > 0 } url && !url.Trim().StartsWith("https://", StringComparison.OrdinalIgnoreCase)
@@ -64,17 +86,40 @@ public static class PlatformAds
         campaign.CitiesJson = JsonSerializer.Serialize(
             (request.Cities ?? []).Select(city => city.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
         campaign.OrganizationIdsJson = JsonSerializer.Serialize((request.OrganizationIds ?? []).Distinct().ToList());
+        var compliance = request.Compliance ?? new AdCampaignComplianceDto();
+        campaign.PermitNumber = string.IsNullOrWhiteSpace(compliance.PermitNumber) ? null : compliance.PermitNumber.Trim();
+        campaign.DistanceSelling = compliance.DistanceSelling;
+        campaign.RequiresCertification = compliance.RequiresCertification;
+        campaign.ContainsOffer = compliance.ContainsOffer;
+    }
+
+    // Слова, которые закон разрешает только с документом (ст. 7): превосходные степени и «самый
+    // дешёвый». Модератору — подсветка, решает он.
+    private static readonly string[] SuperlativeStems =
+    [
+        "лучш", "самый дешёв", "самый дешев", "самая низкая цен", "самые низкие цен", "номер 1", "номер один", "№1", "№ 1",
+        "бесподобн", "абсолютн", "единственн", "высшего качества",
+        "беҳтарин", "арзонтарин", "рақами 1", "рақами як", "ягона", "олитарин", "бемисл"
+    ];
+
+    public static IReadOnlyList<string> WordingFlags(params string?[] texts)
+    {
+        var joined = string.Join(' ', texts.Where(text => !string.IsNullOrWhiteSpace(text))).ToLowerInvariant();
+        return SuperlativeStems.Where(stem => joined.Contains(stem, StringComparison.Ordinal)).ToList();
     }
 
     public static AdCreativeDto ToDto(AdCreativeEntity creative) => new(
         creative.CreativeId, creative.CampaignId, creative.Title, creative.Body, creative.ImageUrl, creative.Moderation,
-        creative.RejectedReason, creative.ModeratedAtUtc, creative.CreatedAtUtc);
+        creative.RejectedReason, creative.ModeratedAtUtc, creative.CreatedAtUtc,
+        creative.TitleRu, creative.BodyRu, WordingFlags(creative.Title, creative.Body, creative.TitleRu, creative.BodyRu),
+        creative.ArchivedAtUtc);
 
     public static AdCampaignDto ToDto(AdCampaignEntity campaign, string advertiserName, IEnumerable<AdCreativeEntity> creatives) => new(
         campaign.CampaignId, campaign.AdvertiserId, advertiserName, campaign.Name, campaign.Category,
         campaign.StartsAtUtc, campaign.EndsAtUtc, Cities(campaign), Organizations(campaign), campaign.State,
         creatives.OrderBy(creative => creative.CreatedAtUtc).Select(ToDto).ToList(),
-        campaign.CreatedAtUtc, campaign.UpdatedAtUtc);
+        campaign.CreatedAtUtc, campaign.UpdatedAtUtc,
+        new AdCampaignComplianceDto(campaign.PermitNumber, campaign.DistanceSelling, campaign.RequiresCertification, campaign.ContainsOffer));
 
     public static async Task<IReadOnlyList<AdCampaignDto>> ListAsync(PlatformDbContext db, CancellationToken ct)
     {
@@ -91,7 +136,7 @@ public static class PlatformAds
     /// или клуб. Порядок — по кругу со сдвигом по филиалу: соседние клубы видят разное.
     /// </summary>
     public static async Task<IReadOnlyList<ShowcaseCardDto>> CardsForBranchAsync(
-        PlatformDbContext db, Guid organizationId, Guid branchId, DateTimeOffset now, CancellationToken ct)
+        PlatformDbContext db, Guid organizationId, Guid branchId, DateTimeOffset now, string apiBaseUrl, CancellationToken ct)
     {
         var city = await db.Branches.AsNoTracking()
             .Where(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId)
@@ -107,19 +152,41 @@ public static class PlatformAds
         var ids = campaigns.Select(campaign => campaign.CampaignId).ToList();
         var advertisers = await db.AdAdvertisers.AsNoTracking()
             .Where(advertiser => campaigns.Select(campaign => campaign.AdvertiserId).Contains(advertiser.AdvertiserId))
-            .ToDictionaryAsync(advertiser => advertiser.AdvertiserId, advertiser => advertiser.Name, ct);
+            .ToDictionaryAsync(advertiser => advertiser.AdvertiserId, ct);
         var byCampaign = campaigns.ToDictionary(campaign => campaign.CampaignId);
-        var cards = (await db.AdCreatives.AsNoTracking()
-                .Where(creative => ids.Contains(creative.CampaignId) && creative.Moderation == AdModerationNames.Approved)
-                .OrderBy(creative => creative.CreativeId)
-                .ToListAsync(ct))
-            .Select(creative => new ShowcaseCardDto(
-                AdCardPrefix + creative.CreativeId.ToString("N"),
-                ShowcaseCardKindNames.Ad,
-                creative.Title,
-                creative.Body,
-                ImageUrl: creative.ImageUrl,
-                Advertiser: advertisers.GetValueOrDefault(byCampaign[creative.CampaignId].AdvertiserId, string.Empty)))
+        var creatives = await db.AdCreatives.AsNoTracking()
+            .Where(creative => ids.Contains(creative.CampaignId) && creative.Moderation == AdModerationNames.Approved && creative.ArchivedAtUtc == null)
+            .OrderBy(creative => creative.CreativeId)
+            .ToListAsync(ct);
+        var creativeIds = creatives.Select(creative => creative.CreativeId).ToList();
+        // ПК видит хранимую копию, а не адрес рекламодателя: картинку по ссылке можно подменить после
+        // модерации. Версия в адресе — отпечаток, чтобы кэш ПК не держал старую.
+        var images = await db.AdCreativeImages.AsNoTracking()
+            .Where(image => creativeIds.Contains(image.CreativeId))
+            .Select(image => new { image.CreativeId, image.Sha256 })
+            .ToDictionaryAsync(image => image.CreativeId, image => image.Sha256, ct);
+        var cards = creatives
+            .Select(creative =>
+            {
+                var campaign = byCampaign[creative.CampaignId];
+                advertisers.TryGetValue(campaign.AdvertiserId, out var advertiser);
+                return new ShowcaseCardDto(
+                    AdCardPrefix + creative.CreativeId.ToString("N"),
+                    ShowcaseCardKindNames.Ad,
+                    creative.Title,
+                    creative.Body,
+                    ImageUrl: images.TryGetValue(creative.CreativeId, out var sha)
+                        ? $"{apiBaseUrl.TrimEnd('/')}{AdRoutes.CreativeImage(creative.CreativeId)}?v={sha[..12]}"
+                        : null,
+                    Advertiser: advertiser?.Name ?? string.Empty,
+                    SecondaryTitle: creative.TitleRu,
+                    SecondaryBody: creative.BodyRu,
+                    Seller: campaign.DistanceSelling && advertiser is not null
+                        ? new ShowcaseSellerDto(advertiser.LegalName, advertiser.TaxId, advertiser.Address)
+                        : null,
+                    RequiresCertification: campaign.RequiresCertification,
+                    OfferUntilUtc: campaign.ContainsOffer ? campaign.EndsAtUtc : null);
+            })
             .ToList();
         if (cards.Count < 2) return cards;
         var shift = (int)((uint)branchId.GetHashCode() % (uint)cards.Count);

@@ -437,6 +437,8 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 });
 
 builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
+// Копия картинки рекламы при одобрении: короткий срок — модератор ждёт ответа.
+builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddScoped<IEskhataMerchantClientFactory, EskhataMerchantClientFactory>();
 
 builder.Services.AddRateLimiter(options =>

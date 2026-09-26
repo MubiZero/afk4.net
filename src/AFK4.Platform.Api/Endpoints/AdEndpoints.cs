@@ -74,9 +74,12 @@ internal static class AdEndpoints
 
         advertiser.Name = request.Name.Trim();
         advertiser.Contact = request.Contact?.Trim() ?? string.Empty;
+        advertiser.LegalName = request.LegalName!.Trim();
+        advertiser.TaxId = request.TaxId!.Trim();
+        advertiser.Address = request.Address!.Trim();
         await db.SaveChangesAsync(ct);
         await WritePlatformAuditAsync(audit, Guid.Empty, actor, AuditActionNames.UpsertAdvertiser, AdvertiserTarget,
-            advertiser.AdvertiserId.ToString("N"), AuditOutcome.Succeeded, new { advertiser.Name }, ct);
+            advertiser.AdvertiserId.ToString("N"), AuditOutcome.Succeeded, new { advertiser.Name, advertiser.LegalName, advertiser.TaxId }, ct);
         return Results.Ok(ToDto(advertiser));
     }
 
@@ -109,7 +112,8 @@ internal static class AdEndpoints
 
             // Запустить кампанию без одобренного креатива — значит запустить пустоту: показывать нечего.
             if (request.State == AdCampaignStateNames.Active
-                && !await db.AdCreatives.AnyAsync(creative => creative.CampaignId == campaignId && creative.Moderation == AdModerationNames.Approved, ct))
+                && !await db.AdCreatives.AnyAsync(creative => creative.CampaignId == campaignId
+                    && creative.Moderation == AdModerationNames.Approved && creative.ArchivedAtUtc == null, ct))
             {
                 return Results.Conflict(new { Error = "The campaign has no approved creative.", Code = AdErrorCodeNames.NotApproved });
             }
@@ -131,6 +135,8 @@ internal static class AdEndpoints
     {
         if (Deny(authorizationService) is { } denied) return denied;
         if (PlatformAds.Validate(request) is { } error) return Invalid(error);
+        if (PlatformAds.NeedsPermit(request))
+            return Results.BadRequest(new { Error = "Health and beauty ads need a Ministry of Health permit number.", Code = AdErrorCodeNames.PermitRequired });
         if (!await db.AdAdvertisers.AnyAsync(advertiser => advertiser.AdvertiserId == request.AdvertiserId, ct))
             return Invalid("Advertiser was not found.");
 
@@ -154,7 +160,7 @@ internal static class AdEndpoints
         await db.SaveChangesAsync(ct);
         await WritePlatformAuditAsync(audit, Guid.Empty, actor, AuditActionNames.UpsertAdCampaign, CampaignTarget,
             campaign.CampaignId.ToString("N"), AuditOutcome.Succeeded,
-            new { campaign.Name, campaign.Category, campaign.StartsAtUtc, campaign.EndsAtUtc }, ct);
+            new { campaign.Name, campaign.Category, campaign.StartsAtUtc, campaign.EndsAtUtc, request.Compliance }, ct);
         return Results.Ok(await CampaignDtoAsync(db, campaign, ct));
     }
 
@@ -172,14 +178,15 @@ internal static class AdEndpoints
 
         app.MapPost($"{AdRoutes.Campaigns}/{{campaignId:guid}}/creatives/{{creativeId:guid}}/moderation", async (
             Guid campaignId, Guid creativeId, ModerateAdCreativeRequest request, PlatformAdminAuthorizationService authorizationService,
-            IAuditRecordWriter audit, PlatformDbContext db, TimeProvider clock, CancellationToken ct) =>
+            IAuditRecordWriter audit, PlatformDbContext db, IHttpClientFactory httpClients, TimeProvider clock, CancellationToken ct) =>
         {
             if (Deny(authorizationService) is { } denied) return denied;
-            if (request.Approve && !request.ConfirmedAllowed)
+            // Одобрить — значит подтвердить каждую строку закона, которую код не проверит (спека, §8.2).
+            if (request.Approve && AdModerationCheckNames.All.Except(request.Confirmed ?? []).Any())
             {
                 return Results.BadRequest(new
                 {
-                    Error = "Confirm the creative advertises no club, alcohol, tobacco or betting.",
+                    Error = "Confirm every moderation check before approving.",
                     Code = AdErrorCodeNames.ConfirmationRequired
                 });
             }
@@ -191,6 +198,13 @@ internal static class AdEndpoints
                 candidate => candidate.CreativeId == creativeId && candidate.CampaignId == campaignId, ct);
             if (creative is null) return Results.NotFound();
 
+            // Одобряется то, что будет на экране: без хранимой копии картинки одобрять нечего.
+            if (request.Approve && creative.ImageUrl is not null
+                && !await AdCreativeImages.StoreAsync(db, httpClients.CreateClient(AdCreativeImages.HttpClientName), creative, clock.GetUtcNow(), ct))
+            {
+                return Results.Conflict(new { Error = "The image could not be downloaded for storage.", Code = AdErrorCodeNames.ImageUnavailable });
+            }
+
             var actor = Actor(authorizationService);
             creative.Moderation = request.Approve ? AdModerationNames.Approved : AdModerationNames.Rejected;
             creative.RejectedReason = request.Approve ? null : request.Reason!.Trim();
@@ -198,8 +212,34 @@ internal static class AdEndpoints
             creative.ModeratedByPlatformAdminUserId = actor;
             await db.SaveChangesAsync(ct);
             await WritePlatformAuditAsync(audit, Guid.Empty, actor, AuditActionNames.ModerateAdCreative, CreativeTarget,
-                creativeId.ToString("N"), AuditOutcome.Succeeded, new { request.Approve, request.Reason, request.ConfirmedAllowed }, ct);
+                creativeId.ToString("N"), AuditOutcome.Succeeded, new { request.Approve, request.Reason, request.Confirmed }, ct);
             return Results.Ok(PlatformAds.ToDto(creative));
+        });
+
+        // Снять с показа. Удалить нельзя: показанную рекламу закон велит хранить год (ст. 22).
+        app.MapPost($"{AdRoutes.Campaigns}/{{campaignId:guid}}/creatives/{{creativeId:guid}}/archive", async (
+            Guid campaignId, Guid creativeId, PlatformAdminAuthorizationService authorizationService, IAuditRecordWriter audit,
+            PlatformDbContext db, TimeProvider clock, CancellationToken ct) =>
+        {
+            if (Deny(authorizationService) is { } denied) return denied;
+            var creative = await db.AdCreatives.SingleOrDefaultAsync(
+                candidate => candidate.CreativeId == creativeId && candidate.CampaignId == campaignId, ct);
+            if (creative is null) return Results.NotFound();
+            creative.ArchivedAtUtc ??= clock.GetUtcNow();
+            await db.SaveChangesAsync(ct);
+            await WritePlatformAuditAsync(audit, Guid.Empty, Actor(authorizationService), AuditActionNames.ArchiveAdCreative, CreativeTarget,
+                creativeId.ToString("N"), AuditOutcome.Succeeded, new { creative.ArchivedAtUtc }, ct);
+            return Results.Ok(PlatformAds.ToDto(creative));
+        });
+
+        // Копия картинки одобренного креатива — её видит ПК. Реклама публична, адрес — со случайным id.
+        app.MapGet("/api/showcase/ad-images/{creativeId:guid}", async (Guid creativeId, HttpContext httpContext, PlatformDbContext db, CancellationToken ct) =>
+        {
+            var image = await db.AdCreativeImages.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.CreativeId == creativeId, ct);
+            if (image is null) return Results.NotFound();
+            // Адрес несёт отпечаток (?v=), поэтому содержимое под ним не меняется.
+            httpContext.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            return Results.File(image.Bytes, image.ContentType);
         });
     }
 
@@ -221,10 +261,15 @@ internal static class AdEndpoints
         {
             creative = await db.AdCreatives.SingleOrDefaultAsync(candidate => candidate.CreativeId == creativeId && candidate.CampaignId == campaignId, ct);
             if (creative is null) return Results.NotFound();
+            // Одобренный мог быть показан: его хранят как был (ст. 22). Правка — новый креатив.
+            if (creative.Moderation == AdModerationNames.Approved)
+                return Results.Conflict(new { Error = "An approved creative cannot be edited; add a new one.", Code = AdErrorCodeNames.CreativeLocked });
         }
 
         creative.Title = request.Title.Trim();
         creative.Body = string.IsNullOrWhiteSpace(request.Body) ? null : request.Body.Trim();
+        creative.TitleRu = string.IsNullOrWhiteSpace(request.TitleRu) ? null : request.TitleRu.Trim();
+        creative.BodyRu = string.IsNullOrWhiteSpace(request.BodyRu) ? null : request.BodyRu.Trim();
         creative.ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim();
         // Правка — новый креатив для модератора: одобряли не этот текст и не эту картинку.
         creative.Moderation = AdModerationNames.Pending;
@@ -298,7 +343,8 @@ internal static class AdEndpoints
     }
 
     private static AdvertiserDto ToDto(AdAdvertiserEntity advertiser) =>
-        new(advertiser.AdvertiserId, advertiser.Name, advertiser.Contact, advertiser.CreatedAtUtc);
+        new(advertiser.AdvertiserId, advertiser.Name, advertiser.Contact, advertiser.CreatedAtUtc,
+            advertiser.LegalName, advertiser.TaxId, advertiser.Address);
 
     private static IResult Invalid(string error) => Results.BadRequest(new { Error = error, Code = AdErrorCodeNames.Invalid });
 }

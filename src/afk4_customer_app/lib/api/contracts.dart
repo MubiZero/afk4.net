@@ -21,6 +21,12 @@ abstract final class AdCategoryNames {
   static const String services = 'services';
   static const String telecom = 'telecom';
   static const String other = 'other';
+  /// Лекарства без рецепта, медтехника, БАД, косметика, методы лечения — только с разрешением Минздрава (ст. 17).
+  static const String healthBeauty = 'health_beauty';
+  /// Банки, страхование, инвестиции — без обещаний доходности (ст. 18).
+  static const String finance = 'finance';
+  /// Социальная реклама — без брендов (ст. 19); считается отдельно.
+  static const String social = 'social';
 }
 
 /// Словарь: Ads/AdContracts.cs
@@ -28,6 +34,30 @@ abstract final class AdErrorCodeNames {
   static const String invalid = 'ad_invalid';
   static const String notApproved = 'ad_campaign_without_approved_creative';
   static const String confirmationRequired = 'ad_moderation_confirmation_required';
+  /// Для «Здоровья и красоты» нужен номер разрешения Минздрава.
+  static const String permitRequired = 'ad_permit_required';
+  /// Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив.
+  static const String creativeLocked = 'ad_creative_locked';
+  /// Картинку не удалось скачать для хранения — одобрить без копии нельзя.
+  static const String imageUnavailable = 'ad_image_unavailable';
+}
+
+/// Отметки модератора при одобрении — по статьям закона РТ «О рекламе» (спека рекламы, §8.2).
+///
+/// Словарь: Ads/AdContracts.cs
+abstract final class AdModerationCheckNames {
+  /// Не другой клуб, не ставки и не казино — правило платформы.
+  static const String notClubOrBetting = 'not_club_or_betting';
+  /// Нет запрещённого товара (ст. 17), рекламодатель не производит алкоголь и табак (ст. 20).
+  static const String noBannedGoods = 'no_banned_goods';
+  /// Защита несовершеннолетних (ст. 21).
+  static const String minors = 'minors';
+  /// Достоверно: превосходные степени — только с документом (ст. 7).
+  static const String truthful = 'truthful';
+  /// Этично и честно: без оскорблений, порочащих сравнений, скрытых вставок (ст. 6, 8, 9, 10).
+  static const String ethical = 'ethical';
+  /// Текст на картинке — на таджикском или есть и на таджикском (ст. 5).
+  static const String tajikOnImage = 'tajik_on_image';
 }
 
 /// Словарь: Ads/AdContracts.cs
@@ -1483,6 +1513,46 @@ class ActiveSessionDto {
       };
 }
 
+/// Что кампания обязана сказать на карточке по закону РТ «О рекламе» (спека рекламы, §8):
+/// номер разрешения Минздрава, продажа на расстоянии, обязательная сертификация, условия сделки.
+///
+/// Контракт: Ads/AdContracts.cs
+class AdCampaignComplianceDto {
+  const AdCampaignComplianceDto({
+    this.permitNumber,
+    this.distanceSelling,
+    this.requiresCertification,
+    this.containsOffer,
+  });
+
+
+  /// Разрешение или лицензия Минздрава — обязательно для «Здоровья и красоты» (ст. 17).
+  final String? permitNumber;
+
+  /// Продажа на расстоянии: карточка печатает наименование, ИНН и адрес продавца (ст. 14(1)).
+  final bool? distanceSelling;
+
+  /// Товар подлежит обязательной сертификации: карточка печатает пометку (ст. 5).
+  final bool? requiresCertification;
+
+  /// В рекламе цена или условия сделки: карточка печатает срок предложения — конец кампании (ст. 26).
+  final bool? containsOffer;
+
+  factory AdCampaignComplianceDto.fromJson(Map<String, dynamic> json) => AdCampaignComplianceDto(
+        permitNumber: json['permitNumber'] == null ? null : json['permitNumber'] as String,
+        distanceSelling: json['distanceSelling'] == null ? null : json['distanceSelling'] as bool,
+        requiresCertification: json['requiresCertification'] == null ? null : json['requiresCertification'] as bool,
+        containsOffer: json['containsOffer'] == null ? null : json['containsOffer'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'permitNumber': permitNumber,
+        'distanceSelling': distanceSelling,
+        'requiresCertification': requiresCertification,
+        'containsOffer': containsOffer,
+      };
+}
+
 /// Контракт: Ads/AdContracts.cs
 class AdCampaignDto {
   const AdCampaignDto({
@@ -1499,6 +1569,7 @@ class AdCampaignDto {
     required this.creatives,
     required this.createdAtUtc,
     required this.updatedAtUtc,
+    this.compliance,
   });
 
   final String campaignId;
@@ -1522,6 +1593,7 @@ class AdCampaignDto {
   final List<AdCreativeDto> creatives;
   final DateTime createdAtUtc;
   final DateTime updatedAtUtc;
+  final AdCampaignComplianceDto? compliance;
 
   factory AdCampaignDto.fromJson(Map<String, dynamic> json) => AdCampaignDto(
         campaignId: json['campaignId'] as String,
@@ -1537,6 +1609,7 @@ class AdCampaignDto {
         creatives: (json['creatives'] as List<dynamic>).map((item) => AdCreativeDto.fromJson(item as Map<String, dynamic>)).toList(),
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         updatedAtUtc: DateTime.parse(json['updatedAtUtc'] as String),
+        compliance: json['compliance'] == null ? null : AdCampaignComplianceDto.fromJson(json['compliance'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -1553,6 +1626,7 @@ class AdCampaignDto {
         'creatives': creatives.map((item) => item.toJson()).toList(),
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
+        'compliance': compliance?.toJson(),
       };
 }
 
@@ -1568,10 +1642,17 @@ class AdCreativeDto {
     this.rejectedReason,
     this.moderatedAtUtc,
     required this.createdAtUtc,
+    this.titleRu,
+    this.bodyRu,
+    this.wordingFlags,
+    this.archivedAtUtc,
   });
 
   final String creativeId;
   final String campaignId;
+
+  /// Заголовок и текст на государственном языке — таджикском (ст. 5 закона о рекламе, закон о
+  /// госязыке): обязательны и идут на карточке первыми.
   final String title;
   final String? body;
   final String? imageUrl;
@@ -1581,6 +1662,17 @@ class AdCreativeDto {
   final String? rejectedReason;
   final DateTime? moderatedAtUtc;
   final DateTime createdAtUtc;
+
+  /// Русский — второй строкой по желанию рекламодателя.
+  final String? titleRu;
+  final String? bodyRu;
+
+  /// Слова, которые закон разрешает только с документом («лучший», «№ 1», ст. 7): модератору —
+  /// подсказка, а не запрет.
+  final List<String>? wordingFlags;
+
+  /// Снят с показа. Показанный креатив не правится и не удаляется — его хранят год (ст. 22).
+  final DateTime? archivedAtUtc;
 
   factory AdCreativeDto.fromJson(Map<String, dynamic> json) => AdCreativeDto(
         creativeId: json['creativeId'] as String,
@@ -1592,6 +1684,10 @@ class AdCreativeDto {
         rejectedReason: json['rejectedReason'] == null ? null : json['rejectedReason'] as String,
         moderatedAtUtc: json['moderatedAtUtc'] == null ? null : DateTime.parse(json['moderatedAtUtc'] as String),
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        titleRu: json['titleRu'] == null ? null : json['titleRu'] as String,
+        bodyRu: json['bodyRu'] == null ? null : json['bodyRu'] as String,
+        wordingFlags: json['wordingFlags'] == null ? null : (json['wordingFlags'] as List<dynamic>).map((item) => item as String).toList(),
+        archivedAtUtc: json['archivedAtUtc'] == null ? null : DateTime.parse(json['archivedAtUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -1604,6 +1700,10 @@ class AdCreativeDto {
         'rejectedReason': rejectedReason,
         'moderatedAtUtc': moderatedAtUtc?.toIso8601String(),
         'createdAtUtc': createdAtUtc.toIso8601String(),
+        'titleRu': titleRu,
+        'bodyRu': bodyRu,
+        'wordingFlags': wordingFlags?.map((item) => item).toList(),
+        'archivedAtUtc': archivedAtUtc?.toIso8601String(),
       };
 }
 
@@ -1705,18 +1805,32 @@ class AdvertiserDto {
     required this.name,
     required this.contact,
     required this.createdAtUtc,
+    this.legalName,
+    this.taxId,
+    this.address,
   });
 
   final String advertiserId;
+
+  /// Имя на карточке: «Реклама · {Name}».
   final String name;
   final String contact;
   final DateTime createdAtUtc;
+
+  /// Реквизиты для договора и рекламы с продажей на расстоянии (закон РТ «О рекламе», ст. 14(1)):
+  /// наименование, ИНН (единый идентификационный номер) и место нахождения.
+  final String? legalName;
+  final String? taxId;
+  final String? address;
 
   factory AdvertiserDto.fromJson(Map<String, dynamic> json) => AdvertiserDto(
         advertiserId: json['advertiserId'] as String,
         name: json['name'] as String,
         contact: json['contact'] as String,
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        legalName: json['legalName'] == null ? null : json['legalName'] as String,
+        taxId: json['taxId'] == null ? null : json['taxId'] as String,
+        address: json['address'] == null ? null : json['address'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -1724,6 +1838,9 @@ class AdvertiserDto {
         'name': name,
         'contact': contact,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+        'legalName': legalName,
+        'taxId': taxId,
+        'address': address,
       };
 }
 
@@ -8693,7 +8810,7 @@ class ModerateAdCreativeRequest {
   const ModerateAdCreativeRequest({
     required this.approve,
     this.reason,
-    required this.confirmedAllowed,
+    this.confirmed,
   });
 
   final bool approve;
@@ -8701,20 +8818,20 @@ class ModerateAdCreativeRequest {
   /// Причина отказа — рекламодателю через менеджера платформы. Обязательна при отказе.
   final String? reason;
 
-  /// Модератор подтверждает то, чего код не проверит: это не другой клуб, не алкоголь, не табак и
-  /// не ставки. Без отметки одобрить нельзя.
-  final bool confirmedAllowed;
+  /// Модератор подтверждает то, чего код не проверит, — каждую строку AdModerationCheckNames.
+  /// Без всех отметок одобрить нельзя.
+  final List<String>? confirmed;
 
   factory ModerateAdCreativeRequest.fromJson(Map<String, dynamic> json) => ModerateAdCreativeRequest(
         approve: json['approve'] as bool,
         reason: json['reason'] == null ? null : json['reason'] as String,
-        confirmedAllowed: json['confirmedAllowed'] as bool,
+        confirmed: json['confirmed'] == null ? null : (json['confirmed'] as List<dynamic>).map((item) => item as String).toList(),
       );
 
   Map<String, dynamic> toJson() => {
         'approve': approve,
         'reason': reason,
-        'confirmedAllowed': confirmedAllowed,
+        'confirmed': confirmed?.map((item) => item).toList(),
       };
 }
 
@@ -18238,6 +18355,11 @@ class ShowcaseCardDto {
     this.startsAtUtc,
     this.packages,
     this.advertiser,
+    this.secondaryTitle,
+    this.secondaryBody,
+    this.seller,
+    this.requiresCertification,
+    this.offerUntilUtc,
   });
 
 
@@ -18274,6 +18396,20 @@ class ShowcaseCardDto {
   /// Рекламодатель — только у рекламы: экран пишет «Реклама · {рекламодатель}».
   final String? advertiser;
 
+  /// Реклама: русский вариант — второй строкой под таджикским.
+  final String? secondaryTitle;
+  final String? secondaryBody;
+
+  /// Реклама с продажей на расстоянии: наименование, ИНН и адрес продавца (закон о рекламе,
+  /// ст. 14(1)). Подписи к ним экран пишет на своём языке.
+  final ShowcaseSellerDto? seller;
+
+  /// Реклама: пометка «подлежит обязательной сертификации» (ст. 5).
+  final bool? requiresCertification;
+
+  /// Реклама с ценой или условиями: до какого дня действует предложение (ст. 26).
+  final DateTime? offerUntilUtc;
+
   factory ShowcaseCardDto.fromJson(Map<String, dynamic> json) => ShowcaseCardDto(
         cardId: json['cardId'] as String,
         kind: json['kind'] as String,
@@ -18286,6 +18422,11 @@ class ShowcaseCardDto {
         startsAtUtc: json['startsAtUtc'] == null ? null : DateTime.parse(json['startsAtUtc'] as String),
         packages: json['packages'] == null ? null : (json['packages'] as List<dynamic>).map((item) => ShowcasePackageLineDto.fromJson(item as Map<String, dynamic>)).toList(),
         advertiser: json['advertiser'] == null ? null : json['advertiser'] as String,
+        secondaryTitle: json['secondaryTitle'] == null ? null : json['secondaryTitle'] as String,
+        secondaryBody: json['secondaryBody'] == null ? null : json['secondaryBody'] as String,
+        seller: json['seller'] == null ? null : ShowcaseSellerDto.fromJson(json['seller'] as Map<String, dynamic>),
+        requiresCertification: json['requiresCertification'] == null ? null : json['requiresCertification'] as bool,
+        offerUntilUtc: json['offerUntilUtc'] == null ? null : DateTime.parse(json['offerUntilUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -18300,6 +18441,11 @@ class ShowcaseCardDto {
         'startsAtUtc': startsAtUtc?.toIso8601String(),
         'packages': packages?.map((item) => item.toJson()).toList(),
         'advertiser': advertiser,
+        'secondaryTitle': secondaryTitle,
+        'secondaryBody': secondaryBody,
+        'seller': seller?.toJson(),
+        'requiresCertification': requiresCertification,
+        'offerUntilUtc': offerUntilUtc?.toIso8601String(),
       };
 }
 
@@ -18356,6 +18502,31 @@ class ShowcasePackageLineDto {
         'name': name,
         'price': price.toJson(),
         'minutes': minutes,
+      };
+}
+
+/// Контракт: Showcase/ShowcaseContracts.cs
+class ShowcaseSellerDto {
+  const ShowcaseSellerDto({
+    required this.legalName,
+    required this.taxId,
+    required this.address,
+  });
+
+  final String legalName;
+  final String taxId;
+  final String address;
+
+  factory ShowcaseSellerDto.fromJson(Map<String, dynamic> json) => ShowcaseSellerDto(
+        legalName: json['legalName'] as String,
+        taxId: json['taxId'] as String,
+        address: json['address'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'legalName': legalName,
+        'taxId': taxId,
+        'address': address,
       };
 }
 
@@ -21436,6 +21607,7 @@ class UpsertAdCampaignRequest {
     required this.endsAtUtc,
     this.cities,
     this.organizationIds,
+    this.compliance,
   });
 
   final String advertiserId;
@@ -21445,6 +21617,7 @@ class UpsertAdCampaignRequest {
   final DateTime endsAtUtc;
   final List<String>? cities;
   final List<String>? organizationIds;
+  final AdCampaignComplianceDto? compliance;
 
   factory UpsertAdCampaignRequest.fromJson(Map<String, dynamic> json) => UpsertAdCampaignRequest(
         advertiserId: json['advertiserId'] as String,
@@ -21454,6 +21627,7 @@ class UpsertAdCampaignRequest {
         endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
         cities: json['cities'] == null ? null : (json['cities'] as List<dynamic>).map((item) => item as String).toList(),
         organizationIds: json['organizationIds'] == null ? null : (json['organizationIds'] as List<dynamic>).map((item) => item as String).toList(),
+        compliance: json['compliance'] == null ? null : AdCampaignComplianceDto.fromJson(json['compliance'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -21464,6 +21638,7 @@ class UpsertAdCampaignRequest {
         'endsAtUtc': endsAtUtc.toIso8601String(),
         'cities': cities?.map((item) => item).toList(),
         'organizationIds': organizationIds?.map((item) => item).toList(),
+        'compliance': compliance?.toJson(),
       };
 }
 
@@ -21473,22 +21648,30 @@ class UpsertAdCreativeRequest {
     required this.title,
     this.body,
     this.imageUrl,
+    this.titleRu,
+    this.bodyRu,
   });
 
   final String title;
   final String? body;
   final String? imageUrl;
+  final String? titleRu;
+  final String? bodyRu;
 
   factory UpsertAdCreativeRequest.fromJson(Map<String, dynamic> json) => UpsertAdCreativeRequest(
         title: json['title'] as String,
         body: json['body'] == null ? null : json['body'] as String,
         imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
+        titleRu: json['titleRu'] == null ? null : json['titleRu'] as String,
+        bodyRu: json['bodyRu'] == null ? null : json['bodyRu'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'title': title,
         'body': body,
         'imageUrl': imageUrl,
+        'titleRu': titleRu,
+        'bodyRu': bodyRu,
       };
 }
 
@@ -21497,19 +21680,31 @@ class UpsertAdvertiserRequest {
   const UpsertAdvertiserRequest({
     required this.name,
     this.contact,
+    this.legalName,
+    this.taxId,
+    this.address,
   });
 
   final String name;
   final String? contact;
+  final String? legalName;
+  final String? taxId;
+  final String? address;
 
   factory UpsertAdvertiserRequest.fromJson(Map<String, dynamic> json) => UpsertAdvertiserRequest(
         name: json['name'] as String,
         contact: json['contact'] == null ? null : json['contact'] as String,
+        legalName: json['legalName'] == null ? null : json['legalName'] as String,
+        taxId: json['taxId'] == null ? null : json['taxId'] as String,
+        address: json['address'] == null ? null : json['address'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'contact': contact,
+        'legalName': legalName,
+        'taxId': taxId,
+        'address': address,
       };
 }
 

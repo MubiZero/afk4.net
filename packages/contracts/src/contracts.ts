@@ -34,6 +34,12 @@ export const AdCategoryNames = {
   Services: 'services',
   Telecom: 'telecom',
   Other: 'other',
+  /** Лекарства без рецепта, медтехника, БАД, косметика, методы лечения — только с разрешением Минздрава (ст. 17). */
+  HealthBeauty: 'health_beauty',
+  /** Банки, страхование, инвестиции — без обещаний доходности (ст. 18). */
+  Finance: 'finance',
+  /** Социальная реклама — без брендов (ст. 19); считается отдельно. */
+  Social: 'social',
 } as const;
 export type AdCategoryName = (typeof AdCategoryNames)[keyof typeof AdCategoryNames];
 
@@ -42,8 +48,35 @@ export const AdErrorCodeNames = {
   Invalid: 'ad_invalid',
   NotApproved: 'ad_campaign_without_approved_creative',
   ConfirmationRequired: 'ad_moderation_confirmation_required',
+  /** Для «Здоровья и красоты» нужен номер разрешения Минздрава. */
+  PermitRequired: 'ad_permit_required',
+  /** Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив. */
+  CreativeLocked: 'ad_creative_locked',
+  /** Картинку не удалось скачать для хранения — одобрить без копии нельзя. */
+  ImageUnavailable: 'ad_image_unavailable',
 } as const;
 export type AdErrorCodeName = (typeof AdErrorCodeNames)[keyof typeof AdErrorCodeNames];
+
+/**
+ * Отметки модератора при одобрении — по статьям закона РТ «О рекламе» (спека рекламы, §8.2).
+ *
+ * Словарь: Ads/AdContracts.cs
+ */
+export const AdModerationCheckNames = {
+  /** Не другой клуб, не ставки и не казино — правило платформы. */
+  NotClubOrBetting: 'not_club_or_betting',
+  /** Нет запрещённого товара (ст. 17), рекламодатель не производит алкоголь и табак (ст. 20). */
+  NoBannedGoods: 'no_banned_goods',
+  /** Защита несовершеннолетних (ст. 21). */
+  Minors: 'minors',
+  /** Достоверно: превосходные степени — только с документом (ст. 7). */
+  Truthful: 'truthful',
+  /** Этично и честно: без оскорблений, порочащих сравнений, скрытых вставок (ст. 6, 8, 9, 10). */
+  Ethical: 'ethical',
+  /** Текст на картинке — на таджикском или есть и на таджикском (ст. 5). */
+  TajikOnImage: 'tajik_on_image',
+} as const;
+export type AdModerationCheckName = (typeof AdModerationCheckNames)[keyof typeof AdModerationCheckNames];
 
 /** Словарь: Ads/AdContracts.cs */
 export const AdModerationNames = {
@@ -1622,6 +1655,23 @@ export interface ActiveSessionDto {
   zoneName?: string | null;
 }
 
+/**
+ * Что кампания обязана сказать на карточке по закону РТ «О рекламе» (спека рекламы, §8):
+ * номер разрешения Минздрава, продажа на расстоянии, обязательная сертификация, условия сделки.
+ *
+ * Контракт: Ads/AdContracts.cs
+ */
+export interface AdCampaignComplianceDto {
+  /** Разрешение или лицензия Минздрава — обязательно для «Здоровья и красоты» (ст. 17). */
+  permitNumber?: string | null;
+  /** Продажа на расстоянии: карточка печатает наименование, ИНН и адрес продавца (ст. 14(1)). */
+  distanceSelling?: boolean;
+  /** Товар подлежит обязательной сертификации: карточка печатает пометку (ст. 5). */
+  requiresCertification?: boolean;
+  /** В рекламе цена или условия сделки: карточка печатает срок предложения — конец кампании (ст. 26). */
+  containsOffer?: boolean;
+}
+
 /** Контракт: Ads/AdContracts.cs */
 export interface AdCampaignDto {
   campaignId: Guid;
@@ -1641,12 +1691,17 @@ export interface AdCampaignDto {
   creatives: AdCreativeDto[];
   createdAtUtc: IsoDateTime;
   updatedAtUtc: IsoDateTime;
+  compliance?: AdCampaignComplianceDto | null;
 }
 
 /** Контракт: Ads/AdContracts.cs */
 export interface AdCreativeDto {
   creativeId: Guid;
   campaignId: Guid;
+  /**
+   * Заголовок и текст на государственном языке — таджикском (ст. 5 закона о рекламе, закон о
+   * госязыке): обязательны и идут на карточке первыми.
+   */
   title: string;
   body: string | null;
   imageUrl: string | null;
@@ -1655,6 +1710,16 @@ export interface AdCreativeDto {
   rejectedReason: string | null;
   moderatedAtUtc: IsoDateTime | null;
   createdAtUtc: IsoDateTime;
+  /** Русский — второй строкой по желанию рекламодателя. */
+  titleRu?: string | null;
+  bodyRu?: string | null;
+  /**
+   * Слова, которые закон разрешает только с документом («лучший», «№ 1», ст. 7): модератору —
+   * подсказка, а не запрет.
+   */
+  wordingFlags?: string[] | null;
+  /** Снят с показа. Показанный креатив не правится и не удаляется — его хранят год (ст. 22). */
+  archivedAtUtc?: IsoDateTime | null;
 }
 
 /** Контракт: Inventory/AddProductBarcodeRequest.cs */
@@ -1692,9 +1757,17 @@ export interface AdImpressionRowDto {
  */
 export interface AdvertiserDto {
   advertiserId: Guid;
+  /** Имя на карточке: «Реклама · {Name}». */
   name: string;
   contact: string;
   createdAtUtc: IsoDateTime;
+  /**
+   * Реквизиты для договора и рекламы с продажей на расстоянии (закон РТ «О рекламе», ст. 14(1)):
+   * наименование, ИНН (единый идентификационный номер) и место нахождения.
+   */
+  legalName?: string;
+  taxId?: string;
+  address?: string;
 }
 
 /**
@@ -4002,10 +4075,10 @@ export interface ModerateAdCreativeRequest {
   /** Причина отказа — рекламодателю через менеджера платформы. Обязательна при отказе. */
   reason: string | null;
   /**
-   * Модератор подтверждает то, чего код не проверит: это не другой клуб, не алкоголь, не табак и
-   * не ставки. Без отметки одобрить нельзя.
+   * Модератор подтверждает то, чего код не проверит, — каждую строку AdModerationCheckNames.
+   * Без всех отметок одобрить нельзя.
    */
-  confirmedAllowed: boolean;
+  confirmed?: string[] | null;
 }
 
 /**
@@ -7314,6 +7387,18 @@ export interface ShowcaseCardDto {
   packages?: ShowcasePackageLineDto[] | null;
   /** Рекламодатель — только у рекламы: экран пишет «Реклама · {рекламодатель}». */
   advertiser?: string | null;
+  /** Реклама: русский вариант — второй строкой под таджикским. */
+  secondaryTitle?: string | null;
+  secondaryBody?: string | null;
+  /**
+   * Реклама с продажей на расстоянии: наименование, ИНН и адрес продавца (закон о рекламе,
+   * ст. 14(1)). Подписи к ним экран пишет на своём языке.
+   */
+  seller?: ShowcaseSellerDto | null;
+  /** Реклама: пометка «подлежит обязательной сертификации» (ст. 5). */
+  requiresCertification?: boolean;
+  /** Реклама с ценой или условиями: до какого дня действует предложение (ст. 26). */
+  offerUntilUtc?: IsoDateTime | null;
 }
 
 /** Контракт: Ads/AdContracts.cs */
@@ -7330,6 +7415,13 @@ export interface ShowcasePackageLineDto {
   name: string;
   price: MoneyDto;
   minutes: number;
+}
+
+/** Контракт: Showcase/ShowcaseContracts.cs */
+export interface ShowcaseSellerDto {
+  legalName: string;
+  taxId: string;
+  address: string;
 }
 
 /**
@@ -8298,6 +8390,7 @@ export interface UpsertAdCampaignRequest {
   endsAtUtc: IsoDateTime;
   cities: string[] | null;
   organizationIds: Guid[] | null;
+  compliance?: AdCampaignComplianceDto | null;
 }
 
 /** Контракт: Ads/AdContracts.cs */
@@ -8305,12 +8398,17 @@ export interface UpsertAdCreativeRequest {
   title: string;
   body: string | null;
   imageUrl: string | null;
+  titleRu?: string | null;
+  bodyRu?: string | null;
 }
 
 /** Контракт: Ads/AdContracts.cs */
 export interface UpsertAdvertiserRequest {
   name: string;
   contact: string | null;
+  legalName?: string | null;
+  taxId?: string | null;
+  address?: string | null;
 }
 
 /** Контракт: Games/GameLibraryContracts.cs */

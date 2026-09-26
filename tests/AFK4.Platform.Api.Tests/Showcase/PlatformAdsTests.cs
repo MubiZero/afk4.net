@@ -32,34 +32,67 @@ public sealed class PlatformAdsTests
         Assert.Equal(["news:1"], PlatformAds.Interleave([Club(1)], []).Select(card => card.CardId));
     }
 
+    // Картинка, которую сервер скачивает при одобрении: подставной ответ вместо интернета.
+    private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
+
+    private static Action<IServiceCollection> Images(HttpStatusCode status = HttpStatusCode.OK) => services =>
+        services.AddHttpClient(AdCreativeImages.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => new ImageHandler(status));
+
+    private sealed class ImageHandler(HttpStatusCode status) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(status) { Content = new ByteArrayContent(Png) };
+            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+            return Task.FromResult(response);
+        }
+    }
+
+    private static UpsertAdvertiserRequest Advertiser() =>
+        new("Сомон Телеком", "+992 00 000 00 00", "ООО «Сомон Телеком»", "123456789", "Душанбе, пр. Рудаки 1");
+
     [Fact]
     public async Task AnApprovedCampaign_ReachesAFreePlanClub_AndItsImpressionsAreCountedOnce()
     {
-        await using var fixture = DevicePlayerFixture.Create();
+        await using var fixture = DevicePlayerFixture.Create(Images());
         await fixture.SeedAsync();
         using var platform = fixture.Factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(fixture.Factory, platform, roles: [PlatformAdminRoleNames.PlatformAdmin], clock: fixture.Clock);
         await PrepareClubAsync(fixture, city: "Душанбе", ads: true);
 
-        var advertiser = await ReadAsync<AdvertiserDto>(await platform.PostAsJsonAsync(AdRoutes.Advertisers, new UpsertAdvertiserRequest("Сомон Телеком", "+992 00 000 00 00")));
+        var advertiser = await ReadAsync<AdvertiserDto>(await platform.PostAsJsonAsync(AdRoutes.Advertisers, Advertiser()));
+        var endsAt = DevicePlayerFixture.Start.AddDays(30);
         var campaign = await ReadAsync<AdCampaignDto>(await platform.PostAsJsonAsync(AdRoutes.Campaigns, new UpsertAdCampaignRequest(
-            advertiser.AdvertiserId, "Осень", AdCategoryNames.Telecom, DevicePlayerFixture.Start.AddDays(-1), DevicePlayerFixture.Start.AddDays(30),
-            ["душанбе"], null)));
+            advertiser.AdvertiserId, "Осень", AdCategoryNames.Telecom, DevicePlayerFixture.Start.AddDays(-1), endsAt,
+            ["душанбе"], null, new AdCampaignComplianceDto(DistanceSelling: true, RequiresCertification: true, ContainsOffer: true))));
         var creative = await ReadAsync<AdCreativeDto>(await platform.PostAsJsonAsync($"{AdRoutes.Campaigns}/{campaign.CampaignId:D}/creatives",
-            new UpsertAdCreativeRequest("Безлимит на месяц", "Для геймеров", "https://media.example/ad.webp")));
+            new UpsertAdCreativeRequest("Бемаҳдуд барои як моҳ", "Барои бозигарон", "https://media.example/ad.png", "Безлимит на месяц", "Для геймеров")));
         var state = $"{AdRoutes.Campaigns}/{campaign.CampaignId:D}/state";
         var moderation = $"{AdRoutes.Campaigns}/{campaign.CampaignId:D}/creatives/{creative.CreativeId:D}/moderation";
 
-        // Без одобренного креатива кампанию не запустить; одобрить без подтверждения модератора нельзя.
+        // Без одобренного креатива кампанию не запустить; одобрить можно, только отметив каждую строку закона.
         Assert.Equal(HttpStatusCode.Conflict, (await platform.PostAsJsonAsync(state, new SetAdCampaignStateRequest(AdCampaignStateNames.Active))).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await platform.PostAsJsonAsync(moderation, new ModerateAdCreativeRequest(true, null, ConfirmedAllowed: false))).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(moderation, new ModerateAdCreativeRequest(true, null, ConfirmedAllowed: true))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await platform.PostAsJsonAsync(moderation,
+            new ModerateAdCreativeRequest(true, null, [AdModerationCheckNames.NotClubOrBetting, AdModerationCheckNames.NoBannedGoods]))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(moderation,
+            new ModerateAdCreativeRequest(true, null, AdModerationCheckNames.All))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(state, new SetAdCampaignStateRequest(AdCampaignStateNames.Active))).StatusCode);
 
         var showcase = (await ShowcaseAsync(fixture))!;
         var ad = Assert.Single(showcase.Cards, card => card.Kind == ShowcaseCardKindNames.Ad);
         Assert.Equal("Сомон Телеком", ad.Advertiser);
-        Assert.Equal("Безлимит на месяц", ad.Title);
+        // Таджикский — первым, русский — второй строкой; что велит закон — на самой карточке.
+        Assert.Equal("Бемаҳдуд барои як моҳ", ad.Title);
+        Assert.Equal("Безлимит на месяц", ad.SecondaryTitle);
+        Assert.Equal(new ShowcaseSellerDto("ООО «Сомон Телеком»", "123456789", "Душанбе, пр. Рудаки 1"), ad.Seller);
+        Assert.True(ad.RequiresCertification);
+        Assert.Equal(endsAt, ad.OfferUntilUtc);
+
+        // ПК видит копию, которую хранит сервер, а не адрес рекламодателя.
+        Assert.StartsWith("http://localhost:5074" + AdRoutes.CreativeImage(creative.CreativeId), ad.ImageUrl);
+        var image = await fixture.Client.GetAsync(AdRoutes.CreativeImage(creative.CreativeId));
+        Assert.Equal(HttpStatusCode.OK, image.StatusCode);
+        Assert.Equal(Png, await image.Content.ReadAsByteArrayAsync());
 
         var batch = new DeviceShowcaseImpressionsRequest(fixture.Device.OrganizationId, fixture.Device.BranchId, fixture.Device.DeviceId, "batch-1",
         [
@@ -89,19 +122,61 @@ public sealed class PlatformAdsTests
         Assert.DoesNotContain(showcase.Cards, card => card.Kind == ShowcaseCardKindNames.Ad);
     }
 
+    // Показанную рекламу закон велит хранить год (ст. 22): одобренный креатив не правится, а снимается.
     [Fact]
-    public async Task EditingAnApprovedCreative_SendsItBackToModeration()
+    public async Task AnApprovedCreative_IsLocked_AndArchivingTakesItOffTheScreen()
     {
         await using var fixture = DevicePlayerFixture.Create();
         await fixture.SeedAsync();
+        await PrepareClubAsync(fixture, city: "Душанбе", ads: true);
         using var platform = fixture.Factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(fixture.Factory, platform, roles: [PlatformAdminRoleNames.PlatformAdmin], clock: fixture.Clock);
         var (campaignId, creativeId) = await SeedActiveCampaignAsync(fixture, cities: []);
+        var creativePath = $"{AdRoutes.Campaigns}/{campaignId:D}/creatives/{creativeId:D}";
 
-        var edited = await ReadAsync<AdCreativeDto>(await platform.PutAsJsonAsync($"{AdRoutes.Campaigns}/{campaignId:D}/creatives/{creativeId:D}",
-            new UpsertAdCreativeRequest("Новый текст", null, null)));
+        var edit = await platform.PutAsJsonAsync(creativePath, new UpsertAdCreativeRequest("Матни нав", null, null));
+        Assert.Equal(HttpStatusCode.Conflict, edit.StatusCode);
+        Assert.Contains(AdErrorCodeNames.CreativeLocked, await edit.Content.ReadAsStringAsync());
 
-        Assert.Equal(AdModerationNames.Pending, edited.Moderation);
+        var archived = await ReadAsync<AdCreativeDto>(await platform.PostAsync($"{creativePath}/archive", null));
+        Assert.NotNull(archived.ArchivedAtUtc);
+        Assert.DoesNotContain((await ShowcaseAsync(fixture))!.Cards, card => card.Kind == ShowcaseCardKindNames.Ad);
+    }
+
+    [Fact]
+    public async Task AnImageThatCannotBeDownloaded_BlocksApproval()
+    {
+        await using var fixture = DevicePlayerFixture.Create(Images(HttpStatusCode.NotFound));
+        await fixture.SeedAsync();
+        using var platform = fixture.Factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(fixture.Factory, platform, roles: [PlatformAdminRoleNames.PlatformAdmin], clock: fixture.Clock);
+        var advertiser = await ReadAsync<AdvertiserDto>(await platform.PostAsJsonAsync(AdRoutes.Advertisers, Advertiser()));
+        var campaign = await ReadAsync<AdCampaignDto>(await platform.PostAsJsonAsync(AdRoutes.Campaigns, new UpsertAdCampaignRequest(
+            advertiser.AdvertiserId, "Осень", AdCategoryNames.Telecom, DevicePlayerFixture.Start, DevicePlayerFixture.Start.AddDays(3), null, null)));
+        var creative = await ReadAsync<AdCreativeDto>(await platform.PostAsJsonAsync($"{AdRoutes.Campaigns}/{campaign.CampaignId:D}/creatives",
+            new UpsertAdCreativeRequest("Бемаҳдуд", null, "https://media.example/gone.png")));
+
+        var approve = await platform.PostAsJsonAsync($"{AdRoutes.Campaigns}/{campaign.CampaignId:D}/creatives/{creative.CreativeId:D}/moderation",
+            new ModerateAdCreativeRequest(true, null, AdModerationCheckNames.All));
+
+        Assert.Equal(HttpStatusCode.Conflict, approve.StatusCode);
+        Assert.Contains(AdErrorCodeNames.ImageUnavailable, await approve.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public void TheLaw_AsCodeChecksIt()
+    {
+        // Реквизиты рекламодателя обязательны, ИНН — цифры.
+        Assert.NotNull(PlatformAds.Validate(new UpsertAdvertiserRequest("Сомон", null)));
+        Assert.NotNull(PlatformAds.Validate(Advertiser() with { TaxId = "12-34" }));
+        Assert.Null(PlatformAds.Validate(Advertiser()));
+        // «Здоровье и красота» — только с разрешением Минздрава.
+        var cosmetics = new UpsertAdCampaignRequest(Guid.NewGuid(), "Крем", AdCategoryNames.HealthBeauty, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), null, null);
+        Assert.True(PlatformAds.NeedsPermit(cosmetics));
+        Assert.False(PlatformAds.NeedsPermit(cosmetics with { Compliance = new AdCampaignComplianceDto(PermitNumber: "МЗ-0042") }));
+        // Без таджикского заголовка креатива нет; превосходные степени модератор видит подсвеченными.
+        Assert.NotNull(PlatformAds.Validate(new UpsertAdCreativeRequest(" ", null, null, "Лучший интернет")));
+        Assert.Equal(["лучш", "беҳтарин"], PlatformAds.WordingFlags("Беҳтарин интернет", null, "Лучший интернет"));
     }
 
     [Fact]

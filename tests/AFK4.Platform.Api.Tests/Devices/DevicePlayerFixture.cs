@@ -51,13 +51,14 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
     /// конструкторе, а значение, поставленное внутри async-помощника, наверх не возвращается —
     /// тест ходил бы в чужую пустую базу.
     /// </summary>
-    public static DevicePlayerFixture Create()
+    public static DevicePlayerFixture Create(Action<IServiceCollection>? extraServices = null)
     {
         var clock = new MovableTimeProvider(Start);
         var factory = new PlatformApiFactory(extraServices: services =>
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(clock);
+            extraServices?.Invoke(services);
         });
         return new DevicePlayerFixture(factory, factory.CreateClient(), clock);
     }

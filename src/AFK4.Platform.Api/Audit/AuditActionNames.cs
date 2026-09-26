@@ -339,6 +339,9 @@ public static class AuditActionNames
     /// <summary>Креатив одобрен или отклонён — с подтверждением, что это не клуб, алкоголь, табак или ставки.</summary>
     public const string ModerateAdCreative = "platform.ads.creatives.moderate";
 
+    /// <summary>Креатив снят с показа — хранится, но на ПК не идёт.</summary>
+    public const string ArchiveAdCreative = "platform.ads.creative.archive";
+
     public const string AddBranchGame = "games.library.add";
 
     public const string UpdateBranchGame = "games.library.update";

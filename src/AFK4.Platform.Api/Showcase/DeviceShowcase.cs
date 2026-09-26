@@ -26,7 +26,8 @@ public sealed class DeviceShowcase(
     IOperatorReferenceDataService referenceData,
     IOrganizationFeatureSnapshot features,
     IMemoryCache cache,
-    TimeProvider clock)
+    TimeProvider clock,
+    Microsoft.Extensions.Options.IOptions<AFK4.Platform.Api.Install.InstallOptions> install)
 {
     // Опрос агента раз в 10 минут с каждого ПК; расчёт — один на филиал в минуту.
     private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(1);
@@ -146,7 +147,7 @@ public sealed class DeviceShowcase(
             return new DeviceShowcaseDto(club);
         }
 
-        var ads = await PlatformAds.CardsForBranchAsync(db, organizationId, branchId, now, ct);
+        var ads = await PlatformAds.CardsForBranchAsync(db, organizationId, branchId, now, install.Value.ApiBaseUrl, ct);
         return new DeviceShowcaseDto(PlatformAds.Interleave(club, ads));
     }
 

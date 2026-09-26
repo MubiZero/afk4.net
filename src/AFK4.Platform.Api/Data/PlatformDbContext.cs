@@ -226,6 +226,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<AdCreativeEntity> AdCreatives => Set<AdCreativeEntity>();
 
+    public DbSet<AdCreativeImageEntity> AdCreativeImages => Set<AdCreativeImageEntity>();
+
     public DbSet<AdImpressionDailyEntity> AdImpressionsDaily => Set<AdImpressionDailyEntity>();
 
     public DbSet<AdImpressionBatchEntity> AdImpressionBatches => Set<AdImpressionBatchEntity>();
@@ -1633,6 +1635,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(advertiser => advertiser.AdvertiserId);
             entity.Property(advertiser => advertiser.Name).HasMaxLength(160).IsRequired();
             entity.Property(advertiser => advertiser.Contact).HasMaxLength(400).IsRequired();
+            entity.Property(advertiser => advertiser.LegalName).HasMaxLength(200).IsRequired();
+            entity.Property(advertiser => advertiser.TaxId).HasMaxLength(14).IsRequired();
+            entity.Property(advertiser => advertiser.Address).HasMaxLength(300).IsRequired();
         });
 
         modelBuilder.Entity<AdCampaignEntity>(entity =>
@@ -1644,6 +1649,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(campaign => campaign.State).HasMaxLength(16).IsRequired();
             entity.Property(campaign => campaign.CitiesJson).IsRequired();
             entity.Property(campaign => campaign.OrganizationIdsJson).IsRequired();
+            entity.Property(campaign => campaign.PermitNumber).HasMaxLength(120);
             entity.HasIndex(campaign => campaign.AdvertiserId);
             entity.HasIndex(campaign => new { campaign.State, campaign.EndsAtUtc });
         });
@@ -1654,10 +1660,22 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(creative => creative.CreativeId);
             entity.Property(creative => creative.Title).HasMaxLength(120).IsRequired();
             entity.Property(creative => creative.Body).HasMaxLength(280);
+            entity.Property(creative => creative.TitleRu).HasMaxLength(120);
+            entity.Property(creative => creative.BodyRu).HasMaxLength(280);
             entity.Property(creative => creative.ImageUrl).HasMaxLength(2048);
             entity.Property(creative => creative.Moderation).HasMaxLength(16).IsRequired();
             entity.Property(creative => creative.RejectedReason).HasMaxLength(400);
             entity.HasIndex(creative => creative.CampaignId);
+        });
+
+        modelBuilder.Entity<AdCreativeImageEntity>(entity =>
+        {
+            entity.ToTable("ad_creative_images");
+            entity.HasKey(image => image.CreativeId);
+            entity.Property(image => image.ContentType).HasMaxLength(64).IsRequired();
+            entity.Property(image => image.Sha256).HasMaxLength(64).IsRequired();
+            entity.Property(image => image.SourceUrl).HasMaxLength(2048).IsRequired();
+            entity.Property(image => image.Bytes).IsRequired();
         });
 
         modelBuilder.Entity<AdImpressionDailyEntity>(entity =>
