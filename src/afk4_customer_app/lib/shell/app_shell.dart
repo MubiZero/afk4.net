@@ -98,6 +98,9 @@ class _AppShellState extends State<AppShell> {
   /// уведомления подряд про два заказа — это две просьбы, и вторая не должна потеряться.
   int _openShopRequest = 0;
 
+  /// Просьба открыть список уведомлений — по тому же правилу, что и магазин.
+  int _openNotificationsRequest = 0;
+
   final List<StreamSubscription<PushNotification>> _pushSubscriptions = [];
 
   /// Уведомление, показанное поверх разделов, и таймер, который его уберёт.
@@ -160,6 +163,11 @@ class _AppShellState extends State<AppShell> {
         setState(() {
           _section = AppSection.home;
           _openShopRequest++;
+        });
+      case PushDestination.notifications:
+        setState(() {
+          _section = AppSection.home;
+          _openNotificationsRequest++;
         });
       case null:
         break;
@@ -251,6 +259,7 @@ class _AppShellState extends State<AppShell> {
               : null,
           onOpenWallet: () => _open(AppSection.wallet),
           openShopRequest: _openShopRequest,
+          openNotificationsRequest: _openNotificationsRequest,
           pinSet: widget.me?.person.pinSet,
           clock: widget.clock,
         ),

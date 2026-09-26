@@ -40,7 +40,7 @@ class PushNotification {
 }
 
 /// Раздел приложения, который открывает нажатие на уведомление.
-enum PushDestination { home, reservations, wallet, shop }
+enum PushDestination { home, reservations, wallet, shop, notifications }
 
 /// Куда ведёт событие. `null` — событие не про игрока или незнакомое: тогда нажатие просто
 /// открывает приложение, ничего не подменяя. Молча вести не туда хуже, чем не вести никуда.
@@ -57,6 +57,10 @@ PushDestination? pushDestinationFor(String? template) => switch (template) {
       'player.birthday_gift' => PushDestination.wallet,
       // Заказ живёт в магазине: там его состояние и отмена.
       'player.order_ready' => PushDestination.shop,
+      // Ответ клуба на отзыв. Отзывы клуба открываются только из каталога клубов, и им нужен
+      // клуб, а в пуше есть лишь филиал. Список уведомлений — место внутри приложения, где
+      // этот ответ лежит: начало ответа и клуб, который его написал.
+      'player.review_replied' => PushDestination.notifications,
       // Объявление клуба или платформы читается на главной, в ленте новостей.
       'platform.announcement' => PushDestination.home,
       _ => null,

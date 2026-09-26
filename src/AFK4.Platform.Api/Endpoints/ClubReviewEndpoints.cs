@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Players;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Reviews;
@@ -89,19 +90,30 @@ internal static class ClubReviewEndpoints
         }).AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReviews);
 
         // Ответ клуба на отзыв — виден игрокам вместе с отзывом. Пустой ответ снимает прежний.
+        // Автору уходит пуш, но только о первом ответе: правка опечатки или снятие ответа —
+        // не новость, и будить ради неё телефон незачем.
         organizations.MapPost("branches/{branchId:guid}/reviews/{reviewId:guid}/reply", (
             Guid branchId, Guid reviewId, ReplyToReviewRequest request, StaffAuthorizationService authorizationService,
-            PlatformDbContext dbContext, IAuditRecordWriter audit, TimeProvider clock, CancellationToken cancellationToken) =>
-            ModerateAsync(branchId, reviewId, authorizationService, dbContext, audit, AuditActionNames.ReplyToReview, cancellationToken,
+            PlatformDbContext dbContext, IAuditRecordWriter audit, PlayerPushNotifier playerPush, TimeProvider clock,
+            CancellationToken cancellationToken) =>
+        {
+            var firstReply = false;
+            return ModerateAsync(branchId, reviewId, authorizationService, dbContext, audit, AuditActionNames.ReplyToReview, cancellationToken,
                 (review, actor) =>
                 {
                     var reply = string.IsNullOrWhiteSpace(request.Reply) ? null : request.Reply.Trim();
                     if (reply is { Length: > ReviewLimits.ReplyMax }) return $"A reply is at most {ReviewLimits.ReplyMax} characters.";
+                    firstReply = string.IsNullOrWhiteSpace(review.Reply) && reply is not null;
                     review.Reply = reply;
                     review.RepliedAtUtc = reply is null ? null : clock.GetUtcNow();
                     review.RepliedByStaffUserId = reply is null ? null : actor;
                     return null;
-                }));
+                },
+                review => firstReply
+                    ? playerPush.ReviewRepliedAsync(
+                        review.PlayerAccountId, review.OrganizationId, review.BranchId, review.ReviewId, review.Reply!, cancellationToken)
+                    : Task.CompletedTask);
+        });
 
         // Скрыть текст отзыва от игроков: оскорбления, чужие данные, реклама. Звёзды остаются в оценке.
         organizations.MapPost("branches/{branchId:guid}/reviews/{reviewId:guid}/hide-comment", (
@@ -321,11 +333,15 @@ internal static class ClubReviewEndpoints
         return (Math.Round(average, 1), count);
     }
 
-    /// <summary>Действие клуба над отзывом своего филиала: проверка права, само действие, журнал.</summary>
+    /// <summary>
+    /// Действие клуба над отзывом своего филиала: проверка права, само действие, журнал.
+    /// <paramref name="afterSaved"/> зовётся последним, когда действие уже записано и попало в
+    /// журнал: то, что идёт следом (пуш автору), не может ни отменить его, ни потерять запись.
+    /// </summary>
     private static async Task<IResult> ModerateAsync(
         Guid branchId, Guid reviewId, StaffAuthorizationService authorizationService, PlatformDbContext dbContext,
         IAuditRecordWriter audit, string action, CancellationToken cancellationToken,
-        Func<ClubReviewEntity, Guid, string?> apply)
+        Func<ClubReviewEntity, Guid, string?> apply, Func<ClubReviewEntity, Task>? afterSaved = null)
     {
         var authorization = await authorizationService.RequireBranchPermissionAsync(
             branchId, OrganizationPermissionNames.ManageReviews, cancellationToken);
@@ -345,6 +361,7 @@ internal static class ClubReviewEndpoints
             organizationId, branchId, ActorStaffUserId: actor, Action: action, TargetType: "ClubReview",
             TargetId: reviewId.ToString("N"), Outcome: AuditOutcome.Succeeded, SourceApp: "OrganizationAdmin",
             DetailsJson: System.Text.Json.JsonSerializer.Serialize(new { review.Reply, review.CommentHiddenReason })), cancellationToken);
+        if (afterSaved is not null) await afterSaved(review);
         return Results.NoContent();
     }
 }

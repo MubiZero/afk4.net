@@ -33,6 +33,7 @@ public static class NotificationTemplateTokens
             [NotificationTemplateKeys.PlayerReservationConfirmed] = ["club", "time"],
             [NotificationTemplateKeys.PlayerReservationRejected] = ["club", "time", "reason"],
             [NotificationTemplateKeys.PlayerReservationSoon] = ["club", "time"],
+            [NotificationTemplateKeys.PlayerReviewReplied] = ["club", "reply"],
             [NotificationTemplateKeys.PlayerSessionEnding] = ["minutes", "seat"],
             [NotificationTemplateKeys.PlayerSignInCode] = ["code", "expiresInMinutes"],
             [NotificationTemplateKeys.ScheduledReport] =

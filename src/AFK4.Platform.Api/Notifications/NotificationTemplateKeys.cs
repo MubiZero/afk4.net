@@ -83,6 +83,9 @@ public static class NotificationTemplateKeys
     /// <summary>Пуш игроку: клуб подарил деньги на день рождения.</summary>
     public const string PlayerBirthdayGift = "player.birthday_gift";
 
+    /// <summary>Пуш игроку: клуб впервые ответил на его отзыв.</summary>
+    public const string PlayerReviewReplied = "player.review_replied";
+
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift, PlayerReviewReplied];
 }
