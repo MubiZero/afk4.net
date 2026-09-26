@@ -625,6 +625,9 @@ function shiftTips() {
     total: money(total), paidOut: money(mockTipsPaidOut), tips: mockTips
   };
 }
+// Подарок на день рождения в превью: включён, чтобы демо показывало, как он настроен.
+let mockBirthdayGiftSettings: Record<string, unknown> = { enabled: true, amountMinorUnits: 2000, recentVisitDays: 180 };
+
 function referralSettings(): Record<string, unknown> {
   if (mutableReferralSettings === null) {
     mutableReferralSettings = {
@@ -683,6 +686,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
+  if (pathname.endsWith('/birthday-gift-settings') && method === 'GET') return mockBirthdayGiftSettings;
   if (pathname.endsWith('/tip-settings') && method === 'GET') return { enabled: mockTipsEnabled };
   if (pathname.endsWith('/plan') && method === 'GET') return mockPlan;
   if (pathname.endsWith('/platform-ads') && method === 'GET') return mockClubAds();
@@ -1312,6 +1316,12 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     const tip = mockTips.find((candidate) => candidate.ledgerEntryId === reversedTip[1]);
     if (tip) tip.reversed = true;
     return json(shiftTips());
+  }
+  if (url.pathname.endsWith('/birthday-gift-settings') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    mockBirthdayGiftSettings = { ...mockBirthdayGiftSettings, ...req };
+    return json(mockBirthdayGiftSettings);
   }
   if (url.pathname.endsWith('/referral-settings') && method === 'POST') {
     let req: Record<string, unknown> = {};

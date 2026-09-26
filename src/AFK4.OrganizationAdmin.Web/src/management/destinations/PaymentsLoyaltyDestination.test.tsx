@@ -4,6 +4,7 @@ import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
 import { permissionNames } from '../../operatorPermissions';
 import type { LoyaltySettingsDto, ReferralSettingsDto, EskhataConfigDto, DcPayLinkConfigDto } from '../../operatorApiClients';
+import type { BirthdayGiftSettingsDto } from '../../api/clients/birthdayGiftSettings';
 
 const loyaltyDefaults: LoyaltySettingsDto = {
   topUpEnabled: false, topUpPercentBasisPoints: 0,
@@ -23,6 +24,8 @@ const referralDefaults: ReferralSettingsDto = {
 };
 const referralGet = mock(async (): Promise<ReferralSettingsDto> => referralDefaults);
 const referralUpdate = mock(async (req: ReferralSettingsDto): Promise<ReferralSettingsDto> => req);
+const birthdayGiftGet = mock(async (): Promise<BirthdayGiftSettingsDto> => ({ enabled: false, amountMinorUnits: 0, recentVisitDays: 180 }));
+const birthdayGiftUpdate = mock(async (req: BirthdayGiftSettingsDto): Promise<BirthdayGiftSettingsDto> => req);
 const eskhataGet = mock(async (): Promise<EskhataConfigDto> => ({ baseUrl: '', companyId: '', merchantId: 0, hashKeySet: false, status: 'inactive' }));
 const dcConfigGet = mock(async (): Promise<DcPayLinkConfigDto> => ({ cardSet: false, cardLast4: '', commentTemplate: 'AFK4-{ref}', isActive: false }));
 // Default: loyalty feature enabled, so the existing zone-visibility tests above keep seeing the
@@ -35,6 +38,7 @@ mock.module('../../operatorHelpers', () => ({
   createAuthenticatedOperatorClients: () => ({
     loyaltySettings: { get: loyaltyGet, update: loyaltyUpdate },
     referralSettings: { get: referralGet, update: referralUpdate },
+    birthdayGiftSettings: { get: birthdayGiftGet, update: birthdayGiftUpdate },
     eskhataConfig: { get: eskhataGet, update: mock(async () => ({})) },
     dcConfig: { get: dcConfigGet, update: mock(async () => ({})) },
     features: { list: featuresList }

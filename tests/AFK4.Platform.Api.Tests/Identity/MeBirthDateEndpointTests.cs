@@ -15,6 +15,7 @@ namespace AFK4.Platform.Api.Tests.Identity;
 /// </summary>
 public sealed class MeBirthDateEndpointTests
 {
+    // У человека ни одного клуба: день рождения — его, а не клубный, и клуб для него не нужен.
     [Fact]
     public async Task ThePersonSetsTheBirthday_AndSeesItInTheProfile()
     {
@@ -41,10 +42,13 @@ public sealed class MeBirthDateEndpointTests
         using var client = factory.CreateClient();
         await AuthorizeAsync(factory, client, person.PlatformPersonId);
 
-        await client.PutAsJsonAsync("/api/me/birth-date", new SetBirthDateRequest(new DateOnly(1999, 12, 1)));
+        var set = await client.PutAsJsonAsync("/api/me/birth-date", new SetBirthDateRequest(new DateOnly(1999, 12, 1)));
+        Assert.Equal(HttpStatusCode.OK, set.StatusCode);
         var first = (await ReadPersonAsync(factory, person.PlatformPersonId)).BirthDateSetAtUtc;
-        await client.PutAsJsonAsync("/api/me/birth-date", new SetBirthDateRequest(new DateOnly(1999, 12, 1)));
+        Assert.NotNull(first);
+        var again = await client.PutAsJsonAsync("/api/me/birth-date", new SetBirthDateRequest(new DateOnly(1999, 12, 1)));
 
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
         Assert.Equal(first, (await ReadPersonAsync(factory, person.PlatformPersonId)).BirthDateSetAtUtc);
     }
 
