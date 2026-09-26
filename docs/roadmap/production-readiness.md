@@ -603,7 +603,7 @@ live runs for:
 - Agentless console and TV seats.
 
 Status 2026-09-25: every item above and the shell-rewrite items P6–P9 are
-built as stacked PRs #480–#495, none merged. Specs:
+built as stacked PRs #480–#495; all merged into `main` on 2026-09-26. Specs:
 `2026-09-25-club-plans-per-pc-design.md` (pricing, trial, promised payment,
 free-plan fallback, «refer a club»), `2026-09-25-visit-tips-design.md`; plans
 `2026-09-25-console-seats.md`, `2026-09-25-guest-import.md`; the demo runbook

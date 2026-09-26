@@ -739,6 +739,16 @@ KPIs, the shift-close tolerance lookup.
 
 ## Latest Verification
 
+- Shell stack and its leftovers merged (2026-09-26). #449–#500 went in through
+  one integration branch: `main` equals the integration tree, and the full PR
+  Verification (web, Flutter, Windows, PostgreSQL) was green on ffa4c24e. Then
+  #501 (local `scripts/verify.sh` green, CI green) and #502 (CI green on
+  8ecfb924; its tests were run only by CI — the owner asked not to run them
+  locally) merged as one deploy, `main` 70314d40, identical to the tested
+  commit. Not verified: anything on a live Windows PC (kiosk, drives and
+  monitors, age-locked games), uploads to the real MinIO and pushes on a real
+  phone.
+
 - Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
   removed: the switched-off WPF Organization Admin (8884 lines + 23 test files),
   the React player web, and the unused `AFK4.BuildingBlocks` project — about
@@ -1082,15 +1092,14 @@ thrown away rather than polished.
    host and bridge v2, the new interface, kiosk and protection, multi-seat
    commands, game library, shell settings, reviews, hardware snapshot, showcase
    and platform ads, tips). None of it is proven on a live PC — that is the P5
-   acceptance and the frozen live runs below. The named leftovers are built on
-   `feat/shell-leftovers` (not merged yet): club replies to reviews and hiding
-   offensive text, drives and monitors in the hardware inventory, Steam store
-   images as catalog covers and image uploads in Platform Control (MinIO).
-   On top of it, `feat/birthdays-and-reply-push`: an optional birth date in the
-   profile (games above the player's age lock on the PC, a club birthday gift
-   to the wallet), a push and inbox entry for the club's first reply to a
-   review, and the in-app inbox no longer shows the phone-verification SMS
-   code. Telegram alerts wait for the first club.
+   acceptance and the frozen live runs below. The named leftovers were merged
+   the same day (#501 and #502, `main` 70314d40): club replies to reviews and
+   hiding offensive text, drives and monitors in the hardware inventory, Steam
+   store images as catalog covers and image uploads in Platform Control (MinIO),
+   an optional birth date in the profile (games above the player's age lock on
+   the PC, a club birthday gift to the wallet), a push and inbox entry for the
+   club's first reply to a review; the in-app inbox no longer shows the
+   phone-verification SMS code. Telegram alerts wait for the first club.
 2. **The launch set is merged (2026-09-26).** Per-PC pricing with trial,
    promised payment and free-plan fallback (#491), agentless console seats
    (#492), guest import with opening balances (#493), «refer a club» (#494), the
