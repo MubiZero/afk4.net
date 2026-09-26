@@ -609,8 +609,19 @@ built as stacked PRs #480–#495, none merged. Specs:
 free-plan fallback, «refer a club»), `2026-09-25-visit-tips-design.md`; plans
 `2026-09-25-console-seats.md`, `2026-09-25-guest-import.md`; the demo runbook
 `docs/operations/demo-panel.md` (hosting it is the owner's step). Open owner
-questions are listed at the end of each spec. Advertising stays blocked on the
-media bucket and the advertising-law check.
+questions are listed at the end of each spec.
+
+Update 2026-09-26 (owner's answers): the free plan is limited by PC count only
+(10 per club, any halls and staff); after non-payment and its grace, only ten
+PCs take new sessions — the owner picks which; plans and payment terms are
+configured in Platform Control (#496). The Tajik advertising law (2003, as of
+02.01.2025) is analysed in the ads spec §8 and enforced where code can: Tajik
+text first, advertiser details, banned and permit-only categories, per-article
+moderation checks, stored image copies (the ads-law PR on top of #496 and
+#489); ad images are stored by the platform itself, so ads no longer wait on
+the media bucket. Tips stay a personal gift outside receipts. Still open: the
+lawyer's questions in the ads spec §8.4 and a native speaker's pass over the
+Tajik UI strings.
 
 **After the first club — by what it asks for:**
 

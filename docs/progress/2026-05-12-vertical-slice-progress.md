@@ -1087,10 +1087,12 @@ thrown away rather than polished.
    price is retired and no longer shown), agentless console seats (#492), guest
    import with opening balances (#493), «refer a club» (#494) and a public demo
    of the Organization Admin on sample data (#495, runbook
-   `docs/operations/demo-panel.md`). Owner questions: tips recipient and taxes,
-   the advertising law, «PCs above ten» versus «all from the eleventh», a club
-   of ten PCs or fewer that needs a second hall, and PCs above ten on the free
-   plan after non-payment.
+   `docs/operations/demo-panel.md`). The owner answered on 2026-09-26: the plan
+   is PC count only, PCs above ten stop taking new sessions after the grace,
+   plans and payment terms are set in Platform Control (#496); the advertising
+   law is enforced in the ads-law PR (ads spec §8), with lawyer questions in
+   §8.4. Tajik month names fall back to English in Chromium (Intl has no tg
+   data) — a separate fix, not started.
 3. **Rollouts in waves, with a progress view — deferred by the owner (2026-09-23).**
    There are no clubs yet, so a package still reaches everyone at once, on purpose
    and guarded by a test. Before the first clubs, decide waves together with a view
