@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-24
+Last updated: 2026-09-26
 
 ## Purpose
 
@@ -1082,7 +1082,12 @@ thrown away rather than polished.
    host and bridge v2, the new interface, kiosk and protection, multi-seat
    commands, game library, shell settings, reviews, hardware snapshot, showcase
    and platform ads, tips). None of it is proven on a live PC — that is the P5
-   acceptance and the frozen live runs below.
+   acceptance and the frozen live runs below. The named leftovers are built on
+   `feat/shell-leftovers` (not merged yet): club replies to reviews and hiding
+   offensive text, drives and monitors in the hardware inventory, Steam store
+   images as catalog covers and image uploads in Platform Control (MinIO).
+   Still open: the age check needs a birth date in the account (owner's call);
+   Telegram alerts wait for the first club.
 2. **The launch set is merged (2026-09-26).** Per-PC pricing with trial,
    promised payment and free-plan fallback (#491), agentless console seats
    (#492), guest import with opening balances (#493), «refer a club» (#494), the
