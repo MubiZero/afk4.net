@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
@@ -114,8 +115,9 @@ public sealed class EfFloorMapReadService(
                 .Where(account => playerAccountIds.Contains(account.PlayerAccountId))
                 .ToDictionaryAsync(account => account.PlayerAccountId, cancellationToken);
 
+        var allowance = await PlanDevices.ForOrganizationAsync(dbContext, branch.OrganizationId, cancellationToken);
         var seatStatuses = seats
-            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, tariffsById, playerAccountsById, now))
+            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, tariffsById, playerAccountsById, allowance, now))
             .OrderBy(seat => zonesById.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
@@ -148,6 +150,7 @@ public sealed class EfFloorMapReadService(
         IReadOnlyDictionary<Guid, TariffVersionEntity> tariffVersionsById,
         IReadOnlyDictionary<Guid, TariffEntity> tariffsById,
         IReadOnlyDictionary<Guid, PlayerAccountEntity> playerAccountsById,
+        PlanDevices.Allowance allowance,
         DateTimeOffset now)
     {
         zones.TryGetValue(seat.ZoneId, out var zone);
@@ -188,7 +191,8 @@ public sealed class EfFloorMapReadService(
             SessionStartedAtUtc: activeSession?.StartedAtUtc,
             AssistanceRequestedAtUtc: device?.AssistanceRequestedAtUtc,
             MaintenanceSinceUtc: device?.MaintenanceSinceUtc,
-            IsConsole: isConsole);
+            IsConsole: isConsole,
+            IsOutsidePlan: device is not null && allowance.Outside.Contains(device.DeviceId));
     }
 
     private static string? GetPlayerDisplayName(

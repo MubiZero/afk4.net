@@ -40,4 +40,6 @@ public sealed record SeatStatusDto(
     // кого туда увели.
     DateTimeOffset? MaintenanceSinceUtc = null,
     // Место с консолью без агента: сессию ведёт администратор, команд ПК у места нет.
-    bool IsConsole = false);
+    bool IsConsole = false,
+    // ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются, идущая доживает.
+    bool IsOutsidePlan = false);

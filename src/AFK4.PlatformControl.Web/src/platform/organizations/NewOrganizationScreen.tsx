@@ -35,6 +35,7 @@ interface FormState {
   maxDevicesPerBranch: string;
   maxConcurrentSessions: string;
   maxStaffUsersPerBranch: string;
+  maxDevices: string;
 }
 
 const defaultState: FormState = {
@@ -52,7 +53,8 @@ const defaultState: FormState = {
   maxBranches: '',
   maxDevicesPerBranch: '',
   maxConcurrentSessions: '',
-  maxStaffUsersPerBranch: ''
+  maxStaffUsersPerBranch: '',
+  maxDevices: ''
 };
 
 const REQUIRED_FIELDS: readonly (keyof FormState)[] = [
@@ -170,6 +172,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
       <Card>
         <CardHeader><CardTitle>{t('platform.newOrganization.section.limits')}</CardTitle></CardHeader>
         <CardContent>
+          <LabeledInput label={t('platform.newOrganization.field.maxDevicesTotal')} type="number" value={form.maxDevices} onChange={v => update('maxDevices', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxBranches')} type="number" value={form.maxBranches} onChange={v => update('maxBranches', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxDevices')} type="number" value={form.maxDevicesPerBranch} onChange={v => update('maxDevicesPerBranch', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxSessions')} type="number" value={form.maxConcurrentSessions} onChange={v => update('maxConcurrentSessions', v)} />
@@ -223,7 +226,8 @@ function buildLimits(form: FormState): OrganizationLimits | null {
     maxBranches: parseOptional(form.maxBranches),
     maxDevicesPerBranch: parseOptional(form.maxDevicesPerBranch),
     maxConcurrentSessions: parseOptional(form.maxConcurrentSessions),
-    maxStaffUsersPerBranch: parseOptional(form.maxStaffUsersPerBranch)
+    maxStaffUsersPerBranch: parseOptional(form.maxStaffUsersPerBranch),
+    maxDevices: parseOptional(form.maxDevices)
   };
   if (Object.values(parsed).every(value => value === null)) {
     return null;

@@ -1,7 +1,9 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import type {
+  ClubPlanDevicesDto,
   ClubPlanDto,
+  SetClubPlanDevicesRequest,
   InvoiceDto,
   OrganizationBillingStatusDto,
   OrganizationSubscriptionDto,
@@ -37,6 +39,12 @@ export function createOrgBillingClient(api: PlatformApiClient) {
     },
     promisePayment(): Promise<ClubPlanDto> {
       return api.post<ClubPlanDto, Record<string, never>>('plan/promised-payment', {});
+    },
+    getDevices(): Promise<ClubPlanDevicesDto> {
+      return api.get<ClubPlanDevicesDto>('plan/devices');
+    },
+    setDevices(deviceIds: string[]): Promise<ClubPlanDevicesDto> {
+      return api.put<ClubPlanDevicesDto, SetClubPlanDevicesRequest>('plan/devices', { deviceIds });
     }
   };
 }

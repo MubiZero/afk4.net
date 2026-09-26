@@ -32,7 +32,7 @@ public sealed class ClubPlansTests
         Assert.Equal(ClubPlanKindNames.Trial, trial.Kind);
         Assert.Equal(Start.AddDays(ClubPlanLimits.TrialDays), trial.TrialEndsAtUtc);
         Assert.False(trial.TrialAvailable);
-        Assert.Equal("{\"maxBranches\":null,\"maxDevicesPerBranch\":null,\"maxConcurrentSessions\":null,\"maxStaffUsersPerBranch\":null}",
+        Assert.Equal("{\"maxBranches\":null,\"maxDevicesPerBranch\":null,\"maxConcurrentSessions\":null,\"maxStaffUsersPerBranch\":null,\"maxDevices\":null}",
             (await fixture.Db.Organizations.SingleAsync()).LimitsJson, ignoreCase: true);
         Assert.Contains(fixture.Audit.Records, record => record.Action == AuditActionNames.StartPlanTrial);
     }
@@ -100,6 +100,56 @@ public sealed class ClubPlansTests
     }
 
     [Fact]
+    public async Task AFallenClub_RunsOnlyTenPcs_AndTheOwnerChoosesWhich()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        Assert.Equal(0, (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.DevicesOutsidePlan);
+        await fixture.AddOverdueInvoiceAsync(due: Start.AddDays(7));
+
+        await fixture.Plans.RunTransitionsAsync(Start.AddDays(7 + ClubPlanLimits.FallbackAfterOverdueDays), CancellationToken.None);
+
+        // Пока владелец не выбрал — работают подключённые раньше: ПК 0–9; ПК 10–13 вне тарифа.
+        var plan = (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!;
+        Assert.Equal(ClubPlanKindNames.Free, plan.Kind);
+        Assert.Equal(4, plan.DevicesOutsidePlan);
+        var devices = await fixture.Plans.DevicesAsync(fixture.OrganizationId, CancellationToken.None);
+        Assert.Equal(ClubPlanLimits.FreeDevices, devices.Limit);
+        Assert.Equal(["ПК 10", "ПК 11", "ПК 12", "ПК 13"], devices.Devices.Where(device => !device.Works).Select(device => device.Name).Order());
+
+        // Владелец держит ПК 12 и ПК 13 — остальные восемь мест добираются по старшинству.
+        var kept = devices.Devices.Where(device => device.Name is "ПК 12" or "ПК 13").Select(device => device.DeviceId).ToList();
+        Assert.Equal(string.Empty, await fixture.Plans.KeepDevicesAsync(fixture.OrganizationId, kept, Guid.NewGuid(), CancellationToken.None));
+        var after = await fixture.Plans.DevicesAsync(fixture.OrganizationId, CancellationToken.None);
+        Assert.Equal(["ПК 10", "ПК 11", "ПК 8", "ПК 9"], after.Devices.Where(device => !device.Works).Select(device => device.Name).Order());
+        Assert.All(after.Devices.Where(device => device.Kept), device => Assert.True(device.Works));
+        Assert.Contains(fixture.Audit.Records, record => record.Action == AuditActionNames.KeepPlanDevices);
+
+        var all = after.Devices.Select(device => device.DeviceId).ToList();
+        Assert.Equal(ClubPlanErrorCodeNames.TooManyDevices, await fixture.Plans.KeepDevicesAsync(fixture.OrganizationId, all, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(ClubPlanErrorCodeNames.UnknownDevice,
+            await fixture.Plans.KeepDevicesAsync(fixture.OrganizationId, [Guid.NewGuid()], Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ThePlan_SaysWhenTheClubFallsToFree_AndAPromiseMovesTheDate()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        Assert.Null((await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.FallbackAtUtc);
+        var due = Start.AddDays(7);
+        await fixture.AddOverdueInvoiceAsync(due);
+
+        Assert.Equal(due.AddDays(ClubPlanLimits.FallbackAfterOverdueDays),
+            (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.FallbackAtUtc);
+
+        fixture.Clock.Now = due.AddDays(10);
+        await fixture.Plans.PromisePaymentAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        Assert.Equal(due.AddDays(10 + ClubPlanLimits.PromisedPaymentDays),
+            (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.FallbackAtUtc);
+    }
+
+    [Fact]
     public async Task TheFreePlan_ShowsPlatformAds_AndThePerPcPlanDoesNot()
     {
         var fixture = await Fixture.CreateAsync(devices: 3);
@@ -118,6 +168,18 @@ public sealed class ClubPlansTests
         public required FixedTimeProvider Clock { get; init; }
         public required Guid OrganizationId { get; init; }
 
+        public async Task AddOverdueInvoiceAsync(DateTimeOffset due)
+        {
+            Db.Invoices.Add(new InvoiceEntity
+            {
+                InvoiceId = Guid.NewGuid(), OrganizationId = OrganizationId, Number = 1, Kind = InvoiceKindNames.Subscription,
+                PeriodStartUtc = Start, PeriodEndUtc = Start.AddMonths(1), IssuedAtUtc = Start, DueAtUtc = due, AmountMinorUnits = 4000,
+                GrossAmountMinorUnits = 4000, CurrencyCode = "TJS", Status = InvoiceStatusNames.Overdue, Description = "test",
+                CreatedAtUtc = Start, UpdatedAtUtc = Start
+            });
+            await Db.SaveChangesAsync();
+        }
+
         public static async Task<Fixture> CreateAsync(int devices)
         {
             var db = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>()
@@ -127,8 +189,8 @@ public sealed class ClubPlansTests
             db.SubscriptionPlans.AddRange(
                 new SubscriptionPlanEntity
                 {
-                    PlanCode = OrganizationPlanCodeNames.Free, Name = "Бесплатный", MaxBranches = 1, MaxDevicesPerBranch = 10,
-                    MaxStaffUsersPerBranch = 3, CreatedAtUtc = Start, UpdatedAtUtc = Start
+                    PlanCode = OrganizationPlanCodeNames.Free, Name = "Бесплатный", MaxDevices = ClubPlanLimits.FreeDevices,
+                    CreatedAtUtc = Start, UpdatedAtUtc = Start
                 },
                 new SubscriptionPlanEntity
                 {
@@ -146,7 +208,7 @@ public sealed class ClubPlansTests
             {
                 OrganizationId = organizationId, Slug = "club", Name = "Клуб", Status = OrganizationStatusNames.Active,
                 PlanCode = OrganizationPlanCodeNames.Free, SubscriptionStatus = SubscriptionStatusNames.Active,
-                LimitsJson = "{\"maxBranches\":1,\"maxDevicesPerBranch\":10,\"maxConcurrentSessions\":null,\"maxStaffUsersPerBranch\":3}",
+                LimitsJson = "{\"MaxDevices\":10}",
                 CreatedAtUtc = Start, UpdatedAtUtc = Start
             });
             db.OrganizationSubscriptions.Add(new OrganizationSubscriptionEntity
@@ -160,7 +222,7 @@ public sealed class ClubPlansTests
                 db.Devices.Add(new DeviceEntity
                 {
                     DeviceId = Guid.NewGuid(), OrganizationId = organizationId, BranchId = branchId, MachineName = $"PC-{index}",
-                    DisplayName = $"ПК {index}", DevicePublicKey = $"key-{index}"
+                    DisplayName = $"ПК {index}", DevicePublicKey = $"key-{index}", EnrolledAtUtc = Start.AddMinutes(index)
                 });
             }
 
@@ -170,6 +232,7 @@ public sealed class ClubPlansTests
                 DeviceId = Guid.NewGuid(), OrganizationId = organizationId, BranchId = branchId, MachineName = "ADMIN",
                 DisplayName = "Стойка", DevicePublicKey = "admin", Role = DeviceRoleNames.ManagerWorkstation
             });
+            db.Branches.Add(new BranchEntity { BranchId = branchId, OrganizationId = organizationId, Slug = "hall", Name = "Зал", CreatedAtUtc = Start });
             await db.SaveChangesAsync();
             var clock = new FixedTimeProvider(Start);
             var audit = new RecordingAudit();

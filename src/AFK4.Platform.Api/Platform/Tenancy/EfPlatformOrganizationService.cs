@@ -1,4 +1,5 @@
-﻿using AFK4.Shared.Contracts.Platform.Billing;
+using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Shared.Contracts.Platform.Billing;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Audit;
@@ -171,8 +172,7 @@ public sealed class EfPlatformOrganizationService(
         // безлимитным (спека тарифов клуба, §1).
         var limits = request.Limits ?? (catalogPlan is null
             ? null
-            : new OrganizationLimitsDto(catalogPlan.MaxBranches, catalogPlan.MaxDevicesPerBranch,
-                catalogPlan.MaxConcurrentSessions, catalogPlan.MaxStaffUsersPerBranch));
+            : ClubPlans.LimitsOf(catalogPlan));
         var organization = new OrganizationEntity
         {
             OrganizationId = Guid.NewGuid(),
@@ -1258,7 +1258,8 @@ public sealed class EfPlatformOrganizationService(
         if (limits.MaxBranches is < 0 ||
             limits.MaxDevicesPerBranch is < 0 ||
             limits.MaxConcurrentSessions is < 0 ||
-            limits.MaxStaffUsersPerBranch is < 0)
+            limits.MaxStaffUsersPerBranch is < 0 ||
+            limits.MaxDevices is < 0)
         {
             return "Organization limits must be non-negative when provided.";
         }

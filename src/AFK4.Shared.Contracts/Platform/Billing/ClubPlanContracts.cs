@@ -26,7 +26,29 @@ public sealed record ClubPlanDto(
     // «Приведи клуб»: код клуба и сколько бесплатных месяцев накоплено за приведённых.
     string? ReferralCode = null,
     int FreeMonths = 0,
-    int ReferredClubs = 0);
+    int ReferredClubs = 0,
+    // ПК, на которых новые сессии не запускаются: сверх предела бесплатного тарифа (§5a).
+    int DevicesOutsidePlan = 0,
+    // Когда клуб перейдёт на бесплатный тариф, если не оплатит просроченное. Пусто — не грозит.
+    DateTimeOffset? FallbackAtUtc = null);
+
+/// <summary>Игровые ПК клуба глазами тарифа: какие работают на бесплатном и какие отметил владелец.</summary>
+public sealed record ClubPlanDevicesDto(
+    // Предел ПК на клуб; пусто — у тарифа предела нет, работают все.
+    int? Limit,
+    IReadOnlyList<ClubPlanDeviceDto> Devices);
+
+public sealed record ClubPlanDeviceDto(
+    Guid DeviceId,
+    string Name,
+    string BranchName,
+    // Новые сессии на нём запускаются.
+    bool Works,
+    // Владелец отметил его работающим на бесплатном тарифе.
+    bool Kept);
+
+/// <summary>Какие ПК работают на бесплатном тарифе — не больше предела; пустой список снимает выбор.</summary>
+public sealed record SetClubPlanDevicesRequest(IReadOnlyList<Guid> DeviceIds);
 
 public static class ClubPlanKindNames
 {
@@ -52,6 +74,12 @@ public static class ClubPlanErrorCodeNames
     public const string PromiseUsed = "plan_promise_used";
 
     public const string AlreadyOnPlan = "plan_already_on_plan";
+
+    /// <summary>Отмечено больше ПК, чем разрешает тариф.</summary>
+    public const string TooManyDevices = "plan_devices_too_many";
+
+    /// <summary>В списке не игровой ПК клуба или неподтверждённый.</summary>
+    public const string UnknownDevice = "plan_device_unknown";
 }
 
 public static class ClubPlanLimits

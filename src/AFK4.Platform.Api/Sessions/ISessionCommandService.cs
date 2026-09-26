@@ -39,6 +39,11 @@ public sealed record SessionCommandServiceResult(
     public static SessionCommandServiceResult PlanLimitReached(PlanLimitExceededDto planLimit) =>
         new(false, true, false, "Plan concurrent-session limit has been reached.", null,
             PlanLimitNames.ReachedCode, null, planLimit);
+
+    /// <summary>ПК сверх предела бесплатного тарифа: сессию на нём не начать и на него не перенести.</summary>
+    public static SessionCommandServiceResult OutsidePlan(PlanLimitExceededDto planLimit) =>
+        new(false, true, false, "This PC is outside the club's free plan.", null,
+            PlanLimitNames.DeviceOutsidePlanCode, null, planLimit);
 }
 
 public interface ISessionCommandService

@@ -1,9 +1,9 @@
 import { describe, it, expect, mock, afterEach } from 'bun:test';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { BillingDestination } from './BillingDestination';
 import type { BillingClient } from './useBilling';
-import type { ClubPlanDto } from '@afk4/contracts';
+import type { ClubPlanDevicesDto, ClubPlanDto } from '@afk4/contracts';
 
 afterEach(() => cleanup());
 
@@ -46,12 +46,25 @@ const plan = (overrides: Partial<ClubPlanDto> = {}): ClubPlanDto => ({
   promisedPaymentUntilUtc: null, overdue: null, ...overrides
 });
 
+const planDevices = (kept: string[] = []): ClubPlanDevicesDto => ({
+  limit: 2,
+  devices: ['ПК 01', 'ПК 02', 'ПК 03'].map((name, index) => ({
+    deviceId: `d${index + 1}`,
+    name,
+    branchName: 'Зал A',
+    works: kept.length === 0 ? index < 2 : kept.includes(`d${index + 1}`),
+    kept: kept.includes(`d${index + 1}`)
+  }))
+});
+
 function planClient(first: ReturnType<typeof plan>, afterAction?: ReturnType<typeof plan>) {
   return {
     getPlan: mock(async () => first),
     startTrial: mock(async () => afterAction ?? first),
     switchToPerPc: mock(async () => afterAction ?? first),
-    promisePayment: mock(async () => afterAction ?? first)
+    promisePayment: mock(async () => afterAction ?? first),
+    getDevices: mock(async () => planDevices()),
+    setDevices: mock(async (ids: string[]) => planDevices(ids))
   };
 }
 
@@ -100,6 +113,53 @@ describe('тариф клуба', () => {
     );
     await screen.findByText('Бесплатный тариф');
     expect(screen.queryByRole('button', { name: /Попробовать/ })).toBeNull();
+  });
+});
+
+describe('неоплата и ПК вне тарифа', () => {
+  it('заранее пишет дату перехода и сколько ПК останется', async () => {
+    render(
+      <I18nProvider initialLocale="ru">
+        <BillingDestination backend={backend as never} client={client} planClient={planClient(plan({
+          overdue: { currencyCode: 'TJS', minorUnits: 4000 }, fallbackAtUtc: '2026-10-24T00:00:00Z'
+        }))} />
+      </I18nProvider>
+    );
+
+    expect(await screen.findByText(/новые сессии пойдут только на 10 ПК из 14/)).toBeInTheDocument();
+  });
+
+  it('владелец выбирает, какие ПК работают на бесплатном тарифе', async () => {
+    const plans = planClient(plan({ planCode: 'free', kind: 'free', devices: 3, includedDevices: 2, devicesOutsidePlan: 1 }));
+    const owner = { ...backend, session: { ...backend.session, permissions: ['organization.billing.subscription.manage'] } };
+    render(
+      <I18nProvider initialLocale="ru">
+        <BillingDestination backend={owner as never} client={client} planClient={plans} />
+      </I18nProvider>
+    );
+
+    expect(await screen.findByText('Работают 2 ПК из 3')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать ПК' }));
+    const boxes = screen.getAllByRole('checkbox');
+    // Предел — два: пока отмечены два, третий не отметить.
+    expect(boxes[2]).toBeDisabled();
+    fireEvent.click(boxes[0]);
+    fireEvent.click(boxes[2]);
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить: 2 из 2' }));
+
+    await waitFor(() => expect(plans.setDevices).toHaveBeenCalledWith(['d2', 'd3']));
+    expect(await screen.findByRole('button', { name: 'Выбрать ПК' })).toBeInTheDocument();
+  });
+
+  it('без права владельца список виден, а выбрать нельзя', async () => {
+    render(
+      <I18nProvider initialLocale="ru">
+        <BillingDestination backend={backend as never} client={client} planClient={planClient(plan({ kind: 'free', devicesOutsidePlan: 1 }))} />
+      </I18nProvider>
+    );
+
+    expect(await screen.findByText('Работают 2 ПК из 3')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Выбрать ПК' })).toBeNull();
   });
 });
 

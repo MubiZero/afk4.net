@@ -370,9 +370,20 @@
 .network-plan-head strong { font-size: 16px; }
 .network-plan-head p { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }
 .network-plan-note { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.network-plan-note--attention { color: var(--danger-text, var(--danger)); }
 .network-plan-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .network-stat--attention dd { color: var(--danger); }
 .network-plan-referral { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-soft); }
 .network-plan-referral p { margin: 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }
 .network-plan-referral-code { display: flex; align-items: center; gap: var(--space-3); }
 .network-plan-referral-code code { font-family: var(--font-mono); font-size: 18px; letter-spacing: 0.08em; color: var(--text-strong); }
+
+/* ПК сверх предела бесплатного тарифа (network/billing/FreePlanDevices.tsx): список с отметками,
+ * которые включаются только в режиме выбора — иначе случайный щелчок менял бы, где играют. */
+.network-plan-outside { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-soft); }
+.network-plan-outside p { margin: 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }
+.network-plan-outside-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-1) var(--space-3); }
+.network-plan-outside-list label { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; font-size: 13px; }
+.network-plan-outside-name { font-weight: 600; color: var(--text-strong); }
+.network-plan-outside-hall { color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.network-plan-outside-tag { margin-left: auto; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--surface-muted, var(--border-soft)); color: var(--text-secondary); font-size: 11px; white-space: nowrap; }

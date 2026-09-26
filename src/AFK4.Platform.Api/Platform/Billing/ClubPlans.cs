@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Billing;
@@ -43,10 +44,13 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         subscription.UpdatedAtUtc = now;
         organization.PlanCode = plan.PlanCode;
         organization.SubscriptionStatus = status;
-        organization.LimitsJson = JsonSerializer.Serialize(new OrganizationLimitsDto(
-            plan.MaxBranches, plan.MaxDevicesPerBranch, plan.MaxConcurrentSessions, plan.MaxStaffUsersPerBranch));
+        organization.LimitsJson = JsonSerializer.Serialize(LimitsOf(plan));
         organization.UpdatedAtUtc = now;
     }
+
+    /// <summary>Лимиты, которые клуб получает вместе с тарифом.</summary>
+    public static OrganizationLimitsDto LimitsOf(SubscriptionPlanEntity plan) => new(
+        plan.MaxBranches, plan.MaxDevicesPerBranch, plan.MaxConcurrentSessions, plan.MaxStaffUsersPerBranch, plan.MaxDevices);
 
     public async Task<ClubPlanDto?> DescribeAsync(Guid organizationId, CancellationToken ct)
     {
@@ -66,6 +70,7 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         var referralCode = await ClubReferrals.EnsureCodeAsync(db, state.Value.Organization, ct);
         var referred = await db.Organizations.AsNoTracking()
             .CountAsync(candidate => candidate.ReferredByOrganizationId == organizationId && candidate.ReferralRewardedAtUtc != null, ct);
+        var allowance = await PlanDevices.ForOrganizationAsync(db, organizationId, ct);
 
         return new ClubPlanDto(
             subscription.PlanCode,
@@ -84,7 +89,59 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             Overdue: overdue > 0 ? new MoneyDto(currency, overdue) : null,
             ReferralCode: referralCode,
             FreeMonths: subscription.FreeMonths,
-            ReferredClubs: referred);
+            ReferredClubs: referred,
+            DevicesOutsidePlan: allowance.Outside.Count,
+            FallbackAtUtc: FallbackAt(subscription, unpaid));
+    }
+
+    /// <summary>
+    /// Когда клуб на тарифе за ПК уйдёт на бесплатный, если не оплатит: две недели после срока самого
+    /// старого неоплаченного счёта или конец обещанного платежа, что позже (§5).
+    /// </summary>
+    private static DateTimeOffset? FallbackAt(OrganizationSubscriptionEntity subscription, InvoiceEntity? unpaid)
+    {
+        if (unpaid is null || subscription.PlanCode != OrganizationPlanCodeNames.PerPc) return null;
+        var afterDue = unpaid.DueAtUtc.AddDays(ClubPlanLimits.FallbackAfterOverdueDays);
+        return subscription.PaymentGraceUntilUtc > afterDue ? subscription.PaymentGraceUntilUtc : afterDue;
+    }
+
+    /// <summary>Игровые ПК клуба: какие работают при пределе тарифа и какие отметил владелец.</summary>
+    public async Task<ClubPlanDevicesDto> DevicesAsync(Guid organizationId, CancellationToken ct)
+    {
+        var allowance = await PlanDevices.ForOrganizationAsync(db, organizationId, ct);
+        var devices = await PlanDevices.Ordered(db, organizationId)
+            .Join(db.Branches.AsNoTracking(), device => device.BranchId, branch => branch.BranchId,
+                (device, branch) => new { device.DeviceId, device.DisplayName, device.MachineName, device.KeptOnFreePlan, BranchName = branch.Name })
+            .ToListAsync(ct);
+        return new ClubPlanDevicesDto(
+            allowance.Limit,
+            devices.Select(device => new ClubPlanDeviceDto(
+                device.DeviceId,
+                string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
+                device.BranchName,
+                Works: !allowance.Outside.Contains(device.DeviceId),
+                Kept: device.KeptOnFreePlan)).ToList());
+    }
+
+    /// <summary>Владелец выбирает, какие ПК работают на бесплатном тарифе; остальные отметки снимаются.</summary>
+    public async Task<string?> KeepDevicesAsync(Guid organizationId, IReadOnlyList<Guid> deviceIds, Guid actorStaffUserId, CancellationToken ct)
+    {
+        var state = await LoadAsync(organizationId, ct);
+        if (state is null) return null;
+        var chosen = deviceIds.ToHashSet();
+        var limit = OrganizationLimitsJson.Deserialize(state.Value.Organization.LimitsJson).MaxDevices ?? ClubPlanLimits.FreeDevices;
+        if (chosen.Count > limit) return ClubPlanErrorCodeNames.TooManyDevices;
+
+        var devices = await db.Devices
+            .Where(device => device.OrganizationId == organizationId
+                && device.Role == DeviceRoleNames.GamingPc
+                && device.EnrollmentState == DeviceEnrollmentStateNames.Approved)
+            .ToListAsync(ct);
+        if (!chosen.IsSubsetOf(devices.Select(device => device.DeviceId))) return ClubPlanErrorCodeNames.UnknownDevice;
+
+        foreach (var device in devices) device.KeptOnFreePlan = chosen.Contains(device.DeviceId);
+        await SaveWithAuditAsync(organizationId, actorStaffUserId, AuditActionNames.KeepPlanDevices, new { DeviceIds = chosen }, ct);
+        return string.Empty;
     }
 
     public async Task<string?> StartTrialAsync(Guid organizationId, Guid actorStaffUserId, CancellationToken ct)

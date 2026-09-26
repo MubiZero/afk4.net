@@ -151,6 +151,7 @@ export function isSeatReadyForGuest(dto: SeatStatusDto): boolean {
   const hasActiveSession = dto.activeSessionId !== null && dto.activeSessionId !== undefined;
   const hasDevice = dto.deviceId !== null && dto.deviceId !== undefined;
   return !hasActiveSession
+    && dto.isOutsidePlan !== true
     && resolveTone(normalizeState(dto.state), hasDevice, dto.isDeviceOnline ?? false, false) === 'ready';
 }
 
@@ -162,7 +163,11 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
   // У консоли нет агента и нет «связи»: её место не бывает «без связи».
   const isDeviceOnline = isConsole ? true : dto.isDeviceOnline ?? false;
   const isDeviceLocked = dto.isDeviceLocked ?? true;
-  const tone = resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession);
+  // ПК сверх предела бесплатного тарифа: новую сессию на нём не начать, поэтому свободное место —
+  // спокойный серый, как обслуживание, а не «готов». Идущая сессия доживает в своём цвете.
+  const isOutsidePlan = dto.isOutsidePlan === true;
+  const idleOutsidePlan = isOutsidePlan && !hasActiveSession;
+  const tone = idleOutsidePlan ? 'service' : resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession);
   const remainingSeconds = dto.remainingSeconds ?? null;
   const remainingDeadlineMs = remainingSeconds === null
     ? null
@@ -182,7 +187,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     zone: dto.zoneName,
     name: dto.seatName,
     tone,
-    stateLabel: seatStatusLabel(tone, t),
+    stateLabel: idleOutsidePlan ? t('op.floor.outsidePlan') : seatStatusLabel(tone, t),
     player: playerDisplayName ?? (hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none')),
     remaining: isOpenTab
       ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
@@ -216,7 +221,8 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     assistanceRequestedAtUtc: dto.assistanceRequestedAtUtc ?? null,
     maintenanceSinceUtc: dto.maintenanceSinceUtc ?? null,
     sessionState: dto.state,
-    isConsole
+    isConsole,
+    isOutsidePlan
   };
 }
 

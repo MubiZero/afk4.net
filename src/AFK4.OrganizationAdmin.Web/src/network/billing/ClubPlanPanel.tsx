@@ -4,8 +4,9 @@ import { ClubPlanKindNames, type ClubPlanDto } from '@afk4/contracts';
 import { Money } from '../../operatorPrimitives';
 import { projectOperatorError } from '../../apiErrors';
 import { SkeletonTiles } from '../../LoadingSkeleton';
+import { FreePlanDevices, type FreePlanDevicesClient } from './FreePlanDevices';
 
-export interface ClubPlanClient {
+export interface ClubPlanClient extends FreePlanDevicesClient {
   getPlan(): Promise<ClubPlanDto>;
   startTrial(): Promise<ClubPlanDto>;
   switchToPerPc(): Promise<ClubPlanDto>;
@@ -97,8 +98,13 @@ export function ClubPlanPanel({
       </dl>
       {plan.promisedPaymentUntilUtc ? (
         <p className="network-plan-note">{t('op.network.plan.promisedUntil', { date: formatDate(plan.promisedPaymentUntilUtc) })}</p>
-      ) : plan.overdue ? (
-        <p className="network-plan-note">{t('op.network.plan.overdueHint', { days: 14 })}</p>
+      ) : null}
+      {plan.fallbackAtUtc ? (
+        <p className="network-plan-note network-plan-note--attention">
+          {plan.devices > plan.includedDevices
+            ? t('op.network.plan.fallbackLimited', { date: formatDate(plan.fallbackAtUtc), included: plan.includedDevices, devices: plan.devices })
+            : t('op.network.plan.fallback', { date: formatDate(plan.fallbackAtUtc) })}
+        </p>
       ) : null}
       {canManage ? (
         <div className="network-plan-actions">
@@ -120,6 +126,9 @@ export function ClubPlanPanel({
         </div>
       ) : null}
       {error && <p className="ui-inline-error" role="alert">{error}</p>}
+      {(plan.devicesOutsidePlan ?? 0) > 0 ? (
+        <FreePlanDevices client={client} canManage={canManage} onChanged={() => void client.getPlan().then(setPlan).catch(() => {})} />
+      ) : null}
       {plan.referralCode ? <ReferralBlock plan={plan} /> : null}
     </div>
   );

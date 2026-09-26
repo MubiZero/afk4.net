@@ -60,6 +60,7 @@ const codeMessageKeys = {
   session_start_invalid: 'op.error.code.sessionStartInvalid',
   session_start_conflict: 'op.error.code.sessionStartConflict',
   plan_limit_reached: 'op.error.code.planLimitReached',
+  device_outside_plan: 'op.error.code.deviceOutsidePlan',
   // Касса и смены: до сих пор эти отказы не имели машинного имени, и кассир видел на экране
   // английскую фразу сервера вместе с сырым телом ответа.
   shift_already_open: 'op.error.code.shiftAlreadyOpen',
@@ -154,7 +155,7 @@ export function knownErrorMessage(error: unknown, t: TFn): string | null {
   if (!(error instanceof PlatformApiError)) return null;
   const code = readKnownErrorCode(error.body);
   if (code === null) return null;
-  const planLimit = code === 'plan_limit_reached' ? readPlanLimit(error.body) : null;
+  const planLimit = code === 'plan_limit_reached' || code === 'device_outside_plan' ? readPlanLimit(error.body) : null;
   return t(codeMessageKeys[code], planLimit ?? undefined);
 }
 

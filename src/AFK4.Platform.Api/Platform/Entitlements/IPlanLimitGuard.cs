@@ -19,6 +19,12 @@ public interface IPlanLimitGuard
 
     Task<PlanLimitExceededDto?> CheckConcurrentSessionAsync(Guid organizationId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// ПК «вне тарифа» — сверх предела ПК на клуб (спека тарифов клуба, §5a): новую сессию на нём не
+    /// начать и чужую на него не перенести. Идущая сессия доживает — её эта проверка не трогает.
+    /// </summary>
+    Task<PlanLimitExceededDto?> CheckDeviceOnPlanAsync(Guid organizationId, Guid deviceId, CancellationToken cancellationToken);
+
     /// <param name="excludingInviteId">
     /// Приглашение, которое не считать «непринятым» — при приёме именно оно превращается в
     /// сотрудника, а не добавляет место сверх уже занятого.

@@ -160,6 +160,8 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
           // ПК показывает код, но к платформе не привязан: сам игрок этого не исправит, а
           // «попробуйте ещё раз» отправило бы его набирать те же цифры до бесконечности.
           (_, 'device_not_assigned') => l.customerPlayErrDeviceGone,
+          // ПК сверх бесплатного тарифа клуба: место свободно, но сессию на нём не начать.
+          (_, 'device_outside_plan') => l.customerPlayErrOutsidePlan,
           (_, 'invalid_tariff') => l.customerTariffGone,
           (_, 'tariff_outside_its_hours') => l.customerTariffOutsideHours,
           (_, 'invalid_duration') => l.customerSessionErrDuration,

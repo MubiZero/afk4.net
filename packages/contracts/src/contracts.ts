@@ -98,6 +98,10 @@ export const ClubPlanErrorCodeNames = {
   NothingToPromise: 'plan_nothing_to_promise',
   PromiseUsed: 'plan_promise_used',
   AlreadyOnPlan: 'plan_already_on_plan',
+  /** Отмечено больше ПК, чем разрешает тариф. */
+  TooManyDevices: 'plan_devices_too_many',
+  /** В списке не игровой ПК клуба или неподтверждённый. */
+  UnknownDevice: 'plan_device_unknown',
 } as const;
 export type ClubPlanErrorCodeName = (typeof ClubPlanErrorCodeNames)[keyof typeof ClubPlanErrorCodeNames];
 
@@ -703,6 +707,11 @@ export const PlanLimitNames = {
   ReachedCode: 'plan_limit_reached',
   Branches: 'branches',
   DevicesPerBranch: 'devices_per_branch',
+  /**
+   * Игровые ПК на весь клуб. Этим же пределом отказывает запуск сессии на ПК «вне тарифа» —
+   * сверх десяти на бесплатном (спека тарифов клуба, §5a).
+   */
+  Devices: 'devices',
   ConcurrentSessions: 'concurrent_sessions',
   StaffUsersPerBranch: 'staff_users_per_branch',
 } as const;
@@ -2181,6 +2190,28 @@ export interface ClubPlaceDto {
   freeSeatCount?: number;
 }
 
+/** Контракт: Platform/Billing/ClubPlanContracts.cs */
+export interface ClubPlanDeviceDto {
+  deviceId: Guid;
+  name: string;
+  branchName: string;
+  /** Новые сессии на нём запускаются. */
+  works: boolean;
+  /** Владелец отметил его работающим на бесплатном тарифе. */
+  kept: boolean;
+}
+
+/**
+ * Игровые ПК клуба глазами тарифа: какие работают на бесплатном и какие отметил владелец.
+ *
+ * Контракт: Platform/Billing/ClubPlanContracts.cs
+ */
+export interface ClubPlanDevicesDto {
+  /** Предел ПК на клуб; пусто — у тарифа предела нет, работают все. */
+  limit: number | null;
+  devices: ClubPlanDeviceDto[];
+}
+
 /**
  * Тариф клуба словами (спека `2026-09-25-club-plans-per-pc-design.md`): сколько ПК, сколько из них
  * платных, во что выйдет месяц и что клуб может сделать сам. Цену прежней сетки клуб не видит.
@@ -2208,6 +2239,10 @@ export interface ClubPlanDto {
   referralCode?: string | null;
   freeMonths?: number;
   referredClubs?: number;
+  /** ПК, на которых новые сессии не запускаются: сверх предела бесплатного тарифа (§5a). */
+  devicesOutsidePlan?: number;
+  /** Когда клуб перейдёт на бесплатный тариф, если не оплатит просроченное. Пусто — не грозит. */
+  fallbackAtUtc?: IsoDateTime | null;
 }
 
 /**
@@ -4492,6 +4527,11 @@ export interface OrganizationLimitsDto {
   maxDevicesPerBranch: number | null;
   maxConcurrentSessions: number | null;
   maxStaffUsersPerBranch: number | null;
+  /**
+   * Игровых ПК на весь клуб, без деления по залам: бесплатный тариф — «до десяти ПК», сколько бы
+   * залов ни было (спека тарифов клуба, §2). Консоли не считаются.
+   */
+  maxDevices?: number | null;
 }
 
 /**
@@ -6634,6 +6674,8 @@ export interface SeatStatusDto {
   maintenanceSinceUtc?: IsoDateTime | null;
   /** Место с консолью без агента: сессию ведёт администратор, команд ПК у места нет. */
   isConsole?: boolean;
+  /** ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются, идущая доживает. */
+  isOutsidePlan?: boolean;
 }
 
 /**
@@ -6829,6 +6871,15 @@ export interface SessionTimelineResult {
 export interface SetAdCampaignStateRequest {
   /** Одно из AdCampaignStateNames */
   state: AdCampaignStateName;
+}
+
+/**
+ * Какие ПК работают на бесплатном тарифе — не больше предела; пустой список снимает выбор.
+ *
+ * Контракт: Platform/Billing/ClubPlanContracts.cs
+ */
+export interface SetClubPlanDevicesRequest {
+  deviceIds: Guid[];
 }
 
 /**

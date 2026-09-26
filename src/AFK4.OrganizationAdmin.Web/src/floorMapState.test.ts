@@ -3,6 +3,7 @@ import { createTranslator } from '@afk4/i18n';
 import {
   applyDeviceStatusToSeats,
   createFixtureFloorMapState,
+  isSeatReadyForGuest,
   mapFloorMapDtoToState,
   refreshFloorMapRemaining
 } from './floorMapState';
@@ -92,6 +93,24 @@ describe('floor-map state', () => {
     }, t);
 
     expect(state.seats[0]).toMatchObject({ tone: 'ready', isConsole: true });
+  });
+
+  // ПК сверх бесплатного тарифа: свободный — серый «Вне тарифа», а не «готов»; идущая сессия
+  // остаётся в своём цвете, пока не кончится.
+  it('greys out a free PC outside the free plan and keeps a running session as it is', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [
+        createSeat({ state: 'Free', isOutsidePlan: true }),
+        createSeat({ seatId: 'seat-2', state: 'Active', activeSessionId: 'session-2', isOutsidePlan: true })
+      ]
+    }, t);
+
+    expect(state.seats[0]).toMatchObject({ tone: 'service', stateLabel: 'Вне тарифа', isOutsidePlan: true });
+    expect(state.seats[1]).toMatchObject({ tone: 'active', isOutsidePlan: true });
+    expect(isSeatReadyForGuest(createSeat({ state: 'Free', isOutsidePlan: true }))).toBe(false);
   });
 
   it('maps a maintenance PC to the calm "service" tone, separate from the «нет связи» bucket', () => {

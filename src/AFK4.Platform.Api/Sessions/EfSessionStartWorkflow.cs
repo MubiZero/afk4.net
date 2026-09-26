@@ -127,6 +127,14 @@ public sealed class EfSessionStartWorkflow(
             return Conflict("The PC at this seat is under maintenance.", "device_in_maintenance");
         }
 
+        if (await planLimitGuard.CheckDeviceOnPlanAsync(request.OrganizationId, assignment.DeviceId, cancellationToken) is { } outsidePlan)
+        {
+            return new SessionStartStage(
+                SessionCommandServiceResult.OutsidePlan(outsidePlan),
+                DeviceId: null,
+                Command: null);
+        }
+
         if (await HasBlockingSessionAsync(
             request.OrganizationId,
             branchId,

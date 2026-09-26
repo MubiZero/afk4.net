@@ -29,9 +29,11 @@ public sealed class NewClubPlanTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var organization = await db.Organizations.SingleAsync(candidate => candidate.OrganizationId == organizationId);
         var limits = OrganizationLimitsJson.Deserialize(organization.LimitsJson);
-        Assert.Equal(1, limits.MaxBranches);
-        Assert.Equal(ClubPlanLimits.FreeDevices, limits.MaxDevicesPerBranch);
-        Assert.Equal(3, limits.MaxStaffUsersPerBranch);
+        // Тариф — только число ПК на весь клуб (владелец, 2026-09-26): залы и сотрудники без предела.
+        Assert.Equal(ClubPlanLimits.FreeDevices, limits.MaxDevices);
+        Assert.Null(limits.MaxBranches);
+        Assert.Null(limits.MaxDevicesPerBranch);
+        Assert.Null(limits.MaxStaffUsersPerBranch);
         Assert.Equal(0, (await db.OrganizationSubscriptions.SingleAsync(candidate => candidate.OrganizationId == organizationId)).AmountMinorUnits);
     }
 }

@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Platform.Billing;
 using Microsoft.AspNetCore.Http;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -30,6 +31,27 @@ internal static class ClubPlanEndpoints
 
         organizations.MapPost("plan/promised-payment", (Guid organizationId, StaffAuthorizationService authorizationService, ClubPlans plans, CancellationToken ct) =>
             ActAsync(organizationId, authorizationService, plans, (actor) => plans.PromisePaymentAsync(organizationId, actor, ct), ct));
+
+        // Какие ПК работают на бесплатном тарифе, когда их больше предела (§5a).
+        organizations.MapGet("plan/devices", async (
+            Guid organizationId, StaffAuthorizationService authorizationService, ClubPlans plans, CancellationToken ct) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
+            if (Refusal(authorization, organizationId) is { } refused) return refused;
+            return Results.Ok(await plans.DevicesAsync(organizationId, ct));
+        });
+
+        organizations.MapPut("plan/devices", async (
+            Guid organizationId, SetClubPlanDevicesRequest request, StaffAuthorizationService authorizationService, ClubPlans plans,
+            CancellationToken ct) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManageSubscription);
+            if (Refusal(authorization, organizationId) is { } refused) return refused;
+            var outcome = await plans.KeepDevicesAsync(organizationId, request.DeviceIds ?? [], authorization.StaffContext!.StaffUserId, ct);
+            if (outcome is null) return Results.NotFound();
+            if (outcome.Length > 0) return Results.Conflict(new { error = outcome });
+            return Results.Ok(await plans.DevicesAsync(organizationId, ct));
+        });
     }
 
     private static async Task<IResult> ActAsync(

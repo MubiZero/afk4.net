@@ -76,6 +76,10 @@ abstract final class ClubPlanErrorCodeNames {
   static const String nothingToPromise = 'plan_nothing_to_promise';
   static const String promiseUsed = 'plan_promise_used';
   static const String alreadyOnPlan = 'plan_already_on_plan';
+  /// Отмечено больше ПК, чем разрешает тариф.
+  static const String tooManyDevices = 'plan_devices_too_many';
+  /// В списке не игровой ПК клуба или неподтверждённый.
+  static const String unknownDevice = 'plan_device_unknown';
 }
 
 /// Словарь: Platform/Billing/ClubPlanContracts.cs
@@ -581,6 +585,9 @@ abstract final class PlanLimitNames {
   static const String reachedCode = 'plan_limit_reached';
   static const String branches = 'branches';
   static const String devicesPerBranch = 'devices_per_branch';
+  /// Игровые ПК на весь клуб. Этим же пределом отказывает запуск сессии на ПК «вне тарифа» —
+  /// сверх десяти на бесплатном (спека тарифов клуба, §5a).
+  static const String devices = 'devices';
   static const String concurrentSessions = 'concurrent_sessions';
   static const String staffUsersPerBranch = 'staff_users_per_branch';
 }
@@ -3168,6 +3175,68 @@ class ClubPlaceDto {
       };
 }
 
+/// Контракт: Platform/Billing/ClubPlanContracts.cs
+class ClubPlanDeviceDto {
+  const ClubPlanDeviceDto({
+    required this.deviceId,
+    required this.name,
+    required this.branchName,
+    required this.works,
+    required this.kept,
+  });
+
+  final String deviceId;
+  final String name;
+  final String branchName;
+
+  /// Новые сессии на нём запускаются.
+  final bool works;
+
+  /// Владелец отметил его работающим на бесплатном тарифе.
+  final bool kept;
+
+  factory ClubPlanDeviceDto.fromJson(Map<String, dynamic> json) => ClubPlanDeviceDto(
+        deviceId: json['deviceId'] as String,
+        name: json['name'] as String,
+        branchName: json['branchName'] as String,
+        works: json['works'] as bool,
+        kept: json['kept'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'deviceId': deviceId,
+        'name': name,
+        'branchName': branchName,
+        'works': works,
+        'kept': kept,
+      };
+}
+
+/// Игровые ПК клуба глазами тарифа: какие работают на бесплатном и какие отметил владелец.
+///
+/// Контракт: Platform/Billing/ClubPlanContracts.cs
+class ClubPlanDevicesDto {
+  const ClubPlanDevicesDto({
+    this.limit,
+    required this.devices,
+  });
+
+
+  /// Предел ПК на клуб; пусто — у тарифа предела нет, работают все.
+  final int? limit;
+  final List<ClubPlanDeviceDto> devices;
+
+  factory ClubPlanDevicesDto.fromJson(Map<String, dynamic> json) => ClubPlanDevicesDto(
+        limit: json['limit'] == null ? null : (json['limit'] as num).toInt(),
+        devices: (json['devices'] as List<dynamic>).map((item) => ClubPlanDeviceDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'limit': limit,
+        'devices': devices.map((item) => item.toJson()).toList(),
+      };
+}
+
 /// Тариф клуба словами (спека `2026-09-25-club-plans-per-pc-design.md`): сколько ПК, сколько из них
 /// платных, во что выйдет месяц и что клуб может сделать сам. Цену прежней сетки клуб не видит.
 ///
@@ -3190,6 +3259,8 @@ class ClubPlanDto {
     this.referralCode,
     this.freeMonths,
     this.referredClubs,
+    this.devicesOutsidePlan,
+    this.fallbackAtUtc,
   });
 
   final String planCode;
@@ -3217,6 +3288,12 @@ class ClubPlanDto {
   final int? freeMonths;
   final int? referredClubs;
 
+  /// ПК, на которых новые сессии не запускаются: сверх предела бесплатного тарифа (§5a).
+  final int? devicesOutsidePlan;
+
+  /// Когда клуб перейдёт на бесплатный тариф, если не оплатит просроченное. Пусто — не грозит.
+  final DateTime? fallbackAtUtc;
+
   factory ClubPlanDto.fromJson(Map<String, dynamic> json) => ClubPlanDto(
         planCode: json['planCode'] as String,
         kind: json['kind'] as String,
@@ -3234,6 +3311,8 @@ class ClubPlanDto {
         referralCode: json['referralCode'] == null ? null : json['referralCode'] as String,
         freeMonths: json['freeMonths'] == null ? null : (json['freeMonths'] as num).toInt(),
         referredClubs: json['referredClubs'] == null ? null : (json['referredClubs'] as num).toInt(),
+        devicesOutsidePlan: json['devicesOutsidePlan'] == null ? null : (json['devicesOutsidePlan'] as num).toInt(),
+        fallbackAtUtc: json['fallbackAtUtc'] == null ? null : DateTime.parse(json['fallbackAtUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -3253,6 +3332,8 @@ class ClubPlanDto {
         'referralCode': referralCode,
         'freeMonths': freeMonths,
         'referredClubs': referredClubs,
+        'devicesOutsidePlan': devicesOutsidePlan,
+        'fallbackAtUtc': fallbackAtUtc?.toIso8601String(),
       };
 }
 
@@ -10316,6 +10397,7 @@ class OrganizationLimitsDto {
     this.maxDevicesPerBranch,
     this.maxConcurrentSessions,
     this.maxStaffUsersPerBranch,
+    this.maxDevices,
   });
 
   final int? maxBranches;
@@ -10323,11 +10405,16 @@ class OrganizationLimitsDto {
   final int? maxConcurrentSessions;
   final int? maxStaffUsersPerBranch;
 
+  /// Игровых ПК на весь клуб, без деления по залам: бесплатный тариф — «до десяти ПК», сколько бы
+  /// залов ни было (спека тарифов клуба, §2). Консоли не считаются.
+  final int? maxDevices;
+
   factory OrganizationLimitsDto.fromJson(Map<String, dynamic> json) => OrganizationLimitsDto(
         maxBranches: json['maxBranches'] == null ? null : (json['maxBranches'] as num).toInt(),
         maxDevicesPerBranch: json['maxDevicesPerBranch'] == null ? null : (json['maxDevicesPerBranch'] as num).toInt(),
         maxConcurrentSessions: json['maxConcurrentSessions'] == null ? null : (json['maxConcurrentSessions'] as num).toInt(),
         maxStaffUsersPerBranch: json['maxStaffUsersPerBranch'] == null ? null : (json['maxStaffUsersPerBranch'] as num).toInt(),
+        maxDevices: json['maxDevices'] == null ? null : (json['maxDevices'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -10335,6 +10422,7 @@ class OrganizationLimitsDto {
         'maxDevicesPerBranch': maxDevicesPerBranch,
         'maxConcurrentSessions': maxConcurrentSessions,
         'maxStaffUsersPerBranch': maxStaffUsersPerBranch,
+        'maxDevices': maxDevices,
       };
 }
 
@@ -16264,6 +16352,7 @@ class SeatStatusDto {
     this.assistanceRequestedAtUtc,
     this.maintenanceSinceUtc,
     this.isConsole,
+    this.isOutsidePlan,
   });
 
   final String seatId;
@@ -16316,6 +16405,9 @@ class SeatStatusDto {
   /// Место с консолью без агента: сессию ведёт администратор, команд ПК у места нет.
   final bool? isConsole;
 
+  /// ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются, идущая доживает.
+  final bool? isOutsidePlan;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -16341,6 +16433,7 @@ class SeatStatusDto {
         assistanceRequestedAtUtc: json['assistanceRequestedAtUtc'] == null ? null : DateTime.parse(json['assistanceRequestedAtUtc'] as String),
         maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
         isConsole: json['isConsole'] == null ? null : json['isConsole'] as bool,
+        isOutsidePlan: json['isOutsidePlan'] == null ? null : json['isOutsidePlan'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -16368,6 +16461,7 @@ class SeatStatusDto {
         'assistanceRequestedAtUtc': assistanceRequestedAtUtc?.toIso8601String(),
         'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
         'isConsole': isConsole,
+        'isOutsidePlan': isOutsidePlan,
       };
 }
 
@@ -16940,6 +17034,25 @@ class SetAdCampaignStateRequest {
 
   Map<String, dynamic> toJson() => {
         'state': state,
+      };
+}
+
+/// Какие ПК работают на бесплатном тарифе — не больше предела; пустой список снимает выбор.
+///
+/// Контракт: Platform/Billing/ClubPlanContracts.cs
+class SetClubPlanDevicesRequest {
+  const SetClubPlanDevicesRequest({
+    required this.deviceIds,
+  });
+
+  final List<String> deviceIds;
+
+  factory SetClubPlanDevicesRequest.fromJson(Map<String, dynamic> json) => SetClubPlanDevicesRequest(
+        deviceIds: (json['deviceIds'] as List<dynamic>).map((item) => item as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'deviceIds': deviceIds.map((item) => item).toList(),
       };
 }
 

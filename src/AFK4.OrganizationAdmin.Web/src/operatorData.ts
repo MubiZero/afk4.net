@@ -56,6 +56,8 @@ export interface SeatSummary {
   maintenanceSinceUtc?: string | null;
   // Консоль без агента: сессию ведёт администратор, команд ПК у места нет.
   isConsole?: boolean;
+  // ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются.
+  isOutsidePlan?: boolean;
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;

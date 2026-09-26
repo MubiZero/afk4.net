@@ -26,6 +26,12 @@ public sealed class DeviceEntity
 
     public DateTimeOffset EnrolledAtUtc { get; set; }
 
+    /// <summary>
+    /// Владелец отметил этот ПК работающим на бесплатном тарифе, когда ПК больше предела (спека
+    /// тарифов клуба, §5a). Без отметок работают подключённые раньше других.
+    /// </summary>
+    public bool KeptOnFreePlan { get; set; }
+
     public DateTimeOffset? LastHeartbeatAtUtc { get; set; }
 
     public bool IsOnline { get; set; }

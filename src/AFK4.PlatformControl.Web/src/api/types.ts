@@ -67,6 +67,8 @@ export interface OrganizationLimits {
   maxDevicesPerBranch: number | null;
   maxConcurrentSessions: number | null;
   maxStaffUsersPerBranch: number | null;
+  // Игровых ПК на весь клуб, без деления по залам (бесплатный тариф — до десяти).
+  maxDevices?: number | null;
 }
 
 export interface OrganizationDetail {

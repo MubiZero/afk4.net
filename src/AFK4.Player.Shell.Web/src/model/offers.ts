@@ -77,6 +77,8 @@ export function startErrorKey(reason: unknown): { key: MessageKey; reload: boole
       return { key: 'playerShell.chooseTime.error.tariffClosed', reload: true };
     case 'device_in_maintenance':
       return { key: 'playerShell.chooseTime.error.maintenance', reload: false };
+    case 'device_outside_plan':
+      return { key: 'playerShell.chooseTime.error.outsidePlan', reload: false };
     case 'seat_occupied':
       return { key: 'playerShell.chooseTime.error.taken', reload: false };
     default:

@@ -320,6 +320,8 @@ public static class AuditActionNames
     /// <summary>Счёт просрочен — клуб перешёл на бесплатный тариф вместо блокировки.</summary>
     public const string FallBackToFreePlan = "billing.plan.fallback_free";
 
+    public const string KeepPlanDevices = "billing.plan.keep_devices";
+
     /// <summary>Приведённый клуб оплатил первый счёт — пригласившему начислен бесплатный месяц.</summary>
     public const string RewardClubReferral = "billing.referral.reward";
 

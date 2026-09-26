@@ -205,11 +205,7 @@ public sealed class EfOrganizationSubscriptionService(
             subscription.CurrencyCode = newPlan.CurrencyCode;
             subscription.BillingInterval = newInterval;
 
-            org.LimitsJson = JsonSerializer.Serialize(new OrganizationLimitsDto(
-                newPlan.MaxBranches,
-                newPlan.MaxDevicesPerBranch,
-                newPlan.MaxConcurrentSessions,
-                newPlan.MaxStaffUsersPerBranch));
+            org.LimitsJson = JsonSerializer.Serialize(ClubPlans.LimitsOf(newPlan));
             org.PlanCode = newPlan.PlanCode;
         }
         else if (request.BillingInterval is not null)

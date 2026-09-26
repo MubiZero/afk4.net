@@ -1055,7 +1055,8 @@ internal static class PlatformOrganizationEndpoints
                     detail.Limits.MaxBranches,
                     detail.Limits.MaxDevicesPerBranch,
                     detail.Limits.MaxConcurrentSessions,
-                    detail.Limits.MaxStaffUsersPerBranch
+                    detail.Limits.MaxStaffUsersPerBranch,
+                    detail.Limits.MaxDevices
                 },
                 cancellationToken);
 

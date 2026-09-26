@@ -40,7 +40,26 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
         }
 
         var plan = await LoadPlanAsync(organizationId, cancellationToken);
-        if (plan?.Limits.MaxDevicesPerBranch is not { } limit)
+        if (plan is null)
+        {
+            return null;
+        }
+
+        if (plan.Limits.MaxDevices is { } organizationLimit)
+        {
+            var inOrganization = await dbContext.Devices
+                .CountAsync(
+                    device => device.OrganizationId == organizationId
+                        && device.Role == DeviceRoleNames.GamingPc
+                        && LiveDeviceStates.Contains(device.EnrollmentState),
+                    cancellationToken);
+            if (Verdict(PlanLimitNames.Devices, organizationLimit, inOrganization, plan.PlanCode) is { } refused)
+            {
+                return refused;
+            }
+        }
+
+        if (plan.Limits.MaxDevicesPerBranch is not { } limit)
         {
             return null;
         }
@@ -54,6 +73,21 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
                 cancellationToken);
 
         return Verdict(PlanLimitNames.DevicesPerBranch, limit, current, plan.PlanCode);
+    }
+
+    public async Task<PlanLimitExceededDto?> CheckDeviceOnPlanAsync(Guid organizationId, Guid deviceId, CancellationToken cancellationToken)
+    {
+        var allowance = await PlanDevices.ForOrganizationAsync(dbContext, organizationId, cancellationToken);
+        if (allowance.Limit is not { } limit || !allowance.Outside.Contains(deviceId))
+        {
+            return null;
+        }
+
+        var planCode = await dbContext.Organizations.AsNoTracking()
+            .Where(organization => organization.OrganizationId == organizationId)
+            .Select(organization => organization.PlanCode)
+            .SingleAsync(cancellationToken);
+        return new PlanLimitExceededDto(PlanLimitNames.ReachedCode, PlanLimitNames.Devices, limit, allowance.Count, planCode);
     }
 
     public async Task<PlanLimitExceededDto?> CheckConcurrentSessionAsync(Guid organizationId, CancellationToken cancellationToken)

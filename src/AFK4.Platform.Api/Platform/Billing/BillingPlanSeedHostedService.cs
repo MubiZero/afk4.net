@@ -24,10 +24,12 @@ public sealed class BillingPlanSeedHostedService(
             PriceMinorUnits = 0,
             CurrencyCode = "TJS",
             BillingInterval = BillingIntervalNames.Monthly,
-            MaxBranches = 1,
-            MaxDevicesPerBranch = ClubPlanLimits.FreeDevices,
+            // Только число ПК на весь клуб: залы и сотрудники не ограничены (владелец, 2026-09-26).
+            MaxBranches = null,
+            MaxDevicesPerBranch = null,
             MaxConcurrentSessions = null,
-            MaxStaffUsersPerBranch = 3,
+            MaxStaffUsersPerBranch = null,
+            MaxDevices = ClubPlanLimits.FreeDevices,
             IsActive = true,
             SortOrder = 0
         },
@@ -177,6 +179,7 @@ public sealed class BillingPlanSeedHostedService(
                 MaxDevicesPerBranch = template.MaxDevicesPerBranch,
                 MaxConcurrentSessions = template.MaxConcurrentSessions,
                 MaxStaffUsersPerBranch = template.MaxStaffUsersPerBranch,
+                MaxDevices = template.MaxDevices,
                 PricePerDeviceMinorUnits = template.PricePerDeviceMinorUnits,
                 IncludedDevices = template.IncludedDevices,
                 IsActive = template.IsActive,
