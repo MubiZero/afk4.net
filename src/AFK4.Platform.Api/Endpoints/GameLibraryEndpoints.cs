@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
@@ -57,6 +59,9 @@ internal static class GameLibraryEndpoints
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
+            ISteamCoverSource steamCovers,
+            IMediaStorage storage,
+            IOptions<MediaOptions> mediaOptions,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageGameCatalog);
@@ -74,6 +79,7 @@ internal static class GameLibraryEndpoints
                 return Invalid(error);
             }
 
+            request = await WithSteamCoverAsync(request, steamCovers, storage, mediaOptions.Value, cancellationToken);
             var now = timeProvider.GetUtcNow();
             var entity = new CatalogGameEntity { CatalogGameId = Guid.NewGuid(), CreatedAtUtc = now };
             Apply(entity, request, now, actor);
@@ -93,6 +99,9 @@ internal static class GameLibraryEndpoints
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
+            ISteamCoverSource steamCovers,
+            IMediaStorage storage,
+            IOptions<MediaOptions> mediaOptions,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageGameCatalog);
@@ -116,6 +125,7 @@ internal static class GameLibraryEndpoints
                 return Results.NotFound();
             }
 
+            request = await WithSteamCoverAsync(request, steamCovers, storage, mediaOptions.Value, cancellationToken);
             var now = timeProvider.GetUtcNow();
             Apply(entity, request, now, actor);
             // Обложку и возраст клубы берут из каталога — их ПК должны перечитать библиотеку.
@@ -402,6 +412,20 @@ internal static class GameLibraryEndpoints
         catalogGameId is { } id
             ? await dbContext.CatalogGames.AsNoTracking().SingleOrDefaultAsync(game => game.CatalogGameId == id, cancellationToken)
             : null;
+
+    /// <summary>
+    /// Игра из Steam без обложки получает обложку сама — картинку магазина (владелец, 2026-09-26).
+    /// Не нашлась — игра сохраняется без неё: карточка на ПК нарисуется по названию.
+    /// </summary>
+    private static async Task<UpsertCatalogGameRequest> WithSteamCoverAsync(
+        UpsertCatalogGameRequest request, ISteamCoverSource steamCovers, IMediaStorage storage, MediaOptions options, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(request.CoverUrl) || request.LaunchKind != GameLaunchKindNames.Steam
+            || string.IsNullOrWhiteSpace(request.LaunchTarget) || !request.LaunchTarget.Trim().All(char.IsAsciiDigit))
+            return request;
+        var cover = await SteamCovers.StoreAsync(steamCovers, storage, options, request.LaunchTarget.Trim(), ct);
+        return cover is null ? request : request with { CoverUrl = cover };
+    }
 
     private static void Apply(CatalogGameEntity entity, UpsertCatalogGameRequest request, DateTimeOffset now, Guid? actor)
     {

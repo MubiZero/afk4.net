@@ -221,7 +221,7 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
   };
 
   return (
-    <div className="library-tile">
+    <div className={app.ageLocked ? 'library-tile library-tile--locked' : 'library-tile'}>
       {/* Обложка — из кэша ПК; её нет — плитка по названию, а не пустой квадрат. */}
       {app.iconUri
         ? <img className="library-tile__cover" src={app.iconUri} alt="" loading="lazy" decoding="async" />
@@ -231,7 +231,10 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
         {app.minAge !== null && app.minAge !== undefined ? <span className="library-tile__age">{app.minAge}+</span> : null}
       </span>
       <span className="library-tile__category">{app.category}</span>
-      {app.isAvailable ? (
+      {app.ageLocked ? (
+        // Возраст из дня рождения в профиле: агент такую игру и не запустит.
+        <span className="library-tile__missing">{t('playerShell.session.ageLocked', { age: app.minAge ?? 0 })}</span>
+      ) : app.isAvailable ? (
         <button type="button" className="btn btn--primary" onClick={start} disabled={launch === 'launching'}>
           {launch === 'launching' ? t('playerShell.session.launching') : t('playerShell.session.launch')}
         </button>

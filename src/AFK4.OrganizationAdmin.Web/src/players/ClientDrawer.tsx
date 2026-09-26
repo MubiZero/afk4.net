@@ -1,6 +1,6 @@
 import { useI18n } from '@afk4/i18n';
-import { CalendarClock, Play, Smartphone, X } from 'lucide-react';
-import { initials, type PlayerClientItem } from '../operatorHelpers';
+import { Cake, CalendarClock, Play, Smartphone, X } from 'lucide-react';
+import { describeBirthday, initials, type PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
 import { Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientLiveContext } from './playersModel';
@@ -90,10 +90,11 @@ export function ClientDrawer({
   // Репутацию в сети спрашивает оркестратор — карточка только рисует ответ и кнопку.
   reputation: ReputationController;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const hasDebt = debtMinorUnits > 0;
   const hasHeld = heldMinorUnits > 0;
   const isInactive = !client.isActive;
+  const birthday = client.birthDate ? describeBirthday(client.birthDate, locale) : null;
   // Триггер «⋯» показываем, если у оператора есть ХОТЯ БЫ одно из трёх прав — иначе меню
   // рендерится пустым (см. ClientActionsMenu), а кнопка без пунктов бесполезна.
   const showActionsMenu = canManageClient || canCreateReservation || canCorrect || canSellPackage || canStartSession;
@@ -105,6 +106,9 @@ export function ClientDrawer({
         <div className="drawer-id">
           <div className="drawer-name">{client.name}</div>
           <div className="drawer-phone">{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</div>
+          {birthday && (
+            <div className="drawer-phone">{t('op.players.birthday', { date: birthday.label, age: birthday.age })}</div>
+          )}
         </div>
         {showActionsMenu && (
           <ClientActionsMenu
@@ -130,6 +134,12 @@ export function ClientDrawer({
       <div className="drawer-context">
         {isInactive && (
           <span className="status-pill neutral">{playerStatusLabel('inactive', t)}</span>
+        )}
+        {birthday?.isToday && (
+          <span className="status-pill ok">
+            <Cake size={12} aria-hidden="true" />
+            {t('op.players.birthdayToday')}
+          </span>
         )}
         {/* Откуда взялась карточка. Стойке это меняет разговор: человека, который завёл себя
             сам из приложения, здесь никто не видел и документов его не сверял. */}

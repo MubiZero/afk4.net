@@ -40,7 +40,12 @@ public static class HardwareSchedule
         snapshot.Motherboard,
         string.Join(',', snapshot.Disks.Select(disk => $"{disk.Name}:{disk.SizeGb}")),
         snapshot.Os,
-        snapshot.Bios);
+        snapshot.Bios,
+        // «?» — не прочиталось: это не то же, что «ничего нет». Порядок перечисления не важен.
+        snapshot.PhysicalDisks is null ? "?" : string.Join(',', snapshot.PhysicalDisks
+            .Select(disk => $"{disk.Model}:{disk.SizeGb}:{disk.Interface}").Order(StringComparer.Ordinal)),
+        snapshot.Monitors is null ? "?" : string.Join(',', snapshot.Monitors
+            .Select(monitor => $"{monitor.Name}:{monitor.Manufacturer}:{monitor.Serial}").Order(StringComparer.Ordinal)));
 }
 
 public sealed class HardwareReporter(
@@ -114,6 +119,7 @@ public sealed class UnsupportedHardwareSnapshotCollector : IHardwareSnapshotColl
 /// <summary>
 /// Железо из реестра и системных вызовов, без WMI: служба на слабых ПК зала не должна минутами
 /// ждать ответа WMI, а реестр отвечает сразу. Что не прочиталось — пусто, а не падение.
+/// Накопители — описанием самого диска, мониторы — их EDID из реестра.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class WindowsHardwareSnapshotCollector : IHardwareSnapshotCollector
@@ -127,13 +133,15 @@ public sealed class WindowsHardwareSnapshotCollector : IHardwareSnapshotCollecto
         Gpus: Gpus(),
         Motherboard: Join(Read(@"HARDWARE\DESCRIPTION\System\BIOS", "BaseBoardManufacturer"), Read(@"HARDWARE\DESCRIPTION\System\BIOS", "BaseBoardProduct")),
         Disks: DriveInfo.GetDrives()
-            .Where(drive => drive.DriveType == DriveType.Fixed && drive.IsReady)
+            .Where(drive => drive.DriveType == DriveType.Fixed && drive.IsReady && !PhysicalDiskDescriptor.IsPluggedInVolume(drive.Name))
             .Select(drive => new HardwareDiskDto(drive.Name.TrimEnd('\\'), (int)Math.Round(drive.TotalSize / 1_000_000_000d)))
             .ToList(),
         Os: Join(Read(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName"),
             Read(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion", "DisplayVersion"),
             Read(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion", "CurrentBuild") is { } build ? $"build {build}" : null),
-        Bios: Join(Read(@"HARDWARE\DESCRIPTION\System\BIOS", "BIOSVendor"), Read(@"HARDWARE\DESCRIPTION\System\BIOS", "BIOSVersion")));
+        Bios: Join(Read(@"HARDWARE\DESCRIPTION\System\BIOS", "BIOSVendor"), Read(@"HARDWARE\DESCRIPTION\System\BIOS", "BIOSVersion")),
+        PhysicalDisks: PhysicalDiskDescriptor.ReadInternal(),
+        Monitors: MonitorEdid.ReadConnected());
 
     private static IReadOnlyList<HardwareGpuDto> Gpus()
     {

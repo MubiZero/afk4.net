@@ -87,6 +87,7 @@ String ledgerTypeLabel(String entryType, L l) => switch (entryType) {
   'reversal' => l.ledgerTypeReversal,
   'cashback' => l.ledgerTypeCashback,
   'referral_bonus' => l.ledgerTypeReferralBonus,
+  'birthday_bonus' => l.ledgerTypeBirthdayBonus,
   'reservation_hold' => l.ledgerTypeReservationHold,
   'reservation_no_show_fee' => l.ledgerTypeReservationNoShowFee,
   'tournament_entry_fee' => l.ledgerTypeTournamentEntryFee,

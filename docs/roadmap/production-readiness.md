@@ -592,8 +592,7 @@ live runs for:
   from a platform catalog, maintenance mode, the reviews and tips page.
 - Free plan with platform ads: showcase manifest, featured tariffs and
   products, product photos, the advertising section in Platform Control,
-  impression counting. Blocked on the media bucket and on the owner checking
-  the advertising law.
+  impression counting.
 
 **To launch — so clubs can be sold to:**
 
@@ -622,6 +621,17 @@ moderation checks, stored image copies (the ads-law PR on top of #496 and
 the media bucket. Tips stay a personal gift outside receipts. Still open: the
 lawyer's questions in the ads spec §8.4 and a native speaker's pass over the
 Tajik UI strings.
+
+Update 2026-09-26 (shell leftovers): clubs reply to reviews and hide
+offensive text (the stars stay in the rating); the hardware inventory now
+covers drives and monitors; Steam games in the catalog get the store image
+automatically, and Platform Control uploads catalog covers and ad images to
+the same MinIO storage the clubs use. Then (owner, same day): an optional
+birth date in the player's profile locks games above the player's age on the
+PC and drives a club birthday gift to the wallet; the club's first reply to a
+review reaches the author as a push and in the in-app inbox
+(`2026-09-26-birthdays-design.md`). Still open from the shell: live-PC
+acceptance (shell spec §10), Telegram alerts (after the first club).
 
 **After the first club — by what it asks for:**
 

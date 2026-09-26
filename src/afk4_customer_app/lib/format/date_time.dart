@@ -25,6 +25,13 @@ String formatDateTime(L l, DateTime value, String locale, {DateTime? now}) {
   return l.customerCommonDayAtTime(_monthDay(local, locale, withYear: day.year != today.year), time);
 }
 
+/// Календарная дата без времени и без «Сегодня»: день рождения, «14 март 2001». Приходит строкой
+/// `yyyy-MM-dd` — часовой пояс к ней не относится.
+String formatCalendarDate(String isoDate, String locale) {
+  final date = DateTime.parse(isoDate);
+  return _monthDay(date, locale, withYear: true);
+}
+
 /// «12 август», «12 август 2025». Для таджикского — свои названия месяцев: `intl` таджикского не
 /// знает, а русские «12 авг.» в таджикском интерфейсе — чужой язык.
 String _monthDay(DateTime local, String locale, {required bool withYear}) {

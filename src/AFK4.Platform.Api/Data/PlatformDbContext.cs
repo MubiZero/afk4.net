@@ -8,6 +8,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<OrganizationLoyaltySettingsEntity> OrganizationLoyaltySettings => Set<OrganizationLoyaltySettingsEntity>();
     public DbSet<OrganizationReferralSettingsEntity> OrganizationReferralSettings => Set<OrganizationReferralSettingsEntity>();
+    public DbSet<OrganizationBirthdayGiftSettingsEntity> OrganizationBirthdayGiftSettings => Set<OrganizationBirthdayGiftSettingsEntity>();
+    public DbSet<PlayerBirthdayGiftEntity> PlayerBirthdayGifts => Set<PlayerBirthdayGiftEntity>();
     public DbSet<PlayerReferralEntity> PlayerReferrals => Set<PlayerReferralEntity>();
 
     public DbSet<NewsItemEntity> NewsItems => Set<NewsItemEntity>();
@@ -270,6 +272,21 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.ToTable("organization_referral_settings");
             entity.HasKey(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<OrganizationBirthdayGiftSettingsEntity>(entity =>
+        {
+            entity.ToTable("organization_birthday_gift_settings");
+            entity.HasKey(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<PlayerBirthdayGiftEntity>(entity =>
+        {
+            entity.ToTable("player_birthday_gifts");
+            entity.HasKey(gift => gift.PlayerBirthdayGiftId);
+            // Один подарок на счёт в год: второй прогон задания упрётся в индекс, а не подарит ещё раз.
+            entity.HasIndex(gift => new { gift.PlayerAccountId, gift.Year }).IsUnique();
+            entity.HasIndex(gift => gift.OrganizationId);
         });
 
         modelBuilder.Entity<PlayerReferralEntity>(entity =>

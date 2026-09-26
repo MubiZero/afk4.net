@@ -6,10 +6,12 @@ import { useOrganizationFeatures } from '../../useOrganizationFeatures';
 import { PaymentMethodsSection } from './payments/PaymentMethodsSection';
 import { LoyaltySection } from './payments/LoyaltySection';
 import { ReferralSection } from './payments/ReferralSection';
+import { BirthdayGiftSection } from './payments/BirthdayGiftSection';
 import { TipsSection } from './payments/TipsSection';
 import { PaymentsSetupSection } from './payments/PaymentsSetupSection';
 import { useLoyaltySettings } from './payments/useLoyaltySettings';
 import { useReferralSettings } from './payments/useReferralSettings';
+import { useBirthdayGiftSettings } from './payments/useBirthdayGiftSettings';
 import type { DestinationProps } from './types';
 
 // «Платежи и лояльность» — спокойный setup-экран, куда заходят раз в несколько месяцев. Две ясные
@@ -32,10 +34,12 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
   const loyalty = useLoyaltySettings(backend, showLoyalty);
   // Приглашение — та же программа лояльности и то же право: гейтится вместе с кэшбэком.
   const referral = useReferralSettings(backend, showLoyalty);
+  // Подарок на день рождения — туда же и под тем же правом.
+  const birthdayGift = useBirthdayGiftSettings(backend, showLoyalty);
 
   useEffect(() => {
-    onDirtyChange?.(loyalty.dirty || referral.dirty);
-  }, [loyalty.dirty, referral.dirty, onDirtyChange]);
+    onDirtyChange?.(loyalty.dirty || referral.dirty || birthdayGift.dirty);
+  }, [loyalty.dirty, referral.dirty, birthdayGift.dirty, onDirtyChange]);
 
   return (
     <ManagementScreen
@@ -76,6 +80,16 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
             lead={t('op.payments.zone.referral.lead')}
           >
             <ReferralSection controller={referral} currencyCode={currencyCode} hasBackend={backend !== null} />
+          </PaymentsSetupSection>
+        )}
+
+        {showLoyalty && (
+          <PaymentsSetupSection
+            direction="out"
+            title={t('op.payments.zone.birthdayGift')}
+            lead={t('op.payments.zone.birthdayGift.lead')}
+          >
+            <BirthdayGiftSection controller={birthdayGift} currencyCode={currencyCode} hasBackend={backend !== null} />
           </PaymentsSetupSection>
         )}
 

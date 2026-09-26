@@ -249,6 +249,9 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                 // resolve the SAME instance the endpoint used (see FakeMediaStorage.Objects).
                 services.RemoveAll<IMediaStorage>();
                 services.AddSingleton<IMediaStorage, FakeMediaStorage>();
+                // Обложки Steam — без сети: тест, которому они нужны, кладёт картинку в FakeSteamCoverSource.
+                services.RemoveAll<ISteamCoverSource>();
+                services.AddSingleton<ISteamCoverSource, FakeSteamCoverSource>();
                 // Хранилище подставное, но настроенным быть обязано: без адреса и ключей сервис
                 // отказывает сразу — так он ведёт себя на среде, где Media__S3__* не заданы.
                 services.Configure<MediaOptions>(options =>

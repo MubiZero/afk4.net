@@ -305,7 +305,11 @@ export class PlatformTransport {
       }
     }
     const init: RequestInit = { method, headers };
-    if (body !== undefined) {
+    if (body instanceof FormData) {
+      // Файл: границу частей в Content-Type ставит сам браузер, JSON-заголовок её бы сломал.
+      delete headers['Content-Type'];
+      init.body = body;
+    } else if (body !== undefined) {
       init.body = JSON.stringify(body);
     }
     return this.fetchWithTimeout(`${this.baseUrl}${path}`, init, signal);

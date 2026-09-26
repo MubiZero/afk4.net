@@ -294,3 +294,29 @@ describe('PlatformTransport — ключ повторной попытки', () 
     expect(seen[0]).not.toBe(seen[1]);
   });
 });
+
+describe('PlatformTransport — загрузка файла', () => {
+  // Картинку шлют частями формы: JSON-заголовок сломал бы границу частей, а сервер не нашёл бы файл.
+  it('форму отправляет как есть, без JSON-заголовка, но с токеном', async () => {
+    let seen: RequestInit | undefined;
+    const fetchImpl = mock(async (_url: string, init: RequestInit) => {
+      seen = init;
+      return jsonResponse(200, { url: 'https://media.test/x.jpg' });
+    });
+    const transport = new PlatformTransport({
+      baseUrl: 'http://localhost',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      session: sessionBody() as never,
+      onSessionChanged: () => {}
+    });
+    const form = new FormData();
+    form.append('purpose', 'catalog-cover');
+
+    await transport.send('POST', '/api/platform/media', form);
+
+    expect(seen?.body).toBe(form);
+    const headers = seen?.headers as Record<string, string>;
+    expect(headers['Content-Type']).toBeUndefined();
+    expect(headers.Authorization).toBe('Bearer t');
+  });
+});

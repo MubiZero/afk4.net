@@ -79,8 +79,9 @@ public sealed class MediaEndpointTests
         Assert.NotNull(persisted);
         Assert.Equal(TestIds.BranchId, persisted.BranchId);
 
+        // Хост и подставное хранилище общие на все тесты — ищем свой объект, а не считаем чужие.
         var storage = (FakeMediaStorage)factory.Services.GetRequiredService<IMediaStorage>();
-        Assert.Single(storage.Objects);
+        Assert.True(storage.Objects.ContainsKey(persisted.ObjectKey));
     }
 
     [Fact]

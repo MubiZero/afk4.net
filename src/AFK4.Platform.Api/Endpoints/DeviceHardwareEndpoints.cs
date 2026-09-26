@@ -74,6 +74,19 @@ internal static class DeviceHardwareEndpoints
                 entity.CurrentFingerprint = fingerprint;
                 entity.ReportedAtUtc = now;
                 entity.BranchId = request.BranchId;
+                if (Read(entity.AcceptedJson) is { } accepted)
+                {
+                    // Накопители и мониторы, которых принятый снимок не знал (агент старше), — норма с первой
+                    // описи. А не прочитавшиеся сейчас — прежние: отметка в списке не зажигается без изменения.
+                    var norm = DeviceHardware.WithKnownParts(accepted, request.Snapshot);
+                    if (norm.PhysicalDisks != accepted.PhysicalDisks || norm.Monitors != accepted.Monitors)
+                    {
+                        entity.AcceptedJson = JsonSerializer.Serialize(norm, Json);
+                    }
+
+                    entity.AcceptedFingerprint = DeviceHardware.Fingerprint(norm);
+                    entity.CurrentFingerprint = DeviceHardware.Fingerprint(DeviceHardware.WithKnownParts(request.Snapshot, norm));
+                }
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -136,9 +149,23 @@ internal static class DeviceHardwareEndpoints
                 return Results.NotFound();
             }
 
-            var changes = DeviceHardware.Diff(Read(entity.AcceptedJson), Read(entity.CurrentJson));
-            entity.AcceptedJson = entity.CurrentJson;
-            entity.AcceptedFingerprint = entity.CurrentFingerprint;
+            var previous = Read(entity.AcceptedJson);
+            var current = Read(entity.CurrentJson);
+            var changes = DeviceHardware.Diff(previous, current);
+            if (current is not null)
+            {
+                // Принимают то, что видно; не прочитавшиеся в последней описи мониторы и накопители
+                // остаются прежними, а не стираются из нормы.
+                var norm = DeviceHardware.WithKnownParts(current, previous);
+                entity.AcceptedJson = JsonSerializer.Serialize(norm, Json);
+                entity.AcceptedFingerprint = entity.CurrentFingerprint = DeviceHardware.Fingerprint(norm);
+            }
+            else
+            {
+                entity.AcceptedJson = entity.CurrentJson;
+                entity.AcceptedFingerprint = entity.CurrentFingerprint;
+            }
+
             entity.AcceptedAtUtc = timeProvider.GetUtcNow();
             entity.AcceptedByStaffUserId = staff.StaffUserId;
             entity.AcceptedByName = staff.DisplayName;

@@ -6,5 +6,8 @@ public sealed record LauncherAppDto(
     string Category,
     string? IconUri,
     bool IsAvailable,
-    /// Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения.
-    int? MinAge = null);
+    /// Возрастная отметка игры (0, 12, 16, 18).
+    int? MinAge = null,
+    /// Игрок моложе отметки: плитка заперта, агент игру не запустит. Возраст неизвестен (дата
+    /// рождения по желанию) — не заперта.
+    bool AgeLocked = false);

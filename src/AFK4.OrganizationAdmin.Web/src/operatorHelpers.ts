@@ -1451,6 +1451,8 @@ export type PlayerClientItem = {
   // Карточку завёл сам игрок первым действием из приложения, а не стойка. Стойке это отвечает
   // на «откуда он взялся»: такого человека никто здесь не видел и паспорт его не сверял.
   createdFromApp: boolean;
+  // День рождения `yyyy-MM-dd`, если гость ввёл его в приложении (по желанию).
+  birthDate?: string | null;
 };
 
 export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem {
@@ -1481,7 +1483,25 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
     activePackageName: readString(player, 'activePackageName') || null,
     activePackageRemainingMinutes: readNumber(player, 'activePackageRemainingMinutes', 0),
     platformPersonId: readString(player, 'platformPersonId') || null,
-    createdFromApp: isRecord(player) && player.createdFromApp === true
+    createdFromApp: isRecord(player) && player.createdFromApp === true,
+    birthDate: readString(player, 'birthDate') || null
+  };
+}
+
+/**
+ * День рождения гостя глазами стойки: «14 марта · 25 лет» и сегодня ли он. Считается по календарю
+ * этого компьютера — он стоит в клубе, и «сегодня» у него то же, что у гостя перед стойкой.
+ */
+export function describeBirthday(birthDate: string, locale: string, today: Date = new Date()) {
+  const [year, month, day] = birthDate.split('-').map(Number);
+  // 29 февраля в невисокосный год поздравляют 28-го — так же считает сервер.
+  const leap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const birthdayDay = month === 2 && day === 29 && !leap(today.getFullYear()) ? 28 : day;
+  const hadBirthday = today.getMonth() + 1 > month || (today.getMonth() + 1 === month && today.getDate() >= birthdayDay);
+  return {
+    label: formatDateParts(new Date(year, month - 1, day), locale, { day: 'numeric', month: 'long' }),
+    age: today.getFullYear() - year - (hadBirthday ? 0 : 1),
+    isToday: today.getMonth() + 1 === month && today.getDate() === birthdayDay
   };
 }
 

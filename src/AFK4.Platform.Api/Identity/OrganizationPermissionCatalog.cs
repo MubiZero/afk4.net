@@ -74,6 +74,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageTournaments,
                 OrganizationPermissionNames.ManageGameLibrary,
                 OrganizationPermissionNames.ViewReviews,
+                OrganizationPermissionNames.ManageReviews,
                 OrganizationPermissionNames.AcceptDeviceHardware,
                 OrganizationPermissionNames.ManageTips,
                 OrganizationPermissionNames.ManageSubscription,
@@ -140,6 +141,7 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ManageTournaments,
                 OrganizationPermissionNames.ManageGameLibrary,
                 OrganizationPermissionNames.ViewReviews,
+                OrganizationPermissionNames.ManageReviews,
                 OrganizationPermissionNames.AcceptDeviceHardware,
                 OrganizationPermissionNames.ManageTips
             },

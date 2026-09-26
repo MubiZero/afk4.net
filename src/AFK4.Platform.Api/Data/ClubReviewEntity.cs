@@ -24,4 +24,21 @@ public sealed class ClubReviewEntity
     public string? Comment { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
+
+    /// <summary>Ответ клуба — виден всем вместе с отзывом.</summary>
+    public string? Reply { get; set; }
+
+    public DateTimeOffset? RepliedAtUtc { get; set; }
+
+    public Guid? RepliedByStaffUserId { get; set; }
+
+    /// <summary>
+    /// Клуб скрыл текст от игроков. Только текст: звёзды остаются в оценке, иначе «скрыть» стало бы
+    /// способом прятать плохие оценки.
+    /// </summary>
+    public DateTimeOffset? CommentHiddenAtUtc { get; set; }
+
+    public Guid? CommentHiddenByStaffUserId { get; set; }
+
+    public string? CommentHiddenReason { get; set; }
 }

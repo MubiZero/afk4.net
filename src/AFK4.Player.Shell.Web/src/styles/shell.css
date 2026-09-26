@@ -1200,6 +1200,12 @@ button {
   color: var(--danger-text);
 }
 
+/* Игра старше игрока: видна, но приглушена — понятно, что она есть и почему не для него. */
+.library-tile--locked .library-tile__cover {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
 /* Выключены «Эффекты анимации» Windows — только растворения (спека, §8). */
 @media (prefers-reduced-motion: reduce) {
   *,

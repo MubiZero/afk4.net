@@ -135,6 +135,40 @@ class _ReviewTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(review.comment!, style: theme.textTheme.bodyMedium),
         ],
+        // Текст скрыл клуб (оскорбление, чужой телефон) — звёзды остались, об этом и говорим.
+        if (review.commentHidden == true) ...[
+          const SizedBox(height: 6),
+          Text(
+            L.of(context).customerReviewsHidden,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+        if (review.clubReply != null && review.clubReply!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              border: Border(left: BorderSide(color: theme.colorScheme.primary, width: 3)),
+              borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  L.of(context).customerReviewsClubReply,
+                  style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 2),
+                Text(review.clubReply!, style: theme.textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

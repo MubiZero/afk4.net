@@ -21,9 +21,10 @@ public sealed class PlayerAuthenticationMiddleware(RequestDelegate next)
     /// Маршруты, которым клуб не нужен вовсе, потому что они про самого человека: «кто я и где у
     /// меня счета» и его сетевой PIN. PIN принадлежит личности, и задают его обычно ещё до первого
     /// визита куда бы то ни было — требовать для этого выбранный клуб значило бы запереть дверь
-    /// перед тем, кто зарегистрировался дома.
+    /// перед тем, кто зарегистрировался дома. День рождения — туда же: он тоже личности, а не клуба.
     /// </summary>
-    private static readonly string[] PersonScopeRoutes = [PersonScopePath, PersonScopePath + "/pin"];
+    private static readonly string[] PersonScopeRoutes =
+        [PersonScopePath, PersonScopePath + "/pin", PersonScopePath + "/birth-date"];
 
     public async Task InvokeAsync(
         HttpContext httpContext,

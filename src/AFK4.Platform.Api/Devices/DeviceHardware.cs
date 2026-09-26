@@ -26,17 +26,64 @@ public static class DeviceHardware
         Compare(changes, HardwareComponentNames.Gpu, Gpus(accepted.Gpus), Gpus(current.Gpus));
         Compare(changes, HardwareComponentNames.Motherboard, Clean(accepted.Motherboard), Clean(current.Motherboard));
         Compare(changes, HardwareComponentNames.Disk, Disks(accepted.Disks), Disks(current.Disks));
+
+        // Накопители и мониторы сравниваются, только когда известны с обеих сторон: null — старый агент
+        // или не прочиталось, и считать это «всё вынули» — ложная тревога. Пустой список — известно,
+        // что ничего нет: унесённый монитор клубу важен, как вынутая видеокарта. Флешка сюда не
+        // попадает — агент отсеивает съёмные накопители сам.
+        if (accepted.PhysicalDisks is not null && current.PhysicalDisks is not null)
+        {
+            Compare(changes, HardwareComponentNames.PhysicalDisk, PhysicalDisks(accepted.PhysicalDisks), PhysicalDisks(current.PhysicalDisks));
+        }
+
+        if (accepted.Monitors is not null && current.Monitors is not null)
+        {
+            Compare(changes, HardwareComponentNames.Monitor, Monitors(accepted.Monitors), Monitors(current.Monitors));
+        }
+
         return changes;
     }
 
-    /// <summary>Отпечаток того, что сравнивается: одинаковый — одно и то же железо.</summary>
-    public static string Fingerprint(HardwareSnapshotDto snapshot) => string.Join(
-        '|',
-        Clean(snapshot.Cpu),
-        Gigabytes(snapshot.MemoryGb),
-        Gpus(snapshot.Gpus),
-        Clean(snapshot.Motherboard),
-        Disks(snapshot.Disks));
+    /// <summary>
+    /// Отпечаток того, что сравнивается: одинаковый — одно и то же железо. Накопители и мониторы входят,
+    /// только когда известны, — снимок старого агента даёт тот же отпечаток, что и до них.
+    /// </summary>
+    public static string Fingerprint(HardwareSnapshotDto snapshot)
+    {
+        var parts = new List<string?>
+        {
+            Clean(snapshot.Cpu),
+            Gigabytes(snapshot.MemoryGb),
+            Gpus(snapshot.Gpus),
+            Clean(snapshot.Motherboard),
+            Disks(snapshot.Disks)
+        };
+        if (snapshot.PhysicalDisks is not null)
+        {
+            parts.Add("drives:" + PhysicalDisks(snapshot.PhysicalDisks));
+        }
+
+        if (snapshot.Monitors is not null)
+        {
+            parts.Add("monitors:" + Monitors(snapshot.Monitors));
+        }
+
+        return string.Join('|', parts);
+    }
+
+    /// <summary>
+    /// Снимок, где неизвестные накопители и мониторы (null) взяты из known. Так сходятся отпечаток и
+    /// сверка: принятый снимок без них получает первую опись как норму (как первый снимок целиком),
+    /// а нынешний, где они не прочитались, считается неизменным.
+    /// </summary>
+    public static HardwareSnapshotDto WithKnownParts(HardwareSnapshotDto snapshot, HardwareSnapshotDto? known) =>
+        known is null
+            ? snapshot
+            : snapshot with
+            {
+                PhysicalDisks = snapshot.PhysicalDisks ?? known.PhysicalDisks,
+                Monitors = snapshot.Monitors ?? known.Monitors
+            };
 
     private static void Compare(List<HardwareChangeDto> changes, string component, string? was, string? now)
     {
@@ -63,4 +110,20 @@ public static class DeviceHardware
             : string.Join(", ", disks
                 .OrderBy(disk => disk.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(disk => $"{disk.Name} {disk.SizeGb} GB"));
+
+    // По модели и размеру: шину не сравниваем — её название зависит от драйвера, а не от диска.
+    private static string? PhysicalDisks(IReadOnlyList<HardwarePhysicalDiskDto> disks) =>
+        disks.Count == 0
+            ? null
+            : string.Join(", ", disks
+                .Select(disk => $"{Clean(disk.Model)} {disk.SizeGb} GB")
+                .Order(StringComparer.OrdinalIgnoreCase));
+
+    // По модели и серийнику: такой же монитор с другим серийником — подмена.
+    private static string? Monitors(IReadOnlyList<HardwareMonitorDto> monitors) =>
+        monitors.Count == 0
+            ? null
+            : string.Join(", ", monitors
+                .Select(monitor => Clean(monitor.Serial) is { } serial ? $"{Clean(monitor.Name)} ({serial})" : Clean(monitor.Name))
+                .Order(StringComparer.OrdinalIgnoreCase));
 }

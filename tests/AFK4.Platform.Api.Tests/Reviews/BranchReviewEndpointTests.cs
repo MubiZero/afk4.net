@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Reviews;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Reviews;
@@ -78,8 +80,209 @@ public sealed class BranchReviewEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(Route())).StatusCode);
     }
 
-    private static async Task SeedAsync(PlatformApiFactory factory, params (int Rating, string? Comment)[] reviews)
+    private static string Review(Guid reviewId, string action) =>
+        $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/reviews/{reviewId:D}/{action}";
+
+    private static string PublicRoute => $"/api/public/organizations/{TestIds.OrganizationId:D}/reviews";
+
+    [Fact]
+    public async Task TheClubAnswers_AndPlayersSeeTheAnswerUnderTheReview()
     {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var reviewId = (await SeedAsync(factory, (2, "Мышь липкая")))[0];
+
+        var reply = await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest("  Поменяли мышь, приходите.  "));
+        Assert.Equal(HttpStatusCode.NoContent, reply.StatusCode);
+
+        var staff = Assert.Single((await client.GetFromJsonAsync<BranchReviewsPageDto>(Route()))!.Items);
+        Assert.Equal("Поменяли мышь, приходите.", staff.Reply);
+        Assert.NotNull(staff.RepliedAtUtc);
+
+        using var guest = factory.CreateClient();
+        var shown = Assert.Single((await guest.GetFromJsonAsync<ClubReviewsPageDto>(PublicRoute))!.Items);
+        Assert.Equal("Поменяли мышь, приходите.", shown.ClubReply);
+        Assert.Equal("Мышь липкая", shown.Comment);
+
+        // Пустой ответ снимает прежний: передумали — ответа больше нет.
+        await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest(" "));
+        Assert.Null(Assert.Single((await guest.GetFromJsonAsync<ClubReviewsPageDto>(PublicRoute))!.Items).ClubReply);
+    }
+
+    // Игрок пишет отзыв один раз и в список отзывов клуба сам не возвращается: ответ, о котором
+    // ему не сказали, он прочитает разве что случайно.
+    [Fact]
+    public async Task TheFirstAnswer_TellsTheAuthorWithOnePush()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var reviewId = (await SeedAsync(factory, (2, "Мышь липкая")))[0];
+
+        var reply = await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest("Поменяли мышь, приходите."));
+        Assert.Equal(HttpStatusCode.NoContent, reply.StatusCode);
+
+        var push = Assert.Single(await RepliedPushesAsync(factory));
+        Assert.Equal(await AuthorOfAsync(factory, reviewId), push.PlayerAccountId);
+        Assert.Equal("Push", push.Channel);
+        Assert.Equal(TestIds.OrganizationId, push.OrganizationId);
+        Assert.Equal(TestIds.BranchId, push.BranchId);
+        Assert.Equal("Клуб ответил на ваш отзыв", push.Subject);
+        Assert.Equal("Demo Branch: Поменяли мышь, приходите.", push.BodyText);
+    }
+
+    // Правка опечатки и снятие ответа — не новость. Написать заново после снятия — тоже: пуш
+    // один на отзыв, иначе клуб, который правит ответ удалением, будил бы игрока каждый раз.
+    [Fact]
+    public async Task EditingOrRemovingTheAnswer_SendsNothingMore()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var reviewId = (await SeedAsync(factory, (2, "Мышь липкая")))[0];
+        await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest("Поменяли мыш."));
+        Assert.Single(await RepliedPushesAsync(factory));
+
+        var edited = await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest("Поменяли мышь."));
+        Assert.Equal(HttpStatusCode.NoContent, edited.StatusCode);
+        Assert.Single(await RepliedPushesAsync(factory));
+
+        var removed = await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest(" "));
+        Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+        Assert.Single(await RepliedPushesAsync(factory));
+
+        var again = await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest("Ждём вас снова."));
+        Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
+        Assert.Single(await RepliedPushesAsync(factory));
+    }
+
+    // В шторку уходит начало ответа, обрезанное по слову: целиком его читают в приложении.
+    [Fact]
+    public async Task ALongAnswer_ArrivesAsItsBeginning_CutBetweenWords()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var reviewId = (await SeedAsync(factory, (2, "Мышь липкая")))[0];
+        var answer = "Спасибо, что написали.\nМышь поменяли в тот же вечер, коврик тоже. "
+            + string.Join(' ', Enumerable.Repeat("Приходите", 30));
+
+        await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest(answer));
+
+        var body = Assert.Single(await RepliedPushesAsync(factory)).BodyText;
+        Assert.StartsWith("Demo Branch: Спасибо, что написали. Мышь поменяли", body);
+        Assert.EndsWith(" Приходите…", body);
+        Assert.True(body.Length <= "Demo Branch: ".Length + PlayerPushNotifier.ReplyExcerptLength + 1, body);
+    }
+
+    [Theory]
+    [InlineData("Спасибо!", 20, "Спасибо!")]
+    [InlineData("  Спасибо,\n\nприходите  ", 40, "Спасибо, приходите")]
+    [InlineData("Поменяли мышь, приходите", 15, "Поменяли мышь…")]
+    [InlineData("Ааааааааааааааааааааа", 5, "Ааааа…")]
+    public void TheExcerpt_CutsBetweenWords_AndFlattensLines(string text, int limit, string expected) =>
+        Assert.Equal(expected, PlayerPushNotifier.Excerpt(text, limit));
+
+    private static async Task<List<NotificationOutboxEntity>> RepliedPushesAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.NotificationOutbox.AsNoTracking()
+            .Where(row => row.TemplateKey == NotificationTemplateKeys.PlayerReviewReplied)
+            .ToListAsync();
+    }
+
+    private static async Task<Guid> AuthorOfAsync(PlatformApiFactory factory, Guid reviewId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.ClubReviews.AsNoTracking()
+            .Where(review => review.ReviewId == reviewId)
+            .Select(review => review.PlayerAccountId)
+            .SingleAsync();
+    }
+
+    [Fact]
+    public async Task ATooLongAnswer_IsRefused()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var reviewId = (await SeedAsync(factory, (5, null)))[0];
+
+        var response = await client.PostAsJsonAsync(
+            Review(reviewId, "reply"), new ReplyToReviewRequest(new string('а', ReviewLimits.ReplyMax + 1)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Оскорбление прячется от игроков, но звёзды остаются в оценке: иначе клуб убирал бы
+    // неудобные единицы, а рейтинг перестал бы что-то значить.
+    [Fact]
+    public async Task AHiddenComment_LeavesTheStarsInTheRating()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var ids = await SeedAsync(factory, (1, "Админ — дурак, телефон его +992 900 00 00 00"), (5, "Отлично"));
+
+        var hide = await client.PostAsJsonAsync(Review(ids[0], "hide-comment"), new HideReviewCommentRequest(ReviewHideReasonNames.PersonalData));
+        Assert.Equal(HttpStatusCode.NoContent, hide.StatusCode);
+
+        using var guest = factory.CreateClient();
+        var page = (await guest.GetFromJsonAsync<ClubReviewsPageDto>(PublicRoute))!;
+        Assert.Equal(3, page.Rating);
+        var hidden = page.Items.Single(item => item.ReviewId == ids[0]);
+        Assert.Null(hidden.Comment);
+        Assert.True(hidden.CommentHidden);
+        Assert.Equal(1, hidden.Rating);
+
+        // Клуб текст по-прежнему видит — с причиной, чтобы было что вернуть.
+        var staff = (await client.GetFromJsonAsync<BranchReviewsPageDto>(Route()))!.Items.Single(item => item.ReviewId == ids[0]);
+        Assert.StartsWith("Админ", staff.Comment);
+        Assert.Equal(ReviewHideReasonNames.PersonalData, staff.CommentHiddenReason);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync(Review(ids[0], "show-comment"), null)).StatusCode);
+        var shown = (await guest.GetFromJsonAsync<ClubReviewsPageDto>(PublicRoute))!.Items.Single(item => item.ReviewId == ids[0]);
+        Assert.False(shown.CommentHidden);
+        Assert.StartsWith("Админ", shown.Comment);
+    }
+
+    [Fact]
+    public async Task HidingNeedsAKnownReason_AndATextToHide()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var ids = await SeedAsync(factory, (1, "Плохо"), (1, null));
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(Review(ids[0], "hide-comment"), new HideReviewCommentRequest("не нравится"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(Review(ids[1], "hide-comment"), new HideReviewCommentRequest(ReviewHideReasonNames.Insult))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(Review(Guid.NewGuid(), "reply"), new ReplyToReviewRequest("Спасибо"))).StatusCode);
+    }
+
+    [Theory]
+    [InlineData(OrganizationRoleNames.Operator, HttpStatusCode.Forbidden)]
+    [InlineData(OrganizationRoleNames.BranchManager, HttpStatusCode.NoContent)]
+    public async Task OnlyThoseWhoLeadTheClub_AnswerAndHide(string role, HttpStatusCode expected)
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, role);
+        var reviewId = (await SeedAsync(factory, (3, "Нормально")))[0];
+
+        Assert.Equal(expected, (await client.PostAsJsonAsync(Review(reviewId, "reply"), new ReplyToReviewRequest("Спасибо"))).StatusCode);
+        Assert.Equal(expected,
+            (await client.PostAsJsonAsync(Review(reviewId, "hide-comment"), new HideReviewCommentRequest(ReviewHideReasonNames.Spam))).StatusCode);
+    }
+
+    private static async Task<IReadOnlyList<Guid>> SeedAsync(PlatformApiFactory factory, params (int Rating, string? Comment)[] reviews)
+    {
+        var ids = new List<Guid>();
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var zoneId = Guid.NewGuid();
@@ -102,9 +305,11 @@ public sealed class BranchReviewEndpointTests
                 PlayerKind = "player",
                 State = "Ended"
             });
+            var reviewId = Guid.NewGuid();
+            ids.Add(reviewId);
             db.ClubReviews.Add(new ClubReviewEntity
             {
-                ReviewId = Guid.NewGuid(),
+                ReviewId = reviewId,
                 OrganizationId = TestIds.OrganizationId,
                 BranchId = TestIds.BranchId,
                 PlayerAccountId = playerId,
@@ -117,5 +322,6 @@ public sealed class BranchReviewEndpointTests
         }
 
         await db.SaveChangesAsync();
+        return ids;
     }
 }

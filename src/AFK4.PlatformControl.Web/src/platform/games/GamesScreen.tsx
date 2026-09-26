@@ -20,8 +20,9 @@ import {
   type GameForm
 } from './gamesModel';
 import { useLoadable } from '../useLoadable';
+import { loadImage } from '../mediaErrors';
 
-type Client = Pick<GamesApi, 'listGames' | 'createGame' | 'updateGame'>;
+type Client = Pick<GamesApi, 'listGames' | 'createGame' | 'updateGame' | 'steamCover' | 'uploadCover'>;
 
 interface Draft {
   catalogGameId: string | null;
@@ -158,6 +159,8 @@ export function GamesScreen({ client }: { client: Client }) {
             onChange={form => setDraft({ ...draft, form })}
             onSubmit={() => void save()}
             onClose={close}
+            onSteamCover={appId => loadImage(() => client.steamCover(appId), t)}
+            onUploadCover={file => loadImage(() => client.uploadCover(file), t)}
           />
         )}
       </CardContent>

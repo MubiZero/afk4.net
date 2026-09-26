@@ -193,6 +193,46 @@ void main() {
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 2);
   });
 
+  testWidgets('ответ клуба на отзыв открывает список уведомлений', (tester) async {
+    final messages = _FakePushMessages();
+    addTearDown(messages.dispose);
+    final base = _serve();
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/notifications' => (
+              jsonEncode({
+                'notifications': [
+                  {
+                    'notificationId': 'n1',
+                    'templateKey': 'player.review_replied',
+                    'subject': 'Клуб ответил на ваш отзыв',
+                    'body': 'CyberX: Поменяли мышь, приходите.',
+                    'branchId': 'b1',
+                    'createdAtUtc': _now.toIso8601String(),
+                    'isUnread': true,
+                  },
+                ],
+                'unreadCount': 1,
+              }),
+              200
+            ),
+          '/api/me/notifications/read' => ('', 204),
+          _ => base.handler(request),
+        });
+
+    await tester.pumpWidget(_harness(http, messages));
+    await tester.pumpAndSettle();
+
+    messages.opened.add(const PushNotification(
+      title: 'Клуб ответил на ваш отзыв',
+      body: 'CyberX: Поменяли мышь, приходите.',
+      template: 'player.review_replied',
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CyberX: Поменяли мышь, приходите.'), findsOneWidget);
+    expect(find.byIcon(Icons.rate_review_outlined), findsOneWidget);
+  });
+
   testWidgets('незнакомое событие не двигает игрока никуда', (tester) async {
     final messages = _FakePushMessages();
     addTearDown(messages.dispose);

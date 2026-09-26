@@ -90,6 +90,7 @@ function makeClient(initial: AdCampaignDto = campaign(), overrides: Partial<AdCa
       ({ ...source(creativeId), moderation: request.approve ? 'approved' : 'rejected', rejectedReason: request.reason }) as AdCreativeDto),
     archiveCreative: mock(async (_campaignId: string, creativeId: string) =>
       ({ ...source(creativeId), archivedAtUtc: '2026-09-26T10:00:00Z' })),
+    uploadImage: mock(async () => ({ url: 'https://media.test/platform/ad-creative/banner.png' })),
     ...overrides
   };
 }
@@ -450,6 +451,35 @@ describe('AdCampaignPage', () => {
       bodyRu: null
     }));
     expect(await screen.findByText('Интернет 100 Мбит/с')).toBeInTheDocument();
+  });
+
+  it('картинку креатива можно загрузить файлом — адрес встаёт в поле сам', async () => {
+    const client = makeClient();
+    renderPage(client);
+    await screen.findByText('Тахфиф ба ноутбукҳо');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить креатив' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новый креатив' });
+    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'banner.png', { type: 'image/png' });
+    await userEvent.upload(dialog.querySelector('input[type=file]') as HTMLInputElement, file);
+
+    await waitFor(() => expect(client.uploadImage).toHaveBeenCalledWith(file));
+    expect(within(dialog).getByLabelText(/^Картинка/)).toHaveValue('https://media.test/platform/ad-creative/banner.png');
+  });
+
+  it('слишком большой файл — говорит, что сделать, и поле не трогает', async () => {
+    const client = makeClient(campaign(), {
+      uploadImage: mock(async () => { throw new PlatformApiError(400, 'media_too_large', 'media_too_large'); })
+    });
+    renderPage(client);
+    await screen.findByText('Тахфиф ба ноутбукҳо');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить креатив' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новый креатив' });
+    await userEvent.upload(dialog.querySelector('input[type=file]') as HTMLInputElement, new File(['x'], 'big.png', { type: 'image/png' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Файл слишком большой');
+    expect(within(dialog).getByLabelText(/^Картинка/)).toHaveValue('');
   });
 
   it('старая ссылка на кампанию, которой нет, ведёт обратно к списку', async () => {

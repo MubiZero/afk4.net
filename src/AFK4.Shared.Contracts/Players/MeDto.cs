@@ -21,7 +21,12 @@ public sealed record MePersonDto(
     bool NetworkBanned,
     // За что закрыт вход. Запрет, о котором человек не может узнать причину, читается как поломка
     // приложения — и он идёт спорить к стойке, которая его не ставила.
-    string? NetworkBanReason);
+    string? NetworkBanReason,
+    // День рождения, если человек его ввёл: по желанию, для подарка клуба и игр с возрастом.
+    DateOnly? BirthDate = null);
+
+/// <summary>День рождения в профиле; null стирает его.</summary>
+public sealed record SetBirthDateRequest(DateOnly? BirthDate);
 
 /// <summary>
 /// Один клуб глазами игрока: сколько можно потратить, сколько придержано под брони, сколько

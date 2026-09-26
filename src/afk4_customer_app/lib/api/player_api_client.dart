@@ -126,6 +126,14 @@ class PlayerApiClient {
         MePersonDto.fromJson,
       );
 
+  /// День рождения в профиле — по желанию; `null` стирает его. Дата строкой `yyyy-MM-dd`.
+  ///
+  /// 400 `invalid_birth_date` — дата в будущем или возраст вне 5–110 лет.
+  Future<MePersonDto> setBirthDate(String? birthDate) async => _parse(
+        await sendJson('PUT', '/api/me/birth-date', {'birthDate': birthDate}),
+        MePersonDto.fromJson,
+      );
+
   /// Задаёт сетевой PIN — тот, которым игрок садится за ПК. Старый не спрашивается: этот
   /// маршрут и есть ответ забывшему его.
   ///

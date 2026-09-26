@@ -1,6 +1,8 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Devices;
@@ -162,6 +164,7 @@ public sealed class DeviceHeartbeatService(
             .Select(branch => new
             {
                 branch.GraceLeaseMinutes,
+                branch.PreferredTimeZone,
                 // Версия профиля защиты — тем же запросом: число, которое меняется раз в неделю.
                 PolicyProfileVersion = dbContext.BranchProtectionProfiles
                     .Where(profile => profile.BranchId == branch.BranchId)
@@ -191,7 +194,16 @@ public sealed class DeviceHeartbeatService(
                 && (session.State == SessionStateNames.Active
                     || session.State == SessionStateNames.Paused
                     || session.State == SessionStateNames.Ending))
-            .Select(session => new { session.PlayerAccountId })
+            .Select(session => new
+            {
+                session.PlayerAccountId,
+                // День рождения игрока — для игр с возрастом (спека оболочки, §6.6). Тем же запросом.
+                BirthDate = dbContext.PlayerAccounts
+                    .Where(account => account.PlayerAccountId == session.PlayerAccountId)
+                    .Join(dbContext.PlatformPersons, account => account.PlatformPersonId, person => (Guid?)person.PlatformPersonId,
+                        (_, person) => person.BirthDate)
+                    .FirstOrDefault()
+            })
             .FirstOrDefaultAsync(cancellationToken);
         var busy = liveSession is not null;
 
@@ -236,7 +248,10 @@ public sealed class DeviceHeartbeatService(
             {
                 null => new DeviceSessionOwnerDto(DeviceSessionOwnerKindNames.None),
                 { PlayerAccountId: { } playerAccountId } => new DeviceSessionOwnerDto(
-                    DeviceSessionOwnerKindNames.Player, playerAccountId),
+                    DeviceSessionOwnerKindNames.Player, playerAccountId,
+                    liveSession.BirthDate is { } birthDate
+                        ? PlayerBirthdays.AgeOn(birthDate, ClubLocalTime.Today(timeProvider.GetUtcNow(), branchInfo?.PreferredTimeZone))
+                        : null),
                 _ => new DeviceSessionOwnerDto(DeviceSessionOwnerKindNames.Guest)
             },
             Features: features,

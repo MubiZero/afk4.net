@@ -1,4 +1,5 @@
 import type { PlatformTransport } from '../platformTransport';
+import { uploadPlatformImage } from './media';
 import type {
   AdComplaintDto,
   AdCampaignDto,
@@ -7,6 +8,7 @@ import type {
   AdImpressionRowDto,
   AdvertiserDto,
   ModerateAdCreativeRequest,
+  PlatformMediaUploadedDto,
   UpsertAdCampaignRequest,
   UpsertAdCreativeRequest,
   UpsertAdvertiserRequest
@@ -89,6 +91,11 @@ export class AdsApi {
   }
 
   // Жалобы клубов на рекламу на их ПК: клуб — распространитель, снять рекламу решает платформа.
+  /** Картинка креатива в хранилище платформы; адрес идёт в поле картинки, копию сервер снимет при одобрении. */
+  public uploadImage(file: File): Promise<PlatformMediaUploadedDto> {
+    return uploadPlatformImage(this.transport, 'ad-creative', file);
+  }
+
   public listComplaints(open: boolean): Promise<AdComplaintDto[]> {
     return this.transport.send<AdComplaintDto[]>('GET', `${AD_ROUTES.complaints}?open=${open ? 'true' : 'false'}`);
   }

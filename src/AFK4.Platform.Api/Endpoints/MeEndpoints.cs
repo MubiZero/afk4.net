@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Players;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Localization;
 using AFK4.Shared.Contracts.Notifications;
@@ -77,20 +78,7 @@ internal static class MeEndpoints
                     visitCounts.GetValueOrDefault(account.PlayerAccountId, 0)));
             }
 
-            return Results.Ok(new MeDto(
-                new MePersonDto(
-                    person.PlatformPersonId,
-                    person.PhoneNumber,
-                    person.DisplayName,
-                    person.PreferredLocale,
-                    person.PhoneVerifiedAtUtc is not null,
-                    person.PinHash is not null,
-                    person.NetworkBanAtUtc is not null,
-                    // Причина едет самому человеку: запрет, о котором он не может узнать, за что,
-                    // читается как поломка приложения — и он идёт спорить к стойке, которая его
-                    // не ставила.
-                    person.NetworkBanReason),
-                clubs));
+            return Results.Ok(new MeDto(PersonDto(person), clubs));
         }).RequireRateLimiting("player-me");
 
         // Имя и язык — ровно те два поля, которые спрашиваются при регистрации, и единственные,
@@ -129,10 +117,15 @@ internal static class MeEndpoints
                 .Select(account => account.PlayerAccountId)
                 .ToListAsync(cancellationToken);
 
+            // Список — это копия пушей, и только их. В той же очереди на тот же аккаунт лежат SMS
+            // с одноразовыми кодами (подтверждение номера): показать такой код в приложении значит
+            // подтвердить номер, не держа в руках телефон с этим номером.
+            var pushChannel = NotificationChannel.Push.ToString();
             var rows = await dbContext.NotificationOutbox
                 .AsNoTracking()
                 .Where(row => row.PlayerAccountId != null
                     && accountIds.Contains(row.PlayerAccountId.Value)
+                    && row.Channel == pushChannel
                     // Подавленное — это то, от чего человек сам отказался: показывать его в
                     // списке значит вернуть ему то, что он выключил.
                     && row.Status != NotificationOutboxStatus.Suppressed
@@ -329,15 +322,50 @@ internal static class MeEndpoints
             person.UpdatedAtUtc = timeProvider.GetUtcNow();
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(new MePersonDto(
-                person.PlatformPersonId,
-                person.PhoneNumber,
-                person.DisplayName,
-                person.PreferredLocale,
-                person.PhoneVerifiedAtUtc is not null,
-                person.PinHash is not null,
-                person.NetworkBanAtUtc is not null,
-                person.NetworkBanReason));
+            return Results.Ok(PersonDto(person));
+        }).RequireRateLimiting("player-me");
+
+        // День рождения — по желанию: для подарка клуба и игр с возрастом. Отдельным маршрутом, а не
+        // в PATCH /api/me: там имя и язык заменяются целиком, и старое приложение стирало бы дату.
+        app.MapPut("/api/me/birth-date", async (
+            SetBirthDateRequest request,
+            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var context = personContextAccessor.Current;
+            if (context is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var now = timeProvider.GetUtcNow();
+            // Самый ранний часовой пояс опережает UTC на сутки — «сегодня» берём с его запасом.
+            if (request.BirthDate is { } birthDate
+                && PlayerBirthdays.Validate(birthDate, DateOnly.FromDateTime(now.UtcDateTime.AddDays(1))) is { } error)
+            {
+                return Results.BadRequest(new { error });
+            }
+
+            var person = await dbContext.PlatformPersons.SingleOrDefaultAsync(
+                candidate => candidate.PlatformPersonId == context.PlatformPersonId,
+                cancellationToken);
+            if (person is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            // Та же дата ещё раз — не смена: срок «введена заранее» для подарка не сбрасывается.
+            if (person.BirthDate != request.BirthDate)
+            {
+                person.BirthDate = request.BirthDate;
+                person.BirthDateSetAtUtc = request.BirthDate is null ? null : now;
+                person.UpdatedAtUtc = now;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            return Results.Ok(PersonDto(person));
         }).RequireRateLimiting("player-me");
 
         // PIN задаётся и меняется только здесь: человек уже вошёл в приложение, и это не стоит ни
@@ -370,6 +398,19 @@ internal static class MeEndpoints
     private const int MaxDisplayNameLength = 160;
 
     /// <summary>Стаж считается так же, как на экране достижений: по закрытым визитам.</summary>
+    private static MePersonDto PersonDto(PlatformPersonEntity person) => new(
+        person.PlatformPersonId,
+        person.PhoneNumber,
+        person.DisplayName,
+        person.PreferredLocale,
+        person.PhoneVerifiedAtUtc is not null,
+        person.PinHash is not null,
+        person.NetworkBanAtUtc is not null,
+        // Причина едет самому человеку: запрет, о котором он не может узнать, за что, читается как
+        // поломка приложения — и он идёт спорить к стойке, которая его не ставила.
+        person.NetworkBanReason,
+        person.BirthDate);
+
     private static async Task<Dictionary<Guid, int>> CountVisitsAsync(
         PlatformDbContext dbContext,
         IReadOnlyCollection<PlayerAccountEntity> accounts,

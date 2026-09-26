@@ -48,4 +48,7 @@ public static class LedgerEntryTypeNames
     /// себя. Не выручка и не наличные смены.
     /// </summary>
     public const string OpeningBalance = "opening_balance";
+
+    /// <summary>Подарок клуба на день рождения игрока — на кошелёк, как кешбэк и бонус за друга.</summary>
+    public const string BirthdayBonus = "birthday_bonus";
 }

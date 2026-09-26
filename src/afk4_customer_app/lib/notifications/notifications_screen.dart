@@ -70,8 +70,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   IconData _icon(String templateKey) => switch (templateKey) {
         'player.balance_topped_up' => Icons.account_balance_wallet_outlined,
         'player.order_ready' => Icons.restaurant_outlined,
-        'player.reservation_soon' => Icons.event_outlined,
+        'player.reservation_soon' ||
+        'player.reservation_confirmed' ||
+        'player.reservation_rejected' =>
+          Icons.event_outlined,
+        'player.review_replied' => Icons.rate_review_outlined,
         'player.session_ending' => Icons.timer_outlined,
+        'player.birthday_gift' => Icons.cake_outlined,
         _ => Icons.notifications_outlined,
       };
 

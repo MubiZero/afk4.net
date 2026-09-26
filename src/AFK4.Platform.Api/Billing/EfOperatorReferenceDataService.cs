@@ -153,6 +153,15 @@ public sealed class EfOperatorReferenceDataService(
             })
             .ToDictionaryAsync(x => x.PlayerAccountId!.Value, x => x.Last, cancellationToken);
 
+        // День рождения — у личности, а не у карточки: гость ввёл его в приложении один раз для всей сети.
+        var personIds = players.Where(player => player.PlatformPersonId != null).Select(player => player.PlatformPersonId!.Value).ToList();
+        var birthDateLookup = personIds.Count == 0
+            ? new Dictionary<Guid, DateOnly>()
+            : await dbContext.PlatformPersons
+                .AsNoTracking()
+                .Where(person => personIds.Contains(person.PlatformPersonId) && person.BirthDate != null)
+                .ToDictionaryAsync(person => person.PlatformPersonId, person => person.BirthDate!.Value, cancellationToken);
+
         return players
             .Select(player =>
             {
@@ -170,7 +179,10 @@ public sealed class EfOperatorReferenceDataService(
                     ActivePackageName: bestPackage?.Name,
                     ActivePackageRemainingMinutes: bestPackage?.RemainingSeconds / 60 ?? 0,
                     PlatformPersonId: player.PlatformPersonId,
-                    CreatedFromApp: player.CreatedFromApp);
+                    CreatedFromApp: player.CreatedFromApp,
+                    BirthDate: player.PlatformPersonId is { } personId && birthDateLookup.TryGetValue(personId, out var birthDate)
+                        ? birthDate
+                        : null);
             })
             .ToList();
     }

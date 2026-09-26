@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { DeviceHardwareDto, HardwareSnapshotDto } from '@afk4/contracts';
 import { DeviceHardwareSection } from './DeviceHardwareSection';
@@ -50,6 +50,39 @@ describe('DeviceHardwareSection', () => {
 
     expect(await screen.findByText('Железо изменилось')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Принять как норму' })).toBeNull();
+  });
+
+  it('lists drives and monitors, and names a missing monitor in the changes', async () => {
+    const current: HardwareSnapshotDto = {
+      ...snapshot('RTX 4060'),
+      physicalDisks: [{ model: 'Samsung SSD 980 PRO 1TB', sizeGb: 1000, interface: 'NVMe' }, { model: 'WDC WD10EZEX', sizeGb: 1000, interface: null }],
+      monitors: [{ name: 'S24R35x', manufacturer: 'SAM', serial: 'H4ZN500123' }]
+    };
+    const hardware: DeviceHardwareDto = {
+      ...changed(), current,
+      changes: [
+        { component: 'monitor', was: 'DELL P2419H (CFV9N93), S24R35x (H4ZN500123)', now: 'S24R35x (H4ZN500123)' },
+        { component: 'physical_disk', was: 'Kingston SA400S37240G 240 GB', now: null }
+      ]
+    };
+    renderSection({ getHardware: mock(async () => hardware), acceptHardware: mock() });
+
+    expect(await screen.findByText('Samsung SSD 980 PRO 1TB · 1000 GB · NVMe, WDC WD10EZEX · 1000 GB')).toBeInTheDocument();
+    expect(screen.getByText('S24R35x (H4ZN500123)', { selector: '.settings-device-detail-grid b' })).toBeInTheDocument();
+    const changes = screen.getByRole('status');
+    expect(within(changes).getByText('Мониторы')).toBeInTheDocument();
+    expect(within(changes).getByText('DELL P2419H (CFV9N93), S24R35x (H4ZN500123)')).toBeInTheDocument();
+    expect(within(changes).getByText('Накопители')).toBeInTheDocument();
+    expect(within(changes).getByText('нет')).toBeInTheDocument();
+  });
+
+  // Старый агент накопителей и мониторов не присылает — это «неизвестно», а не «нет».
+  it('hides drives and monitors the PC did not report, but shows an empty list as a dash', async () => {
+    const hardware: DeviceHardwareDto = { ...changed(), changes: [], current: { ...snapshot('RTX 4060'), monitors: [] } };
+    renderSection({ getHardware: mock(async () => hardware), acceptHardware: mock() });
+
+    expect(await screen.findByText('Мониторы')).toBeInTheDocument();
+    expect(screen.queryByText('Накопители')).toBeNull();
   });
 
   it('a PC that never reported says when the snapshot comes', async () => {

@@ -964,6 +964,15 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<DateTimeOffset?>("CommentHiddenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CommentHiddenByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CommentHiddenReason")
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -975,6 +984,15 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("RepliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RepliedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reply")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uuid");
@@ -2027,6 +2045,29 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("StaffUserId", "Category", "Channel");
 
                     b.ToTable("notification_preferences", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationBirthdayGiftSettingsEntity", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("AmountMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("RecentVisitDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OrganizationId");
+
+                    b.ToTable("organization_birthday_gift_settings", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationEntity", b =>
@@ -3329,6 +3370,12 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("BirthDateSetAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -3702,6 +3749,40 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasFilter("\"PlatformPersonId\" IS NOT NULL");
 
                     b.ToTable("player_accounts", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlayerBirthdayGiftEntity", b =>
+                {
+                    b.Property<Guid>("PlayerBirthdayGiftId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("AmountMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("GrantedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PlayerBirthdayGiftId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("PlayerAccountId", "Year")
+                        .IsUnique();
+
+                    b.ToTable("player_birthday_gifts", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlayerCredentialEntity", b =>

@@ -47,6 +47,7 @@ class DashboardScreen extends StatefulWidget {
     this.onOpenReservations,
     this.onOpenWallet,
     this.openShopRequest = 0,
+    this.openNotificationsRequest = 0,
     this.onPhoneVerified,
     this.pinSet,
     this.clock = DateTime.now,
@@ -67,6 +68,10 @@ class DashboardScreen extends StatefulWidget {
   /// Счётчик просьб открыть магазин снаружи — из нажатия на уведомление о готовом заказе.
   /// Число, а не флаг: два заказа подряд дают две просьбы, и вторая не должна потеряться.
   final int openShopRequest;
+
+  /// Счётчик просьб открыть список уведомлений — из нажатия на пуш, которому в приложении
+  /// нет другого места (ответ клуба на отзыв).
+  final int openNotificationsRequest;
 
   /// Есть ли у игрока счёт в этом клубе. Пока нет — спрашивать нечего: ни денег, ни сессии,
   /// ни истории здесь ещё не завелось.
@@ -184,6 +189,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (widget.openShopRequest != oldWidget.openShopRequest) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_openShop());
+      });
+    }
+
+    if (widget.openNotificationsRequest != oldWidget.openNotificationsRequest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_openNotifications());
       });
     }
   }

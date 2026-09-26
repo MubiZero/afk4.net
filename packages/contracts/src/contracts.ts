@@ -443,6 +443,8 @@ export const HardwareComponentNames = {
   Gpu: 'gpu',
   Motherboard: 'motherboard',
   Disk: 'disk',
+  PhysicalDisk: 'physical_disk',
+  Monitor: 'monitor',
 } as const;
 export type HardwareComponentName = (typeof HardwareComponentNames)[keyof typeof HardwareComponentNames];
 
@@ -534,6 +536,8 @@ export const LedgerEntryTypeNames = {
    * себя. Не выручка и не наличные смены.
    */
   OpeningBalance: 'opening_balance',
+  /** Подарок клуба на день рождения игрока — на кошелёк, как кешбэк и бонус за друга. */
+  BirthdayBonus: 'birthday_bonus',
 } as const;
 export type LedgerEntryTypeName = (typeof LedgerEntryTypeNames)[keyof typeof LedgerEntryTypeNames];
 
@@ -712,6 +716,11 @@ export const OrganizationPermissionNames = {
    * управляющего, а не у всей стойки.
    */
   ViewReviews: 'organization.reviews.view',
+  /**
+   * Ответить на отзыв и скрыть оскорбительный текст. У тех же, кто читает отзывы: владелец и
+   * управляющий.
+   */
+  ManageReviews: 'organization.reviews.manage',
   /**
    * Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
    * владелец, управляющий, техник.
@@ -907,6 +916,34 @@ export const PlatformFeatureNames = {
   PlatformAds: 'platform_ads',
 } as const;
 export type PlatformFeatureName = (typeof PlatformFeatureNames)[keyof typeof PlatformFeatureNames];
+
+/**
+ * Почему картинку платформы не приняли — машинным словом, фразу строит экран.
+ *
+ * Словарь: Media/MediaPurposeNames.cs
+ */
+export const PlatformMediaErrorCodeNames = {
+  UnknownPurpose: 'media_unknown_purpose',
+  FileRequired: 'media_file_required',
+  StorageNotConfigured: 'media_storage_not_configured',
+  TooLarge: 'media_too_large',
+  NotAnImage: 'media_not_an_image',
+  SteamAppIdInvalid: 'steam_app_id_invalid',
+  SteamCoverNotFound: 'steam_cover_not_found',
+} as const;
+export type PlatformMediaErrorCodeName = (typeof PlatformMediaErrorCodeNames)[keyof typeof PlatformMediaErrorCodeNames];
+
+/**
+ * Картинки, которые грузит сама платформа (Platform Control), а не клуб: обложки каталога игр и
+ * картинки рекламы. Лежат в том же хранилище, в папке `platform/`.
+ *
+ * Словарь: Media/MediaPurposeNames.cs
+ */
+export const PlatformMediaPurposeNames = {
+  CatalogCover: 'catalog-cover',
+  AdCreative: 'ad-creative',
+} as const;
+export type PlatformMediaPurposeName = (typeof PlatformMediaPurposeNames)[keyof typeof PlatformMediaPurposeNames];
 
 /** Словарь: Platform/Health/PlatformHealthContracts.cs */
 export const PlatformQueueNames = {
@@ -1108,6 +1145,17 @@ export const ReservationStateNames = {
   Rejected: 'rejected',
 } as const;
 export type ReservationStateName = (typeof ReservationStateNames)[keyof typeof ReservationStateNames];
+
+/** Словарь: Reviews/ClubReviewDtos.cs */
+export const ReviewHideReasonNames = {
+  Insult: 'insult',
+  /** Телефон, имя сотрудника, чужие данные. */
+  PersonalData: 'personal_data',
+  /** Реклама, ссылки, спам. */
+  Spam: 'spam',
+  Other: 'other',
+} as const;
+export type ReviewHideReasonName = (typeof ReviewHideReasonNames)[keyof typeof ReviewHideReasonNames];
 
 /**
  * The report kinds a schedule can deliver — one per existing report export endpoint.
@@ -1955,6 +2003,18 @@ export interface BillingTermsDto {
 }
 
 /**
+ * Подарок на день рождения: сумма на баланс в сам день и кому он положен.
+ *
+ * Контракт: Loyalty/BirthdayGiftContracts.cs
+ */
+export interface BirthdayGiftSettingsDto {
+  enabled: boolean;
+  amountMinorUnits: number;
+  /** Только тем, кто был в клубе за столько дней; 0 — всем. */
+  recentVisitDays: number;
+}
+
+/**
  * Правило закрытия окна: часть заголовка, класс окна или оба сразу.
  *
  * Контракт: Devices/ProtectionProfileContracts.cs
@@ -2113,6 +2173,12 @@ export interface BranchReviewDto {
   createdAtUtc: IsoDateTime;
   sessionId: Guid;
   seatName: string | null;
+  reply?: string | null;
+  repliedAtUtc?: IsoDateTime | null;
+  /** Текст скрыт от игроков; клуб его по-прежнему видит, чтобы вернуть, если ошибся. */
+  commentHiddenAtUtc?: IsoDateTime | null;
+  /** Одно из ReviewHideReasonNames */
+  commentHiddenReason?: ReviewHideReasonName | null;
 }
 
 /**
@@ -2482,8 +2548,14 @@ export interface ClubReviewDto {
   reviewId: Guid;
   authorName: string;
   rating: number;
+  /** Пусто и при скрытом клубом тексте — тогда CommentHidden. */
   comment: string | null;
   createdAtUtc: IsoDateTime;
+  /** Ответ клуба — виден всем, как и сам отзыв. */
+  clubReply?: string | null;
+  clubRepliedAtUtc?: IsoDateTime | null;
+  /** Клуб скрыл текст (оскорбления, чужие данные, реклама). Звёзды остаются в оценке. */
+  commentHidden?: boolean;
 }
 
 /**
@@ -3488,6 +3560,11 @@ export interface DeviceSessionOwnerDto {
   kind: DeviceSessionOwnerKindName;
   /** Счёт игрока; только у Kind = player. */
   playerAccountId?: Guid | null;
+  /**
+   * Полных лет игроку, если он ввёл день рождения: агент запирает игры старше его возраста.
+   * null — возраст неизвестен, и ничего не запирается (дата по желанию, владелец 2026-09-26).
+   */
+  playerAge?: number | null;
 }
 
 /** Контракт: Sessions/DeviceSessionSnapshotRequest.cs */
@@ -3867,6 +3944,25 @@ export interface HardwareGpuDto {
   memoryGb: number | null;
 }
 
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface HardwareMonitorDto {
+  /** Модель из EDID монитора; нет её — код производителя и продукта: «SAM0F9A». */
+  name: string;
+  /** Код производителя PnP: «SAM», «DEL». */
+  manufacturer: string | null;
+  /** Серийный номер из EDID — отличает подменённый монитор той же модели. */
+  serial: string | null;
+}
+
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface HardwarePhysicalDiskDto {
+  /** Модель накопителя: «Samsung SSD 980 PRO 1TB». */
+  model: string;
+  sizeGb: number;
+  /** Шина: «NVMe», «SATA»; null — не определилась. */
+  interface: string | null;
+}
+
 /**
  * Снимок железа ПК (спека оболочки, P9): что стоит внутри. Сравнивается с принятым — поменяли
  * видеокарту или вынули планку памяти, и клуб видит это в карточке ПК, а не узнаёт от игрока.
@@ -3884,6 +3980,23 @@ export interface HardwareSnapshotDto {
   /** Windows и её сборка — видна, но не считается изменением железа: обновления идут каждый месяц. */
   os: string | null;
   bios: string | null;
+  /**
+   * Физические накопители внутри корпуса, без флешек. null — агент их не знает (старый агент
+   * или не прочиталось), а не «накопителей нет».
+   */
+  physicalDisks?: HardwarePhysicalDiskDto[] | null;
+  /** Подключённые мониторы. null — неизвестно; пустой список — мониторов нет. */
+  monitors?: HardwareMonitorDto[] | null;
+}
+
+/**
+ * Скрыть текст отзыва от игроков. Звёзды остаются в оценке: скрыть плохую оценку нельзя.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface HideReviewCommentRequest {
+  /** Одно из ReviewHideReasonNames */
+  reason: ReviewHideReasonName;
 }
 
 /** Контракт: Platform/Health/PlatformHealthContracts.cs */
@@ -4078,8 +4191,13 @@ export interface LauncherAppDto {
   category: string;
   iconUri: string | null;
   isAvailable: boolean;
-  /** Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения. */
+  /** Возрастная отметка игры (0, 12, 16, 18). */
   minAge?: number | null;
+  /**
+   * Игрок моложе отметки: плитка заперта, агент игру не запустит. Возраст неизвестен (дата
+   * рождения по желанию) — не заперта.
+   */
+  ageLocked?: boolean;
 }
 
 /** Контракт: Billing/LedgerEntryDto.cs */
@@ -4199,6 +4317,8 @@ export interface MePersonDto {
    * приложения — и он идёт спорить к стойке, которая его не ставила.
    */
   networkBanReason: string | null;
+  /** День рождения, если человек его ввёл: по желанию, для подарка клуба и игр с возрастом. */
+  birthDate?: IsoDate | null;
 }
 
 /** Контракт: Ads/AdContracts.cs */
@@ -5130,6 +5250,11 @@ export interface PlatformHealthOverviewDto {
   alertSmsConfigured?: boolean;
 }
 
+/** Контракт: Media/MediaPurposeNames.cs */
+export interface PlatformMediaUploadedDto {
+  url: string;
+}
+
 /**
  * Сессия человека. Первые восемь полей — дословно те же, что в PlayerSignInResponse,
  * поэтому старый клиент читает этот ответ, не заметив разницы. Отличие одно и оно про модель:
@@ -5777,6 +5902,11 @@ export interface PlayerSearchResultDto {
    */
   platformPersonId?: Guid | null;
   createdFromApp?: boolean;
+  /**
+   * День рождения, если гость ввёл его в приложении (по желанию): стойка поздравит, а игры с
+   * возрастом проверит глазами.
+   */
+  birthDate?: IsoDate | null;
 }
 
 /**
@@ -6557,6 +6687,15 @@ export interface ReorderProductCategoriesRequest {
 }
 
 /**
+ * Ответ клуба на отзыв. Пустой — снять ответ.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface ReplyToReviewRequest {
+  reply: string | null;
+}
+
+/**
  * Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
  * рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
  *
@@ -7126,6 +7265,15 @@ export interface SessionTimelineResult {
 export interface SetAdCampaignStateRequest {
   /** Одно из AdCampaignStateNames */
   state: AdCampaignStateName;
+}
+
+/**
+ * День рождения в профиле; null стирает его.
+ *
+ * Контракт: Players/MeDto.cs
+ */
+export interface SetBirthDateRequest {
+  birthDate: IsoDate | null;
 }
 
 /**
@@ -7833,6 +7981,15 @@ export interface StartReservationSessionResponse {
   session: SessionCommandResponse;
 }
 
+/**
+ * Обложка игры из Steam по номеру приложения — её ищет и копирует к себе сервер.
+ *
+ * Контракт: Media/MediaPurposeNames.cs
+ */
+export interface SteamCoverRequest {
+  steamAppId: string;
+}
+
 /** Контракт: Inventory/StockMovementDto.cs */
 export interface StockMovementDto {
   stockMovementId: Guid;
@@ -8060,6 +8217,13 @@ export interface UpdateBillingTermsRequest {
   trialDays: number;
   promisedPaymentDays: number;
   fallbackAfterOverdueDays: number;
+}
+
+/** Контракт: Loyalty/BirthdayGiftContracts.cs */
+export interface UpdateBirthdayGiftSettingsRequest {
+  enabled: boolean;
+  amountMinorUnits: number;
+  recentVisitDays: number;
 }
 
 /** Контракт: Branches/UpdateBranchBookingSettingsRequest.cs */

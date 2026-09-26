@@ -38,6 +38,7 @@ public static class PlayerLedgerFilter
         LedgerEntryTypeNames.Reversal,
         LedgerEntryTypeNames.Cashback,
         LedgerEntryTypeNames.ReferralBonus,
+        LedgerEntryTypeNames.BirthdayBonus,
         LedgerEntryTypeNames.ReservationHold,
         LedgerEntryTypeNames.ReservationNoShowFee,
         LedgerEntryTypeNames.Tip,

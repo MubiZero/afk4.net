@@ -22,7 +22,8 @@ public sealed class PlayerNotificationFeedTests
         string subject,
         string body,
         string status,
-        DateTimeOffset createdUtc)
+        DateTimeOffset createdUtc,
+        string channel = "Push")
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -30,7 +31,7 @@ public sealed class PlayerNotificationFeedTests
         {
             NotificationOutboxId = Guid.NewGuid(),
             IdempotencyKey = Guid.NewGuid().ToString("N"),
-            Channel = "Push",
+            Channel = channel,
             Category = "Operational",
             TemplateKey = templateKey,
             Locale = "ru",
@@ -98,6 +99,27 @@ public sealed class PlayerNotificationFeedTests
         var feed = await client.GetFromJsonAsync<PlayerNotificationsDto>("/api/me/notifications");
 
         Assert.Empty(feed!.Notifications);
+    }
+
+    // В той же очереди на тот же аккаунт лежат SMS с одноразовыми кодами. Список — копия пушей:
+    // код подтверждения номера, показанный в приложении, подтверждал бы номер без телефона с ним.
+    [Fact]
+    public async Task SmsForTheSamePlayer_IsNotShown()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var player = await TopUpTestData.SeedPlayerAsync(factory, Pin);
+        await TopUpTestData.AuthenticateAsync(client, player, Pin);
+        await SeedNotificationAsync(factory, player, "player.phone_verification", "Подтверждение номера телефона",
+            "AFK4.NET: код 482913. Никому не сообщайте.", NotificationOutboxStatus.Sent, DateTimeOffset.UtcNow,
+            channel: "Sms");
+        await SeedNotificationAsync(factory, player, "player.order_ready", "Заказ готов",
+            "Кола ждёт вас.", NotificationOutboxStatus.Sent, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        var feed = await client.GetFromJsonAsync<PlayerNotificationsDto>("/api/me/notifications");
+
+        Assert.Equal("player.order_ready", Assert.Single(feed!.Notifications).TemplateKey);
+        Assert.Equal(1, feed.UnreadCount);
     }
 
     [Fact]

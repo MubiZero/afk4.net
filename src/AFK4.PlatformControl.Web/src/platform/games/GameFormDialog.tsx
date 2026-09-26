@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { ErrorBanner, Field, fieldErrorId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
   type GameForm,
   type GameFormField
 } from './gamesModel';
+import type { ImageResult } from '../mediaErrors';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -30,6 +31,10 @@ interface Props {
   onChange: (form: GameForm) => void;
   onSubmit: () => void;
   onClose: () => void;
+  /** Картинка магазина Steam по номеру приложения. */
+  onSteamCover: (steamAppId: string) => Promise<ImageResult>;
+  /** Своя картинка в хранилище платформы. */
+  onUploadCover: (file: File) => Promise<ImageResult>;
 }
 
 // Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.
@@ -41,13 +46,16 @@ const FIELD_IDS: Record<GameFormField, string> = {
   coverUrl: 'game-cover'
 };
 
-export function GameFormDialog({ mode, form, pending, error, onChange, onSubmit, onClose }: Props) {
+export function GameFormDialog({ mode, form, pending, error, onChange, onSubmit, onClose, onSteamCover, onUploadCover }: Props) {
   const { t } = useI18n();
   // Ошибку поля показываем, когда человек из него ушёл или попробовал сохранить: красное
   // «укажите название» на только что открытой пустой форме — упрёк за то, чего он ещё не делал.
   const [touched, setTouched] = useState<ReadonlySet<GameFormField>>(new Set());
   const [attempted, setAttempted] = useState(false);
   const [brokenCover, setBrokenCover] = useState<string | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const errors = validateGameForm(form);
   const errorOf = (field: GameFormField): string | undefined => {
@@ -77,6 +85,17 @@ export function GameFormDialog({ mode, form, pending, error, onChange, onSubmit,
 
   const coverUrl = form.coverUrl.trim();
   const showCover = isHttpsUrl(coverUrl);
+  const steamAppId = form.launchKind === 'steam' && /^\d{1,10}$/.test(form.launchTarget.trim()) ? form.launchTarget.trim() : null;
+
+  // Картинку ставим в поле только после ответа сервера: адрес — уже в нашем хранилище.
+  async function fetchCover(load: () => Promise<ImageResult>) {
+    setCoverBusy(true);
+    setCoverError(null);
+    const result = await load();
+    setCoverBusy(false);
+    if (result.url !== undefined) onChange({ ...form, coverUrl: result.url });
+    else setCoverError(result.error);
+  }
 
   return (
     <Dialog
@@ -160,6 +179,30 @@ export function GameFormDialog({ mode, form, pending, error, onChange, onSubmit,
             onChange={event => onChange({ ...form, coverUrl: event.target.value })}
           />
         </Field>
+        <div className="pc-cover-actions">
+          {steamAppId !== null ? (
+            <Button variant="outline" size="sm" disabled={pending || coverBusy} onClick={() => void fetchCover(() => onSteamCover(steamAppId))}>
+              {t('platform.games.cover.fromSteam')}
+            </Button>
+          ) : null}
+          <Button variant="outline" size="sm" disabled={pending || coverBusy} onClick={() => fileInput.current?.click()}>
+            {t('platform.media.upload')}
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+            aria-label={t('platform.media.upload')}
+            onChange={event => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (file) void fetchCover(() => onUploadCover(file));
+            }}
+          />
+          {coverBusy ? <span className="mgmt-drawer-hint">{t('platform.media.loading')}</span> : null}
+        </div>
+        {coverError !== null ? <p className="pc-error-text" role="alert">{coverError}</p> : null}
         {showCover && brokenCover !== coverUrl ? (
           <img
             className="pc-game-cover-preview"

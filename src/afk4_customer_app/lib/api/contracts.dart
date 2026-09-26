@@ -371,6 +371,8 @@ abstract final class HardwareComponentNames {
   static const String gpu = 'gpu';
   static const String motherboard = 'motherboard';
   static const String disk = 'disk';
+  static const String physicalDisk = 'physical_disk';
+  static const String monitor = 'monitor';
 }
 
 /// Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
@@ -445,6 +447,8 @@ abstract final class LedgerEntryTypeNames {
   /// Начальный остаток из прежней программы клуба: деньги гость заплатил туда, клуб берёт долг на
   /// себя. Не выручка и не наличные смены.
   static const String openingBalance = 'opening_balance';
+  /// Подарок клуба на день рождения игрока — на кошелёк, как кешбэк и бонус за друга.
+  static const String birthdayBonus = 'birthday_bonus';
 }
 
 /// Словарь: Media/MediaPurposeNames.cs
@@ -595,6 +599,9 @@ abstract final class OrganizationPermissionNames {
   /// Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
   /// управляющего, а не у всей стойки.
   static const String viewReviews = 'organization.reviews.view';
+  /// Ответить на отзыв и скрыть оскорбительный текст. У тех же, кто читает отзывы: владелец и
+  /// управляющий.
+  static const String manageReviews = 'organization.reviews.manage';
   /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
   /// владелец, управляющий, техник.
   static const String acceptDeviceHardware = 'organization.devices.hardware.accept';
@@ -756,6 +763,28 @@ abstract final class PlatformFeatureNames {
   static const String tournaments = 'tournaments';
   /// Реклама платформы в витрине свободного ПК. Её включает бесплатный тариф.
   static const String platformAds = 'platform_ads';
+}
+
+/// Почему картинку платформы не приняли — машинным словом, фразу строит экран.
+///
+/// Словарь: Media/MediaPurposeNames.cs
+abstract final class PlatformMediaErrorCodeNames {
+  static const String unknownPurpose = 'media_unknown_purpose';
+  static const String fileRequired = 'media_file_required';
+  static const String storageNotConfigured = 'media_storage_not_configured';
+  static const String tooLarge = 'media_too_large';
+  static const String notAnImage = 'media_not_an_image';
+  static const String steamAppIdInvalid = 'steam_app_id_invalid';
+  static const String steamCoverNotFound = 'steam_cover_not_found';
+}
+
+/// Картинки, которые грузит сама платформа (Platform Control), а не клуб: обложки каталога игр и
+/// картинки рекламы. Лежат в том же хранилище, в папке `platform/`.
+///
+/// Словарь: Media/MediaPurposeNames.cs
+abstract final class PlatformMediaPurposeNames {
+  static const String catalogCover = 'catalog-cover';
+  static const String adCreative = 'ad-creative';
 }
 
 /// Словарь: Platform/Health/PlatformHealthContracts.cs
@@ -929,6 +958,16 @@ abstract final class ReservationStateNames {
   /// Клуб отказал в заявке — с причиной. Не отмена: игрок ничего не отменял, и в его репутации
   /// чужой отказ появляться не должен.
   static const String rejected = 'rejected';
+}
+
+/// Словарь: Reviews/ClubReviewDtos.cs
+abstract final class ReviewHideReasonNames {
+  static const String insult = 'insult';
+  /// Телефон, имя сотрудника, чужие данные.
+  static const String personalData = 'personal_data';
+  /// Реклама, ссылки, спам.
+  static const String spam = 'spam';
+  static const String other = 'other';
 }
 
 /// The report kinds a schedule can deliver — one per existing report export endpoint.
@@ -2279,6 +2318,35 @@ class BillingTermsDto {
       };
 }
 
+/// Подарок на день рождения: сумма на баланс в сам день и кому он положен.
+///
+/// Контракт: Loyalty/BirthdayGiftContracts.cs
+class BirthdayGiftSettingsDto {
+  const BirthdayGiftSettingsDto({
+    required this.enabled,
+    required this.amountMinorUnits,
+    required this.recentVisitDays,
+  });
+
+  final bool enabled;
+  final int amountMinorUnits;
+
+  /// Только тем, кто был в клубе за столько дней; 0 — всем.
+  final int recentVisitDays;
+
+  factory BirthdayGiftSettingsDto.fromJson(Map<String, dynamic> json) => BirthdayGiftSettingsDto(
+        enabled: json['enabled'] as bool,
+        amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
+        recentVisitDays: (json['recentVisitDays'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'amountMinorUnits': amountMinorUnits,
+        'recentVisitDays': recentVisitDays,
+      };
+}
+
 /// Правило закрытия окна: часть заголовка, класс окна или оба сразу.
 ///
 /// Контракт: Devices/ProtectionProfileContracts.cs
@@ -2737,6 +2805,10 @@ class BranchReviewDto {
     required this.createdAtUtc,
     required this.sessionId,
     this.seatName,
+    this.reply,
+    this.repliedAtUtc,
+    this.commentHiddenAtUtc,
+    this.commentHiddenReason,
   });
 
   final String reviewId;
@@ -2747,6 +2819,14 @@ class BranchReviewDto {
   final DateTime createdAtUtc;
   final String sessionId;
   final String? seatName;
+  final String? reply;
+  final DateTime? repliedAtUtc;
+
+  /// Текст скрыт от игроков; клуб его по-прежнему видит, чтобы вернуть, если ошибся.
+  final DateTime? commentHiddenAtUtc;
+
+  /// Одно из ReviewHideReasonNames
+  final String? commentHiddenReason;
 
   factory BranchReviewDto.fromJson(Map<String, dynamic> json) => BranchReviewDto(
         reviewId: json['reviewId'] as String,
@@ -2757,6 +2837,10 @@ class BranchReviewDto {
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         sessionId: json['sessionId'] as String,
         seatName: json['seatName'] == null ? null : json['seatName'] as String,
+        reply: json['reply'] == null ? null : json['reply'] as String,
+        repliedAtUtc: json['repliedAtUtc'] == null ? null : DateTime.parse(json['repliedAtUtc'] as String),
+        commentHiddenAtUtc: json['commentHiddenAtUtc'] == null ? null : DateTime.parse(json['commentHiddenAtUtc'] as String),
+        commentHiddenReason: json['commentHiddenReason'] == null ? null : json['commentHiddenReason'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2768,6 +2852,10 @@ class BranchReviewDto {
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'sessionId': sessionId,
         'seatName': seatName,
+        'reply': reply,
+        'repliedAtUtc': repliedAtUtc?.toIso8601String(),
+        'commentHiddenAtUtc': commentHiddenAtUtc?.toIso8601String(),
+        'commentHiddenReason': commentHiddenReason,
       };
 }
 
@@ -3803,13 +3891,25 @@ class ClubReviewDto {
     required this.rating,
     this.comment,
     required this.createdAtUtc,
+    this.clubReply,
+    this.clubRepliedAtUtc,
+    this.commentHidden,
   });
 
   final String reviewId;
   final String authorName;
   final int rating;
+
+  /// Пусто и при скрытом клубом тексте — тогда CommentHidden.
   final String? comment;
   final DateTime createdAtUtc;
+
+  /// Ответ клуба — виден всем, как и сам отзыв.
+  final String? clubReply;
+  final DateTime? clubRepliedAtUtc;
+
+  /// Клуб скрыл текст (оскорбления, чужие данные, реклама). Звёзды остаются в оценке.
+  final bool? commentHidden;
 
   factory ClubReviewDto.fromJson(Map<String, dynamic> json) => ClubReviewDto(
         reviewId: json['reviewId'] as String,
@@ -3817,6 +3917,9 @@ class ClubReviewDto {
         rating: (json['rating'] as num).toInt(),
         comment: json['comment'] == null ? null : json['comment'] as String,
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        clubReply: json['clubReply'] == null ? null : json['clubReply'] as String,
+        clubRepliedAtUtc: json['clubRepliedAtUtc'] == null ? null : DateTime.parse(json['clubRepliedAtUtc'] as String),
+        commentHidden: json['commentHidden'] == null ? null : json['commentHidden'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3825,6 +3928,9 @@ class ClubReviewDto {
         'rating': rating,
         'comment': comment,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+        'clubReply': clubReply,
+        'clubRepliedAtUtc': clubRepliedAtUtc?.toIso8601String(),
+        'commentHidden': commentHidden,
       };
 }
 
@@ -6845,6 +6951,7 @@ class DeviceSessionOwnerDto {
   const DeviceSessionOwnerDto({
     required this.kind,
     this.playerAccountId,
+    this.playerAge,
   });
 
 
@@ -6854,14 +6961,20 @@ class DeviceSessionOwnerDto {
   /// Счёт игрока; только у Kind = player.
   final String? playerAccountId;
 
+  /// Полных лет игроку, если он ввёл день рождения: агент запирает игры старше его возраста.
+  /// null — возраст неизвестен, и ничего не запирается (дата по желанию, владелец 2026-09-26).
+  final int? playerAge;
+
   factory DeviceSessionOwnerDto.fromJson(Map<String, dynamic> json) => DeviceSessionOwnerDto(
         kind: json['kind'] as String,
         playerAccountId: json['playerAccountId'] == null ? null : json['playerAccountId'] as String,
+        playerAge: json['playerAge'] == null ? null : (json['playerAge'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'kind': kind,
         'playerAccountId': playerAccountId,
+        'playerAge': playerAge,
       };
 }
 
@@ -8032,6 +8145,66 @@ class HardwareGpuDto {
       };
 }
 
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwareMonitorDto {
+  const HardwareMonitorDto({
+    required this.name,
+    this.manufacturer,
+    this.serial,
+  });
+
+
+  /// Модель из EDID монитора; нет её — код производителя и продукта: «SAM0F9A».
+  final String name;
+
+  /// Код производителя PnP: «SAM», «DEL».
+  final String? manufacturer;
+
+  /// Серийный номер из EDID — отличает подменённый монитор той же модели.
+  final String? serial;
+
+  factory HardwareMonitorDto.fromJson(Map<String, dynamic> json) => HardwareMonitorDto(
+        name: json['name'] as String,
+        manufacturer: json['manufacturer'] == null ? null : json['manufacturer'] as String,
+        serial: json['serial'] == null ? null : json['serial'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'manufacturer': manufacturer,
+        'serial': serial,
+      };
+}
+
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwarePhysicalDiskDto {
+  const HardwarePhysicalDiskDto({
+    required this.model,
+    required this.sizeGb,
+    this.interface,
+  });
+
+
+  /// Модель накопителя: «Samsung SSD 980 PRO 1TB».
+  final String model;
+  final int sizeGb;
+
+  /// Шина: «NVMe», «SATA»; null — не определилась.
+  final String? interface;
+
+  factory HardwarePhysicalDiskDto.fromJson(Map<String, dynamic> json) => HardwarePhysicalDiskDto(
+        model: json['model'] as String,
+        sizeGb: (json['sizeGb'] as num).toInt(),
+        interface: json['interface'] == null ? null : json['interface'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'model': model,
+        'sizeGb': sizeGb,
+        'interface': interface,
+      };
+}
+
 /// Снимок железа ПК (спека оболочки, P9): что стоит внутри. Сравнивается с принятым — поменяли
 /// видеокарту или вынули планку памяти, и клуб видит это в карточке ПК, а не узнаёт от игрока.
 ///
@@ -8046,6 +8219,8 @@ class HardwareSnapshotDto {
     required this.disks,
     this.os,
     this.bios,
+    this.physicalDisks,
+    this.monitors,
   });
 
   final String? cpu;
@@ -8061,6 +8236,13 @@ class HardwareSnapshotDto {
   final String? os;
   final String? bios;
 
+  /// Физические накопители внутри корпуса, без флешек. null — агент их не знает (старый агент
+  /// или не прочиталось), а не «накопителей нет».
+  final List<HardwarePhysicalDiskDto>? physicalDisks;
+
+  /// Подключённые мониторы. null — неизвестно; пустой список — мониторов нет.
+  final List<HardwareMonitorDto>? monitors;
+
   factory HardwareSnapshotDto.fromJson(Map<String, dynamic> json) => HardwareSnapshotDto(
         cpu: json['cpu'] == null ? null : json['cpu'] as String,
         cpuThreads: (json['cpuThreads'] as num).toInt(),
@@ -8070,6 +8252,8 @@ class HardwareSnapshotDto {
         disks: (json['disks'] as List<dynamic>).map((item) => HardwareDiskDto.fromJson(item as Map<String, dynamic>)).toList(),
         os: json['os'] == null ? null : json['os'] as String,
         bios: json['bios'] == null ? null : json['bios'] as String,
+        physicalDisks: json['physicalDisks'] == null ? null : (json['physicalDisks'] as List<dynamic>).map((item) => HardwarePhysicalDiskDto.fromJson(item as Map<String, dynamic>)).toList(),
+        monitors: json['monitors'] == null ? null : (json['monitors'] as List<dynamic>).map((item) => HardwareMonitorDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -8081,6 +8265,29 @@ class HardwareSnapshotDto {
         'disks': disks.map((item) => item.toJson()).toList(),
         'os': os,
         'bios': bios,
+        'physicalDisks': physicalDisks?.map((item) => item.toJson()).toList(),
+        'monitors': monitors?.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Скрыть текст отзыва от игроков. Звёзды остаются в оценке: скрыть плохую оценку нельзя.
+///
+/// Контракт: Reviews/ClubReviewDtos.cs
+class HideReviewCommentRequest {
+  const HideReviewCommentRequest({
+    required this.reason,
+  });
+
+
+  /// Одно из ReviewHideReasonNames
+  final String reason;
+
+  factory HideReviewCommentRequest.fromJson(Map<String, dynamic> json) => HideReviewCommentRequest(
+        reason: json['reason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reason': reason,
       };
 }
 
@@ -8703,6 +8910,7 @@ class LauncherAppDto {
     this.iconUri,
     required this.isAvailable,
     this.minAge,
+    this.ageLocked,
   });
 
   final String appId;
@@ -8711,8 +8919,12 @@ class LauncherAppDto {
   final String? iconUri;
   final bool isAvailable;
 
-  /// Возрастная отметка игры (0, 12, 16, 18). Проверить её не на чем — у игрока нет даты рождения.
+  /// Возрастная отметка игры (0, 12, 16, 18).
   final int? minAge;
+
+  /// Игрок моложе отметки: плитка заперта, агент игру не запустит. Возраст неизвестен (дата
+  /// рождения по желанию) — не заперта.
+  final bool? ageLocked;
 
   factory LauncherAppDto.fromJson(Map<String, dynamic> json) => LauncherAppDto(
         appId: json['appId'] as String,
@@ -8721,6 +8933,7 @@ class LauncherAppDto {
         iconUri: json['iconUri'] == null ? null : json['iconUri'] as String,
         isAvailable: json['isAvailable'] as bool,
         minAge: json['minAge'] == null ? null : (json['minAge'] as num).toInt(),
+        ageLocked: json['ageLocked'] == null ? null : json['ageLocked'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -8730,6 +8943,7 @@ class LauncherAppDto {
         'iconUri': iconUri,
         'isAvailable': isAvailable,
         'minAge': minAge,
+        'ageLocked': ageLocked,
       };
 }
 
@@ -9057,6 +9271,7 @@ class MePersonDto {
     required this.pinSet,
     required this.networkBanned,
     this.networkBanReason,
+    this.birthDate,
   });
 
   final String platformPersonId;
@@ -9071,6 +9286,9 @@ class MePersonDto {
   /// приложения — и он идёт спорить к стойке, которая его не ставила.
   final String? networkBanReason;
 
+  /// День рождения, если человек его ввёл: по желанию, для подарка клуба и игр с возрастом.
+  final String? birthDate;
+
   factory MePersonDto.fromJson(Map<String, dynamic> json) => MePersonDto(
         platformPersonId: json['platformPersonId'] as String,
         phoneNumber: json['phoneNumber'] as String,
@@ -9080,6 +9298,7 @@ class MePersonDto {
         pinSet: json['pinSet'] as bool,
         networkBanned: json['networkBanned'] as bool,
         networkBanReason: json['networkBanReason'] == null ? null : json['networkBanReason'] as String,
+        birthDate: json['birthDate'] == null ? null : json['birthDate'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -9091,6 +9310,7 @@ class MePersonDto {
         'pinSet': pinSet,
         'networkBanned': networkBanned,
         'networkBanReason': networkBanReason,
+        'birthDate': birthDate,
       };
 }
 
@@ -12073,6 +12293,23 @@ class PlatformHealthOverviewDto {
       };
 }
 
+/// Контракт: Media/MediaPurposeNames.cs
+class PlatformMediaUploadedDto {
+  const PlatformMediaUploadedDto({
+    required this.url,
+  });
+
+  final String url;
+
+  factory PlatformMediaUploadedDto.fromJson(Map<String, dynamic> json) => PlatformMediaUploadedDto(
+        url: json['url'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'url': url,
+      };
+}
+
 /// Сессия человека. Первые восемь полей — дословно те же, что в PlayerSignInResponse,
 /// поэтому старый клиент читает этот ответ, не заметив разницы. Отличие одно и оно про модель:
 /// клуба может не быть вовсе — так выглядит человек, зарегистрировавшийся дома и ещё никуда не
@@ -13731,6 +13968,7 @@ class PlayerSearchResultDto {
     required this.activePackageRemainingMinutes,
     this.platformPersonId,
     this.createdFromApp,
+    this.birthDate,
   });
 
   final String playerAccountId;
@@ -13750,6 +13988,10 @@ class PlayerSearchResultDto {
   final String? platformPersonId;
   final bool? createdFromApp;
 
+  /// День рождения, если гость ввёл его в приложении (по желанию): стойка поздравит, а игры с
+  /// возрастом проверит глазами.
+  final String? birthDate;
+
   factory PlayerSearchResultDto.fromJson(Map<String, dynamic> json) => PlayerSearchResultDto(
         playerAccountId: json['playerAccountId'] as String,
         displayName: json['displayName'] as String,
@@ -13764,6 +14006,7 @@ class PlayerSearchResultDto {
         activePackageRemainingMinutes: (json['activePackageRemainingMinutes'] as num).toInt(),
         platformPersonId: json['platformPersonId'] == null ? null : json['platformPersonId'] as String,
         createdFromApp: json['createdFromApp'] == null ? null : json['createdFromApp'] as bool,
+        birthDate: json['birthDate'] == null ? null : json['birthDate'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -13780,6 +14023,7 @@ class PlayerSearchResultDto {
         'activePackageRemainingMinutes': activePackageRemainingMinutes,
         'platformPersonId': platformPersonId,
         'createdFromApp': createdFromApp,
+        'birthDate': birthDate,
       };
 }
 
@@ -15906,6 +16150,25 @@ class ReorderProductCategoriesRequest {
       };
 }
 
+/// Ответ клуба на отзыв. Пустой — снять ответ.
+///
+/// Контракт: Reviews/ClubReviewDtos.cs
+class ReplyToReviewRequest {
+  const ReplyToReviewRequest({
+    this.reply,
+  });
+
+  final String? reply;
+
+  factory ReplyToReviewRequest.fromJson(Map<String, dynamic> json) => ReplyToReviewRequest(
+        reply: json['reply'] == null ? null : json['reply'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reply': reply,
+      };
+}
+
 /// Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
 /// рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
 ///
@@ -17568,6 +17831,25 @@ class SetAdCampaignStateRequest {
 
   Map<String, dynamic> toJson() => {
         'state': state,
+      };
+}
+
+/// День рождения в профиле; null стирает его.
+///
+/// Контракт: Players/MeDto.cs
+class SetBirthDateRequest {
+  const SetBirthDateRequest({
+    this.birthDate,
+  });
+
+  final String? birthDate;
+
+  factory SetBirthDateRequest.fromJson(Map<String, dynamic> json) => SetBirthDateRequest(
+        birthDate: json['birthDate'] == null ? null : json['birthDate'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'birthDate': birthDate,
       };
 }
 
@@ -19662,6 +19944,25 @@ class StartReservationSessionResponse {
       };
 }
 
+/// Обложка игры из Steam по номеру приложения — её ищет и копирует к себе сервер.
+///
+/// Контракт: Media/MediaPurposeNames.cs
+class SteamCoverRequest {
+  const SteamCoverRequest({
+    required this.steamAppId,
+  });
+
+  final String steamAppId;
+
+  factory SteamCoverRequest.fromJson(Map<String, dynamic> json) => SteamCoverRequest(
+        steamAppId: json['steamAppId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'steamAppId': steamAppId,
+      };
+}
+
 /// Контракт: Inventory/StockMovementDto.cs
 class StockMovementDto {
   const StockMovementDto({
@@ -20365,6 +20666,31 @@ class UpdateBillingTermsRequest {
         'trialDays': trialDays,
         'promisedPaymentDays': promisedPaymentDays,
         'fallbackAfterOverdueDays': fallbackAfterOverdueDays,
+      };
+}
+
+/// Контракт: Loyalty/BirthdayGiftContracts.cs
+class UpdateBirthdayGiftSettingsRequest {
+  const UpdateBirthdayGiftSettingsRequest({
+    required this.enabled,
+    required this.amountMinorUnits,
+    required this.recentVisitDays,
+  });
+
+  final bool enabled;
+  final int amountMinorUnits;
+  final int recentVisitDays;
+
+  factory UpdateBirthdayGiftSettingsRequest.fromJson(Map<String, dynamic> json) => UpdateBirthdayGiftSettingsRequest(
+        enabled: json['enabled'] as bool,
+        amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
+        recentVisitDays: (json['recentVisitDays'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'amountMinorUnits': amountMinorUnits,
+        'recentVisitDays': recentVisitDays,
       };
 }
 

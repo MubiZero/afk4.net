@@ -67,7 +67,9 @@ public sealed class PlayerShellStateBuilder(
             IsGraceMode: isGraceMode,
             WarningThresholdSeconds: threshold,
             Message: CreateMessage(state),
-            LauncherApps: catalog is null ? CreateLauncherApps(agentOptions) : CreateLauncherApps(catalog),
+            LauncherApps: catalog is null
+                ? CreateLauncherApps(agentOptions)
+                : CreateLauncherApps(catalog, heartbeatSnapshot.SessionOwner?.PlayerAge),
             ClubRules: protection?.Profile.ClubRules,
             IdleShutdownAtUtc: idleShutdown?.ShutdownAtUtc,
             Showcase: ShowcaseFor(state),
@@ -182,8 +184,11 @@ public sealed class PlayerShellStateBuilder(
                 IsAvailable: File.Exists(app.ExecutablePath)))
             .ToList();
 
-    /// <summary>Библиотека клуба: лаунчера на ПК нет — плитка видна недоступной, а не пропадает.</summary>
-    private static IReadOnlyList<LauncherAppDto> CreateLauncherApps(ILauncherCatalog catalog) =>
+    /// <summary>
+    /// Библиотека клуба: лаунчера на ПК нет — плитка видна недоступной, а не пропадает. Игра старше
+    /// игрока видна запертой: он знает, что она есть, и почему не для него.
+    /// </summary>
+    private static IReadOnlyList<LauncherAppDto> CreateLauncherApps(ILauncherCatalog catalog, int? playerAge) =>
         catalog.Entries()
             .Select(entry => new LauncherAppDto(
                 AppId: entry.AppId,
@@ -191,7 +196,8 @@ public sealed class PlayerShellStateBuilder(
                 Category: entry.Category,
                 IconUri: entry.IconUri,
                 IsAvailable: entry.ExecutablePath is not null && File.Exists(entry.ExecutablePath),
-                MinAge: entry.MinAge))
+                MinAge: entry.MinAge,
+                AgeLocked: GameAgeGate.IsLocked(entry.MinAge, playerAge)))
             .ToList();
 
     private static string CreateMessage(string state) => state switch

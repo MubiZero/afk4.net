@@ -25,6 +25,7 @@ import { createAccountClient } from './account';
 import { createShopOrderClient } from './shopOrders';
 import { createLoyaltySettingsClient } from './loyaltySettings';
 import { createReferralSettingsClient } from './referralSettings';
+import { createBirthdayGiftSettingsClient } from './birthdayGiftSettings';
 import { createTipsClient } from './tips';
 import { createFeaturesClient } from './features';
 import { createEskhataConfigClient } from './eskhataConfig';
@@ -68,6 +69,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     shopOrders: createShopOrderClient(organizationApi),
     loyaltySettings: createLoyaltySettingsClient(organizationApi),
     referralSettings: createReferralSettingsClient(organizationApi),
+    birthdayGiftSettings: createBirthdayGiftSettingsClient(organizationApi),
     tips: createTipsClient(organizationApi),
     features: createFeaturesClient(organizationApi),
     eskhataConfig: createEskhataConfigClient(organizationApi),
