@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace AFK4.Platform.Api.Players;
 
@@ -27,7 +28,48 @@ public static class PlayerAchievementsProjector
     private const int NightStartHour = 22;
     private const int NightEndHour = 5;
 
+    /// Сколько держать посчитанный стаж игрока, который не открывает экран. Сверка с историей идёт
+    /// на каждом запросе, так что срок — только про память сервера, а не про свежесть.
+    private static readonly TimeSpan CacheIdle = TimeSpan.FromMinutes(30);
+
+    private sealed record Cached((int Visits, DateTimeOffset? LastChangedUtc, bool Reviewed) Stamp, PlayerAchievementsDto Value);
+
+    /// <summary>
+    /// Стаж игрока. Считается по всей истории, но только когда она изменилась: каждый запрос сверяет
+    /// дешёвую отметку — сколько закрытых визитов, когда менялся последний и есть ли отзыв, — и если
+    /// она та же, отдаёт посчитанное. Визит, исправленный задним числом, меняет свой UpdatedAtUtc и
+    /// отметку вместе с ним.
+    /// </summary>
     public static async Task<PlayerAchievementsDto> GetAsync(
+        PlatformDbContext dbContext,
+        IMemoryCache cache,
+        Guid playerAccountId,
+        CancellationToken cancellationToken)
+    {
+        var ended = dbContext.Sessions
+            .AsNoTracking()
+            .Where(session =>
+                session.PlayerAccountId == playerAccountId &&
+                session.State == SessionStateNames.Ended &&
+                session.StartedAtUtc != null &&
+                session.EndedAtUtc != null);
+        var stamp = (
+            await ended.CountAsync(cancellationToken),
+            await ended.MaxAsync(session => (DateTimeOffset?)session.UpdatedAtUtc, cancellationToken),
+            await dbContext.ClubReviews.AsNoTracking().AnyAsync(review => review.PlayerAccountId == playerAccountId, cancellationToken));
+
+        var key = $"player-achievements:{playerAccountId:N}";
+        if (cache.TryGetValue(key, out Cached? cached) && cached!.Stamp == stamp)
+        {
+            return cached.Value;
+        }
+
+        var value = await ComputeAsync(dbContext, playerAccountId, cancellationToken);
+        cache.Set(key, new Cached(stamp, value), new MemoryCacheEntryOptions { SlidingExpiration = CacheIdle });
+        return value;
+    }
+
+    private static async Task<PlayerAchievementsDto> ComputeAsync(
         PlatformDbContext dbContext,
         Guid playerAccountId,
         CancellationToken cancellationToken)
