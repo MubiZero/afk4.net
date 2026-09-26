@@ -2256,6 +2256,46 @@ export interface CloseShiftRequest {
   signOffReason?: string | null;
 }
 
+/** Контракт: Ads/ClubAdsContracts.cs */
+export interface ClubAdDto {
+  creativeId: Guid;
+  advertiser: string;
+  /** Одно из AdCategoryNames */
+  category: AdCategoryName;
+  /** Таджикский текст — первым; русский — по желанию рекламодателя. */
+  title: string;
+  body: string | null;
+  titleRu: string | null;
+  bodyRu: string | null;
+  imageUrl: string | null;
+  startsAtUtc: IsoDateTime;
+  endsAtUtc: IsoDateTime;
+  /** Идёт на ПК клуба сейчас. */
+  running: boolean;
+  /** Показы и секунды на экране на ПК клуба за окно From–To. */
+  impressions: number;
+  shownSeconds: number;
+  lastShownDay: string | null;
+  seller?: ShowcaseSellerDto | null;
+  requiresCertification?: boolean;
+  offerUntilUtc?: IsoDateTime | null;
+}
+
+/**
+ * Реклама платформы на ПК клуба — глазами клуба (спека рекламы, §8.4): клуб по закону тоже
+ * распространитель рекламы и должен видеть, что идёт на его ПК, и уметь ответить проверяющему.
+ *
+ * Контракт: Ads/ClubAdsContracts.cs
+ */
+export interface ClubAdsDto {
+  /** Реклама платформы включена клубу — это бесплатный тариф. */
+  adsEnabled: boolean;
+  /** Показы считаются за эти дни по UTC, «2026-09-01». */
+  from: string;
+  to: string;
+  ads: ClubAdDto[];
+}
+
 /**
  * A physical club of the network: what the card shows and where the map puts its pin.
  *

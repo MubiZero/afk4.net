@@ -1,6 +1,7 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import type {
+  ClubAdsDto,
   ClubPlanDevicesDto,
   ClubPlanDto,
   SetClubPlanDevicesRequest,
@@ -45,6 +46,10 @@ export function createOrgBillingClient(api: PlatformApiClient) {
     },
     setDevices(deviceIds: string[]): Promise<ClubPlanDevicesDto> {
       return api.put<ClubPlanDevicesDto, SetClubPlanDevicesRequest>('plan/devices', { deviceIds });
+    },
+    // «Сеть → Реклама»: что из рекламы платформы идёт и шло на ПК клуба (клуб — тоже распространитель).
+    listPlatformAds(): Promise<ClubAdsDto> {
+      return api.get<ClubAdsDto>('platform-ads');
     }
   };
 }

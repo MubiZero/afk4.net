@@ -6,6 +6,7 @@ import type { OperatorBackendContext } from '../operatorTypes';
 import { allowedNetworkDestinations, type NetworkDestinationId } from './networkNav';
 import { BranchesDestination } from './branches/BranchesDestination';
 import { BillingDestination } from './billing/BillingDestination';
+import { AdsDestination } from './ads/AdsDestination';
 import { InstallDestination } from './install/InstallDestination';
 import { UpdatesDestination } from './updates/UpdatesDestination';
 import { JournalDestination } from './journal/JournalDestination';
@@ -41,6 +42,8 @@ export function NetworkWorkspace({ backend }: { backend: OperatorBackendContext 
         return <BranchesDestination backend={backend} />;
       case 'billing':
         return <BillingDestination backend={backend} />;
+      case 'ads':
+        return <AdsDestination backend={backend} />;
       case 'install':
         return <InstallDestination backend={backend} />;
       case 'updates':

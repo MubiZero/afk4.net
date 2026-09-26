@@ -1,11 +1,11 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CreditCard, MonitorDown, RefreshCw, ScrollText } from 'lucide-react';
+import { Building2, CreditCard, Megaphone, MonitorDown, RefreshCw, ScrollText } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission } from '../operatorPermissions';
 import { permissionNames } from '../permissionNames';
 
-export type NetworkDestinationId = 'branches' | 'billing' | 'install' | 'updates' | 'journal';
+export type NetworkDestinationId = 'branches' | 'billing' | 'ads' | 'install' | 'updates' | 'journal';
 
 export interface NetworkDestination {
   id: NetworkDestinationId;
@@ -28,6 +28,15 @@ export const networkDestinations: readonly NetworkDestination[] = [
     labelKey: 'op.network.dest.billing',
     subtitleKey: 'op.network.dest.billing.subtitle',
     Icon: CreditCard,
+    permissions: [permissionNames.viewSubscription]
+  },
+  {
+    // Клуб — тоже распространитель рекламы платформы (спека рекламы, §8.4): видит её тот же, кто
+    // видит подписку, — реклама идёт от бесплатного тарифа.
+    id: 'ads',
+    labelKey: 'op.network.dest.ads',
+    subtitleKey: 'op.network.dest.ads.subtitle',
+    Icon: Megaphone,
     permissions: [permissionNames.viewSubscription]
   },
   {

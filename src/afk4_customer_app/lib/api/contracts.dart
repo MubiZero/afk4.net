@@ -3256,6 +3256,131 @@ class CloseShiftRequest {
       };
 }
 
+/// Контракт: Ads/ClubAdsContracts.cs
+class ClubAdDto {
+  const ClubAdDto({
+    required this.creativeId,
+    required this.advertiser,
+    required this.category,
+    required this.title,
+    this.body,
+    this.titleRu,
+    this.bodyRu,
+    this.imageUrl,
+    required this.startsAtUtc,
+    required this.endsAtUtc,
+    required this.running,
+    required this.impressions,
+    required this.shownSeconds,
+    this.lastShownDay,
+    this.seller,
+    this.requiresCertification,
+    this.offerUntilUtc,
+  });
+
+  final String creativeId;
+  final String advertiser;
+
+  /// Одно из AdCategoryNames
+  final String category;
+
+  /// Таджикский текст — первым; русский — по желанию рекламодателя.
+  final String title;
+  final String? body;
+  final String? titleRu;
+  final String? bodyRu;
+  final String? imageUrl;
+  final DateTime startsAtUtc;
+  final DateTime endsAtUtc;
+
+  /// Идёт на ПК клуба сейчас.
+  final bool running;
+
+  /// Показы и секунды на экране на ПК клуба за окно From–To.
+  final int impressions;
+  final int shownSeconds;
+  final String? lastShownDay;
+  final ShowcaseSellerDto? seller;
+  final bool? requiresCertification;
+  final DateTime? offerUntilUtc;
+
+  factory ClubAdDto.fromJson(Map<String, dynamic> json) => ClubAdDto(
+        creativeId: json['creativeId'] as String,
+        advertiser: json['advertiser'] as String,
+        category: json['category'] as String,
+        title: json['title'] as String,
+        body: json['body'] == null ? null : json['body'] as String,
+        titleRu: json['titleRu'] == null ? null : json['titleRu'] as String,
+        bodyRu: json['bodyRu'] == null ? null : json['bodyRu'] as String,
+        imageUrl: json['imageUrl'] == null ? null : json['imageUrl'] as String,
+        startsAtUtc: DateTime.parse(json['startsAtUtc'] as String),
+        endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
+        running: json['running'] as bool,
+        impressions: (json['impressions'] as num).toInt(),
+        shownSeconds: (json['shownSeconds'] as num).toInt(),
+        lastShownDay: json['lastShownDay'] == null ? null : json['lastShownDay'] as String,
+        seller: json['seller'] == null ? null : ShowcaseSellerDto.fromJson(json['seller'] as Map<String, dynamic>),
+        requiresCertification: json['requiresCertification'] == null ? null : json['requiresCertification'] as bool,
+        offerUntilUtc: json['offerUntilUtc'] == null ? null : DateTime.parse(json['offerUntilUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'creativeId': creativeId,
+        'advertiser': advertiser,
+        'category': category,
+        'title': title,
+        'body': body,
+        'titleRu': titleRu,
+        'bodyRu': bodyRu,
+        'imageUrl': imageUrl,
+        'startsAtUtc': startsAtUtc.toIso8601String(),
+        'endsAtUtc': endsAtUtc.toIso8601String(),
+        'running': running,
+        'impressions': impressions,
+        'shownSeconds': shownSeconds,
+        'lastShownDay': lastShownDay,
+        'seller': seller?.toJson(),
+        'requiresCertification': requiresCertification,
+        'offerUntilUtc': offerUntilUtc?.toIso8601String(),
+      };
+}
+
+/// Реклама платформы на ПК клуба — глазами клуба (спека рекламы, §8.4): клуб по закону тоже
+/// распространитель рекламы и должен видеть, что идёт на его ПК, и уметь ответить проверяющему.
+///
+/// Контракт: Ads/ClubAdsContracts.cs
+class ClubAdsDto {
+  const ClubAdsDto({
+    required this.adsEnabled,
+    required this.from,
+    required this.to,
+    required this.ads,
+  });
+
+
+  /// Реклама платформы включена клубу — это бесплатный тариф.
+  final bool adsEnabled;
+
+  /// Показы считаются за эти дни по UTC, «2026-09-01».
+  final String from;
+  final String to;
+  final List<ClubAdDto> ads;
+
+  factory ClubAdsDto.fromJson(Map<String, dynamic> json) => ClubAdsDto(
+        adsEnabled: json['adsEnabled'] as bool,
+        from: json['from'] as String,
+        to: json['to'] as String,
+        ads: (json['ads'] as List<dynamic>).map((item) => ClubAdDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'adsEnabled': adsEnabled,
+        'from': from,
+        'to': to,
+        'ads': ads.map((item) => item.toJson()).toList(),
+      };
+}
+
 /// A physical club of the network: what the card shows and where the map puts its pin.
 ///
 /// Контракт: Branding/OrganizationDirectoryEntryDto.cs

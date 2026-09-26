@@ -566,6 +566,32 @@ let mockPlan: Record<string, unknown> = PREVIEW_OVER_PLAN
     devicesOutsidePlan: 0, trialDays: 30, promisedPaymentDays: 7
   };
 
+// «Сеть → Реклама»: учебный клуб на бесплатном тарифе — одна реклама идёт, другая уже кончилась.
+// Без картинок: демо ничего не качает из сети.
+function mockClubAds() {
+  const day = (daysAgo: number) => minutesAgoUtc(60 * 24 * daysAgo).slice(0, 10);
+  return {
+    adsEnabled: mockPlan.kind === 'free', from: day(29), to: day(0),
+    ads: [
+      {
+        creativeId: 'ad-mock-1', advertiser: 'Сомон Телеком', category: 'telecom',
+        title: 'Интернети бемаҳдуд барои як моҳ', body: 'Интернет барои бозӣ бе маҳдудияти трафик.',
+        titleRu: 'Безлимит на месяц', bodyRu: 'Интернет для игр без ограничений по трафику.', imageUrl: null,
+        startsAtUtc: minutesAgoUtc(60 * 24 * 10), endsAtUtc: minutesAgoUtc(-60 * 24 * 20), running: mockPlan.kind === 'free',
+        impressions: 1240, shownSeconds: 11160, lastShownDay: day(0),
+        seller: { legalName: 'ООО «Сомон Телеком»', taxId: '123456789', address: 'Душанбе, пр. Рудаки 1' },
+        requiresCertification: false, offerUntilUtc: minutesAgoUtc(-60 * 24 * 20)
+      },
+      {
+        creativeId: 'ad-mock-2', advertiser: 'Техномир', category: 'electronics',
+        title: 'Тахфиф ба ноутбукҳо', body: 'То охири моҳ — 10%.', titleRu: 'Скидка на ноутбуки', bodyRu: 'До конца месяца — 10%.',
+        imageUrl: null, startsAtUtc: minutesAgoUtc(60 * 24 * 40), endsAtUtc: minutesAgoUtc(60 * 24 * 12), running: false,
+        impressions: 380, shownSeconds: 3420, lastShownDay: day(12), seller: null, requiresCertification: true, offerUntilUtc: null
+      }
+    ]
+  };
+}
+
 // Какие ПК работают на бесплатном тарифе: без выбора — первые десять по порядку карты.
 let mockKeptDevices: string[] = [];
 function mockPlanDevices() {
@@ -658,6 +684,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
   if (pathname.endsWith('/tip-settings') && method === 'GET') return { enabled: mockTipsEnabled };
   if (pathname.endsWith('/plan') && method === 'GET') return mockPlan;
+  if (pathname.endsWith('/platform-ads') && method === 'GET') return mockClubAds();
   if (pathname.endsWith('/subscription') && method === 'GET') return mockSubscription();
   if (pathname.endsWith('/invoices') && method === 'GET') return [];
   if (/\/shifts\/[^/]+\/tips$/.test(pathname) && method === 'GET') return shiftTips();

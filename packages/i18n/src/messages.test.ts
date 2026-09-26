@@ -35,6 +35,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
     // «Реклама» — так и пишется по-таджикски на вывесках и в эфире; метку сверит носитель языка.
     'playerShell.showcase.kind.ad',
+    // «Реклама» в Панели — то же слово, что метка на ПК; «Реклама · {advertiser}» повторяет её.
+    'op.network.dest.ads', 'op.ads.label',
     // Название-пример консоли — марка и номер, переводить нечего.
     'op.settings.devices.console.namePlaceholder',
     // Раздел рекламы в Platform Control: «Реклама», «Креатив», «Категория», «Клуб», «Филиал» —

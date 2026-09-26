@@ -657,6 +657,7 @@ app.MapShowcaseEndpoints();
 app.MapAdEndpoints();
 app.MapTipEndpoints(organizations);
 organizations.MapClubPlanEndpoints();
+organizations.MapClubAdEndpoints();
 organizations.MapConsoleSeatEndpoints();
 organizations.MapGuestImportEndpoints();
 organizations.MapMediaEndpoints();

@@ -142,22 +142,12 @@ public static class PlatformAds
             .Where(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId)
             .Select(branch => branch.City)
             .SingleOrDefaultAsync(ct) ?? string.Empty;
-        var campaigns = (await db.AdCampaigns.AsNoTracking()
-                .Where(campaign => campaign.State == AdCampaignStateNames.Active && campaign.StartsAtUtc <= now && campaign.EndsAtUtc > now)
-                .ToListAsync(ct))
-            .Where(campaign => Targets(campaign, organizationId, city))
-            .ToList();
-        if (campaigns.Count == 0) return [];
+        var (byCampaign, creatives) = await EligibleAsync(db, organizationId, city, now, ct);
+        if (creatives.Count == 0) return [];
 
-        var ids = campaigns.Select(campaign => campaign.CampaignId).ToList();
         var advertisers = await db.AdAdvertisers.AsNoTracking()
-            .Where(advertiser => campaigns.Select(campaign => campaign.AdvertiserId).Contains(advertiser.AdvertiserId))
+            .Where(advertiser => byCampaign.Values.Select(campaign => campaign.AdvertiserId).Contains(advertiser.AdvertiserId))
             .ToDictionaryAsync(advertiser => advertiser.AdvertiserId, ct);
-        var byCampaign = campaigns.ToDictionary(campaign => campaign.CampaignId);
-        var creatives = await db.AdCreatives.AsNoTracking()
-            .Where(creative => ids.Contains(creative.CampaignId) && creative.Moderation == AdModerationNames.Approved && creative.ArchivedAtUtc == null)
-            .OrderBy(creative => creative.CreativeId)
-            .ToListAsync(ct);
         var creativeIds = creatives.Select(creative => creative.CreativeId).ToList();
         // ПК видит хранимую копию, а не адрес рекламодателя: картинку по ссылке можно подменить после
         // модерации. Версия в адресе — отпечаток, чтобы кэш ПК не держал старую.
@@ -175,9 +165,8 @@ public static class PlatformAds
                     ShowcaseCardKindNames.Ad,
                     creative.Title,
                     creative.Body,
-                    // Расширение в адресе — агент по нему называет файл в кэше ПК.
                     ImageUrl: images.TryGetValue(creative.CreativeId, out var image)
-                        ? $"{apiBaseUrl.TrimEnd('/')}{AdRoutes.CreativeImage(creative.CreativeId)}{AdCreativeImages.Extension(image.ContentType)}?v={image.Sha256[..12]}"
+                        ? ImageUrl(apiBaseUrl, creative.CreativeId, image.ContentType, image.Sha256)
                         : null,
                     Advertiser: advertiser?.Name ?? string.Empty,
                     SecondaryTitle: creative.TitleRu,
@@ -193,6 +182,29 @@ public static class PlatformAds
         var shift = (int)((uint)branchId.GetHashCode() % (uint)cards.Count);
         return cards.Skip(shift).Concat(cards.Take(shift)).ToList();
     }
+
+    /// <summary>Какие креативы сейчас положены филиалу в городе <paramref name="city"/>: одобренные, не снятые, идущих кампаний, нацеленных на клуб или город.</summary>
+    public static async Task<(IReadOnlyDictionary<Guid, AdCampaignEntity> Campaigns, IReadOnlyList<AdCreativeEntity> Creatives)> EligibleAsync(
+        PlatformDbContext db, Guid organizationId, string city, DateTimeOffset now, CancellationToken ct)
+    {
+        var campaigns = (await db.AdCampaigns.AsNoTracking()
+                .Where(campaign => campaign.State == AdCampaignStateNames.Active && campaign.StartsAtUtc <= now && campaign.EndsAtUtc > now)
+                .ToListAsync(ct))
+            .Where(campaign => Targets(campaign, organizationId, city))
+            .ToDictionary(campaign => campaign.CampaignId);
+        if (campaigns.Count == 0) return (campaigns, []);
+
+        var ids = campaigns.Keys.ToList();
+        var creatives = await db.AdCreatives.AsNoTracking()
+            .Where(creative => ids.Contains(creative.CampaignId) && creative.Moderation == AdModerationNames.Approved && creative.ArchivedAtUtc == null)
+            .OrderBy(creative => creative.CreativeId)
+            .ToListAsync(ct);
+        return (campaigns, creatives);
+    }
+
+    /// <summary>Адрес хранимой копии картинки. Расширение — агент по нему называет файл в кэше ПК; версия — отпечаток.</summary>
+    public static string ImageUrl(string apiBaseUrl, Guid creativeId, string contentType, string sha256) =>
+        $"{apiBaseUrl.TrimEnd('/')}{AdRoutes.CreativeImage(creativeId)}{AdCreativeImages.Extension(contentType)}?v={sha256[..12]}";
 
     private static bool Targets(AdCampaignEntity campaign, Guid organizationId, string city)
     {

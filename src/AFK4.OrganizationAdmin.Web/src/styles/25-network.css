@@ -387,3 +387,21 @@
 .network-plan-outside-name { font-weight: 600; color: var(--text-strong); }
 .network-plan-outside-hall { color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .network-plan-outside-tag { margin-left: auto; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--surface-muted, var(--border-soft)); color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+
+/* «Сеть → Реклама» (network/ads/AdsDestination.tsx): карточки рекламы в том виде, в каком её видит
+ * игрок, — таджикский первым, пометки закона внизу. Идущая выделена рамкой. */
+.network-ads-lead { margin: 0 0 var(--space-3); color: var(--text-secondary); font-size: 13px; max-width: 80ch; }
+.network-ads-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-3); }
+.network-ad { display: flex; flex-direction: column; border: 1px solid var(--border-soft); border-radius: var(--radius-lg, 10px); overflow: hidden; background: var(--surface-card); }
+.network-ad.is-running { border-color: var(--accent-ring, var(--border-soft)); }
+.network-ad-image { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--border-soft); }
+.network-ad-body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); }
+.network-ad-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.network-ad-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-text, var(--text-secondary)); }
+.network-ad-title { font-size: 16px; line-height: 1.25; color: var(--text-strong); }
+.network-ad-text { margin: 0; font-size: 13px; color: var(--text-primary); }
+.network-ad-ru { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.network-ad-facts { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); font-size: 12px; }
+.network-ad-facts dt { color: var(--text-tertiary); }
+.network-ad-facts dd { margin: 0; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.network-ad-legal { margin: 0; font-size: 11px; color: var(--text-secondary); border-top: 1px dashed var(--border-soft); padding-top: var(--space-2); }

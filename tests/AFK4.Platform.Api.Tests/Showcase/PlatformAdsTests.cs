@@ -107,6 +107,17 @@ public sealed class PlatformAdsTests
         Assert.Equal(3, row.Impressions);
         Assert.Equal(27, row.ShownSeconds);
         Assert.Equal("Душанбе", row.City);
+
+        // Клуб — тоже распространитель: он видит, что идёт на его ПК и сколько раз показано (§8.4).
+        var club = (await fixture.Client.GetFromJsonAsync<ClubAdsDto>($"/api/organizations/{fixture.Device.OrganizationId:D}/platform-ads"))!;
+        Assert.True(club.AdsEnabled);
+        var mine = Assert.Single(club.Ads);
+        Assert.True(mine.Running);
+        Assert.Equal(3, mine.Impressions);
+        Assert.Equal("2026-09-24", mine.LastShownDay);
+        Assert.Equal("Бемаҳдуд барои як моҳ", mine.Title);
+        Assert.Equal("Безлимит на месяц", mine.TitleRu);
+        Assert.Equal(ad.ImageUrl, mine.ImageUrl);
     }
 
     [Fact]
@@ -120,6 +131,9 @@ public sealed class PlatformAdsTests
         var showcase = (await ShowcaseAsync(fixture))!;
 
         Assert.DoesNotContain(showcase.Cards, card => card.Kind == ShowcaseCardKindNames.Ad);
+        var club = (await fixture.Client.GetFromJsonAsync<ClubAdsDto>($"/api/organizations/{fixture.Device.OrganizationId:D}/platform-ads"))!;
+        Assert.False(club.AdsEnabled);
+        Assert.Empty(club.Ads);
     }
 
     // Показанную рекламу закон велит хранить год (ст. 22): одобренный креатив не правится, а снимается.
