@@ -6,7 +6,7 @@
 // Fixtures mirror the shapes the test suite already exercises. Unmapped endpoints fall back to an
 // empty list, so secondary screens render their (themed) empty/error states rather than crashing.
 import { permissionNames } from './operatorPermissions';
-import type { BranchGameDto, CatalogGameDto } from '@afk4/contracts';
+import type { BranchGameDto, BranchReviewDto, CatalogGameDto, ReviewHideReasonName } from '@afk4/contracts';
 
 const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const BRANCH = 'acfc0212-967f-4d84-94be-9003387b09c2';
@@ -886,11 +886,11 @@ function groupReservationResult(init?: RequestInit): unknown {
 
 let previewHardwareAccepted = false;
 
-const previewReviews = [
+const previewReviews: BranchReviewDto[] = [
   { reviewId: 'preview-review-1', playerAccountId: 'p1', authorName: 'Азиз К.', rating: 5, comment: 'Мощные ПК, тишина, администратор помог с Steam.', createdAtUtc: '2026-09-24T21:10:00Z', sessionId: 's1', seatName: 'PC-04' },
   { reviewId: 'preview-review-2', playerAccountId: 'p2', authorName: 'Мадина С.', rating: 4, comment: null, createdAtUtc: '2026-09-24T19:40:00Z', sessionId: 's2', seatName: 'VIP-01' },
   { reviewId: 'preview-review-3', playerAccountId: 'p3', authorName: 'Гость', rating: 2, comment: 'Мышь на PC-07 липкая, наушники шумят.', createdAtUtc: '2026-09-23T23:05:00Z', sessionId: 's3', seatName: 'PC-07' },
-  { reviewId: 'preview-review-4', playerAccountId: 'p4', authorName: 'Фарход', rating: 5, comment: 'Лучший клуб в районе.', createdAtUtc: '2026-09-22T17:15:00Z', sessionId: 's4', seatName: 'PC-01' }
+  { reviewId: 'preview-review-4', playerAccountId: 'p4', authorName: 'Фарход', rating: 5, comment: 'Лучший клуб в районе.', createdAtUtc: '2026-09-22T17:15:00Z', sessionId: 's4', seatName: 'PC-01', reply: 'Спасибо, Фарход! Ждём на турнир в субботу.', repliedAtUtc: '2026-09-23T10:00:00Z' }
 ];
 
 const previewCatalogGames: CatalogGameDto[] = [
@@ -1402,6 +1402,23 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     const counts = [1, 2, 3, 4, 5].map((stars) => previewReviews.filter((review) => review.rating === stars).length);
     const average = Math.round((previewReviews.reduce((sum, review) => sum + review.rating, 0) / previewReviews.length) * 10) / 10;
     return json({ rating: average, reviewCount: previewReviews.length, countsByRating: counts, items, nextBefore: null });
+  }
+  // Ответ клуба и скрытие текста в превью: меняют отзыв до перезагрузки.
+  const reviewActionMatch = url.pathname.match(/\/branches\/[^/]+\/reviews\/([^/]+)\/(reply|hide-comment|show-comment)$/);
+  if (reviewActionMatch && method === 'POST') {
+    const review = previewReviews.find((candidate) => candidate.reviewId === reviewActionMatch[1]);
+    if (!review) return jsonError(404, 'not_found', 'Not found.');
+    const request = JSON.parse(String(init?.body ?? '{}')) as { reply?: string; reason?: ReviewHideReasonName };
+    const now = new Date().toISOString();
+    if (reviewActionMatch[2] === 'reply') {
+      const reply = request.reply?.trim() || null;
+      Object.assign(review, { reply, repliedAtUtc: reply ? now : null });
+    } else if (reviewActionMatch[2] === 'hide-comment') {
+      Object.assign(review, { commentHiddenAtUtc: now, commentHiddenReason: request.reason ?? 'other' });
+    } else {
+      Object.assign(review, { commentHiddenAtUtc: null, commentHiddenReason: null });
+    }
+    return noContent();
   }
   // Библиотека игр в превью: каталог платформы и игры филиала, правки живут до перезагрузки.
   if (url.pathname.endsWith('/game-catalog') && method === 'GET') {

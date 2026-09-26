@@ -26,6 +26,8 @@ export type {
   PlatformAdminListItem,
   PlatformAdminSignInChallengeResponse,
   PlatformAdminSignInResponse,
+  PlatformMediaPurposeName,
+  PlatformMediaUploadedDto,
   UpdateBillingTermsRequest,
   UpdatePlanRequest,
   UpdateSubscriptionRequest,

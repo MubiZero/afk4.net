@@ -879,8 +879,10 @@
       }
     }
   },
+  "customerReviewsClubReply": "Ответ клуба",
   "customerReviewsEmpty": "Отзывов пока нет — ваш будет первым",
   "customerReviewsError": "Не удалось загрузить отзывы",
+  "customerReviewsHidden": "Клуб скрыл текст отзыва — оценка осталась.",
   "customerReviewsTitle": "Отзывы игроков",
   "customerSessionEndAction": "Закончить и встать",
   "customerSessionEndBody": "Место освободится сразу. Оплаченное, но неигранное время вернётся на кошелёк.",

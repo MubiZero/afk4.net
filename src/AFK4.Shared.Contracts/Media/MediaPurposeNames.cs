@@ -27,3 +27,38 @@ public static class MediaPurposeNames
     public static bool IsKnown(string? purpose) =>
         purpose is BranchLogo or OrganizationLogo or BranchCover or BranchGallery or NewsImage or ProductImage;
 }
+
+/// <summary>
+/// Картинки, которые грузит сама платформа (Platform Control), а не клуб: обложки каталога игр и
+/// картинки рекламы. Лежат в том же хранилище, в папке `platform/`.
+/// </summary>
+public static class PlatformMediaPurposeNames
+{
+    public const string CatalogCover = "catalog-cover";
+
+    public const string AdCreative = "ad-creative";
+}
+
+public sealed record PlatformMediaUploadedDto(string Url);
+
+/// <summary>Почему картинку платформы не приняли — машинным словом, фразу строит экран.</summary>
+public static class PlatformMediaErrorCodeNames
+{
+    public const string UnknownPurpose = "media_unknown_purpose";
+    public const string FileRequired = "media_file_required";
+    public const string StorageNotConfigured = "media_storage_not_configured";
+    public const string TooLarge = "media_too_large";
+    public const string NotAnImage = "media_not_an_image";
+    public const string SteamAppIdInvalid = "steam_app_id_invalid";
+    public const string SteamCoverNotFound = "steam_cover_not_found";
+}
+
+/// <summary>Обложка игры из Steam по номеру приложения — её ищет и копирует к себе сервер.</summary>
+public sealed record SteamCoverRequest(string SteamAppId);
+
+public static class PlatformMediaRoutes
+{
+    public const string Upload = "/api/platform/media";
+
+    public const string SteamCover = "/api/platform/games/steam-cover";
+}

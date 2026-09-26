@@ -20,8 +20,9 @@ import {
   type GameForm
 } from './gamesModel';
 import { useLoadable } from '../useLoadable';
+import { describeMediaError } from '../mediaErrors';
 
-type Client = Pick<GamesApi, 'listGames' | 'createGame' | 'updateGame'>;
+type Client = Pick<GamesApi, 'listGames' | 'createGame' | 'updateGame' | 'steamCover' | 'uploadCover'>;
 
 interface Draft {
   catalogGameId: string | null;
@@ -48,6 +49,14 @@ export function GamesScreen({ client }: { client: Client }) {
     if (pending) return;
     setDraft(null);
     setSaveError(null);
+  }
+
+  async function humanizeCover(load: () => Promise<string>): Promise<string> {
+    try {
+      return await load();
+    } catch (cause) {
+      throw new Error(describeMediaError(cause, t));
+    }
   }
 
   async function save() {
@@ -158,6 +167,8 @@ export function GamesScreen({ client }: { client: Client }) {
             onChange={form => setDraft({ ...draft, form })}
             onSubmit={() => void save()}
             onClose={close}
+            onSteamCover={appId => humanizeCover(async () => (await client.steamCover(appId)).url)}
+            onUploadCover={file => humanizeCover(async () => (await client.uploadCover(file)).url)}
           />
         )}
       </CardContent>

@@ -595,6 +595,9 @@ abstract final class OrganizationPermissionNames {
   /// Читать отзывы игроков о филиале. Отзыв бывает и о смене — поэтому у владельца и
   /// управляющего, а не у всей стойки.
   static const String viewReviews = 'organization.reviews.view';
+  /// Ответить на отзыв и скрыть оскорбительный текст. У тех же, кто читает отзывы: владелец и
+  /// управляющий.
+  static const String manageReviews = 'organization.reviews.manage';
   /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
   /// владелец, управляющий, техник.
   static const String acceptDeviceHardware = 'organization.devices.hardware.accept';
@@ -756,6 +759,28 @@ abstract final class PlatformFeatureNames {
   static const String tournaments = 'tournaments';
   /// Реклама платформы в витрине свободного ПК. Её включает бесплатный тариф.
   static const String platformAds = 'platform_ads';
+}
+
+/// Почему картинку платформы не приняли — машинным словом, фразу строит экран.
+///
+/// Словарь: Media/MediaPurposeNames.cs
+abstract final class PlatformMediaErrorCodeNames {
+  static const String unknownPurpose = 'media_unknown_purpose';
+  static const String fileRequired = 'media_file_required';
+  static const String storageNotConfigured = 'media_storage_not_configured';
+  static const String tooLarge = 'media_too_large';
+  static const String notAnImage = 'media_not_an_image';
+  static const String steamAppIdInvalid = 'steam_app_id_invalid';
+  static const String steamCoverNotFound = 'steam_cover_not_found';
+}
+
+/// Картинки, которые грузит сама платформа (Platform Control), а не клуб: обложки каталога игр и
+/// картинки рекламы. Лежат в том же хранилище, в папке `platform/`.
+///
+/// Словарь: Media/MediaPurposeNames.cs
+abstract final class PlatformMediaPurposeNames {
+  static const String catalogCover = 'catalog-cover';
+  static const String adCreative = 'ad-creative';
 }
 
 /// Словарь: Platform/Health/PlatformHealthContracts.cs
@@ -929,6 +954,16 @@ abstract final class ReservationStateNames {
   /// Клуб отказал в заявке — с причиной. Не отмена: игрок ничего не отменял, и в его репутации
   /// чужой отказ появляться не должен.
   static const String rejected = 'rejected';
+}
+
+/// Словарь: Reviews/ClubReviewDtos.cs
+abstract final class ReviewHideReasonNames {
+  static const String insult = 'insult';
+  /// Телефон, имя сотрудника, чужие данные.
+  static const String personalData = 'personal_data';
+  /// Реклама, ссылки, спам.
+  static const String spam = 'spam';
+  static const String other = 'other';
 }
 
 /// The report kinds a schedule can deliver — one per existing report export endpoint.
@@ -2737,6 +2772,10 @@ class BranchReviewDto {
     required this.createdAtUtc,
     required this.sessionId,
     this.seatName,
+    this.reply,
+    this.repliedAtUtc,
+    this.commentHiddenAtUtc,
+    this.commentHiddenReason,
   });
 
   final String reviewId;
@@ -2747,6 +2786,14 @@ class BranchReviewDto {
   final DateTime createdAtUtc;
   final String sessionId;
   final String? seatName;
+  final String? reply;
+  final DateTime? repliedAtUtc;
+
+  /// Текст скрыт от игроков; клуб его по-прежнему видит, чтобы вернуть, если ошибся.
+  final DateTime? commentHiddenAtUtc;
+
+  /// Одно из ReviewHideReasonNames
+  final String? commentHiddenReason;
 
   factory BranchReviewDto.fromJson(Map<String, dynamic> json) => BranchReviewDto(
         reviewId: json['reviewId'] as String,
@@ -2757,6 +2804,10 @@ class BranchReviewDto {
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         sessionId: json['sessionId'] as String,
         seatName: json['seatName'] == null ? null : json['seatName'] as String,
+        reply: json['reply'] == null ? null : json['reply'] as String,
+        repliedAtUtc: json['repliedAtUtc'] == null ? null : DateTime.parse(json['repliedAtUtc'] as String),
+        commentHiddenAtUtc: json['commentHiddenAtUtc'] == null ? null : DateTime.parse(json['commentHiddenAtUtc'] as String),
+        commentHiddenReason: json['commentHiddenReason'] == null ? null : json['commentHiddenReason'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2768,6 +2819,10 @@ class BranchReviewDto {
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'sessionId': sessionId,
         'seatName': seatName,
+        'reply': reply,
+        'repliedAtUtc': repliedAtUtc?.toIso8601String(),
+        'commentHiddenAtUtc': commentHiddenAtUtc?.toIso8601String(),
+        'commentHiddenReason': commentHiddenReason,
       };
 }
 
@@ -3803,13 +3858,25 @@ class ClubReviewDto {
     required this.rating,
     this.comment,
     required this.createdAtUtc,
+    this.clubReply,
+    this.clubRepliedAtUtc,
+    this.commentHidden,
   });
 
   final String reviewId;
   final String authorName;
   final int rating;
+
+  /// Пусто и при скрытом клубом тексте — тогда CommentHidden.
   final String? comment;
   final DateTime createdAtUtc;
+
+  /// Ответ клуба — виден всем, как и сам отзыв.
+  final String? clubReply;
+  final DateTime? clubRepliedAtUtc;
+
+  /// Клуб скрыл текст (оскорбления, чужие данные, реклама). Звёзды остаются в оценке.
+  final bool? commentHidden;
 
   factory ClubReviewDto.fromJson(Map<String, dynamic> json) => ClubReviewDto(
         reviewId: json['reviewId'] as String,
@@ -3817,6 +3884,9 @@ class ClubReviewDto {
         rating: (json['rating'] as num).toInt(),
         comment: json['comment'] == null ? null : json['comment'] as String,
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        clubReply: json['clubReply'] == null ? null : json['clubReply'] as String,
+        clubRepliedAtUtc: json['clubRepliedAtUtc'] == null ? null : DateTime.parse(json['clubRepliedAtUtc'] as String),
+        commentHidden: json['commentHidden'] == null ? null : json['commentHidden'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -3825,6 +3895,9 @@ class ClubReviewDto {
         'rating': rating,
         'comment': comment,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+        'clubReply': clubReply,
+        'clubRepliedAtUtc': clubRepliedAtUtc?.toIso8601String(),
+        'commentHidden': commentHidden,
       };
 }
 
@@ -8084,6 +8157,27 @@ class HardwareSnapshotDto {
       };
 }
 
+/// Скрыть текст отзыва от игроков. Звёзды остаются в оценке: скрыть плохую оценку нельзя.
+///
+/// Контракт: Reviews/ClubReviewDtos.cs
+class HideReviewCommentRequest {
+  const HideReviewCommentRequest({
+    required this.reason,
+  });
+
+
+  /// Одно из ReviewHideReasonNames
+  final String reason;
+
+  factory HideReviewCommentRequest.fromJson(Map<String, dynamic> json) => HideReviewCommentRequest(
+        reason: json['reason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reason': reason,
+      };
+}
+
 /// Контракт: Platform/Health/PlatformHealthContracts.cs
 class IncidentDto {
   const IncidentDto({
@@ -12073,6 +12167,23 @@ class PlatformHealthOverviewDto {
       };
 }
 
+/// Контракт: Media/MediaPurposeNames.cs
+class PlatformMediaUploadedDto {
+  const PlatformMediaUploadedDto({
+    required this.url,
+  });
+
+  final String url;
+
+  factory PlatformMediaUploadedDto.fromJson(Map<String, dynamic> json) => PlatformMediaUploadedDto(
+        url: json['url'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'url': url,
+      };
+}
+
 /// Сессия человека. Первые восемь полей — дословно те же, что в PlayerSignInResponse,
 /// поэтому старый клиент читает этот ответ, не заметив разницы. Отличие одно и оно про модель:
 /// клуба может не быть вовсе — так выглядит человек, зарегистрировавшийся дома и ещё никуда не
@@ -15906,6 +16017,25 @@ class ReorderProductCategoriesRequest {
       };
 }
 
+/// Ответ клуба на отзыв. Пустой — снять ответ.
+///
+/// Контракт: Reviews/ClubReviewDtos.cs
+class ReplyToReviewRequest {
+  const ReplyToReviewRequest({
+    this.reply,
+  });
+
+  final String? reply;
+
+  factory ReplyToReviewRequest.fromJson(Map<String, dynamic> json) => ReplyToReviewRequest(
+        reply: json['reply'] == null ? null : json['reply'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'reply': reply,
+      };
+}
+
 /// Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
 /// рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
 ///
@@ -19659,6 +19789,25 @@ class StartReservationSessionResponse {
   Map<String, dynamic> toJson() => {
         'reservation': reservation.toJson(),
         'session': session.toJson(),
+      };
+}
+
+/// Обложка игры из Steam по номеру приложения — её ищет и копирует к себе сервер.
+///
+/// Контракт: Media/MediaPurposeNames.cs
+class SteamCoverRequest {
+  const SteamCoverRequest({
+    required this.steamAppId,
+  });
+
+  final String steamAppId;
+
+  factory SteamCoverRequest.fromJson(Map<String, dynamic> json) => SteamCoverRequest(
+        steamAppId: json['steamAppId'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'steamAppId': steamAppId,
       };
 }
 

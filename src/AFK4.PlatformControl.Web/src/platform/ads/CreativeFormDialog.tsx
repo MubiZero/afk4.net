@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { ErrorBanner, Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,7 @@ const FIELD_IDS: Record<CreativeFormField, string> = {
   imageUrl: 'creative-image'
 };
 
-export function CreativeFormDialog({ mode, form, pending, error, onChange, onSubmit, onClose }: {
+export function CreativeFormDialog({ mode, form, pending, error, onChange, onSubmit, onClose, onUploadImage }: {
   mode: 'create' | 'edit';
   form: CreativeForm;
   pending: boolean;
@@ -26,8 +27,25 @@ export function CreativeFormDialog({ mode, form, pending, error, onChange, onSub
   onChange: (form: CreativeForm) => void;
   onSubmit: () => void;
   onClose: () => void;
+  /** Картинка в хранилище платформы; возвращает её адрес, отказ — уже человеческой фразой. */
+  onUploadImage: (file: File) => Promise<string>;
 }) {
   const { t } = useI18n();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      onChange({ ...form, imageUrl: await onUploadImage(file) });
+    } catch (cause) {
+      setUploadError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setUploading(false);
+    }
+  }
   const { errorOf, controlProps, readyToSubmit } = useFieldErrors(validateCreativeForm(form), FIELD_IDS);
 
   function submit() {
@@ -89,6 +107,25 @@ export function CreativeFormDialog({ mode, form, pending, error, onChange, onSub
             onChange={event => onChange({ ...form, imageUrl: event.target.value })}
           />
         </Field>
+        <div className="pc-cover-actions">
+          <Button variant="outline" size="sm" disabled={pending || uploading} onClick={() => fileInput.current?.click()}>
+            {t('platform.media.upload')}
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+            aria-label={t('platform.media.upload')}
+            onChange={event => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (file) void upload(file);
+            }}
+          />
+          {uploading ? <span className="mgmt-drawer-hint">{t('platform.media.loading')}</span> : null}
+        </div>
+        {uploadError !== null ? <p className="pc-error-text" role="alert">{uploadError}</p> : null}
         <AdImagePreview url={form.imageUrl} />
       </div>
     </Dialog>

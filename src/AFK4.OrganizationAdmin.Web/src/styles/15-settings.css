@@ -474,6 +474,102 @@
   justify-self: center;
 }
 
+/* Скрытый текст клуб видит, но приглушённым: игроки его уже не видят. */
+.reviews-item .reviews-comment.is-hidden {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  text-decoration-color: var(--border-strong);
+}
+
+.reviews-item .reviews-hidden-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.reviews-reply {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: var(--surface-sunken);
+}
+
+.reviews-reply-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reviews-reply-label time {
+  margin-left: 0;
+  font-weight: 400;
+}
+
+.reviews-item .reviews-reply p {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.reviews-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reviews-editor label,
+.reviews-editor legend {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reviews-editor fieldset {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.reviews-editor textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.reviews-item .reviews-editor-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.reviews-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.reviews-editor-actions,
+.reviews-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reviews-item-actions {
+  margin-top: 10px;
+}
+
+.reviews-item .reviews-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
 /* Карточка ПК → Железо: что поменялось — зачёркнутое было и жирное стало. */
 .device-hardware {
   display: grid;

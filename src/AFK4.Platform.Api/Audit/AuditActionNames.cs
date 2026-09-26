@@ -353,6 +353,14 @@ public static class AuditActionNames
     /// <summary>Клуб пожаловался на рекламу на своих ПК.</summary>
     public const string ReportPlatformAd = "ads.complaint.report";
 
+    /// <summary>Клуб ответил на отзыв игрока или снял ответ.</summary>
+    public const string ReplyToReview = "reviews.reply";
+
+    /// <summary>Клуб скрыл текст отзыва от игроков; звёзды остались в оценке.</summary>
+    public const string HideReviewComment = "reviews.comment.hide";
+
+    public const string ShowReviewComment = "reviews.comment.show";
+
     /// <summary>Платформа закрыла жалобу клуба на рекламу.</summary>
     public const string ResolveAdComplaint = "platform.ads.complaint.resolve";
 

@@ -8,7 +8,7 @@ import type { CatalogGameDto } from '@/api/types';
 import type { GamesApi } from '@/api/platformClients/games';
 import { GamesScreen } from './GamesScreen';
 
-type Client = Pick<GamesApi, 'listGames' | 'createGame' | 'updateGame'>;
+type Client = Pick<GamesApi, 'listGames' | 'createGame' | 'updateGame' | 'steamCover' | 'uploadCover'>;
 
 function game(overrides: Partial<CatalogGameDto> = {}): CatalogGameDto {
   return {
@@ -43,6 +43,8 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     listGames: mock(async () => [game(), fortnite]),
     createGame: mock(async () => game()),
     updateGame: mock(async () => game()),
+    steamCover: mock(async (appId: string) => ({ url: `https://media.test/platform/catalog-cover/steam-${appId}.jpg` })),
+    uploadCover: mock(async () => ({ url: 'https://media.test/platform/catalog-cover/own.png' })),
     ...overrides
   };
 }
@@ -122,6 +124,54 @@ describe('GamesScreen', () => {
     }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(client.listGames).toHaveBeenCalledTimes(2);
+  });
+
+  // Владелец, 26.09: «пусть подтягивается красивая картинка» — одна кнопка вместо поиска ссылки.
+  it('подтягивает обложку из Steam по AppID и показывает её', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    await screen.findByText('Counter-Strike 2');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить игру' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая игра' });
+    // Кнопки нет, пока не понятно, у какой игры Steam спрашивать.
+    expect(within(dialog).queryByRole('button', { name: 'Подтянуть из Steam' })).toBeNull();
+    await userEvent.type(within(dialog).getByLabelText(/^AppID Steam/), '570');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтянуть из Steam' }));
+
+    await waitFor(() => expect(client.steamCover).toHaveBeenCalledWith('570'));
+    expect(await within(dialog).findByAltText('Предпросмотр обложки'))
+      .toHaveAttribute('src', 'https://media.test/platform/catalog-cover/steam-570.jpg');
+  });
+
+  it('говорит по-человечески, если у Steam картинки нет', async () => {
+    const client = makeClient({
+      steamCover: mock(async () => { throw new PlatformApiError(404, 'steam_cover_not_found', 'steam_cover_not_found'); })
+    });
+    renderScreen(client);
+    await screen.findByText('Counter-Strike 2');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить игру' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая игра' });
+    await userEvent.type(within(dialog).getByLabelText(/^AppID Steam/), '99999');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтянуть из Steam' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('У Steam нет картинки для этого номера приложения');
+  });
+
+  it('загружает свою картинку в хранилище платформы', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    await screen.findByText('Counter-Strike 2');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить игру' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая игра' });
+    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'cover.png', { type: 'image/png' });
+    await userEvent.upload(dialog.querySelector('input[type=file]') as HTMLInputElement, file);
+
+    await waitFor(() => expect(client.uploadCover).toHaveBeenCalledWith(file));
+    expect(await within(dialog).findByAltText('Предпросмотр обложки'))
+      .toHaveAttribute('src', 'https://media.test/platform/catalog-cover/own.png');
   });
 
   it('не отправляет AppID Steam из букв и говорит, что не так, у самого поля', async () => {

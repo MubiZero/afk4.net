@@ -431,6 +431,8 @@ builder.Services.Configure<MediaOptions>(mediaSection);
 // Singleton: AmazonS3Client is thread-safe and owns an HttpClient/connection pool; a per-request
 // (Scoped) client would leak handlers/sockets under load. MediaOptions is read once at construction.
 builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
+builder.Services.AddHttpClient(SteamCdnCoverSource.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<ISteamCoverSource, SteamCdnCoverSource>();
 builder.Services.AddScoped<IMediaService, EfMediaService>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
@@ -664,6 +666,7 @@ organizations.MapBranchSettingsEndpoints();
 app.MapProtectionProfileEndpoints(organizations);
 app.MapInstallCodeEndpoints(organizations);
 app.MapGameLibraryEndpoints(organizations);
+app.MapPlatformMediaEndpoints();
 app.MapDeviceHardwareEndpoints(organizations);
 app.MapShowcaseEndpoints();
 app.MapAdEndpoints();

@@ -879,8 +879,10 @@
       }
     }
   },
+  "customerReviewsClubReply": "Club reply",
   "customerReviewsEmpty": "No reviews yet — yours would be the first",
   "customerReviewsError": "Could not load the reviews",
+  "customerReviewsHidden": "The club hid the text of this review; the rating stays.",
   "customerReviewsTitle": "Player reviews",
   "customerSessionEndAction": "Finish and leave",
   "customerSessionEndBody": "The seat frees up right away. Paid time you did not use comes back to your wallet.",

@@ -70,6 +70,7 @@ export const permissionNames = {
   manageTournaments: 'organization.tournaments.manage',
   manageGameLibrary: 'organization.games.manage',
   viewReviews: 'organization.reviews.view',
+  manageReviews: 'organization.reviews.manage',
   acceptDeviceHardware: 'organization.devices.hardware.accept',
   manageTips: 'organization.tips.manage',
   manageSubscription: 'organization.billing.subscription.manage',

@@ -6,8 +6,10 @@ import { EmptyState, PartialLoadFailure } from '../../../operatorPrimitives';
 import { DeferredSkeleton, SkeletonTable } from '../../../LoadingSkeleton';
 import { createAuthenticatedOperatorClients } from '../../../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../../../apiErrors';
+import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import type { BranchReviewDto, BranchReviewsPageDto } from '../../../api/clients/reviews';
 import type { DestinationProps } from '../types';
+import { ReviewItem, type ReviewActions } from './ReviewItem';
 
 type Filter = { rating: number | null; withComment: boolean };
 
@@ -15,8 +17,8 @@ type Filter = { rating: number | null; withComment: boolean };
  * «Отзывы» (решение владельца 24.09): что игроки пишут о филиале — из приложения и с итога
  * сессии на ПК. У каждого отзыва — ПК, за которым сидели: жалобу на мышь находят на ПК 07.
  */
-export function ReviewsDestination({ backend, onDirtyChange }: DestinationProps) {
-  const { t, formatDate, formatNumber } = useI18n();
+export function ReviewsDestination({ backend, session, onDirtyChange }: DestinationProps) {
+  const { t, formatNumber } = useI18n();
   const client = useMemo(
     () => (backend ? createAuthenticatedOperatorClients(backend.config, backend.session).reviews : null),
     [backend?.config, backend?.session]
@@ -27,6 +29,29 @@ export function ReviewsDestination({ backend, onDirtyChange }: DestinationProps)
   const [items, setItems] = useState<BranchReviewDto[]>([]);
   const [failure, setFailure] = useState<OperatorErrorProjection | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const canManage = hasPermission(session, permissionNames.manageReviews);
+
+  // Действие ждёт ответа сервера и только потом меняет отзыв в списке.
+  const patch = (reviewId: string, change: Partial<BranchReviewDto>) =>
+    setItems((current) => current.map((item) => (item.reviewId === reviewId ? { ...item, ...change } : item)));
+  const actions = useMemo<ReviewActions | null>(() => {
+    if (client === null || branchId === null || !canManage) return null;
+    return {
+      async reply(review, text) {
+        await client.reply(branchId, review.reviewId, text);
+        const reply = text.trim() === '' ? null : text.trim();
+        patch(review.reviewId, { reply, repliedAtUtc: reply ? new Date().toISOString() : null });
+      },
+      async hide(review, reason) {
+        await client.hideComment(branchId, review.reviewId, reason);
+        patch(review.reviewId, { commentHiddenAtUtc: new Date().toISOString(), commentHiddenReason: reason });
+      },
+      async show(review) {
+        await client.showComment(branchId, review.reviewId);
+        patch(review.reviewId, { commentHiddenAtUtc: null, commentHiddenReason: null });
+      }
+    };
+  }, [client, branchId, canManage]);
 
   useEffect(() => { onDirtyChange?.(false); }, [onDirtyChange]);
 
@@ -127,23 +152,7 @@ export function ReviewsDestination({ backend, onDirtyChange }: DestinationProps)
           />
         ) : (
           <ul className="reviews-list">
-            {items.map((review) => (
-              <li key={review.reviewId} className="management-panel reviews-item">
-                <header>
-                  <span className="reviews-stars" aria-label={t('op.reviews.stars', { count: review.rating })}>
-                    {Array.from({ length: 5 }, (_, index) => (
-                      <Star key={index} size={14} aria-hidden="true" className={index < review.rating ? 'is-on' : undefined} />
-                    ))}
-                  </span>
-                  <strong>{review.authorName || t('op.reviews.anonymous')}</strong>
-                  {review.seatName && <span className="ui-chip ui-chip--xs">{review.seatName}</span>}
-                  <time dateTime={review.createdAtUtc}>{formatDate(review.createdAtUtc)}</time>
-                </header>
-                {review.comment
-                  ? <p>{review.comment}</p>
-                  : <p className="reviews-no-comment">{t('op.reviews.noComment')}</p>}
-              </li>
-            ))}
+            {items.map((review) => <ReviewItem key={review.reviewId} review={review} actions={actions} />)}
           </ul>
         )}
 

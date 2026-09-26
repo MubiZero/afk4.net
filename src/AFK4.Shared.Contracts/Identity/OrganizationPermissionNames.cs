@@ -178,6 +178,10 @@ public static class OrganizationPermissionNames
     /// управляющего, а не у всей стойки.
     public const string ViewReviews = "organization.reviews.view";
 
+    /// Ответить на отзыв и скрыть оскорбительный текст. У тех же, кто читает отзывы: владелец и
+    /// управляющий.
+    public const string ManageReviews = "organization.reviews.manage";
+
     /// Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
     /// владелец, управляющий, техник.
     public const string AcceptDeviceHardware = "organization.devices.hardware.accept";

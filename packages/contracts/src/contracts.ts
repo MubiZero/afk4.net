@@ -713,6 +713,11 @@ export const OrganizationPermissionNames = {
    */
   ViewReviews: 'organization.reviews.view',
   /**
+   * Ответить на отзыв и скрыть оскорбительный текст. У тех же, кто читает отзывы: владелец и
+   * управляющий.
+   */
+  ManageReviews: 'organization.reviews.manage',
+  /**
    * Принять новое железо ПК как норму — после апгрейда или ремонта. У того, кто его меняет:
    * владелец, управляющий, техник.
    */
@@ -907,6 +912,34 @@ export const PlatformFeatureNames = {
   PlatformAds: 'platform_ads',
 } as const;
 export type PlatformFeatureName = (typeof PlatformFeatureNames)[keyof typeof PlatformFeatureNames];
+
+/**
+ * Почему картинку платформы не приняли — машинным словом, фразу строит экран.
+ *
+ * Словарь: Media/MediaPurposeNames.cs
+ */
+export const PlatformMediaErrorCodeNames = {
+  UnknownPurpose: 'media_unknown_purpose',
+  FileRequired: 'media_file_required',
+  StorageNotConfigured: 'media_storage_not_configured',
+  TooLarge: 'media_too_large',
+  NotAnImage: 'media_not_an_image',
+  SteamAppIdInvalid: 'steam_app_id_invalid',
+  SteamCoverNotFound: 'steam_cover_not_found',
+} as const;
+export type PlatformMediaErrorCodeName = (typeof PlatformMediaErrorCodeNames)[keyof typeof PlatformMediaErrorCodeNames];
+
+/**
+ * Картинки, которые грузит сама платформа (Platform Control), а не клуб: обложки каталога игр и
+ * картинки рекламы. Лежат в том же хранилище, в папке `platform/`.
+ *
+ * Словарь: Media/MediaPurposeNames.cs
+ */
+export const PlatformMediaPurposeNames = {
+  CatalogCover: 'catalog-cover',
+  AdCreative: 'ad-creative',
+} as const;
+export type PlatformMediaPurposeName = (typeof PlatformMediaPurposeNames)[keyof typeof PlatformMediaPurposeNames];
 
 /** Словарь: Platform/Health/PlatformHealthContracts.cs */
 export const PlatformQueueNames = {
@@ -1108,6 +1141,17 @@ export const ReservationStateNames = {
   Rejected: 'rejected',
 } as const;
 export type ReservationStateName = (typeof ReservationStateNames)[keyof typeof ReservationStateNames];
+
+/** Словарь: Reviews/ClubReviewDtos.cs */
+export const ReviewHideReasonNames = {
+  Insult: 'insult',
+  /** Телефон, имя сотрудника, чужие данные. */
+  PersonalData: 'personal_data',
+  /** Реклама, ссылки, спам. */
+  Spam: 'spam',
+  Other: 'other',
+} as const;
+export type ReviewHideReasonName = (typeof ReviewHideReasonNames)[keyof typeof ReviewHideReasonNames];
 
 /**
  * The report kinds a schedule can deliver — one per existing report export endpoint.
@@ -2113,6 +2157,12 @@ export interface BranchReviewDto {
   createdAtUtc: IsoDateTime;
   sessionId: Guid;
   seatName: string | null;
+  reply?: string | null;
+  repliedAtUtc?: IsoDateTime | null;
+  /** Текст скрыт от игроков; клуб его по-прежнему видит, чтобы вернуть, если ошибся. */
+  commentHiddenAtUtc?: IsoDateTime | null;
+  /** Одно из ReviewHideReasonNames */
+  commentHiddenReason?: ReviewHideReasonName | null;
 }
 
 /**
@@ -2482,8 +2532,14 @@ export interface ClubReviewDto {
   reviewId: Guid;
   authorName: string;
   rating: number;
+  /** Пусто и при скрытом клубом тексте — тогда CommentHidden. */
   comment: string | null;
   createdAtUtc: IsoDateTime;
+  /** Ответ клуба — виден всем, как и сам отзыв. */
+  clubReply?: string | null;
+  clubRepliedAtUtc?: IsoDateTime | null;
+  /** Клуб скрыл текст (оскорбления, чужие данные, реклама). Звёзды остаются в оценке. */
+  commentHidden?: boolean;
 }
 
 /**
@@ -3886,6 +3942,16 @@ export interface HardwareSnapshotDto {
   bios: string | null;
 }
 
+/**
+ * Скрыть текст отзыва от игроков. Звёзды остаются в оценке: скрыть плохую оценку нельзя.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface HideReviewCommentRequest {
+  /** Одно из ReviewHideReasonNames */
+  reason: ReviewHideReasonName;
+}
+
 /** Контракт: Platform/Health/PlatformHealthContracts.cs */
 export interface IncidentDto {
   incidentId: Guid;
@@ -5128,6 +5194,11 @@ export interface PlatformHealthOverviewDto {
    * умерла — придёт SMS» оставалось обещанием, которое некому было проверить.
    */
   alertSmsConfigured?: boolean;
+}
+
+/** Контракт: Media/MediaPurposeNames.cs */
+export interface PlatformMediaUploadedDto {
+  url: string;
 }
 
 /**
@@ -6557,6 +6628,15 @@ export interface ReorderProductCategoriesRequest {
 }
 
 /**
+ * Ответ клуба на отзыв. Пустой — снять ответ.
+ *
+ * Контракт: Reviews/ClubReviewDtos.cs
+ */
+export interface ReplyToReviewRequest {
+  reply: string | null;
+}
+
+/**
  * Жалоба клуба на рекламу на его ПК (спека рекламы, §8.4): клуб — распространитель, но снять
  * рекламу сам не может, поэтому сообщает платформе, а та решает — снять креатив или нет.
  *
@@ -7831,6 +7911,15 @@ export interface StartReservationSessionRequest {
 export interface StartReservationSessionResponse {
   reservation: ReservationDto;
   session: SessionCommandResponse;
+}
+
+/**
+ * Обложка игры из Steam по номеру приложения — её ищет и копирует к себе сервер.
+ *
+ * Контракт: Media/MediaPurposeNames.cs
+ */
+export interface SteamCoverRequest {
+  steamAppId: string;
 }
 
 /** Контракт: Inventory/StockMovementDto.cs */

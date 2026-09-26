@@ -12,25 +12,28 @@ function review(overrides: Partial<BranchReviewDto> = {}): BranchReviewDto {
 
 let page: BranchReviewsPageDto = { rating: 3.8, reviewCount: 4, countsByRating: [1, 0, 0, 1, 2], items: [review()], nextBefore: null };
 const list = mock(async (_branchId: string, _query: Record<string, unknown>) => page);
+const reply = mock(async (_branchId: string, _reviewId: string, _text: string) => {});
+const hideComment = mock(async (_branchId: string, _reviewId: string, _reason: string) => {});
+const showComment = mock(async (_branchId: string, _reviewId: string) => {});
 
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../../../operatorHelpers', () => ({
   ...actual,
-  createAuthenticatedOperatorClients: () => ({ reviews: { list } })
+  createAuthenticatedOperatorClients: () => ({ reviews: { list, reply, hideComment, showComment } })
 }));
 
 const { ReviewsDestination } = await import('./ReviewsDestination');
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o1' }, branchId: 'b1' } as never;
 
-function renderScreen() {
+function renderScreen(permissions = ['organization.reviews.view']) {
   return render(
     <I18nProvider initialLocale="ru">
-      <ReviewsDestination backend={backend} session={{ permissions: ['organization.reviews.view'], organizationId: 'o1' } as never} currencyCode="TJS" />
+      <ReviewsDestination backend={backend} session={{ permissions, organizationId: 'o1' } as never} currencyCode="TJS" />
     </I18nProvider>
   );
 }
 
-afterEach(() => { list.mockClear(); cleanup(); });
+afterEach(() => { list.mockClear(); reply.mockClear(); hideComment.mockClear(); showComment.mockClear(); cleanup(); });
 afterAll(() => mock.module('../../../operatorHelpers', () => actual));
 
 describe('ReviewsDestination', () => {
@@ -49,6 +52,42 @@ describe('ReviewsDestination', () => {
     fireEvent.click(screen.getAllByRole('button').find((button) => button.textContent?.startsWith('1'))!);
 
     await waitFor(() => expect(list).toHaveBeenLastCalledWith('b1', { rating: 1, withComment: false }));
+  });
+
+  it('the manager answers under the review, and the answer shows once the server has it', async () => {
+    renderScreen(['organization.reviews.view', 'organization.reviews.manage']);
+    await screen.findByText('Мышь липкая');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить' }));
+    fireEvent.change(screen.getByLabelText('Ответ клуба'), { target: { value: 'Поменяли мышь, приходите.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
+
+    await waitFor(() => expect(reply).toHaveBeenCalledWith('b1', 'r1', 'Поменяли мышь, приходите.'));
+    expect(await screen.findByText('Поменяли мышь, приходите.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Изменить ответ' })).toBeInTheDocument();
+  });
+
+  it('hiding asks why, then marks the text as hidden from players', async () => {
+    renderScreen(['organization.reviews.view', 'organization.reviews.manage']);
+    await screen.findByText('Мышь липкая');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть текст' }));
+    expect(screen.getByRole('button', { name: 'Скрыть' })).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Оскорбление'));
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть' }));
+
+    await waitFor(() => expect(hideComment).toHaveBeenCalledWith('b1', 'r1', 'insult'));
+    expect(await screen.findByText('Текст скрыт от игроков: Оскорбление')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Показать снова' }));
+    await waitFor(() => expect(showComment).toHaveBeenCalledWith('b1', 'r1'));
+  });
+
+  it('a reader without the right sees reviews but cannot answer or hide', async () => {
+    renderScreen();
+    await screen.findByText('Мышь липкая');
+
+    expect(screen.queryByRole('button', { name: 'Ответить' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Скрыть текст' })).toBeNull();
   });
 
   it('no reviews says where they come from', async () => {

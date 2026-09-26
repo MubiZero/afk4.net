@@ -45,6 +45,7 @@ import {
   type CreativeForm
 } from './adsModel';
 import { useLoadable } from '../useLoadable';
+import { describeMediaError } from '../mediaErrors';
 
 export type AdCampaignClient = Pick<AdsApi,
   | 'listCampaigns'
@@ -54,7 +55,8 @@ export type AdCampaignClient = Pick<AdsApi,
   | 'createCreative'
   | 'updateCreative'
   | 'moderateCreative'
-  | 'archiveCreative'>;
+  | 'archiveCreative'
+  | 'uploadImage'>;
 
 type OpenDialog =
   | { kind: 'campaign'; form: CampaignForm }
@@ -288,6 +290,13 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
           onChange={form => setDialog({ ...dialog, form })}
           onSubmit={() => saveCreative(dialog.creativeId, dialog.form)}
           onClose={close}
+          onUploadImage={async file => {
+            try {
+              return (await client.uploadImage(file)).url;
+            } catch (cause) {
+              throw new Error(describeMediaError(cause, t));
+            }
+          }}
         />
       ) : null}
       {dialog?.kind === 'moderation' ? (
