@@ -371,6 +371,8 @@ abstract final class HardwareComponentNames {
   static const String gpu = 'gpu';
   static const String motherboard = 'motherboard';
   static const String disk = 'disk';
+  static const String physicalDisk = 'physical_disk';
+  static const String monitor = 'monitor';
 }
 
 /// Машинные имена отказов установки. Нужны затем, что мастер установки говорит на трёх языках, а
@@ -8105,6 +8107,66 @@ class HardwareGpuDto {
       };
 }
 
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwareMonitorDto {
+  const HardwareMonitorDto({
+    required this.name,
+    this.manufacturer,
+    this.serial,
+  });
+
+
+  /// Модель из EDID монитора; нет её — код производителя и продукта: «SAM0F9A».
+  final String name;
+
+  /// Код производителя PnP: «SAM», «DEL».
+  final String? manufacturer;
+
+  /// Серийный номер из EDID — отличает подменённый монитор той же модели.
+  final String? serial;
+
+  factory HardwareMonitorDto.fromJson(Map<String, dynamic> json) => HardwareMonitorDto(
+        name: json['name'] as String,
+        manufacturer: json['manufacturer'] == null ? null : json['manufacturer'] as String,
+        serial: json['serial'] == null ? null : json['serial'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'manufacturer': manufacturer,
+        'serial': serial,
+      };
+}
+
+/// Контракт: Devices/DeviceHardwareContracts.cs
+class HardwarePhysicalDiskDto {
+  const HardwarePhysicalDiskDto({
+    required this.model,
+    required this.sizeGb,
+    this.interface,
+  });
+
+
+  /// Модель накопителя: «Samsung SSD 980 PRO 1TB».
+  final String model;
+  final int sizeGb;
+
+  /// Шина: «NVMe», «SATA»; null — не определилась.
+  final String? interface;
+
+  factory HardwarePhysicalDiskDto.fromJson(Map<String, dynamic> json) => HardwarePhysicalDiskDto(
+        model: json['model'] as String,
+        sizeGb: (json['sizeGb'] as num).toInt(),
+        interface: json['interface'] == null ? null : json['interface'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'model': model,
+        'sizeGb': sizeGb,
+        'interface': interface,
+      };
+}
+
 /// Снимок железа ПК (спека оболочки, P9): что стоит внутри. Сравнивается с принятым — поменяли
 /// видеокарту или вынули планку памяти, и клуб видит это в карточке ПК, а не узнаёт от игрока.
 ///
@@ -8119,6 +8181,8 @@ class HardwareSnapshotDto {
     required this.disks,
     this.os,
     this.bios,
+    this.physicalDisks,
+    this.monitors,
   });
 
   final String? cpu;
@@ -8134,6 +8198,13 @@ class HardwareSnapshotDto {
   final String? os;
   final String? bios;
 
+  /// Физические накопители внутри корпуса, без флешек. null — агент их не знает (старый агент
+  /// или не прочиталось), а не «накопителей нет».
+  final List<HardwarePhysicalDiskDto>? physicalDisks;
+
+  /// Подключённые мониторы. null — неизвестно; пустой список — мониторов нет.
+  final List<HardwareMonitorDto>? monitors;
+
   factory HardwareSnapshotDto.fromJson(Map<String, dynamic> json) => HardwareSnapshotDto(
         cpu: json['cpu'] == null ? null : json['cpu'] as String,
         cpuThreads: (json['cpuThreads'] as num).toInt(),
@@ -8143,6 +8214,8 @@ class HardwareSnapshotDto {
         disks: (json['disks'] as List<dynamic>).map((item) => HardwareDiskDto.fromJson(item as Map<String, dynamic>)).toList(),
         os: json['os'] == null ? null : json['os'] as String,
         bios: json['bios'] == null ? null : json['bios'] as String,
+        physicalDisks: json['physicalDisks'] == null ? null : (json['physicalDisks'] as List<dynamic>).map((item) => HardwarePhysicalDiskDto.fromJson(item as Map<String, dynamic>)).toList(),
+        monitors: json['monitors'] == null ? null : (json['monitors'] as List<dynamic>).map((item) => HardwareMonitorDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -8154,6 +8227,8 @@ class HardwareSnapshotDto {
         'disks': disks.map((item) => item.toJson()).toList(),
         'os': os,
         'bios': bios,
+        'physicalDisks': physicalDisks?.map((item) => item.toJson()).toList(),
+        'monitors': monitors?.map((item) => item.toJson()).toList(),
       };
 }
 

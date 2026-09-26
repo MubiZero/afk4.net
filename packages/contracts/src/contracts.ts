@@ -443,6 +443,8 @@ export const HardwareComponentNames = {
   Gpu: 'gpu',
   Motherboard: 'motherboard',
   Disk: 'disk',
+  PhysicalDisk: 'physical_disk',
+  Monitor: 'monitor',
 } as const;
 export type HardwareComponentName = (typeof HardwareComponentNames)[keyof typeof HardwareComponentNames];
 
@@ -3923,6 +3925,25 @@ export interface HardwareGpuDto {
   memoryGb: number | null;
 }
 
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface HardwareMonitorDto {
+  /** Модель из EDID монитора; нет её — код производителя и продукта: «SAM0F9A». */
+  name: string;
+  /** Код производителя PnP: «SAM», «DEL». */
+  manufacturer: string | null;
+  /** Серийный номер из EDID — отличает подменённый монитор той же модели. */
+  serial: string | null;
+}
+
+/** Контракт: Devices/DeviceHardwareContracts.cs */
+export interface HardwarePhysicalDiskDto {
+  /** Модель накопителя: «Samsung SSD 980 PRO 1TB». */
+  model: string;
+  sizeGb: number;
+  /** Шина: «NVMe», «SATA»; null — не определилась. */
+  interface: string | null;
+}
+
 /**
  * Снимок железа ПК (спека оболочки, P9): что стоит внутри. Сравнивается с принятым — поменяли
  * видеокарту или вынули планку памяти, и клуб видит это в карточке ПК, а не узнаёт от игрока.
@@ -3940,6 +3961,13 @@ export interface HardwareSnapshotDto {
   /** Windows и её сборка — видна, но не считается изменением железа: обновления идут каждый месяц. */
   os: string | null;
   bios: string | null;
+  /**
+   * Физические накопители внутри корпуса, без флешек. null — агент их не знает (старый агент
+   * или не прочиталось), а не «накопителей нет».
+   */
+  physicalDisks?: HardwarePhysicalDiskDto[] | null;
+  /** Подключённые мониторы. null — неизвестно; пустой список — мониторов нет. */
+  monitors?: HardwareMonitorDto[] | null;
 }
 
 /**
