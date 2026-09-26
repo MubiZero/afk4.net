@@ -132,6 +132,33 @@ Notes:
   spam, hit the `resolve` endpoint in a loop with `curl -i -d '{}'` — you
   should see HTTP 429 once the burst is exhausted.
 
+## Client address inside the API
+
+The API has its own per-IP limits (staff sign-in, PIN reset, player public
+routes, the install throttle). Behind Traefik the TCP peer is Traefik itself,
+so the API resolves the real client from `X-Forwarded-For` in
+`UseForwardedHeaders` (`Platform/Http/TrustedProxies.cs`) before any limiter
+runs:
+
+- the header is honoured only from a peer inside a trusted network — by default
+  loopback and the private ranges Docker networks use (`10.0.0.0/8`,
+  `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`, `fe80::/10`);
+- only one hop is trusted (`ForwardLimit = 1`): Traefik overwrites the header
+  with the address it saw, so a chain sent by the client is ignored;
+- a request that reaches the container from a public address keeps that
+  address — a forged header cannot move it into someone else's bucket.
+
+Narrow the trusted networks to the Coolify proxy network once you know it:
+
+```text
+ForwardedHeaders__KnownNetworks__0=10.0.1.0/24
+```
+
+Do not publish the API container port on the host. If it were reachable
+directly from the internal network, any host there could claim any client
+address. If a CDN is ever put in front of Traefik, the one-hop rule no longer
+holds; revisit `ForwardLimit` and the Traefik `ipstrategy.depth` together.
+
 ## Verification
 
 After applying the labels:

@@ -31,6 +31,7 @@ using AFK4.Platform.Api.Platform.Offboarding;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Health;
+using AFK4.Platform.Api.Platform.Http;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Shop;
 using AFK4.Platform.Api.Platform.Identity;
@@ -82,6 +83,7 @@ using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -445,6 +447,9 @@ builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
 builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddScoped<IEskhataMerchantClientFactory, EskhataMerchantClientFactory>();
 
+// Адрес клиента за Traefik (см. TrustedProxies): без этого все ограничения «по IP» считают адрес прокси.
+builder.Services.Configure<ForwardedHeadersOptions>(options => TrustedProxies.Configure(options, builder.Configuration));
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -615,6 +620,9 @@ app.Services.GetRequiredService<ITemplateProvider>().EnsureKeysPresent(Notificat
 // policy unions OperatorWebOrigins and PlatformWebOrigins so both SPAs share
 // one preflight handler; the per-SPA named policies remain registered for
 // endpoint-scoped RequireCors usage if we ever need to split them again.
+// Первым делом — настоящий адрес клиента: его читают троттлы и ограничители частоты ниже.
+app.UseForwardedHeaders();
+
 app.UseCors(CombinedWebCorsPolicyName);
 app.Use(async (httpContext, next) =>
 {
