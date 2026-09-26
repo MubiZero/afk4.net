@@ -1086,8 +1086,11 @@ thrown away rather than polished.
    `feat/shell-leftovers` (not merged yet): club replies to reviews and hiding
    offensive text, drives and monitors in the hardware inventory, Steam store
    images as catalog covers and image uploads in Platform Control (MinIO).
-   Still open: the age check needs a birth date in the account (owner's call);
-   Telegram alerts wait for the first club.
+   On top of it, `feat/birthdays-and-reply-push`: an optional birth date in the
+   profile (games above the player's age lock on the PC, a club birthday gift
+   to the wallet), a push and inbox entry for the club's first reply to a
+   review, and the in-app inbox no longer shows the phone-verification SMS
+   code. Telegram alerts wait for the first club.
 2. **The launch set is merged (2026-09-26).** Per-PC pricing with trial,
    promised payment and free-plan fallback (#491), agentless console seats
    (#492), guest import with opening balances (#493), «refer a club» (#494), the

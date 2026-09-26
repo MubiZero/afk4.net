@@ -626,9 +626,12 @@ Update 2026-09-26 (shell leftovers): clubs reply to reviews and hide
 offensive text (the stars stay in the rating); the hardware inventory now
 covers drives and monitors; Steam games in the catalog get the store image
 automatically, and Platform Control uploads catalog covers and ad images to
-the same MinIO storage the clubs use. Still open from the shell: live-PC
-acceptance (shell spec §10), the age check (needs a birth date — owner's
-call), Telegram alerts (after the first club).
+the same MinIO storage the clubs use. Then (owner, same day): an optional
+birth date in the player's profile locks games above the player's age on the
+PC and drives a club birthday gift to the wallet; the club's first reply to a
+review reaches the author as a push and in the in-app inbox
+(`2026-09-26-birthdays-design.md`). Still open from the shell: live-PC
+acceptance (shell spec §10), Telegram alerts (after the first club).
 
 **After the first club — by what it asks for:**
 
