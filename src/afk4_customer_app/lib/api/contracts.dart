@@ -1674,7 +1674,7 @@ class AdCreativeDto {
   /// подсказка, а не запрет.
   final List<String>? wordingFlags;
 
-  /// Снят с показа. Показанный креатив не правится и не удаляется — его хранят год (ст. 22).
+  /// Снят с показа. Показанный креатив не правится и не удаляется: игроки видели именно его.
   final DateTime? archivedAtUtc;
 
   factory AdCreativeDto.fromJson(Map<String, dynamic> json) => AdCreativeDto(

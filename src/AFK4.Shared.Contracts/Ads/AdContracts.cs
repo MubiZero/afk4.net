@@ -87,7 +87,7 @@ public sealed record AdCreativeDto(
     // Слова, которые закон разрешает только с документом («лучший», «№ 1», ст. 7): модератору —
     // подсказка, а не запрет.
     IReadOnlyList<string>? WordingFlags = null,
-    // Снят с показа. Показанный креатив не правится и не удаляется — его хранят год (ст. 22).
+    // Снят с показа. Показанный креатив не правится и не удаляется: игроки видели именно его.
     DateTimeOffset? ArchivedAtUtc = null);
 
 public sealed record UpsertAdCreativeRequest(string Title, string? Body, string? ImageUrl, string? TitleRu = null, string? BodyRu = null);
@@ -262,7 +262,7 @@ public static class AdLimits
 
     public const int PermitMax = 120;
 
-    // Копия картинки, которую сервер хранит год (ст. 22) и отдаёт ПК вместо чужого адреса.
+    // Копия картинки, которую сервер хранит и отдаёт ПК вместо чужого адреса.
     public const int ImageMaxBytes = 2 * 1024 * 1024;
 
     // Больше в пачке с одного ПК за час не бывает: карточка стоит 9 секунд.

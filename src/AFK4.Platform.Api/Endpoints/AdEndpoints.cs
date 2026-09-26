@@ -199,8 +199,8 @@ internal static class AdEndpoints
                 });
             }
 
-            // Одобренный мог быть показан: отказ задним числом открыл бы его правке и переписал показанное
-            // (ст. 22). Снять с показа — через архив.
+            // Одобренный мог быть показан: отказ задним числом открыл бы его правке и переписал то, что
+            // видели игроки и считает отчёт показов. Снять с показа — через архив.
             if (creative.Moderation == AdModerationNames.Approved)
                 return Results.Conflict(new { Error = "An approved creative is archived, not re-moderated.", Code = AdErrorCodeNames.CreativeLocked });
 
@@ -222,7 +222,7 @@ internal static class AdEndpoints
             return Results.Ok(PlatformAds.ToDto(creative));
         });
 
-        // Снять с показа. Удалить нельзя: показанную рекламу закон велит хранить год (ст. 22).
+        // Снять с показа. Удалить нельзя: отчёт показов и ответ проверяющему ссылаются на показанное.
         app.MapPost($"{AdRoutes.Campaigns}/{{campaignId:guid}}/creatives/{{creativeId:guid}}/archive", async (
             Guid campaignId, Guid creativeId, PlatformAdminAuthorizationService authorizationService, IAuditRecordWriter audit,
             PlatformDbContext db, TimeProvider clock, CancellationToken ct) =>
@@ -268,7 +268,7 @@ internal static class AdEndpoints
         {
             creative = await db.AdCreatives.SingleOrDefaultAsync(candidate => candidate.CreativeId == creativeId && candidate.CampaignId == campaignId, ct);
             if (creative is null) return Results.NotFound();
-            // Одобренный мог быть показан: его хранят как был (ст. 22). Правка — новый креатив.
+            // Одобренный мог быть показан: он остаётся таким, каким его видели. Правка — новый креатив.
             if (creative.Moderation == AdModerationNames.Approved)
                 return Results.Conflict(new { Error = "An approved creative cannot be edited; add a new one.", Code = AdErrorCodeNames.CreativeLocked });
         }

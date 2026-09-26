@@ -329,7 +329,7 @@ describe('AdCampaignPage', () => {
     await waitFor(() => expect(client.listCampaigns).toHaveBeenCalledTimes(2));
   });
 
-  // Показанную рекламу закон велит хранить год как была (ст. 22): одобренный не правят, а снимают.
+  // Одобренный креатив остаётся таким, каким его видели игроки: его не правят, а снимают.
   it('одобренный креатив не правится и объясняет почему; «Снять с показа» снимает его', async () => {
     const client = makeClient(campaign({ state: 'active', creatives: [creative({ moderation: 'approved' })] }));
     renderPage(client);
@@ -339,7 +339,7 @@ describe('AdCampaignPage', () => {
     const edit = within(row).getByRole('button', { name: 'Изменить' });
     expect(edit).toBeDisabled();
     expect(edit).toHaveAccessibleDescription(
-      'Одобренный креатив не меняется: показанная реклама хранится год — поменять нельзя, добавьте новый креатив.');
+      'Одобренный креатив не меняется: игроки видели именно его, и отчёт показов считает его. Нужна правка — добавьте новый креатив.');
     // Отклонить задним числом — тоже нельзя: после отказа креатив снова правился бы.
     expect(within(row).queryByRole('button', { name: 'Отклонить' })).not.toBeInTheDocument();
     expect(within(row).queryByRole('button', { name: 'Одобрить' })).not.toBeInTheDocument();
@@ -413,7 +413,7 @@ describe('AdCampaignPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 
     const alert = await within(dialog).findByRole('alert');
-    expect(alert).toHaveTextContent('Креатив уже одобрен: показанная реклама хранится год, поменять её нельзя. Добавьте новый креатив.');
+    expect(alert).toHaveTextContent('Креатив уже одобрен и не меняется: игроки видели именно его. Добавьте новый креатив.');
     expect(alert).not.toHaveTextContent('cannot be edited');
     await waitFor(() => expect(client.listCampaigns).toHaveBeenCalledTimes(2));
   });

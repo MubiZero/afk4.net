@@ -132,7 +132,7 @@ export function describeModeration(moderation: string, t: Translate): { label: s
  */
 export type CampaignPhase = 'draft' | 'paused' | 'scheduled' | 'running' | 'ended' | 'nothingToShow' | 'unknown';
 
-/** Снятый с показа креатив остаётся в кампании навсегда: показанную рекламу хранят год (ст. 22). */
+/** Снятый с показа креатив остаётся в кампании навсегда: на него ссылается отчёт показов. */
 export function isArchived(creative: AdCreativeDto): boolean {
   return creative.archivedAtUtc !== undefined && creative.archivedAtUtc !== null;
 }
@@ -223,9 +223,8 @@ export function stateDoneKey(state: AdCampaignStateName): MessageKey {
 export type CreativeAction = 'approve' | 'reject' | 'archive' | 'edit';
 
 /**
- * Что можно сделать с креативом. Одобренный мог быть показан, а показанную рекламу закон велит
- * хранить год как была (ст. 22): его не правят и не отклоняют задним числом — снимают с показа и
- * добавляют новый. «Изменить» у него остаётся на своём месте погашенной, причина — рядом.
+ * Что можно сделать с креативом. Одобренный мог быть показан и остаётся таким, каким его видели
+ * игроки: его не правят и не отклоняют задним числом — снимают с показа и добавляют новый. «Изменить» у него остаётся на своём месте погашенной, причина — рядом.
  * Снятый с показа — только история.
  */
 export function creativeActions(creative: AdCreativeDto): CreativeAction[] {
