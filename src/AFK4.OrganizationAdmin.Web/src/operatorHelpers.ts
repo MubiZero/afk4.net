@@ -7,8 +7,7 @@ import { projectOperatorError } from './apiErrors';
 import { SEAT_TIME_LOW_SECONDS } from './seatTilePresentation';
 import { createOperatorApiClients, type AuditRecordDto, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type SessionActionResponse, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
-import { refreshOperatorSession, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
-import { isAccessTokenExpired } from './auth/staffSessionStore';
+import { operatorAccessToken, renewOperatorAccessToken, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
 import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -826,44 +825,17 @@ export function shouldReloadFloorMapAfterDeviceStatus(seat: SeatSummary, status:
   return status.isLocked && (Boolean(seat.activeSessionId) || seat.hasActiveSession === true || isPendingSeatCommand(seat));
 }
 
-// Токен-провайдер для PlatformApiClient: перед каждым запросом проверяет истёк ли access-токен
-// (fail-safe — NaN тоже считается истёкшим) и, если да, рефрешит его один раз даже при нескольких
-// одновременных запросах (single in-flight promise), а не по рефрешу на каждый параллельный вызов.
-// refreshOperatorSession сам персистит новую сессию в стор — здесь достаточно держать `current` свежим.
-export function makeAccessTokenProvider(
-  session: OperatorAuthSession,
-  deps: { isExpired: (session: OperatorAuthSession, nowMs: number) => boolean; refresh: () => Promise<OperatorAuthSession> }
-): () => Promise<string | null> {
-  let current = session;
-  let inFlight: Promise<OperatorAuthSession> | null = null;
-
-  return async () => {
-    if (deps.isExpired(current, Date.now())) {
-      inFlight ??= deps.refresh()
-        .then((refreshed) => {
-          current = refreshed;
-          return refreshed;
-        })
-        .finally(() => {
-          inFlight = null;
-        });
-      await inFlight;
-    }
-
-    return current.accessToken;
-  };
+export function createAuthenticatedOperatorClients(config: ReturnType<typeof getOperatorConfig>, session: OperatorAuthSession) {
+  return createOperatorApiClients(authenticatedPlatformApi(config.platformBaseUrl, session), session.organizationId);
 }
 
-export function createAuthenticatedOperatorClients(config: ReturnType<typeof getOperatorConfig>, session: OperatorAuthSession) {
-  const getAccessToken = makeAccessTokenProvider(session, {
-    isExpired: isAccessTokenExpired,
-    refresh: refreshOperatorSession
+/** Клиент API с общим источником токена и продлением при 401 — для всех экранов Панели. */
+export function authenticatedPlatformApi(platformBaseUrl: string, session: Pick<OperatorAuthSession, 'accessToken'>): PlatformApiClient {
+  return new PlatformApiClient({
+    baseUrl: platformBaseUrl,
+    getAccessToken: () => operatorAccessToken(session),
+    renewAccessToken: renewOperatorAccessToken
   });
-
-  return createOperatorApiClients(new PlatformApiClient({
-    baseUrl: config.platformBaseUrl,
-    getAccessToken
-  }), session.organizationId);
 }
 
 export function isUnauthorizedPlatformError(error: unknown): boolean {

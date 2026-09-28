@@ -9,6 +9,11 @@ export interface PlatformApiOptions {
   fetchImpl?: FetchLike;
   pathPrefix?: string;
   timeoutMs?: number;
+  /**
+   * Новый токен, когда сервер отказал в текущем (401). Запрос повторяется один раз: 401 сервер
+   * отдаёт до того, как что-то сделать, поэтому повтор тем же телом безопасен.
+   */
+  renewAccessToken?: () => Promise<string | null>;
 }
 
 export type QueryParams = Record<string, string | number | boolean | Date | null | undefined>;
@@ -39,6 +44,7 @@ export class PlatformApiClient {
   private readonly fetchImpl: FetchLike;
   private readonly pathPrefix: string;
   private readonly timeoutMs: number;
+  private readonly renewAccessToken: PlatformApiOptions['renewAccessToken'];
 
   constructor(options: PlatformApiOptions) {
     this.baseUrl = new URL(options.baseUrl);
@@ -46,6 +52,7 @@ export class PlatformApiClient {
     this.fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
     this.pathPrefix = options.pathPrefix?.replace(/\/$/, '') ?? '';
     this.timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    this.renewAccessToken = options.renewAccessToken;
   }
 
   forOrganization(organizationId: string): PlatformApiClient {
@@ -54,7 +61,8 @@ export class PlatformApiClient {
       getAccessToken: this.getAccessToken,
       fetchImpl: this.fetchImpl,
       pathPrefix: `/api/organizations/${organizationId}`,
-      timeoutMs: this.timeoutMs
+      timeoutMs: this.timeoutMs,
+      renewAccessToken: this.renewAccessToken
     });
   }
 
@@ -166,12 +174,9 @@ export class PlatformApiClient {
       requestBody = JSON.stringify(body);
     }
 
-    return await this.fetchImpl(this.buildUrl(path, query), {
-      method,
-      headers,
-      body: requestBody,
-      signal
-    });
+    const url = this.buildUrl(path, query);
+    const init: RequestInit = { method, headers, body: requestBody, signal };
+    return await this.retryWithRenewedToken(await this.fetchImpl(url, init), supportSession, url, init);
   }
 
   private async fetchAuthorizedRaw(method: string, path: string, body: BodyInit, signal?: AbortSignal): Promise<Response> {
@@ -183,12 +188,29 @@ export class PlatformApiClient {
     const [headerName, headerValue] = resolveAuthHeader(supportSession, accessToken);
     headers.set(headerName, headerValue);
 
-    return await this.fetchImpl(this.buildUrl(path), {
-      method,
-      headers,
-      body,
-      signal
-    });
+    const url = this.buildUrl(path);
+    const init: RequestInit = { method, headers, body, signal };
+    return await this.retryWithRenewedToken(await this.fetchImpl(url, init), supportSession, url, init);
+  }
+
+  private async retryWithRenewedToken(
+    response: Response,
+    supportSession: SupportSession | null,
+    url: string,
+    init: RequestInit
+  ): Promise<Response> {
+    if (response.status !== 401 || supportSession !== null || this.renewAccessToken === undefined) {
+      return response;
+    }
+
+    const renewed = await this.renewAccessToken();
+    if (!renewed) {
+      return response;
+    }
+
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${renewed}`);
+    return await this.fetchImpl(url, { ...init, headers });
   }
 }
 

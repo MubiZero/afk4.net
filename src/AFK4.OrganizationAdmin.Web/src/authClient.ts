@@ -5,7 +5,8 @@ import {
   readStoredSession,
   writeStoredSession,
   clearStoredSession,
-  sessionFromSignInResponse
+  sessionFromSignInResponse,
+  isAccessTokenExpired
 } from './auth/staffSessionStore';
 
 export { ChooseClubError, StaffAuthApiError, isUnauthorizedStaffAuthError };
@@ -87,6 +88,58 @@ export async function refreshOperatorSession(): Promise<OperatorAuthSession> {
   const session = sessionFromSignInResponse(await api().refresh(current.organizationId, current.refreshToken));
   writeStoredSession(session);
   return session;
+}
+
+/** Сессию уже не продлить (отозвали или истёк срок) — Панель уходит на экран входа. */
+export const OPERATOR_SESSION_ENDED_EVENT = 'afk4:operator-session-ended';
+
+let renewal: Promise<OperatorAuthSession> | null = null;
+
+/** Одно продление на все одновременные запросы, а не по продлению на каждый. */
+function renewOnce(): Promise<OperatorAuthSession> {
+  renewal ??= refreshOperatorSession().finally(() => {
+    renewal = null;
+  });
+  return renewal;
+}
+
+/**
+ * Токен для запроса — один источник на всю Панель. Раньше отчёты, лента бара, канал реального
+ * времени и карточка телефона брали токен из сессии, с которой открылся экран, и никогда его не
+ * продлевали: через восемь часов — а ночная смена длиннее — эти разделы начинали отвечать «нет
+ * прав». Сохранённая сессия всегда свежая: продление пишет её туда же. Без неё (тесты, поддержка)
+ * — токен сессии экрана.
+ */
+export async function operatorAccessToken(fallback: Pick<OperatorAuthSession, 'accessToken'>): Promise<string> {
+  const stored = readStoredSession();
+  if (stored === null) {
+    return fallback.accessToken;
+  }
+
+  return isAccessTokenExpired(stored, Date.now()) ? (await renewOnce()).accessToken : stored.accessToken;
+}
+
+/**
+ * Сервер ответил 401 на токен, который по часам ещё жив: сотрудника отключили, сессии отозвали,
+ * часы разошлись. Продлить один раз; если и продление отказано — сессия кончилась, и Панель
+ * уходит на вход вместо того, чтобы показывать «нет прав» на каждом экране. Сбой сети при
+ * продлении — не конец сессии: ошибка уходит вызывающему как есть.
+ */
+export async function renewOperatorAccessToken(): Promise<string | null> {
+  if (readStoredSession() === null) {
+    return null;
+  }
+
+  try {
+    return (await renewOnce()).accessToken;
+  } catch (error) {
+    if (isUnauthorizedStaffAuthError(error)) {
+      clearStoredSession();
+      window.dispatchEvent(new Event(OPERATOR_SESSION_ENDED_EVENT));
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function signOutOperator(): Promise<{ signedOut: boolean }> {

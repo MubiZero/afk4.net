@@ -865,6 +865,7 @@ export const ru = {
   "op.auth.repeatPin.hint": "Те же цифры ещё раз — чтобы не ошибиться.",
   "op.auth.repeatPin.mismatch": "ПИН-коды не совпали. Придумайте заново.",
   "op.auth.repeatPin.title": "Повторите ПИН-код",
+  "op.auth.sessionEnded": "Вход закончился: сессию отозвали или истёк её срок. Войдите снова.",
   "op.auth.signInSubtitle": "Войдите, чтобы открыть смену и управлять залом.",
   "op.auth.useCredentials": "Вход по логину или почте",
   "op.auth.usePhone": "Вход по телефону",
