@@ -43,6 +43,14 @@ describe('SeatContextMenu', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // Все пункты закрыты — фокусу в меню встать не на что, но Esc всё равно закрывает его, и один раз.
+  it('closes on Escape even when focus is outside the menu', () => {
+    const onClose = mock(() => {});
+    renderMenu(() => {}, onClose);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   // Пунктов «скоро» в меню больше нет: они отвечали тостом при отсутствующей команде.
   it('в меню нет отложенных пунктов — каждый что-то делает', () => {
     const { queryAllByText } = renderMenu(() => {}, () => {});

@@ -103,8 +103,9 @@ export function SeatContextMenu({
     };
     // Esc — и тогда, когда все пункты закрыты и фокусу в меню встать не на что: обработчик на
     // пунктах такого нажатия не слышит.
+    // Внутри меню Esc уже ловит обработчик пункта — второй раз закрывать незачем.
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape' && !menuRef.current?.contains(event.target as Node | null)) onClose();
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('keydown', onEscape);
