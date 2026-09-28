@@ -20,6 +20,22 @@ describe('BillingTermsCard', () => {
     expect(await screen.findByText('Условия оплаты сохранены')).toBeInTheDocument();
   });
 
+  it('отказ загрузки показывает причину и позволяет повторить', async () => {
+    const client = {
+      getTerms: mock()
+        .mockRejectedValueOnce(new Error('network'))
+        .mockResolvedValueOnce({ trialDays: 30, promisedPaymentDays: 7, fallbackAfterOverdueDays: 14, updatedAtUtc: null }),
+      updateTerms: mock()
+    };
+    render(<I18nProvider><ToastProvider><BillingTermsCard client={client} canManage /></ToastProvider></I18nProvider>);
+
+    const retry = await screen.findByRole('button', { name: 'Повторить' });
+    fireEvent.click(retry);
+
+    await screen.findByLabelText('Пробный период, дней');
+    expect(client.getTerms).toHaveBeenCalledTimes(2);
+  });
+
   it('«-5» и пустое поле не сохраняются нулём — ошибка у поля', async () => {
     const client = {
       getTerms: mock().mockResolvedValue({ trialDays: 30, promisedPaymentDays: 7, fallbackAfterOverdueDays: 14, updatedAtUtc: null }),
