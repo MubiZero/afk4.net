@@ -22,7 +22,7 @@ internal static class SessionEndpoints
             DateTimeOffset? toUtc,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            ISessionTimelineReadService sessionTimelineReadService,
+            EfSessionTimelineReadService sessionTimelineReadService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -209,7 +209,7 @@ internal static class SessionEndpoints
             PlatformDbContext dbContext,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            ISessionCheckoutService sessionCheckoutService,
+            EfSessionCheckoutService sessionCheckoutService,
             CancellationToken cancellationToken) =>
         {
             var session = await dbContext.Sessions
@@ -296,7 +296,7 @@ internal static class SessionEndpoints
             Guid sessionId,
             PlatformDbContext dbContext,
             StaffAuthorizationService authorizationService,
-            ISessionCheckoutService sessionCheckoutService,
+            EfSessionCheckoutService sessionCheckoutService,
             CancellationToken cancellationToken) =>
         {
             var session = await dbContext.Sessions

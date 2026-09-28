@@ -36,7 +36,7 @@ public sealed record MoneyActionExecutionResult(
 
 /// <summary>
 /// Executes a money action through the verified ledger path. The Ef implementation delegates to
-/// <c>IBillingCommandService</c> so ledger immutability, idempotency, currency and refund-cap checks
+/// <c>EfBillingCommandService</c> so ledger immutability, idempotency, currency and refund-cap checks
 /// all run as the existing, tested code (anti-fraud spec §5.2). Held behind an interface so the
 /// approval workflow's state machine can be unit-tested without standing up full billing context.
 /// </summary>

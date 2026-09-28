@@ -102,7 +102,7 @@ public class PlayerReferralEndpointTests
     private static async Task TopUpAsync(PlatformApiFactory factory, Club club, Guid playerId, long minorUnits)
     {
         await using var scope = factory.Services.CreateAsyncScope();
-        var billing = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Billing.IBillingCommandService>();
+        var billing = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Billing.EfBillingCommandService>();
         var result = await billing.CreditOnlineTopUpAsync(
             playerId,
             club.BranchId,

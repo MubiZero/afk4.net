@@ -18,7 +18,7 @@ internal static class ShiftEndpoints
             OpenShiftRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IShiftService shiftService,
+            EfShiftService shiftService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -82,7 +82,7 @@ internal static class ShiftEndpoints
         app.MapGet("branches/{branchId:guid}/shifts/current", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
-            IShiftService shiftService,
+            EfShiftService shiftService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -117,7 +117,7 @@ internal static class ShiftEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IShiftService shiftService,
+            EfShiftService shiftService,
             CancellationToken cancellationToken) =>
         {
             var shift = await LoadShiftScopedEndpointAsync(
@@ -242,7 +242,7 @@ internal static class ShiftEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IShiftService shiftService,
+            EfShiftService shiftService,
             CancellationToken cancellationToken) =>
         {
             // Грузим по узкому праву: оно есть у всех, у кого есть широкое, плюс у кассира.

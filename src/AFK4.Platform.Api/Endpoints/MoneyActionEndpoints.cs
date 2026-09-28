@@ -21,7 +21,7 @@ internal static class MoneyActionEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IOpenShiftResolver openShiftResolver,
-            IMoneyActionApprovalService approvalService,
+            MoneyActionApprovalService approvalService,
             CancellationToken cancellationToken) =>
         {
             if (!TryParseMoneyActionType(request.ActionType, out var requestedType, out var requiredPermission))
@@ -147,7 +147,7 @@ internal static class MoneyActionEndpoints
             MoneyActionDecisionRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IMoneyActionApprovalService approvalService,
+            MoneyActionApprovalService approvalService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -232,7 +232,7 @@ internal static class MoneyActionEndpoints
             MoneyActionDecisionRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IMoneyActionApprovalService approvalService,
+            MoneyActionApprovalService approvalService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -286,7 +286,7 @@ internal static class MoneyActionEndpoints
         app.MapGet("branches/{branchId:guid}/money-actions", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
-            IMoneyActionApprovalService approvalService,
+            MoneyActionApprovalService approvalService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -332,7 +332,7 @@ internal static class MoneyActionEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             CancellationToken cancellationToken) =>
         {
             var player = await LoadPlayerScopedEndpointAsync(

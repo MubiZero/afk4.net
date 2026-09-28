@@ -15,7 +15,7 @@ namespace AFK4.Platform.Api.Shifts;
 public sealed class EfShiftService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IShiftDiscrepancyNotifier? discrepancyNotifier = null) : IShiftService, IOpenShiftResolver
+    EfShiftDiscrepancyNotifier? discrepancyNotifier = null) : IOpenShiftResolver
 {
     private const string ShiftOpenOperation = "shift-open";
     private const string CashMovementOperation = "shift-cash-movement";

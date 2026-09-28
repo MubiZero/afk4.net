@@ -11,7 +11,7 @@ namespace AFK4.Platform.Api.Billing;
 public sealed class EfPackageService(
     PlatformDbContext dbContext,
     IOpenShiftResolver openShiftResolver,
-    TimeProvider timeProvider) : IPackageService
+    TimeProvider timeProvider)
 {
     private const string PackageCreateOperation = "package-create";
     private const string PackagePurchaseOperation = "package-purchase";
@@ -197,6 +197,12 @@ public sealed class EfPackageService(
             requireOpenShift: true,
             cancellationToken);
 
+    /// <summary>
+    /// The same purchase, bought by the player from the app instead of at the counter. A package is
+    /// prepaid time and moves money the player already holds from wallet to package time, so unlike
+    /// a counter sale it needs no open shift — requiring one would mean the club can only sell
+    /// prepaid time while it is open, which is the opposite of what prepaying is for.
+    /// </summary>
     public Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageAsPlayerAsync(
         Guid playerAccountId,
         Guid branchId,

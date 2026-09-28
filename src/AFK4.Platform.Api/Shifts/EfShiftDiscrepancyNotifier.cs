@@ -7,11 +7,16 @@ using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Shifts;
 
+/// <summary>
+/// Alerts the organization owner when a closed shift's cash variance exceeds the configured
+/// tolerance (anti-fraud, Operational). A no-op within tolerance or when the org has no owner
+/// with an email on file.
+/// </summary>
 public sealed class EfShiftDiscrepancyNotifier(
     IOrganizationOwnerResolver ownerResolver,
     INotificationService notifications,
     PlatformDbContext dbContext,
-    IOptions<NotificationOptions> options) : IShiftDiscrepancyNotifier
+    IOptions<NotificationOptions> options)
 {
     private readonly NotificationOptions options = options.Value;
 

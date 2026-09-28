@@ -190,7 +190,7 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
     /// ту же.
     /// </summary>
     public async Task<(ShiftTipsDto? Tips, string? Error)> PayOutAsync(
-        IShiftService shifts, Guid organizationId, Guid shiftId, Guid actorStaffUserId, CancellationToken ct)
+        EfShiftService shifts, Guid organizationId, Guid shiftId, Guid actorStaffUserId, CancellationToken ct)
     {
         var current = await ForShiftAsync(organizationId, shiftId, ct);
         if (current is null) return (null, null);

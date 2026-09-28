@@ -22,7 +22,7 @@ internal static class OrganizationAuditEndpoints
             long? maxAmount,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IAuditSearchService auditSearchService,
+            EfAuditSearchService auditSearchService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -60,7 +60,7 @@ internal static class OrganizationAuditEndpoints
             long? maxAmount,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IAuditSearchService auditSearchService,
+            EfAuditSearchService auditSearchService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewOrganizationAudit);
