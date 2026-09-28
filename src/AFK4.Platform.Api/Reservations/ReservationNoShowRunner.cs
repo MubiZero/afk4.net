@@ -96,20 +96,7 @@ public sealed class ReservationNoShowRunner(
             // не настройкой неявки, а этим фактом: деньги возвращаются целиком.
             if (reservation.State == ReservationStateNames.Pending)
             {
-                await ReservationHold.ReleaseAsync(
-                    dbContext,
-                    reservation.ReservationId,
-                    ReservationHoldCauses.RequestExpired,
-                    now,
-                    cancellationToken);
-
-                reservation.State = ReservationStateNames.Cancelled;
-                reservation.CancelReason = ReservationRequestExpiryRunner.CancelReason;
-                reservation.CancelledAtUtc = now;
-                // Guid.Empty — сделала система, а не сотрудник: в журнале это должно быть видно.
-                reservation.UpdatedByStaffUserId = Guid.Empty;
-                reservation.UpdatedAtUtc = now;
-                reservation.Version++;
+                await ReservationRequestExpiryRunner.CancelUnansweredAsync(dbContext, reservation, now, cancellationToken);
                 announcements.Add((reservation, ReservationChangeKinds.Expired));
                 handled++;
                 continue;

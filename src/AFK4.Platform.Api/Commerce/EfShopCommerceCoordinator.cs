@@ -52,45 +52,39 @@ public sealed class EfShopCommerceCoordinator(
             return durableReplay;
         }
 
-        for (var attempt = 1; attempt <= MaxSerializationAttempts; attempt++)
+        try
         {
-            try
-            {
-                var outcome = await ExecutePlacementAttemptAsync(
+            var outcome = await ExecuteWithSerializationRetriesAsync(
+                () => ExecutePlacementAttemptAsync(
                     playerAccountId,
                     request.IdempotencyKey,
                     canonicalLines,
-                    cancellationToken);
-                if (outcome.Notify && outcome.Result.Succeeded)
-                {
-                    await NotifyCreatedAsync(outcome.Result.Order!, cancellationToken);
-                }
-
-                return outcome.Result;
-            }
-            catch (Exception exception) when (IsSerializationFailure(exception) && attempt < MaxSerializationAttempts)
+                    cancellationToken),
+                cancellationToken);
+            if (outcome.Notify && outcome.Result.Succeeded)
             {
-                dbContext.ChangeTracker.Clear();
-                logger.LogWarning(exception, "Retrying serialized shop placement attempt {Attempt}.", attempt + 1);
+                await NotifyCreatedAsync(outcome.Result.Order!, cancellationToken);
             }
-            catch (Exception exception) when (IsSerializationFailure(exception))
-            {
-                dbContext.ChangeTracker.Clear();
-                var rejection = await RecheckPlacementRejectionAsync(
-                    playerAccountId,
-                    request.IdempotencyKey,
-                    canonicalLines,
-                    cancellationToken);
-                if (rejection is not null)
-                {
-                    return rejection;
-                }
 
-                throw;
-            }
+            return outcome.Result;
         }
+        catch (Exception exception) when (IsSerializationFailure(exception))
+        {
+            // Попытки кончились. Возможно, проиграли гонку заказу с тем же ключом или последней
+            // единице товара — тогда человеку нужен ответ по делу, а не ошибка сервера.
+            dbContext.ChangeTracker.Clear();
+            var rejection = await RecheckPlacementRejectionAsync(
+                playerAccountId,
+                request.IdempotencyKey,
+                canonicalLines,
+                cancellationToken);
+            if (rejection is not null)
+            {
+                return rejection;
+            }
 
-        throw new InvalidOperationException("Shop placement retry loop terminated unexpectedly.");
+            throw;
+        }
     }
 
     public Task<ShopOrderActionResult> CancelByOperatorAsync(

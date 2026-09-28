@@ -469,7 +469,7 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
         {
             if (logLevel == LogLevel.Warning &&
                 formatter(state, exception).StartsWith(
-                    "Retrying serialized shop placement attempt",
+                    "Retrying serialized shop commerce attempt",
                     StringComparison.Ordinal))
             {
                 Interlocked.Increment(ref serializationRetryCount);
