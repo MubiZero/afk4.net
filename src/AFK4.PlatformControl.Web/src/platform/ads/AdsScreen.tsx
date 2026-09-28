@@ -2,6 +2,7 @@ import { Page } from '@/components/layout/Page';
 import { Tabs } from '@/components/ui/tabs';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdsTab } from '@/routing/platformRoute';
+import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import { AdvertisersTab, type AdvertisersClient } from './AdvertisersTab';
 import { CampaignsTab, type CampaignsClient } from './CampaignsTab';
 import { ReportTab, type ReportClient } from './ReportTab';
@@ -12,8 +13,10 @@ export type AdsClient = AdvertisersClient & CampaignsClient & ReportClient & Com
 // Раздел «Реклама»: AFK4 продаёт место в витрине свободного ПК у клубов на бесплатном тарифе.
 // Модерация — на странице кампании, рядом с креативами: отдельного права и отдельной очереди
 // у маленькой команды платформы нет.
-export function AdsScreen({ client, tab, onTabChange, onOpenCampaign }: {
+export function AdsScreen({ client, organizationsClient, tab, onTabChange, onOpenCampaign }: {
   client: AdsClient;
+  /** Список клубов для нацеливания кампании — выбирают по имени, а не переписывают id из адреса. */
+  organizationsClient: Pick<OrganizationsApi, 'listOrganizations'>;
   tab: AdsTab;
   onTabChange: (tab: AdsTab) => void;
   onOpenCampaign: (campaignId: string) => void;
@@ -34,7 +37,14 @@ export function AdsScreen({ client, tab, onTabChange, onOpenCampaign }: {
       />
 
       <div role="tabpanel">
-        {tab === 'campaigns' ? <CampaignsTab client={client} onOpenCampaign={onOpenCampaign} onOpenAdvertisers={() => onTabChange('advertisers')} /> : null}
+        {tab === 'campaigns' ? (
+          <CampaignsTab
+            client={client}
+            organizationsClient={organizationsClient}
+            onOpenCampaign={onOpenCampaign}
+            onOpenAdvertisers={() => onTabChange('advertisers')}
+          />
+        ) : null}
         {tab === 'advertisers' ? <AdvertisersTab client={client} /> : null}
         {tab === 'report' ? <ReportTab client={client} /> : null}
         {tab === 'complaints' ? <ComplaintsTab client={client} onOpenCampaign={onOpenCampaign} /> : null}

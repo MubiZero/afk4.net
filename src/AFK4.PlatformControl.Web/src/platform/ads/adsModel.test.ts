@@ -26,7 +26,6 @@ import {
   hasLegalDetails,
   moderationCheckLabelKey,
   parseCities,
-  parseOrganizationIds,
   pendingCount,
   reportTotals,
   requestFromAdvertiserForm,
@@ -92,7 +91,7 @@ function campaignForm(overrides: Partial<CampaignForm> = {}): CampaignForm {
     startsAt: '2026-09-01T09:00',
     endsAt: '2026-09-30T21:00',
     cities: '',
-    organizationIds: '',
+    organizationIds: [],
     permitNumber: '',
     distanceSelling: false,
     requiresCertification: false,
@@ -246,11 +245,11 @@ describe('форма кампании', () => {
       .toEqual({ key: 'platform.ads.error.tooManyCities', values: { max: AD_LIMITS.maxCities } });
   });
 
-  it('клубы — идентификаторы организаций; опечатку называет, а не отправляет', () => {
-    expect(parseOrganizationIds(`${ORG_A}\n${ORG_B.toUpperCase()}, ${ORG_A}`)).toEqual({ ids: [ORG_A, ORG_B], invalid: [] });
-    expect(parseOrganizationIds('club-7').invalid).toEqual(['club-7']);
-    expect(validateCampaignForm(campaignForm({ organizationIds: `${ORG_A}\nclub-7` })).organizationIds?.key)
-      .toBe('platform.ads.error.organizationId');
+  it('клубы выбираются из списка — лишку не пропускает', () => {
+    const tooMany = Array.from({ length: AD_LIMITS.maxOrganizations + 1 }, (_, index) => `org-${index}`);
+    expect(validateCampaignForm(campaignForm({ organizationIds: tooMany })).organizationIds)
+      .toEqual({ key: 'platform.ads.error.tooManyOrganizations', values: { max: AD_LIMITS.maxOrganizations } });
+    expect(validateCampaignForm(campaignForm({ organizationIds: [ORG_A, ORG_B] }))).toEqual({});
   });
 
   // Ст. 17: лекарства без рецепта, медтехника, БАД и косметика — только с разрешением Минздрава.
@@ -272,7 +271,7 @@ describe('форма кампании', () => {
   });
 
   it('запрос: даты в UTC, пустые города и клубы — пустые списки («все»), отметки закона — как есть', () => {
-    const form = campaignForm({ name: '  Осень ', cities: 'Душанбе', organizationIds: ORG_A, containsOffer: true, permitNumber: '  ' });
+    const form = campaignForm({ name: '  Осень ', cities: 'Душанбе', organizationIds: [ORG_A], containsOffer: true, permitNumber: '  ' });
     expect(requestFromCampaignForm(form)).toEqual({
       advertiserId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
       name: 'Осень',

@@ -338,8 +338,8 @@ export interface CampaignForm {
   endsAt: string;
   /** Через запятую; пусто — все города. */
   cities: string;
-  /** По одному в строке или через запятую; пусто — все клубы. */
-  organizationIds: string;
+  /** Идентификаторы выбранных клубов; пусто — все клубы. */
+  organizationIds: string[];
   /** Номер разрешения Минздрава — обязателен для «Здоровья и красоты» (ст. 17). */
   permitNumber: string;
   /** Отметки, по которым карточка сама допишет то, чего требует закон. */
@@ -360,7 +360,7 @@ export function emptyCampaignForm(now: Date, advertiserId: string): CampaignForm
     startsAt: toLocalInput(now.toISOString()),
     endsAt: toLocalInput(new Date(now.getTime() + 30 * DAY_MS).toISOString()),
     cities: '',
-    organizationIds: '',
+    organizationIds: [],
     permitNumber: '',
     distanceSelling: false,
     requiresCertification: false,
@@ -379,7 +379,7 @@ export function formFromCampaign(campaign: AdCampaignDto): CampaignForm {
     startsAt: toLocalInput(campaign.startsAtUtc),
     endsAt: toLocalInput(campaign.endsAtUtc),
     cities: campaign.cities.join(', '),
-    organizationIds: campaign.organizationIds.join('\n'),
+    organizationIds: campaign.organizationIds,
     permitNumber: compliance.permitNumber ?? '',
     distanceSelling: compliance.distanceSelling ?? false,
     requiresCertification: compliance.requiresCertification ?? false,
@@ -408,21 +408,6 @@ export function parseCities(text: string): string[] {
   return cities;
 }
 
-const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Идентификаторы организаций: разделитель — пробел, запятая, точка с запятой или новая строка. */
-export function parseOrganizationIds(text: string): { ids: string[]; invalid: string[] } {
-  const ids: string[] = [];
-  const invalid: string[] = [];
-  for (const part of text.split(/[\s,;]+/)) {
-    const id = part.trim().toLowerCase();
-    if (id === '') continue;
-    if (!GUID_PATTERN.test(id)) invalid.push(part.trim());
-    else if (!ids.includes(id)) ids.push(id);
-  }
-  return { ids, invalid };
-}
-
 export function validateCampaignForm(form: CampaignForm): Errors<CampaignFormField> {
   const errors: Errors<CampaignFormField> = {};
   if (form.advertiserId === '') errors.advertiserId = { key: 'platform.ads.error.advertiserRequired' };
@@ -442,9 +427,7 @@ export function validateCampaignForm(form: CampaignForm): Errors<CampaignFormFie
   if (parseCities(form.cities).length > AD_LIMITS.maxCities) {
     errors.cities = { key: 'platform.ads.error.tooManyCities', values: { max: AD_LIMITS.maxCities } };
   }
-  const organizations = parseOrganizationIds(form.organizationIds);
-  if (organizations.invalid.length > 0) errors.organizationIds = { key: 'platform.ads.error.organizationId' };
-  else if (organizations.ids.length > AD_LIMITS.maxOrganizations) {
+  if (form.organizationIds.length > AD_LIMITS.maxOrganizations) {
     errors.organizationIds = { key: 'platform.ads.error.tooManyOrganizations', values: { max: AD_LIMITS.maxOrganizations } };
   }
 
@@ -465,7 +448,7 @@ export function requestFromCampaignForm(form: CampaignForm): UpsertAdCampaignReq
     startsAtUtc: fromLocalInput(form.startsAt) ?? '',
     endsAtUtc: fromLocalInput(form.endsAt) ?? '',
     cities: parseCities(form.cities),
-    organizationIds: parseOrganizationIds(form.organizationIds).ids,
+    organizationIds: form.organizationIds,
     compliance: {
       permitNumber: blankToNull(form.permitNumber),
       distanceSelling: form.distanceSelling,

@@ -8,6 +8,7 @@ import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons'
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdsApi } from '@/api/platformClients/ads';
+import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { AdCampaignDto } from '@/api/types';
 import { CampaignFormDialog } from './CampaignFormDialog';
 import {
@@ -25,8 +26,9 @@ import { useLoadable } from '../useLoadable';
 
 export type CampaignsClient = Pick<AdsApi, 'listCampaigns' | 'listAdvertisers' | 'createCampaign'>;
 
-export function CampaignsTab({ client, onOpenCampaign, onOpenAdvertisers }: {
+export function CampaignsTab({ client, organizationsClient, onOpenCampaign, onOpenAdvertisers }: {
   client: CampaignsClient;
+  organizationsClient: Pick<OrganizationsApi, 'listOrganizations'>;
   onOpenCampaign: (campaignId: string) => void;
   onOpenAdvertisers: () => void;
 }) {
@@ -162,6 +164,7 @@ export function CampaignsTab({ client, onOpenCampaign, onOpenAdvertisers }: {
             mode="create"
             form={form}
             advertisers={advertiserList}
+            organizationsClient={organizationsClient}
             pending={pending}
             error={saveError}
             onChange={setForm}

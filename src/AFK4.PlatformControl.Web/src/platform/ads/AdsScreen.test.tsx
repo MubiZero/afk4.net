@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { PlatformApiError } from '@/api/platformTransport';
-import type { AdComplaintDto, AdCampaignDto, AdCreativeDto, AdImpressionRowDto, AdvertiserDto } from '@/api/types';
+import type { AdComplaintDto, AdCampaignDto, AdCreativeDto, AdImpressionRowDto, AdvertiserDto, OrganizationSummary } from '@/api/types';
 import type { AdsTab } from '@/routing/platformRoute';
 import { AdsScreen, type AdsClient } from './AdsScreen';
 
@@ -100,10 +100,42 @@ function makeClient(overrides: Partial<AdsClient> = {}): AdsClient {
   };
 }
 
-function renderScreen(client: AdsClient, initialTab: AdsTab = 'campaigns', onOpenCampaign = mock((_id: string) => {})) {
+function organizationSummary(organizationId: string, name: string): OrganizationSummary {
+  return {
+    organizationId, name,
+    slug: name.toLowerCase(),
+    status: 'active',
+    planCode: 'starter',
+    subscriptionStatus: 'active',
+    branchCount: 1,
+    createdAtUtc: '2026-01-01T00:00:00Z',
+    updatedAtUtc: '2026-01-01T00:00:00Z'
+  };
+}
+const ORGANIZATION_A = organizationSummary('33333333-3333-3333-3333-333333333333', 'Кибер Арена');
+const ORGANIZATION_B = organizationSummary('44444444-4444-4444-4444-444444444444', 'Геймзона');
+
+function makeOrganizationsClient(organizations = [ORGANIZATION_A, ORGANIZATION_B]) {
+  return { listOrganizations: mock(async () => organizations) };
+}
+
+function renderScreen(
+  client: AdsClient,
+  initialTab: AdsTab = 'campaigns',
+  onOpenCampaign = mock((_id: string) => {}),
+  organizationsClient = makeOrganizationsClient()
+) {
   function Harness() {
     const [tab, setTab] = useState<AdsTab>(initialTab);
-    return <AdsScreen client={client} tab={tab} onTabChange={setTab} onOpenCampaign={onOpenCampaign} />;
+    return (
+      <AdsScreen
+        client={client}
+        organizationsClient={organizationsClient}
+        tab={tab}
+        onTabChange={setTab}
+        onOpenCampaign={onOpenCampaign}
+      />
+    );
   }
   render(
     <I18nProvider>
@@ -208,6 +240,52 @@ describe('AdsScreen — кампании', () => {
     await waitFor(() => expect(onOpenCampaign).toHaveBeenCalledWith('ffffffff-ffff-ffff-ffff-ffffffffffff'));
   });
 
+  // Раньше клубы нацеливались вставкой id из адресной строки в textarea — опечатка отправлялась
+  // молча. Теперь их выбирают из списка по имени, как рекламодателя рядом.
+  it('нацеливает кампанию на клубы по имени, а не по id', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    await screen.findByText('Осень в Техномире');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Новая кампания' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая кампания' });
+    await userEvent.type(within(dialog).getByLabelText(/^Название кампании/), 'Только для своих');
+
+    await within(dialog).findByRole('checkbox', { name: 'Кибер Арена' });
+    // Фильтр сужает список до совпадающих по имени — вторая площадка перестаёт быть видна.
+    await userEvent.type(within(dialog).getByPlaceholderText('Найти клуб по имени'), 'Арена');
+    expect(within(dialog).getByRole('checkbox', { name: 'Кибер Арена' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('checkbox', { name: 'Геймзона' })).not.toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Кибер Арена' }));
+    // Очищаем фильтр, чтобы отметить и вторую площадку — обе должны остаться выбранными разом.
+    await userEvent.clear(within(dialog).getByPlaceholderText('Найти клуб по имени'));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Геймзона' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(client.createCampaign).toHaveBeenCalledTimes(1));
+    const request = (client.createCampaign as ReturnType<typeof mock>).mock.calls[0][0] as Parameters<AdsClient['createCampaign']>[0];
+    expect(request.organizationIds).toEqual([ORGANIZATION_A.organizationId, ORGANIZATION_B.organizationId]);
+  });
+
+  it('отказ загрузки списка клубов в форме кампании называет причину и позволяет повторить', async () => {
+    const failingOrganizations = {
+      listOrganizations: mock()
+        .mockRejectedValueOnce(new Error('network'))
+        .mockResolvedValueOnce([ORGANIZATION_A])
+    };
+    renderScreen(makeClient(), 'campaigns', mock((_id: string) => {}), failingOrganizations);
+    await screen.findByText('Осень в Техномире');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Новая кампания' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая кампания' });
+
+    await within(dialog).findByText('Список клубов не загрузился');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Повторить' }));
+
+    await within(dialog).findByRole('checkbox', { name: 'Кибер Арена' });
+  });
+
   it('в списке категорий — здоровье, финансы и социальная реклама; у каждой сказано условие закона', async () => {
     renderScreen(makeClient());
     await screen.findByText('Осень в Техномире');
@@ -290,21 +368,6 @@ describe('AdsScreen — кампании', () => {
     expect(within(dialog).getByText('Конец — позже начала.')).toBeInTheDocument();
     expect(ends).toHaveAttribute('aria-invalid', 'true');
     expect(ends).toHaveFocus();
-  });
-
-  it('опечатку в id клуба называет до отправки', async () => {
-    const client = makeClient();
-    renderScreen(client);
-    await screen.findByText('Осень в Техномире');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Новая кампания' }));
-    const dialog = screen.getByRole('dialog', { name: 'Новая кампания' });
-    await userEvent.type(within(dialog).getByLabelText(/^Название кампании/), 'Зима');
-    await userEvent.type(within(dialog).getByLabelText(/^Только эти клубы/), 'кибер-арена');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
-
-    expect(client.createCampaign).not.toHaveBeenCalled();
-    expect(within(dialog).getByText(/только id организаций вида 8-4-4-4-12/)).toBeInTheDocument();
   });
 
   it('отказ сервера показывает своей фразой и не закрывает форму', async () => {
@@ -513,7 +576,7 @@ describe('AdsScreen — жалобы', () => {
     const onOpenCampaign = mock(() => {});
     render(
       <I18nProvider><ToastProvider>
-        <AdsScreen client={client} tab="complaints" onTabChange={() => {}} onOpenCampaign={onOpenCampaign} />
+        <AdsScreen client={client} organizationsClient={makeOrganizationsClient()} tab="complaints" onTabChange={() => {}} onOpenCampaign={onOpenCampaign} />
       </ToastProvider></I18nProvider>
     );
 

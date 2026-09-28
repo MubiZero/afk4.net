@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
-import { ErrorBanner, Field } from '@/components/ui/field';
+import { ErrorBanner, Field, fieldErrorId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { PartialFailure } from '@/components/ui/states';
+import { Loading, SkeletonRows } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
+import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { AdvertiserDto } from '@/api/types';
 import {
   AD_CATEGORIES,
@@ -17,6 +20,7 @@ import {
   type CampaignFormField
 } from './adsModel';
 import { useFieldErrors } from '../useFieldErrors';
+import { useLoadable } from '../useLoadable';
 
 // Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.
 const FIELD_IDS: Record<CampaignFormField, string> = {
@@ -41,10 +45,11 @@ const COMPLIANCE_FLAGS: readonly { field: ComplianceFlag; labelKey: MessageKey }
   { field: 'containsOffer', labelKey: 'platform.ads.campaign.field.containsOffer' }
 ];
 
-export function CampaignFormDialog({ mode, form, advertisers, pending, error, onChange, onSubmit, onClose }: {
+export function CampaignFormDialog({ mode, form, advertisers, organizationsClient, pending, error, onChange, onSubmit, onClose }: {
   mode: 'create' | 'edit';
   form: CampaignForm;
   advertisers: readonly AdvertiserDto[];
+  organizationsClient: Pick<OrganizationsApi, 'listOrganizations'>;
   pending: boolean;
   /** Отказ сервера, уже переведённый в человеческую фразу. */
   error: string | null;
@@ -156,22 +161,24 @@ export function CampaignFormDialog({ mode, form, advertisers, pending, error, on
           <Input {...controlProps('cities')} value={form.cities} onChange={event => onChange({ ...form, cities: event.target.value })} />
         </Field>
 
-        <Field
-          label={t('platform.ads.campaign.field.organizations')}
-          htmlFor={FIELD_IDS.organizationIds}
-          hint={t('platform.ads.campaign.field.organizationsHint')}
-          error={errorOf('organizationIds')}
-        >
-          <Textarea
-            {...controlProps('organizationIds')}
-            rows={3}
-            className="pc-mono"
-            spellCheck={false}
-            autoComplete="off"
-            value={form.organizationIds}
-            onChange={event => onChange({ ...form, organizationIds: event.target.value })}
+        {/* Не <Field>: тот оборачивает всё содержимое в один <label>, а здесь внутри — фильтр,
+            десятки чекбоксов и кнопка «Повторить» разом. Браузер отдаёт имя ЛЮБОГО вложенного
+            элемента управления от текста такого label целиком — кнопка повтора озвучивалась бы
+            читалкой как «Только эти клубы Список клубов не загрузился…», а не «Повторить». То же
+            разделение, что уже у соседнего fieldset с отметками закона ниже. */}
+        <fieldset className="pc-org-picker">
+          <legend>{t('platform.ads.campaign.field.organizations')}</legend>
+          <OrganizationPicker
+            client={organizationsClient}
+            filterProps={controlProps('organizationIds')}
+            selectedIds={form.organizationIds}
+            onChange={organizationIds => onChange({ ...form, organizationIds })}
           />
-        </Field>
+          {errorOf('organizationIds') !== undefined ? (
+            <span id={fieldErrorId(FIELD_IDS.organizationIds)} className="pc-error-text">{errorOf('organizationIds')}</span>
+          ) : null}
+          <p className="mgmt-drawer-hint">{t('platform.ads.campaign.field.organizationsHint')}</p>
+        </fieldset>
 
         {/* Закон требует от карточки сказать это самой (спека рекламы, §8.1): отметка — и ПК допишет. */}
         <fieldset className="pc-ad-compliance">
@@ -190,5 +197,83 @@ export function CampaignFormDialog({ mode, form, advertisers, pending, error, on
         </fieldset>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * Множественный выбор клубов по имени — раньше это поле было `<textarea>` для id организаций с
+ * подсказкой «скопируйте id из адресной строки её страницы». Рекламодателя рядом уже выбирают по
+ * имени из списка (см. поле выше); клубам был нужен тот же принцип, только на много штук сразу.
+ */
+function OrganizationPicker({ client, filterProps, selectedIds, onChange }: {
+  client: Pick<OrganizationsApi, 'listOrganizations'>;
+  filterProps: { id: string; 'aria-invalid'?: boolean; 'aria-describedby'?: string; onBlur: () => void };
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const { t } = useI18n();
+  const [filter, setFilter] = useState('');
+  const organizations = useLoadable(() => client.listOrganizations());
+
+  function toggle(organizationId: string, checked: boolean) {
+    onChange(checked ? [...selectedIds, organizationId] : selectedIds.filter(id => id !== organizationId));
+  }
+
+  if (organizations.status === 'error') {
+    return (
+      <PartialFailure
+        title={t('platform.ads.campaign.field.organizationsLoadError')}
+        retryLabel={t('state.retry')}
+        onRetry={organizations.retry}
+      />
+    );
+  }
+
+  const list = organizations.status === 'ready' ? organizations.data : [];
+  const normalizedFilter = filter.trim().toLocaleLowerCase();
+  const visible = normalizedFilter === ''
+    ? list
+    : list.filter(organization => organization.name.toLocaleLowerCase().includes(normalizedFilter));
+  // Выбранный раньше id, которого нет в текущем списке клубов (клуб удалили, или таргетинг завели
+  // через API до этого экрана), — снять его молча значило бы незаметно расширить таргетинг
+  // кампании на всех клубов сразу. Показываем как есть, отдельно от совпавших по имени.
+  const unknownIds = selectedIds.filter(id => !list.some(organization => organization.organizationId === id));
+
+  return (
+    <div className="pc-org-picker">
+      <Input
+        {...filterProps}
+        type="search"
+        placeholder={t('platform.ads.campaign.field.organizationsFilter')}
+        value={filter}
+        onChange={event => setFilter(event.target.value)}
+        disabled={organizations.status === 'loading'}
+      />
+      {organizations.status === 'loading' ? (
+        <Loading><SkeletonRows rows={3} rowClassName="mgmt-check" /></Loading>
+      ) : (
+        <div className="pc-org-picker-list">
+          {visible.length === 0 && unknownIds.length === 0 ? (
+            <p className="mgmt-drawer-hint">{t('platform.ads.campaign.field.organizationsEmpty')}</p>
+          ) : null}
+          {visible.map(organization => (
+            <label key={organization.organizationId} className="mgmt-check">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(organization.organizationId)}
+                onChange={event => toggle(organization.organizationId, event.target.checked)}
+              />
+              {organization.name}
+            </label>
+          ))}
+          {unknownIds.map(id => (
+            <label key={id} className="mgmt-check">
+              <input type="checkbox" checked disabled />
+              {t('platform.ads.campaign.field.organizationUnknown', { id })}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
