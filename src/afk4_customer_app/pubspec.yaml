@@ -51,7 +51,8 @@ dependencies:
   # когда приложения банка на телефоне нет.
   url_launcher: ^6.3.2
   mobile_scanner: ^7.4.2
-  app_links: ^7.2.1
+  # 7.1+ требует Dart 3.12, а CI собирает на Flutter 3.41 (Dart 3.11).
+  app_links: ">=7.0.0 <7.1.0"
 
 dev_dependencies:
   flutter_test:
