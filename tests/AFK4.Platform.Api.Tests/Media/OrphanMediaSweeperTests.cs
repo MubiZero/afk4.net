@@ -95,7 +95,10 @@ public sealed class OrphanMediaSweeperTests
         });
 
         Assert.Equal(0, await SweepAsync(factory));
-        Assert.Equal(5, Storage(factory).Objects.Count);
+        // Хранилище-заглушка одно на все тесты хоста: считаем не всё, а свои пять файлов.
+        var storage = Storage(factory);
+        Assert.All(new[] { product, logo, cover, gallery, organizationLogo },
+            media => Assert.True(storage.Objects.ContainsKey(media.ObjectKey), media.Purpose));
     }
 
     [Theory]
