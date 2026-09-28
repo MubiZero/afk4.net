@@ -323,32 +323,12 @@ public sealed class EfShiftService(
                     "Counted cash currency must match the shift currency.", ShiftErrorCodeNames.CurrencyMismatch);
             }
 
-            var cashMovementDelta = await dbContext.CashMovements
-                .Where(movement => movement.ShiftId == shift.ShiftId)
-                .SumAsync(
-                    movement => movement.MovementType == CashMovementTypeNames.CashIn
-                        ? movement.AmountMinorUnits
-                        : -movement.AmountMinorUnits,
-                    cancellationToken);
-            var posCashDelta = await dbContext.Payments
-                .Where(payment =>
-                    payment.ShiftId == shift.ShiftId &&
-                    payment.CurrencyCode == shift.CurrencyCode &&
-                    payment.PaymentMethod == PaymentMethodNames.Cash)
-                .SumAsync(payment => (long?)payment.AmountMinorUnits, cancellationToken) ?? 0;
-            var billingCashDelta = await dbContext.LedgerEntries
-                .Where(entry =>
-                    entry.ShiftId == shift.ShiftId &&
-                    entry.CurrencyCode == shift.CurrencyCode &&
-                    (entry.EntryType == LedgerEntryTypeNames.TopUp ||
-                     entry.EntryType == LedgerEntryTypeNames.DebtPayment ||
-                     entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
-                .SumAsync(
-                    entry => (long?)(entry.EntryType == LedgerEntryTypeNames.DebtPayment
-                        ? -entry.AmountMinorUnits
-                        : entry.AmountMinorUnits),
-                    cancellationToken) ?? 0;
-            var expectedCash = shift.StartingCashMinorUnits + cashMovementDelta + posCashDelta + billingCashDelta;
+            var expectedCash = ShiftExpectedCash.Compute(
+                shift,
+                await dbContext.CashMovements.Where(movement => movement.ShiftId == shift.ShiftId).ToListAsync(cancellationToken),
+                await dbContext.Payments.Where(payment => payment.ShiftId == shift.ShiftId).ToListAsync(cancellationToken),
+                await dbContext.LedgerEntries.Where(entry => entry.ShiftId == shift.ShiftId).ToListAsync(cancellationToken))
+                .Expected;
             var difference = request.CountedCash.MinorUnits - expectedCash;
             var now = timeProvider.GetUtcNow();
 

@@ -63,6 +63,29 @@ public sealed class ReservationRequestExpiryRunner(
         return handled;
     }
 
+    /// <summary>
+    /// Клуб на заявку не ответил — она снимается, удержанная предоплата возвращается целиком.
+    /// Общее для таймера ответа и для таймера неявки: заявка, до которой дошло время, снимается
+    /// тем же способом, каким бы её снял таймер ответа. Сохраняет вызывающий.
+    /// </summary>
+    internal static async Task CancelUnansweredAsync(
+        PlatformDbContext dbContext,
+        ReservationEntity reservation,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        await ReservationHold.ReleaseAsync(
+            dbContext, reservation.ReservationId, ReservationHoldCauses.RequestExpired, now, cancellationToken);
+
+        reservation.State = ReservationStateNames.Cancelled;
+        reservation.CancelReason = CancelReason;
+        reservation.CancelledAtUtc = now;
+        // Guid.Empty — сняла система, а не сотрудник: в журнале это должно быть видно.
+        reservation.UpdatedByStaffUserId = Guid.Empty;
+        reservation.UpdatedAtUtc = now;
+        reservation.Version++;
+    }
+
     private async Task<bool> ExpireAsync(
         Guid reservationId,
         DateTimeOffset now,
@@ -81,16 +104,7 @@ public sealed class ReservationRequestExpiryRunner(
             return false;
         }
 
-        await ReservationHold.ReleaseAsync(
-            dbContext, reservationId, ReservationHoldCauses.RequestExpired, now, cancellationToken);
-
-        reservation.State = ReservationStateNames.Cancelled;
-        reservation.CancelReason = CancelReason;
-        reservation.CancelledAtUtc = now;
-        // Guid.Empty — сняла система, а не сотрудник: в журнале это должно быть видно.
-        reservation.UpdatedByStaffUserId = Guid.Empty;
-        reservation.UpdatedAtUtc = now;
-        reservation.Version++;
+        await CancelUnansweredAsync(dbContext, reservation, now, cancellationToken);
 
         try
         {

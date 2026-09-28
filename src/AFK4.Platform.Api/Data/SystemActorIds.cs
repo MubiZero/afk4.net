@@ -28,6 +28,27 @@ public static class SystemActorIds
 
     public const string AutoProtectionDisplayName = "Auto-protection";
 
+    /// <summary>
+    /// Имя для отчётов: без исполнителя — система, служебный исполнитель — его имя, сотрудник — имя
+    /// из справочника, а если его там нет — начало id, чтобы строку было с чем сверить.
+    /// </summary>
+    public static string ResolveDisplayName(Guid? actorId, IReadOnlyDictionary<Guid, string> staffNames)
+    {
+        if (actorId is null)
+        {
+            return "System";
+        }
+
+        if (TryGetDisplayName(actorId.Value, out var systemDisplayName))
+        {
+            return systemDisplayName;
+        }
+
+        return staffNames.TryGetValue(actorId.Value, out var displayName) && !string.IsNullOrWhiteSpace(displayName)
+            ? displayName
+            : actorId.Value.ToString("N")[..8];
+    }
+
     public static bool TryGetDisplayName(Guid actorId, out string displayName)
     {
         if (actorId == PlayerShop)

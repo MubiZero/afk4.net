@@ -223,7 +223,7 @@ public sealed class EfInventoryService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return BillingCommandServiceResult<PosProductCategoryDto>.Ok(response);
-        }, () => ReplayIdempotencyAsync<PosProductCategoryDto, CreateProductCategoryRequest>(
+        }, () => GetExistingIdempotencyAsync<PosProductCategoryDto, CreateProductCategoryRequest>(
             request.OrganizationId,
             branchId,
             CategoryCreateOperation,
@@ -325,7 +325,7 @@ public sealed class EfInventoryService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return BillingCommandServiceResult<PosProductDto>.Ok(response);
-        }, () => ReplayIdempotencyAsync<PosProductDto, CreateProductRequest>(
+        }, () => GetExistingIdempotencyAsync<PosProductDto, CreateProductRequest>(
             request.OrganizationId,
             branchId,
             ProductCreateOperation,
@@ -545,7 +545,7 @@ public sealed class EfInventoryService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return BillingCommandServiceResult<StockMovementDto>.Ok(response);
-        }, () => ReplayIdempotencyAsync<StockMovementDto, object>(
+        }, () => GetExistingIdempotencyAsync<StockMovementDto, object>(
             request.OrganizationId,
             branchId,
             StockMovementCreateOperation,
@@ -804,74 +804,51 @@ public sealed class EfInventoryService(
             new ProductBarcodeDto(target.BarcodeId, target.ProductId, target.Code, target.IsPrimary));
     }
 
-    private static string? ValidateCreateProductRequest(CreateProductRequest request)
+    private static string? ValidateCreateProductRequest(CreateProductRequest request) =>
+        ValidateProductFields(request.OrganizationId, request.Name, request.Sku, request.Price, request.ReorderThreshold, request.ImageUrl);
+
+    private static string? ValidateUpdateProductRequest(UpdateProductRequest request) =>
+        ValidateProductFields(request.OrganizationId, request.Name, request.Sku, request.Price, request.ReorderThreshold, request.ImageUrl);
+
+    private static string? ValidateProductFields(
+        Guid organizationId,
+        string? name,
+        string? sku,
+        MoneyDto price,
+        int reorderThreshold,
+        string? imageUrl)
     {
-        if (request.OrganizationId == Guid.Empty)
+        if (organizationId == Guid.Empty)
         {
             return "Organization id is required.";
         }
 
-        if (string.IsNullOrWhiteSpace(request.Name))
+        if (string.IsNullOrWhiteSpace(name))
         {
             return "Product name is required.";
         }
 
-        if (string.IsNullOrWhiteSpace(request.Sku))
+        if (string.IsNullOrWhiteSpace(sku))
         {
             return "Product SKU is required.";
         }
 
-        if (string.IsNullOrWhiteSpace(request.Price.CurrencyCode))
+        if (string.IsNullOrWhiteSpace(price.CurrencyCode))
         {
             return "Currency code is required.";
         }
 
-        if (request.Price.MinorUnits < 0)
+        if (price.MinorUnits < 0)
         {
             return "Product price cannot be negative.";
         }
 
-        if (request.ReorderThreshold < 0)
+        if (reorderThreshold < 0)
         {
             return "Reorder threshold cannot be negative.";
         }
 
-        return ImageUrlRules.Validate(request.ImageUrl);
-    }
-
-    private static string? ValidateUpdateProductRequest(UpdateProductRequest request)
-    {
-        if (request.OrganizationId == Guid.Empty)
-        {
-            return "Organization id is required.";
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return "Product name is required.";
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Sku))
-        {
-            return "Product SKU is required.";
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Price.CurrencyCode))
-        {
-            return "Currency code is required.";
-        }
-
-        if (request.Price.MinorUnits < 0)
-        {
-            return "Product price cannot be negative.";
-        }
-
-        if (request.ReorderThreshold < 0)
-        {
-            return "Reorder threshold cannot be negative.";
-        }
-
-        return ImageUrlRules.Validate(request.ImageUrl);
+        return ImageUrlRules.Validate(imageUrl);
     }
 
     private static string? ValidateCreateStockMovementRequest(CreateStockMovementRequest request)
@@ -976,23 +953,6 @@ public sealed class EfInventoryService(
             CreatedAtUtc = now,
             ExpiresAtUtc = now.AddDays(1)
         });
-    }
-
-    private async Task<BillingCommandServiceResult<TResponse>?> ReplayIdempotencyAsync<TResponse, TRequest>(
-        Guid organizationId,
-        Guid branchId,
-        string operation,
-        string idempotencyKey,
-        TRequest request,
-        CancellationToken cancellationToken)
-    {
-        return await GetExistingIdempotencyAsync<TResponse, TRequest>(
-            organizationId,
-            branchId,
-            operation,
-            idempotencyKey,
-            request,
-            cancellationToken);
     }
 
     private async Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
