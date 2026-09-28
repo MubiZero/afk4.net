@@ -143,14 +143,7 @@ public sealed class PlayerReminderRunner(
         return sent;
     }
 
-    private async Task<NotificationRecipient> RecipientAsync(Guid playerAccountId, CancellationToken cancellationToken)
-    {
-        var locale = await dbContext.PlayerAccounts
-            .AsNoTracking()
-            .Where(account => account.PlayerAccountId == playerAccountId)
-            .Select(account => account.PreferredLocale)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return new NotificationRecipient(locale ?? string.Empty, PlayerAccountId: playerAccountId);
-    }
+    private async Task<NotificationRecipient> RecipientAsync(Guid playerAccountId, CancellationToken cancellationToken) =>
+        new(await PlayerNotificationLocale.ResolveAsync(dbContext, playerAccountId, cancellationToken),
+            PlayerAccountId: playerAccountId);
 }

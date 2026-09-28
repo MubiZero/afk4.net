@@ -200,12 +200,8 @@ public sealed class PlayerPushNotifier(
         return flat[..cut].TrimEnd(' ', ',', '.', ';', ':', '—', '-') + "…";
     }
 
-    private async Task<string> LocaleAsync(Guid playerAccountId, CancellationToken cancellationToken) =>
-        await dbContext.PlayerAccounts
-            .AsNoTracking()
-            .Where(account => account.PlayerAccountId == playerAccountId)
-            .Select(account => account.PreferredLocale)
-            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+    private Task<string> LocaleAsync(Guid playerAccountId, CancellationToken cancellationToken) =>
+        PlayerNotificationLocale.ResolveAsync(dbContext, playerAccountId, cancellationToken);
 
     private async Task SendAsync(
         string templateKey,
@@ -218,17 +214,13 @@ public sealed class PlayerPushNotifier(
     {
         try
         {
-            var locale = await dbContext.PlayerAccounts
-                .AsNoTracking()
-                .Where(account => account.PlayerAccountId == playerAccountId)
-                .Select(account => account.PreferredLocale)
-                .FirstOrDefaultAsync(cancellationToken);
+            var locale = await LocaleAsync(playerAccountId, cancellationToken);
 
             await notifications.SendAsync(
                 new NotificationRequest(
                     templateKey,
                     NotificationCategory.Operational,
-                    new NotificationRecipient(locale ?? string.Empty, PlayerAccountId: playerAccountId),
+                    new NotificationRecipient(locale, PlayerAccountId: playerAccountId),
                     tokens,
                     idempotencyKey,
                     PreferredChannels: [NotificationChannel.Push],
