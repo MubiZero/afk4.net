@@ -2333,7 +2333,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('draft'));
   }
 
-  if (pathname.includes('/payments/manual') || pathname.endsWith('/settlements')) {
+  if (pathname.endsWith('/settlements')) {
     return jsonResponse(createPosSale('paid'));
   }
 

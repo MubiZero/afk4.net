@@ -4315,15 +4315,6 @@ export interface ManualLedgerCorrectionRequest {
   idempotencyKey: string;
 }
 
-/** Контракт: Payments/ManualPaymentRequest.cs */
-export interface ManualPaymentRequest {
-  organizationId: Guid;
-  paymentMethod: string;
-  amount: MoneyDto;
-  note: string;
-  idempotencyKey: string;
-}
-
 /** Контракт: Platform/Billing/MarkInvoicePaidRequest.cs */
 export interface MarkInvoicePaidRequest {
   reference: string | null;

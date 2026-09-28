@@ -12,7 +12,6 @@ import type {
 export type {
   CreatePosSaleLineDto,
   CreatePosSaleRequest,
-  ManualPaymentRequest,
   PosProductCategoryDto,
   PosProductDto,
   PosSaleDto,

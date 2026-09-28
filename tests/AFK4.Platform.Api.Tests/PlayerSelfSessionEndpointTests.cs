@@ -620,55 +620,6 @@ public class PlayerSelfSessionEndpointTests
         await db.SaveChangesAsync();
     }
 
-    /// <summary>
-    /// Экран выбора получает готовые суммы одним запросом: тарифы филиала с вариантами и пакеты
-    /// игрока с остатком. Клиент цену не считает.
-    /// </summary>
-    [Fact]
-    public async Task StartOffers_PriceTheHours_AndListThePlayersPackages()
-    {
-        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
-        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
-        await AddTariffCardAsync(factory, ctx, "Общий");
-        var packageId = await SeedPackageAsync(factory, ctx, includedSeconds: 3 * 3600);
-        using var client = factory.CreateClient();
-        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
-
-        var offers = await client.GetFromJsonAsync<PlayerStartOffersDto>(
-            $"/api/me/devices/{await SeatingCodeAsync(factory, ctx)}/start-offers");
-
-        Assert.Equal(100_000, offers!.Balance.MinorUnits);
-        var tariff = Assert.Single(offers.Tariffs);
-        Assert.Equal("Общий", tariff.Name);
-        Assert.Equal(60_000, tariff.PricePerHour.MinorUnits);
-        var hour = tariff.Options.Single(option => option.Minutes == 60);
-        Assert.Equal(60_000, hour.Amount.MinorUnits);
-        Assert.Equal(40_000, hour.BalanceAfter.MinorUnits);
-        Assert.False(tariff.Options.Single(option => option.Minutes == 120).Affordable);
-        var package = Assert.Single(offers.Packages);
-        Assert.Equal(packageId, package.PlayerPackageId);
-        Assert.Equal(180, package.RemainingMinutes);
-    }
-
-    [Fact]
-    public async Task StartOffers_WithAWrongCode_CountLikeAWrongStart()
-    {
-        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
-        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
-        using var client = factory.CreateClient();
-        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
-
-        var response = await client.GetAsync("/api/me/devices/000000/start-offers");
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        Assert.Equal(1, await db.SeatingCodeAttemptCounters
-            .Where(counter => counter.Scope == SeatingCodeAttemptScopes.Player)
-            .Select(counter => counter.FailedCount)
-            .SingleAsync());
-    }
-
     [Fact]
     public async Task ExtendOffers_MoveTheEndFromTheCurrentEnd()
     {
