@@ -21,6 +21,7 @@ export function BillingTermsCard({ client, canManage }: { client: Client; canMan
   const [terms, setTerms] = useState<BillingTermsDto | null>(null);
   const [draft, setDraft] = useState({ trialDays: '', promisedPaymentDays: '', fallbackAfterOverdueDays: '' });
   const [pending, setPending] = useState(false);
+  const [invalid, setInvalid] = useState<Set<keyof typeof draft>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -38,14 +39,28 @@ export function BillingTermsCard({ client, canManage }: { client: Client; canMan
 
   if (terms === null) return null;
 
-  const days = (value: string) => Math.max(0, Math.trunc(Number(value) || 0));
+  // «-5», «2,5» и пустое поле раньше молча становились нулём — а ноль здесь что-то выключает или
+  // убирает. Не число дней — не сохраняем и говорим у поля.
+  const days = (value: string): number | null => {
+    if (value.trim() === '') return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  };
   async function save() {
+    const parsed = {
+      trialDays: days(draft.trialDays),
+      promisedPaymentDays: days(draft.promisedPaymentDays),
+      fallbackAfterOverdueDays: days(draft.fallbackAfterOverdueDays)
+    };
+    const wrong = new Set((Object.keys(parsed) as (keyof typeof draft)[]).filter(key => parsed[key] === null));
+    setInvalid(wrong);
+    if (wrong.size > 0) return;
     setPending(true);
     try {
       const saved = await client.updateTerms({
-        trialDays: days(draft.trialDays),
-        promisedPaymentDays: days(draft.promisedPaymentDays),
-        fallbackAfterOverdueDays: days(draft.fallbackAfterOverdueDays)
+        trialDays: parsed.trialDays!,
+        promisedPaymentDays: parsed.promisedPaymentDays!,
+        fallbackAfterOverdueDays: parsed.fallbackAfterOverdueDays!
       });
       setTerms(saved);
       toast({ title: t('platform.billing.terms.saved'), variant: 'success' });
@@ -56,8 +71,13 @@ export function BillingTermsCard({ client, canManage }: { client: Client; canMan
     }
   }
 
-  const field = (id: keyof typeof draft, label: string) => (
-    <Field label={label} htmlFor={`terms-${id}`}>
+  const field = (id: keyof typeof draft, label: string, hint?: string) => (
+    <Field
+      label={label}
+      htmlFor={`terms-${id}`}
+      hint={hint}
+      error={invalid.has(id) ? t('platform.billing.terms.invalid') : undefined}
+    >
       <Input
         id={`terms-${id}`}
         type="number"
@@ -77,7 +97,7 @@ export function BillingTermsCard({ client, canManage }: { client: Client; canMan
         <div className="mgmt-form-grid">
           {field('trialDays', t('platform.billing.terms.trialDays'))}
           {field('promisedPaymentDays', t('platform.billing.terms.promisedPaymentDays'))}
-          {field('fallbackAfterOverdueDays', t('platform.billing.terms.fallbackDays'))}
+          {field('fallbackAfterOverdueDays', t('platform.billing.terms.fallbackDays'), t('platform.billing.terms.fallbackHint'))}
         </div>
         {canManage ? (
           <div>

@@ -85,6 +85,9 @@ describe('InstallCodesSection', () => {
     await screen.findByText(/поставлено 3 из 30/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отозвать' }));
+    // Отозванный код не вернуть — сначала переспрос.
+    expect(revoke).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Отозвать' }).at(-1)!);
 
     await waitFor(() => expect(screen.getByText('Действующих кодов нет.')).toBeInTheDocument());
     expect(revoke).toHaveBeenCalledWith('b2', 'c1');

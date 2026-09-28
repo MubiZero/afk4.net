@@ -2,7 +2,6 @@ import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
-import { PlatformApiError } from '../platformApi';
 import type { OperatorBackendContext } from '../operatorTypes';
 
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -16,21 +15,8 @@ function validateFile(file: File): FileProblem {
   return null;
 }
 
-// The public media URL Platform.Api hands back is `{base}/{organizationId}/{branchId}/{mediaId}.{ext}`
-// (see Media/EfMediaService.UploadAsync) — the mediaId is the URL's filename stem. Callers that
-// persist only the URL (no `mediaId` prop) still need a way to resolve the delete-endpoint id, so
-// this recovers it as a fallback when the caller doesn't pass `mediaId` explicitly.
-function mediaIdFromUrl(url: string): string | null {
-  const path = url.split('?')[0].split('#')[0];
-  const fileName = path.slice(path.lastIndexOf('/') + 1);
-  if (fileName === '') return null;
-  const dotIndex = fileName.lastIndexOf('.');
-  return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
-}
-
 export interface MediaUploadProps {
   value: string | null;
-  mediaId?: string | null;
   onChange: (media: { mediaId: string; url: string } | null) => void;
   purpose: string;
   branchId: string;
@@ -38,7 +24,7 @@ export interface MediaUploadProps {
   disabled?: boolean;
 }
 
-export function MediaUpload({ value, mediaId: explicitMediaId, onChange, purpose, branchId, backend, disabled }: MediaUploadProps) {
+export function MediaUpload({ value, onChange, purpose, branchId, backend, disabled }: MediaUploadProps) {
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -80,27 +66,12 @@ export function MediaUpload({ value, mediaId: explicitMediaId, onChange, purpose
     }
   };
 
-  const handleRemove = async () => {
-    if (value === null) return;
-    const mediaId = explicitMediaId != null && explicitMediaId !== '' ? explicitMediaId : mediaIdFromUrl(value);
-    if (mediaId === null) {
-      onChange(null);
-      return;
-    }
-
+  // «Удалить» только убирает картинку из формы. Стереть файл сразу значило бы оставить битую
+  // картинку, если человек передумает и не сохранит: запись всё ещё на него ссылается. Лишний
+  // логотип или обложку сервер уберёт сам при следующей загрузке (EfMediaService.UploadAsync).
+  const handleRemove = () => {
     setError(null);
-    setUploading(true);
-    try {
-      await client.remove(branchId, mediaId);
-      onChange(null);
-    } catch (err) {
-      // Объекта уже нет (или адрес вписан руками и в хранилище его не было): убирать с сервера
-      // нечего, а запись всё равно должна перестать на него ссылаться.
-      if (err instanceof PlatformApiError && err.status === 404) onChange(null);
-      else setError(projectOperatorError(err, t).detail);
-    } finally {
-      setUploading(false);
-    }
+    onChange(null);
   };
 
   return (
@@ -139,7 +110,7 @@ export function MediaUpload({ value, mediaId: explicitMediaId, onChange, purpose
             <button
               type="button"
               className="ui-btn ui-btn--sm ui-btn--danger"
-              onClick={() => { void handleRemove(); }}
+              onClick={handleRemove}
               disabled={disabled}
             >
               {t('op.media.upload.remove')}

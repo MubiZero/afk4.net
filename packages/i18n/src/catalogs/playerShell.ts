@@ -96,7 +96,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.rating.thanks": "Спасибо! Клуб увидит вашу оценку.",
     "playerShell.rating.title": "Как вам визит?",
     "playerShell.seat.free": "Свободен",
-    "playerShell.session.ageLocked": "С {age} лет — по дню рождения в профиле",
+    "playerShell.session.ageLocked": "{age, plural, one {С {age} года — по дню рождения в профиле} other {С {age} лет — по дню рождения в профиле}}",
     "playerShell.session.counterHint": "Продлить эту сессию можно у администратора.",
     "playerShell.session.endEarly": "Встать раньше",
     "playerShell.session.error.changed": "Сессия только что изменилась — посмотрите ещё раз.",

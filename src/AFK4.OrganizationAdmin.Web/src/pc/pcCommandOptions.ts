@@ -28,7 +28,8 @@ function sessionRuns(seat: SeatSummary): boolean {
  * обслуживания, — а здесь это объясняется до нажатия, а не отказом после.
  */
 export function pcCommandsFor(seat: SeatSummary, access: PcCommandAccess): PcCommandOption[] {
-  if (!seat.deviceId) return [];
+  // У консоли нет агента: команду ПК выполнить некому, а сервер отвечал «выполнено · no_agent».
+  if (!seat.deviceId || seat.isConsole) return [];
 
   const busy = sessionRuns(seat);
   const offline = seat.isDeviceOnline === false;

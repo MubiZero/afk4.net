@@ -57,8 +57,16 @@ abstract final class AdErrorCodeNames {
   static const String permitRequired = 'ad_permit_required';
   /// Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив.
   static const String creativeLocked = 'ad_creative_locked';
+  /// У кампании есть одобренная реклама: категорию, рекламодателя и отметки закона менять нельзя —
+  /// модератор проверял креативы именно при них. Название, сроки и охват менять можно.
+  static const String campaignLocked = 'ad_campaign_locked';
+  /// У рекламодателя есть одобренная реклама: имя и реквизиты подписаны на ней и не меняются.
+  static const String advertiserLocked = 'ad_advertiser_locked';
   /// Картинку не удалось скачать для хранения — одобрить без копии нельзя.
   static const String imageUnavailable = 'ad_image_unavailable';
+  /// Такого шага у кампании нет: черновик запускают, идущую ставят на паузу, с паузы запускают.
+  /// Вернуть в черновик показанную кампанию нельзя.
+  static const String invalidTransition = 'ad_campaign_invalid_transition';
 }
 
 /// Отметки модератора при одобрении — по статьям закона РТ «О рекламе» (спека рекламы, §8.2).
@@ -608,6 +616,10 @@ abstract final class OrganizationPermissionNames {
   /// Чаевые администратору с экрана ПК: включить у клуба и вернуть игроку, пока смена открыта.
   /// Это движение денег, поэтому у владельца и управляющего, а не у стойки.
   static const String manageTips = 'organization.tips.manage';
+  /// Реклама платформы на ПК клуба и жалоба на неё. По закону (ст. 25) перед проверяющим отвечает
+  /// и управляющий филиала, поэтому право не только у владельца — и отдельно от подписки: счета
+  /// управляющему видеть незачем.
+  static const String viewPlatformAds = 'organization.ads.view';
 }
 
 /// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
@@ -1320,6 +1332,8 @@ abstract final class TipErrorCodeNames {
   static const String alreadyReversed = 'tip_already_reversed';
   /// Всё, что пришло за смену, уже выдано.
   static const String nothingToPay = 'tip_nothing_to_pay';
+  /// Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды.
+  static const String alreadyPaidOut = 'tip_already_paid_out';
 }
 
 /// Словарь: Tips/TipContracts.cs
@@ -3797,6 +3811,7 @@ class ClubPlanDto {
     this.fallbackAtUtc,
     this.trialDays,
     this.promisedPaymentDays,
+    this.freeDeviceLimit,
   });
 
   final String planCode;
@@ -3834,6 +3849,10 @@ class ClubPlanDto {
   final int? trialDays;
   final int? promisedPaymentDays;
 
+  /// Предел ПК бесплатного тарифа, как его задала платформа: на него клуб уходит без оплаты, и
+  /// условия называют его числом, а не зашитой «десяткой».
+  final int? freeDeviceLimit;
+
   factory ClubPlanDto.fromJson(Map<String, dynamic> json) => ClubPlanDto(
         planCode: json['planCode'] as String,
         kind: json['kind'] as String,
@@ -3855,6 +3874,7 @@ class ClubPlanDto {
         fallbackAtUtc: json['fallbackAtUtc'] == null ? null : DateTime.parse(json['fallbackAtUtc'] as String),
         trialDays: json['trialDays'] == null ? null : (json['trialDays'] as num).toInt(),
         promisedPaymentDays: json['promisedPaymentDays'] == null ? null : (json['promisedPaymentDays'] as num).toInt(),
+        freeDeviceLimit: json['freeDeviceLimit'] == null ? null : (json['freeDeviceLimit'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -3878,6 +3898,7 @@ class ClubPlanDto {
         'fallbackAtUtc': fallbackAtUtc?.toIso8601String(),
         'trialDays': trialDays,
         'promisedPaymentDays': promisedPaymentDays,
+        'freeDeviceLimit': freeDeviceLimit,
       };
 }
 
@@ -9751,6 +9772,31 @@ class NewsItemDto {
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
         'showOnPcs': showOnPcs,
+      };
+}
+
+/// Где сотрудник может публиковать новости: филиалы, где у него есть право на новости, и можно ли
+/// писать на всю сеть. На всю сеть — только тому, у кого право во всех филиалах (владелец):
+/// управляющий одного филиала не говорит от имени всех.
+///
+/// Контракт: News/NewsScopeDto.cs
+class NewsScopeDto {
+  const NewsScopeDto({
+    required this.branches,
+    required this.canPublishToAllBranches,
+  });
+
+  final List<OwnerBranchSummaryDto> branches;
+  final bool canPublishToAllBranches;
+
+  factory NewsScopeDto.fromJson(Map<String, dynamic> json) => NewsScopeDto(
+        branches: (json['branches'] as List<dynamic>).map((item) => OwnerBranchSummaryDto.fromJson(item as Map<String, dynamic>)).toList(),
+        canPublishToAllBranches: json['canPublishToAllBranches'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'branches': branches.map((item) => item.toJson()).toList(),
+        'canPublishToAllBranches': canPublishToAllBranches,
       };
 }
 

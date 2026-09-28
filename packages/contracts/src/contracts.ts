@@ -73,8 +73,20 @@ export const AdErrorCodeNames = {
   PermitRequired: 'ad_permit_required',
   /** Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив. */
   CreativeLocked: 'ad_creative_locked',
+  /**
+   * У кампании есть одобренная реклама: категорию, рекламодателя и отметки закона менять нельзя —
+   * модератор проверял креативы именно при них. Название, сроки и охват менять можно.
+   */
+  CampaignLocked: 'ad_campaign_locked',
+  /** У рекламодателя есть одобренная реклама: имя и реквизиты подписаны на ней и не меняются. */
+  AdvertiserLocked: 'ad_advertiser_locked',
   /** Картинку не удалось скачать для хранения — одобрить без копии нельзя. */
   ImageUnavailable: 'ad_image_unavailable',
+  /**
+   * Такого шага у кампании нет: черновик запускают, идущую ставят на паузу, с паузы запускают.
+   * Вернуть в черновик показанную кампанию нельзя.
+   */
+  InvalidTransition: 'ad_campaign_invalid_transition',
 } as const;
 export type AdErrorCodeName = (typeof AdErrorCodeNames)[keyof typeof AdErrorCodeNames];
 
@@ -731,6 +743,12 @@ export const OrganizationPermissionNames = {
    * Это движение денег, поэтому у владельца и управляющего, а не у стойки.
    */
   ManageTips: 'organization.tips.manage',
+  /**
+   * Реклама платформы на ПК клуба и жалоба на неё. По закону (ст. 25) перед проверяющим отвечает
+   * и управляющий филиала, поэтому право не только у владельца — и отдельно от подписки: счета
+   * управляющему видеть незачем.
+   */
+  ViewPlatformAds: 'organization.ads.view',
 } as const;
 export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
 
@@ -1575,6 +1593,8 @@ export const TipErrorCodeNames = {
   AlreadyReversed: 'tip_already_reversed',
   /** Всё, что пришло за смену, уже выдано. */
   NothingToPay: 'tip_nothing_to_pay',
+  /** Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды. */
+  AlreadyPaidOut: 'tip_already_paid_out',
 } as const;
 export type TipErrorCodeName = (typeof TipErrorCodeNames)[keyof typeof TipErrorCodeNames];
 
@@ -2537,6 +2557,11 @@ export interface ClubPlanDto {
   /** Условия, которые задала платформа: экран не должен обещать свои числа. */
   trialDays?: number;
   promisedPaymentDays?: number;
+  /**
+   * Предел ПК бесплатного тарифа, как его задала платформа: на него клуб уходит без оплаты, и
+   * условия называют его числом, а не зашитой «десяткой».
+   */
+  freeDeviceLimit?: number;
 }
 
 /**
@@ -4482,6 +4507,18 @@ export interface NewsItemDto {
   updatedAtUtc: IsoDateTime;
   /** Новость крутится и на экране свободного ПК (витрина), а не только в приложении. */
   showOnPcs?: boolean;
+}
+
+/**
+ * Где сотрудник может публиковать новости: филиалы, где у него есть право на новости, и можно ли
+ * писать на всю сеть. На всю сеть — только тому, у кого право во всех филиалах (владелец):
+ * управляющий одного филиала не говорит от имени всех.
+ *
+ * Контракт: News/NewsScopeDto.cs
+ */
+export interface NewsScopeDto {
+  branches: OwnerBranchSummaryDto[];
+  canPublishToAllBranches: boolean;
 }
 
 /**

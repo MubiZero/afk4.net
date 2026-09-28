@@ -372,6 +372,9 @@
 .network-plan-note { margin: 0; color: var(--text-secondary); font-size: 13px; }
 .network-plan-note--attention { color: var(--danger-text, var(--danger)); }
 .network-plan-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* Подтверждение шага тарифа: слова и цена до того, как клуб согласится платить. */
+.network-plan-confirm { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--warning-soft-border); border-radius: 8px; background: var(--warning-soft-bg); }
+.network-plan-confirm p { margin: 0; color: var(--text-strong); font-size: 13px; max-width: 72ch; }
 .network-stat--attention dd { color: var(--danger); }
 .network-plan-referral { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-soft); }
 .network-plan-referral p { margin: 0; color: var(--text-secondary); font-size: 13px; max-width: 72ch; }

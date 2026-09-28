@@ -112,6 +112,10 @@ export function MapWorkspace({
     setPickAnchor(null);
   }, []);
 
+  // Сменили фильтр — выбор сбрасывается: иначе общая команда ушла бы и на места, которых на экране
+  // уже нет.
+  useEffect(() => clearPicks(), [activeFilter, clearPicks]);
+
   // Ctrl/⌘-клик добавляет место или убирает его; Shift-клик — все места подряд от прошлого выбора
   // в том порядке, в каком они видны на карте.
   const pickSeat = (seat: SeatSummary, mode: 'toggle' | 'range') => {
@@ -193,9 +197,11 @@ export function MapWorkspace({
       return;
     }
 
+    // Не вышло хоть у одного — тост красный: он не гаснет сам, и список «не вышло» остаётся на
+    // экране, пока оператор его не прочтёт. Зелёный за четыре секунды уносил его вместе с собой.
     setFeedback(failed.length === 0
       ? { label, state: 'confirmed', detail: t('op.pc.bulk.done', { sent }) }
-      : { label, state: sent > 0 ? 'confirmed' : 'failed', detail: t('op.pc.bulk.partial', { sent, total: plan.targets.length, failed: failed.join('; ') }) });
+      : { label, state: 'failed', detail: t('op.pc.bulk.partial', { sent, total: plan.targets.length, failed: failed.join('; ') }) });
   };
 
   const runPcControlAction = async (action: PcControlActionId, label: string, seat: SeatSummary | null = selectedSeat) => {
@@ -406,7 +412,7 @@ export function MapWorkspace({
           heading={seatMenu.bulk
             ? { title: t('op.map.bulk.count', { count: pickedSeats.length }), subtitle: pickedSeats.map((seat) => seat.name).join(', ') }
             : undefined}
-          sections={seatMenu.bulk ? buildBulkMenu(pickedSeats, seatMenuCaps) : buildSeatMenu(seatMenu.seat, seatMenuCaps)}
+          sections={seatMenu.bulk ? buildBulkMenu(pickedSeats, seatMenuCaps, bulkBusy) : buildSeatMenu(seatMenu.seat, seatMenuCaps)}
           x={seatMenu.x}
           y={seatMenu.y}
           onClose={() => setSeatMenu(null)}

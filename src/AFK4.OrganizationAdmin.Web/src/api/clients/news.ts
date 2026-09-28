@@ -1,6 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { NewsItemDto, OwnerBranchSummaryDto } from '@afk4/contracts';
-export type { NewsItemDto, OwnerBranchSummaryDto } from '@afk4/contracts';
+import type { NewsItemDto, NewsScopeDto } from '@afk4/contracts';
+export type { NewsItemDto, NewsScopeDto, OwnerBranchSummaryDto } from '@afk4/contracts';
 
 export interface NewsItemInput {
   branchId: string | null;
@@ -18,8 +18,9 @@ export function createNewsClient(api: PlatformApiClient) {
     list(): Promise<NewsItemDto[]> {
       return api.get<NewsItemDto[]>('news');
     },
-    listBranches(): Promise<OwnerBranchSummaryDto[]> {
-      return api.get<OwnerBranchSummaryDto[]>('branches');
+    // Свои филиалы и «на всю сеть» — общий список филиалов требует права владельца.
+    scope(): Promise<NewsScopeDto> {
+      return api.get<NewsScopeDto>('news/scope');
     },
     create(request: NewsItemInput): Promise<NewsItemDto> {
       return api.post<NewsItemDto, NewsItemInput>('news', request);

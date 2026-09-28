@@ -38,6 +38,9 @@ public sealed class ClubReferralsTests
         var invoice = await db.Invoices.SingleAsync(candidate => candidate.OrganizationId == referrer);
         Assert.Equal(0, invoice.AmountMinorUnits);
         Assert.Equal(0, referrerSubscription.FreeMonths);
+        // Платить не за что — счёт закрыт сразу и не приходит письмом «к оплате».
+        Assert.Equal(InvoiceStatusNames.Paid, invoice.Status);
+        Assert.DoesNotContain(notifier.Issued, issued => issued.InvoiceId == invoice.InvoiceId);
     }
 
     [Fact]

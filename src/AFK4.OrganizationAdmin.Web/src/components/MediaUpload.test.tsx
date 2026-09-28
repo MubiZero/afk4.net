@@ -93,7 +93,7 @@ describe('MediaUpload', () => {
     });
   });
 
-  it('shows preview + Replace/Remove when a value is set, and removes on click', async () => {
+  it('«Удалить» убирает картинку из формы, а файл не стирает — вдруг форму не сохранят', () => {
     const { onChange } = renderUpload({ value: 'https://cdn.test/existing.png' });
 
     const img = screen.getByTestId('media-upload-preview-img') as HTMLImageElement;
@@ -102,21 +102,7 @@ describe('MediaUpload', () => {
 
     fireEvent.click(screen.getByText('Удалить'));
 
-    await waitFor(() => expect(removeMock).toHaveBeenCalledTimes(1));
-    expect(removeMock).toHaveBeenCalledWith('b1', 'existing');
     expect(onChange).toHaveBeenCalledWith(null);
-  });
-
-  it('removes using the explicit mediaId prop, not the id parsed from the URL', async () => {
-    const { onChange } = renderUpload({
-      value: 'https://cdn.test/existing.png',
-      mediaId: 'db-media-id-42'
-    });
-
-    fireEvent.click(screen.getByText('Удалить'));
-
-    await waitFor(() => expect(removeMock).toHaveBeenCalledTimes(1));
-    expect(removeMock).toHaveBeenCalledWith('b1', 'db-media-id-42');
-    expect(onChange).toHaveBeenCalledWith(null);
+    expect(removeMock).not.toHaveBeenCalled();
   });
 });

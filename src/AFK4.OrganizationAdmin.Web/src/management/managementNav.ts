@@ -95,10 +95,11 @@ export const managementDestinations: readonly ManagementDestination[] = [
     labelKey: 'op.management.dest.payments',
     subtitleKey: 'op.management.dest.payments.subtitle',
     Icon: CreditCard,
-    // Union of both tabs' permissions — visible if the session can manage payment gateways OR
-    // loyalty. Which tabs actually render is gated per-tab inside PaymentsLoyaltyDestination, so a
-    // role holding only one permission sees only its tab (no empty second tab).
-    permissions: [permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]
+    // Union of the sections' permissions — visible if the session can manage payment gateways,
+    // loyalty OR tips. Which sections render is gated inside PaymentsLoyaltyDestination, so a role
+    // holding only one permission sees only its part. Чаевые — у управляющего, у которого нет ни
+    // шлюзов, ни лояльности: без manageTips он не видел своего выключателя.
+    permissions: [permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings, permissionNames.manageTips]
   },
   {
     id: 'news',

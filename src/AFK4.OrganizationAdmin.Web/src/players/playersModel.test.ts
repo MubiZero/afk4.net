@@ -187,6 +187,13 @@ describe('projectLedgerEntry', () => {
     const reversal = projectLedgerEntry(ledger({ entryType: 'refund', reversesLedgerEntryId: 'le-1' }), t);
     expect(reversal.isReversal).toBe(true);
   });
+
+  // Сервер пишет у подарка на ДР машинные «birthday_bonus · birthday 2026» — человек их не читает.
+  it('у подарка на день рождения — слова, а не машинные коды', () => {
+    const gift = projectLedgerEntry(ledger({ entryType: 'birthday_bonus', description: 'birthday_bonus', reason: 'birthday 2026' }), t);
+    expect(gift.description).toBe('');
+    expect(gift.reason).toBe('op.players.ledger.birthdayYear');
+  });
 });
 
 describe('projectPlayerPackage', () => {

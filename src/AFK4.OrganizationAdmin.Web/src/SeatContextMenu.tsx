@@ -101,8 +101,17 @@ export function SeatContextMenu({
         onClose();
       }
     };
+    // Esc — и тогда, когда все пункты закрыты и фокусу в меню встать не на что: обработчик на
+    // пунктах такого нажатия не слышит.
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
     document.addEventListener('pointerdown', onPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onEscape);
+    };
   }, [onClose]);
 
   const moveFocus = (delta: number, current: number) => {

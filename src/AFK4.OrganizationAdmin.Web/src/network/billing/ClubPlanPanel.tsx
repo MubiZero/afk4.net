@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ClubPlanKindNames, type ClubPlanDto } from '@afk4/contracts';
 import { Money } from '../../operatorPrimitives';
+import { formatMinorUnits } from '../../currencyFormat';
 import { projectOperatorError } from '../../apiErrors';
 import { SkeletonTiles } from '../../LoadingSkeleton';
 import { FreePlanDevices, type FreePlanDevicesClient } from './FreePlanDevices';
@@ -35,17 +36,29 @@ export function ClubPlanPanel({
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState<Action | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Каждое действие здесь — обязательство платить или разовый шанс: сначала слова и цена, потом шаг.
+  const [confirming, setConfirming] = useState<Action | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setFailed(false);
     client.getPlan().then((result) => { if (active) setPlan(result); }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
-  }, [client]);
+  }, [client, attempt]);
 
-  if (failed) return <p className="ui-inline-error" role="alert">{t('op.network.plan.loadFailed')}</p>;
+  if (failed) {
+    return (
+      <div className="ui-inline-error" role="alert">
+        <p>{t('op.network.plan.loadFailed')}</p>
+        <button type="button" className="ui-btn ui-btn--sm" onClick={() => setAttempt((count) => count + 1)}>{t('op.management.state.retry')}</button>
+      </div>
+    );
+  }
   if (plan === null) return <SkeletonTiles count={2} className="network-billing-grid" tileClassName="network-stat" />;
 
   const run = async (action: Action) => {
+    setConfirming(null);
     setBusy(action);
     setError(null);
     try {
@@ -56,12 +69,31 @@ export function ClubPlanPanel({
       onChanged();
     } catch (failure) {
       setError(projectOperatorError(failure, t).detail);
+      // Отказ обычно значит, что тариф уже не тот, что на экране (счёт оплатили, льготу взяли с
+      // другого устройства): кнопки должны совпасть с тем, что знает сервер.
+      void client.getPlan().then(setPlan).catch(() => {});
     } finally {
       setBusy(null);
     }
   };
 
+  const priceText = formatMinorUnits(plan.pricePerDevice.minorUnits, plan.pricePerDevice.currencyCode);
+  const confirmText = (action: Action) => {
+    if (action === 'trial') {
+      return t('op.network.plan.confirm.trial', { days: plan.trialDays ?? 30, included: plan.includedDevices, price: priceText });
+    }
+    if (action === 'perPc') {
+      return t('op.network.plan.confirm.perPc', { included: plan.includedDevices, price: priceText, devices: plan.devices });
+    }
+    return t('op.network.plan.confirm.promise', {
+      days: plan.promisedPaymentDays ?? 7,
+      amount: plan.overdue ? formatMinorUnits(plan.overdue.minorUnits, plan.overdue.currencyCode) : '—'
+    });
+  };
+
   const price = <Money minorUnits={plan.pricePerDevice.minorUnits} currencyCode={plan.pricePerDevice.currencyCode} />;
+  // Сервер до этого поля его не присылал; тогда ближайшее, что он знает, — «включено» тарифа.
+  const freeLimit = plan.freeDeviceLimit ?? plan.includedDevices;
   return (
     <div className="network-plan" data-kind={plan.kind}>
       <div className="network-plan-head">
@@ -101,28 +133,42 @@ export function ClubPlanPanel({
       ) : null}
       {plan.fallbackAtUtc ? (
         <p className="network-plan-note network-plan-note--attention">
-          {plan.devices > plan.includedDevices
-            ? t('op.network.plan.fallbackLimited', { date: formatDate(plan.fallbackAtUtc), included: plan.includedDevices, devices: plan.devices })
+          {/* Уходят на бесплатный — и предел его, а не «сколько ПК без платы» у тарифа за ПК. */}
+          {plan.devices > freeLimit
+            ? t('op.network.plan.fallbackLimited', { date: formatDate(plan.fallbackAtUtc), included: freeLimit, devices: plan.devices })
             : t('op.network.plan.fallback', { date: formatDate(plan.fallbackAtUtc) })}
         </p>
       ) : null}
       {canManage ? (
         <div className="network-plan-actions">
           {plan.trialAvailable ? (
-            <button type="button" className="ui-btn ui-btn--primary" disabled={busy !== null} onClick={() => void run('trial')}>
+            <button type="button" className="ui-btn ui-btn--primary" disabled={busy !== null} onClick={() => setConfirming('trial')}>
               {t('op.network.plan.startTrial', { days: plan.trialDays ?? 30 })}
             </button>
           ) : null}
           {plan.canSwitchToPerPc ? (
-            <button type="button" className="ui-btn" disabled={busy !== null} onClick={() => void run('perPc')}>
+            <button type="button" className="ui-btn" disabled={busy !== null} onClick={() => setConfirming('perPc')}>
               {t('op.network.plan.switchToPerPc')}
             </button>
           ) : null}
           {plan.promisedPaymentAvailable ? (
-            <button type="button" className="ui-btn" disabled={busy !== null} onClick={() => void run('promise')}>
+            <button type="button" className="ui-btn" disabled={busy !== null} onClick={() => setConfirming('promise')}>
               {t('op.network.plan.promisePayment', { days: plan.promisedPaymentDays ?? 7 })}
             </button>
           ) : null}
+        </div>
+      ) : null}
+      {confirming !== null && canManage ? (
+        <div className="network-plan-confirm" role="group" aria-label={t(ACTION_LABEL[confirming], { days: confirming === 'trial' ? plan.trialDays ?? 30 : plan.promisedPaymentDays ?? 7 })}>
+          <p>{confirmText(confirming)}</p>
+          <div className="network-plan-actions">
+            <button type="button" className="ui-btn ui-btn--primary" disabled={busy !== null} onClick={() => void run(confirming)}>
+              {t('op.network.plan.confirm.yes')}
+            </button>
+            <button type="button" className="ui-btn" disabled={busy !== null} onClick={() => setConfirming(null)}>
+              {t('op.network.plan.confirm.no')}
+            </button>
+          </div>
         </div>
       ) : null}
       {error && <p className="ui-inline-error" role="alert">{error}</p>}
@@ -130,7 +176,7 @@ export function ClubPlanPanel({
         <FreePlanDevices client={client} canManage={canManage} onChanged={() => void client.getPlan().then(setPlan).catch(() => {})} />
       ) : null}
       {plan.referralCode ? <ReferralBlock plan={plan} /> : null}
-      <FreePlanTerms />
+      <FreePlanTerms freeDevices={freeLimit} />
     </div>
   );
 }
@@ -139,7 +185,7 @@ export function ClubPlanPanel({
  * Условия бесплатного тарифа — коротко и простыми словами (владелец, 2026-09-26): что клуб получает,
  * что показывается на его ПК и что клуб может сделать, если реклама не подходит.
  */
-function FreePlanTerms() {
+function FreePlanTerms({ freeDevices }: { freeDevices: number }) {
   const { t } = useI18n();
   const points: MessageKey[] = [
     'op.network.plan.terms.pcs',
@@ -153,7 +199,7 @@ function FreePlanTerms() {
     <details className="network-plan-terms">
       <summary>{t('op.network.plan.terms.title')}</summary>
       <ol>
-        {points.map((key) => <li key={key}>{t(key)}</li>)}
+        {points.map((key) => <li key={key}>{t(key, { count: freeDevices })}</li>)}
       </ol>
     </details>
   );
@@ -184,6 +230,12 @@ function ReferralBlock({ plan }: { plan: ClubPlanDto }) {
     </div>
   );
 }
+
+const ACTION_LABEL: Record<Action, MessageKey> = {
+  trial: 'op.network.plan.startTrial',
+  perPc: 'op.network.plan.switchToPerPc',
+  promise: 'op.network.plan.promisePayment'
+};
 
 const KIND_TITLE = {
   [ClubPlanKindNames.Free]: 'op.network.plan.kind.free',

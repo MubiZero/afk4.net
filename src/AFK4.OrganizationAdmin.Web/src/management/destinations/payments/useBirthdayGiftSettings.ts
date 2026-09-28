@@ -85,7 +85,8 @@ export function useBirthdayGiftSettings(
       return;
     }
 
-    const days = Number(recentVisitDays);
+    // Пустое поле — не «0»: ноль здесь значит «всем гостям», а стёртое поле тихо дарило бы всем.
+    const days = recentVisitDays.trim() === '' ? Number.NaN : Number(recentVisitDays);
     if (!Number.isInteger(days) || days < 0 || days > MAX_RECENT_VISIT_DAYS) {
       setFeedback({ label, state: 'failed', detail: t('op.birthdayGift.daysError', { max: MAX_RECENT_VISIT_DAYS }) });
       return;

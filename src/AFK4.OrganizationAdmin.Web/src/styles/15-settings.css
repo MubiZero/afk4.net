@@ -584,6 +584,20 @@
   font-size: 12px;
 }
 
+/* «Убрать ответ?» — переспрос прямо в карточке отзыва. */
+.reviews-confirm {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning-soft-border);
+  border-radius: 8px;
+  background: var(--warning-soft-bg);
+}
+
+.reviews-confirm p {
+  margin: 0;
+  font-size: 13px;
+}
+
 /* Карточка ПК → Железо: что поменялось — зачёркнутое было и жирное стало. */
 .device-hardware {
   display: grid;

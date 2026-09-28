@@ -31,6 +31,8 @@ it('ru, en and tg have identical key sets (catalog parity)', () => {
 // it only fakes "translated" coverage. Add a key here ONLY with a real reason above,
 // never to silence the check. Native-Tajik review may move entries out of this list.
 const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
+    // «ГБ» по-таджикски пишется так же.
+    'op.hardware.gb',
     // «Тариф» — заимствование, в таджикском пишется так же; переводить его нечем.
     'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
     // «Реклама» — так и пишется по-таджикски на вывесках и в эфире; метку сверит носитель языка.

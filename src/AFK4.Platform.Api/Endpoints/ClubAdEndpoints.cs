@@ -24,7 +24,7 @@ internal static class ClubAdEndpoints
             Guid organizationId, StaffAuthorizationService authorizationService, PlatformDbContext db,
             IOrganizationFeatureSnapshot features, IOptions<InstallOptions> install, TimeProvider clock, CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewPlatformAds);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed || organizationId != authorization.StaffContext!.OrganizationId)
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -39,7 +39,7 @@ internal static class ClubAdEndpoints
             PlatformDbContext db, IOrganizationFeatureSnapshot features, IOptions<InstallOptions> install, IAuditRecordWriter audit,
             TimeProvider clock, CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewPlatformAds);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed || organizationId != authorization.StaffContext!.OrganizationId)
                 return Results.StatusCode(StatusCodes.Status403Forbidden);

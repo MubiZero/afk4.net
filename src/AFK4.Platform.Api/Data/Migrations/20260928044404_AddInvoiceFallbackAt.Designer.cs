@@ -3,6 +3,7 @@ using System;
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AFK4.Platform.Api.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
-    partial class PlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260928044404_AddInvoiceFallbackAt")]
+    partial class AddInvoiceFallbackAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3861,7 +3864,7 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasIndex("PlayerAccountId");
 
-                    b.HasIndex("PushToken", "PlayerAccountId")
+                    b.HasIndex("PushToken")
                         .IsUnique();
 
                     b.ToTable("player_devices", (string)null);

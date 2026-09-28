@@ -1879,6 +1879,19 @@
   padding-left: 18px;
 }
 
+/* «Не получат» — не то же, что «получат»: янтарная плашка, чтобы пропущенные места не читались
+   как адресаты команды. */
+.pc-dialog-list--skipped {
+  padding: 8px 10px;
+  border: 1px solid var(--warning-soft-border);
+  border-radius: 8px;
+  background: var(--warning-soft-bg);
+}
+
+.pc-dialog-list--skipped .pc-dialog-list-title {
+  color: var(--warning-text);
+}
+
 .pc-dialog-actions {
   display: flex;
   justify-content: flex-end;

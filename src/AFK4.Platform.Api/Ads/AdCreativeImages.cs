@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Media;
 using AFK4.Shared.Contracts.Ads;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,6 +53,9 @@ public static class AdCreativeImages
             }
 
             bytes = buffer.ToArray();
+            // Заголовок Content-Type говорит сервер рекламодателя; верим только самим байтам.
+            if (MediaValidation.SniffImageContentType(bytes.AsSpan(0, Math.Min(bytes.Length, 16))) is not { } sniffed) return false;
+            contentType = sniffed;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {

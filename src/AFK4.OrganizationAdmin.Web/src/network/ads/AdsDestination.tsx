@@ -120,7 +120,7 @@ function AdCard({ ad, onReport }: { ad: ClubAdDto; onReport?: (ad: ClubAdDto) =>
 
   return (
     <li className={`network-ad${ad.running ? ' is-running' : ''}`}>
-      {ad.imageUrl ? <img className="network-ad-image" src={ad.imageUrl} alt="" loading="lazy" /> : null}
+      {ad.imageUrl ? <img className="network-ad-image" src={ad.imageUrl} alt={ad.title} loading="lazy" /> : null}
       <div className="network-ad-body">
         <div className="network-ad-head">
           <span className="network-ad-label">{t('op.ads.label', { advertiser: ad.advertiser })}</span>
@@ -140,9 +140,12 @@ function AdCard({ ad, onReport }: { ad: ClubAdDto; onReport?: (ad: ClubAdDto) =>
           <div>
             <dt>{t('op.ads.fact.shown')}</dt>
             <dd>
-              {ad.impressions > 0
-                ? t('op.ads.shown', { count: ad.impressions, minutes: Math.round(ad.shownSeconds / 60) })
-                : t('op.ads.notShown')}
+              {/* Короче минуты — словами, а не «0 мин»: реклама шла, просто недолго. */}
+              {ad.impressions === 0
+                ? t('op.ads.notShown')
+                : ad.shownSeconds < 60
+                  ? t('op.ads.shownBrief', { count: ad.impressions })
+                  : t('op.ads.shown', { count: ad.impressions, minutes: Math.round(ad.shownSeconds / 60) })}
             </dd>
           </div>
           {ad.lastShownDay ? <div><dt>{t('op.ads.fact.lastShown')}</dt><dd>{day(`${ad.lastShownDay}T12:00:00Z`)}</dd></div> : null}

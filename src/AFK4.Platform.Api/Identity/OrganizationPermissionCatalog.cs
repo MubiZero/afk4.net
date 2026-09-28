@@ -78,7 +78,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.AcceptDeviceHardware,
                 OrganizationPermissionNames.ManageTips,
                 OrganizationPermissionNames.ManageSubscription,
-                OrganizationPermissionNames.ImportPlayers
+                OrganizationPermissionNames.ImportPlayers,
+                OrganizationPermissionNames.ViewPlatformAds
             },
             [OrganizationRoleNames.BranchManager] = new HashSet<string>
             {
@@ -143,10 +144,15 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewReviews,
                 OrganizationPermissionNames.ManageReviews,
                 OrganizationPermissionNames.AcceptDeviceHardware,
-                OrganizationPermissionNames.ManageTips
+                OrganizationPermissionNames.ManageTips,
+                OrganizationPermissionNames.ViewPlatformAds
             },
             [OrganizationRoleNames.ShiftSupervisor] = new HashSet<string>
             {
+                // Ночью старший смены — единственный, кто решает с ПК: перезагрузить зависший,
+                // закрыть сломанный на обслуживание, чтобы за него никого не посадили.
+                OrganizationPermissionNames.DispatchDeviceCommand,
+                OrganizationPermissionNames.MaintainDevice,
                 OrganizationPermissionNames.ViewDeviceCommandStatus,
                 OrganizationPermissionNames.ViewDeviceDetail,
                 OrganizationPermissionNames.ViewFloorMap,
@@ -190,6 +196,10 @@ public static class OrganizationPermissionCatalog
             },
             [OrganizationRoleNames.Operator] = new HashSet<string>
             {
+                // Команды ПК — работа стойки: запереть, перезагрузить, написать сообщение, выйти за
+                // игрока. Обслуживание — нет: закрыть ПК для зала решает старший или техник.
+                OrganizationPermissionNames.DispatchDeviceCommand,
+                OrganizationPermissionNames.ViewDeviceCommandStatus,
                 OrganizationPermissionNames.ViewFloorMap,
                 OrganizationPermissionNames.StartSession,
                 OrganizationPermissionNames.ExtendSession,
@@ -237,6 +247,8 @@ public static class OrganizationPermissionCatalog
             },
             [OrganizationRoleNames.Accountant] = new HashSet<string>
             {
+                // Счета платформы и долг по ним — бухгалтерия клуба; платить и менять тариф — владелец.
+                OrganizationPermissionNames.ViewSubscription,
                 OrganizationPermissionNames.ViewSession,
                 OrganizationPermissionNames.ViewPlayers,
                 OrganizationPermissionNames.ViewBilling,

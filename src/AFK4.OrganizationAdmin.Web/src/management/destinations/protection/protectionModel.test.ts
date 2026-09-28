@@ -46,6 +46,16 @@ describe('protectionModel', () => {
     });
   });
 
+  // Правило с заголовком и классом сразу Панель не правит — но и терять не должна: сохранённое
+  // одним заголовком, оно закрывало бы лишние окна.
+  it('keeps a rule with both a title and a class as it was', () => {
+    const compound = { titleContains: 'Диспетчер', className: 'TaskManagerWindow' };
+    const form = protectionToForm({ ...dto, profile: { ...dto.profile, blockedWindows: [...dto.profile.blockedWindows, compound] } });
+
+    expect(form.blockedTitles).toBe('Командная строка');
+    expect(buildProtectionRequest('o1', form).blockedWindows).toContainEqual(compound);
+  });
+
   // Пустое поле — «не выключать» и «правил нет», а не ноль минут и пустая строка на экране ПК.
   it('an empty idle time and empty rules go out as nothing', () => {
     const request = buildProtectionRequest('o1', { ...protectionDefaults, clubRules: '   ' });
