@@ -9227,39 +9227,6 @@ class ManualLedgerCorrectionRequest {
       };
 }
 
-/// Контракт: Payments/ManualPaymentRequest.cs
-class ManualPaymentRequest {
-  const ManualPaymentRequest({
-    required this.organizationId,
-    required this.paymentMethod,
-    required this.amount,
-    required this.note,
-    required this.idempotencyKey,
-  });
-
-  final String organizationId;
-  final String paymentMethod;
-  final MoneyDto amount;
-  final String note;
-  final String idempotencyKey;
-
-  factory ManualPaymentRequest.fromJson(Map<String, dynamic> json) => ManualPaymentRequest(
-        organizationId: json['organizationId'] as String,
-        paymentMethod: json['paymentMethod'] as String,
-        amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
-        note: json['note'] as String,
-        idempotencyKey: json['idempotencyKey'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'paymentMethod': paymentMethod,
-        'amount': amount.toJson(),
-        'note': note,
-        'idempotencyKey': idempotencyKey,
-      };
-}
-
 /// Контракт: Platform/Billing/MarkInvoicePaidRequest.cs
 class MarkInvoicePaidRequest {
   const MarkInvoicePaidRequest({

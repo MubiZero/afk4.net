@@ -418,7 +418,6 @@ describe('operator API clients', () => {
     await clients.devices.rejectDevice(deviceId, { organizationId, reason: 'Не наш ПК' });
     await clients.devices.dispatchDeviceCommand(deviceId, { type: 'lock', payload: { reason: 'operator' } });
     await clients.devices.listDeviceCommands(deviceId, { limit: 25 });
-    await clients.devices.listBranchDeviceCommands(branchId, { limit: 50 });
     await clients.devices.getDeviceCommandStatus(deviceId, commandId);
     await clients.diagnostics.getDiagnostics(branchId);
     await clients.updates.getRolloutStatuses(branchId);
@@ -470,7 +469,6 @@ describe('operator API clients', () => {
       `POST /api/organizations/organization-id/devices/${deviceId}/reject`,
       `POST /api/organizations/organization-id/devices/${deviceId}/commands`,
       `GET /api/organizations/organization-id/devices/${deviceId}/commands?limit=25`,
-      `GET /api/organizations/organization-id/branches/${branchId}/device-commands?limit=50`,
       `GET /api/organizations/organization-id/devices/${deviceId}/commands/${commandId}/status`,
       `GET /api/organizations/organization-id/branches/${branchId}/diagnostics`,
       `GET /api/organizations/organization-id/branches/${branchId}/updates/rollouts`,

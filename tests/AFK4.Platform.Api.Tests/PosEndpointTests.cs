@@ -371,11 +371,10 @@ public sealed class PosEndpointTests
 
         var paid = await PostOkAsync<PosSaleDto>(
             client,
-            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{sale.PosSaleId:D}/payments/manual",
-            new ManualPaymentRequest(
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{sale.PosSaleId:D}/settlements",
+            new SettlePosSaleRequest(
                 TestIds.OrganizationId,
-                PaymentMethodNames.Cash,
-                new MoneyDto("TJS", 2600),
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 2600))],
                 "cash drawer",
                 "pay-001"));
         Assert.Equal(PosSaleStateNames.Paid, paid.State);
@@ -718,10 +717,6 @@ public sealed class PosEndpointTests
                 HttpMethod.Post,
                 $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/sales",
                 new CreatePosSaleRequest(TestIds.OrganizationId, shiftId, [new CreatePosSaleLineDto(Guid.NewGuid(), 1)], "sale-001")),
-            new EndpointCase(
-                HttpMethod.Post,
-                $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/payments/manual",
-                new ManualPaymentRequest(TestIds.OrganizationId, PaymentMethodNames.Cash, new MoneyDto("TJS", 1200), "cash drawer", "pay-001")),
             new EndpointCase(
                 HttpMethod.Post,
                 $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
