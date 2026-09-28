@@ -6,6 +6,7 @@ import { SetupFieldsSkeleton, SetupRuleSkeleton, SetupSection, SetupSectionSkele
 import { RuleSwitch } from '../../kit/RuleSwitch';
 import { SkeletonLine } from '../../../LoadingSkeleton';
 import { projectOperatorError, type OperatorErrorProjection } from '../../../apiErrors';
+import { PlatformApiError } from '../../../platformApi';
 import { createAuthenticatedOperatorClients, emptyFeedback } from '../../../operatorHelpers';
 import { useFeedbackToasts } from '../../../useFeedbackToasts';
 import type { Feedback, LoadStatus } from '../../../operatorTypes';
@@ -41,6 +42,9 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
   const [saved, setSaved] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [reloadNonce, setReloadNonce] = useState(0);
+  // Профиль успели сохранить с другого устройства (409 по версии): «Отменить» вернёт ту же старую
+  // версию, и следующее сохранение снова упрётся в конфликт. Нужен выход — перечитать.
+  const [conflict, setConflict] = useState(false);
   useFeedbackToasts(feedback);
 
   const apply = (profile: BranchProtectionProfileDto) => {
@@ -91,12 +95,22 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
       const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
       apply(await clients.settings.updateProtectionProfile(backend.branchId, buildProtectionRequest(backend.session.organizationId, form)));
       setSaved(true);
+      setConflict(false);
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
+      setConflict(error instanceof PlatformApiError && error.status === 409);
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     } finally {
       setSaving(false);
     }
+  };
+
+  const reloadAfterConflict = () => {
+    setConflict(false);
+    setDirty(false);
+    setSaved(false);
+    setFeedback(emptyFeedback);
+    setReloadNonce((nonce) => nonce + 1);
   };
 
   const discard = () => {
@@ -155,6 +169,13 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
         {' '}
         {t('op.protection.appliesNote')}
       </p>
+
+      {conflict ? (
+        <div className="ui-alert ui-alert--spaced" role="alert">
+          <span>{t('op.protection.conflict')}</span>
+          <button type="button" className="ui-btn ui-btn--sm" onClick={reloadAfterConflict}>{t('op.protection.conflict.reload')}</button>
+        </div>
+      ) : null}
 
       <div className="payset-columns">
         <SetupSection Icon={HardDrive} title={t('op.protection.zone.drives')} lead={t('op.protection.zone.drives.lead')}>
@@ -235,7 +256,7 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
             id="protection-window-titles"
             label={t('op.protection.windowTitles')}
             hint={t('op.protection.windowTitles.hint')}
-            placeholder={'Командная строка\nРедактор реестра'}
+            placeholder={t('op.protection.windowTitles.placeholder')}
             value={form.blockedTitles}
             disabled={disabled}
             onChange={(value) => onField('blockedTitles', value)}
@@ -249,6 +270,9 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
             disabled={disabled}
             onChange={(value) => onField('blockedClasses', value)}
           />
+          {form.compoundWindows.length > 0 ? (
+            <p className="payset-field-hint">{t('op.protection.windowCompound', { count: form.compoundWindows.length })}</p>
+          ) : null}
 
           <p className="protect-base-note">{t('op.protection.baseNote')}</p>
         </SetupSection>
@@ -278,9 +302,13 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
               onChange={(event) => onField('idleShutdownMinutes', event.currentTarget.value)}
             >
               <option value="">{t('op.protection.idle.off')}</option>
-              {idleShutdownOptions.map((minutes) => (
-                <option key={minutes} value={String(minutes)}>{t('op.protection.idle.after', { minutes })}</option>
-              ))}
+              {/* Сервер принимает любое значение из своего окна; выставленное через API вне списка
+                  показываем как есть, а не пустым выбором, который при сохранении его бы стёр. */}
+              {[...new Set([...idleShutdownOptions, ...(form.idleShutdownMinutes ? [Number(form.idleShutdownMinutes)] : [])])]
+                .sort((a, b) => a - b)
+                .map((minutes) => (
+                  <option key={minutes} value={String(minutes)}>{t('op.protection.idle.after', { minutes })}</option>
+                ))}
             </select>
             <p className="payset-field-hint">{t('op.protection.idle.hint')}</p>
           </div>

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { ToastProvider } from '../../../operatorToast';
 import type { BranchGameDto, CatalogGameDto } from '../../../api/clients/games';
 
 const organizationId = 'o1';
@@ -44,7 +45,9 @@ const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToke
 function renderScreen(permissions = ['organization.games.manage']) {
   return render(
     <I18nProvider initialLocale="ru">
-      <GamesDestination backend={backend} session={{ permissions, organizationId } as never} currencyCode="TJS" />
+      <ToastProvider>
+        <GamesDestination backend={backend} session={{ permissions, organizationId } as never} currencyCode="TJS" />
+      </ToastProvider>
     </I18nProvider>
   );
 }
@@ -77,6 +80,21 @@ describe('GamesDestination', () => {
     await waitFor(() => expect(games.add).toHaveBeenCalledTimes(1));
     expect(games.add.mock.calls[0][1]).toMatchObject({ organizationId, catalogGameId: 'c1', launchKind: 'steam', launchTarget: '730' });
     expect(await screen.findByText('Counter-Strike 2')).toBeInTheDocument();
+  });
+
+  it('игру, которая уже в библиотеке, из каталога второй раз не добавить', async () => {
+    library = [libraryGame({ branchGameId: 'g9', catalogGameId: 'c1', name: 'Counter-Strike 2' })];
+    renderScreen();
+    fireEvent.click(await screen.findByRole('button', { name: 'Добавить из каталога' }));
+
+    // В таблице библиотеки та же игра тоже есть — берём пункт каталога в ящике.
+    const item = await waitFor(() => {
+      const found = document.querySelector<HTMLButtonElement>('.games-catalog-item');
+      if (found === null) throw new Error('каталог ещё не загрузился');
+      return found;
+    });
+    expect(item).toBeDisabled();
+    expect(item.textContent).toContain('уже в библиотеке');
   });
 
   it('refuses a Steam game without a numeric AppID before asking the server', async () => {

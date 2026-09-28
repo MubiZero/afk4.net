@@ -58,9 +58,9 @@ internal static class ClubReviewEndpoints
             if (withComment == true) filtered = filtered.Where(review => review.Comment != null && review.Comment != "");
             if (before is { } cursor) filtered = filtered.Where(review => review.CreatedAtUtc < cursor);
 
-            var page = await filtered
+            IQueryable<BranchReviewDto> Project(IQueryable<ClubReviewEntity> source) => source
                 .OrderByDescending(review => review.CreatedAtUtc)
-                .Take(StaffPageSize + 1)
+                .ThenByDescending(review => review.ReviewId)
                 .Select(review => new BranchReviewDto(
                     review.ReviewId,
                     review.PlayerAccountId,
@@ -76,11 +76,21 @@ internal static class ClubReviewEndpoints
                     review.Reply,
                     review.RepliedAtUtc,
                     review.CommentHiddenAtUtc,
-                    review.CommentHiddenReason))
-                .ToListAsync(cancellationToken);
+                    review.CommentHiddenReason));
+            var page = await Project(filtered).Take(StaffPageSize + 1).ToListAsync(cancellationToken);
 
             var more = page.Count > StaffPageSize;
             var items = more ? page.Take(StaffPageSize).ToList() : page;
+            // Курсор — время: следующая страница берёт строго раньше него. Отзывы с тем же временем,
+            // что у последнего на странице, иначе пропали бы между страницами — берём их сюда же.
+            if (more && page[StaffPageSize].CreatedAtUtc == items[^1].CreatedAtUtc)
+            {
+                var boundary = items[^1].CreatedAtUtc;
+                var shown = items.Select(item => item.ReviewId).ToList();
+                items.AddRange(await Project(filtered.Where(review => review.CreatedAtUtc == boundary && !shown.Contains(review.ReviewId)))
+                    .ToListAsync(cancellationToken));
+                more = await filtered.AnyAsync(review => review.CreatedAtUtc < boundary, cancellationToken);
+            }
             return Results.Ok(new BranchReviewsPageDto(
                 average,
                 total,

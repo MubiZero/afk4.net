@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Check, Copy } from 'lucide-react';
-import { EmptyState, PartialLoadFailure, Skeleton } from '../../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState, PartialLoadFailure, Skeleton } from '../../operatorPrimitives';
 import { projectOperatorError } from '../../apiErrors';
 import type { InstallCodeDto } from '../../api/clients/installCodes';
 import type { createAuthenticatedOperatorClients } from '../../operatorHelpers';
@@ -81,7 +81,11 @@ export function InstallCodesSection({
     }
   };
 
+  // Отозванный код не вернуть, а по нему, может быть, как раз ставят ПК: сначала переспросить.
+  const [revokeTarget, setRevokeTarget] = useState<InstallCodeDto | null>(null);
+
   const revoke = async (code: InstallCodeDto) => {
+    setRevokeTarget(null);
     if (clients === null || branchId === null) return;
     setBusy(true);
     setActionError(null);
@@ -230,7 +234,7 @@ export function InstallCodesSection({
                       max: code.maxDevices
                     })}
                   </span>
-                  <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => void revoke(code)}>
+                  <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => setRevokeTarget(code)}>
                     {t('op.network.install.codes.revoke')}
                   </button>
                 </li>
@@ -238,6 +242,20 @@ export function InstallCodesSection({
             </ul>
           )}
         </>
+      )}
+      {revokeTarget && (
+        <CriticalActionConfirmation
+          title={t('op.network.install.codes.revokeTitle')}
+          detail={t('op.network.install.codes.row', {
+            expires: formatDate(revokeTarget.expiresAtUtc),
+            used: revokeTarget.usedDevices,
+            max: revokeTarget.maxDevices
+          })}
+          impact={t('op.network.install.codes.revokeImpact')}
+          confirmLabel={t('op.network.install.codes.revoke')}
+          onCancel={() => setRevokeTarget(null)}
+          onConfirm={() => void revoke(revokeTarget)}
+        />
       )}
     </section>
   );

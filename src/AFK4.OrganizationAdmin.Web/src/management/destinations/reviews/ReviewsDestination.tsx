@@ -28,6 +28,12 @@ export function ReviewsDestination({ backend, session, onDirtyChange }: Destinat
   const [page, setPage] = useState<BranchReviewsPageDto | null>(null);
   const [items, setItems] = useState<BranchReviewDto[]>([]);
   const [failure, setFailure] = useState<OperatorErrorProjection | null>(null);
+  // Что не удалось: перечитать список под фильтр или догрузить следующую страницу. От этого
+  // зависит, что сделает «Повторить» — раньше он всегда догружал.
+  const [failedStep, setFailedStep] = useState<'reload' | 'more'>('reload');
+  const [reloadKey, setReloadKey] = useState(0);
+  // Список под новый фильтр ещё в пути: старый не показываем — он не про этот отбор.
+  const [listLoading, setListLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const canManage = hasPermission(session, permissionNames.manageReviews);
 
@@ -59,11 +65,20 @@ export function ReviewsDestination({ backend, session, onDirtyChange }: Destinat
     if (client === null || branchId === null) return undefined;
     let active = true;
     setFailure(null);
+    setListLoading(true);
     client.list(branchId, filter)
       .then((next) => { if (active) { setPage(next); setItems(next.items); } })
-      .catch((error) => { if (active) setFailure(projectOperatorError(error, t)); });
+      .catch((error) => {
+        if (!active) return;
+        setItems([]);
+        setFailedStep('reload');
+        setFailure(projectOperatorError(error, t));
+      })
+      .finally(() => { if (active) setListLoading(false); });
     return () => { active = false; };
-  }, [client, branchId, filter.rating, filter.withComment]);
+  }, [client, branchId, filter.rating, filter.withComment, reloadKey]);
+
+  const retry = () => (failedStep === 'more' ? void more() : setReloadKey((key) => key + 1));
 
   const more = async () => {
     if (client === null || branchId === null || !page?.nextBefore) return;
@@ -73,6 +88,7 @@ export function ReviewsDestination({ backend, session, onDirtyChange }: Destinat
       setPage(next);
       setItems((current) => [...current, ...next.items]);
     } catch (error) {
+      setFailedStep('more');
       setFailure(projectOperatorError(error, t));
     } finally {
       setLoadingMore(false);
@@ -89,7 +105,7 @@ export function ReviewsDestination({ backend, session, onDirtyChange }: Destinat
         <EmptyState
           title={t('op.management.state.errorTitle')}
           description={failure.detail}
-          next={{ kind: 'action', label: t('op.management.state.retry'), onClick: () => setFilter({ ...filter }) }}
+          next={{ kind: 'action', label: t('op.management.state.retry'), onClick: retry }}
         />
       );
     }
@@ -140,9 +156,11 @@ export function ReviewsDestination({ backend, session, onDirtyChange }: Destinat
           )}
         </div>
 
-        {failure !== null && <PartialLoadFailure text={failure.detail} failure={failure} onRetry={() => void more()} />}
+        {failure !== null && <PartialLoadFailure text={failure.detail} failure={failure} onRetry={retry} />}
 
-        {items.length === 0 ? (
+        {listLoading ? (
+          <SkeletonTable gridTemplate="1fr 2fr 1fr" />
+        ) : failure !== null && failedStep === 'reload' ? null : items.length === 0 ? (
           <EmptyState
             icon={<MessageSquareText size={22} aria-hidden="true" />}
             title={summary.reviewCount === 0 ? t('op.reviews.empty') : t('op.reviews.emptyFiltered')}

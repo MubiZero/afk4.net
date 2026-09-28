@@ -67,6 +67,37 @@ describe('ReviewsDestination', () => {
     expect(screen.getByRole('button', { name: 'Изменить ответ' })).toBeInTheDocument();
   });
 
+  it('«Убрать ответ» переспрашивает и только потом уходит на сервер', async () => {
+    page = { ...page, items: [review({ reply: 'Поменяли мышь.', repliedAtUtc: '2026-09-21T10:00:00Z' })] };
+    try {
+      renderScreen(['organization.reviews.view', 'organization.reviews.manage']);
+      await screen.findByText('Поменяли мышь.');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Убрать ответ' }));
+      expect(reply).not.toHaveBeenCalled();
+      expect(screen.getByText(/Игрок больше не увидит его/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Убрать ответ' }).at(-1)!);
+      await waitFor(() => expect(reply).toHaveBeenCalledWith('b1', 'r1', ''));
+    } finally {
+      page = { ...page, items: [review()] };
+    }
+  });
+
+  it('отказ под новым фильтром не показывает старый список, а «Повторить» перечитывает этот фильтр', async () => {
+    renderScreen();
+    await screen.findByText('Мышь липкая');
+    list.mockImplementationOnce(async () => { throw new Error('boom'); });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Только с текстом' }));
+
+    await waitFor(() => expect(screen.queryByText('Мышь липкая')).toBeNull());
+    fireEvent.click(await screen.findByRole('button', { name: 'Повторить' }));
+
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith('b1', { rating: null, withComment: true }));
+    expect(await screen.findByText('Мышь липкая')).toBeInTheDocument();
+  });
+
   it('hiding asks why, then marks the text as hidden from players', async () => {
     renderScreen(['organization.reviews.view', 'organization.reviews.manage']);
     await screen.findByText('Мышь липкая');

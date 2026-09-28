@@ -508,6 +508,8 @@ export function GoodsDestination({
                     <input type="checkbox" checked={featuredOnPcs} disabled={!canManagePosCatalog || busy} onChange={(event) => setFeaturedOnPcs(event.currentTarget.checked)} />
                     {t('op.management.goods.featuredOnPcs')}
                   </label>
+                  {/* Витрина берёт не больше четырёх товаров — пятый отмеченный молча не попал бы. */}
+                  <p className="mgmt-drawer-hint mgmt-form-wide">{t('op.management.goods.featuredOnPcsHint')}</p>
                   {backend ? (
                     <label className="mgmt-form-wide">{t('op.management.goods.photo')}
                       <MediaUpload
