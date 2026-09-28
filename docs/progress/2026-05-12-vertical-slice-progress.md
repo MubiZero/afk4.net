@@ -739,6 +739,16 @@ KPIs, the shift-close tolerance lookup.
 
 ## Latest Verification
 
+- Shell stack and its leftovers merged (2026-09-26). #449–#500 went in through
+  one integration branch: `main` equals the integration tree, and the full PR
+  Verification (web, Flutter, Windows, PostgreSQL) was green on ffa4c24e. Then
+  #501 (local `scripts/verify.sh` green, CI green) and #502 (CI green on
+  8ecfb924; its tests were run only by CI — the owner asked not to run them
+  locally) merged as one deploy, `main` 70314d40, identical to the tested
+  commit. Not verified: anything on a live Windows PC (kiosk, drives and
+  monitors, age-locked games), uploads to the real MinIO and pushes on a real
+  phone.
+
 - Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
   removed: the switched-off WPF Organization Admin (8884 lines + 23 test files),
   the React player web, and the unused `AFK4.BuildingBlocks` project — about
@@ -942,34 +952,14 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Known Gaps
 
-- **The PC does not use its own sign-in yet.** Since P2a (2026-09-24,
-  `docs/archive/superpowers/plans/2026-09-24-shell-p2-server.md`) the server lets a player
-  sign in on a gaming PC through the agent (`/api/devices/{id}/player-sign-in`):
-  attempts are counted per machine, a player never gets into someone else's
-  session, and the tokens are bound to the PC and revoked by the server — five
-  minutes after a sign-in that never started a session, thirty seconds after the
-  session ends, and at once on a new sign-in, a seat move, removal or a forced key
-  rotation. The heartbeat now carries the seat, the session owner and the club's
-  features. Since P2b a player can also sign in by scanning the PC's QR with the
-  app (`/api/me/devices/sign-in-claims`, redeemed by the PC with its key); the
-  seating code is single-use, wrong codes are counted per player and per club,
-  and a self-start repeated with the same key returns its session instead of
-  "code invalid". Since P2c the choose-time screen gets its prices in one call
-  (`start-offers`, `extend-offers`, `end-quote`, all priced by `TariffBilling`), a
-  player can start from their own package, and an early exit no longer charges
-  the admin's pause or burns the unplayed package minutes. Since P2d the server
-  knows the device commands (reboot, shutdown, wake through a neighbour in the
-  same subnet, sign-out, message, maintenance on/off, policy refresh), refuses
-  unknown types, keeps power and maintenance away from a running session, and
-  hands a reboot, shutdown or wake to the agent once and never after ten minutes.
-  Since P2e every early end returns the unplayed prepaid time and package
-  minutes — the counter and auto-protection as well as the player (owner,
-  2026-09-24) — inside the same transaction that ends the session, which also
-  closes a double refund on two near-simultaneous player exits.
-  The agent does not execute the new commands yet (it answers "not implemented")
-  and does not report its MAC; that lands after P1. The shell host still signs
-  in through the public route with unbound tokens and does not pick up claims;
-  P3 moves it onto the agent.
+- **Sign-in and commands on the PC go through the agent, proven only by tests.**
+  The player signs in on the PC by phone and PIN or by the app's QR; the agent
+  calls `/api/devices/{id}/player-sign-in`, tokens are bound to the PC and
+  revoked by the server (P2a–P2b, P3). The agent executes reboot, shutdown, wake
+  through a neighbour, sign-out, message and maintenance on/off (P5–P6); an
+  unknown type is answered `command_not_implemented`. Early ends return the
+  unplayed time and package minutes in the same transaction (P2e). Nothing of it
+  has run on a real club PC — that is the P5 acceptance below.
 
 - **Rendered Reports QA** — the redesigned Organization Admin Reports views
   have automated component/App coverage and a green production build, but still
@@ -1082,15 +1072,14 @@ thrown away rather than polished.
    host and bridge v2, the new interface, kiosk and protection, multi-seat
    commands, game library, shell settings, reviews, hardware snapshot, showcase
    and platform ads, tips). None of it is proven on a live PC — that is the P5
-   acceptance and the frozen live runs below. The named leftovers are built on
-   `feat/shell-leftovers` (not merged yet): club replies to reviews and hiding
-   offensive text, drives and monitors in the hardware inventory, Steam store
-   images as catalog covers and image uploads in Platform Control (MinIO).
-   On top of it, `feat/birthdays-and-reply-push`: an optional birth date in the
-   profile (games above the player's age lock on the PC, a club birthday gift
-   to the wallet), a push and inbox entry for the club's first reply to a
-   review, and the in-app inbox no longer shows the phone-verification SMS
-   code. Telegram alerts wait for the first club.
+   acceptance and the frozen live runs below. The named leftovers were merged
+   the same day (#501 and #502, `main` 70314d40): club replies to reviews and
+   hiding offensive text, drives and monitors in the hardware inventory, Steam
+   store images as catalog covers and image uploads in Platform Control (MinIO),
+   an optional birth date in the profile (games above the player's age lock on
+   the PC, a club birthday gift to the wallet), a push and inbox entry for the
+   club's first reply to a review; the in-app inbox no longer shows the
+   phone-verification SMS code. Telegram alerts wait for the first club.
 2. **The launch set is merged (2026-09-26).** Per-PC pricing with trial,
    promised payment and free-plan fallback (#491), agentless console seats
    (#492), guest import with opening balances (#493), «refer a club» (#494), the

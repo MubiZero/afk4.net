@@ -603,7 +603,7 @@ live runs for:
 - Agentless console and TV seats.
 
 Status 2026-09-25: every item above and the shell-rewrite items P6–P9 are
-built as stacked PRs #480–#495, none merged. Specs:
+built as stacked PRs #480–#495; all merged into `main` on 2026-09-26. Specs:
 `2026-09-25-club-plans-per-pc-design.md` (pricing, trial, promised payment,
 free-plan fallback, «refer a club»), `2026-09-25-visit-tips-design.md`; plans
 `2026-09-25-console-seats.md`, `2026-09-25-guest-import.md`; the demo runbook
@@ -618,9 +618,9 @@ configured in Platform Control (#496). The Tajik advertising law (2003, as of
 text first, advertiser details, banned and permit-only categories, per-article
 moderation checks, stored image copies (the ads-law PR on top of #496 and
 #489); ad images are stored by the platform itself, so ads no longer wait on
-the media bucket. Tips stay a personal gift outside receipts. Still open: the
-lawyer's questions in the ads spec §8.4 and a native speaker's pass over the
-Tajik UI strings.
+the media bucket. Tips stay a personal gift outside receipts. The owner's
+lawyer reviewed the ads spec §8 and had no remarks (2026-09-26). Still open: a
+native speaker's pass over the Tajik UI strings beyond the ads screens.
 
 Update 2026-09-26 (shell leftovers): clubs reply to reviews and hide
 offensive text (the stars stay in the rating); the hardware inventory now
