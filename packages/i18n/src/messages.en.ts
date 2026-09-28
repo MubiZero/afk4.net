@@ -112,6 +112,7 @@ export const en = {
   "auth.twoFactor.error.expired": "The confirmation window expired. Please sign in again.",
   "auth.twoFactor.error.invalidCode": "Wrong code. Check your phone's clock and try again.",
   "auth.twoFactor.error.lockedOut": "Too many attempts. The account is locked for 15 minutes — please try again later.",
+  "auth.twoFactor.error.lockedOutUntil": "Too many attempts. The account is locked until {time} — please try again later.",
   "auth.twoFactor.field.code": "Confirmation code",
   "auth.twoFactor.recovery.ack": "I've saved the recovery codes",
   "auth.twoFactor.recovery.continue": "Continue",

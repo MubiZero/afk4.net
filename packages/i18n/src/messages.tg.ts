@@ -112,6 +112,7 @@ export const tg = {
   "auth.twoFactor.error.expired": "Мӯҳлати тасдиқ гузашт. Бори дигар ворид шавед.",
   "auth.twoFactor.error.invalidCode": "Рамз нодуруст аст. Вақти телефонро тафтиш кунед ва бори дигар кӯшиш кунед.",
   "auth.twoFactor.error.lockedOut": "Кӯшишҳо аз ҳад зиёданд. Ҳисоб барои 15 дақиқа маҳдуд шуд — баъдтар бори дигар кӯшиш кунед.",
+  "auth.twoFactor.error.lockedOutUntil": "Кӯшишҳо аз ҳад зиёданд. Ҳисоб то {time} маҳдуд аст — баъдтар бори дигар кӯшиш кунед.",
   "auth.twoFactor.field.code": "Рамзи тасдиқ",
   "auth.twoFactor.recovery.ack": "Ман рамзҳои барқарорсозиро нигоҳ доштам",
   "auth.twoFactor.recovery.continue": "Идома додан",
