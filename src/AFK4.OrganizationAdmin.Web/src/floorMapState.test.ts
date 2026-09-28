@@ -202,6 +202,32 @@ describe('floor-map state', () => {
     });
   });
 
+  // Статус ПК приходит с каждым сердцебиением и знает только «на связи / заблокирован»: он не
+  // должен превращать место на обслуживании или сверх тарифа в «Свободен».
+  it('keeps maintenance and outside-plan seats closed through live device status', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [
+        createSeat({ state: 'Maintenance', maintenanceSinceUtc: '2026-09-27T08:00:00Z' }),
+        createSeat({ seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc', seatName: 'PC-02', deviceId: '22222222-2222-2222-2222-222222222222', isOutsidePlan: true })
+      ]
+    }, t);
+    const before = state.seats.map((seat) => ({ tone: seat.tone, stateLabel: seat.stateLabel }));
+
+    let seats = state.seats;
+    for (const id of [deviceId, '22222222-2222-2222-2222-222222222222']) {
+      seats = applyDeviceStatusToSeats(seats, {
+        organizationId, branchId, deviceId: id, machineName: 'PC', isOnline: true, isLocked: true,
+        observedAtUtc: '2026-09-27T10:00:00Z'
+      }, t);
+    }
+
+    expect(seats.map((seat) => ({ tone: seat.tone, stateLabel: seat.stateLabel }))).toEqual(before);
+    expect(seats.every((seat) => seat.isDeviceOnline)).toBe(true);
+  });
+
   it('keeps active sessions visible when their device heartbeat goes offline', () => {
     const state = mapFloorMapDtoToState({
       branchId,

@@ -240,6 +240,29 @@ function accruedCostText(minorUnits: number | null, currencyCode: string | null,
 
 function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedDto, t: TFn): SeatSummary {
   const hasActiveSession = seat.hasActiveSession ?? seat.tone === 'active';
+  const deviceFields = {
+    device: formatDeviceSummary({
+      deviceName: seat.deviceName ?? status.machineName,
+      isOnline: status.isOnline,
+      isLocked: status.isLocked,
+      agentVersion: undefined,
+      shellVersion: undefined
+    }),
+    deviceId: seat.deviceId ?? status.deviceId,
+    deviceName: seat.deviceName ?? status.machineName,
+    isDeviceOnline: status.isOnline,
+    isDeviceLocked: status.isLocked
+  };
+
+  // Статус ПК приходит с каждым сердцебиением и знает только «на связи / заблокирован». Место на
+  // обслуживании и свободное место сверх тарифа закрыты по другой причине — её знает только снимок
+  // карты. Пересчёт по статусу превращал их в «Свободен (+)», и оператор сажал гостя на закрытый ПК.
+  const inMaintenance = Boolean(seat.maintenanceSinceUtc) || normalizeState(seat.rawState ?? '') === 'maintenance';
+  const idleOutsidePlan = seat.isOutsidePlan === true;
+  if (!hasActiveSession && (inMaintenance || idleOutsidePlan)) {
+    return { ...seat, ...deviceFields };
+  }
+
   const hasDevice = true;
   const nextRawState = hasActiveSession
     ? seat.rawState ?? seat.tone
@@ -256,19 +279,9 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
     remaining: hasActiveSession
       ? seat.remaining
       : remainingText(null, normalizedState, tone, hasActiveSession, t),
-    device: formatDeviceSummary({
-      deviceName: seat.deviceName ?? status.machineName,
-      isOnline: status.isOnline,
-      isLocked: status.isLocked,
-      agentVersion: undefined,
-      shellVersion: undefined
-    }),
+    ...deviceFields,
     command: commandText(normalizedState, tone, hasActiveSession, status.isOnline),
     app: seat.app,
-    deviceId: seat.deviceId ?? status.deviceId,
-    deviceName: seat.deviceName ?? status.machineName,
-    isDeviceOnline: status.isOnline,
-    isDeviceLocked: status.isLocked,
     hasActiveSession,
     activeSessionId: seat.activeSessionId,
     sessionVersion: seat.sessionVersion,
