@@ -2856,7 +2856,6 @@
   "op.reports.schedule.emptyHint": "Set up the first one in the form above — until then, reports are opened here by hand.",
   "op.reports.schedule.frequency.daily": "Every day",
   "op.reports.schedule.frequency.monthly": "Every month",
-  "op.reports.schedule.frequency.unknown": "Unknown frequency",
   "op.reports.schedule.frequency.weekly": "Every week",
   "op.reports.schedule.frequencyLabel": "How often",
   "op.reports.schedule.frequencyOf": "“{report}” delivery frequency",

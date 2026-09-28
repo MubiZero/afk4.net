@@ -43,7 +43,7 @@ const EN_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * порядок «день месяц год» и 24 часа), названия месяцев и дней недели подставляются таджикские.
  * Всегда здесь, а не только когда `Intl` не знает таджикского, — чтобы на всех машинах одинаково.
  */
-export function formatTajikDate(date: Date, options: Intl.DateTimeFormatOptions): string {
+function formatTajikDate(date: Date, options: Intl.DateTimeFormatOptions): string {
   const timeZone = options.timeZone;
   const monthIndex = Number(new Intl.DateTimeFormat('en-GB', { month: 'numeric', timeZone }).format(date)) - 1;
   const weekdayIndex = EN_WEEKDAYS.indexOf(new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(date));

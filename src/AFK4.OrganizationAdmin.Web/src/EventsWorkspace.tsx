@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { majorToMinor, minorToMajor } from '@afk4/money';
 import { Trophy } from 'lucide-react';
 import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
@@ -49,11 +50,11 @@ function toMinorUnits(value: string): number | null {
   if (normalized === '') return 0;
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed) || parsed < 0) return null;
-  return Math.round(parsed * 100);
+  return majorToMinor(parsed);
 }
 
 function fromMinorUnits(minorUnits: number): string {
-  return (minorUnits / 100).toFixed(2);
+  return minorToMajor(minorUnits).toFixed(2);
 }
 
 /// События клуба: турнир по пятницам, ночь игры, чемпионат зала.

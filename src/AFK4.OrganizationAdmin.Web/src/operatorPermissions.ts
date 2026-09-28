@@ -57,18 +57,10 @@ export function hasPermission(session: OperatorAuthSession | null, permission: s
   return session?.permissions?.some((candidate) => candidate.toLowerCase() === permission.toLowerCase()) ?? false;
 }
 
-export function hasAllPermissions(session: OperatorAuthSession | null, permissions: readonly string[]) {
-  return permissions.every((permission) => hasPermission(session, permission));
-}
-
 export function hasAnyPermission(session: OperatorAuthSession | null, permissions: readonly string[]) {
   return permissions.some((permission) => hasPermission(session, permission));
 }
 
 export function canOpenWorkspace(session: OperatorAuthSession | null, workspaceId: WorkspaceId) {
   return hasAnyPermission(session, workspacePermissionRules[workspaceId]);
-}
-
-export function firstAllowedWorkspace(session: OperatorAuthSession | null) {
-  return workspaceIds.find((workspaceId) => canOpenWorkspace(session, workspaceId)) ?? 'map';
 }

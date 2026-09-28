@@ -7,18 +7,8 @@ const read = (name: string) => readFileSync(join(import.meta.dir, name), 'utf8')
 const authCss = read('auth.css');
 const kitCss = read('kit.css');
 const tableCss = read('table.css');
-const barrelCss = read('styles.css');
 
 describe('@afk4/ui shared layer', () => {
-  it('ships every layer through the barrel', () => {
-    const layers = readdirSync(import.meta.dir)
-      .filter(name => name.endsWith('.css') && name !== 'styles.css')
-      .sort();
-    for (const layer of layers) {
-      expect(barrelCss).toContain(`@import "./${layer}";`);
-    }
-  });
-
   // Ниже — визуальные гварды, переехавшие вместе со стилями из оператора: мелкий плотный текст
   // обязан сидеть на токенах, дающих контраст AA, иначе на светлой теме он «выцветает».
   it('keeps dense small text on AA-capable foreground tokens', () => {

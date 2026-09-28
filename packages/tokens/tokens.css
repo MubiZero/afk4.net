@@ -50,7 +50,6 @@
   /* Motion */
   --duration-fast: 120ms;
   --duration-medium: 200ms;
-  --duration-modal: 320ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-spring: cubic-bezier(0.34, 1.4, 0.7, 1);

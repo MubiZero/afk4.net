@@ -2857,7 +2857,6 @@ export const ru = {
   "op.reports.schedule.emptyHint": "Настройте первую в форме выше — пока её нет, отчёты открываются здесь вручную.",
   "op.reports.schedule.frequency.daily": "Каждый день",
   "op.reports.schedule.frequency.monthly": "Каждый месяц",
-  "op.reports.schedule.frequency.unknown": "Неизвестная частота",
   "op.reports.schedule.frequency.weekly": "Каждую неделю",
   "op.reports.schedule.frequencyLabel": "Как часто",
   "op.reports.schedule.frequencyOf": "Частота рассылки «{report}»",

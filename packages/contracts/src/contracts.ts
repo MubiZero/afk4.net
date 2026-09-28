@@ -7418,12 +7418,6 @@ export interface SettlePosSaleRequest {
   idempotencyKey: string;
 }
 
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellAuthSignInRequest {
-  phone: string;
-  pin: string;
-}
-
 /**
  * Кто вошёл на этом ПК. Токены страница не видит: их держит хост.
  *
@@ -7440,11 +7434,6 @@ export interface ShellBrandingDto {
   clubName: string;
   logoUrl: string | null;
   accentColor: string | null;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellLaunchRequest {
-  appId: string;
 }
 
 /**
@@ -7509,33 +7498,6 @@ export interface ShellPipeRequestDto {
   /** Одно из ShellPipeRequestTypeNames. */
   type: ShellPipeRequestTypeName;
   payload: Record<string, string>;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellSetLayoutRequest {
-  /** Одно из ShellKeyboardLayoutNames. */
-  layout: ShellKeyboardLayoutName;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellSetMicMutedRequest {
-  micMuted: boolean;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellSetVolumeRequest {
-  /** 0–100. */
-  volume: number;
-}
-
-/**
- * Показ карточки витрины: какая и сколько миллисекунд стояла на экране.
- *
- * Контракт: Shell/ShellBridgeContracts.cs
- */
-export interface ShellShowcaseImpressionDto {
-  cardId: string;
-  shownMs: number;
 }
 
 /**

@@ -8,19 +8,7 @@ import type {
   ReportScheduleDto,
   UpdateReportScheduleRequest,
 } from '@afk4/contracts';
-export type {
-  CreateReportScheduleRequest,
-  OrganizationAdminActiveShiftDto,
-  OrganizationAdminReportAttentionDto,
-  OrganizationAdminReportFiguresDto,
-  OrganizationAdminReportPeriodDto,
-  OrganizationAdminRevenueReportDto,
-  OrganizationAdminRevenueTrendPointDto,
-  OrganizationAdminShiftCashReportDto,
-  OrganizationAdminSummaryReportDto,
-  ReportScheduleDto,
-  UpdateReportScheduleRequest,
-} from '@afk4/contracts';
+export type { ReportScheduleDto } from '@afk4/contracts';
 
 export type OrganizationAdminReportQuery = Record<string, string> & { fromDate: string; toDate: string };
 
@@ -39,8 +27,6 @@ export interface ReportShiftRowDto {
   openedAtUtc: string;
   closedAtUtc?: string | null;
 }
-
-export interface CashOperationRowDto { operationId: Guid; shiftId?: Guid | null; sourceType: string; operationType: string; cashImpact: MoneyDto; reason: string; createdAtUtc: string }
 
 export function createReportsClient(api: PlatformApiClient) {
   return {

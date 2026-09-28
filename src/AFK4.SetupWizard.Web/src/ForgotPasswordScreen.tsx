@@ -9,7 +9,7 @@ import {
   resetPasswordByPhone,
 } from './wizardApi';
 import { HostBridgeRequestError, isHostBridgeUnavailableError } from './hostBridge';
-import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
+import { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
 
 export type ResetChannel = 'email' | 'phone';
 

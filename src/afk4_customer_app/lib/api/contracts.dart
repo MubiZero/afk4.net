@@ -18121,27 +18121,6 @@ class SettlePosSaleRequest {
       };
 }
 
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellAuthSignInRequest {
-  const ShellAuthSignInRequest({
-    required this.phone,
-    required this.pin,
-  });
-
-  final String phone;
-  final String pin;
-
-  factory ShellAuthSignInRequest.fromJson(Map<String, dynamic> json) => ShellAuthSignInRequest(
-        phone: json['phone'] as String,
-        pin: json['pin'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'phone': phone,
-        'pin': pin,
-      };
-}
-
 /// Кто вошёл на этом ПК. Токены страница не видит: их держит хост.
 ///
 /// Контракт: Shell/ShellBridgeContracts.cs
@@ -18191,23 +18170,6 @@ class ShellBrandingDto {
         'clubName': clubName,
         'logoUrl': logoUrl,
         'accentColor': accentColor,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellLaunchRequest {
-  const ShellLaunchRequest({
-    required this.appId,
-  });
-
-  final String appId;
-
-  factory ShellLaunchRequest.fromJson(Map<String, dynamic> json) => ShellLaunchRequest(
-        appId: json['appId'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'appId': appId,
       };
 }
 
@@ -18380,84 +18342,6 @@ class ShellPipeRequestDto {
         'requestId': requestId,
         'type': type,
         'payload': payload.map((key, value) => MapEntry(key, value)),
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellSetLayoutRequest {
-  const ShellSetLayoutRequest({
-    required this.layout,
-  });
-
-
-  /// Одно из ShellKeyboardLayoutNames.
-  final String layout;
-
-  factory ShellSetLayoutRequest.fromJson(Map<String, dynamic> json) => ShellSetLayoutRequest(
-        layout: json['layout'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'layout': layout,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellSetMicMutedRequest {
-  const ShellSetMicMutedRequest({
-    required this.micMuted,
-  });
-
-  final bool micMuted;
-
-  factory ShellSetMicMutedRequest.fromJson(Map<String, dynamic> json) => ShellSetMicMutedRequest(
-        micMuted: json['micMuted'] as bool,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'micMuted': micMuted,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellSetVolumeRequest {
-  const ShellSetVolumeRequest({
-    required this.volume,
-  });
-
-
-  /// 0–100.
-  final int volume;
-
-  factory ShellSetVolumeRequest.fromJson(Map<String, dynamic> json) => ShellSetVolumeRequest(
-        volume: (json['volume'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'volume': volume,
-      };
-}
-
-/// Показ карточки витрины: какая и сколько миллисекунд стояла на экране.
-///
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellShowcaseImpressionDto {
-  const ShellShowcaseImpressionDto({
-    required this.cardId,
-    required this.shownMs,
-  });
-
-  final String cardId;
-  final int shownMs;
-
-  factory ShellShowcaseImpressionDto.fromJson(Map<String, dynamic> json) => ShellShowcaseImpressionDto(
-        cardId: json['cardId'] as String,
-        shownMs: (json['shownMs'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'cardId': cardId,
-        'shownMs': shownMs,
       };
 }
 
