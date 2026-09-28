@@ -15,7 +15,6 @@ import { readCategoryDirectory, type PosCategoryDirectory } from './posCategoryD
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   emptyFeedback,
   formatMinorUnits,
   projectPlayerClient,
@@ -32,6 +31,7 @@ import { EmptyState, Money } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PlatformApiError } from './platformApi';
+import { isOutcomeUnknown, retryKeys } from './unsettledKeys';
 import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
@@ -150,11 +150,12 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const [productSearch, setProductSearch] = useState('');
   const [payOpen, setPayOpen] = useState(false);
   const [paymentCloseLocked, setPaymentCloseLocked] = useState(false);
+  // Попытка оплаты — два шага: завести продажу, потом оплатить. Номер продажи помним между
+  // шагами, чтобы повтор не заводил вторую. Оплата, исход которой неизвестен, заморожена:
+  // повтор уходит той же просьбой, и общий retryKeys даёт ей тот же ключ.
   const paymentAttemptRef = useRef<{
-    createSaleKey: string;
-    settlementKey: string;
     saleId: string | null;
-    settlementRequest: SettlePosSaleRequest | null;
+    settlement: Omit<SettlePosSaleRequest, 'idempotencyKey'> | null;
   } | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
@@ -480,15 +481,11 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const attempt = paymentAttemptRef.current ?? {
-        createSaleKey: createIdempotencyKey('pos-sale'),
-        settlementKey: createIdempotencyKey('pos-payment'),
-        saleId: null,
-        settlementRequest: null
-      };
+      const attempt = paymentAttemptRef.current ?? { saleId: null, settlement: null };
       paymentAttemptRef.current = attempt;
       if (attempt.saleId === null) {
-        const sale = await clients.pos.createSale(nextBackend.branchId, {
+        const branchId = nextBackend.branchId;
+        const draft = {
           organizationId: nextBackend.session.organizationId,
           shiftId,
           // Только товар и количество: имя, цену и сумму сервер берёт из каталога и присланному
@@ -497,16 +494,18 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             productId: item.productId!,
             quantity: item.quantity
           })),
-          idempotencyKey: attempt.createSaleKey,
           playerAccountId: selectedPosPlayerId
-        });
+        };
+        const sale = await retryKeys.send('pos-sale', [branchId, draft], (idempotencyKey) =>
+          clients.pos.createSale(branchId, { ...draft, idempotencyKey }));
         attempt.saleId = readString(sale, 'posSaleId');
         if (!attempt.saleId) {
           throw new Error(t('op.pos.error.receiptNotConfirmed'));
         }
       }
 
-      const settlementRequest = attempt.settlementRequest ?? {
+      const saleId = attempt.saleId;
+      const settlement = attempt.settlement ?? {
         organizationId: nextBackend.session.organizationId,
         payments: payments.map((part) => ({
           paymentMethod: part.paymentMethod,
@@ -515,20 +514,21 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             minorUnits: part.amount.minorUnits
           }
         })),
-        note: 'operator POS checkout',
-        idempotencyKey: attempt.settlementKey
+        note: 'operator POS checkout'
       };
-      attempt.settlementRequest = settlementRequest;
+      attempt.settlement = settlement;
+      const settle = () => retryKeys.send('pos-payment', [saleId, settlement], (idempotencyKey) =>
+        clients.pos.settleSale(saleId, { ...settlement, idempotencyKey }));
       try {
-        await clients.pos.settleSale(attempt.saleId, settlementRequest);
+        await settle();
       } catch (error) {
-        if (error instanceof PlatformApiError) {
+        if (!isOutcomeUnknown(error)) {
           throw error;
         }
 
-        // A transport failure is ambiguous: the first request may have committed.
-        // Replay exactly once with the same sale, payload and idempotency key.
-        await clients.pos.settleSale(attempt.saleId, settlementRequest);
+        // The first request may have committed. Replay exactly once: same sale, same payload,
+        // and retryKeys hands it the same idempotency key.
+        await settle();
       }
 
       paymentAttemptRef.current = null;
@@ -539,7 +539,8 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       setCartItems([]);
     } catch (error) {
       const attempt = paymentAttemptRef.current;
-      let settlementOutcomeResolved = error instanceof PlatformApiError && error.status !== 409;
+      // 409 — повод сверить чек; неизвестный исход — держать попытку; остальное — ответ сервера.
+      let settlementOutcomeResolved = !isOutcomeUnknown(error) && !(error instanceof PlatformApiError && error.status === 409);
       if (error instanceof PlatformApiError && error.status === 409 && attempt?.saleId && backend !== null) {
         try {
           const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
@@ -577,10 +578,9 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         }
       }
       if (attempt?.saleId && settlementOutcomeResolved) {
-        // The next explicit click may carry corrected payment parts. Reuse the
-        // authoritative sale, but use a new key for that new payload gesture.
-        attempt.settlementKey = createIdempotencyKey('pos-payment');
-        attempt.settlementRequest = null;
+        // The next explicit click may carry corrected payment parts. Reuse the authoritative
+        // sale; the server answered, so retryKeys has already let the old key go.
+        attempt.settlement = null;
       }
       if (settlementOutcomeResolved) {
         setPaymentCloseLocked(false);
@@ -864,12 +864,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <strong><Money minorUnits={cartTotalMinorUnits} currencyCode={currencyCode} /></strong>
             </div>
             <button type="button" className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => {
-              paymentAttemptRef.current = {
-                createSaleKey: createIdempotencyKey('pos-sale'),
-                settlementKey: createIdempotencyKey('pos-payment'),
-                saleId: null,
-                settlementRequest: null
-              };
+              paymentAttemptRef.current = { saleId: null, settlement: null };
               setPayOpen(true);
             }}>{t('op.pos.payment.acceptBtn')}</button>
             {paymentBlockedKey !== null && <p className="pos-tender-blocked" role="status">{t(paymentBlockedKey)}</p>}

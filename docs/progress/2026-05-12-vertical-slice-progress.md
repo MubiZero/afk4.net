@@ -985,9 +985,13 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   correction, ledger refund, package purchase, shift open/close and cash
   in/out, POS void/refund, stock moves, and creating players, goods, packages
   and tariffs. A retry after a lost response gets the original answer instead
-  of a second charge. POS sales, bookings and the shift gate keep their own
-  attempt logic; a tariff's price version still takes a fresh key, its start
-  date being the moment of the click.
+  of a second charge. One rule decides when an outcome is unknown
+  (`isOutcomeUnknown`: network, 5xx, 408, 425, 429) and one holder keeps keys
+  (`retryKeys`) — POS sales, booking starts and the shift gate moved onto it and
+  keep only their reconciliation (read the sale, the reservation, the current
+  shift); a tariff's price version reuses the first attempt's start date. Tip
+  payouts take no client key at all: the server derives it from what was
+  already paid out. The offline outbox keeps its own persisted key.
 
 - **Sign-in and commands on the PC go through the agent, proven only by tests.**
   The player signs in on the PC by phone and PIN or by the app's QR; the agent

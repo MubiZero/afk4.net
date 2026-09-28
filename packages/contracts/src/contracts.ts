@@ -5177,11 +5177,6 @@ export interface PaymentPartDto {
   amount: MoneyDto;
 }
 
-/** Контракт: Tips/TipContracts.cs */
-export interface PayOutShiftTipsRequest {
-  idempotencyKey: string;
-}
-
 /**
  * A finished visit that has not been reviewed yet — what the app offers to rate.
  * Оценить предлагается один раз и только пока вечер свежий в памяти.

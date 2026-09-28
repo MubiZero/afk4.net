@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { ShiftTipsDto } from '@afk4/contracts';
 import { hasPermission, permissionNames } from '../operatorPermissions';
-import { createIdempotencyKey, formatMoney, formatTime } from '../operatorHelpers';
+import { formatMoney, formatTime } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
 import type { OperatorAuthSession } from '../authClient';
@@ -10,7 +10,7 @@ import type { OperatorAuthSession } from '../authClient';
 interface TipsClient {
   forShift(shiftId: string): Promise<ShiftTipsDto>;
   reverse(shiftId: string, ledgerEntryId: string): Promise<ShiftTipsDto>;
-  payOut(shiftId: string, request: { idempotencyKey: string }): Promise<ShiftTipsDto>;
+  payOut(shiftId: string): Promise<ShiftTipsDto>;
 }
 
 // Ответ не той формы (старый сервер без чаевых, прокси с заглушкой) — блока нет, а не упавший экран кассы.
@@ -75,7 +75,7 @@ export function ShiftTipsSection({
       if (action.kind === 'reverse') {
         setTips(shaped(await client.reverse(shiftId, action.ledgerEntryId)));
       } else {
-        setTips(shaped(await client.payOut(shiftId, { idempotencyKey: createIdempotencyKey('tips-payout') })));
+        setTips(shaped(await client.payOut(shiftId)));
         // Выдача — движение наличных: ожидаемая сумма в ящике и список движений должны обновиться.
         onShiftChanged();
       }

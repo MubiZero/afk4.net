@@ -4,6 +4,7 @@ import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type ReservationDto, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
 import type { StartReservationSessionRequest } from './api/clients/reservations';
 import { PlatformApiError } from './platformApi';
+import { isOutcomeUnknown, retryKeys } from './unsettledKeys';
 import type { OperatorFloorMapState } from './floorMapState';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -12,7 +13,6 @@ import {
   addMinutes,
   createAuthenticatedOperatorClients,
   emptyFeedback,
-  createIdempotencyKey,
   formatMinorUnits,
   isRecord,
   projectPlayerClient,
@@ -63,17 +63,18 @@ import { PanelModal } from './PanelModal';
 import { useBlockedReason } from './components/BlockedReason';
 import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
 
+/** Просьба о запуске без ключа: ключ даёт общий `retryKeys` по самой просьбе. */
+export type ReservationStartAttempt = Omit<StartReservationSessionRequest, 'idempotencyKey'>;
+
 export function buildReservationStartRequest(
   organizationId: string,
   expectedVersion: number,
-  idempotencyKey: string,
   selection: SessionStartSelection
-): StartReservationSessionRequest {
+): ReservationStartAttempt {
   return {
     organizationId,
     expectedVersion,
     tariffRuleVersionId: selection.tariffRuleVersionId,
-    idempotencyKey,
     durationMode: selection.durationMode,
     durationMinutes: selection.durationMinutes,
     billingMode: selection.billingMode === 'guest' ? '' : selection.billingMode,
@@ -82,11 +83,6 @@ export function buildReservationStartRequest(
     isComp: selection.isComp,
     compReason: selection.compReason
   };
-}
-
-export function isReservationStartOutcomeAmbiguous(error: unknown): boolean {
-  if (!(error instanceof PlatformApiError)) return true;
-  return error.status >= 500 || error.status === 408 || error.status === 425 || error.status === 429;
 }
 
 export function BackendBookingWorkspace({
@@ -138,9 +134,9 @@ export function BackendBookingWorkspace({
   const [startClientWallet, setStartClientWallet] = useState<{ balanceMinorUnits: number; debtMinorUnits: number } | null>(null);
   const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
   const [startFormValid, setStartFormValid] = useState(true);
-  const [startIdempotencyKey, setStartIdempotencyKey] = useState('');
   const [startVersion, setStartVersion] = useState(0);
-  const [startAttempt, setStartAttempt] = useState<StartReservationSessionRequest | null>(null);
+  // Попытка, исход которой неизвестен, заморожена: повтор уходит той же просьбой и тем же ключом.
+  const [startAttempt, setStartAttempt] = useState<ReservationStartAttempt | null>(null);
   const [startAttemptUnresolved, setStartAttemptUnresolved] = useState(false);
 
   // Поиск клиента клуба для привязки брони к аккаунту (если есть право просмотра клиентов).
@@ -660,7 +656,6 @@ export function BackendBookingWorkspace({
     setFeedback(emptyFeedback);
     setStartSelection(createSessionStartSelection(selectedItem.playerAccountId ? 'prepaid_wallet' : 'guest'));
     setStartFormValid(selectedItem.playerAccountId.length === 0);
-    setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
     setStartVersion(selectedItem.version);
     setStartAttempt(null);
     setStartAttemptUnresolved(false);
@@ -693,11 +688,12 @@ export function BackendBookingWorkspace({
       const request = startAttempt ?? buildReservationStartRequest(
         nextBackend.session.organizationId,
         item.version,
-        startIdempotencyKey,
         startSelection
       );
       if (startAttempt === null) setStartAttempt(request);
-      const response = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).reservations.startSession(item.reservationId, request);
+      const reservations = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).reservations;
+      const response = await retryKeys.send('reservation-session-start', [item.reservationId, request], (idempotencyKey) =>
+        reservations.startSession(item.reservationId, { ...request, idempotencyKey }));
       const linkedSeatId = readString(response.reservation, 'seatId', item.seatId);
       setFeedback({ label, state: 'confirmed' });
       setReloadVersion((value) => value + 1);
@@ -709,10 +705,9 @@ export function BackendBookingWorkspace({
     } catch (error) {
       // Any uncertain failure triggers an authoritative refresh. If the server committed, the
       // durable StartedSessionId link below wins and opens the linked seat; resubmit retains key.
-      if (!isReservationStartOutcomeAmbiguous(error)) {
+      if (!isOutcomeUnknown(error)) {
         setStartAttempt(null);
         setStartAttemptUnresolved(false);
-        setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
       } else {
         setStartAttemptUnresolved(true);
       }
@@ -732,10 +727,9 @@ export function BackendBookingWorkspace({
       return;
     }
     if (selectedItem.version !== startVersion) {
-      // A known authoritative version change is an explicit new attempt; the payload changed,
-      // therefore it must not reuse an idempotency key tied to the previous expectedVersion.
+      // A known authoritative version change is an explicit new attempt: the payload carries the
+      // new expectedVersion, so retryKeys hands it a new key on its own.
       setStartVersion(selectedItem.version);
-      setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
       setStartAttempt(null);
       setStartAttemptUnresolved(false);
     }
@@ -912,7 +906,9 @@ export function BackendBookingWorkspace({
             <div className="critical-confirmation-actions">
               <button type="button" disabled={reservationBusy || startAttemptUnresolved} onClick={() => setStartDialogOpen(false)}>{t('common.cancel')}</button>
               {feedback.state === 'failed' && <button type="button" disabled={reservationBusy} onClick={() => {
-                setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+                // Оператор решил: прошлой попытки не было. Её ключ забываем явно — даже с той
+                // же просьбой следующее нажатие будет новой попыткой.
+                if (startAttempt !== null) retryKeys.forget('reservation-session-start', [selectedItem.reservationId, startAttempt]);
                 setStartVersion(selectedItem.version);
                 setStartAttempt(null);
                 setStartAttemptUnresolved(false);

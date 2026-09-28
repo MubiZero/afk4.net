@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OwedShiftTipsDto, ShiftTipsDto } from '@afk4/contracts';
 import { hasPermission, permissionNames } from '../operatorPermissions';
-import { createIdempotencyKey, formatMoney } from '../operatorHelpers';
+import { formatMoney } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
 import type { OperatorAuthSession } from '../authClient';
 
 interface OwedTipsClient {
   owed(branchId: string): Promise<OwedShiftTipsDto[]>;
-  payOut(shiftId: string, request: { idempotencyKey: string }): Promise<ShiftTipsDto>;
+  payOut(shiftId: string): Promise<ShiftTipsDto>;
 }
 
 /**
@@ -64,7 +64,7 @@ export function OwedTipsSection({
     setBusy(true);
     setError(null);
     try {
-      await client.payOut(row.shiftId, { idempotencyKey: createIdempotencyKey('tips-payout') });
+      await client.payOut(row.shiftId);
       // Выдача — движение наличных этой смены: ожидаемая сумма в ящике должна обновиться.
       onShiftChanged();
     } catch (failure) {

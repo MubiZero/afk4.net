@@ -21,7 +21,7 @@ function renderOwed(permissions: string[], owed: OwedShiftTipsDto[] = [owedRow])
   let current = owed;
   const client = {
     owed: mock(async () => current),
-    payOut: mock(async (_shiftId: string, _request: { idempotencyKey: string }) => {
+    payOut: mock(async (_shiftId: string) => {
       current = [];
       return {} as ShiftTipsDto;
     })

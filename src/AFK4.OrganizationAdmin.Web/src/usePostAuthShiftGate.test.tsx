@@ -138,7 +138,7 @@ describe('usePostAuthShiftGate', () => {
     expect(result.current.status).toBe('ready');
   });
 
-  it('opens a shift with the supplied idempotent request', async () => {
+  it('opens a shift with the supplied request, keyed by the shared retry helper', async () => {
     const client = createClient({ getCurrentShift: mock(async () => null) });
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
@@ -151,12 +151,11 @@ describe('usePostAuthShiftGate', () => {
     const request = {
       organizationId: 'org-1',
       startingCash: { currencyCode: 'TJS', minorUnits: 10000 },
-      openingNote: 'Утренняя смена',
-      idempotencyKey: 'shift-open:test'
+      openingNote: 'Утренняя смена'
     };
     await act(async () => result.current.openShift(request));
 
-    expect(client.openShift).toHaveBeenCalledWith('branch-a', request);
+    expect(client.openShift).toHaveBeenCalledWith('branch-a', { ...request, idempotencyKey: expect.stringMatching(/^shift-open-/) });
     expect(result.current.status).toBe('ready');
   });
 
@@ -179,8 +178,7 @@ describe('usePostAuthShiftGate', () => {
     await act(async () => result.current.openShift({
       organizationId: 'org-1',
       startingCash: { currencyCode: 'TJS', minorUnits: 0 },
-      openingNote: '',
-      idempotencyKey: 'shift-open:race'
+      openingNote: ''
     }));
 
     expect(result.current.status).toBe('ready');
@@ -204,8 +202,7 @@ describe('usePostAuthShiftGate', () => {
     await act(async () => result.current.openShift({
       organizationId: 'org-1',
       startingCash: { currencyCode: 'TJS', minorUnits: 0 },
-      openingNote: '',
-      idempotencyKey: 'shift-open:failed'
+      openingNote: ''
     }));
 
     expect(result.current.status).toBe('failed');

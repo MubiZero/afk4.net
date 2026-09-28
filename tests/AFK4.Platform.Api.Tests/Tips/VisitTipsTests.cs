@@ -128,7 +128,7 @@ public sealed class VisitTipsTests
         await phone.PostAsJsonAsync(TipRoutes.Visit(club.SessionId), new PlayerTipRequest(Tjs(1000), "tip-1"));
         var shift = (await fixture.Client.GetFromJsonAsync<ShiftTipsDto>(ShiftTipsRoute(fixture, club.ShiftId)))!;
         var tipId = shift.Tips.Single().LedgerEntryId;
-        await fixture.Client.PostAsJsonAsync($"{ShiftTipsRoute(fixture, club.ShiftId)}/payout", new PayOutShiftTipsRequest("payout-1"));
+        await fixture.Client.PostAsJsonAsync($"{ShiftTipsRoute(fixture, club.ShiftId)}/payout", new { });
 
         var reverse = await fixture.Client.PostAsync($"{ShiftTipsRoute(fixture, club.ShiftId)}/{tipId:D}/reverse", content: null);
 
@@ -147,10 +147,10 @@ public sealed class VisitTipsTests
         await phone.PostAsJsonAsync(TipRoutes.Visit(club.SessionId), new PlayerTipRequest(Tjs(1000), "tip-1"));
         var payout = $"{ShiftTipsRoute(fixture, club.ShiftId)}/payout";
 
-        var paid = await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-1"));
+        var paid = await fixture.Client.PostAsJsonAsync(payout, new { });
         Assert.Equal(HttpStatusCode.OK, paid.StatusCode);
         Assert.Equal(Tjs(1000), (await paid.Content.ReadFromJsonAsync<ShiftTipsDto>())!.PaidOut);
-        Assert.Equal(HttpStatusCode.Conflict, (await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-2"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await fixture.Client.PostAsJsonAsync(payout, new { })).StatusCode);
 
         await using var scope = fixture.Factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -181,14 +181,14 @@ public sealed class VisitTipsTests
         Assert.Equal(Tjs(1000), owed.Owed);
 
         // Открытой смены нет — выдавать не из чего.
-        var noDrawer = await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-1"));
+        var noDrawer = await fixture.Client.PostAsJsonAsync(payout, new { });
         Assert.Equal(HttpStatusCode.Conflict, noDrawer.StatusCode);
         Assert.Equal(TipErrorCodeNames.NoOpenShift, (await noDrawer.Content.ReadFromJsonAsync<Dictionary<string, string>>())!["error"]);
 
         var nextShift = await OpenShiftAsync(fixture);
-        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-2"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PostAsJsonAsync(payout, new { })).StatusCode);
         // Второе нажатие с другого ПК стойки — другой ключ клиента, но выдачи второй не будет.
-        Assert.Equal(HttpStatusCode.Conflict, (await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-3"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await fixture.Client.PostAsJsonAsync(payout, new { })).StatusCode);
 
         Assert.Empty((await fixture.Client.GetFromJsonAsync<OwedShiftTipsDto[]>(owedRoute))!);
         await using var scope = fixture.Factory.Services.CreateAsyncScope();

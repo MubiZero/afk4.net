@@ -128,9 +128,11 @@ internal static class TipEndpoints
 
     private static void MapPayout(IEndpointRouteBuilder organizations)
     {
-        // Выдать чаевые из кассы — это выдача наличных: право того, кто ведёт ящик.
+        // Выдать чаевые из кассы — это выдача наличных: право того, кто ведёт ящик. Ключа от
+        // клиента нет: сервер выводит его из того, сколько уже выдано, — и повтор после обрыва,
+        // и два кассира, нажавших разом, выдадут один раз.
         organizations.MapPost("shifts/{shiftId:guid}/tips/payout", async (
-            Guid shiftId, PayOutShiftTipsRequest request, StaffAuthorizationService authorizationService, IAuditRecordWriter audit,
+            Guid shiftId, StaffAuthorizationService authorizationService, IAuditRecordWriter audit,
             PlatformDbContext db, VisitTips tips, AFK4.Platform.Api.Shifts.IShiftService shifts, CancellationToken ct) =>
         {
             var branchId = await ShiftBranchAsync(db, shiftId, ct);
@@ -138,7 +140,6 @@ internal static class TipEndpoints
             var authorization = await authorizationService.RequireBranchPermissionAsync(branchId.Value, OrganizationPermissionNames.ManageShiftCash, ct);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            if (string.IsNullOrWhiteSpace(request.IdempotencyKey)) return Results.BadRequest(new { error = "idempotency_key_required" });
 
             var staff = authorization.StaffContext!;
             var (result, error) = await tips.PayOutAsync(shifts, staff.OrganizationId, shiftId, staff.StaffUserId, ct);

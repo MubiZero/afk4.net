@@ -11936,23 +11936,6 @@ class PaymentPartDto {
       };
 }
 
-/// Контракт: Tips/TipContracts.cs
-class PayOutShiftTipsRequest {
-  const PayOutShiftTipsRequest({
-    required this.idempotencyKey,
-  });
-
-  final String idempotencyKey;
-
-  factory PayOutShiftTipsRequest.fromJson(Map<String, dynamic> json) => PayOutShiftTipsRequest(
-        idempotencyKey: json['idempotencyKey'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'idempotencyKey': idempotencyKey,
-      };
-}
-
 /// A finished visit that has not been reviewed yet — what the app offers to rate.
 /// Оценить предлагается один раз и только пока вечер свежий в памяти.
 ///

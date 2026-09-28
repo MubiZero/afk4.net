@@ -12,7 +12,6 @@ import { retryKeys } from '../../../unsettledKeys';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   formatMoneyInputMinorUnits,
   isGuid,
   parseMoneyInputMinorUnits,
@@ -169,22 +168,27 @@ export function TariffsTab({
 
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const newTariff = { organizationId: nextBackend.session.organizationId, name: trimmedName, schedule: schedulePayload };
-      // Повтор после обрыва вернёт уже заведённый тариф, а не второй с тем же именем. Версия цены
-      // ниже едет со своим ключом: у неё дата начала — момент нажатия.
+      // Повтор после обрыва вернёт уже заведённый тариф, а не второй с тем же именем.
       const tariff = await retryKeys.send('tariff-create', [nextBackend.branchId, newTariff], (idempotencyKey) =>
         apiClients.settings.createTariff(nextBackend.branchId, { ...newTariff, idempotencyKey }));
       const tariffId = readString(tariff, 'tariffId');
       if (tariffId) {
-        await apiClients.settings.createTariffVersion(nextBackend.branchId, tariffId, {
+        const price = {
           organizationId: nextBackend.session.organizationId,
           tariffId,
           currencyCode,
           pricePerMinuteMinorUnits: Math.max(1, Math.round(pricePerHourMinorUnits / 60)),
           minimumBillableMinutes,
-          roundingIncrementMinutes,
-          effectiveFromUtc: new Date().toISOString(),
-          idempotencyKey: createIdempotencyKey('tariff-version-create')
-        });
+          roundingIncrementMinutes
+        };
+        // Цена действует с первого нажатия: повтор после обрыва пришлёт ту же дату и тот же ключ,
+        // а не вторую версию цены на минуту позже.
+        await retryKeys.send('tariff-version-create', [nextBackend.branchId, price], (idempotencyKey, firstAttemptAt) =>
+          apiClients.settings.createTariffVersion(nextBackend.branchId, tariffId, {
+            ...price,
+            effectiveFromUtc: firstAttemptAt.toISOString(),
+            idempotencyKey
+          }));
       }
       setCreateOpen(false);
       await onReload(nextBackend);

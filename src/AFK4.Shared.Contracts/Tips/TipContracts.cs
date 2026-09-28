@@ -37,8 +37,6 @@ public sealed record ShiftTipsDto(
     // Уже выдано из кассы за эту смену: выдать ту же сумму второй раз нельзя.
     MoneyDto? PaidOut = null);
 
-public sealed record PayOutShiftTipsRequest(string IdempotencyKey);
-
 /// <summary>
 /// Невыданные чаевые закрытой смены: смену закрыли, а администратор денег не получил. Выдают их
 /// из кассы открытой сейчас смены — отметка ставится на ту, где их заработали.

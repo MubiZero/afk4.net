@@ -5,8 +5,7 @@ import type { OperatorFloorMapState } from './floorMapState';
 import type { SeatSummary } from './operatorData';
 import type { OperatorBackendContext } from './operatorTypes';
 import { ToastProvider } from './operatorToast';
-import { BackendBookingWorkspace, buildReservationStartRequest, isReservationStartOutcomeAmbiguous } from './BackendBookingWorkspace';
-import { PlatformApiError } from './platformApi';
+import { BackendBookingWorkspace, buildReservationStartRequest } from './BackendBookingWorkspace';
 import { createSessionStartSelection } from './session/SessionStartForm';
 
 const originalFetch = globalThis.fetch;
@@ -60,27 +59,18 @@ function json(body: unknown, status = 200) {
 // раньше состояние несло только цвет. Поэтому блоки ищутся по вхождению имени гостя,
 // а не по точному совпадению подписи.
 describe('BackendBookingWorkspace modifier draft transitions', () => {
-  it('classifies transport and retryable HTTP failures as ambiguous, but domain 4xx as determined', () => {
-    expect(isReservationStartOutcomeAmbiguous(new TypeError('network lost'))).toBe(true);
-    for (const status of [408, 425, 429, 500, 502, 503, 504]) {
-      expect(isReservationStartOutcomeAmbiguous(new PlatformApiError('retryable', status, 'Failure', '{}'))).toBe(true);
-    }
-    for (const status of [400, 401, 403, 404, 409, 422]) {
-      expect(isReservationStartOutcomeAmbiguous(new PlatformApiError('domain', status, 'Failure', '{}'))).toBe(false);
-    }
-  });
   it('builds distinct wallet, package, postpaid and comp payloads without changing reservation identity', () => {
     const base = createSessionStartSelection('prepaid_wallet');
-    expect(buildReservationStartRequest('org-1', 7, 'key-wallet', { ...base, tariffVersionId: 'tariff-1' })).toMatchObject({
-      organizationId: 'org-1', expectedVersion: 7, idempotencyKey: 'key-wallet', billingMode: 'prepaid_wallet', tariffVersionId: 'tariff-1'
+    expect(buildReservationStartRequest('org-1', 7, { ...base, tariffVersionId: 'tariff-1' })).toMatchObject({
+      organizationId: 'org-1', expectedVersion: 7, billingMode: 'prepaid_wallet', tariffVersionId: 'tariff-1'
     });
-    expect(buildReservationStartRequest('org-1', 7, 'key-package', { ...base, billingMode: 'package', tariffVersionId: null, playerPackageId: 'pkg-1' })).toMatchObject({
+    expect(buildReservationStartRequest('org-1', 7, { ...base, billingMode: 'package', tariffVersionId: null, playerPackageId: 'pkg-1' })).toMatchObject({
       billingMode: 'package', playerPackageId: 'pkg-1'
     });
-    expect(buildReservationStartRequest('org-1', 7, 'key-postpaid', { ...base, billingMode: 'postpaid_debt', tariffVersionId: 'tariff-1' })).toMatchObject({
+    expect(buildReservationStartRequest('org-1', 7, { ...base, billingMode: 'postpaid_debt', tariffVersionId: 'tariff-1' })).toMatchObject({
       billingMode: 'postpaid_debt', tariffVersionId: 'tariff-1'
     });
-    expect(buildReservationStartRequest('org-1', 7, 'key-comp', {
+    expect(buildReservationStartRequest('org-1', 7, {
       ...base, billingMode: 'guest', tariffVersionId: 'tariff-1', durationMode: 'fixed', durationMinutes: 60,
       isComp: true, compReason: 'manager courtesy'
     })).toMatchObject({ billingMode: '', isComp: true, compReason: 'manager courtesy', tariffVersionId: 'tariff-1' });
