@@ -8,7 +8,7 @@ namespace AFK4.Platform.Api.Devices;
 public sealed class EfDeviceCredentialLifecycleService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IDeviceBoundPlayerTokens? deviceTokens = null) : IDeviceCredentialLifecycleService
+    EfDeviceBoundPlayerTokens? deviceTokens = null)
 {
     /// <summary>
     /// Сколько ещё принимается старый ключ после самоперевыпуска. Пятнадцать минут — это запас
@@ -17,6 +17,11 @@ public sealed class EfDeviceCredentialLifecycleService(
     /// </summary>
     private static readonly TimeSpan OverlapWindow = TimeSpan.FromMinutes(15);
 
+    /// <summary>
+    /// Отрезать машину немедленно и выдать новый ключ человеку. Старые ключи отзываются в ту же
+    /// секунду, поэтому агент на этой машине сразу теряет доступ: это путь для украденного или
+    /// скомпрометированного ПК, где так и надо.
+    /// </summary>
     public async Task<RotateDeviceCredentialResponse?> RotateAsync(Guid deviceId, CancellationToken cancellationToken)
     {
         var device = await dbContext.Devices.SingleOrDefaultAsync(
@@ -71,6 +76,11 @@ public sealed class EfDeviceCredentialLifecycleService(
             RotatedAtUtc: now);
     }
 
+    /// <summary>
+    /// Попросить машину перевыпустить себе ключ самой. Ничего не отзывает: просьба уезжает агенту
+    /// ближайшим сердцебиением, и меняет ключ он сам. Это путь гигиены — ключ обновляется без
+    /// визита к ПК и без простоя.
+    /// </summary>
     public async Task<bool> RequestRotationAsync(Guid deviceId, CancellationToken cancellationToken)
     {
         var device = await dbContext.Devices.SingleOrDefaultAsync(
@@ -88,6 +98,10 @@ public sealed class EfDeviceCredentialLifecycleService(
         return true;
     }
 
+    /// <summary>
+    /// Агент меняет свой ключ сам. Старый остаётся принятым ещё <c>overlap</c> — на случай, если
+    /// ПК выключится между ответом сервера и записью нового ключа на диск.
+    /// </summary>
     public async Task<RotateDeviceCredentialResponse?> RotateForAgentAsync(
         Guid deviceId,
         CancellationToken cancellationToken)

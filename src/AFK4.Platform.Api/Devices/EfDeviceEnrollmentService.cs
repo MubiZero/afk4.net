@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Devices;
 public sealed class EfDeviceEnrollmentService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IPlanLimitGuard planLimitGuard) : IDeviceEnrollmentService, IDeviceCredentialValidator
+    EfPlanLimitGuard planLimitGuard) : IDeviceEnrollmentService, IDeviceCredentialValidator
 {
     public async Task<DeviceEnrollmentCodeDto> CreateEnrollmentCodeAsync(
         Guid branchId,

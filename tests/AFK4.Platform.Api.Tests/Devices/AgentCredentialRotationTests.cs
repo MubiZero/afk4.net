@@ -235,7 +235,7 @@ public sealed class AgentCredentialRotationTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var lifecycle = scope.ServiceProvider
-                .GetRequiredService<IDeviceCredentialLifecycleService>();
+                .GetRequiredService<EfDeviceCredentialLifecycleService>();
             await lifecycle.RotateAsync(device.DeviceId, CancellationToken.None);
         }
 

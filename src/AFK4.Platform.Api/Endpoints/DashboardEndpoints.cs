@@ -17,7 +17,7 @@ internal static class DashboardEndpoints
             int? limit,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IOperatorDashboardService dashboardService,
+            EfOperatorDashboardService dashboardService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(

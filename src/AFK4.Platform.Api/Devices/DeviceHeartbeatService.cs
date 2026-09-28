@@ -22,8 +22,8 @@ public sealed class DeviceHeartbeatService(
     IOptions<SessionLeaseOptions> leaseOptions,
     IOptions<HeartbeatOptions> heartbeatOptions,
     EfSeatingCodeService seatingCodes,
-    IDeviceBoundPlayerTokens deviceTokens,
-    IOrganizationFeatureSnapshot featureSnapshot,
+    EfDeviceBoundPlayerTokens deviceTokens,
+    CachedOrganizationFeatures featureSnapshot,
     PlayerSignInClaimService signInClaims,
     TimeProvider timeProvider) : IDeviceHeartbeatService
 {

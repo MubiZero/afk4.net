@@ -180,7 +180,7 @@ internal static class BranchSettingsEndpoints
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBranchBookingSettingsService bookingSettingsService,
+            EfBranchBookingSettingsService bookingSettingsService,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -227,7 +227,7 @@ internal static class BranchSettingsEndpoints
             UpdateBranchBookingSettingsRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBranchBookingSettingsService bookingSettingsService,
+            EfBranchBookingSettingsService bookingSettingsService,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {

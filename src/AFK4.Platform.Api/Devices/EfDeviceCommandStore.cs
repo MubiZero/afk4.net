@@ -8,7 +8,7 @@ namespace AFK4.Platform.Api.Devices;
 
 public sealed class EfDeviceCommandStore(
     PlatformDbContext dbContext,
-    AFK4.Platform.Api.Sessions.ISessionCommandResultProcessor? sessionResults = null) : IDeviceCommandStore
+    AFK4.Platform.Api.Sessions.EfSessionCommandResultProcessor? sessionResults = null) : IDeviceCommandStore
 {
     public async Task<DeviceCommandDto> AddPendingAsync(
         Guid deviceId,

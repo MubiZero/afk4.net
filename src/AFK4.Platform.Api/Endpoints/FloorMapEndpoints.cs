@@ -11,7 +11,7 @@ internal static class FloorMapEndpoints
         app.MapGet("branches/{branchId:guid}/floor-map", async (
             Guid branchId,
             HttpContext httpContext,
-            IFloorMapReadService floorMapReadService,
+            EfFloorMapReadService floorMapReadService,
             StaffAuthorizationService authorizationService,
             CancellationToken cancellationToken) =>
         {

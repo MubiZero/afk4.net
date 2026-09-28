@@ -18,7 +18,7 @@ namespace AFK4.Platform.Api.Dashboard;
 public sealed class EfOperatorDashboardService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IOptions<BranchDiagnosticsOptions> diagnosticsOptions) : IOperatorDashboardService
+    IOptions<BranchDiagnosticsOptions> diagnosticsOptions)
 {
     private const string DefaultCurrencyCode = "TJS";
     private const int DefaultLimit = 8;

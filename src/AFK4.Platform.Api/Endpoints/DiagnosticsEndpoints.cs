@@ -14,7 +14,7 @@ internal static class DiagnosticsEndpoints
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBranchDiagnosticsService diagnosticsService,
+            EfBranchDiagnosticsService diagnosticsService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(

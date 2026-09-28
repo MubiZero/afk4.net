@@ -13,7 +13,7 @@ namespace AFK4.Platform.Api.FloorMap;
 public sealed class EfFloorMapReadService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    BranchDiagnosticsOptions diagnosticsOptions) : IFloorMapReadService
+    BranchDiagnosticsOptions diagnosticsOptions)
 {
     private static readonly string[] ProjectedSessionStates =
     [
