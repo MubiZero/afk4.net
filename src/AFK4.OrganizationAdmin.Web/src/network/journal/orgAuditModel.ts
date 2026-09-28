@@ -24,15 +24,20 @@ export function outcomeChipTone(outcome: string): OutcomeTone {
   return 'is-neutral';
 }
 
+/**
+ * Строки журнала для человека. Исполнитель раньше был сырым GUID: владелец, открывший журнал
+ * ответить «кто трогал подписку», получал столбец идентификаторов. Имя приносит сервер; без имени
+ * — начало id, чтобы строку было с чем сверить.
+ */
 export function toAuditRows(
-  records: OrgAuditRecordDto[],
+  records: readonly OrgAuditRecordDto[],
   fmt: { formatDate: (iso: string) => string },
   systemLabel: string
 ): AuditRow[] {
   return records.map((r) => ({
     id: r.auditRecordId,
     date: fmt.formatDate(r.createdAtUtc),
-    actor: r.actorStaffUserId ?? r.actorPlatformAdminUserId ?? systemLabel,
+    actor: r.actorDisplayName ?? (r.actorStaffUserId ?? r.actorPlatformAdminUserId)?.slice(0, 8) ?? systemLabel,
     action: r.action,
     target: r.targetId === null ? r.targetType : `${r.targetType} (${r.targetId})`,
     outcome: r.outcome,

@@ -2,24 +2,10 @@ import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
 
-export interface OrgAuditRecordDto {
-  auditRecordId: string;
-  branchId: string | null;
-  actorStaffUserId: string | null;
-  actorPlatformAdminUserId: string | null;
-  action: string;
-  targetType: string;
-  targetId: string | null;
-  outcome: string;
-  sourceApp: string;
-  detailsJson: string;
-  createdAtUtc: string;
-}
-
-export interface OrgAuditSearchResultDto {
-  records: OrgAuditRecordDto[];
-  limit: number;
-}
+// Запись журнала — тип контракта, а не своё зеркало: своё отставало бы от сервера (так и было
+// с именем исполнителя).
+export type { AuditRecordDto as OrgAuditRecordDto, AuditSearchResultDto as OrgAuditSearchResultDto } from '@afk4/contracts';
+import type { AuditSearchResultDto as OrgAuditSearchResultDto } from '@afk4/contracts';
 
 export interface OrgAuditQuery {
   action?: string | null;

@@ -2168,6 +2168,7 @@ class AuditRecordDto {
     this.actorPlatformAdminUserId,
     this.organizationName,
     this.amountMinorUnits,
+    this.actorDisplayName,
   });
 
   final String auditRecordId;
@@ -2189,6 +2190,11 @@ class AuditRecordDto {
   final String? organizationName;
   final int? amountMinorUnits;
 
+  /// Кто сделал — по имени: сотрудник клуба, сотрудник платформы или служебный
+  /// исполнитель. Журнал открывают, чтобы ответить «кто трогал подписку», и столбец GUID на этот
+  /// вопрос не отвечает. Пусто — действие системы без исполнителя.
+  final String? actorDisplayName;
+
   factory AuditRecordDto.fromJson(Map<String, dynamic> json) => AuditRecordDto(
         auditRecordId: json['auditRecordId'] as String,
         organizationId: json['organizationId'] as String,
@@ -2204,6 +2210,7 @@ class AuditRecordDto {
         actorPlatformAdminUserId: json['actorPlatformAdminUserId'] == null ? null : json['actorPlatformAdminUserId'] as String,
         organizationName: json['organizationName'] == null ? null : json['organizationName'] as String,
         amountMinorUnits: json['amountMinorUnits'] == null ? null : (json['amountMinorUnits'] as num).toInt(),
+        actorDisplayName: json['actorDisplayName'] == null ? null : json['actorDisplayName'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2221,6 +2228,7 @@ class AuditRecordDto {
         'actorPlatformAdminUserId': actorPlatformAdminUserId,
         'organizationName': organizationName,
         'amountMinorUnits': amountMinorUnits,
+        'actorDisplayName': actorDisplayName,
       };
 }
 

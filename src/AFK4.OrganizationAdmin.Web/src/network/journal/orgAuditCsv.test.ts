@@ -5,6 +5,10 @@ import type { OrgAuditRecordDto } from '../../api/clients/orgAudit';
 function record(overrides: Partial<OrgAuditRecordDto> = {}): OrgAuditRecordDto {
   return {
     auditRecordId: 'a1',
+    organizationId: 'o',
+    organizationName: null,
+    amountMinorUnits: null,
+    actorDisplayName: null,
     branchId: 'b1',
     actorStaffUserId: 's1',
     actorPlatformAdminUserId: null,
