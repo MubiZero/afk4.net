@@ -927,6 +927,10 @@ export const PlatformErrorCodeNames = {
   BranchSlugTaken: 'branch_slug_taken',
   /** Логин владельца уже занят в этой организации. */
   OwnerUserNameTaken: 'owner_username_taken',
+  /** У приглашения нет адреса почты — отправлять письмо некуда. */
+  OwnerInviteNoEmail: 'owner_invite_no_email',
+  /** Срок приглашения истёк — повторная отправка ничего не решит. */
+  OwnerInviteExpired: 'owner_invite_expired',
 } as const;
 export type PlatformErrorCodeName = (typeof PlatformErrorCodeNames)[keyof typeof PlatformErrorCodeNames];
 
@@ -4959,6 +4963,7 @@ export interface OrganizationOwnerInviteSummaryDto {
   status: string;
   ownerUserName: string | null;
   ownerDisplayName: string | null;
+  hasEmail: boolean;
   expiresAtUtc: IsoDateTime;
   acceptedAtUtc: IsoDateTime | null;
   revokedAtUtc: IsoDateTime | null;

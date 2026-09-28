@@ -410,12 +410,25 @@ public sealed class EfPlatformOrganizationService(
             return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest("Only pending invites can be resent.");
         }
 
-        if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
+        var now = timeProvider.GetUtcNow();
+        // Статус «истекло» сервер ставит лениво — только при попытке принять приглашение (см.
+        // AcceptOrganizationOwnerInviteAsync), поэтому приглашение может числиться Pending и уже
+        // просрочиться. Повтор такого приглашения без кода выглядел бы отправленным письмом,
+        // хотя владелец по нему уже не войдёт.
+        if (invite.ExpiresAtUtc <= now)
         {
-            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest("This invite has no email address on file.");
+            invite.Status = OrganizationOwnerInviteStatusNames.Expired;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(
+                "This invite has expired.", PlatformErrorCodeNames.OwnerInviteExpired);
         }
 
-        var now = timeProvider.GetUtcNow();
+        if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(
+                "This invite has no email address on file.", PlatformErrorCodeNames.OwnerInviteNoEmail);
+        }
+
         await SendOrganizationOwnerInviteEmailAsync(invite, $"owner-invite-resend:{invite.OrganizationOwnerInviteId:N}:{now.UtcTicks}", cancellationToken);
 
         return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.Success(ToInviteDto(invite));
@@ -1183,6 +1196,7 @@ public sealed class EfPlatformOrganizationService(
             Status: entity.Status,
             OwnerUserName: entity.OwnerUserName,
             OwnerDisplayName: entity.OwnerDisplayName,
+            HasEmail: !string.IsNullOrWhiteSpace(entity.OwnerEmail),
             ExpiresAtUtc: entity.ExpiresAtUtc,
             AcceptedAtUtc: entity.AcceptedAtUtc,
             RevokedAtUtc: entity.RevokedAtUtc,

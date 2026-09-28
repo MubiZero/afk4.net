@@ -3918,6 +3918,8 @@
   "platform.error.invoiceNumberingConflict": "Номер счёта занял параллельный запрос. Повторите — номер возьмётся следующий.",
   "platform.error.invoicePeriodAlreadyBilled": "Счёт за текущий период уже выставлен. Новый появится, когда начнётся следующий период.",
   "platform.error.organizationSlugTaken": "Такой адрес организации уже занят. Выберите другой.",
+  "platform.error.ownerInviteExpired": "Срок приглашения истёк. Отправьте новое.",
+  "platform.error.ownerInviteNoEmail": "У приглашения не указан адрес почты — письмо отправить некуда.",
   "platform.error.ownerUserNameTaken": "Такой логин владельца в этой организации уже занят.",
   "platform.error.paidInvoiceCannotBeVoided": "Оплаченный счёт не аннулируют — на него выписывают кредит-ноту.",
   "platform.error.subscriptionGrace": "Отсрочку ставят на будущее: прошедшая дата ничего не отсрочит.",

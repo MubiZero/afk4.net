@@ -78,6 +78,7 @@ public sealed class OrganizationOwnerInviteContractSerializationTests
             Status: OrganizationOwnerInviteStatusNames.Pending,
             OwnerUserName: "owner@demo.test",
             OwnerDisplayName: "Demo Owner",
+            HasEmail: true,
             ExpiresAtUtc: DateTimeOffset.Parse("2026-05-30T08:00:00Z"),
             AcceptedAtUtc: null,
             RevokedAtUtc: null,

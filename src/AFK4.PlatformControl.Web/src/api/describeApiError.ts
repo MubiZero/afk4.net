@@ -31,6 +31,8 @@ const CODE_KEYS: Record<string, MessageKey> = {
   organization_slug_taken: 'platform.error.organizationSlugTaken',
   branch_slug_taken: 'platform.error.branchSlugTaken',
   owner_username_taken: 'platform.error.ownerUserNameTaken',
+  owner_invite_no_email: 'platform.error.ownerInviteNoEmail',
+  owner_invite_expired: 'platform.error.ownerInviteExpired',
 
   // Уход клуба с платформы — эти коды разбирались отдельным словарём в offboardingModel.
   not_deletion_pending: 'platform.offboarding.error.notLeaving',

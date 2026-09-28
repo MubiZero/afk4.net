@@ -770,6 +770,10 @@ abstract final class PlatformErrorCodeNames {
   static const String branchSlugTaken = 'branch_slug_taken';
   /// Логин владельца уже занят в этой организации.
   static const String ownerUserNameTaken = 'owner_username_taken';
+  /// У приглашения нет адреса почты — отправлять письмо некуда.
+  static const String ownerInviteNoEmail = 'owner_invite_no_email';
+  /// Срок приглашения истёк — повторная отправка ничего не решит.
+  static const String ownerInviteExpired = 'owner_invite_expired';
 }
 
 /// Ключи фич, которые платформа умеет включать и выключать клубу. Каждый ключ обязан иметь
@@ -11186,6 +11190,7 @@ class OrganizationOwnerInviteSummaryDto {
     required this.status,
     this.ownerUserName,
     this.ownerDisplayName,
+    required this.hasEmail,
     required this.expiresAtUtc,
     this.acceptedAtUtc,
     this.revokedAtUtc,
@@ -11200,6 +11205,7 @@ class OrganizationOwnerInviteSummaryDto {
   final String status;
   final String? ownerUserName;
   final String? ownerDisplayName;
+  final bool hasEmail;
   final DateTime expiresAtUtc;
   final DateTime? acceptedAtUtc;
   final DateTime? revokedAtUtc;
@@ -11214,6 +11220,7 @@ class OrganizationOwnerInviteSummaryDto {
         status: json['status'] as String,
         ownerUserName: json['ownerUserName'] == null ? null : json['ownerUserName'] as String,
         ownerDisplayName: json['ownerDisplayName'] == null ? null : json['ownerDisplayName'] as String,
+        hasEmail: json['hasEmail'] as bool,
         expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
         acceptedAtUtc: json['acceptedAtUtc'] == null ? null : DateTime.parse(json['acceptedAtUtc'] as String),
         revokedAtUtc: json['revokedAtUtc'] == null ? null : DateTime.parse(json['revokedAtUtc'] as String),
@@ -11229,6 +11236,7 @@ class OrganizationOwnerInviteSummaryDto {
         'status': status,
         'ownerUserName': ownerUserName,
         'ownerDisplayName': ownerDisplayName,
+        'hasEmail': hasEmail,
         'expiresAtUtc': expiresAtUtc.toIso8601String(),
         'acceptedAtUtc': acceptedAtUtc?.toIso8601String(),
         'revokedAtUtc': revokedAtUtc?.toIso8601String(),

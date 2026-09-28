@@ -47,6 +47,15 @@ describe('describeApiError', () => {
     expect(describeApiError(paid, t)).not.toBe(describeApiError(numbering, t));
   });
 
+  it('отказ повторной отправки приглашения называет причину: нет почты или истёк срок', () => {
+    const noEmail = new PlatformApiError(400, 'x', 'owner_invite_no_email');
+    const expired = new PlatformApiError(400, 'x', 'owner_invite_expired');
+
+    expect(describeApiError(noEmail, t)).toBe(messages.ru['platform.error.ownerInviteNoEmail']);
+    expect(describeApiError(expired, t)).toBe(messages.ru['platform.error.ownerInviteExpired']);
+    expect(describeApiError(noEmail, t)).not.toBe(describeApiError(expired, t));
+  });
+
   it('незнакомый код называет общими словами, а не выдумывает объяснение', () => {
     const text = describeApiError(new PlatformApiError(409, 'x', 'some_future_code'), t);
 

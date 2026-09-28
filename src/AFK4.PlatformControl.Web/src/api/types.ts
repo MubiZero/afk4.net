@@ -156,6 +156,7 @@ export interface OrganizationOwnerInviteSummary {
   status: string;
   ownerUserName: string | null;
   ownerDisplayName: string | null;
+  hasEmail: boolean;
   expiresAtUtc: string;
   acceptedAtUtc: string | null;
   revokedAtUtc: string | null;

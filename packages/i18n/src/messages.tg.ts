@@ -3919,6 +3919,8 @@ export const tg = {
   "platform.error.invoiceNumberingConflict": "Рақами ҳисобномаро дархости мувозӣ гирифт. Такрор кунед — рақами навбатӣ гирифта мешавад.",
   "platform.error.invoicePeriodAlreadyBilled": "Ҳисобнома барои давраи ҷорӣ аллакай бароварда шудааст. Нави он бо оғози давраи нав пайдо мешавад.",
   "platform.error.organizationSlugTaken": "Ин суроғаи ташкилот аллакай банд аст. Дигарашро интихоб кунед.",
+  "platform.error.ownerInviteExpired": "Мӯҳлати даъватнома гузаштааст. Даъватномаи навро фиристед.",
+  "platform.error.ownerInviteNoEmail": "Барои ин даъватнома суроғаи почта нишон дода нашудааст — номаро фиристодан ҷой надорад.",
   "platform.error.ownerUserNameTaken": "Ин логини соҳиб дар ин ташкилот аллакай банд аст.",
   "platform.error.paidInvoiceCannotBeVoided": "Ҳисобномаи пардохтшуда бекор намешавад — ба он кредит-нота мебароранд.",
   "platform.error.subscriptionGrace": "Мӯҳлати иловагӣ ба оянда гузошта мешавад: санаи гузашта чизе намегузаронад.",
