@@ -26,6 +26,24 @@ public sealed class HttpUpdateArtifactDownloaderTests : IDisposable
         Assert.Empty(Directory.EnumerateFiles(tempRoot, "*.tmp"));
     }
 
+    // Соединение, которое замолчало посреди пакета, раньше вешало весь цикл обновлений до
+    // перезапуска службы: предела у загрузки не было. Теперь тишина кончается временным сбоем —
+    // координатор повторит на следующей проверке — и недокачанный файл не остаётся.
+    [Fact]
+    public async Task DownloadAsync_WhenTheBodyGoesSilent_GivesUpAsTransientAndLeavesNothing()
+    {
+        using var handler = new SilentAfterHandler(new byte[] { 1, 2 });
+        var downloader = CreateDownloader(handler, stallTimeout: TimeSpan.FromMilliseconds(200));
+        var instruction = CreateInstruction(sizeBytes: 5);
+
+        await Assert.ThrowsAsync<TimeoutException>(() => downloader.DownloadAsync(instruction, CancellationToken.None));
+
+        Assert.Empty(Directory.EnumerateFiles(tempRoot, "*.tmp"));
+        Assert.DoesNotContain(
+            Directory.EnumerateFiles(tempRoot),
+            path => path.EndsWith(".msi", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public async Task DownloadAsync_WhenNetworkFailsDuringBody_DoesNotLeaveFinalOrTempArtifact()
     {
@@ -83,13 +101,14 @@ public sealed class HttpUpdateArtifactDownloaderTests : IDisposable
         }
     }
 
-    private HttpUpdateArtifactDownloader CreateDownloader(HttpMessageHandler handler)
+    private HttpUpdateArtifactDownloader CreateDownloader(HttpMessageHandler handler, TimeSpan? stallTimeout = null)
     {
         return new HttpUpdateArtifactDownloader(
             new TestHttpClientFactory(new HttpClient(handler)),
             Options.Create(new AgentOptions
             {
-                UpdateStagingDirectory = tempRoot
+                UpdateStagingDirectory = tempRoot,
+                UpdateDownloadStallTimeout = stallTimeout ?? TimeSpan.FromSeconds(60)
             }));
     }
 
@@ -136,6 +155,47 @@ public sealed class HttpUpdateArtifactDownloaderTests : IDisposable
             {
                 Content = new StreamContent(new FailingReadStream(bytes, failAfterBytes))
             });
+        }
+    }
+
+    private sealed class SilentAfterHandler(byte[] firstBytes) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new SilentAfterStream(firstBytes))
+            });
+        }
+    }
+
+    /// <summary>Отдаёт первые байты и замолкает, пока чтение не отменят.</summary>
+    private sealed class SilentAfterStream(byte[] firstBytes) : Stream
+    {
+        private bool sent;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (!sent)
+            {
+                sent = true;
+                firstBytes.CopyTo(buffer);
+                return firstBytes.Length;
+            }
+
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
         }
     }
 

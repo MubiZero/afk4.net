@@ -26,18 +26,41 @@ export function apiBaseUrl(state: PlayerShellStateDto | null): string | null {
   return state?.apiBaseUrl || window.__AFK4_PLAYER_CONFIG__?.platformBaseUrl || null;
 }
 
-export async function getJson<T>(baseUrl: string, path: string, signal?: AbortSignal): Promise<T> {
-  return readResponse<T>(await fetch(new URL(path, baseUrl), { signal, headers: { Accept: 'application/json' } }));
+/**
+ * Сколько ждать сервер. Без предела подвисшая сеть клуба запирала экран: лист продления и раннего
+ * выхода не закрыть, пока идёт отправка, а отправка не кончалась никогда. Превышение — отказ без
+ * кода со статусом 0; ключ попытки экран держит до успеха, так что повтор деньги не задвоит.
+ */
+const REQUEST_TIMEOUT_MS = 20_000;
+
+export function getJson<T>(baseUrl: string, path: string, signal?: AbortSignal): Promise<T> {
+  return exchange<T>(baseUrl, path, { headers: { Accept: 'application/json' } }, signal);
 }
 
-export async function postJson<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
-  return readResponse<T>(
-    await fetch(new URL(path, baseUrl), {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-  );
+export function postJson<T>(baseUrl: string, path: string, body: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
+  return exchange<T>(baseUrl, path, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }, undefined, timeoutMs);
+}
+
+async function exchange<T>(
+  baseUrl: string,
+  path: string,
+  init: RequestInit,
+  callerSignal?: AbortSignal,
+  timeoutMs = REQUEST_TIMEOUT_MS
+): Promise<T> {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = callerSignal === undefined ? timeout : AbortSignal.any([callerSignal, timeout]);
+  try {
+    return await readResponse<T>(await fetch(new URL(path, baseUrl), { ...init, signal }));
+  } catch (cause) {
+    // Отмена вызывающим (ушёл с экрана) — не ошибка, пусть уходит как есть.
+    if (timeout.aborted && callerSignal?.aborted !== true) throw new PlayerApiError(0, null);
+    throw cause;
+  }
 }
 
 /**
