@@ -64,8 +64,11 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
   String? _problem;
   Timer? _poll;
 
-  /// Повтор после обрыва — та же заявка: код одноразовый и уже погашен первой.
-  String _idempotencyKey = newIdempotencyKey();
+  /// Ключ текущей попытки входа. Сеть моргнула или ПК не ответил вовремя — ключ переживает
+  /// повтор: код одноразовый, и уже погашенный первой попыткой код на новый ключ ответил бы
+  /// «код неверен». Ключ отпускается, только когда сервер сам вынес решение — успех, отказ с
+  /// кодом или статус заявки.
+  final AttemptKey _attempt = AttemptKey();
 
   @override
   void initState() {
@@ -101,26 +104,34 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
       _stage = _Stage.sending;
       _problem = null;
     });
+    // Намерение — этот код в этом клубе: сменился код или QR назвал другой клуб — попытка
+    // другая, и ей нужен свой ключ.
+    final idempotencyKey = _attempt.forSubject('${link.code}:${link.organizationId ?? ''}');
     try {
       final claim = await widget.api.claimPcSignIn(
         seatingCode: link.code,
-        idempotencyKey: _idempotencyKey,
+        idempotencyKey: idempotencyKey,
         organizationId: link.organizationId,
       );
       if (!mounted) return;
       _follow(claim, link.organizationId);
     } on PlayerApiException catch (error) {
       if (!mounted) return;
+      // Сервер ответил decisively (4xx со своим кодом) — заявка решена, повтор пойдёт с новым
+      // ключом. Сеть моргнула (isOffline) — сервер мог и принять запрос, ключ должен пережить.
+      if (!error.isOffline) _attempt.done();
       _fail(_problemText(l, error));
     }
   }
 
   void _follow(PlayerSignInClaimDto claim, String? organizationId) {
     if (claim.status == PlayerSignInClaimStatusNames.redeemed) {
+      _attempt.done();
       _succeed(claim.seatLabel);
       return;
     }
     if (claim.status == PlayerSignInClaimStatusNames.expired) {
+      _attempt.done();
       _fail(L.of(context).customerPcSignInExpired);
       return;
     }
@@ -134,6 +145,8 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
     _poll = Timer.periodic(_pollEvery, (timer) async {
       if (DateTime.now().isAfter(deadline)) {
         timer.cancel();
+        // Клиент устал ждать — сервер тут ни при чём, заявка может быть ещё жива. Ключ остаётся:
+        // повтор должен выкупить ту же заявку, а не наткнуться на уже погашенный код.
         if (mounted) _fail(L.of(context).customerPcSignInExpired);
         return;
       }
@@ -142,9 +155,11 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
         if (!mounted || _stage != _Stage.waiting) return;
         if (next.status == PlayerSignInClaimStatusNames.redeemed) {
           timer.cancel();
+          _attempt.done();
           _succeed(next.seatLabel);
         } else if (next.status == PlayerSignInClaimStatusNames.expired) {
           timer.cancel();
+          _attempt.done();
           _fail(L.of(context).customerPcSignInExpired);
         }
       } on PlayerApiException {
@@ -166,8 +181,6 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
     setState(() {
       _stage = _Stage.failed;
       _problem = problem;
-      // Новая попытка — новая заявка: прежний код уже погашен или не подошёл.
-      _idempotencyKey = newIdempotencyKey();
     });
   }
 
@@ -179,6 +192,9 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
         'platform_account_required' => l.customerPcSignInNeedsAccount,
         'device_not_assigned' => l.customerPcSignInNotReady,
         'device_in_maintenance' => l.customerPcSignInMaintenance,
+        // ПК сверх бесплатного тарифа клуба: место есть, а сессию на нём не начать — та же
+        // фраза, что и на экране самостоятельной посадки.
+        'device_outside_plan' => l.customerPlayErrOutsidePlan,
         _ => l.customerPcSignInFailed,
       };
 
