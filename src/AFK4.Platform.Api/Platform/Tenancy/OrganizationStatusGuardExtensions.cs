@@ -3,7 +3,7 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 public static class OrganizationStatusGuardExtensions
 {
     public static async Task<IResult?> RequireActiveAsync(
-        this IOrganizationStatusGuard guard,
+        this EfOrganizationStatusGuard guard,
         Guid organizationId,
         CancellationToken cancellationToken)
     {

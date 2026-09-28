@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Tenancy;
 
-public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext) : IOperatorConnectionResolver
+public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext)
 {
     public async Task<PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>> ResolveAsync(
         ResolveOperatorConnectionRequest request,

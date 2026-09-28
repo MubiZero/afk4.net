@@ -23,8 +23,8 @@ public enum TwoFactorError
 // none of it goes through the normal PlatformAdminAuthorizationService session path, by design.
 public sealed class PlatformAdminTwoFactorService(
     PlatformDbContext dbContext,
-    IPlatformAdminTokenService tokenService,
-    ISecretProtector secretProtector,
+    OpaquePlatformAdminTokenService tokenService,
+    AesGcmSecretProtector secretProtector,
     TimeProvider timeProvider)
 {
     private static readonly TimeSpan ChallengeLifetime = TimeSpan.FromMinutes(2);

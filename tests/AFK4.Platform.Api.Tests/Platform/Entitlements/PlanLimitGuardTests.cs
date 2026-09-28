@@ -88,7 +88,7 @@ public sealed class PlanLimitGuardTests
         var (organizationId, branchId) = await SeedAsync(db, new OrganizationLimitsDto(null, null, null, null));
         SeedDevice(db, organizationId, branchId, DeviceEnrollmentStateNames.Approved);
         await db.SaveChangesAsync();
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         Assert.Null(await guard.CheckBranchAsync(organizationId, CancellationToken.None));
         Assert.Null(await guard.CheckDeviceAsync(organizationId, branchId, CancellationToken.None));
@@ -104,7 +104,7 @@ public sealed class PlanLimitGuardTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var (organizationId, _) = await SeedAsync(db, new OrganizationLimitsDto(1, null, null, null), "starter");
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         var verdict = await guard.CheckBranchAsync(organizationId, CancellationToken.None);
 
@@ -130,7 +130,7 @@ public sealed class PlanLimitGuardTests
         SeedDevice(db, organizationId, branchId, DeviceEnrollmentStateNames.Approved);
         SeedDevice(db, organizationId, secondHall, DeviceEnrollmentStateNames.Pending);
         await db.SaveChangesAsync();
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         var verdict = await guard.CheckDeviceAsync(organizationId, secondHall, CancellationToken.None);
 
@@ -147,7 +147,7 @@ public sealed class PlanLimitGuardTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var (organizationId, _) = await SeedAsync(db, new OrganizationLimitsDto(3, null, null, null));
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         Assert.Null(await guard.CheckBranchAsync(organizationId, CancellationToken.None));
     }
@@ -164,7 +164,7 @@ public sealed class PlanLimitGuardTests
         SeedDevice(db, organizationId, branchId, DeviceEnrollmentStateNames.Removed);
         SeedDevice(db, organizationId, branchId, DeviceEnrollmentStateNames.Rejected);
         await db.SaveChangesAsync();
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         // Живое устройство одно из двух разрешённых: снятые и отклонённые места не занимают.
         Assert.Null(await guard.CheckDeviceAsync(organizationId, branchId, CancellationToken.None));
@@ -189,7 +189,7 @@ public sealed class PlanLimitGuardTests
         });
         SeedDevice(db, organizationId, branchId, DeviceEnrollmentStateNames.Approved);
         await db.SaveChangesAsync();
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         Assert.NotNull(await guard.CheckDeviceAsync(organizationId, branchId, CancellationToken.None));
         Assert.Null(await guard.CheckDeviceAsync(organizationId, otherBranchId, CancellationToken.None));
@@ -207,7 +207,7 @@ public sealed class PlanLimitGuardTests
         SeedSession(db, organizationId, branchId, SessionStateNames.Ended);
         SeedSession(db, organizationId, branchId, SessionStateNames.Reconciled);
         await db.SaveChangesAsync();
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         Assert.Null(await guard.CheckConcurrentSessionAsync(organizationId, CancellationToken.None));
 
@@ -253,7 +253,7 @@ public sealed class PlanLimitGuardTests
             });
         }
         await db.SaveChangesAsync();
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         // Отключённый сотрудник места не занимает: один активный из двух разрешённых.
         Assert.Null(await guard.CheckStaffUserAsync(organizationId, branchId, CancellationToken.None));
@@ -291,7 +291,7 @@ public sealed class PlanLimitGuardTests
         await using var factory = new PlatformApiFactory();
         _ = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
-        var guard = scope.ServiceProvider.GetRequiredService<IPlanLimitGuard>();
+        var guard = scope.ServiceProvider.GetRequiredService<EfPlanLimitGuard>();
 
         // Несуществующая организация — не повод отказывать по лимиту: за «нет такой» отвечает
         // вызывающий код своей ошибкой, иначе пользователь получит ложное объяснение отказа.

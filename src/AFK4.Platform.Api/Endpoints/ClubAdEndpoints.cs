@@ -21,7 +21,7 @@ internal static class ClubAdEndpoints
     {
         organizations.MapGet("platform-ads", async (
             Guid organizationId, StaffAuthorizationService authorizationService, PlatformDbContext db,
-            IOrganizationFeatureSnapshot features, IOptions<InstallOptions> install, TimeProvider clock, CancellationToken ct) =>
+            CachedOrganizationFeatures features, IOptions<InstallOptions> install, TimeProvider clock, CancellationToken ct) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewPlatformAds);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
@@ -35,7 +35,7 @@ internal static class ClubAdEndpoints
         // «Пожаловаться»: снять рекламу клуб не может, но сообщает платформе, а та решает.
         organizations.MapPost("platform-ads/{creativeId:guid}/complaints", async (
             Guid organizationId, Guid creativeId, ReportClubAdRequest request, StaffAuthorizationService authorizationService,
-            PlatformDbContext db, IOrganizationFeatureSnapshot features, IOptions<InstallOptions> install, IAuditRecordWriter audit,
+            PlatformDbContext db, CachedOrganizationFeatures features, IOptions<InstallOptions> install, IAuditRecordWriter audit,
             TimeProvider clock, CancellationToken ct) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewPlatformAds);

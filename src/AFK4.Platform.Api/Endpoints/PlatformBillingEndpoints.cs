@@ -22,7 +22,7 @@ internal static class PlatformBillingEndpoints
     {
         app.MapGet("/api/platform/plans", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlanCatalogService planCatalogService,
+            EfPlanCatalogService planCatalogService,
             IAuditRecordWriter auditRecordWriter,
             bool? includeInactive,
             CancellationToken cancellationToken) =>
@@ -51,7 +51,7 @@ internal static class PlatformBillingEndpoints
 
         app.MapPost("/api/platform/plans", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlanCatalogService planCatalogService,
+            EfPlanCatalogService planCatalogService,
             IAuditRecordWriter auditRecordWriter,
             CreatePlanRequest request,
             CancellationToken cancellationToken) =>
@@ -94,7 +94,7 @@ internal static class PlatformBillingEndpoints
         app.MapPatch("/api/platform/plans/{planCode}", async (
             string planCode,
             PlatformAdminAuthorizationService authorizationService,
-            IPlanCatalogService planCatalogService,
+            EfPlanCatalogService planCatalogService,
             IAuditRecordWriter auditRecordWriter,
             UpdatePlanRequest request,
             CancellationToken cancellationToken) =>
@@ -176,7 +176,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}/subscription", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -221,7 +221,7 @@ internal static class PlatformBillingEndpoints
         app.MapPatch("/api/platform/organizations/{organizationId:guid}/subscription", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             UpdateSubscriptionRequest request,
             CancellationToken cancellationToken) =>
@@ -273,7 +273,7 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             string? status,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -316,7 +316,7 @@ internal static class PlatformBillingEndpoints
         organizations.MapGet("subscription", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
@@ -334,7 +334,7 @@ internal static class PlatformBillingEndpoints
         organizations.MapGet("invoices", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
@@ -352,7 +352,7 @@ internal static class PlatformBillingEndpoints
         organizations.MapGet("billing/status", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
@@ -371,7 +371,7 @@ internal static class PlatformBillingEndpoints
             string? status,
             string? planCode,
             PlatformAdminAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -400,7 +400,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/invoices", async (
             string? status,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -430,8 +430,8 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -512,8 +512,8 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             CreateInvoiceRequest request,
             CancellationToken cancellationToken) =>
@@ -595,8 +595,8 @@ internal static class PlatformBillingEndpoints
             Guid invoiceId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             MarkInvoicePaidRequest request,
             CancellationToken cancellationToken) =>
@@ -678,8 +678,8 @@ internal static class PlatformBillingEndpoints
             Guid invoiceId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             VoidInvoiceRequest request,
             CancellationToken cancellationToken) =>
@@ -760,7 +760,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}/health", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationHealthService healthService,
+            EfPlatformOrganizationHealthService healthService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -824,7 +824,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}/support-notes", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformSupportNoteService supportNoteService,
+            EfPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -888,7 +888,7 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             CreateOrganizationSupportNoteRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformSupportNoteService supportNoteService,
+            EfPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -959,7 +959,7 @@ internal static class PlatformBillingEndpoints
             Guid organizationSupportNoteId,
             UpdateOrganizationSupportNoteRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformSupportNoteService supportNoteService,
+            EfPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {

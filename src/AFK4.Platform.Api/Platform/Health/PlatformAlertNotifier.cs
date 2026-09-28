@@ -20,7 +20,7 @@ public sealed class PlatformAlertNotifier(
     IOptions<PlatformAlertOptions> alertOptions,
     IJobRunRecorder jobRunRecorder,
     TimeProvider timeProvider,
-    ILogger<PlatformAlertNotifier> logger) : IPlatformAlertNotifier
+    ILogger<PlatformAlertNotifier> logger)
 {
     private readonly NotificationOptions notificationOptions = notificationOptions.Value;
     private readonly PlatformAlertOptions alertOptions = alertOptions.Value;

@@ -14,14 +14,13 @@ namespace AFK4.Platform.Api.Platform.Health;
 /// </summary>
 public sealed class EfPlatformHealthOverviewService(
     PlatformDbContext dbContext,
-    IPlatformIncidentService incidentService,
+    EfPlatformIncidentService incidentService,
     PlatformJobIntervalCatalog jobIntervalCatalog,
     IOptions<PlatformHealthOptions> healthOptions,
     IOptions<MediaOptions> mediaOptions,
     IOptions<SmsOptions> smsOptions,
     IOptions<PlatformAlertOptions> alertOptions,
     TimeProvider timeProvider)
-    : IPlatformHealthOverviewService
 {
     /// <summary>Экран, а не выгрузка: свежих провалов показываем ограниченное число.</summary>
     private const int RecentFailureLimit = 20;

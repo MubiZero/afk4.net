@@ -87,7 +87,7 @@ public sealed class BranchSnapshotRunnerTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         await SeedBranchAsync(db);
         await SeedBranchAsync(db);
-        var runner = scope.ServiceProvider.GetRequiredService<IBranchSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfBranchSnapshotRunner>();
 
         var written = await runner.RunAsync(Now, CancellationToken.None);
 
@@ -110,7 +110,7 @@ public sealed class BranchSnapshotRunnerTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         await SeedBranchAsync(db);
-        var runner = scope.ServiceProvider.GetRequiredService<IBranchSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfBranchSnapshotRunner>();
 
         await runner.RunAsync(Now, CancellationToken.None);
         var secondRun = await runner.RunAsync(Now, CancellationToken.None);
@@ -147,7 +147,7 @@ public sealed class BranchSnapshotRunnerTests
         var branchBId = await SeedBranchAsync(db);
         await db.SaveChangesAsync();
 
-        var runner = scope.ServiceProvider.GetRequiredService<IBranchSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfBranchSnapshotRunner>();
 
         var written = await runner.RunAsync(Now, CancellationToken.None);
 
@@ -193,7 +193,7 @@ public sealed class BranchSnapshotRunnerTests
         SeedPayment(db, organizationBId, branchBId, atNoonYesterdayOffset, 9_000);
         await db.SaveChangesAsync();
 
-        var runner = scope.ServiceProvider.GetRequiredService<IBranchSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfBranchSnapshotRunner>();
 
         await runner.RunAsync(Now, CancellationToken.None);
 

@@ -16,7 +16,7 @@ namespace AFK4.Platform.Api.Platform.Pulse;
 public sealed class EfPlatformPulseService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IOptions<PlatformPulseOptions> pulseOptions) : IPlatformPulseService
+    IOptions<PlatformPulseOptions> pulseOptions)
 {
     private readonly PlatformPulseOptions options = pulseOptions.Value;
 

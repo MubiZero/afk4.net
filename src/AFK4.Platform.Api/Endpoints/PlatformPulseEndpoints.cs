@@ -10,7 +10,7 @@ internal static class PlatformPulseEndpoints
     {
         app.MapGet("/api/platform/pulse", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformPulseService pulseService,
+            EfPlatformPulseService pulseService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewOrganizations);

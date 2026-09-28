@@ -6,7 +6,7 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 
 public sealed class EfPlatformSupportNoteService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IPlatformSupportNoteService
+    TimeProvider timeProvider)
 {
     private const int MaxBodyLength = 4000;
 

@@ -52,7 +52,7 @@ internal static class SupportAccessSessionEndpoints
         }).RequireRateLimiting("player-public");
 
         app.MapDelete("/api/support-access/session", async (
-            IPlatformSupportContextAccessor supportContextAccessor,
+            PlatformSupportContextAccessor supportContextAccessor,
             PlatformSupportAccessGrantService supportAccessService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
