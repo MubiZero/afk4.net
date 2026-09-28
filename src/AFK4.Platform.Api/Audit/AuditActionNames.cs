@@ -2,8 +2,6 @@ namespace AFK4.Platform.Api.Audit;
 
 public static class AuditActionNames
 {
-    public const string CreateDeviceEnrollmentCode = "devices.enrollment_codes.create";
-
     public const string DispatchDeviceCommand = "devices.commands.dispatch";
 
     /// <summary>Профиль защиты ПК филиала сохранён (спека оболочки, §6.3).</summary>

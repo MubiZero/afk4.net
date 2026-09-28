@@ -2783,7 +2783,6 @@ const allOperatorPermissions = [
   'organization.identity.branch_staff.manage',
   'organization.identity.roles.manage',
   'organization.layout.manage',
-  'organization.devices.enrollment_codes.create',
   'organization.devices.seat_assignment.assign',
   'organization.devices.detail.view',
   'organization.devices.commands.dispatch',

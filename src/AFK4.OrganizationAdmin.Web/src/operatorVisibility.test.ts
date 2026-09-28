@@ -28,7 +28,7 @@ const rolePermissions: Record<string, string[]> = {
     'organization.receipts.view', 'organization.updates.status.view'
   ],
   branch_manager: [
-    'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.maintenance', 'organization.devices.commands.status.view',
+    'organization.devices.commands.dispatch', 'organization.devices.maintenance', 'organization.devices.commands.status.view',
     'organization.devices.credentials.rotate', 'organization.devices.credentials.revoke', 'organization.devices.seat_assignment.assign',
     'organization.devices.detail.view', 'organization.devices.install', 'organization.floor_map.view', 'organization.layout.manage', 'organization.sessions.start',
     'organization.sessions.extend', 'organization.sessions.transfer', 'organization.sessions.end', 'organization.sessions.view', 'organization.players.create',
@@ -43,7 +43,7 @@ const rolePermissions: Record<string, string[]> = {
     'organization.ads.view'
   ],
   technician: [
-    'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.maintenance', 'organization.devices.commands.status.view',
+    'organization.devices.commands.dispatch', 'organization.devices.maintenance', 'organization.devices.commands.status.view',
     'organization.devices.credentials.rotate', 'organization.devices.credentials.revoke', 'organization.devices.seat_assignment.assign',
     'organization.devices.detail.view', 'organization.devices.install', 'organization.floor_map.view', 'organization.inventory.view',
     'organization.updates.status.view', 'organization.diagnostics.view'
@@ -70,9 +70,9 @@ const rolePermissions: Record<string, string[]> = {
 //     read-only devices.detail.view/devices.commands.status.view, which no longer qualify for
 //     any management destination.
 //   - branch_manager and technician keep 'admin': both hold real device-management permissions
-//     (layout.manage for branch_manager; devices.enrollment_codes.create/commands.dispatch/
-//     credentials.rotate/revoke/seat_assignment.assign for technician), so they qualify via
-//     the "Залы и ПК" destination regardless of the read-only-perms fix.
+//     (layout.manage for branch_manager; devices.commands.dispatch/credentials.rotate/revoke/
+//     seat_assignment.assign for technician), so they qualify via the "Залы и ПК" destination
+//     regardless of the read-only-perms fix.
 //   - accountant loses 'admin': its permissions are all *.view and match none of the eight
 //     management-destination permission sets (it previously saw 'admin' only via logs/audit).
 //

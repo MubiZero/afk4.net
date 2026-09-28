@@ -79,9 +79,9 @@ public sealed class EfAuditSearchServiceTests
         var service = new EfAuditSearchService(db);
         SeedRecord(
             db,
-            AuditActionNames.CreateDeviceEnrollmentCode,
+            AuditActionNames.CreateInstallCode,
             AuditOutcome.Succeeded,
-            "DeviceEnrollmentCode",
+            "InstallCode",
             DateTimeOffset.Parse("2026-05-14T09:00:00Z"));
         await db.SaveChangesAsync();
 

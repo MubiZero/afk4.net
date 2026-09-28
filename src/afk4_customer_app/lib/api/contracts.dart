@@ -515,7 +515,6 @@ abstract final class OrganizationOwnerInviteStatusNames {
 
 /// Словарь: Identity/OrganizationPermissionNames.cs
 abstract final class OrganizationPermissionNames {
-  static const String createDeviceEnrollmentCode = 'organization.devices.enrollment_codes.create';
   static const String dispatchDeviceCommand = 'organization.devices.commands.dispatch';
   /// Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает
   /// машину для игроков, и решать это — не каждому, кто может её перезапереть.

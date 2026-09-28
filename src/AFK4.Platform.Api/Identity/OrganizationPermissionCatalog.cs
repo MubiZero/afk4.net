@@ -9,7 +9,6 @@ public static class OrganizationPermissionCatalog
         {
             [OrganizationRoleNames.OrganizationOwner] = new HashSet<string>
             {
-                OrganizationPermissionNames.CreateDeviceEnrollmentCode,
                 OrganizationPermissionNames.DispatchDeviceCommand,
                 OrganizationPermissionNames.MaintainDevice,
                 OrganizationPermissionNames.ViewDeviceCommandStatus,
@@ -83,7 +82,6 @@ public static class OrganizationPermissionCatalog
             },
             [OrganizationRoleNames.BranchManager] = new HashSet<string>
             {
-                OrganizationPermissionNames.CreateDeviceEnrollmentCode,
                 OrganizationPermissionNames.DispatchDeviceCommand,
                 OrganizationPermissionNames.MaintainDevice,
                 OrganizationPermissionNames.ViewDeviceCommandStatus,
@@ -229,7 +227,6 @@ public static class OrganizationPermissionCatalog
             },
             [OrganizationRoleNames.Technician] = new HashSet<string>
             {
-                OrganizationPermissionNames.CreateDeviceEnrollmentCode,
                 OrganizationPermissionNames.DispatchDeviceCommand,
                 OrganizationPermissionNames.MaintainDevice,
                 OrganizationPermissionNames.ViewDeviceCommandStatus,
