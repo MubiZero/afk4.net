@@ -6,9 +6,23 @@ namespace AFK4.Platform.Api.Devices;
 public sealed class InMemoryDeviceCommandStore : IDeviceCommandStore
 {
     private readonly ConcurrentDictionary<(Guid DeviceId, Guid CommandId), DeviceCommandStatusDto> statuses = new();
+    private readonly ConcurrentDictionary<string, DeviceCommandDto> byIdempotencyKey = new(StringComparer.Ordinal);
 
-    public Task AddPendingAsync(Guid deviceId, DeviceCommandDto command, CancellationToken cancellationToken)
+    public Task<DeviceCommandDto> AddPendingAsync(
+        Guid deviceId,
+        DeviceCommandDto command,
+        string? idempotencyKey,
+        CancellationToken cancellationToken)
     {
+        if (idempotencyKey is not null)
+        {
+            var winner = byIdempotencyKey.GetOrAdd(idempotencyKey, command);
+            if (winner.CommandId != command.CommandId)
+            {
+                return Task.FromResult(winner);
+            }
+        }
+
         var status = new DeviceCommandStatusDto(
             DeviceId: deviceId,
             CommandId: command.CommandId,
@@ -20,8 +34,11 @@ public sealed class InMemoryDeviceCommandStore : IDeviceCommandStore
 
         statuses[(deviceId, command.CommandId)] = status;
 
-        return Task.CompletedTask;
+        return Task.FromResult(command);
     }
+
+    public Task<DeviceCommandDto?> FindByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken) =>
+        Task.FromResult(byIdempotencyKey.TryGetValue(idempotencyKey, out var command) ? command : null);
 
     public Task ApplyResultAsync(DeviceCommandResultDto result, CancellationToken cancellationToken)
     {

@@ -1,6 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { PayOutShiftTipsRequest, ShiftTipsDto, TipSettingsDto, UpdateTipSettingsRequest } from '@afk4/contracts';
-export type { ShiftTipDto, ShiftTipsDto, TipSettingsDto } from '@afk4/contracts';
+import type { OwedShiftTipsDto, ShiftTipsDto, TipSettingsDto, UpdateTipSettingsRequest } from '@afk4/contracts';
+export type { OwedShiftTipsDto, ShiftTipDto, ShiftTipsDto, TipSettingsDto } from '@afk4/contracts';
 
 // Чаевые администратору с экрана ПК: настройка клуба и чаевые смены.
 export function createTipsClient(api: PlatformApiClient) {
@@ -17,8 +17,13 @@ export function createTipsClient(api: PlatformApiClient) {
     reverse(shiftId: string, ledgerEntryId: string): Promise<ShiftTipsDto> {
       return api.post<ShiftTipsDto, Record<string, never>>(`shifts/${shiftId}/tips/${ledgerEntryId}/reverse`, {});
     },
-    payOut(shiftId: string, request: PayOutShiftTipsRequest): Promise<ShiftTipsDto> {
-      return api.post<ShiftTipsDto, PayOutShiftTipsRequest>(`shifts/${shiftId}/tips/payout`, request);
+    // Ключа нет: сервер выводит его из уже выданного, повтор выдачи дважды не выдаст.
+    payOut(shiftId: string): Promise<ShiftTipsDto> {
+      return api.post<ShiftTipsDto, Record<string, never>>(`shifts/${shiftId}/tips/payout`, {});
+    },
+    // Невыданные чаевые закрытых смен филиала: выдают из кассы открытой смены.
+    owed(branchId: string): Promise<OwedShiftTipsDto[]> {
+      return api.get<OwedShiftTipsDto[]>(`branches/${branchId}/tips/owed`);
     }
   };
 }

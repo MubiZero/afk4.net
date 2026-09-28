@@ -11,10 +11,10 @@ import { CriticalActionConfirmation, Money } from '../../operatorPrimitives';
 import { ProductBarcodesSection } from '../../settings/ProductBarcodesSection';
 import { MediaUpload } from '../../components/MediaUpload';
 import { projectOperatorError } from '../../apiErrors';
+import { retryKeys } from '../../unsettledKeys';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   formatMoneyInputMinorUnits,
   isGuid,
   parseNonNegativeMoneyInputMinorUnits,
@@ -175,11 +175,9 @@ export function GoodsDestination({
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       let categoryId = selectedCategoryId;
       if (categoryMode === 'new') {
-        const category = await apiClients.settings.createProductCategory(nextBackend.branchId, {
-          organizationId: nextBackend.session.organizationId,
-          name: trimmedCategoryName,
-          idempotencyKey: createIdempotencyKey('pos-category-create')
-        });
+        const newCategory = { organizationId: nextBackend.session.organizationId, name: trimmedCategoryName };
+        const category = await retryKeys.send('pos-category-create', [nextBackend.branchId, newCategory], (idempotencyKey) =>
+          apiClients.settings.createProductCategory(nextBackend.branchId, { ...newCategory, idempotencyKey }));
         categoryId = readString(category, 'categoryId');
         // Только что заведённая категория всегда видимая: скрытие — отдельное решение владельца.
         if (categoryId) setSessionCategories((categories) => [...categories, { categoryId, label: trimmedCategoryName, isActive: true }]);
@@ -188,7 +186,7 @@ export function GoodsDestination({
         throw new Error(t('op.settings.pos.error.categoryNotConfirmed'));
       }
 
-      const product = await apiClients.settings.createProduct(nextBackend.branchId, {
+      const newProduct = {
         organizationId: nextBackend.session.organizationId,
         categoryId,
         name: trimmedName,
@@ -200,9 +198,11 @@ export function GoodsDestination({
         // Фото и витрина ПК — в карточке уже заведённого товара.
         featuredOnPcs: false,
         imageUrl: null,
-        reorderThreshold: Number(reorderThreshold) || 0,
-        idempotencyKey: createIdempotencyKey('pos-product-create')
-      });
+        reorderThreshold: Number(reorderThreshold) || 0
+      };
+      // Ответ потерялся — повтор не заведёт товар вторым экземпляром.
+      const product = await retryKeys.send('pos-product-create', [nextBackend.branchId, newProduct], (idempotencyKey) =>
+        apiClients.settings.createProduct(nextBackend.branchId, { ...newProduct, idempotencyKey }));
       onCatalogChange?.([...catalogRows, product]);
       setSelectedProductId(readString(product, 'productId'));
       setCreateOpen(false);

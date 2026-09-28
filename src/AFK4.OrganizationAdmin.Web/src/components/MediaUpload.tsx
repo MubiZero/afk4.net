@@ -55,8 +55,9 @@ export function MediaUpload({ value, onChange, purpose, branchId, backend, disab
     setError(null);
     setUploading(true);
     try {
-      // Uploading a new file for the same (branch, purpose) supersedes the previous one
-      // server-side (EfMediaService deletes the old object) — no explicit remove() needed here.
+      // Прежний файл убирает сервер, remove() здесь не нужен: логотип и обложку — сразу при новой
+      // загрузке (EfMediaService), фото новости и товара — когда на него перестанет ссылаться
+      // сохранённое (OrphanMediaSweeper).
       const uploaded = await client.upload(branchId, purpose, file);
       onChange({ mediaId: uploaded.mediaId, url: uploaded.url });
     } catch (err) {

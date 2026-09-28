@@ -42,6 +42,7 @@ const codeMessageKeys = {
   tip_already_reversed: 'op.error.code.tipAlreadyReversed',
   tip_nothing_to_pay: 'op.error.code.tipNothingToPay',
   tip_already_paid_out: 'op.error.code.tipAlreadyPaidOut',
+  tip_no_open_shift: 'op.error.code.tipNoOpenShift',
   // Библиотека игр и консоли.
   game_library_full: 'op.error.code.gameLibraryFull',
   catalog_game_not_found: 'op.error.code.catalogGameNotFound',

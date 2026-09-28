@@ -31,6 +31,9 @@ public static class PlatformJobNames
     /// <summary>Подарки клубов на день рождения игроков.</summary>
     public const string BirthdayGifts = "birthday_gifts";
 
+    /// <summary>Уборка картинок клуба, на которые больше ничто не ссылается.</summary>
+    public const string OrphanMediaSweep = "orphan_media_sweep";
+
     /// <summary>Доставка оповещений мимо очереди — результат тоже записывается как прогон.</summary>
     public const string AlertDelivery = "alert_delivery";
 
@@ -55,6 +58,7 @@ public static class PlatformJobNames
         DeviceMaintenanceExpiry,
         PlayerReminders,
         ReputationSnapshot,
-        BirthdayGifts
+        BirthdayGifts,
+        OrphanMediaSweep
     ];
 }

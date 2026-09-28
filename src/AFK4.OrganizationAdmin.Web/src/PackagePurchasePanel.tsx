@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { PackageOptionDto, PlayerPackageDto } from './operatorApiClients';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { PlayerClientItem } from './operatorHelpers';
-import { createAuthenticatedOperatorClients, createIdempotencyKey, formatMinorUnits } from './operatorHelpers';
+import { createAuthenticatedOperatorClients, formatMinorUnits } from './operatorHelpers';
 import { hasPermission, permissionNames } from './operatorPermissions';
-import { PlatformApiError } from './platformApi';
+import { retryKeys } from './unsettledKeys';
 import { projectOperatorError } from './apiErrors';
 import { SkeletonControl } from './LoadingSkeleton';
 
@@ -27,7 +27,6 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [purchasedName, setPurchasedName] = useState<string | null>(null);
   const [refreshFailure, setRefreshFailure] = useState<string | null>(null);
-  const attemptKeyRef = useRef<string | null>(null);
   const selected = options.find((option) => option.packageDefinitionId === selectedId) ?? options[0] ?? null;
   const allowed = shiftOpen === true && player.isActive && selected !== null && hasPermission(backend.session, permissionNames.purchasePackage);
 
@@ -37,18 +36,15 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
     setErrorDetail(null);
     setPurchasedName(null);
     setRefreshFailure(null);
-    const key = attemptKeyRef.current ?? createIdempotencyKey('package-purchase');
-    attemptKeyRef.current = key;
     let result: PlayerPackageDto;
     try {
       const call = purchasePackage ?? createAuthenticatedOperatorClients(backend.config, backend.session).players.purchasePackage;
-      result = await call(player.playerAccountId, {
-        organizationId: backend.session.organizationId,
-        packageDefinitionId: selected.packageDefinitionId,
-        idempotencyKey: key
-      });
+      // Ключ держится, пока исход неизвестен, и привязан к выбранному пакету: сменил пакет после
+      // обрыва — это другая покупка, а не повтор с чужим ключом.
+      const purchase = { organizationId: backend.session.organizationId, packageDefinitionId: selected.packageDefinitionId };
+      result = await retryKeys.send('package-purchase', [player.playerAccountId, purchase], (idempotencyKey) =>
+        call(player.playerAccountId, { ...purchase, idempotencyKey }));
     } catch (error) {
-      if (error instanceof PlatformApiError && error.status >= 400 && error.status < 500 && error.status !== 409) attemptKeyRef.current = null;
       setErrorDetail(projectOperatorError(error, t).detail);
       setBusy(false);
       return;
@@ -56,7 +52,6 @@ export function PackagePurchasePanel({ backend, player, options, shiftOpen, onPu
     // Покупка прошла, деньги списаны. Всё, что дальше, — обновление экрана, и его отказ не должен
     // выглядеть отказом покупки: ключ попытки уже сброшен, и кассир, поверив красной строке,
     // купил бы пакет второй раз.
-    attemptKeyRef.current = null;
     setPurchasedName(result.name);
     try {
       await onPurchased(result);

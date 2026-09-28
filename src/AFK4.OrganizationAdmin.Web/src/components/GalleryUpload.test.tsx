@@ -111,13 +111,14 @@ describe('GalleryUpload', () => {
     ]);
   });
 
-  it('удаление убирает фото и стирает файл в хранилище', async () => {
+  // Файл стирает сервер, когда на него не останется ссылок: «Отмена» в форме ещё может вернуть фото.
+  it('удаление убирает фото из списка, а файл в хранилище не трогает', () => {
     const { onChange } = renderGallery([{ url: 'https://cdn.test/1.png', mediaId: 'm1' }]);
 
     fireEvent.click(screen.getByLabelText('Удалить'));
 
-    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('b1', 'm1'));
     expect(onChange).toHaveBeenCalledWith([]);
+    expect(removeMock).not.toHaveBeenCalled();
   });
 
   // Десять фото — потолок и на сервере: кнопка не должна звать туда, где ответят отказом.

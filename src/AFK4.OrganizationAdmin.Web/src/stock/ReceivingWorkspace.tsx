@@ -6,8 +6,9 @@ import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { StockHero } from './StockHero';
 import { ScanSearchBar } from './ScanSearchBar';
-import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
+import { createAuthenticatedOperatorClients, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { retryKeys } from '../unsettledKeys';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { matchByBarcode } from '../barcodeScanner';
 import { useBarcodeScanner } from '../useBarcodeScanner';
@@ -139,15 +140,17 @@ export function ReceivingWorkspace({
     let posted = 0;
     try {
       for (const line of lines) {
-        await api.inventory.createStockMovement(nextBackend.branchId, {
+        const movement = {
           organizationId: nextBackend.session.organizationId,
           productId: line.productId,
           movementType: 'purchase',
           quantityDelta: line.quantity,
           unitCost: { currencyCode, minorUnits: lineUnitCostMinorUnits(line) },
-          reason,
-          idempotencyKey: createIdempotencyKey('stock-movement-create'),
-        });
+          reason
+        };
+        // Строка остаётся в приёмке при сбое — повтор с тем же ключом не оприходует её дважды.
+        await retryKeys.send('stock-movement-create', [nextBackend.branchId, movement], (idempotencyKey) =>
+          api.inventory.createStockMovement(nextBackend.branchId, { ...movement, idempotencyKey }));
         remaining.shift();
         posted += 1;
       }

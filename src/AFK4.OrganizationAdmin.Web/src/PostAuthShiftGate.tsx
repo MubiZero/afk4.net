@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, LoaderCircle, LogOut, RefreshCw, Unlock } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { AuthFrame } from './AuthFrame';
-import {
-  createIdempotencyKey,
-  parseNonNegativeMoneyInputMinorUnits
-} from './operatorHelpers';
+import { parseNonNegativeMoneyInputMinorUnits } from './operatorHelpers';
 import type { PostAuthShiftGateController } from './usePostAuthShiftGate';
 
 export function PostAuthShiftGate({
@@ -42,8 +39,7 @@ export function PostAuthShiftGate({
     void controller.openShift({
       organizationId,
       startingCash: { currencyCode, minorUnits },
-      openingNote: openingNote.trim(),
-      idempotencyKey: createIdempotencyKey('shift-open')
+      openingNote: openingNote.trim()
     });
   };
 

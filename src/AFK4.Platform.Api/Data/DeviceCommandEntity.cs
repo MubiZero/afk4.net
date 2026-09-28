@@ -21,6 +21,13 @@ public sealed class DeviceCommandEntity
     /// </summary>
     public string? Outcome { get; set; }
 
+    /// <summary>
+    /// Ключ повтора нажатия в Панели, привязанный к ПК, на который жали. По нему повтор после
+    /// обрыва связи получает ту же команду, а не вторую. Null у команд без ключа: у агента,
+    /// сессий и старых записей.
+    /// </summary>
+    public string? IdempotencyKey { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; }

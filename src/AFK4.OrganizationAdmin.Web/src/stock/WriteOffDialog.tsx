@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PanelModal } from '../PanelModal';
-import { createAuthenticatedOperatorClients, createIdempotencyKey, requireBackend } from '../operatorHelpers';
+import { createAuthenticatedOperatorClients, requireBackend } from '../operatorHelpers';
 import { Money } from '../operatorPrimitives';
 import { projectOperatorError } from '../apiErrors';
+import { retryKeys } from '../unsettledKeys';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { StockItem } from './stockLevels';
 
@@ -41,15 +42,16 @@ export function WriteOffDialog({
     try {
       const nextBackend = requireBackend(backend, t);
       const api = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      await api.inventory.createStockMovement(nextBackend.branchId, {
+      const movement = {
         organizationId: nextBackend.session.organizationId,
         productId: item.productId,
         movementType: 'adjustment',
         quantityDelta: -quantity,
         unitCost: { currencyCode, minorUnits: Math.max(item.avgCostMinorUnits, 0) },
-        reason: reason.trim(),
-        idempotencyKey: createIdempotencyKey('stock-movement-create'),
-      });
+        reason: reason.trim()
+      };
+      await retryKeys.send('stock-movement-create', [nextBackend.branchId, movement], (idempotencyKey) =>
+        api.inventory.createStockMovement(nextBackend.branchId, { ...movement, idempotencyKey }));
       onDone();
     } catch (caught) {
       setSubmitting(false);

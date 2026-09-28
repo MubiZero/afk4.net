@@ -37,7 +37,18 @@ public sealed record ShiftTipsDto(
     // Уже выдано из кассы за эту смену: выдать ту же сумму второй раз нельзя.
     MoneyDto? PaidOut = null);
 
-public sealed record PayOutShiftTipsRequest(string IdempotencyKey);
+/// <summary>
+/// Невыданные чаевые закрытой смены: смену закрыли, а администратор денег не получил. Выдают их
+/// из кассы открытой сейчас смены — отметка ставится на ту, где их заработали.
+/// </summary>
+public sealed record OwedShiftTipsDto(
+    Guid ShiftId,
+    Guid RecipientStaffUserId,
+    string RecipientName,
+    DateTimeOffset OpenedAtUtc,
+    DateTimeOffset? ClosedAtUtc,
+    // Пришло за смену без возвращённых минус уже выданное.
+    MoneyDto Owed);
 
 public sealed record ShiftTipDto(
     Guid LedgerEntryId,
@@ -77,6 +88,9 @@ public static class TipErrorCodeNames
 
     /// <summary>Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды.</summary>
     public const string AlreadyPaidOut = "tip_already_paid_out";
+
+    /// <summary>Чаевые закрытой смены выдают из кассы открытой — а открытой смены в филиале нет.</summary>
+    public const string NoOpenShift = "tip_no_open_shift";
 }
 
 public static class TipLimits

@@ -27,7 +27,7 @@ public sealed class DeviceCommandStoreTests
             Message: "Command accepted by Agent skeleton.",
             ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:05Z"));
 
-        await store.AddPendingAsync(deviceId, command, CancellationToken.None);
+        await store.AddPendingAsync(deviceId, command, null, CancellationToken.None);
         await store.ApplyResultAsync(result, CancellationToken.None);
 
         var status = await store.GetAsync(deviceId, command.CommandId, CancellationToken.None);

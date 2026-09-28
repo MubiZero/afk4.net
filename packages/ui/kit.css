@@ -705,6 +705,14 @@
    задаёт сам экран. */
 .ui-alert--spaced { margin: var(--space-2) 0; }
 
+/* Предупреждение, а не ошибка: действие возможно, но у него есть последствие, о котором надо знать. */
+.ui-alert--warning {
+  border-color: var(--warning-soft-border);
+  border-left-color: var(--warning);
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+}
+
 /* Один спиннер вместо трёх: `.spin` 720ms, `auth-spin` 800ms и `wizard-spin` 800ms крутили одно
    и то же с разной скоростью. Разница была невидимой и незамеченной. */
 .ui-spinner { animation: ui-spin 800ms linear infinite; }

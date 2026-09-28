@@ -3,6 +3,7 @@ import type { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type { OpenShiftRequest } from './api/clients/shifts';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { retryKeys } from './unsettledKeys';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import type { AuthStatus, OperatorBackendContext } from './operatorTypes';
 
@@ -26,7 +27,8 @@ export interface PostAuthShiftGateController {
   error: string | null;
   failureKind: 'check' | 'open' | null;
   retry(): void;
-  openShift(request: OpenShiftRequest): Promise<void>;
+  /** Ключ даёт общий retryKeys по самой просьбе: повтор после обрыва уйдёт с тем же ключом. */
+  openShift(request: Omit<OpenShiftRequest, 'idempotencyKey'>): Promise<void>;
 }
 
 interface GateSnapshot {
@@ -108,7 +110,7 @@ export function usePostAuthShiftGate({
     setRetryNonce((value) => value + 1);
   }, []);
 
-  const openShift = useCallback(async (request: OpenShiftRequest) => {
+  const openShift = useCallback(async (request: Omit<OpenShiftRequest, 'idempotencyKey'>) => {
     if (gateKey === null || backend === null) return;
 
     const generation = ++generationRef.current;
@@ -116,7 +118,9 @@ export function usePostAuthShiftGate({
     setSnapshot({ key: gateKey, status: 'opening', error: null, failureKind: null });
 
     try {
-      await shifts.openShift(backend.branchId, request);
+      const branchId = backend.branchId;
+      await retryKeys.send('shift-open', [branchId, request], (idempotencyKey) =>
+        shifts.openShift(branchId, { ...request, idempotencyKey }));
       if (generationRef.current !== generation) return;
       setSnapshot({ key: gateKey, status: 'ready', error: null, failureKind: null });
     } catch (error) {

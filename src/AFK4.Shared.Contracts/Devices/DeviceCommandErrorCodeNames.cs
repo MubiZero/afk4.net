@@ -16,4 +16,7 @@ public static class DeviceCommandErrorCodeNames
 
     /// <summary>Разбудить некому: в подсети этого ПК нет ни одного включённого соседа.</summary>
     public const string NoWakeHelper = "no_wake_helper";
+
+    /// <summary>Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента.</summary>
+    public const string IdempotencyConflict = "idempotency_conflict";
 }

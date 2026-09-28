@@ -4,6 +4,7 @@ import { hasPermission, permissionNames } from '../operatorPermissions';
 import { ArrowRightLeft, Banknote, ChevronRight, Clock3, MoreHorizontal, ReceiptText } from 'lucide-react';
 import {
   cashOperationTypeLabel,
+  cashReasonLabel,
   createAuthenticatedOperatorClients,
   downloadTextFile,
   formatTime
@@ -20,6 +21,7 @@ import type {
 import { CashRegisterRows } from './CashTerminalFrame';
 import { CashShiftCommandBar } from './CashShiftCommandBar';
 import { ShiftTipsSection } from './ShiftTipsSection';
+import { OwedTipsSection } from './OwedTipsSection';
 import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
 import { useShownFor } from '../useShownFor';
 
@@ -222,7 +224,7 @@ export function CashShiftWorkspace({
                 {cashRows.length === 0 ? <EmptyState inline className="cash-shift-empty-note" title={t('op.cash.shift.movementsEmpty')} next={{ kind: 'calm', hint: t('op.cash.shift.movementsEmptyHint') }} /> : <ul className="cash-shift-movements">
                   {cashRows.slice(0, 8).map((row) => {
                     const negative = row.cashImpact.minorUnits < 0;
-                    return <li key={row.operationId} className={negative ? 'out' : 'in'}><span>{formatTime(row.createdAtUtc)}</span><strong>{cashOperationTypeLabel(row.operationType || 'cash', t)}</strong><em>{row.reason || '—'}</em><span>{row.createdByDisplayName || '—'}</span><b><Money minorUnits={row.cashImpact.minorUnits} currencyCode={currencyCode} signed /></b></li>;
+                    return <li key={row.operationId} className={negative ? 'out' : 'in'}><span>{formatTime(row.createdAtUtc)}</span><strong>{cashOperationTypeLabel(row.operationType || 'cash', t)}</strong><em>{cashReasonLabel(row.reason, t) || '—'}</em><span>{row.createdByDisplayName || '—'}</span><b><Money minorUnits={row.cashImpact.minorUnits} currencyCode={currencyCode} signed /></b></li>;
                   })}
                 </ul>}
                 <footer><span>{t('op.cash.shift.movementTotal')}</span><strong><Money minorUnits={movementTotal} currencyCode={currencyCode} signed /></strong></footer>
@@ -230,6 +232,7 @@ export function CashShiftWorkspace({
               </section>
 
               <ShiftTipsSection client={built?.tips ?? null} session={session} shiftId={current.shiftId} currencyCode={currencyCode} shiftNonce={shiftNonce} onShiftChanged={onShiftChanged} />
+              <OwedTipsSection client={built?.tips ?? null} session={session} branchId={branchId} currencyCode={currencyCode} shiftNonce={shiftNonce} onShiftChanged={onShiftChanged} />
             </div>
 
             <section className="cash-shift-history-panel">

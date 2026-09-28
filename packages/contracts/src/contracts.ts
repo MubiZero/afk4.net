@@ -154,6 +154,18 @@ export const BranchSearchKindNames = {
 } as const;
 export type BranchSearchKindName = (typeof BranchSearchKindNames)[keyof typeof BranchSearchKindNames];
 
+/**
+ * Причины движений кассы, которые пишет сам сервер, — кодом, а не русской фразой: Панель
+ * подписывает их на языке экрана. После кода через двоеточие — имя получателя.
+ *
+ * Словарь: Shifts/CashMovementTypeNames.cs
+ */
+export const CashMovementReasonNames = {
+  /** «tip_payout:Шерзод» — выданы чаевые администратору. */
+  TipPayout: 'tip_payout',
+} as const;
+export type CashMovementReasonName = (typeof CashMovementReasonNames)[keyof typeof CashMovementReasonNames];
+
 /** Словарь: Shifts/CashMovementTypeNames.cs */
 export const CashMovementTypeNames = {
   CashIn: 'cash_in',
@@ -213,6 +225,8 @@ export const DeviceCommandErrorCodeNames = {
   WakeTargetUnknown: 'wake_target_unknown',
   /** Разбудить некому: в подсети этого ПК нет ни одного включённого соседа. */
   NoWakeHelper: 'no_wake_helper',
+  /** Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента. */
+  IdempotencyConflict: 'idempotency_conflict',
 } as const;
 export type DeviceCommandErrorCodeName = (typeof DeviceCommandErrorCodeNames)[keyof typeof DeviceCommandErrorCodeNames];
 
@@ -1592,6 +1606,8 @@ export const TipErrorCodeNames = {
   NothingToPay: 'tip_nothing_to_pay',
   /** Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды. */
   AlreadyPaidOut: 'tip_already_paid_out',
+  /** Чаевые закрытой смены выдают из кассы открытой — а открытой смены в филиале нет. */
+  NoOpenShift: 'tip_no_open_shift',
 } as const;
 export type TipErrorCodeName = (typeof TipErrorCodeNames)[keyof typeof TipErrorCodeNames];
 
@@ -3717,10 +3733,17 @@ export interface DeviceUpdateStatusSnapshotDto {
   updatedAtUtc: IsoDateTime;
 }
 
-/** Контракт: Devices/DispatchDeviceCommandRequest.cs */
+/**
+ * Команда ПК из Панели. IdempotencyKey — ключ одного нажатия: связь оборвалась до ответа, и
+ * Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную команду, а не
+ * пошлёт на ПК вторую перезагрузку.
+ *
+ * Контракт: Devices/DispatchDeviceCommandRequest.cs
+ */
 export interface DispatchDeviceCommandRequest {
   type: string;
   payload: Record<string, string>;
+  idempotencyKey?: string | null;
 }
 
 /**
@@ -5035,6 +5058,22 @@ export interface OrganizationSupportNoteDto {
   createdAtUtc: IsoDateTime;
 }
 
+/**
+ * Невыданные чаевые закрытой смены: смену закрыли, а администратор денег не получил. Выдают их
+ * из кассы открытой сейчас смены — отметка ставится на ту, где их заработали.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface OwedShiftTipsDto {
+  shiftId: Guid;
+  recipientStaffUserId: Guid;
+  recipientName: string;
+  openedAtUtc: IsoDateTime;
+  closedAtUtc: IsoDateTime | null;
+  /** Пришло за смену без возвращённых минус уже выданное. */
+  owed: MoneyDto;
+}
+
 /** Контракт: News/OwnerBranchSummaryDto.cs */
 export interface OwnerBranchSummaryDto {
   branchId: Guid;
@@ -5136,11 +5175,6 @@ export interface PayDebtRequest {
 export interface PaymentPartDto {
   paymentMethod: string;
   amount: MoneyDto;
-}
-
-/** Контракт: Tips/TipContracts.cs */
-export interface PayOutShiftTipsRequest {
-  idempotencyKey: string;
 }
 
 /**

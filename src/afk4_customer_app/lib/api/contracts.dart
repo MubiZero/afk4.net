@@ -122,6 +122,15 @@ abstract final class BranchSearchKindNames {
   static const String order = 'order';
 }
 
+/// Причины движений кассы, которые пишет сам сервер, — кодом, а не русской фразой: Панель
+/// подписывает их на языке экрана. После кода через двоеточие — имя получателя.
+///
+/// Словарь: Shifts/CashMovementTypeNames.cs
+abstract final class CashMovementReasonNames {
+  /// «tip_payout:Шерзод» — выданы чаевые администратору.
+  static const String tipPayout = 'tip_payout';
+}
+
 /// Словарь: Shifts/CashMovementTypeNames.cs
 abstract final class CashMovementTypeNames {
   static const String cashIn = 'cash_in';
@@ -175,6 +184,8 @@ abstract final class DeviceCommandErrorCodeNames {
   static const String wakeTargetUnknown = 'wake_target_unknown';
   /// Разбудить некому: в подсети этого ПК нет ни одного включённого соседа.
   static const String noWakeHelper = 'no_wake_helper';
+  /// Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента.
+  static const String idempotencyConflict = 'idempotency_conflict';
 }
 
 /// Чем закончилась команда на устройстве — машинным именем, а не фразой.
@@ -1331,6 +1342,8 @@ abstract final class TipErrorCodeNames {
   static const String nothingToPay = 'tip_nothing_to_pay';
   /// Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды.
   static const String alreadyPaidOut = 'tip_already_paid_out';
+  /// Чаевые закрытой смены выдают из кассы открытой — а открытой смены в филиале нет.
+  static const String noOpenShift = 'tip_no_open_shift';
 }
 
 /// Словарь: Tips/TipContracts.cs
@@ -7421,24 +7434,32 @@ class DeviceUpdateStatusSnapshotDto {
       };
 }
 
+/// Команда ПК из Панели. IdempotencyKey — ключ одного нажатия: связь оборвалась до ответа, и
+/// Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную команду, а не
+/// пошлёт на ПК вторую перезагрузку.
+///
 /// Контракт: Devices/DispatchDeviceCommandRequest.cs
 class DispatchDeviceCommandRequest {
   const DispatchDeviceCommandRequest({
     required this.type,
     required this.payload,
+    this.idempotencyKey,
   });
 
   final String type;
   final Map<String, String> payload;
+  final String? idempotencyKey;
 
   factory DispatchDeviceCommandRequest.fromJson(Map<String, dynamic> json) => DispatchDeviceCommandRequest(
         type: json['type'] as String,
         payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'type': type,
         'payload': payload.map((key, value) => MapEntry(key, value)),
+        'idempotencyKey': idempotencyKey,
       };
 }
 
@@ -11560,6 +11581,48 @@ class OrganizationSupportNoteDto {
       };
 }
 
+/// Невыданные чаевые закрытой смены: смену закрыли, а администратор денег не получил. Выдают их
+/// из кассы открытой сейчас смены — отметка ставится на ту, где их заработали.
+///
+/// Контракт: Tips/TipContracts.cs
+class OwedShiftTipsDto {
+  const OwedShiftTipsDto({
+    required this.shiftId,
+    required this.recipientStaffUserId,
+    required this.recipientName,
+    required this.openedAtUtc,
+    this.closedAtUtc,
+    required this.owed,
+  });
+
+  final String shiftId;
+  final String recipientStaffUserId;
+  final String recipientName;
+  final DateTime openedAtUtc;
+  final DateTime? closedAtUtc;
+
+  /// Пришло за смену без возвращённых минус уже выданное.
+  final MoneyDto owed;
+
+  factory OwedShiftTipsDto.fromJson(Map<String, dynamic> json) => OwedShiftTipsDto(
+        shiftId: json['shiftId'] as String,
+        recipientStaffUserId: json['recipientStaffUserId'] as String,
+        recipientName: json['recipientName'] as String,
+        openedAtUtc: DateTime.parse(json['openedAtUtc'] as String),
+        closedAtUtc: json['closedAtUtc'] == null ? null : DateTime.parse(json['closedAtUtc'] as String),
+        owed: MoneyDto.fromJson(json['owed'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'shiftId': shiftId,
+        'recipientStaffUserId': recipientStaffUserId,
+        'recipientName': recipientName,
+        'openedAtUtc': openedAtUtc.toIso8601String(),
+        'closedAtUtc': closedAtUtc?.toIso8601String(),
+        'owed': owed.toJson(),
+      };
+}
+
 /// Контракт: News/OwnerBranchSummaryDto.cs
 class OwnerBranchSummaryDto {
   const OwnerBranchSummaryDto({
@@ -11870,23 +11933,6 @@ class PaymentPartDto {
   Map<String, dynamic> toJson() => {
         'paymentMethod': paymentMethod,
         'amount': amount.toJson(),
-      };
-}
-
-/// Контракт: Tips/TipContracts.cs
-class PayOutShiftTipsRequest {
-  const PayOutShiftTipsRequest({
-    required this.idempotencyKey,
-  });
-
-  final String idempotencyKey;
-
-  factory PayOutShiftTipsRequest.fromJson(Map<String, dynamic> json) => PayOutShiftTipsRequest(
-        idempotencyKey: json['idempotencyKey'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'idempotencyKey': idempotencyKey,
       };
 }
 

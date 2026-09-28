@@ -970,14 +970,28 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Known Gaps
 
-- **Named after the 2026-09-28 audits, not done.** Device commands carry no
-  idempotency key on the server (double sends from the Panel are closed, a
-  manual retry after a dropped connection is not); guest import cannot be
-  undone; replaced news and product photos stay in storage; unpaid tips after a
-  shift closes are not shown anywhere; the tip reason is written by the server
-  in Russian; the player gets no push when the club hides their review text; the
-  shell does not yet follow the concept's choreography (centred sign-in window,
-  PIN cells, game search and categories, «Recent», «Step away»).
+- **Named after the 2026-09-28 audits, not done.** Guest import cannot be
+  undone (the dry-run preview is the guard); the shell does not yet follow the
+  concept's choreography (centred sign-in window, PIN cells, game search and
+  categories, «Recent», «Step away») — after the live-PC acceptance. The owner
+  does not want a push when the club hides a review's text. Closed the same day
+  on `fix/followups-2026-09-28`: PC commands carry an idempotency key end to end
+  (a retry after a lost response gets the recorded command), tips left in a
+  closed shift are listed and paid from the open shift's drawer, the tip reason
+  is a machine name shown in the screen's language, and a periodic job removes
+  club uploads nothing references any more. The Panel keeps an action's
+  idempotency key until the server answers (`unsettledKeys.ts`, shared by the
+  whole Panel): PC commands, session actions, wallet top-up, debt payment,
+  correction, ledger refund, package purchase, shift open/close and cash
+  in/out, POS void/refund, stock moves, and creating players, goods, packages
+  and tariffs. A retry after a lost response gets the original answer instead
+  of a second charge. One rule decides when an outcome is unknown
+  (`isOutcomeUnknown`: network, 5xx, 408, 425, 429) and one holder keeps keys
+  (`retryKeys`) — POS sales, booking starts and the shift gate moved onto it and
+  keep only their reconciliation (read the sale, the reservation, the current
+  shift); a tariff's price version reuses the first attempt's start date. Tip
+  payouts take no client key at all: the server derives it from what was
+  already paid out. The offline outbox keeps its own persisted key.
 
 - **Sign-in and commands on the PC go through the agent, proven only by tests.**
   The player signs in on the PC by phone and PIN or by the app's QR; the agent

@@ -3,16 +3,17 @@ import { useI18n } from '@afk4/i18n';
 import { Lock, ArrowDownToLine, ArrowUpFromLine, Unlock, FileText } from 'lucide-react';
 import {
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   parseMoneyInputMinorUnits,
   parseNonNegativeMoneyInputMinorUnits
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { retryKeys } from '../unsettledKeys';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext, Feedback } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { OpenShiftRequest, RecordCashMovementRequest, CloseShiftRequest, ShiftDto } from '../api/clients/shifts';
 import type { BranchSettingsDto, ShiftRevenueDto, StaffUserDto } from '../operatorApiClients';
+import type { ShiftTipsDto } from '../api/clients/tips';
 import { isSignOffRequired, signOffCandidates } from './shiftSignOff';
 import { ShiftReportModal } from './ShiftReportModal';
 import { buildShiftReportData, buildShiftReportText, printShiftReport, type ShiftReportData } from './shiftReport';
@@ -31,6 +32,8 @@ export interface CashShiftActionsClient {
 export interface CloseShiftContextClient {
   getBranchSettings(branchId: string): Promise<BranchSettingsDto>;
   getStaffUsers(branchId: string): Promise<StaffUserDto[]>;
+  /** Чаевые смены — чтобы перед закрытием сказать, что они не выданы. Нет — окно молчит. */
+  getShiftTips?(shiftId: string): Promise<ShiftTipsDto>;
 }
 
 type ActiveModal = 'open' | 'cash_in' | 'cash_out' | 'close' | null;
@@ -95,6 +98,8 @@ export function CashShiftCommandBar({
   // Сервер отказал «нужна подпись старшего»: показываем поле подписи, даже если допуск филиала
   // не подгрузился и посчитать необходимость подписи заранее было нечем.
   const [signOffDemanded, setSignOffDemanded] = useState(false);
+  // Невыданные чаевые закрываемой смены: закрыть можно, но человек должен знать, что долг остаётся.
+  const [unpaidTips, setUnpaidTips] = useState<{ minorUnits: number; name: string } | null>(null);
 
   const getCloseContext = (): CloseShiftContextClient | null => {
     if (injectedCloseContext) return injectedCloseContext;
@@ -102,7 +107,14 @@ export function CashShiftCommandBar({
     try {
       // `?? null`, а не просто поле: в наборах соседних экранов клиент подменяется заглушкой без
       // `settings`, и `undefined` проскакивал бы мимо проверки ниже.
-      return createAuthenticatedOperatorClients(backend.config, backend.session).settings ?? null;
+      const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+      if (!clients.settings) return null;
+      const tips = clients.tips;
+      return {
+        getBranchSettings: (branchId) => clients.settings.getBranchSettings(branchId),
+        getStaffUsers: (branchId) => clients.settings.getStaffUsers(branchId),
+        getShiftTips: tips ? (id) => tips.forShift(id) : undefined
+      };
     } catch {
       // Та же причина, что у getActions выше: PlatformApiClient бросает на невалидном конфиге.
       // Без допуска подпись просто не спрашивается заранее — решает сервер.
@@ -119,13 +131,22 @@ export function CashShiftCommandBar({
       context.getBranchSettings(branchId)
         .then((settings) => setToleranceMinorUnits(settings.shiftDiscrepancyToleranceMinorUnits ?? null))
         .catch(() => setToleranceMinorUnits(null)),
-      context.getStaffUsers(branchId).then(setStaff).catch(() => setStaff([]))
+      context.getStaffUsers(branchId).then(setStaff).catch(() => setStaff([])),
+      shiftId && context.getShiftTips
+        ? context.getShiftTips(shiftId)
+          .then((tips) => {
+            const unpaid = (tips?.total?.minorUnits ?? 0) - (tips?.paidOut?.minorUnits ?? 0);
+            setUnpaidTips(unpaid > 0 ? { minorUnits: unpaid, name: tips.recipientName } : null);
+          })
+          .catch(() => setUnpaidTips(null))
+        : Promise.resolve()
     ]);
   };
 
   const openCloseModal = () => {
     setActiveModal('close');
     setSignOffDemanded(false);
+    setUnpaidTips(null);
     void loadCloseContext();
   };
 
@@ -172,12 +193,14 @@ export function CashShiftCommandBar({
     run(t('op.cash.action.open'), async (actions) => {
       const minor = parseNonNegativeMoneyInputMinorUnits(startingCash);
       if (minor === null) throw new Error(t('op.cash.open.startingCashLabel'));
-      await actions.openShift(backend!.branchId, {
+      const branchId = backend!.branchId;
+      const opening = {
         organizationId: backend!.session.organizationId,
         startingCash: { currencyCode, minorUnits: minor },
-        openingNote: openingNote.trim(),
-        idempotencyKey: createIdempotencyKey('shift-open')
-      });
+        openingNote: openingNote.trim()
+      };
+      await retryKeys.send('shift-open', [branchId, opening], (idempotencyKey) =>
+        actions.openShift(branchId, { ...opening, idempotencyKey }));
     });
 
   const submitMovement = (movementType: 'cash_in' | 'cash_out') => () =>
@@ -185,13 +208,14 @@ export function CashShiftCommandBar({
       const minor = parseMoneyInputMinorUnits(movementAmount);
       const reason = movementReason.trim();
       if (minor === null || !reason || shiftId === null) throw new Error(t('op.cash.movement.amountLabel'));
-      await actions.recordCashMovement(shiftId, {
+      const movement = {
         organizationId: backend!.session.organizationId,
         movementType,
         amount: { currencyCode, minorUnits: minor },
-        reason,
-        idempotencyKey: createIdempotencyKey('shift-cash-movement')
-      });
+        reason
+      };
+      await retryKeys.send('shift-cash-movement', [shiftId, movement], (idempotencyKey) =>
+        actions.recordCashMovement(shiftId, { ...movement, idempotencyKey }));
       setMovementAmount('');
       setMovementReason(t('op.cash.movement.defaultReason'));
     });
@@ -202,15 +226,18 @@ export function CashShiftCommandBar({
       setSignOffDemanded(false);
       const minor = parseNonNegativeMoneyInputMinorUnits(countedCash);
       if (minor === null || shiftId === null) throw new Error(t('op.cash.close.countedLabel'));
-      const closed = await actions.closeShift(shiftId, {
+      const closing = {
         organizationId: backend!.session.organizationId,
         countedCash: { currencyCode, minorUnits: minor },
         closingNote: closingNote.trim(),
-        idempotencyKey: createIdempotencyKey('shift-close'),
         // Пусто — обычное закрытие в пределах допуска; сервер тогда подписи и не спросит.
         managerSignOffStaffUserId: signOffStaffUserId || null,
         signOffReason: signOffReason.trim() || null
-      });
+      };
+      // Ответ потерялся — повтор с тем же ключом вернёт исходное закрытие и его Z-сводку,
+      // а не отказ «смена уже закрыта».
+      const closed = await retryKeys.send('shift-close', [shiftId, closing], (idempotencyKey) =>
+        actions.closeShift(shiftId, { ...closing, idempotencyKey }));
       // Z-сводка: снимок выручки (revenue) + counted/difference/closedAt из ответа close.
       if (revenue) setReport({ variant: 'z', data: buildShiftReportData(revenue, closed) });
     });
@@ -285,6 +312,7 @@ export function CashShiftCommandBar({
           onChangeSignOffStaffUserId={setSignOffStaffUserId}
           onChangeSignOffReason={setSignOffReason}
           expectedCash={expectedCash}
+          unpaidTips={unpaidTips}
           counted={countedCash}
           note={closingNote}
           currencyCode={currencyCode}

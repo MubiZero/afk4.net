@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { MediaPurposeNames } from '@afk4/contracts';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -10,8 +11,6 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 // Тот же потолок, что и на сервере (BranchPhotos.MaxPhotos): больше десятка фото зала никто
 // не пролистает, а каждое — трафик игрока на экране выбора клуба.
 const MAX_PHOTOS = 10;
-
-const GALLERY_PURPOSE = 'branch-gallery';
 
 export interface GalleryPhoto {
   url: string;
@@ -54,7 +53,7 @@ export function GalleryUpload({ value, onChange, branchId, backend, disabled }: 
         if (value.length + added.length >= MAX_PHOTOS) break;
         if (!ALLOWED_TYPES.has(file.type)) { setError(t('op.media.upload.errorType')); continue; }
         if (file.size > MAX_SIZE_BYTES) { setError(t('op.media.upload.errorSize')); continue; }
-        const uploaded = await client.upload(branchId, GALLERY_PURPOSE, file);
+        const uploaded = await client.upload(branchId, MediaPurposeNames.BranchGallery, file);
         added.push({ url: uploaded.url, mediaId: uploaded.mediaId });
       }
       if (added.length > 0) onChange([...value, ...added]);
@@ -65,22 +64,12 @@ export function GalleryUpload({ value, onChange, branchId, backend, disabled }: 
     }
   };
 
-  const handleRemove = async (index: number) => {
-    const photo = value[index];
+  // Файл в хранилище здесь не стираем: форму ещё закроют «Отменой», и сохранённый профиль
+  // остался бы со ссылкой на удалённое фото — у игрока в приложении битая картинка. Когда на
+  // файл перестанет ссылаться сохранённое, его уберёт сервер (OrphanMediaSweeper).
+  const handleRemove = (index: number) => {
     setError(null);
-    setBusy(true);
-    try {
-      // Файл в хранилище удаляем только если знаем его id: фото, добавленное ссылкой, нам
-      // не принадлежит, и стирать по нему нечего.
-      if (photo.mediaId !== null && photo.mediaId !== '') {
-        await client.remove(branchId, photo.mediaId);
-      }
-      onChange(value.filter((_, position) => position !== index));
-    } catch (err) {
-      setError(projectOperatorError(err, t).detail);
-    } finally {
-      setBusy(false);
-    }
+    onChange(value.filter((_, position) => position !== index));
   };
 
   const move = (index: number, delta: number) => {
@@ -126,7 +115,7 @@ export function GalleryUpload({ value, onChange, branchId, backend, disabled }: 
                   type="button" className="ui-btn ui-btn--sm ui-btn--danger"
                   aria-label={t('op.media.upload.remove')}
                   disabled={disabled || busy}
-                  onClick={() => { void handleRemove(index); }}
+                  onClick={() => handleRemove(index)}
                 >✕</button>
               </div>
             </li>
