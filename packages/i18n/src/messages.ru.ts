@@ -4172,6 +4172,8 @@ export const ru = {
   "platform.organization.invites.ownerEmail": "Почта владельца",
   "platform.organization.invites.ownerEmailHint": "Код уйдёт письмом на этот адрес. Оставьте пустым — код придётся передать владельцу лично.",
   "platform.organization.invites.ownerUserName": "Логин владельца (email)",
+  "platform.organization.invites.resend": "Отправить ещё раз",
+  "platform.organization.invites.resent": "Письмо отправлено повторно",
   "platform.organization.invites.revoke": "Отозвать",
   "platform.organization.invites.revokeConfirm": "Отозвать",
   "platform.organization.invites.revokeReason": "Причина",

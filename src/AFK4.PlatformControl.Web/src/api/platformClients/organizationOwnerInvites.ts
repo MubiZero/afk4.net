@@ -33,4 +33,11 @@ export class OrganizationOwnerInvitesApi {
       { reason }
     );
   }
+
+  public resendOrganizationOwnerInvite(organizationOwnerInviteId: string): Promise<OrganizationOwnerInvite> {
+    return this.transport.send<OrganizationOwnerInvite>(
+      'POST',
+      `/api/platform/organization-owner-invitations/${organizationOwnerInviteId}/resend`
+    );
+  }
 }

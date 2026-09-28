@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, beforeAll, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
+import { PlatformApiError } from '@/api/platformTransport';
 import { OrganizationOwnerInvitesSection } from './OrganizationOwnerInvitesSection';
 import type { OrganizationOwnerInviteSummary, OrganizationBranch } from '@/api/types';
 
@@ -74,6 +75,78 @@ it('revokes a pending invite with a reason', async () => {
   fireEvent.click(confirmButtons[confirmButtons.length - 1]);
 
   await waitFor(() => expect(client.revokeOrganizationOwnerInvite).toHaveBeenCalledWith('i1', 'fraud'));
+});
+
+// Срок в фикстуре — заведомо далёкое будущее: «Отправить ещё раз» должна видеть только
+// действующее приглашение, и тест не должен протухнуть вместе с датой в примере.
+const activeInvite = summary({ expiresAtUtc: '2099-01-01T00:00:00Z' });
+
+it('отправляет письмо повторно и показывает короткое подтверждение', async () => {
+  const client = {
+    listOrganizationOwnerInvites: mock().mockResolvedValue([activeInvite]),
+    createOrganizationOwnerInvite: mock(),
+    revokeOrganizationOwnerInvite: mock(),
+    resendOrganizationOwnerInvite: mock().mockResolvedValue(activeInvite)
+  };
+  renderSection(client);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Отправить ещё раз' }));
+
+  await waitFor(() => expect(client.resendOrganizationOwnerInvite).toHaveBeenCalledWith('i1'));
+  expect(await screen.findByText('Письмо отправлено повторно')).toBeTruthy();
+});
+
+it('отказ сервера при повторной отправке называет причину, а не общую фразу', async () => {
+  const client = {
+    listOrganizationOwnerInvites: mock().mockResolvedValue([activeInvite]),
+    createOrganizationOwnerInvite: mock(),
+    revokeOrganizationOwnerInvite: mock(),
+    resendOrganizationOwnerInvite: mock().mockRejectedValue(new PlatformApiError(403, 'Forbidden', null))
+  };
+  renderSection(client);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Отправить ещё раз' }));
+
+  expect(await screen.findByText('Недостаточно прав для этого действия.')).toBeTruthy();
+});
+
+it('повторное нажатие во время запроса не отправляет письмо дважды', async () => {
+  let resolveResend: (value: typeof activeInvite) => void = () => {};
+  const client = {
+    listOrganizationOwnerInvites: mock().mockResolvedValue([activeInvite]),
+    createOrganizationOwnerInvite: mock(),
+    revokeOrganizationOwnerInvite: mock(),
+    resendOrganizationOwnerInvite: mock(() => new Promise<typeof activeInvite>(resolve => { resolveResend = resolve; }))
+  };
+  renderSection(client);
+
+  const button = await screen.findByRole('button', { name: 'Отправить ещё раз' });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  fireEvent.click(button);
+
+  expect(client.resendOrganizationOwnerInvite).toHaveBeenCalledTimes(1);
+  resolveResend(activeInvite);
+  await waitFor(() => expect(button).not.toBeDisabled());
+});
+
+it('не предлагает повтор для принятого, отозванного или просроченного приглашения', async () => {
+  const client = {
+    listOrganizationOwnerInvites: mock().mockResolvedValue([
+      summary({ organizationOwnerInviteId: 'accepted', status: 'accepted' }),
+      summary({ organizationOwnerInviteId: 'revoked', status: 'revoked' }),
+      // Формально ещё "pending": сервер сам метку "истёк" не проставляет, пока приглашение не
+      // попробуют принять, — поэтому просрочку панель считает по сроку, а не только по статусу.
+      summary({ organizationOwnerInviteId: 'stale', status: 'pending', expiresAtUtc: '2000-01-01T00:00:00Z' })
+    ]),
+    createOrganizationOwnerInvite: mock(),
+    revokeOrganizationOwnerInvite: mock(),
+    resendOrganizationOwnerInvite: mock()
+  };
+  renderSection(client);
+
+  await screen.findAllByText('owner@x.io');
+  expect(screen.queryByRole('button', { name: 'Отправить ещё раз' })).toBeNull();
 });
 
 // Без адреса сервер письма не шлёт, а код приходится диктовать голосом: поле почты — это и есть

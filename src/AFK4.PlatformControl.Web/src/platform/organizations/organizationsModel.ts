@@ -36,6 +36,15 @@ export const INVITE_STATUS_LABEL: Record<string, MessageKey> = {
 export const STATUS_OPTIONS = ['active', 'suspended', 'deletion_pending'] as const;
 
 /**
+ * Приглашение можно отправить ещё раз: ждёт ответа и срок ещё не вышел. Сервер сам «истёк» не
+ * проставляет — статус переходит в него только при попытке принять приглашение по коду, — поэтому
+ * срок сверяем здесь, а не полагаемся на одно поле status.
+ */
+export function canResendOwnerInvite(invite: { status: string; expiresAtUtc: string }, now: Date = new Date()): boolean {
+  return invite.status === 'pending' && new Date(invite.expiresAtUtc).getTime() > now.getTime();
+}
+
+/**
  * Ссылка, по которой владелец клуба заводит себе вход.
  *
  * Вид активации в адресе не указан: владелец — значение по умолчанию, и ссылки без этого
