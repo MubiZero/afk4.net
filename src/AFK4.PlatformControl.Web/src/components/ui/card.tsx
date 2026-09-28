@@ -21,14 +21,6 @@ export function CardDescription({ className, ...props }: ComponentProps<'p'>) {
   return <p className={join('mgmt-drawer-hint', className)} {...props} />;
 }
 
-export function CardAction({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={join('pc-cell-actions', className)} {...props} />;
-}
-
 export function CardContent({ className, ...props }: ComponentProps<'div'>) {
   return <div className={join('pc-panel-body', className)} {...props} />;
-}
-
-export function CardFooter({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={join('mgmt-form-actions', className)} {...props} />;
 }
