@@ -21,4 +21,9 @@ public sealed record AuditRecordDto(
     public string? OrganizationName { get; init; }
 
     public long? AmountMinorUnits { get; init; }
+
+    /// <summary>Кто сделал — по имени: сотрудник клуба, сотрудник платформы или служебный
+    /// исполнитель. Журнал открывают, чтобы ответить «кто трогал подписку», и столбец GUID на этот
+    /// вопрос не отвечает. Пусто — действие системы без исполнителя.</summary>
+    public string? ActorDisplayName { get; init; }
 }

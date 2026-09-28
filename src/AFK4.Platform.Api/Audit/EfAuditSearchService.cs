@@ -45,7 +45,7 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext)
         return ExecuteAsync(records, dbContext.Organizations.AsNoTracking(), query, cancellationToken);
     }
 
-    private static async Task<AuditSearchResultDto> ExecuteAsync(
+    private async Task<AuditSearchResultDto> ExecuteAsync(
         IQueryable<AuditRecordEntity> records,
         IQueryable<OrganizationEntity> organizations,
         AuditSearchQuery query,
@@ -128,7 +128,30 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext)
             })
             .ToListAsync(cancellationToken);
 
-        return new AuditSearchResultDto(result, limit);
+        return new AuditSearchResultDto(await WithActorNamesAsync(result, cancellationToken), limit);
+    }
+
+    private async Task<IReadOnlyList<AuditRecordDto>> WithActorNamesAsync(
+        List<AuditRecordDto> records,
+        CancellationToken cancellationToken)
+    {
+        var staffIds = records.Where(record => record.ActorStaffUserId is not null)
+            .Select(record => record.ActorStaffUserId!.Value).Distinct().ToList();
+        var adminIds = records.Where(record => record.ActorPlatformAdminUserId is not null)
+            .Select(record => record.ActorPlatformAdminUserId!.Value).Distinct().ToList();
+        var staffNames = await dbContext.StaffUsers.AsNoTracking()
+            .Where(staff => staffIds.Contains(staff.StaffUserId))
+            .ToDictionaryAsync(staff => staff.StaffUserId, staff => staff.DisplayName, cancellationToken);
+        var adminNames = await dbContext.PlatformAdminUsers.AsNoTracking()
+            .Where(admin => adminIds.Contains(admin.PlatformAdminUserId))
+            .ToDictionaryAsync(admin => admin.PlatformAdminUserId, admin => admin.DisplayName, cancellationToken);
+
+        return records.Select(record => record with
+        {
+            ActorDisplayName = record.ActorPlatformAdminUserId is { } adminId && adminNames.TryGetValue(adminId, out var adminName)
+                ? adminName
+                : record.ActorStaffUserId is null ? null : SystemActorIds.ResolveDisplayName(record.ActorStaffUserId, staffNames)
+        }).ToList();
     }
 
     private static string? Normalize(string? value)

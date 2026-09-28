@@ -1988,6 +1988,12 @@ export interface AuditRecordDto {
    */
   organizationName: string | null;
   amountMinorUnits: number | null;
+  /**
+   * Кто сделал — по имени: сотрудник клуба, сотрудник платформы или служебный
+   * исполнитель. Журнал открывают, чтобы ответить «кто трогал подписку», и столбец GUID на этот
+   * вопрос не отвечает. Пусто — действие системы без исполнителя.
+   */
+  actorDisplayName: string | null;
 }
 
 /** Контракт: Audit/AuditSearchResultDto.cs */
