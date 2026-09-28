@@ -441,7 +441,6 @@ public partial class WebViewPlayerWindow : Window
         var core = Browser.CoreWebView2;
         if (asleep)
         {
-            PostToPage(ShellBridgeEventTypeNames.GameForeground, new ShellGameForegroundDto(true));
             Browser.Visibility = Visibility.Hidden;
             if (core is not null)
             {
@@ -459,7 +458,6 @@ public partial class WebViewPlayerWindow : Window
         }
 
         Browser.Visibility = Visibility.Visible;
-        PostToPage(ShellBridgeEventTypeNames.GameForeground, new ShellGameForegroundDto(false));
     }
 
     private void OnClosed(object? sender, EventArgs e)

@@ -11,17 +11,21 @@ import { PlayerApiError } from '../api/playerApi';
  * Кто перед экраном идущей сессии — и что ему можно делать с деньгами.
  *
  * - `owner` — вошёл тот, на чьём счёте сессия: продлить и встать раньше можно здесь.
- * - `signInToManage` — сессия на счёте игрока, но на ПК он не вошёл (например, сел с телефона):
+ * - `signInToManage` — сессия на счёте игрока, но на ПК никто не вошёл (например, сел с телефона):
  *   продлить можно, войдя.
+ * - `otherPlayer` — сессия на счёте игрока, а вошёл другой: чужими деньгами он не распоряжается,
+ *   и ему нужен выход, чтобы владелец вошёл сам.
  * - `counter` — сессию открыла стойка без счёта игрока: продлевает администратор.
+ * - `pending` — сессия только началась, и чья она, агент узнает со следующим сердцебиением:
+ *   секунды без денежных кнопок лучше подсказки, которая к человеку не относится.
  */
-export type SessionRole = 'owner' | 'signInToManage' | 'counter';
+export type SessionRole = 'owner' | 'signInToManage' | 'otherPlayer' | 'counter' | 'pending';
 
 export function sessionRole(state: PlayerShellStateDto, auth: ShellAuthStateDto): SessionRole {
+  if (state.sessionOwnerKind == null) return 'pending';
   if (state.sessionOwnerKind !== DeviceSessionOwnerKindNames.Player) return 'counter';
-  return auth.signedIn && auth.playerAccountId != null && auth.playerAccountId === state.sessionOwnerPlayerAccountId
-    ? 'owner'
-    : 'signInToManage';
+  if (!auth.signedIn) return 'signInToManage';
+  return auth.playerAccountId != null && auth.playerAccountId === state.sessionOwnerPlayerAccountId ? 'owner' : 'otherPlayer';
 }
 
 /** Почему продлить отсюда нельзя — словами, а не пустым листом. */

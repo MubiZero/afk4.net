@@ -106,8 +106,12 @@ export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): Pla
     ...base,
     state,
     sessionId: '00000000-0000-4000-8000-000000000010',
-    leaseExpiresAtUtc: minutes(untilMinutes),
+    // Аренда — 15 минут, как у сервера; отсчёт идёт от конца сессии. Раньше практика клала конец
+    // сессии в срок аренды — и баг отсчёта от аренды в браузере был не виден.
+    leaseExpiresAtUtc: minutes(Math.min(15, untilMinutes)),
     remainingSeconds: Math.round(untilMinutes * 60),
+    sessionStartedAtUtc: minutes(-40),
+    sessionEndsAtUtc: minutes(untilMinutes),
     seatingCode: null,
     seatingCodeExpiresAtUtc: null,
     sessionOwnerKind: 'player',

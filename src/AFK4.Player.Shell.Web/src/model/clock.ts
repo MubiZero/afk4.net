@@ -29,3 +29,11 @@ export function formatDuration(totalSeconds: number): string {
   const ss = String(s).padStart(2, '0');
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
+
+/** Сколько целых секунд прошло с момента по времени платформы; null — момента нет. */
+export function secondsSince(sinceUtc: string | null | undefined, nowMs: number, offsetMs: number): number | null {
+  if (!sinceUtc) return null;
+  const since = Date.parse(sinceUtc);
+  if (Number.isNaN(since)) return null;
+  return Math.max(0, Math.floor((nowMs + offsetMs - since) / 1000));
+}

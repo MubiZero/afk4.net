@@ -106,6 +106,7 @@ button {
 .bar-item__step:focus-visible,
 .sheet__close:focus-visible,
 .time-money__sign-out:focus-visible,
+.time-money__order:focus-visible,
 .system-bar__language:focus-visible,
 .system-controls__button:focus-visible,
 .system-controls__volume input:focus-visible {
@@ -939,6 +940,28 @@ button {
 
 .time-money__sign-out:hover {
   color: var(--text-primary);
+}
+
+/* Заказ бара в колонке: одна строка статуса, нажатие ведёт на вкладку «Бар». */
+.time-money__order {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--shell-radius);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.time-money__order:hover {
+  border-color: var(--text-secondary);
+}
+
+.time-money__order-status {
+  font-weight: 600;
 }
 
 /* Лист продления и раннего выхода: поверх сессии, справа, фон не кликабелен. */

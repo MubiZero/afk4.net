@@ -1311,11 +1311,8 @@ export const ShellBridgeEventTypeNames = {
   InputActivity: 'input.activity',
   /** Тишина дольше порога: окно входа закрывается, вошедший выходит. */
   InputIdle: 'input.idle',
-  /** Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр. */
-  GameForeground: 'game.foreground',
   /** Громкость, микрофон, раскладка — ShellSystemStateDto. */
   SystemChanged: 'system.changed',
-  ShowcaseChanged: 'showcase.changed',
 } as const;
 export type ShellBridgeEventTypeName = (typeof ShellBridgeEventTypeNames)[keyof typeof ShellBridgeEventTypeNames];
 
@@ -3446,6 +3443,8 @@ export interface DeviceHeartbeatResponse {
   policyProfileVersion?: number;
   /** Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6). */
   gameLibraryVersion?: number;
+  /** Идущая сессия: начало и конец для отсчёта на экране. null — сессии нет. */
+  liveSession?: DeviceLiveSessionDto | null;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -3473,6 +3472,19 @@ export interface DeviceInventoryItemDto {
   enrollmentState?: string;
   /** Железо отличается от принятого — в карточке видно, что поменялось, и кнопка «Принять». */
   hardwareChanged?: boolean;
+}
+
+/**
+ * Идущая на ПК сессия: когда началась и когда кончится. Отсчёт «Осталось» считается от конца
+ * сессии, а не от срока аренды — аренда подписана на 15 минут и продлевается, пока сессия идёт.
+ *
+ * Контракт: Devices/DeviceShellContextContracts.cs
+ */
+export interface DeviceLiveSessionDto {
+  sessionId: Guid;
+  startedAtUtc: IsoDateTime | null;
+  /** null — открытый счёт: конца нет, экран показывает, сколько уже идёт. */
+  endsAtUtc: IsoDateTime | null;
 }
 
 /**
@@ -6091,6 +6103,12 @@ export interface PlayerShellStateDto {
   idleShutdownAtUtc?: IsoDateTime | null;
   /** Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба. */
   showcase?: ShowcaseCardDto[] | null;
+  /**
+   * Когда идущая сессия началась и когда кончится — отсчёт «Осталось» идёт от конца сессии, а не
+   * от срока аренды. Конца нет у открытого счёта: экран показывает, сколько уже идёт.
+   */
+  sessionStartedAtUtc?: IsoDateTime | null;
+  sessionEndsAtUtc?: IsoDateTime | null;
 }
 
 /**
@@ -7388,11 +7406,6 @@ export interface ShellBrandingDto {
   clubName: string;
   logoUrl: string | null;
   accentColor: string | null;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellGameForegroundDto {
-  active: boolean;
 }
 
 /** Контракт: Shell/ShellBridgeContracts.cs */

@@ -6,19 +6,29 @@ export interface EndedVisit {
   sessionId: string;
   /** Ответ на «Встать раньше» — у выхода по таймеру его нет. */
   selfEnd: PlayerSelfEndSessionResponse | null;
+  /** Когда сессия кончилась, по часам ПК: от него живёт окно входа после сессии. */
+  endedAtMs: number;
 }
 
 /**
- * Сессия, за которой сидел вошедший, закрылась — по таймеру, у стойки или им самим. Итог нужен в
- * любом случае: «сколько сыграл и сколько потратил» не должно прятаться в истории кошелька.
- * Вышел из аккаунта — итог уже не его.
+ * Сколько после конца сессии живёт вход игрока: сервер гасит токены через 30 с
+ * (`DeviceBoundPlayerTokens.SummaryWindow`). Итог уходит чуть раньше — иначе оценка и чаевые после
+ * этого срока отвечали бы «не получилось», а «Играть ещё» вела бы на экран, где всё отказывает.
+ */
+export const SUMMARY_TOKEN_WINDOW_MS = 27_000;
+
+/**
+ * Сессия вошедшего закрылась — по таймеру, у стойки или им самим. Итог нужен в любом случае:
+ * «сколько сыграл и сколько потратил» не должно прятаться в истории кошелька. Вышел из аккаунта —
+ * итог уже не его. Сессия была чужая (стойка посадила сюда другого игрока или гостя) — тоже: чек
+ * чужого визита вошедшему не покажут, а «Сыграно …» было бы не о нём.
  */
 export function endedSessionId(
-  previous: { screen: ShellScreen; sessionId: string | null },
+  previous: { screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null },
   current: ShellScreen,
-  signedIn: boolean
+  signedInPlayerAccountId: string | null
 ): string | null {
-  if (!signedIn || !previous.sessionId) return null;
+  if (!signedInPlayerAccountId || !previous.sessionId || previous.ownerPlayerAccountId !== signedInPlayerAccountId) return null;
   return isSessionScreen(previous.screen) && current === 'chooseTime' ? previous.sessionId : null;
 }
 

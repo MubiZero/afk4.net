@@ -58,13 +58,8 @@ public static class ShellBridgeEventTypeNames
     /// <summary>Тишина дольше порога: окно входа закрывается, вошедший выходит.</summary>
     public const string InputIdle = "input.idle";
 
-    /// <summary>Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр.</summary>
-    public const string GameForeground = "game.foreground";
-
     /// <summary>Громкость, микрофон, раскладка — ShellSystemStateDto.</summary>
     public const string SystemChanged = "system.changed";
-
-    public const string ShowcaseChanged = "showcase.changed";
 }
 
 public static class ShellBridgeErrorCodeNames
@@ -102,8 +97,6 @@ public sealed record ShellAuthStateDto(
     Guid? PlayerAccountId = null);
 
 public sealed record ShellLaunchRequest(string AppId);
-
-public sealed record ShellGameForegroundDto(bool Active);
 
 /// <summary>
 /// Звук, микрофон и раскладка ПК. Пусто — у ПК этого нет или Windows не ответила (нет

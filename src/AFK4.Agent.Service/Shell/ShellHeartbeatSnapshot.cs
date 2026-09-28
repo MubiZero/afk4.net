@@ -29,6 +29,14 @@ public interface IShellHeartbeatSnapshot
     /// <summary>Чья сессия идёт на ПК — по словам сервера.</summary>
     DeviceSessionOwnerDto? SessionOwner { get; }
 
+    /// <summary>
+    /// Владелец сессии <paramref name="sessionId"/> — только если сервер назвал его для неё же. Сразу
+    /// после старта аренда уже на ПК, а последнее сердцебиение говорит о прошлой сессии: её владелец
+    /// новой не подходит — ни для роли на экране, ни для возраста у игр. До следующего сердцебиения
+    /// владелец неизвестен (null). Без сессии — то, что сказал сервер.
+    /// </summary>
+    DeviceSessionOwnerDto? SessionOwnerFor(Guid? sessionId);
+
     /// <summary>Права организации по тарифу: без них экран прячет разделы, которых у клуба нет.</summary>
     IReadOnlyList<string>? Features { get; }
 
@@ -37,6 +45,11 @@ public interface IShellHeartbeatSnapshot
     /// у них нет своей логики «пустое значит не прислали» — сервер отвечает всем трём сразу.
     /// </summary>
     void RecordPlace(DeviceSeatDto? seat, DeviceSessionOwnerDto? sessionOwner, IReadOnlyList<string>? features);
+
+    /// <summary>Идущая сессия по словам сервера: её начало и конец. null — сессии нет.</summary>
+    DeviceLiveSessionDto? LiveSession { get; }
+
+    void RecordLiveSession(DeviceLiveSessionDto? liveSession);
 
     /// <summary>С какого момента ПК на обслуживании — по словам сервера.</summary>
     DateTimeOffset? MaintenanceSinceUtc { get; }
@@ -59,6 +72,17 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
     private IReadOnlyList<string>? features;
     private DateTimeOffset? maintenanceSinceUtc;
     private string? maintenanceByName;
+    private DeviceLiveSessionDto? liveSession;
+
+    public DeviceLiveSessionDto? LiveSession { get { lock (gate) { return liveSession; } } }
+
+    public void RecordLiveSession(DeviceLiveSessionDto? liveSession)
+    {
+        lock (gate)
+        {
+            this.liveSession = liveSession;
+        }
+    }
 
     public string? SeatingCode { get { lock (gate) { return seatingCode; } } }
 
@@ -71,6 +95,14 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
     public DeviceSeatDto? Seat { get { lock (gate) { return seat; } } }
 
     public DeviceSessionOwnerDto? SessionOwner { get { lock (gate) { return sessionOwner; } } }
+
+    public DeviceSessionOwnerDto? SessionOwnerFor(Guid? sessionId)
+    {
+        lock (gate)
+        {
+            return sessionId is null || liveSession?.SessionId == sessionId ? sessionOwner : null;
+        }
+    }
 
     public IReadOnlyList<string>? Features { get { lock (gate) { return features; } } }
 

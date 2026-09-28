@@ -7,7 +7,7 @@ using AFK4.Player.Shell.Shell;
 namespace AFK4.Player.Shell.Overlay;
 
 /// <summary>
-/// Окно поверх игры (спека оболочки, §7): сообщение клуба и последняя минута. Не забирает фокус —
+/// Окно поверх игры (спека оболочки, §7): сообщение клуба, 10 и 5 минут до конца, последняя минута. Не забирает фокус —
 /// посреди боя окно, укравшее клавиатуру, хуже любого сообщения. Игры в исключительном
 /// полноэкранном режиме его не покажут; это ограничение Windows, а не окна.
 /// </summary>
@@ -50,7 +50,12 @@ public partial class OverlayWindow : Window
         }
         else
         {
-            HeadingText.Text = localization.T("playerShell.overlay.lastMinute");
+            HeadingText.Text = localization.T(content.Kind switch
+            {
+                OverlayKind.TimeWarning when content.WarningMinutes == 5 => "playerShell.overlay.fiveMinutes",
+                OverlayKind.TimeWarning => "playerShell.overlay.tenMinutes",
+                _ => "playerShell.overlay.lastMinute"
+            });
             BodyText.Text = RemainingTimeFormatter.Format(content.RemainingSeconds);
             ExtendButton.Content = localization.T("playerShell.overlay.extend");
             ExtendButton.Visibility = Visibility.Visible;

@@ -16,11 +16,16 @@ describe('кто перед экраном сессии', () => {
   });
 
   it('вошёл не тот — чужими деньгами не распоряжается', () => {
-    expect(sessionRole(playing, { signedIn: true, displayName: 'Другой', playerAccountId: 'other' })).toBe('signInToManage');
+    expect(sessionRole(playing, { signedIn: true, displayName: 'Другой', playerAccountId: 'other' })).toBe('otherPlayer');
   });
 
   it('посадила стойка без счёта — продлевает администратор', () => {
     expect(sessionRole({ ...playing, sessionOwnerKind: 'guest', sessionOwnerPlayerAccountId: null }, { signedIn: false })).toBe('counter');
+  });
+
+  it('сессия только началась и владельца ещё не знают — ни чужой подсказки, ни денежных кнопок', () => {
+    const justStarted = { ...playing, sessionOwnerKind: null, sessionOwnerPlayerAccountId: null };
+    expect(sessionRole(justStarted, { signedIn: true, displayName: 'Алишер', playerAccountId: owner })).toBe('pending');
   });
 });
 

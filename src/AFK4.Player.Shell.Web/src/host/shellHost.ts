@@ -6,7 +6,6 @@ import {
   type PlayerShellStateDto,
   type ShellAuthStateDto,
   type ShellBridgeRequestTypeName,
-  type ShellGameForegroundDto,
   type ShellSnapshotDto,
   type ShellSystemStateDto
 } from '@afk4/contracts';
@@ -30,14 +29,10 @@ export interface HostView {
   stateReceivedAtMs: number | null;
   auth: ShellAuthStateDto;
   system: ShellSystemStateDto | null;
-  /** Игра на переднем плане: странице незачем рисовать то, чего не видно. */
-  gameForeground: boolean;
   /** Сколько раз тронули мышь или клавиатуру; растёт — значит, человек у ПК. */
   activity: number;
   /** Сколько раз хост сообщил о тишине; растёт — значит, от ПК отошли. */
   idle: number;
-  /** Моста нет вовсе — страница открыта в браузере без хоста и без учебного хоста. */
-  bridgeMissing: boolean;
 }
 
 /**
@@ -50,10 +45,8 @@ export function useShellHost(): HostView {
     stateReceivedAtMs: null,
     auth: signedOut,
     system: null,
-    gameForeground: false,
     activity: 0,
-    idle: 0,
-    bridgeMissing: !isHostBridgeAvailable()
+    idle: 0
   }));
 
   useEffect(() => {
@@ -66,8 +59,6 @@ export function useShellHost(): HostView {
         setView((current) => ({ ...current, auth: auth ?? signedOut }))),
       onHostMessage<ShellSystemStateDto>(ShellBridgeEventTypeNames.SystemChanged, (system) =>
         setView((current) => ({ ...current, system }))),
-      onHostMessage<ShellGameForegroundDto>(ShellBridgeEventTypeNames.GameForeground, (game) =>
-        setView((current) => ({ ...current, gameForeground: Boolean(game?.active) }))),
       onHostMessage(ShellBridgeEventTypeNames.InputActivity, () =>
         setView((current) => ({ ...current, activity: current.activity + 1 }))),
       onHostMessage(ShellBridgeEventTypeNames.InputIdle, () =>

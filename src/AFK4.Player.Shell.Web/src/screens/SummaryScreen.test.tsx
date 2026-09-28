@@ -50,7 +50,7 @@ function renderSummary(selfEnd: PlayerSelfEndSessionResponse | null = null) {
     <ShellI18nProvider initialLocale="ru">
       <SummaryScreen
         state={devScenarioState('idle')!}
-        visit={{ sessionId: 's-1', selfEnd }}
+        visit={{ sessionId: 's-1', selfEnd, endedAtMs: Date.now() }}
         baseUrl="https://api.example.test/"
         activity={0}
         onPlayMore={onPlayMore}
@@ -106,7 +106,7 @@ describe('итог визита', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Отправить оценку' })));
 
     expect(posted).toEqual([{ sessionId: 's-1', rating: 4, comment: 'Быстрые ПК' }]);
-    expect(await screen.findByText('Спасибо! Клуб увидит вашу оценку.')).toBeInTheDocument();
+    expect(await screen.findByText('Спасибо. Клуб увидит вашу оценку.')).toBeInTheDocument();
   });
 
   it('визит уже оценили с телефона — для человека это то же «спасибо»', async () => {
@@ -141,7 +141,7 @@ describe('итог визита', () => {
     expect(screen.getByText(/^С баланса спишется 10\s?с\.$/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Оставить чаевые' }));
 
-    expect(await screen.findByText(/^Спасибо! 10\s?с\. — Шерзод\.$/)).toBeTruthy();
+    expect(await screen.findByText(/^Спасибо. 10\s?с\. — Шерзод\.$/)).toBeTruthy();
     const body = posted.at(-1) as { amount: { minorUnits: number }; idempotencyKey: string };
     expect(body.amount.minorUnits).toBe(1_000);
     expect(body.idempotencyKey).toBeTruthy();

@@ -36,16 +36,16 @@ export function IdleScreen({ state, dimmed = false }: { state: PlayerShellStateD
   );
 }
 
-/**
- * Свободный ПК вот-вот выключится от простоя: сколько осталось и как оставить включённым. Движение
- * мыши отменяет выключение у агента — и полоса уходит со следующим состоянием.
- */
 /** Показ рекламы — агенту: он считает только рекламу и только на свободном ПК. */
 function reportShown(card: ShowcaseCardDto, shownMs: number) {
   if (card.kind !== ShowcaseCardKindNames.Ad) return;
   requestHost(ShellBridgeRequestTypeNames.ShowcaseImpression, { cardId: card.cardId, shownMs }).catch(() => {});
 }
 
+/**
+ * Свободный ПК вот-вот выключится от простоя: сколько осталось и как оставить включённым. Движение
+ * мыши отменяет выключение у агента — и полоса уходит со следующим состоянием.
+ */
 function IdleShutdownNotice({ at }: { at: string }) {
   const { t } = useI18n();
   const [now, setNow] = useState(() => Date.now());

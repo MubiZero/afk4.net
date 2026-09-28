@@ -4,7 +4,7 @@ using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Player.Shell.Tests.Overlay;
 
-/// <summary>Поверх игры — сообщение клуба на двенадцать секунд и последняя минута, пока впереди игра.</summary>
+/// <summary>Поверх игры — сообщение клуба на двенадцать секунд, 10 и 5 минут до конца и последняя минута, пока впереди игра.</summary>
 public sealed class OverlayPresenterTests
 {
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-25T10:00:00Z");
@@ -45,6 +45,37 @@ public sealed class OverlayPresenterTests
             GameForegroundTrackerTests.State(PlayerShellStateNames.Ending), -3, shellInFront: false, message: null, Now);
 
         Assert.Equal(0, content!.RemainingSeconds);
+    }
+
+    [Theory]
+    [InlineData(600, 10)]
+    [InlineData(595, 10)]
+    [InlineData(300, 5)]
+    [InlineData(291, 5)]
+    public void TenAndFiveMinutesBeforeTheEnd_AShortWarningShowsOverTheGame(int left, int minutes)
+    {
+        var content = OverlayPresenter.Decide(
+            GameForegroundTrackerTests.State(PlayerShellStateNames.Active), left, shellInFront: false, message: null, Now);
+
+        Assert.Equal(new OverlayContent(OverlayKind.TimeWarning, RemainingSeconds: left, WarningMinutes: minutes), content);
+    }
+
+    [Theory]
+    [InlineData(601)]
+    [InlineData(590)]
+    [InlineData(420)]
+    [InlineData(290)]
+    public void BetweenTheMarks_TheWarningIsGone(int left)
+    {
+        Assert.Null(OverlayPresenter.Decide(
+            GameForegroundTrackerTests.State(PlayerShellStateNames.Active), left, shellInFront: false, message: null, Now));
+    }
+
+    [Fact]
+    public void AnOpenTab_HasNoEnd_AndNoWarnings()
+    {
+        Assert.Null(OverlayPresenter.Decide(
+            GameForegroundTrackerTests.State(PlayerShellStateNames.Active), remainingSecondsNow: null, shellInFront: false, message: null, Now));
     }
 
     [Fact]
