@@ -17,6 +17,7 @@ import {
   type OperatorCommandType
 } from './actionOutbox';
 import type { SeatSummary } from './operatorData';
+import { UnsettledKeys } from './unsettledKeys';
 import type {
   AuthStatus,
   OperatorConfig,
@@ -91,6 +92,7 @@ export function useFloorMap({
 }: UseFloorMapOptions): FloorMap {
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
   const floorMapRef = useRef(floorMap);
+  const commandKeys = useRef(new UnsettledKeys());
   const [selectedSeatId, setSelectedSeatId] = useState('');
   const [remainingNowMs, setRemainingNowMs] = useState(() => Date.now());
   const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
@@ -399,9 +401,11 @@ export function useFloorMap({
     const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
     for (const entry of replay) {
       try {
+        // Ключ из очереди: ответ на прошлую попытку мог потеряться, и тогда сервер узнает повтор.
         await clients.devices.dispatchDeviceCommand(entry.deviceId, {
           type: entry.commandType,
-          payload: { reason: 'operator-offline-replay', source: 'operator-map', seatId: entry.seatId }
+          payload: { reason: 'operator-offline-replay', source: 'operator-map', seatId: entry.seatId },
+          idempotencyKey: entry.idempotencyKey
         });
         acknowledgeAction(entry.idempotencyKey);
       } catch {
@@ -434,6 +438,21 @@ export function useFloorMap({
 
     return { detail: t('op.map.menu.resolveAssistanceHint') };
   };
+
+  /**
+   * Команда ПК с ключом нажатия: повтор после обрыва связи уходит с тем же ключом, и сервер
+   * отдаёт уже записанную команду. Сообщение с другим текстом — другое нажатие.
+   */
+  const dispatchOnce = (
+    clients: ReturnType<typeof createAuthenticatedOperatorClients>,
+    deviceId: string,
+    type: PcControlActionId,
+    payload: Record<string, string>
+  ) => commandKeys.current.send(
+    `${deviceId}|${type}|${payload.text ?? ''}`,
+    `device-${type}`,
+    (idempotencyKey) => clients.devices.dispatchDeviceCommand(deviceId, { type, payload, idempotencyKey })
+  );
 
   const handlePcControlAction = async (
     seat: SeatSummary,
@@ -480,13 +499,10 @@ export function useFloorMap({
         return { detail: t('op.shell.queuedCommand', { action }) };
       }
 
-      const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, {
-        type: action,
-        payload: {
-          reason: 'operator-pc-control',
-          source: 'operator-map',
-          seatId: seat.id
-        }
+      const command = await dispatchOnce(clients, seat.deviceId, action, {
+        reason: 'operator-pc-control',
+        source: 'operator-map',
+        seatId: seat.id
       });
       return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command, t) };
     }
@@ -497,9 +513,10 @@ export function useFloorMap({
         throw new Error(t('op.shell.err.noPermMaintain'));
       }
 
-      const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, {
-        type: action,
-        payload: { reason: 'operator-pc-control', source: 'operator-map', seatId: seat.id }
+      const command = await dispatchOnce(clients, seat.deviceId, action, {
+        reason: 'operator-pc-control',
+        source: 'operator-map',
+        seatId: seat.id
       });
       // Карта должна сразу показать «обслуживание» или «свободен», а не ждать следующего опроса.
       if (authSession !== null && activeBranchId) {
@@ -518,7 +535,7 @@ export function useFloorMap({
         payload.text = options?.text ?? '';
       }
 
-      const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, { type: action, payload });
+      const command = await dispatchOnce(clients, seat.deviceId, action, payload);
       // Выключенный ПК будит сосед по сети: команда записана на соседа, и спрашивать её статус у
       // этого ПК бесполезно — честнее сказать, как это работает.
       if (action === 'wake') {

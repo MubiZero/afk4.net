@@ -620,6 +620,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(command => command.Outcome).HasMaxLength(64);
             entity.Property(command => command.PayloadJson).HasColumnType("jsonb").IsRequired();
             entity.HasIndex(command => new { command.DeviceId, command.CommandId }).IsUnique();
+            entity.Property(command => command.IdempotencyKey).HasMaxLength(200);
+            entity.HasIndex(command => command.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL");
         });
 
         modelBuilder.Entity<DeviceInstalledAppEntity>(entity =>

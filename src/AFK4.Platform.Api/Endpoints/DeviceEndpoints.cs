@@ -1624,6 +1624,7 @@ internal static class DeviceEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IDeviceCommandDispatchService commandDispatchService,
+            IDeviceCommandStore commandStore,
             IDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -1696,6 +1697,30 @@ internal static class DeviceEndpoints
                 return Results.BadRequest(new { Error = payloadError, Code = DeviceCommandErrorCodeNames.InvalidPayload });
             }
 
+            var clientKey = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey.Trim();
+            if (clientKey is { Length: > DeviceCommandIdempotency.MaxClientKeyLength })
+            {
+                return Results.BadRequest(new { Error = "Idempotency key is too long.", Code = DeviceCommandErrorCodeNames.InvalidPayload });
+            }
+
+            var idempotencyKey = clientKey is null ? null : DeviceCommandIdempotency.Scope(deviceId, clientKey);
+            if (idempotencyKey is not null
+                && await commandStore.FindByIdempotencyKeyAsync(idempotencyKey, cancellationToken) is { } recorded)
+            {
+                // Повтор нажатия: команда уже записана и, возможно, уже исполнена. Ни обслуживание,
+                // ни выход, ни журнал второй раз не трогаем — отдаём ту же команду.
+                var expectedType = request.Type == DeviceCommandTypeNames.Wake
+                    ? DeviceCommandTypeNames.WakeNeighbor
+                    : request.Type;
+                return recorded.Type == expectedType
+                    ? Results.Ok(recorded)
+                    : Results.Conflict(new
+                    {
+                        Error = "The idempotency key was already used for another command.",
+                        Code = DeviceCommandErrorCodeNames.IdempotencyConflict
+                    });
+            }
+
             if (device.EnrollmentState != DeviceEnrollmentStateNames.Approved)
             {
                 await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
@@ -1731,7 +1756,7 @@ internal static class DeviceEndpoints
             }
 
             var targetDeviceId = deviceId;
-            var commandRequest = request;
+            var commandRequest = request with { IdempotencyKey = idempotencyKey };
             if (request.Type == DeviceCommandTypeNames.Wake)
             {
                 // Спящему ПК команду не отдать: будит сосед по подсети волшебным пакетом.
@@ -1742,7 +1767,7 @@ internal static class DeviceEndpoints
                 }
 
                 targetDeviceId = wake.HelperDeviceId;
-                commandRequest = wake.Command!;
+                commandRequest = wake.Command! with { IdempotencyKey = idempotencyKey };
             }
 
             // Обслуживание запоминает сервер: по нему стойка не начнёт сессию, карта покажет машину

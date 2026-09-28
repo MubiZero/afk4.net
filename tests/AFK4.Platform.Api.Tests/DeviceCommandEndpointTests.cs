@@ -141,6 +141,68 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
+    public async Task PostDeviceCommand_RepeatedWithTheSameKey_ReturnsTheRecordedCommandWithoutASecondOne()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedDeviceAsync(factory);
+
+        // Ответ на первую перезагрузку потерялся по дороге — Панель шлёт то же нажатие ещё раз.
+        var first = await PostKeyedCommandAsync(client, TestIds.DeviceId, DeviceCommandTypeNames.Reboot, "device-reboot-1");
+        var repeat = await PostKeyedCommandAsync(client, TestIds.DeviceId, DeviceCommandTypeNames.Reboot, "device-reboot-1");
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, repeat.StatusCode);
+        var firstCommand = await first.Content.ReadFromJsonAsync<DeviceCommandDto>();
+        var repeatCommand = await repeat.Content.ReadFromJsonAsync<DeviceCommandDto>();
+        Assert.NotNull(firstCommand);
+        Assert.NotNull(repeatCommand);
+        Assert.Equal(firstCommand.CommandId, repeatCommand.CommandId);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(await dbContext.DeviceCommands.ToListAsync());
+        Assert.Single(await dbContext.AuditRecords
+            .Where(record => record.Action == AuditActionNames.DispatchDeviceCommand)
+            .ToListAsync());
+    }
+
+    [Fact]
+    public async Task PostDeviceCommand_TheSameKeyForAnotherCommand_IsAConflictNotAReplay()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedDeviceAsync(factory);
+
+        await PostKeyedCommandAsync(client, TestIds.DeviceId, DeviceCommandTypeNames.Lock, "device-action-1");
+        var response = await PostKeyedCommandAsync(client, TestIds.DeviceId, DeviceCommandTypeNames.Unlock, "device-action-1");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(DeviceCommandErrorCodeNames.IdempotencyConflict, await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task PostDeviceCommand_TheSameKeyOnAnotherPc_IsItsOwnCommand()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var otherDeviceId = Guid.NewGuid();
+        await SeedDeviceAsync(factory);
+        await SeedDeviceAsync(factory, otherDeviceId, "PC-002");
+
+        var first = await PostKeyedCommandAsync(client, TestIds.DeviceId, DeviceCommandTypeNames.Lock, "device-lock-1");
+        var other = await PostKeyedCommandAsync(client, otherDeviceId, DeviceCommandTypeNames.Lock, "device-lock-1");
+
+        Assert.Equal(HttpStatusCode.OK, other.StatusCode);
+        var firstCommand = await first.Content.ReadFromJsonAsync<DeviceCommandDto>();
+        var otherCommand = await other.Content.ReadFromJsonAsync<DeviceCommandDto>();
+        Assert.NotEqual(firstCommand!.CommandId, otherCommand!.CommandId);
+    }
+
+    [Fact]
     public async Task PostDeviceCommandResult_WithValidCredential_UpdatesPersistedCommandStatus()
     {
         await using var factory = new PlatformApiFactory();
@@ -706,6 +768,20 @@ public sealed class DeviceCommandEndpointTests
         message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
 
         return client.SendAsync(message);
+    }
+
+    private static Task<HttpResponseMessage> PostKeyedCommandAsync(
+        HttpClient client,
+        Guid deviceId,
+        string type,
+        string idempotencyKey)
+    {
+        return client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{deviceId:D}/commands",
+            new DispatchDeviceCommandRequest(
+                type,
+                new Dictionary<string, string> { ["reason"] = "operator-request" },
+                idempotencyKey));
     }
 
     private static async Task SeedPendingCommandAsync(

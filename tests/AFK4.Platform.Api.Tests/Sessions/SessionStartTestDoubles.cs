@@ -23,8 +23,7 @@ internal sealed class SavingCommandDispatchService(PlatformDbContext db) : IDevi
         CancellationToken cancellationToken)
     {
         var command = new DeviceCommandDto(Guid.NewGuid(), request.Type, DateTimeOffset.UtcNow, request.Payload);
-        await store.AddPendingAsync(deviceId, command, cancellationToken);
-        return command;
+        return await store.AddPendingAsync(deviceId, command, request.IdempotencyKey, cancellationToken);
     }
 
     public Task NotifyAsync(Guid deviceId, DeviceCommandDto command, CancellationToken cancellationToken)

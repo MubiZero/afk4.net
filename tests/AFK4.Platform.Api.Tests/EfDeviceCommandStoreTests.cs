@@ -32,7 +32,7 @@ public sealed class EfDeviceCommandStoreTests
         await using (var db = new PlatformDbContext(options))
         {
             var store = new EfDeviceCommandStore(db);
-            await store.AddPendingAsync(deviceId, command, CancellationToken.None);
+            await store.AddPendingAsync(deviceId, command, null, CancellationToken.None);
         }
 
         await using (var db = new PlatformDbContext(options))

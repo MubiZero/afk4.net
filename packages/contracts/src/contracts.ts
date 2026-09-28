@@ -225,6 +225,8 @@ export const DeviceCommandErrorCodeNames = {
   WakeTargetUnknown: 'wake_target_unknown',
   /** Разбудить некому: в подсети этого ПК нет ни одного включённого соседа. */
   NoWakeHelper: 'no_wake_helper',
+  /** Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента. */
+  IdempotencyConflict: 'idempotency_conflict',
 } as const;
 export type DeviceCommandErrorCodeName = (typeof DeviceCommandErrorCodeNames)[keyof typeof DeviceCommandErrorCodeNames];
 
@@ -3731,10 +3733,17 @@ export interface DeviceUpdateStatusSnapshotDto {
   updatedAtUtc: IsoDateTime;
 }
 
-/** Контракт: Devices/DispatchDeviceCommandRequest.cs */
+/**
+ * Команда ПК из Панели. IdempotencyKey — ключ одного нажатия: связь оборвалась до ответа, и
+ * Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную команду, а не
+ * пошлёт на ПК вторую перезагрузку.
+ *
+ * Контракт: Devices/DispatchDeviceCommandRequest.cs
+ */
 export interface DispatchDeviceCommandRequest {
   type: string;
   payload: Record<string, string>;
+  idempotencyKey?: string | null;
 }
 
 /**

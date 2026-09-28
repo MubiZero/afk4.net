@@ -184,6 +184,8 @@ abstract final class DeviceCommandErrorCodeNames {
   static const String wakeTargetUnknown = 'wake_target_unknown';
   /// Разбудить некому: в подсети этого ПК нет ни одного включённого соседа.
   static const String noWakeHelper = 'no_wake_helper';
+  /// Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента.
+  static const String idempotencyConflict = 'idempotency_conflict';
 }
 
 /// Чем закончилась команда на устройстве — машинным именем, а не фразой.
@@ -7432,24 +7434,32 @@ class DeviceUpdateStatusSnapshotDto {
       };
 }
 
+/// Команда ПК из Панели. IdempotencyKey — ключ одного нажатия: связь оборвалась до ответа, и
+/// Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную команду, а не
+/// пошлёт на ПК вторую перезагрузку.
+///
 /// Контракт: Devices/DispatchDeviceCommandRequest.cs
 class DispatchDeviceCommandRequest {
   const DispatchDeviceCommandRequest({
     required this.type,
     required this.payload,
+    this.idempotencyKey,
   });
 
   final String type;
   final Map<String, String> payload;
+  final String? idempotencyKey;
 
   factory DispatchDeviceCommandRequest.fromJson(Map<String, dynamic> json) => DispatchDeviceCommandRequest(
         type: json['type'] as String,
         payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'type': type,
         'payload': payload.map((key, value) => MapEntry(key, value)),
+        'idempotencyKey': idempotencyKey,
       };
 }
 

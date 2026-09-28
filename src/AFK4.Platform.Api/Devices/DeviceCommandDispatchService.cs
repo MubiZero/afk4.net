@@ -16,9 +16,8 @@ public sealed class DeviceCommandDispatchService(IHubContext<DeviceHub> hubConte
             CreatedAtUtc: timeProvider.GetUtcNow(),
             Payload: request.Payload);
 
-        await commandStore.AddPendingAsync(deviceId, command, cancellationToken);
-
-        return command;
+        // С занятым ключом хранилище вернёт прежнюю команду: её и отдаём, и о ней же напоминаем ПК.
+        return await commandStore.AddPendingAsync(deviceId, command, request.IdempotencyKey, cancellationToken);
     }
 
     public async Task NotifyAsync(

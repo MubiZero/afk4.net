@@ -202,7 +202,9 @@ describe('App', () => {
     await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/11111111-1111-1111-1111-111111111111/commands') &&
       init?.method === 'POST' &&
-      String(init.body).includes('"type":"lock"'))).toBe(true));
+      String(init.body).includes('"type":"lock"') &&
+      // Ключ нажатия: повтор после обрыва связи сервер узнает и не запрёт ПК второй раз.
+      String(init.body).includes('"idempotencyKey":"device-lock-'))).toBe(true));
   });
 
   it('filters the floor map across status filters', async () => {
