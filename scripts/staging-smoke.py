@@ -271,8 +271,8 @@ else:
 
 step("14. Staff mutation on suspended organization -> 403 OrganizationSuspended")
 status, body, _ = request(
-    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/device-enrollment-codes",
-    body={"organizationId": org_id, "expiresInSeconds": 3600},
+    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/install-codes",
+    body={"lifetimeHours": 24, "maxDevices": 10},
     auth=staff_token,
 )
 if status == 403 and body.get("error") == "OrganizationSuspended":
@@ -306,13 +306,13 @@ else:
 
 step("17. Staff mutation after reactivation -> 200")
 status, body, _ = request(
-    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/device-enrollment-codes",
-    body={"organizationId": org_id, "expiresInSeconds": 3600},
+    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/install-codes",
+    body={"lifetimeHours": 24, "maxDevices": 10},
     auth=staff_token,
 )
 if status == 200 and "code" in body:
-    enrollment_code = body["code"]
-    ok(f"staff mutation succeeded, enrollment code={enrollment_code[:6]}...")
+    install_code = body["code"]
+    ok(f"staff mutation succeeded, install code={install_code[:6]}...")
 else:
     fail(f"expected 200, got {status} {body}")
 
@@ -366,14 +366,7 @@ if status == 200 and body.get("requireManualDeviceApproval") is True:
 else:
     fail(f"manual approval enable: {status} {body}")
 
-status, body, _ = request("POST", f"/api/organizations/{org_id}/staff/me/owner-code/generate", auth=staff_token)
-owner_code = body.get("ownerCode") if status == 200 else None
-if owner_code and len(owner_code) == 8:
-    ok(f"owner code generated suffix={body.get('codeSuffix')}")
-else:
-    fail(f"owner code generate: {status} {body}")
-
-status, body, _ = request("POST", f"/api/organizations/{org_id}/install/discover", body={"ownerCode": owner_code or ""})
+status, body, _ = request("POST", f"/api/organizations/{org_id}/install/auth/discover", auth=staff_token)
 branches = body.get("branches", []) if status == 200 else []
 target_branch = next((b for b in branches if b.get("branchId") == branch_id), None)
 if target_branch and seat_1 in target_branch.get("freeSeatIds", []) and seat_2 in target_branch.get("freeSeatIds", []):
@@ -381,13 +374,24 @@ if target_branch and seat_1 in target_branch.get("freeSeatIds", []) and seat_2 i
 else:
     fail(f"install discover: {status} {body}")
 
+# Тихая установка по коду — тот же путь, каким технику ставят ПК в зале, а не ушедший вход
+# по коду владельца (owner-code): его в API больше нет.
 status, body, _ = request(
-    "POST", f"/api/organizations/{org_id}/install/enroll",
+    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/install-codes",
+    body={"lifetimeHours": 24, "maxDevices": 1},
+    auth=staff_token,
+)
+install_code = body.get("code") if status == 200 else None
+if install_code:
+    ok("install code issued for smoke device")
+else:
+    fail(f"install code issue: {status} {body}")
+
+status, body, _ = request(
+    "POST", "/api/install/code/enroll",
     body={
-        "ownerCode": owner_code or "",
-        "branchId": branch_id,
-        "seatId": seat_1 or "",
-        "role": "gaming_pc",
+        "code": install_code or "",
+        "seatName": "Smoke PC 01",
         "displayName": "Smoke PC 01",
         "machineName": f"SMOKE-{STAMP}",
         "devicePublicKey": "smoke-public-key",

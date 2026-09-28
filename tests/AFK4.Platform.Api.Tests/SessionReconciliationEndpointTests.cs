@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -156,7 +158,7 @@ public sealed class SessionReconciliationEndpointTests
 
     private static async Task<SessionReconciliationResponse> PostReconciliationAsync(
         HttpClient client,
-        DeviceEnrollmentResponse enrollment,
+        InstallEnrollResponse enrollment,
         DeviceSessionSnapshotRequest request)
     {
         using var message = new HttpRequestMessage(
@@ -188,31 +190,8 @@ public sealed class SessionReconciliationEndpointTests
             ObservedAtUtc: Now.AddMinutes(2));
     }
 
-    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)
-    {
-        var codeResponse = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
-        Assert.Equal(HttpStatusCode.OK, codeResponse.StatusCode);
-        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
-        Assert.NotNull(code);
-
-        var enrollmentResponse = await client.PostAsJsonAsync(
-            "/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                OrganizationId: TestIds.OrganizationId,
-                BranchId: TestIds.BranchId,
-                EnrollmentCode: code.Code,
-                MachineName: "PC-001",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: Now.AddMinutes(1)));
-        Assert.Equal(HttpStatusCode.OK, enrollmentResponse.StatusCode);
-        var enrollment = await enrollmentResponse.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
-        Assert.NotNull(enrollment);
-
-        return enrollment;
-    }
+    private static Task<InstallEnrollResponse> EnrollDeviceAsync(HttpClient client) =>
+        TestDeviceEnrollment.EnrollDeviceAsync(client, TestIds.OrganizationId, TestIds.BranchId);
 
     private static async Task SeedSeatAssignmentAsync(PlatformApiFactory factory, Guid deviceId)
     {

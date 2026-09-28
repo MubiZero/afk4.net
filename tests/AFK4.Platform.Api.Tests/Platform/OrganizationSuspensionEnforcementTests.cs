@@ -3,8 +3,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Updates;
@@ -25,8 +27,8 @@ public sealed class OrganizationSuspensionEnforcementTests
         await SetOrganizationStatusAsync(factory, OrganizationStatusNames.Suspended, "Unpaid invoice");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
+            InstallCodeRoutes.Branch(TestIds.OrganizationId, TestIds.BranchId),
+            new CreateInstallCodeRequest(LifetimeHours: 24, MaxDevices: 10));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         using var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -79,8 +81,8 @@ public sealed class OrganizationSuspensionEnforcementTests
         await SetOrganizationStatusAsync(factory, OrganizationStatusNames.DeletionPending, "Organization offboarding");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
+            InstallCodeRoutes.Branch(TestIds.OrganizationId, TestIds.BranchId),
+            new CreateInstallCodeRequest(LifetimeHours: 24, MaxDevices: 10));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         using var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -96,8 +98,8 @@ public sealed class OrganizationSuspensionEnforcementTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
+            InstallCodeRoutes.Branch(TestIds.OrganizationId, TestIds.BranchId),
+            new CreateInstallCodeRequest(LifetimeHours: 24, MaxDevices: 10));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -143,15 +145,15 @@ public sealed class OrganizationSuspensionEnforcementTests
         await SetOrganizationStatusAsync(factory, OrganizationStatusNames.Suspended, "Pause");
 
         var blocked = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
+            InstallCodeRoutes.Branch(TestIds.OrganizationId, TestIds.BranchId),
+            new CreateInstallCodeRequest(LifetimeHours: 24, MaxDevices: 10));
         Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
 
         await SetOrganizationStatusAsync(factory, OrganizationStatusNames.Active, null);
 
         var allowed = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
+            InstallCodeRoutes.Branch(TestIds.OrganizationId, TestIds.BranchId),
+            new CreateInstallCodeRequest(LifetimeHours: 24, MaxDevices: 10));
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
     }
 
@@ -231,35 +233,47 @@ public sealed class OrganizationSuspensionEnforcementTests
         await AssertOrganizationSuspendedAsync(response, OrganizationStatusNames.Suspended, "Suspended");
     }
 
+    // ВНИМАНИЕ: тихая установка по коду не проходит через IOrganizationStatusGuard, которым
+    // защищены остальные device-эндпойнты (heartbeat, session-reconciliation, updates/*), и не даёт
+    // тот же контракт «403 OrganizationSuspended со статусом и причиной». Отказ она всё же
+    // возвращает — приостановленную/удаляемую организацию EfInstallService проверяет сам
+    // (EnrollResolvedAsync: organization.Status != Active), но обычным BadRequest 400 с общей
+    // фразой. Тест фиксирует то, что путь реально делает, а не то, что делают остальные эндпойнты —
+    // расхождение форматов ошибок между этим путём и остальными названо владельцу отдельно.
     [Fact]
-    public async Task DeviceEnrollment_OnSuspendedOrganization_Returns403OrganizationSuspended()
+    public async Task DeviceEnrollment_OnSuspendedOrganization_IsRefusedButNotWithTheSharedContract()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
-        // Create an enrollment code while still active, so the test isolates the suspension check
-        // from the "no enrollment code" failure path.
+        // Код выдаём, пока организация ещё активна, — приостановку проверяем отдельно от «кода нет».
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 600));
-        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
+            InstallCodeRoutes.Branch(TestIds.OrganizationId, TestIds.BranchId),
+            new CreateInstallCodeRequest(LifetimeHours: 24, MaxDevices: 10));
+        var code = await codeResponse.Content.ReadFromJsonAsync<InstallCodeDto>();
         Assert.NotNull(code);
 
         await SetOrganizationStatusAsync(factory, OrganizationStatusNames.Suspended, "Frozen");
 
-        var enrollResponse = await client.PostAsJsonAsync(
-            "/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                OrganizationId: TestIds.OrganizationId,
-                BranchId: TestIds.BranchId,
-                EnrollmentCode: code.Code,
+        // Настоящий ПК ставится анонимно, без токена сотрудника — тем самым клиентом проверяем и
+        // здесь, а не тем, что уже несёт Bearer техника: с ним отказ пришёл бы от общего
+        // OrganizationSuspensionMiddleware (он ловит любую мутацию авторизованного сотрудника), а
+        // не от самой тихой установки.
+        using var deviceClient = factory.CreateClient();
+        var enrollResponse = await deviceClient.PostAsJsonAsync(
+            InstallRoutes.CodeEnroll,
+            new InstallCodeEnrollRequest(
+                code!.Code!,
+                SeatName: null,
+                DisplayName: null,
                 MachineName: "PC-suspended",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: DateTimeOffset.UtcNow));
+                DevicePublicKey: $"test-key-{Guid.NewGuid():N}"));
 
-        await AssertOrganizationSuspendedAsync(enrollResponse, OrganizationStatusNames.Suspended, "Frozen");
+        Assert.Equal(HttpStatusCode.BadRequest, enrollResponse.StatusCode);
+        using var document = await enrollResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        Assert.NotNull(document);
+        Assert.Equal("Organization is not active.", document.RootElement.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -323,7 +337,7 @@ public sealed class OrganizationSuspensionEnforcementTests
         await AssertOrganizationSuspendedAsync(response, OrganizationStatusNames.Suspended, "Paused");
     }
 
-    private static HttpRequestMessage BuildHeartbeatRequest(DeviceEnrollmentResponse enrollment)
+    private static HttpRequestMessage BuildHeartbeatRequest(InstallEnrollResponse enrollment)
     {
         var request = new DeviceHeartbeatRequest(
             OrganizationId: TestIds.OrganizationId,
@@ -346,28 +360,8 @@ public sealed class OrganizationSuspensionEnforcementTests
         return message;
     }
 
-    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)
-    {
-        var codeResponse = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
-        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
-        Assert.NotNull(code);
-
-        var enrollmentResponse = await client.PostAsJsonAsync(
-            "/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                OrganizationId: TestIds.OrganizationId,
-                BranchId: TestIds.BranchId,
-                EnrollmentCode: code.Code,
-                MachineName: "PC-001",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: DateTimeOffset.UtcNow));
-        var enrollment = await enrollmentResponse.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
-        Assert.NotNull(enrollment);
-        return enrollment;
-    }
+    private static Task<InstallEnrollResponse> EnrollDeviceAsync(HttpClient client) =>
+        TestDeviceEnrollment.EnrollDeviceAsync(client, TestIds.OrganizationId, TestIds.BranchId);
 
     private static async Task AssertOrganizationSuspendedAsync(HttpResponseMessage response, string expectedStatus, string expectedReason)
     {
