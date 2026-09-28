@@ -13,12 +13,6 @@ public interface IHardwareSnapshotCollector
     HardwareSnapshotDto? Collect();
 }
 
-public interface IHardwareReporter
-{
-    /// <summary>Отправить снимок, если пора: при старте, раз в сутки и когда железо изменилось.</summary>
-    Task ReportIfDueAsync(CancellationToken cancellationToken);
-}
-
 public static class HardwareSchedule
 {
     /// <summary>Как часто смотреть на железо: планку памяти не меняют на ходу, но и неделю ждать незачем.</summary>
@@ -54,12 +48,13 @@ public sealed class HardwareReporter(
     IOptions<AgentOptions> options,
     IDeviceCredentialStore credentialStore,
     TimeProvider timeProvider,
-    ILogger<HardwareReporter> logger) : IHardwareReporter
+    ILogger<HardwareReporter> logger)
 {
     private DateTimeOffset lastCollectedUtc = DateTimeOffset.MinValue;
     private DateTimeOffset lastReportedUtc = DateTimeOffset.MinValue;
     private string? lastFingerprint;
 
+    /// <summary>Отправить снимок, если пора: при старте, раз в сутки и когда железо изменилось.</summary>
     public async Task ReportIfDueAsync(CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();

@@ -8,20 +8,11 @@ namespace AFK4.Agent.Service.Power;
 /// Кто-то за ПК: хост сообщает о вводе не чаще раза в минуту. Служба в сессии 0 ввода игрока не
 /// видит — без этого сигнала простой считался бы и тогда, когда человек вводит номер.
 /// </summary>
-public interface IPlayerPresence
-{
-    DateTimeOffset? LastSeenUtc { get; }
-
-    void Record(DateTimeOffset at);
-
-    /// <summary>Кто-то тронул ПК — сразу, а не на следующем круге сердцебиения.</summary>
-    event Action<DateTimeOffset>? Seen;
-}
-
-public sealed class PlayerPresence : IPlayerPresence
+public sealed class PlayerPresence
 {
     private long lastSeenTicks;
 
+    /// <summary>Кто-то тронул ПК — сразу, а не на следующем круге сердцебиения.</summary>
     public event Action<DateTimeOffset>? Seen;
 
     public DateTimeOffset? LastSeenUtc
@@ -58,15 +49,6 @@ public static class IdleShutdownPolicy
     }
 }
 
-public interface IIdleShutdownMonitor
-{
-    /// <summary>Проверить на очередном круге сердцебиения.</summary>
-    void Check();
-
-    /// <summary>Когда ПК выключится от простоя; null — не назначено. Экран показывает отсчёт.</summary>
-    DateTimeOffset? ShutdownAtUtc { get; }
-}
-
 /// <summary>
 /// Выключение свободного ПК после простоя (настройки ПК клуба). Только запертый ПК: не в сессии и
 /// не на обслуживании. Назначенное выключение отменяется, если человек подошёл в последнюю минуту.
@@ -75,17 +57,18 @@ public interface IIdleShutdownMonitor
 public sealed class IdleShutdownMonitor(
     IAgentRuntimeStateStore runtimeState,
     IProtectionEnforcer protection,
-    IPlayerPresence presence,
+    PlayerPresence presence,
     IMachinePowerController power,
     TimeProvider timeProvider,
     ILogger<IdleShutdownMonitor> logger,
-    AFK4.Agent.Service.Shell.IShellStateSignal? shellState = null) : IIdleShutdownMonitor
+    AFK4.Agent.Service.Shell.IShellStateSignal? shellState = null)
 {
     private readonly object gate = new();
     private DateTimeOffset? freeSince;
     private DateTimeOffset? scheduledAt;
     private bool subscribed;
 
+    /// <summary>Когда ПК выключится от простоя; null — не назначено. Экран показывает отсчёт.</summary>
     public DateTimeOffset? ShutdownAtUtc
     {
         get
@@ -97,6 +80,7 @@ public sealed class IdleShutdownMonitor(
         }
     }
 
+    /// <summary>Проверить на очередном круге сердцебиения.</summary>
     public void Check()
     {
         lock (gate)

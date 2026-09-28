@@ -32,7 +32,7 @@ public partial class OrganizationAdminWindow : Window
     private readonly OrganizationAdminWebShellOptions shellOptions;
     private readonly OrganizationAdminWebAssetResolver assetResolver;
     private readonly OrganizationAdminWebHostBridge hostBridge;
-    private readonly ILocalizationService localization;
+    private readonly LocalizationService localization;
     private bool browserInitializationStarted;
 
     public OrganizationAdminWindow()

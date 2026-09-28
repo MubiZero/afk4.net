@@ -32,12 +32,6 @@ public interface ILauncherCatalog
     LauncherEntry? Find(string appId);
 }
 
-public interface IGameLibrarySync
-{
-    /// <summary>Сердцебиение назвало версию библиотеки: другая — перечитать и докачать обложки.</summary>
-    Task SyncAsync(int serverVersion, CancellationToken cancellationToken);
-}
-
 public interface IGameLibraryStore
 {
     DeviceGameLibraryDto? Load();
@@ -71,7 +65,7 @@ public sealed class GameLibraryService(
     IGameLauncherLocator locator,
     IShellStateSignal shellStateSignal,
     TimeProvider timeProvider,
-    ILogger<GameLibraryService> logger) : ILauncherCatalog, IGameLibrarySync
+    ILogger<GameLibraryService> logger) : ILauncherCatalog
 {
     private static readonly TimeSpan FetchRetryDelay = TimeSpan.FromMinutes(1);
 
@@ -132,6 +126,7 @@ public sealed class GameLibraryService(
     public LauncherEntry? Find(string appId) =>
         Entries().FirstOrDefault(entry => string.Equals(entry.AppId, appId, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Сердцебиение назвало версию библиотеки: другая — перечитать и докачать обложки.</summary>
     public async Task SyncAsync(int serverVersion, CancellationToken cancellationToken)
     {
         if (serverVersion == (Current?.Version ?? 0) || timeProvider.GetUtcNow() < retryFetchAfter)

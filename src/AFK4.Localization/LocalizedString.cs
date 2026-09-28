@@ -4,7 +4,7 @@ namespace AFK4.Localization;
 
 /// <summary>
 /// An observable wrapper that resolves a single catalog key against a
-/// <see cref="ILocalizationService"/> and re-resolves (raising
+/// <see cref="LocalizationService"/> and re-resolves (raising
 /// <see cref="PropertyChanged"/>) whenever the active locale changes. The WPF
 /// <c>{loc:T}</c> markup extension binds a control's text to <see cref="Value"/>,
 /// so XAML literals update live on a locale switch — but the change-tracking logic
@@ -12,10 +12,10 @@ namespace AFK4.Localization;
 /// </summary>
 public sealed class LocalizedString : INotifyPropertyChanged
 {
-    private readonly ILocalizationService service;
+    private readonly LocalizationService service;
     private readonly string key;
 
-    public LocalizedString(ILocalizationService service, string key)
+    public LocalizedString(LocalizationService service, string key)
     {
         this.service = service;
         this.key = key;

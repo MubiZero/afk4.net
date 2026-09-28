@@ -67,7 +67,6 @@ builder.Services.AddWindowsService(options =>
 // аренды, и у монитора льготы, и у экрана игрока.
 builder.Services.AddSingleton(new PlatformSyncedTimeProvider(TimeProvider.System));
 builder.Services.AddSingleton<TimeProvider>(provider => provider.GetRequiredService<PlatformSyncedTimeProvider>());
-builder.Services.AddSingleton<IPlatformClockSynchronizer>(provider => provider.GetRequiredService<PlatformSyncedTimeProvider>());
 builder.Services.AddHttpClient("platform");
 // Artifact downloads stream large MSIs; the per-request CancellationToken bounds the transfer,
 // so disable the default 100s client timeout to avoid aborting slow but healthy downloads.
@@ -84,7 +83,7 @@ builder.Services.AddSingleton<ISessionEnforcementCoordinator, SessionEnforcement
 // файловый — службе нужен файловый, иначе льгота не переживёт перезапуск.
 builder.Services.AddSingleton<IOfflineGraceState>(provider =>
     new OfflineGraceState(provider.GetRequiredService<IOptions<AgentOptions>>()));
-builder.Services.AddSingleton<IOfflineLeaseExtender, OfflineLeaseExtender>();
+builder.Services.AddSingleton<OfflineLeaseExtender>();
 builder.Services.AddSingleton<IGraceModeMonitor, GraceModeMonitor>();
 builder.Services.AddSingleton<IProcessLauncher, ProcessLauncher>();
 builder.Services.AddSingleton<IRunningProcessTerminator, RunningProcessTerminator>();
@@ -93,16 +92,16 @@ builder.Services.AddSingleton<IPlayerShellProcessQuery, PlayerShellProcessQuery>
 builder.Services.AddSingleton<IPlayerShellProcessStarter, PlayerShellProcessStarter>();
 builder.Services.AddSingleton<IPlayerShellLaunchContext, PlayerShellLaunchContext>();
 builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
-builder.Services.AddSingleton<IShellWarningStore, ShellWarningStore>();
-builder.Services.AddSingleton<IShellHeartbeatSnapshot, ShellHeartbeatSnapshot>();
+builder.Services.AddSingleton<ShellWarningStore>();
+builder.Services.AddSingleton<ShellHeartbeatSnapshot>();
 builder.Services.AddSingleton<IShellStateSignal, ShellStateSignal>();
 builder.Services.AddSingleton<IPlayerShellStateBuilder, PlayerShellStateBuilder>();
 builder.Services.AddSingleton<IAssistanceRequestReporter, HttpAssistanceRequestReporter>();
 builder.Services.AddSingleton<IPlayerSignInClient, HttpPlayerSignInClient>();
-builder.Services.AddSingleton<IPlayerSignIn, PlayerSignIn>();
+builder.Services.AddSingleton<PlayerSignIn>();
 builder.Services.AddSingleton<IPlayerShellRequestHandler, PlayerShellRequestHandler>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
-builder.Services.AddSingleton<IMaintenanceMode, MaintenanceMode>();
+builder.Services.AddSingleton<MaintenanceMode>();
 builder.Services.AddSingleton<IMachineRegistry, WindowsMachineRegistry>();
 builder.Services.AddSingleton<IProtectionProfileStore, FileProtectionProfileStore>();
 builder.Services.AddSingleton<IProtectionPlatformClient, HttpProtectionPlatformClient>();
@@ -129,7 +128,6 @@ builder.Services.AddSingleton<ICoverCache>(services => new FileCoverCache(
 builder.Services.AddSingleton<IGameLauncherLocator, WindowsGameLauncherLocator>();
 builder.Services.AddSingleton<GameLibraryService>();
 builder.Services.AddSingleton<ILauncherCatalog>(services => services.GetRequiredService<GameLibraryService>());
-builder.Services.AddSingleton<IGameLibrarySync>(services => services.GetRequiredService<GameLibraryService>());
 
 // Витрина свободного ПК (спека оболочки, §5.7): опрос по ETag, карточки и картинки на диске.
 builder.Services.AddSingleton<IShowcaseStore, FileShowcaseStore>();
@@ -139,11 +137,10 @@ builder.Services.AddSingleton<IShowcaseImageCache>(services => new FileShowcaseI
     services.GetRequiredService<ILogger<FileShowcaseImageCache>>()));
 builder.Services.AddSingleton<ShowcaseService>();
 builder.Services.AddSingleton<IShowcaseSource>(services => services.GetRequiredService<ShowcaseService>());
-builder.Services.AddSingleton<IShowcaseSync>(services => services.GetRequiredService<ShowcaseService>());
 builder.Services.AddSingleton<IShowcaseImpressionStore, FileShowcaseImpressionStore>();
 builder.Services.AddSingleton<IShowcaseImpressionClient, HttpShowcaseImpressionClient>();
 builder.Services.AddSingleton<IShowcaseImpressions, ShowcaseImpressions>();
-builder.Services.AddSingleton<ISessionAutostart, SessionAutostart>();
+builder.Services.AddSingleton<SessionAutostart>();
 
 // Опись железа ПК (P9): реестр и системные вызовы, без WMI.
 if (OperatingSystem.IsWindows())
@@ -155,11 +152,11 @@ else
     builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHardwareSnapshotCollector, AFK4.Agent.Service.Hardware.UnsupportedHardwareSnapshotCollector>();
 }
 
-builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHardwareReporter, AFK4.Agent.Service.Hardware.HardwareReporter>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.HardwareReporter>();
 
 // Выключение свободного ПК после простоя (настройки ПК клуба).
-builder.Services.AddSingleton<AFK4.Agent.Service.Power.IPlayerPresence, AFK4.Agent.Service.Power.PlayerPresence>();
-builder.Services.AddSingleton<AFK4.Agent.Service.Power.IIdleShutdownMonitor, AFK4.Agent.Service.Power.IdleShutdownMonitor>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Power.PlayerPresence>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Power.IdleShutdownMonitor>();
 builder.Services.AddSingleton<IMaintenanceDesktop, MaintenanceDesktop>();
 builder.Services.AddSingleton<IMaintenanceReturnClient, HttpMaintenanceReturnClient>();
 builder.Services.AddSingleton<MaintenanceReturn>();
@@ -167,8 +164,7 @@ builder.Services.AddSingleton<IMachinePowerController, WindowsMachinePowerContro
 builder.Services.AddSingleton<IWakeOnLanSender, UdpWakeOnLanSender>();
 builder.Services.AddSingleton<INetworkIdentityProvider, SystemNetworkIdentityProvider>();
 builder.Services.AddSingleton<ShellHostChannel>();
-builder.Services.AddSingleton<IShellHostChannel>(provider => provider.GetRequiredService<ShellHostChannel>());
-builder.Services.AddSingleton<IMachineCommandHandler, MachineCommandHandler>();
+builder.Services.AddSingleton<MachineCommandHandler>();
 builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler>();
 builder.Services.AddSingleton<IDeviceRealtimeClient, DeviceRealtimeClient>();
 builder.Services.AddSingleton<IInstalledAppInventoryCollector, WindowsInstalledAppInventoryCollector>();
@@ -179,7 +175,7 @@ builder.Services.AddSingleton<IUpdateArtifactDownloader, HttpUpdateArtifactDownl
 builder.Services.AddSingleton<IUpdatePackageVerifier, Sha256UpdatePackageVerifier>();
 builder.Services.AddSingleton<IUpdateInstallStateStore, FileUpdateInstallStateStore>();
 builder.Services.AddSingleton<IUpdateAttemptLedger, FileUpdateAttemptLedger>();
-builder.Services.AddSingleton<IGuestSeatUpdateGuard, GuestSeatUpdateGuard>();
+builder.Services.AddSingleton<GuestSeatUpdateGuard>();
 builder.Services.AddSingleton<IUpdateInstallExecutor, ExternalProcessUpdateInstaller>();
 builder.Services.AddSingleton<IUpdateRollbackExecutor, ExternalProcessUpdateRollbackExecutor>();
 builder.Services.AddSingleton<IAgentRestartScheduler, ExternalProcessAgentRestartScheduler>();

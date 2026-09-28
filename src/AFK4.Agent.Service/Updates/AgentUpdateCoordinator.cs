@@ -11,7 +11,7 @@ public sealed class AgentUpdateCoordinator(
     IUpdateInstaller installer,
     TimeProvider timeProvider,
     IUpdateAttemptLedger attemptLedger,
-    IGuestSeatUpdateGuard guestSeatGuard,
+    GuestSeatUpdateGuard guestSeatGuard,
     IOrganizationAdminUpdateReadiness? organizationAdminReadiness = null) : IAgentUpdateCoordinator
 {
 

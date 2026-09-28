@@ -24,7 +24,7 @@ namespace AFK4.Player.Shell.Realtime;
 /// живёт в том же процессе, что и проверка.
 /// </param>
 public sealed class ShellPipeClient(PlayerShellOptions options, bool verifyAgentSession = true)
-    : IPlayerShellStateClient, IShellAgentRequests
+    : IShellAgentRequests
 {
     private static readonly TimeSpan[] ReconnectDelays =
     [

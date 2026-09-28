@@ -1,18 +1,5 @@
 namespace AFK4.Agent.Service;
 
-/// <summary>Кто умеет принять поправку часов от платформы.</summary>
-public interface IPlatformClockSynchronizer
-{
-    /// <summary>
-    /// Сколько нужно добавить к часам самой машины, чтобы получить время платформы. Ноль, пока
-    /// сердцебиения не было ни одного.
-    /// </summary>
-    TimeSpan Offset { get; }
-
-    /// <summary>Принять время платформы и пересчитать поправку.</summary>
-    void Synchronize(DateTimeOffset serverTimeUtc);
-}
-
 /// <summary>
 /// Часы агента, подтянутые к часам платформы.
 ///
@@ -29,10 +16,14 @@ public interface IPlatformClockSynchronizer
 /// Измерения длительностей от этого не страдают: оба конца берутся из этих же часов, и постоянная
 /// поправка в разности сокращается.
 /// </summary>
-public sealed class PlatformSyncedTimeProvider(TimeProvider source) : TimeProvider, IPlatformClockSynchronizer
+public sealed class PlatformSyncedTimeProvider(TimeProvider source) : TimeProvider
 {
     private long offsetTicks;
 
+    /// <summary>
+    /// Сколько нужно добавить к часам самой машины, чтобы получить время платформы. Ноль, пока
+    /// сердцебиения не было ни одного.
+    /// </summary>
     public TimeSpan Offset => TimeSpan.FromTicks(Interlocked.Read(ref offsetTicks));
 
     public override DateTimeOffset GetUtcNow() => source.GetUtcNow() + Offset;

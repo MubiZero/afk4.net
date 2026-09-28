@@ -9,19 +9,7 @@ namespace AFK4.Agent.Service.Enforcement;
 /// effective grace window measured from the last successful backend contact. Past the window the
 /// caller locks exactly as before.
 /// </summary>
-public interface IOfflineLeaseExtender
-{
-    bool ShouldExtend(SessionLeaseDto lease, DateTimeOffset nowUtc);
-
-    /// <summary>
-    /// Идёт ли ещё льготное окно для аренды с таким сроком. Отдельно от <see cref="ShouldExtend"/>:
-    /// после перезапуска подписанной аренды на руках уже нет, а ответить на этот вопрос всё
-    /// равно надо — срок известен из сохранённого состояния.
-    /// </summary>
-    bool WithinGraceWindow(DateTimeOffset nowUtc, DateTimeOffset leaseExpiresAtUtc);
-}
-
-public sealed class OfflineLeaseExtender(IOfflineGraceState graceState) : IOfflineLeaseExtender
+public sealed class OfflineLeaseExtender(IOfflineGraceState graceState)
 {
     public bool ShouldExtend(SessionLeaseDto lease, DateTimeOffset nowUtc)
     {
@@ -33,6 +21,11 @@ public sealed class OfflineLeaseExtender(IOfflineGraceState graceState) : IOffli
         return WithinGraceWindow(nowUtc, lease.ExpiresAtUtc);
     }
 
+    /// <summary>
+    /// Идёт ли ещё льготное окно для аренды с таким сроком. Отдельно от <see cref="ShouldExtend"/>:
+    /// после перезапуска подписанной аренды на руках уже нет, а ответить на этот вопрос всё
+    /// равно надо — срок известен из сохранённого состояния.
+    /// </summary>
     public bool WithinGraceWindow(DateTimeOffset nowUtc, DateTimeOffset leaseExpiresAtUtc)
     {
         var lastContact = graceState.LastSuccessfulContactUtc;

@@ -12,7 +12,7 @@ public sealed class GraceModeMonitor(
     ISessionLeaseStore leaseStore,
     IAgentRuntimeStateStore runtimeStateStore,
     IWorkstationLockController workstationLockController,
-    IOfflineLeaseExtender offlineLeaseExtender,
+    OfflineLeaseExtender offlineLeaseExtender,
     TimeProvider timeProvider,
     ILogger<GraceModeMonitor> logger,
     ISessionCleanup? sessionCleanup = null) : IGraceModeMonitor

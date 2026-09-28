@@ -5,12 +5,16 @@ using System.Text.Json;
 namespace AFK4.Localization;
 
 /// <summary>
-/// Default <see cref="ILocalizationService"/> over an in-memory catalog (one
-/// <c>key → value</c> dictionary per locale). Resolution and formatting mirror the
-/// React surfaces: P6 fallback for keys, locale <see cref="CultureInfo"/> for
-/// numbers/dates, and an explicit currency code (never a culture symbol) for money.
+/// Shared WPF localization surface over an in-memory catalog (one <c>key → value</c>
+/// dictionary per locale): resolves catalog keys with the P6 fallback
+/// (<c>tg → ru → key</c>, <c>en → key</c>), holds the current locale and raises a
+/// change event so bound UI re-resolves live, and exposes locale-aware formatters
+/// (replacing <see cref="CultureInfo.InvariantCulture"/> and hard-coded currency
+/// codes on the WPF surfaces). Resolution and formatting mirror the React surfaces:
+/// P6 fallback for keys, locale <see cref="CultureInfo"/> for numbers/dates, and an
+/// explicit currency code (never a culture symbol) for money.
 /// </summary>
-public sealed class LocalizationService : ILocalizationService
+public sealed class LocalizationService
 {
     private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> catalogs;
     private string currentLocale;
@@ -53,6 +57,7 @@ public sealed class LocalizationService : ILocalizationService
 
     public event EventHandler? LocaleChanged;
 
+    /// <summary>Sets the active locale (unknown values clamp to the default) and raises <see cref="LocaleChanged"/>.</summary>
     public void SetLocale(string locale)
     {
         var clamped = Locales.Clamp(locale);
@@ -65,6 +70,7 @@ public sealed class LocalizationService : ILocalizationService
         LocaleChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Resolves a catalog key in the current locale with the P6 fallback chain.</summary>
     public string T(string key)
     {
         foreach (var locale in FallbackChain(currentLocale))
@@ -80,6 +86,7 @@ public sealed class LocalizationService : ILocalizationService
         return key;
     }
 
+    /// <summary>Formats a <c>long</c> minor-unit amount as localized currency using the explicit currency code.</summary>
     public string FormatCurrency(long minorUnits, string currencyCode)
     {
         var major = minorUnits / 100m;

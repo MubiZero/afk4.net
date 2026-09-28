@@ -25,12 +25,12 @@ public sealed class PlayerShellStateBuilder(
     ISessionLeaseStore leaseStore,
     IAgentRuntimeStateStore runtimeStateStore,
     IOfflineGraceState offlineGraceState,
-    IShellHeartbeatSnapshot heartbeatSnapshot,
-    IShellWarningStore shellWarningStore,
+    ShellHeartbeatSnapshot heartbeatSnapshot,
+    ShellWarningStore shellWarningStore,
     TimeProvider timeProvider,
     IProtectionEnforcer? protection = null,
     ILauncherCatalog? catalog = null,
-    AFK4.Agent.Service.Power.IIdleShutdownMonitor? idleShutdown = null,
+    AFK4.Agent.Service.Power.IdleShutdownMonitor? idleShutdown = null,
     AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null) : IPlayerShellStateBuilder
 {
     /// <summary>Последняя минута сессии — отдельное состояние: экран готовит игрока к концу.</summary>
