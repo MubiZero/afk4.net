@@ -2,18 +2,13 @@ using AFK4.Agent.Service.Enforcement;
 
 namespace AFK4.Agent.Service.Games;
 
-public interface ISessionAutostart
-{
-    /// <summary>Сессия началась: запустить то, что клуб отметил «запускать в начале сессии».</summary>
-    Task StartAsync(CancellationToken cancellationToken);
-}
-
 /// <summary>
 /// Автозапуск в начале сессии (настройки ПК клуба): Discord, клиент Steam. Не запустилось одно —
 /// остальное всё равно стартует, а сессия не страдает: это удобство, не условие игры.
 /// </summary>
-public sealed class SessionAutostart(ILauncherCatalog catalog, IProcessLauncher launcher, ILogger<SessionAutostart> logger) : ISessionAutostart
+public sealed class SessionAutostart(ILauncherCatalog catalog, IProcessLauncher launcher, ILogger<SessionAutostart> logger)
 {
+    /// <summary>Сессия началась: запустить то, что клуб отметил «запускать в начале сессии».</summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         foreach (var entry in catalog.Entries().Where(entry => entry.LaunchOnSessionStart))

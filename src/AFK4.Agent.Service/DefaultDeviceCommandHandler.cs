@@ -12,10 +12,10 @@ namespace AFK4.Agent.Service;
 public sealed class DefaultDeviceCommandHandler(
     IOptions<AgentOptions> options,
     ISessionEnforcementCoordinator enforcementCoordinator,
-    IShellWarningStore shellWarningStore,
+    ShellWarningStore shellWarningStore,
     ILogger<DefaultDeviceCommandHandler> logger,
     IShellStateSignal? shellStateSignal = null,
-    IMachineCommandHandler? machineCommands = null) : IDeviceCommandHandler
+    MachineCommandHandler? machineCommands = null) : IDeviceCommandHandler
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

@@ -1,12 +1,12 @@
 namespace AFK4.Localization;
 
 /// <summary>
-/// Ambient access to the application's active <see cref="ILocalizationService"/>.
+/// Ambient access to the application's active <see cref="LocalizationService"/>.
 /// A XAML markup extension cannot take constructor dependencies, so each app sets
 /// <see cref="Current"/> once at startup and the <c>{loc:T}</c> extension reads it
 /// when it provides its value.
 /// </summary>
 public static class LocalizationScope
 {
-    public static ILocalizationService? Current { get; set; }
+    public static LocalizationService? Current { get; set; }
 }

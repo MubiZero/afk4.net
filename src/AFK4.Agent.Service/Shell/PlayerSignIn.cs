@@ -9,25 +9,13 @@ namespace AFK4.Agent.Service.Shell;
 /// Вход игрока на этом ПК (спека оболочки, §5.3–5.4). Хост к серверу за входом не ходит: ключ ПК есть
 /// только у агента, и токены, выданные под него, привязаны к машине — сервер погасит их сам.
 /// </summary>
-public interface IPlayerSignIn
-{
-    /// <summary>Номер и ПИН-код с экрана. Удачный ответ пуст: токены уходят хосту кадром auth.</summary>
-    Task<ShellPipeReplyDto> SignInWithPinAsync(ShellPipeRequestDto request, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Заявка QR с телефона: забрать и отдать хосту. Приходит и событием хаба, и в сердцебиении — на
-    /// случай обрыва; повтор той же заявки не гасится второй раз.
-    /// </summary>
-    Task RedeemClaimAsync(Guid claimId, CancellationToken cancellationToken);
-}
-
 public sealed class PlayerSignIn(
     IPlayerSignInClient client,
     IAgentRuntimeStateStore runtimeStateStore,
-    IShellHostChannel hostChannel,
+    ShellHostChannel hostChannel,
     IShellStateSignal stateSignal,
     TimeProvider timeProvider,
-    ILogger<PlayerSignIn> logger) : IPlayerSignIn
+    ILogger<PlayerSignIn> logger)
 {
     public const string PhonePayloadKey = "phone";
     public const string PinPayloadKey = "pin";
@@ -37,6 +25,7 @@ public sealed class PlayerSignIn(
 
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> claims = new();
 
+    /// <summary>Номер и ПИН-код с экрана. Удачный ответ пуст: токены уходят хосту кадром auth.</summary>
     public async Task<ShellPipeReplyDto> SignInWithPinAsync(ShellPipeRequestDto request, CancellationToken cancellationToken)
     {
         if (!request.Payload.TryGetValue(PhonePayloadKey, out var phone) || string.IsNullOrWhiteSpace(phone)
@@ -72,6 +61,10 @@ public sealed class PlayerSignIn(
         return new ShellPipeReplyDto(request.RequestId, Ok: true);
     }
 
+    /// <summary>
+    /// Заявка QR с телефона: забрать и отдать хосту. Приходит и событием хаба, и в сердцебиении — на
+    /// случай обрыва; повтор той же заявки не гасится второй раз.
+    /// </summary>
     public async Task RedeemClaimAsync(Guid claimId, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();

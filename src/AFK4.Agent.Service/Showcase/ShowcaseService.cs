@@ -15,12 +15,6 @@ public interface IShowcaseSource
     IReadOnlyList<ShowcaseCardDto> Cards();
 }
 
-public interface IShowcaseSync
-{
-    /// <summary>Спросить сервер, если подошёл срок; иначе ничего не делать.</summary>
-    Task SyncIfDueAsync(CancellationToken cancellationToken);
-}
-
 /// <summary>Ответ сервера: <c>Showcase</c> пуст — с прошлого раза ничего не изменилось (304).</summary>
 public sealed record ShowcaseFetch(DeviceShowcaseDto? Showcase, string? ETag);
 
@@ -57,7 +51,7 @@ public sealed class ShowcaseService(
     IShowcaseImageCache images,
     IShellStateSignal shellStateSignal,
     TimeProvider timeProvider,
-    ILogger<ShowcaseService> logger) : IShowcaseSource, IShowcaseSync
+    ILogger<ShowcaseService> logger) : IShowcaseSource
 {
     public static readonly TimeSpan RefreshEvery = TimeSpan.FromMinutes(10);
 
@@ -109,6 +103,7 @@ public sealed class ShowcaseService(
         return cards;
     }
 
+    /// <summary>Спросить сервер, если подошёл срок; иначе ничего не делать.</summary>
     public async Task SyncIfDueAsync(CancellationToken cancellationToken)
     {
         if (timeProvider.GetUtcNow() < nextFetchAt)

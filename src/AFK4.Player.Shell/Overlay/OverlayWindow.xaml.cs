@@ -17,9 +17,9 @@ public partial class OverlayWindow : Window
     private const long WsExNoActivate = 0x08000000;
     private const long WsExToolWindow = 0x00000080;
 
-    private readonly ILocalizationService localization;
+    private readonly LocalizationService localization;
 
-    public OverlayWindow(ILocalizationService localization)
+    public OverlayWindow(LocalizationService localization)
     {
         this.localization = localization;
         InitializeComponent();

@@ -5,11 +5,6 @@ namespace AFK4.Agent.Service.Updates;
 
 public sealed record GuestSeatUpdateVerdict(bool CanInstall, string Message);
 
-public interface IGuestSeatUpdateGuard
-{
-    GuestSeatUpdateVerdict Evaluate(string component);
-}
-
 /// <summary>
 /// Свободно ли место, чтобы обновлять эту машину.
 ///
@@ -21,7 +16,7 @@ public interface IGuestSeatUpdateGuard
 ///
 /// Ждать здесь ничего не стоит: место освободится, и следующая же проверка поставит обновление.
 /// </summary>
-public sealed class GuestSeatUpdateGuard(IAgentRuntimeStateStore runtimeStateStore) : IGuestSeatUpdateGuard
+public sealed class GuestSeatUpdateGuard(IAgentRuntimeStateStore runtimeStateStore)
 {
     public GuestSeatUpdateVerdict Evaluate(string component)
     {

@@ -15,7 +15,7 @@ public sealed class ProcessPolicyEnforcer(
     IRunningProcessTerminator processTerminator,
     ILogger<ProcessPolicyEnforcer> logger,
     ILauncherCatalog? catalog = null,
-    IShellHeartbeatSnapshot? heartbeatSnapshot = null,
+    ShellHeartbeatSnapshot? heartbeatSnapshot = null,
     ISessionLeaseStore? leaseStore = null) : IProcessPolicyEnforcer
 {
     public AgentLauncherAppOptions? FindAllowedLauncherApp(string appId)

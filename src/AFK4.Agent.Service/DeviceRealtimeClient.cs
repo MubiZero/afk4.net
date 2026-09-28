@@ -40,7 +40,7 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         ISessionLeaseStore leaseStore,
         ICommandResultOutbox commandResultOutbox,
         IDeviceCredentialStore credentialStore,
-        IPlayerSignIn playerSignIn)
+        PlayerSignIn playerSignIn)
         : this(
             options,
             commandHandler,
@@ -74,7 +74,7 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         ICommandResultOutbox? commandResultOutbox,
         IDeviceHubConnection connection,
         IDeviceCredentialStore? credentialStore = null,
-        IPlayerSignIn? playerSignIn = null)
+        PlayerSignIn? playerSignIn = null)
     {
         this.credentialStore = credentialStore;
         this.options = options.Value;

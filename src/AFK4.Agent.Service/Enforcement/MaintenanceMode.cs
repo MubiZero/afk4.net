@@ -9,24 +9,13 @@ namespace AFK4.Agent.Service.Enforcement;
 /// стол Windows на экране, игрокам вход закрыт. Правду держит сервер: команда даёт мгновенный
 /// отклик, а сердцебиение догоняет пропущенную команду в обе стороны.
 /// </summary>
-public interface IMaintenanceMode
-{
-    Task<SessionEnforcementResult> EnterAsync(CancellationToken cancellationToken);
-
-    /// <summary>Вернуть в зал: закрыть рабочий стол техника и вернуть политики и экран «Свободен».</summary>
-    Task<SessionEnforcementResult> LeaveAsync(CancellationToken cancellationToken);
-
-    /// <summary>Свести машину с тем, что говорит сервер в сердцебиении.</summary>
-    Task ReconcileAsync(bool maintenance, CancellationToken cancellationToken);
-}
-
 public sealed class MaintenanceMode(
     IAgentRuntimeStateStore runtimeStateStore,
     IWorkstationLockController workstationLock,
     IMaintenanceDesktop desktop,
     TimeProvider timeProvider,
     ILogger<MaintenanceMode> logger,
-    IProtectionEnforcer? protection = null) : IMaintenanceMode
+    IProtectionEnforcer? protection = null)
 {
     public async Task<SessionEnforcementResult> EnterAsync(CancellationToken cancellationToken)
     {
@@ -61,6 +50,7 @@ public sealed class MaintenanceMode(
             DeviceCommandOutcomeNames.MaintenanceStarted);
     }
 
+    /// <summary>Вернуть в зал: закрыть рабочий стол техника и вернуть политики и экран «Свободен».</summary>
     public async Task<SessionEnforcementResult> LeaveAsync(CancellationToken cancellationToken)
     {
         var current = runtimeStateStore.Current;
@@ -88,6 +78,7 @@ public sealed class MaintenanceMode(
             locked.IsEnforced ? DeviceCommandOutcomeNames.MaintenanceEnded : DeviceCommandOutcomeNames.MachinePoliciesUnavailable);
     }
 
+    /// <summary>Свести машину с тем, что говорит сервер в сердцебиении.</summary>
     public async Task ReconcileAsync(bool maintenance, CancellationToken cancellationToken)
     {
         var state = runtimeStateStore.Current.State;
