@@ -57,6 +57,7 @@ public sealed class PlayerShellStateBuilder(
         var inMaintenance = string.Equals(state, PlayerShellStateNames.Maintenance, StringComparison.Ordinal);
         var threshold = agentOptions.ShellWarningThresholdSeconds;
         var sessionId = lease?.SessionId ?? runtimeState.ActiveSessionId;
+        var sessionOwner = heartbeatSnapshot.SessionOwnerFor(sessionId);
 
         // Предупреждение живёт ровно столько, сколько сессия, к которой оно пришло.
         shellWarningStore.ForgetUnless(sessionId);
@@ -75,7 +76,7 @@ public sealed class PlayerShellStateBuilder(
             Message: CreateMessage(state),
             LauncherApps: catalog is null
                 ? CreateLauncherApps(agentOptions)
-                : CreateLauncherApps(catalog, heartbeatSnapshot.SessionOwner?.PlayerAge),
+                : CreateLauncherApps(catalog, sessionOwner?.PlayerAge),
             ClubRules: protection?.Profile.ClubRules,
             IdleShutdownAtUtc: idleShutdown?.ShutdownAtUtc,
             Showcase: ShowcaseFor(state),
@@ -94,8 +95,8 @@ public sealed class PlayerShellStateBuilder(
             // Место и права — последние, что сервер назвал: без связи экран всё равно пишет «ПК 07».
             SeatLabel: heartbeatSnapshot.Seat?.Label,
             ZoneName: heartbeatSnapshot.Seat?.ZoneName,
-            SessionOwnerKind: heartbeatSnapshot.SessionOwner?.Kind,
-            SessionOwnerPlayerAccountId: heartbeatSnapshot.SessionOwner?.PlayerAccountId,
+            SessionOwnerKind: sessionOwner?.Kind,
+            SessionOwnerPlayerAccountId: sessionOwner?.PlayerAccountId,
             Features: heartbeatSnapshot.Features,
             // Кто и когда — только в обслуживании: вне его полосе нечего писать.
             MaintenanceSinceUtc: inMaintenance ? heartbeatSnapshot.MaintenanceSinceUtc : null,

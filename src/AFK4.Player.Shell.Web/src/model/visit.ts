@@ -18,16 +18,17 @@ export interface EndedVisit {
 export const SUMMARY_TOKEN_WINDOW_MS = 27_000;
 
 /**
- * Сессия, за которой сидел вошедший, закрылась — по таймеру, у стойки или им самим. Итог нужен в
- * любом случае: «сколько сыграл и сколько потратил» не должно прятаться в истории кошелька.
- * Вышел из аккаунта — итог уже не его.
+ * Сессия вошедшего закрылась — по таймеру, у стойки или им самим. Итог нужен в любом случае:
+ * «сколько сыграл и сколько потратил» не должно прятаться в истории кошелька. Вышел из аккаунта —
+ * итог уже не его. Сессия была чужая (стойка посадила сюда другого игрока или гостя) — тоже: чек
+ * чужого визита вошедшему не покажут, а «Сыграно …» было бы не о нём.
  */
 export function endedSessionId(
-  previous: { screen: ShellScreen; sessionId: string | null },
+  previous: { screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null },
   current: ShellScreen,
-  signedIn: boolean
+  signedInPlayerAccountId: string | null
 ): string | null {
-  if (!signedIn || !previous.sessionId) return null;
+  if (!signedInPlayerAccountId || !previous.sessionId || previous.ownerPlayerAccountId !== signedInPlayerAccountId) return null;
   return isSessionScreen(previous.screen) && current === 'chooseTime' ? previous.sessionId : null;
 }
 

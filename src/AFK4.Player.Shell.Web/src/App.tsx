@@ -18,6 +18,32 @@ import { AssistButton } from './ui/AssistButton';
 import { SeatBadge } from './ui/SeatBadge';
 import { SystemBar } from './ui/SystemBar';
 
+/**
+ * Сколько ждать службу ПК, прежде чем сказать, что она не отвечает. Обычно состояние приходит за
+ * секунду после запуска; двадцать — уже не «подключаемся», а сбой, и крутить колесо дальше — молчать.
+ */
+export const CONNECTING_STUCK_MS = 20_000;
+
+function ConnectingScreen() {
+  const { t } = useI18n();
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStuck(true), CONNECTING_STUCK_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  // Позвать администратора кнопкой нельзя: вызов идёт через ту самую службу, что молчит.
+  return (
+    <StatusScreen
+      icon={<Loader2 className="spin" />}
+      title={t('playerShell.connecting.title')}
+      body={stuck ? t('playerShell.connecting.stuck') : undefined}
+    />
+  );
+}
+
+/** Сколько после закрытия окна входа ввод не считается подходом: дольше шага сигналов хоста. */
+const DISMISS_GRACE_MS = 2000;
+
 export function App() {
   const { t, setLocale } = useI18n();
   const host = useShellHost();
@@ -43,13 +69,20 @@ export function App() {
   }, []);
 
   // Подошли к свободному ПК — витрина уступает место окну входа; отошли — возвращается.
+  // Закрыли окно сами (Esc, «Назад») — эта клавиша тоже ввод, и хост сообщит о нём с опозданием до
+  // секунды (`InputActivityTracker.DefaultActivityEvery`). Такой сигнал — не «подошли снова».
   const lastActivity = useRef(host.activity);
+  const dismissedAtMs = useRef(0);
   useEffect(() => {
     if (host.activity !== lastActivity.current) {
       lastActivity.current = host.activity;
-      setApproached(true);
+      if (Date.now() - dismissedAtMs.current >= DISMISS_GRACE_MS) setApproached(true);
     }
   }, [host.activity]);
+  const dismissSignIn = useCallback(() => {
+    dismissedAtMs.current = Date.now();
+    setApproached(false);
+  }, []);
   // Минута тишины: витрина возвращается, а вошедший, но так и не начавший сессию, выходит. Сервер
   // гасит такой вход только через 5 минут — и всё это время подошедший следом начал бы сессию на
   // чужие деньги (`DeviceBoundPlayerTokens.PreSessionWindow`).
@@ -101,12 +134,19 @@ export function App() {
   // Сессия вошедшего закрылась сама — по таймеру или у стойки: итог нужен и тогда. Смотрим на экран
   // без учёта итога, иначе он сам себя и перекрывал бы.
   const baseScreen = selectScreen({ state, signedIn: host.auth.signedIn, approached });
-  const previous = useRef<{ screen: ShellScreen; sessionId: string | null }>({ screen: baseScreen, sessionId: null });
+  const previous = useRef<{ screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null }>({
+    screen: baseScreen, sessionId: null, ownerPlayerAccountId: null
+  });
+  const signedInAccountId = host.auth.signedIn ? host.auth.playerAccountId ?? null : null;
+  const sessionOwnerAccountId = state?.sessionOwnerPlayerAccountId ?? null;
   useEffect(() => {
-    const sessionId = endedSessionId(previous.current, baseScreen, host.auth.signedIn);
+    const sessionId = endedSessionId(previous.current, baseScreen, signedInAccountId);
     if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null, endedAtMs: Date.now() });
-    previous.current = { screen: baseScreen, sessionId: state?.sessionId ?? previous.current.sessionId };
-  }, [baseScreen, host.auth.signedIn, state?.sessionId]);
+    // Кончилась сессия — следующее состояние уже без неё: помним, чья была последняя.
+    previous.current = state?.sessionId
+      ? { screen: baseScreen, sessionId: state.sessionId, ownerPlayerAccountId: sessionOwnerAccountId }
+      : { ...previous.current, screen: baseScreen };
+  }, [baseScreen, signedInAccountId, state?.sessionId, sessionOwnerAccountId]);
   const online = state?.isOnline ?? false;
 
   return (
@@ -122,9 +162,7 @@ export function App() {
     const seat = state ? <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} /> : null;
     switch (screen) {
       case 'connecting':
-        return (
-          <StatusScreen icon={<Loader2 className="spin" />} title={t('playerShell.connecting.title')} />
-        );
+        return <ConnectingScreen />;
       case 'offline':
         return (
           <StatusScreen
@@ -179,15 +217,15 @@ export function App() {
         );
       case 'chooseTime':
         return <ChooseTimeScreen state={state!} auth={host.auth} />;
-      case 'approach':
+      default:
+        // Простой и «подошли» — одна витрина: окно входа ложится поверх того же экземпляра, и после
+        // отхода от ПК показ продолжается с той же карточки, а не с первой.
         return (
           <>
-            <IdleScreen state={state!} dimmed />
-            <SignInPanel state={state!} onClose={() => setApproached(false)} />
+            <IdleScreen state={state!} dimmed={screen === 'approach'} />
+            {screen === 'approach' ? <SignInPanel state={state!} onClose={dismissSignIn} /> : null}
           </>
         );
-      default:
-        return <IdleScreen state={state!} />;
     }
   }
 }

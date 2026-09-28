@@ -1293,11 +1293,8 @@ export const ShellBridgeEventTypeNames = {
   InputActivity: 'input.activity',
   /** Тишина дольше порога: окно входа закрывается, вошедший выходит. */
   InputIdle: 'input.idle',
-  /** Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр. */
-  GameForeground: 'game.foreground',
   /** Громкость, микрофон, раскладка — ShellSystemStateDto. */
   SystemChanged: 'system.changed',
-  ShowcaseChanged: 'showcase.changed',
 } as const;
 export type ShellBridgeEventTypeName = (typeof ShellBridgeEventTypeNames)[keyof typeof ShellBridgeEventTypeNames];
 
@@ -7372,11 +7369,6 @@ export interface ShellBrandingDto {
   clubName: string;
   logoUrl: string | null;
   accentColor: string | null;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellGameForegroundDto {
-  active: boolean;
 }
 
 /** Контракт: Shell/ShellBridgeContracts.cs */

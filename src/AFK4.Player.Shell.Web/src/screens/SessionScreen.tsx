@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   PlatformFeatureNames,
   ShellBridgeRequestTypeNames,
@@ -12,6 +12,7 @@ import { useI18n, type MessageKey } from '@afk4/i18n';
 import { AlertTriangle, WifiOff } from 'lucide-react';
 import { apiBaseUrl } from '../api/playerApi';
 import { requestHost } from '../host/shellHost';
+import { isOrderActive } from '../model/bar';
 import { clubTime } from '../model/offers';
 import { sessionRole } from '../model/session';
 import { SeatBadge } from '../ui/SeatBadge';
@@ -21,6 +22,7 @@ import { EndEarlySheet } from './session/EndEarlySheet';
 import { ExtendSheet } from './session/ExtendSheet';
 import { TimeMoneyColumn } from './session/TimeMoneyColumn';
 import { TopUpPanel } from './session/TopUpPanel';
+import { useBarOrders } from './session/useBarOrders';
 
 interface SessionScreenProps {
   state: PlayerShellStateDto;
@@ -71,6 +73,8 @@ export function SessionScreen({
   const [tab, setTab] = useState<'games' | 'bar' | 'topUp'>('games');
   const tabsId = useId();
   const warningKey = state.warningKind ? WARNING_KEY[state.warningKind] : undefined;
+  const bar = useBarOrders(baseUrl, barAvailable);
+  const activeOrder = barAvailable ? bar.orders.find(isOrderActive) ?? null : null;
 
   // «Продлено до …» — подтверждение, а не вывеска: через полминуты уходит, остаток и так в колонке.
   useEffect(() => {
@@ -160,7 +164,7 @@ export function SessionScreen({
 
         {barAvailable && tab === 'bar' && baseUrl ? (
           <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-bar`}>
-            <BarTab baseUrl={baseUrl} />
+            <BarTab baseUrl={baseUrl} orders={bar.orders} onOrderChanged={bar.apply} reloadOrders={bar.reload} />
           </section>
         ) : topUpAvailable && tab === 'topUp' && baseUrl ? (
           <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-topUp`}>
@@ -193,6 +197,9 @@ export function SessionScreen({
         state={state}
         receivedAtMs={receivedAtMs}
         role={role}
+        signedIn={auth.signedIn}
+        activeOrder={tab === 'bar' ? null : activeOrder}
+        onOpenBar={() => setTab('bar')}
         offline={offline || !baseUrl}
         onExtend={() => setSheet('extend')}
         onEndEarly={() => setSheet('end')}
@@ -229,15 +236,27 @@ export function SessionScreen({
 
 type LaunchState = 'idle' | 'launching' | 'failed';
 
+/**
+ * Сколько плитка держит «Запускается…» после ответа хоста. Хост отвечает, как только процесс
+ * создан, а окно игры появляется через секунды: вернись кнопка сразу — человек нажал бы второй раз
+ * и получил две копии игры.
+ */
+const LAUNCH_SETTLE_MS = 8000;
+
 function LibraryTile({ app }: { app: LauncherAppDto }) {
   const { t } = useI18n();
   const [launch, setLaunch] = useState<LaunchState>('idle');
+  const settle = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (settle.current !== null) window.clearTimeout(settle.current);
+  }, []);
 
   const start = async () => {
+    if (launch === 'launching') return;
     setLaunch('launching');
     try {
       await requestHost(ShellBridgeRequestTypeNames.AppLaunch, { appId: app.appId });
-      setLaunch('idle');
+      settle.current = window.setTimeout(() => setLaunch('idle'), LAUNCH_SETTLE_MS);
     } catch {
       setLaunch('failed');
     }

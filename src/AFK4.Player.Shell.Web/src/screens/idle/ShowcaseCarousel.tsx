@@ -71,17 +71,18 @@ export function ShowcaseCarousel({
     return () => clearTimeout(timer);
   }, [leavingId]);
 
-  // Сколько карточка простояла — от её появления до ухода или до смены экрана.
+  // Сколько карточка простояла — от её появления до ухода, до смены экрана или до окна входа. Под
+  // окном входа витрина притушена, и человек читает окно: это время рекламодателю не показ.
   const onShownRef = useRef(onShown);
   onShownRef.current = onShown;
   useEffect(() => {
-    if (current === null) return undefined;
+    if (current === null || paused) return undefined;
     const card = current;
     const shownSince = performance.now();
     return () => onShownRef.current?.(card, Math.round(performance.now() - shownSince));
-    // Только смена карточки: новый объект той же карточки из следующего пульса — не новый показ.
+    // Только смена карточки и пауза: новый объект той же карточки из следующего пульса — не новый показ.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.cardId]);
+  }, [current?.cardId, paused]);
 
   const nextImage = cards.length > 1 ? cards[(index + 1) % cards.length]?.imageUrl : null;
   useEffect(() => {

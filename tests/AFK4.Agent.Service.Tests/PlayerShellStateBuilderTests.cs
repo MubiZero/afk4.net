@@ -272,6 +272,45 @@ public sealed class PlayerShellStateBuilderTests
         Assert.Equal(["player_shop"], state.Features);
     }
 
+    // Сразу после старта аренда уже на ПК, а последнее сердцебиение ещё о прошлой сессии: её
+    // владелец — не владелец новой. Ни роли, ни возраста до сердцебиения о новой сессии.
+    [Fact]
+    public void RightAfterStart_ThePreviousSessionOwner_IsNotTheNewOnes()
+    {
+        var fixture = new Fixture(catalog: new FixedCatalog(
+        [
+            new AFK4.Agent.Service.Games.LauncherEntry("g1", "CS2", "Шутер", null, "", false, null, 18)
+        ]));
+        fixture.Contact(Now.AddSeconds(-2), intervalSeconds: 10);
+        var previousOwner = Guid.NewGuid();
+        fixture.Heartbeat.RecordPlace(
+            seat: null,
+            new AFK4.Shared.Contracts.Devices.DeviceSessionOwnerDto(
+                AFK4.Shared.Contracts.Devices.DeviceSessionOwnerKindNames.Player, previousOwner, PlayerAge: 14),
+            features: null);
+        fixture.Heartbeat.RecordLiveSession(new AFK4.Shared.Contracts.Devices.DeviceLiveSessionDto(Guid.NewGuid(), Now.AddHours(-2), Now.AddMinutes(-1)));
+        fixture.StartSession(Now.AddMinutes(15));
+
+        var justStarted = fixture.Build();
+
+        Assert.Null(justStarted.SessionOwnerKind);
+        Assert.Null(justStarted.SessionOwnerPlayerAccountId);
+        Assert.False(justStarted.LauncherApps[0].AgeLocked);
+
+        var owner = Guid.NewGuid();
+        fixture.Heartbeat.RecordPlace(
+            seat: null,
+            new AFK4.Shared.Contracts.Devices.DeviceSessionOwnerDto(
+                AFK4.Shared.Contracts.Devices.DeviceSessionOwnerKindNames.Player, owner, PlayerAge: 16),
+            features: null);
+        fixture.Heartbeat.RecordLiveSession(new AFK4.Shared.Contracts.Devices.DeviceLiveSessionDto(SessionId, Now.AddMinutes(-1), Now.AddHours(2)));
+
+        var known = fixture.Build();
+
+        Assert.Equal(owner, known.SessionOwnerPlayerAccountId);
+        Assert.True(known.LauncherApps[0].AgeLocked);
+    }
+
     [Fact]
     public void Maintenance_StaysMaintenanceWithoutConnection_AndShowsNoSeatingCode()
     {

@@ -1085,11 +1085,8 @@ abstract final class ShellBridgeEventTypeNames {
   static const String inputActivity = 'input.activity';
   /// Тишина дольше порога: окно входа закрывается, вошедший выходит.
   static const String inputIdle = 'input.idle';
-  /// Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр.
-  static const String gameForeground = 'game.foreground';
   /// Громкость, микрофон, раскладка — ShellSystemStateDto.
   static const String systemChanged = 'system.changed';
-  static const String showcaseChanged = 'showcase.changed';
 }
 
 /// Мост хост ↔ интерфейс оболочки, версия 2 (спека оболочки, §4.4). Конверт запроса и ответа —
@@ -18102,23 +18099,6 @@ class ShellBrandingDto {
         'clubName': clubName,
         'logoUrl': logoUrl,
         'accentColor': accentColor,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellGameForegroundDto {
-  const ShellGameForegroundDto({
-    required this.active,
-  });
-
-  final bool active;
-
-  factory ShellGameForegroundDto.fromJson(Map<String, dynamic> json) => ShellGameForegroundDto(
-        active: json['active'] as bool,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'active': active,
       };
 }
 

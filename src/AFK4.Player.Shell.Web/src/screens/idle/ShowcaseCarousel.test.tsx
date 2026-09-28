@@ -75,6 +75,26 @@ describe('реклама в витрине', () => {
     expect(shown[0][1]).toBeGreaterThanOrEqual(40);
   });
 
+  it('под окном входа реклама не копит показ', async () => {
+    const ad: ShowcaseCardDto = { cardId: 'ad:1', kind: 'ad', title: 'Безлимит на месяц', advertiser: 'Сомон Телеком' };
+    const shown: Array<[string, number]> = [];
+    const view = (paused: boolean) => (
+      <ShellI18nProvider>
+        <ShowcaseCarousel cards={[ad, news]} paused={paused} slideMs={60_000} onShown={(card, ms) => shown.push([card.cardId, ms])} />
+      </ShellI18nProvider>
+    );
+    const { rerender, unmount } = render(view(false));
+
+    rerender(view(true));
+    const beforePause = shown.length;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    unmount();
+
+    // Показ до окна входа засчитан, а время под окном — нет.
+    expect(beforePause).toBe(1);
+    expect(shown).toHaveLength(1);
+  });
+
   // Закон о рекламе: таджикский первым, пометки — по-таджикски всегда и на языке экрана строкой ниже.
   it('ставит таджикский первым и пишет пометки закона на государственном языке', () => {
     const ad: ShowcaseCardDto = {

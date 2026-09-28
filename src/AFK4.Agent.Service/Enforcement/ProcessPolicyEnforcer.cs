@@ -15,7 +15,8 @@ public sealed class ProcessPolicyEnforcer(
     IRunningProcessTerminator processTerminator,
     ILogger<ProcessPolicyEnforcer> logger,
     ILauncherCatalog? catalog = null,
-    IShellHeartbeatSnapshot? heartbeatSnapshot = null) : IProcessPolicyEnforcer
+    IShellHeartbeatSnapshot? heartbeatSnapshot = null,
+    ISessionLeaseStore? leaseStore = null) : IProcessPolicyEnforcer
 {
     public AgentLauncherAppOptions? FindAllowedLauncherApp(string appId)
     {
@@ -24,7 +25,7 @@ public sealed class ProcessPolicyEnforcer(
         if (catalog is not null)
         {
             return catalog.Find(appId) is { } entry
-                   && !GameAgeGate.IsLocked(entry.MinAge, heartbeatSnapshot?.SessionOwner?.PlayerAge)
+                   && !GameAgeGate.IsLocked(entry.MinAge, heartbeatSnapshot?.SessionOwnerFor(leaseStore?.Current?.SessionId)?.PlayerAge)
                 ? new AgentLauncherAppOptions
                 {
                     AppId = entry.AppId,
