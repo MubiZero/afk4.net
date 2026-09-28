@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -579,43 +581,8 @@ public sealed class DeviceCommandEndpointTests
         await dbContext.SaveChangesAsync();
     }
 
-    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(
-        HttpClient client,
-        PlatformApiFactory factory)
-    {
-        await using var scope = factory.Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var code = "AFK4-TEST-COMMANDRESULT";
-        dbContext.DeviceEnrollmentCodes.Add(new DeviceEnrollmentCodeEntity
-        {
-            Code = code,
-            OrganizationId = TestIds.OrganizationId,
-            BranchId = TestIds.BranchId,
-            // The enrollment service validates expiry against the real wall clock
-            // (TimeProvider is not faked in these tests), so this must be relative to now —
-            // a fixed literal becomes a time bomb that "expires" once that date passes.
-            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-5),
-            ExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
-        });
-        await dbContext.SaveChangesAsync();
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                TestIds.OrganizationId,
-                TestIds.BranchId,
-                code,
-                MachineName: "PC-001",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:00Z")));
-        var body = await response.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(body);
-
-        return body;
-    }
+    private static Task<InstallEnrollResponse> EnrollDeviceAsync(HttpClient client, PlatformApiFactory factory) =>
+        TestDeviceEnrollment.EnrollDeviceAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 
     private static async Task SeedSeatAssignmentAsync(PlatformApiFactory factory, Guid deviceId)
     {
@@ -683,7 +650,7 @@ public sealed class DeviceCommandEndpointTests
     }
 
     private static DeviceCommandResultDto CreateCommandResult(
-        DeviceEnrollmentResponse enrollment,
+        InstallEnrollResponse enrollment,
         DeviceCommandDto command,
         string status,
         string message,
@@ -701,7 +668,7 @@ public sealed class DeviceCommandEndpointTests
 
     private static Task<HttpResponseMessage> PostCommandResultAsync(
         HttpClient client,
-        DeviceEnrollmentResponse enrollment,
+        InstallEnrollResponse enrollment,
         DeviceCommandResultDto result)
     {
         var message = new HttpRequestMessage(

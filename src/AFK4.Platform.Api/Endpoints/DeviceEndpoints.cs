@@ -33,82 +33,6 @@ internal static class DeviceEndpoints
         this WebApplication app,
         IEndpointRouteBuilder organizations)
     {
-        organizations.MapPost("branches/{branchId:guid}/device-enrollment-codes", async (
-            Guid branchId,
-            CreateDeviceEnrollmentCodeRequest request,
-            IDeviceEnrollmentService enrollmentService,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId,
-                OrganizationPermissionNames.CreateDeviceEnrollmentCode,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                    OrganizationId: authorization.StaffContext!.OrganizationId,
-                    BranchId: branchId,
-                    ActorStaffUserId: authorization.StaffContext.StaffUserId,
-                    Action: AuditActionNames.CreateDeviceEnrollmentCode,
-                    TargetType: "DeviceEnrollmentCode",
-                    TargetId: null,
-                    Outcome: AuditOutcome.Denied,
-                    SourceApp: "PlatformApi",
-                    DetailsJson: JsonSerializer.Serialize(new
-                    {
-                        request.ExpiresInSeconds,
-                        authorization.DenialReason
-                    })),
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId == Guid.Empty)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId is required." });
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            if (request.ExpiresInSeconds <= 0)
-            {
-                return Results.BadRequest(new { Error = "Enrollment code lifetime must be positive." });
-            }
-
-            var code = await enrollmentService.CreateEnrollmentCodeAsync(branchId, request, cancellationToken);
-
-            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                OrganizationId: authorization.StaffContext.OrganizationId,
-                BranchId: branchId,
-                ActorStaffUserId: authorization.StaffContext.StaffUserId,
-                Action: AuditActionNames.CreateDeviceEnrollmentCode,
-                TargetType: "DeviceEnrollmentCode",
-                TargetId: code.Code,
-                Outcome: AuditOutcome.Succeeded,
-                SourceApp: "PlatformApi",
-                DetailsJson: JsonSerializer.Serialize(new
-                {
-                    request.ExpiresInSeconds,
-                    code.ExpiresAtUtc
-                })),
-                cancellationToken);
-
-            return Results.Ok(code);
-        })
-            .AllowPlatformSupportAccess(OrganizationPermissionNames.CreateDeviceEnrollmentCode);
-
         organizations.MapPost("install/auth/discover", async (
             StaffAuthorizationService authorizationService,
             IInstallService installService,
@@ -252,28 +176,6 @@ internal static class DeviceEndpoints
             // Мастер установки — не панель управляющего: проверку версии Organization Admin
             // к нему не применяем, доменная защита группы остаётся.
             .AllowNonOrganizationAdminClients();
-
-        app.MapPost("/api/devices/enroll", async (
-            DeviceEnrollmentRequest request,
-            IDeviceEnrollmentService enrollmentService,
-            IOrganizationStatusGuard organizationStatusGuard,
-            CancellationToken cancellationToken) =>
-        {
-            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
-            if (suspendedCheck is not null)
-            {
-                return suspendedCheck;
-            }
-
-            var result = await enrollmentService.EnrollAsync(request, cancellationToken);
-
-            if (!result.Succeeded)
-            {
-                return Results.BadRequest(new { result.Error });
-            }
-
-            return Results.Ok(result.Response);
-        });
 
         app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
             Guid deviceId,

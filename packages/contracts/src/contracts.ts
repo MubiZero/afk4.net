@@ -2687,12 +2687,6 @@ export interface CreateDcTopUpRequest {
   currencyCode: string | null;
 }
 
-/** Контракт: Devices/CreateDeviceEnrollmentCodeRequest.cs */
-export interface CreateDeviceEnrollmentCodeRequest {
-  organizationId: Guid;
-  expiresInSeconds: number;
-}
-
 /**
  * Код установки: техник ставит AFK4 на ПК зала без мастера —
  * `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
@@ -3289,35 +3283,6 @@ export interface DeviceDiagnosticsSummaryDto {
   staleDevices: number;
   staleThresholdSeconds: number;
   newestHeartbeatAtUtc: IsoDateTime | null;
-}
-
-/** Контракт: Devices/DeviceEnrollmentCodeDto.cs */
-export interface DeviceEnrollmentCodeDto {
-  organizationId: Guid;
-  branchId: Guid;
-  code: string;
-  expiresAtUtc: IsoDateTime;
-}
-
-/** Контракт: Devices/DeviceEnrollmentRequest.cs */
-export interface DeviceEnrollmentRequest {
-  organizationId: Guid;
-  branchId: Guid;
-  enrollmentCode: string;
-  machineName: string;
-  agentVersion: string;
-  shellVersion: string;
-  requestedAtUtc: IsoDateTime;
-}
-
-/** Контракт: Devices/DeviceEnrollmentResponse.cs */
-export interface DeviceEnrollmentResponse {
-  organizationId: Guid;
-  branchId: Guid;
-  deviceId: Guid;
-  credentialId: Guid;
-  credentialSecret: string;
-  enrolledAtUtc: IsoDateTime;
 }
 
 /**

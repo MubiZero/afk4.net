@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -79,7 +81,7 @@ public sealed class DeviceHeartbeatEndpointTests
         HttpClient client,
         Guid organizationId,
         Guid branchId,
-        DeviceEnrollmentResponse enrollment)
+        InstallEnrollResponse enrollment)
     {
         var request = new DeviceHeartbeatRequest(
             OrganizationId: organizationId,
@@ -132,30 +134,9 @@ public sealed class DeviceHeartbeatEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(
+    private static Task<InstallEnrollResponse> EnrollDeviceAsync(
         HttpClient client,
         Guid organizationId,
-        Guid branchId)
-    {
-        var codeResponse = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(organizationId, ExpiresInSeconds: 300));
-        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
-        Assert.NotNull(code);
-
-        var enrollmentResponse = await client.PostAsJsonAsync(
-            "/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                OrganizationId: organizationId,
-                BranchId: branchId,
-                EnrollmentCode: code.Code,
-                MachineName: "PC-001",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: DateTimeOffset.Parse("2026-05-12T00:01:00Z")));
-        var enrollment = await enrollmentResponse.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
-        Assert.NotNull(enrollment);
-
-        return enrollment;
-    }
+        Guid branchId) =>
+        TestDeviceEnrollment.EnrollDeviceAsync(client, organizationId, branchId);
 }

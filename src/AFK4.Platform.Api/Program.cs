@@ -133,9 +133,7 @@ builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseNpgsql(connectionString);
 });
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<EfDeviceEnrollmentService>();
-builder.Services.AddScoped<IDeviceEnrollmentService>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
-builder.Services.AddScoped<IDeviceCredentialValidator>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
+builder.Services.AddScoped<IDeviceCredentialValidator, EfDeviceCredentialValidator>();
 builder.Services.AddScoped<EfSeatingCodeService>();
 builder.Services.AddScoped<IDevicePlayerSignInService, DevicePlayerSignInService>();
 builder.Services.AddScoped<SeatingCodeAttemptGuard>();

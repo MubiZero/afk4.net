@@ -4,8 +4,9 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Platform.Entitlements;
+using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -46,12 +47,13 @@ public sealed class DeviceCredentialLifecycleEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var validator = new EfDeviceEnrollmentService(dbContext, TimeProvider.System, new EfPlanLimitGuard(dbContext));
+        var validator = new EfDeviceCredentialValidator(dbContext, TimeProvider.System);
         Assert.False(validator.Validate(enrollment.OrganizationId, enrollment.BranchId, enrollment.DeviceId, enrollment.CredentialSecret));
         Assert.True(validator.Validate(rotated.OrganizationId, rotated.BranchId, rotated.DeviceId, rotated.CredentialSecret));
 
-        var audit = await dbContext.AuditRecords.SingleAsync();
-        Assert.Equal(AuditActionNames.RotateDeviceCredential, audit.Action);
+        // Установка ПК своим кодом уже оставила в журнале запись о выдаче и о регистрации —
+        // интересует нас только запись самой ротации.
+        var audit = await dbContext.AuditRecords.SingleAsync(row => row.Action == AuditActionNames.RotateDeviceCredential);
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
         Assert.Equal(TestIds.TechnicianStaffUserId, audit.ActorStaffUserId);
         Assert.Equal(rotated.CredentialId.ToString("D"), audit.TargetId);
@@ -73,8 +75,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var audit = await dbContext.AuditRecords.SingleAsync();
-        Assert.Equal(AuditActionNames.RotateDeviceCredential, audit.Action);
+        var audit = await dbContext.AuditRecords.SingleAsync(row => row.Action == AuditActionNames.RotateDeviceCredential);
         Assert.Equal(AuditOutcome.Denied, audit.Outcome);
         Assert.Equal(TestIds.TechnicianStaffUserId, audit.ActorStaffUserId);
         Assert.Equal(enrollment.DeviceId.ToString("D"), audit.TargetId);
@@ -99,11 +100,10 @@ public sealed class DeviceCredentialLifecycleEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var validator = new EfDeviceEnrollmentService(dbContext, TimeProvider.System, new EfPlanLimitGuard(dbContext));
+        var validator = new EfDeviceCredentialValidator(dbContext, TimeProvider.System);
         Assert.False(validator.Validate(enrollment.OrganizationId, enrollment.BranchId, enrollment.DeviceId, enrollment.CredentialSecret));
 
-        var audit = await dbContext.AuditRecords.SingleAsync();
-        Assert.Equal(AuditActionNames.RevokeDeviceCredential, audit.Action);
+        var audit = await dbContext.AuditRecords.SingleAsync(row => row.Action == AuditActionNames.RevokeDeviceCredential);
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
         Assert.Equal(TestIds.TechnicianStaffUserId, audit.ActorStaffUserId);
         Assert.Equal(enrollment.CredentialId.ToString("D"), audit.TargetId);
@@ -125,34 +125,12 @@ public sealed class DeviceCredentialLifecycleEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var audit = await dbContext.AuditRecords.SingleAsync();
-        Assert.Equal(AuditActionNames.RevokeDeviceCredential, audit.Action);
+        var audit = await dbContext.AuditRecords.SingleAsync(row => row.Action == AuditActionNames.RevokeDeviceCredential);
         Assert.Equal(AuditOutcome.Denied, audit.Outcome);
         Assert.Equal(TestIds.TechnicianStaffUserId, audit.ActorStaffUserId);
         Assert.Equal(enrollment.CredentialId.ToString("D"), audit.TargetId);
     }
 
-    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(PlatformApiFactory factory)
-    {
-        await using var scope = factory.Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var enrollmentService = new EfDeviceEnrollmentService(dbContext, TimeProvider.System, new EfPlanLimitGuard(dbContext));
-        var code = await enrollmentService.CreateEnrollmentCodeAsync(
-            TestIds.BranchId,
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300),
-            CancellationToken.None);
-        var result = await enrollmentService.EnrollAsync(
-            new DeviceEnrollmentRequest(
-                OrganizationId: TestIds.OrganizationId,
-                BranchId: TestIds.BranchId,
-                EnrollmentCode: code.Code,
-                MachineName: "PC-001",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: DateTimeOffset.Parse("2026-05-12T00:01:00Z")),
-            CancellationToken.None);
-
-        Assert.True(result.Succeeded);
-        return Assert.IsType<DeviceEnrollmentResponse>(result.Response);
-    }
+    private static Task<InstallEnrollResponse> EnrollDeviceAsync(PlatformApiFactory factory) =>
+        TestDeviceEnrollment.EnrollDeviceAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 }
