@@ -9,6 +9,7 @@ import type { OperatorAuthSession } from './authClient';
 // sections below in the same change. (#37 honest, trackable contract — no silent drift.)
 const rolePermissions: Record<string, string[]> = {
   operator: [
+    'organization.devices.commands.dispatch', 'organization.devices.commands.status.view',
     'organization.floor_map.view', 'organization.sessions.start', 'organization.sessions.extend', 'organization.sessions.transfer', 'organization.sessions.end',
     'organization.sessions.view', 'organization.players.create', 'organization.players.view', 'organization.billing.view', 'organization.billing.wallet.top_up',
     'organization.billing.debt.pay', 'organization.tariffs.view', 'organization.packages.view', 'organization.packages.purchase', 'organization.shifts.open',
@@ -16,6 +17,7 @@ const rolePermissions: Record<string, string[]> = {
     'organization.receipts.view'
   ],
   shift_supervisor: [
+    'organization.devices.commands.dispatch', 'organization.devices.maintenance',
     'organization.devices.commands.status.view', 'organization.devices.detail.view', 'organization.floor_map.view', 'organization.sessions.start',
     'organization.sessions.extend', 'organization.sessions.transfer', 'organization.sessions.end', 'organization.sessions.view', 'organization.players.create',
     'organization.players.view', 'organization.billing.view', 'organization.billing.wallet.top_up', 'organization.billing.refund',
@@ -37,7 +39,8 @@ const rolePermissions: Record<string, string[]> = {
     'organization.reservations.manage', 'organization.pos.catalog.manage', 'organization.shop.orders.manage', 'organization.pos.sales.create',
     'organization.pos.sales.pay', 'organization.pos.sales.refund', 'organization.pos.sales.void', 'organization.inventory.stock.manage', 'organization.inventory.view',
     'organization.receipts.view', 'organization.updates.status.view',
-    'organization.diagnostics.view', 'organization.identity.branch_staff.manage', 'organization.audit.view', 'organization.branches.settings.manage'
+    'organization.diagnostics.view', 'organization.identity.branch_staff.manage', 'organization.audit.view', 'organization.branches.settings.manage',
+    'organization.ads.view'
   ],
   technician: [
     'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.maintenance', 'organization.devices.commands.status.view',
@@ -46,6 +49,7 @@ const rolePermissions: Record<string, string[]> = {
     'organization.updates.status.view', 'organization.diagnostics.view'
   ],
   accountant: [
+    'organization.billing.subscription.view',
     'organization.sessions.view', 'organization.players.view', 'organization.billing.view', 'organization.tariffs.view', 'organization.packages.view', 'organization.shifts.view',
     'organization.reports.view', 'organization.reservations.view', 'organization.inventory.view', 'organization.receipts.view', 'organization.updates.status.view',
     'organization.diagnostics.view', 'organization.audit.view'
@@ -81,15 +85,15 @@ const rolePermissions: Record<string, string[]> = {
 //   - branch_manager holds devices.install (but NOT audit.organization.view) → sees `network`
 //     (Install only; Journal/Branches/Billing stay hidden).
 //   - technician holds devices.install (field provisioning) → sees `network` (Install only).
-//   - accountant holds only audit.view (no devices.install/branches.view/
-//     billing.subscription.view/audit.organization.view) → `network` is now hidden entirely.
+//   - accountant holds billing.subscription.view (решение владельца 2026-09-28: счета платформы —
+//     работа бухгалтерии) → sees `network` (Billing only).
 //   - operator and shift_supervisor hold none of the four → `network` stays hidden.
 const expectedSections: Record<string, string[]> = {
   operator: ['map', 'booking', 'players', 'cashier'],
   shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock'],
   branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin', 'stock', 'network'],
   technician: ['map', 'admin', 'stock', 'network'],
-  accountant: ['booking', 'players', 'cashier', 'reports', 'stock']
+  accountant: ['booking', 'players', 'cashier', 'reports', 'stock', 'network']
 };
 
 function visibleSections(permissions: string[]): string[] {

@@ -74,11 +74,12 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
-    public async Task PostDeviceCommand_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    public async Task PostDeviceCommand_WithoutTheCommandRight_ReturnsForbiddenAndWritesDeniedAudit()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        // Команды ПК теперь и у стойки; без права на них — бухгалтер.
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(

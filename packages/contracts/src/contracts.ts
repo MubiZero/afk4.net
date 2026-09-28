@@ -743,6 +743,12 @@ export const OrganizationPermissionNames = {
    * Это движение денег, поэтому у владельца и управляющего, а не у стойки.
    */
   ManageTips: 'organization.tips.manage',
+  /**
+   * Реклама платформы на ПК клуба и жалоба на неё. По закону (ст. 25) перед проверяющим отвечает
+   * и управляющий филиала, поэтому право не только у владельца — и отдельно от подписки: счета
+   * управляющему видеть незачем.
+   */
+  ViewPlatformAds: 'organization.ads.view',
 } as const;
 export type OrganizationPermissionName = (typeof OrganizationPermissionNames)[keyof typeof OrganizationPermissionNames];
 

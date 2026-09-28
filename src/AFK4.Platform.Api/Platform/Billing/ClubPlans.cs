@@ -197,14 +197,16 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         if (state is null) return null;
         var (_, subscription, _) = state.Value;
         var unpaid = await OldestUnpaidAsync(organizationId, ct);
+        if (unpaid is null) return ClubPlanErrorCodeNames.NothingToPromise;
+        // Платформа выключила обещанные платежи — это и есть причина, когда бы ни был срок счёта.
+        var terms = await BillingTerms.LoadAsync(db, ct);
+        if (terms.PromisedPaymentDays == 0) return ClubPlanErrorCodeNames.PromiseUnavailable;
         var now = clock.GetUtcNow();
         // Обещанный платёж — один на счёт. Взятый до срока, он кончался раньше, чем что-то грозило, и
         // пропадал впустую: под этот счёт второго уже не взять.
-        if (unpaid is null || unpaid.DueAtUtc >= now) return ClubPlanErrorCodeNames.NothingToPromise;
+        if (unpaid.DueAtUtc >= now) return ClubPlanErrorCodeNames.NothingToPromise;
         if (subscription.PromisedPaymentInvoiceId == unpaid.InvoiceId || subscription.PaymentGraceUntilUtc > now)
             return ClubPlanErrorCodeNames.PromiseUsed;
-        var terms = await BillingTerms.LoadAsync(db, ct);
-        if (terms.PromisedPaymentDays == 0) return ClubPlanErrorCodeNames.PromiseUnavailable;
 
         subscription.PaymentGraceUntilUtc = now.AddDays(terms.PromisedPaymentDays);
         subscription.PromisedPaymentInvoiceId = unpaid.InvoiceId;

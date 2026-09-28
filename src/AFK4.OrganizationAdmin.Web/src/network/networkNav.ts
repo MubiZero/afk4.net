@@ -37,7 +37,7 @@ export const networkDestinations: readonly NetworkDestination[] = [
     labelKey: 'op.network.dest.ads',
     subtitleKey: 'op.network.dest.ads.subtitle',
     Icon: Megaphone,
-    permissions: [permissionNames.viewSubscription]
+    permissions: [permissionNames.viewPlatformAds]
   },
   {
     id: 'install',
