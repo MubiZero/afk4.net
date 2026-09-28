@@ -5,7 +5,7 @@ import { formatMoney } from '@afk4/money';
 import { CheckCircle2, Star } from 'lucide-react';
 import { PlayerApiError, getJson, postJson } from '../api/playerApi';
 import { INTL_LOCALES, durationKey } from '../model/offers';
-import { playedMinutes, type EndedVisit } from '../model/visit';
+import { SUMMARY_TOKEN_WINDOW_MS, playedMinutes, type EndedVisit } from '../model/visit';
 import { SeatBadge } from '../ui/SeatBadge';
 import { TipPanel } from './summary/TipPanel';
 
@@ -52,12 +52,19 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
   }, [baseUrl, visit.sessionId]);
 
   // Тишина 25 секунд — выход. Любое касание, клавиша или ввод начинают отсчёт заново; пока человек
-  // решает, списать ли чаевые, отсчёта нет вовсе.
+  // решает, списать ли чаевые, отсчёта тишины нет вовсе.
   useEffect(() => {
     if (held) return undefined;
     const timer = window.setTimeout(onLeave, SUMMARY_SECONDS * 1000);
     return () => window.clearTimeout(timer);
   }, [onLeave, activity, touched, held]);
+
+  // А это предел, который ничем не продлить: вход после сессии живёт 30 секунд на сервере. Дольше
+  // итог держать нельзя — оценка и чаевые после срока ответили бы «не получилось».
+  useEffect(() => {
+    const timer = window.setTimeout(onLeave, Math.max(0, visit.endedAtMs + SUMMARY_TOKEN_WINDOW_MS - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [onLeave, visit.endedAtMs]);
 
   const currency = receipt?.currencyCode ?? visit.selfEnd?.refunded.currencyCode ?? 'TJS';
   const money = (minorUnits: number, code = currency) => formatMoney(minorUnits, code, INTL_LOCALES[locale]);

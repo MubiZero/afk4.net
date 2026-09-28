@@ -4585,6 +4585,7 @@ export const ru = {
   "playerShell.seat.free": "Свободен",
   "playerShell.session.ageLocked": "С {age} лет — по дню рождения в профиле",
   "playerShell.session.counterHint": "Продлить эту сессию можно у администратора.",
+  "playerShell.session.elapsed": "Идёт",
   "playerShell.session.endEarly": "Встать раньше",
   "playerShell.session.error.changed": "Сессия только что изменилась — посмотрите ещё раз.",
   "playerShell.session.error.generic": "Не получилось. Попробуйте ещё раз или позовите администратора.",

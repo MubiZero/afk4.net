@@ -56,4 +56,8 @@ public sealed record PlayerShellStateDto(
     // отменяет. null — выключение не назначено.
     DateTimeOffset? IdleShutdownAtUtc = null,
     // Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба.
-    IReadOnlyList<ShowcaseCardDto>? Showcase = null);
+    IReadOnlyList<ShowcaseCardDto>? Showcase = null,
+    // Когда идущая сессия началась и когда кончится — отсчёт «Осталось» идёт от конца сессии, а не
+    // от срока аренды. Конца нет у открытого счёта: экран показывает, сколько уже идёт.
+    DateTimeOffset? SessionStartedAtUtc = null,
+    DateTimeOffset? SessionEndsAtUtc = null);

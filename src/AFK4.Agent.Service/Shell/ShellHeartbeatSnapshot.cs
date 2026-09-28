@@ -38,6 +38,11 @@ public interface IShellHeartbeatSnapshot
     /// </summary>
     void RecordPlace(DeviceSeatDto? seat, DeviceSessionOwnerDto? sessionOwner, IReadOnlyList<string>? features);
 
+    /// <summary>Идущая сессия по словам сервера: её начало и конец. null — сессии нет.</summary>
+    DeviceLiveSessionDto? LiveSession { get; }
+
+    void RecordLiveSession(DeviceLiveSessionDto? liveSession);
+
     /// <summary>С какого момента ПК на обслуживании — по словам сервера.</summary>
     DateTimeOffset? MaintenanceSinceUtc { get; }
 
@@ -59,6 +64,17 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
     private IReadOnlyList<string>? features;
     private DateTimeOffset? maintenanceSinceUtc;
     private string? maintenanceByName;
+    private DeviceLiveSessionDto? liveSession;
+
+    public DeviceLiveSessionDto? LiveSession { get { lock (gate) { return liveSession; } } }
+
+    public void RecordLiveSession(DeviceLiveSessionDto? liveSession)
+    {
+        lock (gate)
+        {
+            this.liveSession = liveSession;
+        }
+    }
 
     public string? SeatingCode { get { lock (gate) { return seatingCode; } } }
 

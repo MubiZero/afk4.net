@@ -4585,6 +4585,7 @@ export const tg = {
   "playerShell.seat.free": "Озод",
   "playerShell.session.ageLocked": "Аз {age} сола — аз рӯи зодрӯз дар профил",
   "playerShell.session.counterHint": "Ин сессияро маъмур дароз карда метавонад.",
+  "playerShell.session.elapsed": "Идома дорад",
   "playerShell.session.endEarly": "Барвақт хестан",
   "playerShell.session.error.changed": "Сессия ҳозир тағйир ёфт — боз як бор нигоҳ кунед.",
   "playerShell.session.error.generic": "Нашуд. Боз кӯшиш кунед ё маъмурро даъват кунед.",

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ShellBridgeRequestTypeNames } from '@afk4/contracts';
-import { apiBaseUrl } from './api/playerApi';
+import { PLAYER_UNAUTHORIZED_EVENT, apiBaseUrl } from './api/playerApi';
 import { useI18n, isLocale } from '@afk4/i18n';
 import { AlertOctagon, Loader2, WifiOff } from 'lucide-react';
 import { requestHost, useShellHost } from './host/shellHost';
@@ -50,9 +50,26 @@ export function App() {
       setApproached(true);
     }
   }, [host.activity]);
+  // Минута тишины: витрина возвращается, а вошедший, но так и не начавший сессию, выходит. Сервер
+  // гасит такой вход только через 5 минут — и всё это время подошедший следом начал бы сессию на
+  // чужие деньги (`DeviceBoundPlayerTokens.PreSessionWindow`).
+  const screenNow = useRef<ShellScreen>('connecting');
   useEffect(() => {
-    if (host.idle > 0) setApproached(false);
+    if (host.idle === 0) return;
+    setApproached(false);
+    if (screenNow.current === 'chooseTime') void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
   }, [host.idle]);
+
+  // Сервер отказал входу (401): токены погашены — по сроку или новым входом. Экран с чужим именем и
+  // балансом держать незачем: выходим, как при тишине.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setEnded(null);
+      void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
+    };
+    window.addEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
 
   // Язык филиала — пока человек не выбрал свой. Флаг выбора — ref, а не состояние: эффект от
   // пришедшего состояния может выполниться уже после клика «Тоҷ» (React откладывает эффекты), и
@@ -68,6 +85,7 @@ export function App() {
   const shellStyle = accent ? ({ '--club-accent': accent } as CSSProperties) : undefined;
 
   const screen = selectScreen({ state, signedIn: host.auth.signedIn, approached, ended: ended !== null });
+  screenNow.current = screen;
 
   // Сессия вошедшего закрылась сама — по таймеру или у стойки: итог нужен и тогда. Смотрим на экран
   // без учёта итога, иначе он сам себя и перекрывал бы.
@@ -75,7 +93,7 @@ export function App() {
   const previous = useRef<{ screen: ShellScreen; sessionId: string | null }>({ screen: baseScreen, sessionId: null });
   useEffect(() => {
     const sessionId = endedSessionId(previous.current, baseScreen, host.auth.signedIn);
-    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null });
+    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null, endedAtMs: Date.now() });
     previous.current = { screen: baseScreen, sessionId: state?.sessionId ?? previous.current.sessionId };
   }, [baseScreen, host.auth.signedIn, state?.sessionId]);
   const online = state?.isOnline ?? false;
@@ -132,7 +150,7 @@ export function App() {
               system={host.system}
               auth={host.auth}
               onSignIn={() => setSigningIn(true)}
-              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd })}
+              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd, endedAtMs: Date.now() })}
             />
             {signingIn && !host.auth.signedIn ? <SignInPanel state={state!} onClose={() => setSigningIn(false)} /> : null}
           </>

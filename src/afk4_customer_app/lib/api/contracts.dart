@@ -6489,6 +6489,7 @@ class DeviceHeartbeatResponse {
     this.maintenanceByName,
     this.policyProfileVersion,
     this.gameLibraryVersion,
+    this.liveSession,
   });
 
   final DateTime serverTimeUtc;
@@ -6547,6 +6548,9 @@ class DeviceHeartbeatResponse {
   /// Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6).
   final int? gameLibraryVersion;
 
+  /// Идущая сессия: начало и конец для отсчёта на экране. null — сессии нет.
+  final DeviceLiveSessionDto? liveSession;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -6565,6 +6569,7 @@ class DeviceHeartbeatResponse {
         maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
         policyProfileVersion: json['policyProfileVersion'] == null ? null : (json['policyProfileVersion'] as num).toInt(),
         gameLibraryVersion: json['gameLibraryVersion'] == null ? null : (json['gameLibraryVersion'] as num).toInt(),
+        liveSession: json['liveSession'] == null ? null : DeviceLiveSessionDto.fromJson(json['liveSession'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -6585,6 +6590,7 @@ class DeviceHeartbeatResponse {
         'maintenanceByName': maintenanceByName,
         'policyProfileVersion': policyProfileVersion,
         'gameLibraryVersion': gameLibraryVersion,
+        'liveSession': liveSession?.toJson(),
       };
 }
 
@@ -6688,6 +6694,36 @@ class DeviceInventoryItemDto {
         'role': role,
         'enrollmentState': enrollmentState,
         'hardwareChanged': hardwareChanged,
+      };
+}
+
+/// Идущая на ПК сессия: когда началась и когда кончится. Отсчёт «Осталось» считается от конца
+/// сессии, а не от срока аренды — аренда подписана на 15 минут и продлевается, пока сессия идёт.
+///
+/// Контракт: Devices/DeviceShellContextContracts.cs
+class DeviceLiveSessionDto {
+  const DeviceLiveSessionDto({
+    required this.sessionId,
+    this.startedAtUtc,
+    this.endsAtUtc,
+  });
+
+  final String sessionId;
+  final DateTime? startedAtUtc;
+
+  /// null — открытый счёт: конца нет, экран показывает, сколько уже идёт.
+  final DateTime? endsAtUtc;
+
+  factory DeviceLiveSessionDto.fromJson(Map<String, dynamic> json) => DeviceLiveSessionDto(
+        sessionId: json['sessionId'] as String,
+        startedAtUtc: json['startedAtUtc'] == null ? null : DateTime.parse(json['startedAtUtc'] as String),
+        endsAtUtc: json['endsAtUtc'] == null ? null : DateTime.parse(json['endsAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'sessionId': sessionId,
+        'startedAtUtc': startedAtUtc?.toIso8601String(),
+        'endsAtUtc': endsAtUtc?.toIso8601String(),
       };
 }
 
@@ -14225,6 +14261,8 @@ class PlayerShellStateDto {
     this.clubRules,
     this.idleShutdownAtUtc,
     this.showcase,
+    this.sessionStartedAtUtc,
+    this.sessionEndsAtUtc,
   });
 
   final String organizationId;
@@ -14296,6 +14334,11 @@ class PlayerShellStateDto {
   /// Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба.
   final List<ShowcaseCardDto>? showcase;
 
+  /// Когда идущая сессия началась и когда кончится — отсчёт «Осталось» идёт от конца сессии, а не
+  /// от срока аренды. Конца нет у открытого счёта: экран показывает, сколько уже идёт.
+  final DateTime? sessionStartedAtUtc;
+  final DateTime? sessionEndsAtUtc;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -14328,6 +14371,8 @@ class PlayerShellStateDto {
         clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
         idleShutdownAtUtc: json['idleShutdownAtUtc'] == null ? null : DateTime.parse(json['idleShutdownAtUtc'] as String),
         showcase: json['showcase'] == null ? null : (json['showcase'] as List<dynamic>).map((item) => ShowcaseCardDto.fromJson(item as Map<String, dynamic>)).toList(),
+        sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
+        sessionEndsAtUtc: json['sessionEndsAtUtc'] == null ? null : DateTime.parse(json['sessionEndsAtUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -14362,6 +14407,8 @@ class PlayerShellStateDto {
         'clubRules': clubRules,
         'idleShutdownAtUtc': idleShutdownAtUtc?.toIso8601String(),
         'showcase': showcase?.map((item) => item.toJson()).toList(),
+        'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
+        'sessionEndsAtUtc': sessionEndsAtUtc?.toIso8601String(),
       };
 }
 

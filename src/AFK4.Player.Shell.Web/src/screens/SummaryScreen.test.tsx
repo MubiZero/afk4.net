@@ -50,7 +50,7 @@ function renderSummary(selfEnd: PlayerSelfEndSessionResponse | null = null) {
     <ShellI18nProvider initialLocale="ru">
       <SummaryScreen
         state={devScenarioState('idle')!}
-        visit={{ sessionId: 's-1', selfEnd }}
+        visit={{ sessionId: 's-1', selfEnd, endedAtMs: Date.now() }}
         baseUrl="https://api.example.test/"
         activity={0}
         onPlayMore={onPlayMore}

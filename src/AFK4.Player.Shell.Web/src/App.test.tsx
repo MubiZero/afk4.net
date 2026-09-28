@@ -177,3 +177,21 @@ describe('итог после любого конца сессии', () => {
   });
 });
 
+
+describe('вход без сессии', () => {
+  // Сервер гасит вход без сессии только через 5 минут: без выхода по тишине подошедший следом
+  // начал бы сессию на чужие деньги.
+  it('минута тишины на «Сколько играем» выводит вошедшего', async () => {
+    const host = installFakeHost({
+      state: devScenarioState('idle'),
+      auth: { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' }
+    });
+    renderShell();
+    await waitFor(() => expect(document.querySelector('[data-screen="chooseTime"]')).not.toBeNull());
+
+    act(() => host.send(ShellBridgeEventTypeNames.InputIdle));
+
+    await waitFor(() =>
+      expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthSignOut)).toBe(true));
+  });
+});

@@ -3,7 +3,8 @@ import { useI18n } from '@afk4/i18n';
 import { clubTime } from '../../model/offers';
 import type { SessionRole } from '../../model/session';
 import { AssistButton } from '../../ui/AssistButton';
-import { Countdown } from '../../ui/Countdown';
+import { Countdown, Elapsed } from '../../ui/Countdown';
+import { sessionUntilUtc } from '../../model/sessionTime';
 
 interface TimeMoneyColumnProps {
   state: PlayerShellStateDto;
@@ -23,22 +24,36 @@ interface TimeMoneyColumnProps {
  */
 export function TimeMoneyColumn({ state, receivedAtMs, role, offline, onExtend, onEndEarly, onSignIn, onSignOut }: TimeMoneyColumnProps) {
   const { t, locale } = useI18n();
+  const until = sessionUntilUtc(state);
 
   return (
     <aside className="time-money" aria-label={t('playerShell.session.remaining')}>
       <div className="time-money__time">
-        <span className="time-money__label">{t('playerShell.session.remaining')}</span>
-        <Countdown
-          className="time-money__countdown"
-          untilUtc={state.leaseExpiresAtUtc}
-          observedAtUtc={state.observedAtUtc}
-          receivedAtMs={receivedAtMs}
-        />
-        {state.leaseExpiresAtUtc ? (
-          <span className="time-money__until">
-            {t('playerShell.session.until', { time: clubTime(state.leaseExpiresAtUtc, undefined, locale) })}
-          </span>
-        ) : null}
+        {until ? (
+          <>
+            <span className="time-money__label">{t('playerShell.session.remaining')}</span>
+            <Countdown
+              className="time-money__countdown"
+              untilUtc={until}
+              observedAtUtc={state.observedAtUtc}
+              receivedAtMs={receivedAtMs}
+            />
+            <span className="time-money__until">
+              {t('playerShell.session.until', { time: clubTime(until, undefined, locale) })}
+            </span>
+          </>
+        ) : (
+          // Открытый счёт: конца нет, честно показать можно только, сколько уже идёт.
+          <>
+            <span className="time-money__label">{t('playerShell.session.elapsed')}</span>
+            <Elapsed
+              className="time-money__countdown"
+              sinceUtc={state.sessionStartedAtUtc}
+              observedAtUtc={state.observedAtUtc}
+              receivedAtMs={receivedAtMs}
+            />
+          </>
+        )}
       </div>
 
       {role === 'owner' ? (

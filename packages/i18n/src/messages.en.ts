@@ -4585,6 +4585,7 @@ export const en = {
   "playerShell.seat.free": "Free",
   "playerShell.session.ageLocked": "Ages {age}+ — by the birthday in your profile",
   "playerShell.session.counterHint": "The admin can extend this session.",
+  "playerShell.session.elapsed": "Running for",
   "playerShell.session.endEarly": "Finish early",
   "playerShell.session.error.changed": "The session just changed — take another look.",
   "playerShell.session.error.generic": "That didn't work. Try again or call the admin.",

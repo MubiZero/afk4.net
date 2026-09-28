@@ -23,6 +23,16 @@ public sealed record DeviceSessionOwnerDto(
     // null — возраст неизвестен, и ничего не запирается (дата по желанию, владелец 2026-09-26).
     int? PlayerAge = null);
 
+/// <summary>
+/// Идущая на ПК сессия: когда началась и когда кончится. Отсчёт «Осталось» считается от конца
+/// сессии, а не от срока аренды — аренда подписана на 15 минут и продлевается, пока сессия идёт.
+/// </summary>
+public sealed record DeviceLiveSessionDto(
+    Guid SessionId,
+    DateTimeOffset? StartedAtUtc,
+    // null — открытый счёт: конца нет, экран показывает, сколько уже идёт.
+    DateTimeOffset? EndsAtUtc);
+
 public static class DeviceSessionOwnerKindNames
 {
     /// <summary>Живой сессии на ПК нет.</summary>
