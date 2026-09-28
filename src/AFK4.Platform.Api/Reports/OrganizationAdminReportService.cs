@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Audit;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Shifts;
@@ -45,6 +46,16 @@ public sealed class OrganizationAdminReportService(
             .Where(row => row.OrganizationId == organizationId && row.BranchId == branchId && row.State == ShiftStateNames.Open)
             .OrderByDescending(row => row.OpenedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
+        // Открытая смена не пишет колонку ExpectedCashMinorUnits (это делает только закрытие) —
+        // считаем тем же правилом, что и закрытие, а не отдаём хранимый 0.
+        var activeShiftExpectedCashMinorUnits = activeShift is null
+            ? 0
+            : ShiftExpectedCash.Compute(
+                activeShift,
+                await dbContext.CashMovements.AsNoTracking().Where(movement => movement.ShiftId == activeShift.ShiftId).ToListAsync(cancellationToken),
+                await dbContext.Payments.AsNoTracking().Where(payment => payment.ShiftId == activeShift.ShiftId).ToListAsync(cancellationToken),
+                await dbContext.LedgerEntries.AsNoTracking().Where(entry => entry.ShiftId == activeShift.ShiftId).ToListAsync(cancellationToken))
+                .Expected;
 
         var trend = new List<OrganizationAdminRevenueTrendPointDto>(7);
         var trendFromDate = toDate.AddDays(-6);
@@ -71,7 +82,7 @@ public sealed class OrganizationAdminReportService(
             trend,
             activeShift is null ? null : new OrganizationAdminActiveShiftDto(
                 activeShift.ShiftId, activeShift.OpenedByStaffUserId, activeShift.OpenedAtUtc,
-                Money(activeShift.CurrencyCode, activeShift.ExpectedCashMinorUnits), true));
+                Money(activeShift.CurrencyCode, activeShiftExpectedCashMinorUnits), true));
     }
 
     public async Task<OrganizationAdminShiftCashReportDto> GetShiftCashAsync(
