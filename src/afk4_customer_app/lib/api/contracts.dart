@@ -122,6 +122,15 @@ abstract final class BranchSearchKindNames {
   static const String order = 'order';
 }
 
+/// Причины движений кассы, которые пишет сам сервер, — кодом, а не русской фразой: Панель
+/// подписывает их на языке экрана. После кода через двоеточие — имя получателя.
+///
+/// Словарь: Shifts/CashMovementTypeNames.cs
+abstract final class CashMovementReasonNames {
+  /// «tip_payout:Шерзод» — выданы чаевые администратору.
+  static const String tipPayout = 'tip_payout';
+}
+
 /// Словарь: Shifts/CashMovementTypeNames.cs
 abstract final class CashMovementTypeNames {
   static const String cashIn = 'cash_in';
@@ -1331,6 +1340,8 @@ abstract final class TipErrorCodeNames {
   static const String nothingToPay = 'tip_nothing_to_pay';
   /// Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды.
   static const String alreadyPaidOut = 'tip_already_paid_out';
+  /// Чаевые закрытой смены выдают из кассы открытой — а открытой смены в филиале нет.
+  static const String noOpenShift = 'tip_no_open_shift';
 }
 
 /// Словарь: Tips/TipContracts.cs
@@ -11557,6 +11568,48 @@ class OrganizationSupportNoteDto {
         'authorDisplayName': authorDisplayName,
         'body': body,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+      };
+}
+
+/// Невыданные чаевые закрытой смены: смену закрыли, а администратор денег не получил. Выдают их
+/// из кассы открытой сейчас смены — отметка ставится на ту, где их заработали.
+///
+/// Контракт: Tips/TipContracts.cs
+class OwedShiftTipsDto {
+  const OwedShiftTipsDto({
+    required this.shiftId,
+    required this.recipientStaffUserId,
+    required this.recipientName,
+    required this.openedAtUtc,
+    this.closedAtUtc,
+    required this.owed,
+  });
+
+  final String shiftId;
+  final String recipientStaffUserId;
+  final String recipientName;
+  final DateTime openedAtUtc;
+  final DateTime? closedAtUtc;
+
+  /// Пришло за смену без возвращённых минус уже выданное.
+  final MoneyDto owed;
+
+  factory OwedShiftTipsDto.fromJson(Map<String, dynamic> json) => OwedShiftTipsDto(
+        shiftId: json['shiftId'] as String,
+        recipientStaffUserId: json['recipientStaffUserId'] as String,
+        recipientName: json['recipientName'] as String,
+        openedAtUtc: DateTime.parse(json['openedAtUtc'] as String),
+        closedAtUtc: json['closedAtUtc'] == null ? null : DateTime.parse(json['closedAtUtc'] as String),
+        owed: MoneyDto.fromJson(json['owed'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'shiftId': shiftId,
+        'recipientStaffUserId': recipientStaffUserId,
+        'recipientName': recipientName,
+        'openedAtUtc': openedAtUtc.toIso8601String(),
+        'closedAtUtc': closedAtUtc?.toIso8601String(),
+        'owed': owed.toJson(),
       };
 }
 

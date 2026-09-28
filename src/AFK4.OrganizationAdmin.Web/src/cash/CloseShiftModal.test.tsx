@@ -34,6 +34,15 @@ function renderModal(overrides: Partial<Parameters<typeof CloseShiftModal>[0]> =
 }
 
 describe('CloseShiftModal', () => {
+  // Закрыть смену с невыданными чаевыми можно, но человек должен знать, что долг остаётся.
+  it('говорит о невыданных чаевых, но закрыть не мешает', () => {
+    const { onSubmit } = renderModal({ unpaidTips: { minorUnits: 1500, name: 'Шерзод' } });
+
+    expect(screen.getByText(/Не выданы чаевые: 15\s?с\. — Шерзод/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Закрыть смену/ }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
   it('показывает ожидаемую сумму', () => {
     renderModal();
     expect(screen.getByText('Ожидается')).toBeInTheDocument();

@@ -1,3 +1,4 @@
+import { CashMovementReasonNames } from '@afk4/contracts';
 import { minorToMajor, majorToMinor } from '@afk4/money';
 import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
@@ -1204,6 +1205,17 @@ export function shiftStateLabel(state: string, t: TFunc): string {
     default:
       return state ? t('op.status.unknown') : t('op.status.none');
   }
+}
+
+/**
+ * Причина движения кассы словами. Причины, которые пишет сам сервер, приходят кодом
+ * (`CashMovementReasonNames`): «tip_payout:Шерзод» — это «Чаевые: Шерзод» на языке экрана.
+ * Причины, введённые сотрудником, показываются как есть.
+ */
+export function cashReasonLabel(reason: string | null | undefined, t: TFunc): string {
+  const value = reason ?? '';
+  const tipPayout = `${CashMovementReasonNames.TipPayout}:`;
+  return value.startsWith(tipPayout) ? t('op.cash.reason.tipPayout', { name: value.slice(tipPayout.length) }) : value;
 }
 
 export function cashOperationTypeLabel(type: string, t: TFunc): string {

@@ -3,6 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { Download, Search } from 'lucide-react';
 import {
   cashOperationTypeLabel,
+  cashReasonLabel,
   createAuthenticatedOperatorClients,
   downloadTextFile,
   formatTime
@@ -131,7 +132,7 @@ export function CashOperationsLedger({
                 <span className="ui-ledger-time">{formatTime(row.createdAtUtc)}</span>
                 <div className="ui-ledger-body">
                   <span className="ui-ledger-title">{cashOperationTypeLabel(row.operationType || 'cash', t)}</span>
-                  <span className="ui-ledger-detail">{row.reason}</span>
+                  <span className="ui-ledger-detail">{cashReasonLabel(row.reason, t)}</span>
                 </div>
                 <span className="ui-ledger-aside">
                   <Money minorUnits={row.cashImpact.minorUnits} currencyCode={currencyCode} signed />
@@ -141,7 +142,7 @@ export function CashOperationsLedger({
         </>}
         inspector={selected ? <div className="cash-operation-inspector">
           <p>{cashOperationTypeLabel(selected.operationType || 'cash', t)}</p>
-          <h2>{selected.reason || '—'}</h2>
+          <h2>{cashReasonLabel(selected.reason, t) || '—'}</h2>
           <strong><Money minorUnits={selected.cashImpact.minorUnits} currencyCode={currencyCode} signed /></strong>
           <dl>
             <div><dt>{t('op.cash.journal.operationId')}</dt><dd>{selected.operationId}</dd></div>

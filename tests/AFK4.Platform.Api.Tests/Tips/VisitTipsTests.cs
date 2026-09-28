@@ -157,7 +157,46 @@ public sealed class VisitTipsTests
         var movement = await db.CashMovements.SingleAsync(row => row.ShiftId == club.ShiftId);
         Assert.Equal(CashMovementTypeNames.CashOut, movement.MovementType);
         Assert.Equal(1000, movement.AmountMinorUnits);
-        Assert.Equal("Чаевые: Шерзод", movement.Reason);
+        // Причина — кодом: Панель подписывает её на языке экрана.
+        Assert.Equal($"{CashMovementReasonNames.TipPayout}:Шерзод", movement.Reason);
+    }
+
+    // Смену закрыли, а чаевые не выдали — это долг перед администратором. Он виден, а выдают его из
+    // кассы открытой сейчас смены; отметка — на смене, где чаевые заработали.
+    [Fact]
+    public async Task TipsLeftInAClosedShift_AreOwed_AndPaidFromTheOpenShiftsDrawer()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        var club = await ClubAsync(fixture, enabled: true, walletMinorUnits: 5000);
+        using var phone = await fixture.PhoneClientAsync();
+        await phone.PostAsJsonAsync(TipRoutes.Visit(club.SessionId), new PlayerTipRequest(Tjs(1000), "tip-1"));
+        await CloseShiftAsync(fixture, club.ShiftId);
+        var owedRoute = $"/api/organizations/{fixture.Device.OrganizationId:D}/branches/{fixture.Device.BranchId:D}/tips/owed";
+        var payout = $"{ShiftTipsRoute(fixture, club.ShiftId)}/payout";
+
+        var owed = Assert.Single((await fixture.Client.GetFromJsonAsync<OwedShiftTipsDto[]>(owedRoute))!);
+        Assert.Equal(club.ShiftId, owed.ShiftId);
+        Assert.Equal("Шерзод", owed.RecipientName);
+        Assert.Equal(Tjs(1000), owed.Owed);
+
+        // Открытой смены нет — выдавать не из чего.
+        var noDrawer = await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-1"));
+        Assert.Equal(HttpStatusCode.Conflict, noDrawer.StatusCode);
+        Assert.Equal(TipErrorCodeNames.NoOpenShift, (await noDrawer.Content.ReadFromJsonAsync<Dictionary<string, string>>())!["error"]);
+
+        var nextShift = await OpenShiftAsync(fixture);
+        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-2"))).StatusCode);
+        // Второе нажатие с другого ПК стойки — другой ключ клиента, но выдачи второй не будет.
+        Assert.Equal(HttpStatusCode.Conflict, (await fixture.Client.PostAsJsonAsync(payout, new PayOutShiftTipsRequest("payout-3"))).StatusCode);
+
+        Assert.Empty((await fixture.Client.GetFromJsonAsync<OwedShiftTipsDto[]>(owedRoute))!);
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var movement = await db.CashMovements.SingleAsync();
+        Assert.Equal(nextShift, movement.ShiftId);
+        Assert.Equal(1000, movement.AmountMinorUnits);
+        Assert.Equal(club.ShiftId, (await db.ShiftTipPayouts.SingleAsync()).ShiftId);
     }
 
     private sealed record Club(Guid SessionId, Guid ShiftId);
@@ -191,6 +230,22 @@ public sealed class VisitTipsTests
         });
         await db.SaveChangesAsync();
         return new Club(sessionId, shiftId);
+    }
+
+    private static async Task<Guid> OpenShiftAsync(DevicePlayerFixture fixture)
+    {
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var staff = await db.StaffUsers.FirstAsync(user => user.OrganizationId == fixture.Device.OrganizationId);
+        var shiftId = Guid.NewGuid();
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = shiftId, OrganizationId = fixture.Device.OrganizationId, BranchId = fixture.Device.BranchId,
+            OpenedByStaffUserId = staff.StaffUserId, State = ShiftStateNames.Open, CurrencyCode = "TJS",
+            OpenedAtUtc = DevicePlayerFixture.Start.AddHours(12)
+        });
+        await db.SaveChangesAsync();
+        return shiftId;
     }
 
     private static async Task CloseShiftAsync(DevicePlayerFixture fixture, Guid shiftId)

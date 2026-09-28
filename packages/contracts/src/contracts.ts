@@ -154,6 +154,18 @@ export const BranchSearchKindNames = {
 } as const;
 export type BranchSearchKindName = (typeof BranchSearchKindNames)[keyof typeof BranchSearchKindNames];
 
+/**
+ * Причины движений кассы, которые пишет сам сервер, — кодом, а не русской фразой: Панель
+ * подписывает их на языке экрана. После кода через двоеточие — имя получателя.
+ *
+ * Словарь: Shifts/CashMovementTypeNames.cs
+ */
+export const CashMovementReasonNames = {
+  /** «tip_payout:Шерзод» — выданы чаевые администратору. */
+  TipPayout: 'tip_payout',
+} as const;
+export type CashMovementReasonName = (typeof CashMovementReasonNames)[keyof typeof CashMovementReasonNames];
+
 /** Словарь: Shifts/CashMovementTypeNames.cs */
 export const CashMovementTypeNames = {
   CashIn: 'cash_in',
@@ -1592,6 +1604,8 @@ export const TipErrorCodeNames = {
   NothingToPay: 'tip_nothing_to_pay',
   /** Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды. */
   AlreadyPaidOut: 'tip_already_paid_out',
+  /** Чаевые закрытой смены выдают из кассы открытой — а открытой смены в филиале нет. */
+  NoOpenShift: 'tip_no_open_shift',
 } as const;
 export type TipErrorCodeName = (typeof TipErrorCodeNames)[keyof typeof TipErrorCodeNames];
 
@@ -5033,6 +5047,22 @@ export interface OrganizationSupportNoteDto {
   authorDisplayName: string;
   body: string;
   createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Невыданные чаевые закрытой смены: смену закрыли, а администратор денег не получил. Выдают их
+ * из кассы открытой сейчас смены — отметка ставится на ту, где их заработали.
+ *
+ * Контракт: Tips/TipContracts.cs
+ */
+export interface OwedShiftTipsDto {
+  shiftId: Guid;
+  recipientStaffUserId: Guid;
+  recipientName: string;
+  openedAtUtc: IsoDateTime;
+  closedAtUtc: IsoDateTime | null;
+  /** Пришло за смену без возвращённых минус уже выданное. */
+  owed: MoneyDto;
 }
 
 /** Контракт: News/OwnerBranchSummaryDto.cs */

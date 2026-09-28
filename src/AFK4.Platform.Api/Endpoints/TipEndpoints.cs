@@ -19,6 +19,7 @@ internal static class TipEndpoints
         MapPlayer(app);
         MapClub(organizations);
         MapPayout(organizations);
+        MapOwed(organizations);
     }
 
     private static void MapPlayer(WebApplication app)
@@ -140,7 +141,7 @@ internal static class TipEndpoints
             if (string.IsNullOrWhiteSpace(request.IdempotencyKey)) return Results.BadRequest(new { error = "idempotency_key_required" });
 
             var staff = authorization.StaffContext!;
-            var (result, error) = await tips.PayOutAsync(shifts, staff.OrganizationId, shiftId, staff.StaffUserId, request.IdempotencyKey, ct);
+            var (result, error) = await tips.PayOutAsync(shifts, staff.OrganizationId, shiftId, staff.StaffUserId, ct);
             if (result is null) return Results.NotFound();
             if (error is not null) return Results.Conflict(new { error });
 
@@ -149,6 +150,19 @@ internal static class TipEndpoints
                 TargetType: "Shift", TargetId: shiftId.ToString("N"), Outcome: AuditOutcome.Succeeded,
                 SourceApp: "PlatformApi", DetailsJson: JsonSerializer.Serialize(new { result.PaidOut })), ct);
             return Results.Ok(result);
+        });
+    }
+
+    private static void MapOwed(IEndpointRouteBuilder organizations)
+    {
+        // Невыданные чаевые закрытых смен филиала — видит тот, кто видит смены.
+        organizations.MapGet("branches/{branchId:guid}/tips/owed", async (
+            Guid branchId, StaffAuthorizationService authorizationService, VisitTips tips, CancellationToken ct) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(branchId, OrganizationPermissionNames.ViewShift, ct);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            return Results.Ok(await tips.OwedAsync(authorization.StaffContext!.OrganizationId, branchId, ct));
         });
     }
 

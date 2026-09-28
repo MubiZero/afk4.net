@@ -140,21 +140,73 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
     }
 
     /// <summary>
+    /// Чаевые закрытых смен филиала, которые так и не выдали: смену закрыли, а деньги администратор не
+    /// получил. Раньше они нигде не всплывали — долг клуба перед сотрудником жил только в журнале.
+    /// </summary>
+    public async Task<IReadOnlyList<OwedShiftTipsDto>> OwedAsync(Guid organizationId, Guid branchId, CancellationToken ct)
+    {
+        var totals = await db.LedgerEntries.AsNoTracking()
+            .Where(entry => entry.OrganizationId == organizationId && entry.BranchId == branchId
+                && entry.EntryType == LedgerEntryTypeNames.Tip && entry.ShiftId != null
+                && !db.LedgerEntries.Any(reversal => reversal.ReversesLedgerEntryId == entry.LedgerEntryId))
+            .GroupBy(entry => entry.ShiftId!.Value)
+            .Select(group => new { ShiftId = group.Key, Total = -group.Sum(entry => entry.AmountMinorUnits), Currency = group.Max(entry => entry.CurrencyCode) })
+            .ToListAsync(ct);
+        if (totals.Count == 0) return [];
+
+        var shiftIds = totals.Select(total => total.ShiftId).ToList();
+        var paid = await db.ShiftTipPayouts.AsNoTracking()
+            .Where(payout => payout.OrganizationId == organizationId && shiftIds.Contains(payout.ShiftId))
+            .GroupBy(payout => payout.ShiftId)
+            .Select(group => new { ShiftId = group.Key, Paid = group.Sum(payout => payout.AmountMinorUnits) })
+            .ToDictionaryAsync(row => row.ShiftId, row => row.Paid, ct);
+        var closed = await db.Shifts.AsNoTracking()
+            .Where(shift => shiftIds.Contains(shift.ShiftId) && shift.State != ShiftStateNames.Open)
+            .Select(shift => new { shift.ShiftId, shift.OpenedByStaffUserId, shift.OpenedAtUtc, shift.ClosedAtUtc })
+            .ToListAsync(ct);
+
+        var owed = new List<OwedShiftTipsDto>();
+        foreach (var shift in closed.OrderByDescending(shift => shift.ClosedAtUtc ?? shift.OpenedAtUtc))
+        {
+            var total = totals.Single(row => row.ShiftId == shift.ShiftId);
+            var left = total.Total - paid.GetValueOrDefault(shift.ShiftId);
+            if (left <= 0) continue;
+            owed.Add(new OwedShiftTipsDto(
+                shift.ShiftId, shift.OpenedByStaffUserId, await StaffNameAsync(shift.OpenedByStaffUserId, ct),
+                shift.OpenedAtUtc, shift.ClosedAtUtc, new MoneyDto(total.Currency ?? string.Empty, left)));
+        }
+
+        return owed;
+    }
+
+    /// <summary>
     /// Выдать невыданное наличными: обычная выдача из кассы (ожидаемая сумма в ящике сходится) и
-    /// отметка, что эта сумма выдана. Повтор с тем же ключом отдаёт ту же выдачу.
+    /// отметка, что эта сумма выдана. Смена открыта — из её же ящика; закрыта — из ящика открытой
+    /// сейчас смены филиала: деньги уходят из кассы сегодня, а отметка ставится на смену, где их
+    /// заработали.
+    ///
+    /// Ключ повтора сервер выводит сам — из смены и того, сколько по ней уже выдано. Два нажатия
+    /// «Выдать» с двух ПК стойки дают один ключ и одну выдачу, а не две; повтор после обрыва связи —
+    /// ту же.
     /// </summary>
     public async Task<(ShiftTipsDto? Tips, string? Error)> PayOutAsync(
-        IShiftService shifts, Guid organizationId, Guid shiftId, Guid actorStaffUserId, string idempotencyKey, CancellationToken ct)
+        IShiftService shifts, Guid organizationId, Guid shiftId, Guid actorStaffUserId, CancellationToken ct)
     {
         var current = await ForShiftAsync(organizationId, shiftId, ct);
         if (current is null) return (null, null);
-        var unpaid = current.Total.MinorUnits - (current.PaidOut?.MinorUnits ?? 0);
-        var request = new RecordCashMovementRequest(
-            organizationId, CashMovementTypeNames.CashOut, new MoneyDto(current.Total.CurrencyCode, unpaid),
-            $"Чаевые: {current.RecipientName}".Trim(), idempotencyKey);
+        var paidBefore = current.PaidOut?.MinorUnits ?? 0;
+        var unpaid = current.Total.MinorUnits - paidBefore;
         if (unpaid <= 0) return (current, TipErrorCodeNames.NothingToPay);
 
-        var movement = await shifts.RecordCashMovementAsync(shiftId, actorStaffUserId, request, ct);
+        var cashShiftId = await CashShiftAsync(organizationId, shiftId, ct);
+        if (cashShiftId is null) return (current, TipErrorCodeNames.NoOpenShift);
+
+        var request = new RecordCashMovementRequest(
+            organizationId, CashMovementTypeNames.CashOut, new MoneyDto(current.Total.CurrencyCode, unpaid),
+            $"{CashMovementReasonNames.TipPayout}:{current.RecipientName}",
+            $"tips-payout:{shiftId:N}:{paidBefore}");
+
+        var movement = await shifts.RecordCashMovementAsync(cashShiftId.Value, actorStaffUserId, request, ct);
         if (movement.Response is null) return (current, movement.Code ?? movement.Error ?? TipErrorCodeNames.ShiftClosed);
 
         if (!await db.ShiftTipPayouts.AnyAsync(payout => payout.CashMovementId == movement.Response.CashMovementId, ct))
@@ -169,6 +221,21 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
         }
 
         return (await ForShiftAsync(organizationId, shiftId, ct), null);
+    }
+
+    // Касса, из которой выдать: сама смена, если открыта, иначе открытая сейчас смена того же филиала.
+    private async Task<Guid?> CashShiftAsync(Guid organizationId, Guid shiftId, CancellationToken ct)
+    {
+        var tipsShift = await db.Shifts.AsNoTracking()
+            .Where(shift => shift.ShiftId == shiftId && shift.OrganizationId == organizationId)
+            .Select(shift => new { shift.BranchId, shift.State })
+            .SingleAsync(ct);
+        if (tipsShift.State == ShiftStateNames.Open) return shiftId;
+        return await db.Shifts.AsNoTracking()
+            .Where(shift => shift.OrganizationId == organizationId && shift.BranchId == tipsShift.BranchId && shift.State == ShiftStateNames.Open)
+            .OrderByDescending(shift => shift.OpenedAtUtc)
+            .Select(shift => (Guid?)shift.ShiftId)
+            .FirstOrDefaultAsync(ct);
     }
 
     public enum ReverseOutcome { Reversed, NotFound, ShiftClosed, AlreadyReversed, AlreadyPaidOut }

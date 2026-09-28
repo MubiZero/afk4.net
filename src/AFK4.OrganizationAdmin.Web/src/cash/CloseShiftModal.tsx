@@ -1,7 +1,7 @@
 import { useI18n } from '@afk4/i18n';
 import { Lock } from 'lucide-react';
 import { PanelModal } from '../PanelModal';
-import { parseNonNegativeMoneyInputMinorUnits } from '../operatorHelpers';
+import { formatMoney, parseNonNegativeMoneyInputMinorUnits } from '../operatorHelpers';
 import { Money } from '../operatorPrimitives';
 
 /**
@@ -16,6 +16,7 @@ import { Money } from '../operatorPrimitives';
  */
 export function CloseShiftModal({
   expectedCash,
+  unpaidTips = null,
   counted,
   note,
   currencyCode,
@@ -33,6 +34,8 @@ export function CloseShiftModal({
   busy
 }: {
   expectedCash: { currencyCode: string; minorUnits: number } | null;
+  /** Невыданные чаевые смены: закрыть можно, долг перед администратором остаётся и виден в кассе. */
+  unpaidTips?: { minorUnits: number; name: string } | null;
   counted: string;
   note: string;
   currencyCode: string;
@@ -128,6 +131,14 @@ export function CloseShiftModal({
             />
           </section>
         )}
+        {unpaidTips ? (
+          <p className="ui-alert ui-alert--warning" role="status">
+            {t('op.cash.close.unpaidTips', {
+              amount: formatMoney({ currencyCode, minorUnits: unpaidTips.minorUnits }, currencyCode),
+              name: unpaidTips.name || t('op.cash.shift.operatorFallback')
+            })}
+          </p>
+        ) : null}
         <p className="cash-close-impact">{t('op.cash.close.impact')}</p>
         <button
           type="submit"

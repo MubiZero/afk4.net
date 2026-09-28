@@ -1,6 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { PayOutShiftTipsRequest, ShiftTipsDto, TipSettingsDto, UpdateTipSettingsRequest } from '@afk4/contracts';
-export type { ShiftTipDto, ShiftTipsDto, TipSettingsDto } from '@afk4/contracts';
+import type { OwedShiftTipsDto, PayOutShiftTipsRequest, ShiftTipsDto, TipSettingsDto, UpdateTipSettingsRequest } from '@afk4/contracts';
+export type { OwedShiftTipsDto, ShiftTipDto, ShiftTipsDto, TipSettingsDto } from '@afk4/contracts';
 
 // Чаевые администратору с экрана ПК: настройка клуба и чаевые смены.
 export function createTipsClient(api: PlatformApiClient) {
@@ -19,6 +19,10 @@ export function createTipsClient(api: PlatformApiClient) {
     },
     payOut(shiftId: string, request: PayOutShiftTipsRequest): Promise<ShiftTipsDto> {
       return api.post<ShiftTipsDto, PayOutShiftTipsRequest>(`shifts/${shiftId}/tips/payout`, request);
+    },
+    // Невыданные чаевые закрытых смен филиала: выдают из кассы открытой смены.
+    owed(branchId: string): Promise<OwedShiftTipsDto[]> {
+      return api.get<OwedShiftTipsDto[]>(`branches/${branchId}/tips/owed`);
     }
   };
 }
