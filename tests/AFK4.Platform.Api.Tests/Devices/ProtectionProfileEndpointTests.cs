@@ -4,7 +4,6 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Devices;
-using AFK4.Shared.Contracts.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

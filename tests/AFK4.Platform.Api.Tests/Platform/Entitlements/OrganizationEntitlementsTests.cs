@@ -2,7 +2,6 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Platform.Features;
 using AFK4.Shared.Contracts.Platform.Organizations;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Platform.Entitlements;

@@ -1,17 +1,11 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Tests.Identity;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Players;
-using AFK4.Shared.Contracts.Sessions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AFK4.Platform.Api.Tests.Devices;
 

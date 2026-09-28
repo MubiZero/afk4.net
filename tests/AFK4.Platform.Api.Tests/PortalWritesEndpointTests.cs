@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Players;
@@ -12,7 +9,6 @@ using AFK4.Shared.Contracts.Shifts;
 using AFK4.Platform.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

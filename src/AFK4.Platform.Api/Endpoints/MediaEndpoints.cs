@@ -3,7 +3,6 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Media;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Media;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

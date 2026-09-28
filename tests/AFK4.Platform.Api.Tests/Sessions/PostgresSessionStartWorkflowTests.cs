@@ -1,11 +1,7 @@
-using System.Text.Json;
-using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
-using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;

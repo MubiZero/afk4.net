@@ -1,6 +1,5 @@
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 public class UploadedMediaEntityTests
 {

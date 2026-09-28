@@ -3,13 +3,10 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
-using AFK4.Platform.Api.Tenancy;
 using AFK4.Platform.Api.Updates;
-using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Updates;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 

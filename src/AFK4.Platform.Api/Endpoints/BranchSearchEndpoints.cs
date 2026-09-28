@@ -1,7 +1,6 @@
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Search;
 using AFK4.Shared.Contracts.Identity;
-using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
 

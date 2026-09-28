@@ -14,7 +14,6 @@ using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Inventory;
-using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Shop;

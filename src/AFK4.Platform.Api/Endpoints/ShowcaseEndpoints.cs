@@ -2,7 +2,6 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Showcase;
 using AFK4.Shared.Contracts.Devices;
-using Microsoft.AspNetCore.Http;
 
 namespace AFK4.Platform.Api.Endpoints;
 

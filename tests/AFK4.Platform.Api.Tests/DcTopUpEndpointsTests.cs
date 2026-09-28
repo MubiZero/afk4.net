@@ -8,7 +8,6 @@ using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

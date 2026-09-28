@@ -5,7 +5,6 @@ using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
-using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;

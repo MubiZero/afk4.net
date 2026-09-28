@@ -5,7 +5,6 @@ using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Friends;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Friends;
 

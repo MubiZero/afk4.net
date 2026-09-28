@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.AspNetCore.Identity;

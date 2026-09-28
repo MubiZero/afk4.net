@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Tests.Identity;

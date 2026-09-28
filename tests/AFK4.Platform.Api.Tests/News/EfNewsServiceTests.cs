@@ -2,7 +2,6 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.News;
 using AFK4.Shared.Contracts.News;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.News;
 

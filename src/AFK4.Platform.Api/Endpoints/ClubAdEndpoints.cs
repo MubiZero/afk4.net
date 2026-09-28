@@ -7,7 +7,6 @@ using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Ads;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Features;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Endpoints;

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Shared.Contracts.Payments;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

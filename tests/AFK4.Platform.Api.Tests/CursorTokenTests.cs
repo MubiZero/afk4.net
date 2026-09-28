@@ -1,4 +1,3 @@
-using System;
 using AFK4.Platform.Api.Common;
 
 namespace AFK4.Platform.Api.Tests;

@@ -1,7 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Shifts;
-using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;

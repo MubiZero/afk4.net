@@ -7,7 +7,6 @@ using AFK4.Shared.Contracts.Notifications;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Identity;
 

@@ -1,7 +1,5 @@
 using System.Net;
-using System.Net.Http.Json;
 using AFK4.Platform.Api.Platform.Support;
-using AFK4.Shared.Contracts.Platform.Support;
 
 namespace AFK4.Platform.Api.Tests.Platform;
 

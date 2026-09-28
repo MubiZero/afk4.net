@@ -2,7 +2,6 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Billing;
-using Microsoft.AspNetCore.Http;
 
 namespace AFK4.Platform.Api.Endpoints;
 

@@ -1,6 +1,5 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Analytics;
-using AFK4.Platform.Api.Tests.Platform;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;

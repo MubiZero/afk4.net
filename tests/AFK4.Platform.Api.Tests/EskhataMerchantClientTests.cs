@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using AFK4.Platform.Api.Payments.Eskhata;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

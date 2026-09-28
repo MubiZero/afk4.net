@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using AFK4.Platform.Api.Notifications;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Notifications;
 

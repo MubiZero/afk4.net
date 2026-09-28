@@ -2,7 +2,6 @@ using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Shared.Contracts.Media;
 using AFK4.Shared.Contracts.Platform.Auth;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 

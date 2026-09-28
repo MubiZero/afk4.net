@@ -1,8 +1,5 @@
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace AFK4.Platform.Api.Platform.Identity;
 

@@ -6,7 +6,6 @@ using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

@@ -3,7 +3,6 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Inventory;
-using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Sessions;

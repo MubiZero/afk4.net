@@ -5,7 +5,6 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Sessions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Platform.Entitlements;

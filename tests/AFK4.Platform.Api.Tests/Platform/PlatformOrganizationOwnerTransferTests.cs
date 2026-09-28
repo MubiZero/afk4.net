@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Organizations;

@@ -2,11 +2,9 @@ using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Tips;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Tips;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Endpoints;

@@ -1,8 +1,5 @@
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Platform.Health;

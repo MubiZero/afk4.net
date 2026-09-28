@@ -16,7 +16,6 @@ using AFK4.Platform.Api.Tests.Shop;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Platform.Entitlements;
 
