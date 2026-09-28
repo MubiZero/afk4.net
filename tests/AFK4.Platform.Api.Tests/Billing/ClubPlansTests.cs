@@ -99,6 +99,24 @@ public sealed class ClubPlansTests
         Assert.Contains(fixture.Audit.Records, record => record.Action == AuditActionNames.FallBackToFreePlan);
     }
 
+    // Обещанный платёж — один на счёт: взятый до срока, он кончился бы раньше, чем что-то грозит.
+    [Fact]
+    public async Task APromise_IsOfferedOnlyOnceTheInvoiceIsPastDue()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        var due = Start.AddDays(7);
+        await fixture.AddOverdueInvoiceAsync(due);
+
+        fixture.Clock.Now = due.AddDays(-2);
+        Assert.False((await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.PromisedPaymentAvailable);
+        Assert.Equal(ClubPlanErrorCodeNames.NothingToPromise,
+            await fixture.Plans.PromisePaymentAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None));
+
+        fixture.Clock.Now = due.AddDays(1);
+        Assert.True((await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.PromisedPaymentAvailable);
+    }
+
     [Fact]
     public async Task AFallenClub_RunsOnlyTenPcs_AndTheOwnerChoosesWhich()
     {

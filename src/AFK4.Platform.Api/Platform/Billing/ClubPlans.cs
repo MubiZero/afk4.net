@@ -77,6 +77,7 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             .CountAsync(candidate => candidate.ReferredByOrganizationId == organizationId && candidate.ReferralRewardedAtUtc != null, ct);
         var allowance = await PlanDevices.ForOrganizationAsync(db, organizationId, ct);
         var terms = await BillingTerms.LoadAsync(db, ct);
+        var freePlanDevices = (await PlanAsync(OrganizationPlanCodeNames.Free, ct))?.MaxDevices ?? ClubPlanLimits.FreeDevices;
 
         return new ClubPlanDto(
             subscription.PlanCode,
@@ -89,7 +90,7 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             kind == ClubPlanKindNames.Trial ? subscription.CurrentPeriodEndUtc : null,
             TrialAvailable: terms.TrialDays > 0 && subscription.TrialStartedAtUtc is null && kind is ClubPlanKindNames.Free or ClubPlanKindNames.Legacy,
             CanSwitchToPerPc: kind is ClubPlanKindNames.Free or ClubPlanKindNames.Legacy && overdue == 0,
-            PromisedPaymentAvailable: terms.PromisedPaymentDays > 0 && unpaid is not null
+            PromisedPaymentAvailable: terms.PromisedPaymentDays > 0 && unpaid is not null && unpaid.DueAtUtc < now
                 && subscription.PromisedPaymentInvoiceId != unpaid.InvoiceId && !(subscription.PaymentGraceUntilUtc > now),
             PromisedPaymentUntilUtc: subscription.PaymentGraceUntilUtc > now ? subscription.PaymentGraceUntilUtc : null,
             Overdue: overdue > 0 ? new MoneyDto(currency, overdue) : null,
@@ -99,7 +100,8 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             DevicesOutsidePlan: allowance.Outside.Count,
             FallbackAtUtc: FallbackAt(subscription, unpaid, terms),
             TrialDays: terms.TrialDays,
-            PromisedPaymentDays: terms.PromisedPaymentDays);
+            PromisedPaymentDays: terms.PromisedPaymentDays,
+            FreeDeviceLimit: freePlanDevices);
     }
 
     /// <summary>
@@ -195,8 +197,10 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
         if (state is null) return null;
         var (_, subscription, _) = state.Value;
         var unpaid = await OldestUnpaidAsync(organizationId, ct);
-        if (unpaid is null) return ClubPlanErrorCodeNames.NothingToPromise;
         var now = clock.GetUtcNow();
+        // Обещанный платёж — один на счёт. Взятый до срока, он кончался раньше, чем что-то грозило, и
+        // пропадал впустую: под этот счёт второго уже не взять.
+        if (unpaid is null || unpaid.DueAtUtc >= now) return ClubPlanErrorCodeNames.NothingToPromise;
         if (subscription.PromisedPaymentInvoiceId == unpaid.InvoiceId || subscription.PaymentGraceUntilUtc > now)
             return ClubPlanErrorCodeNames.PromiseUsed;
         var terms = await BillingTerms.LoadAsync(db, ct);

@@ -123,6 +123,11 @@ describe('buildSeatMenu', () => {
     expect(ids(sections)).not.toContain('bulk-wake');
   });
 
+  it('пока групповая команда уходит, пункты закрыты — второй клик не отправит её второй раз', () => {
+    const sections = buildBulkMenu([seat({ id: 'a' }), seat({ id: 'b' })], allCaps, true);
+    expect(flat(sections).every((item) => item.disabled)).toBe(true);
+  });
+
   // Пауза и снятие — одна кнопка в двух состояниях: ставить паузу на паузе нечего.
   it('на паузе меню предлагает продолжить, а не паузу', () => {
     const active = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);

@@ -3804,6 +3804,7 @@ class ClubPlanDto {
     this.fallbackAtUtc,
     this.trialDays,
     this.promisedPaymentDays,
+    this.freeDeviceLimit,
   });
 
   final String planCode;
@@ -3841,6 +3842,10 @@ class ClubPlanDto {
   final int? trialDays;
   final int? promisedPaymentDays;
 
+  /// Предел ПК бесплатного тарифа, как его задала платформа: на него клуб уходит без оплаты, и
+  /// условия называют его числом, а не зашитой «десяткой».
+  final int? freeDeviceLimit;
+
   factory ClubPlanDto.fromJson(Map<String, dynamic> json) => ClubPlanDto(
         planCode: json['planCode'] as String,
         kind: json['kind'] as String,
@@ -3862,6 +3867,7 @@ class ClubPlanDto {
         fallbackAtUtc: json['fallbackAtUtc'] == null ? null : DateTime.parse(json['fallbackAtUtc'] as String),
         trialDays: json['trialDays'] == null ? null : (json['trialDays'] as num).toInt(),
         promisedPaymentDays: json['promisedPaymentDays'] == null ? null : (json['promisedPaymentDays'] as num).toInt(),
+        freeDeviceLimit: json['freeDeviceLimit'] == null ? null : (json['freeDeviceLimit'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -3885,6 +3891,7 @@ class ClubPlanDto {
         'fallbackAtUtc': fallbackAtUtc?.toIso8601String(),
         'trialDays': trialDays,
         'promisedPaymentDays': promisedPaymentDays,
+        'freeDeviceLimit': freeDeviceLimit,
       };
 }
 
