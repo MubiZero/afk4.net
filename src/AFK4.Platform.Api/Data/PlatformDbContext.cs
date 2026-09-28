@@ -1187,6 +1187,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(admin => admin.RolesJson).HasColumnType("jsonb").IsRequired();
             entity.Property(admin => admin.RecoveryCodeHashesJson).HasDefaultValue("[]").IsRequired();
             entity.Property(admin => admin.FailedTwoFactorAttempts).HasDefaultValue(0);
+            // Токен параллельности: два входа одним кодом одновременно — выиграет один.
+            entity.Property(admin => admin.LastTotpStep).IsConcurrencyToken();
             entity.HasIndex(admin => admin.NormalizedUserName).IsUnique();
         });
 

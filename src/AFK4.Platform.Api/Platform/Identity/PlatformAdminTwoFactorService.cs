@@ -106,7 +106,8 @@ public sealed class PlatformAdminTwoFactorService(
 
         var now = timeProvider.GetUtcNow();
         var secretBytes = Convert.FromBase64String(secretProtector.Unprotect(user.TotpSecretEncrypted));
-        if (!TotpCodeGenerator.Verify(secretBytes, code, now.ToUnixTimeSeconds()))
+        var step = TotpCodeGenerator.MatchStep(secretBytes, code, now.ToUnixTimeSeconds());
+        if (step is null || !await TryClaimTotpStepAsync(user, step.Value, cancellationToken))
         {
             return (null, [], user.PlatformAdminUserId, TwoFactorError.InvalidCode);
         }
@@ -148,7 +149,10 @@ public sealed class PlatformAdminTwoFactorService(
         if (!string.IsNullOrWhiteSpace(user.TotpSecretEncrypted))
         {
             var secretBytes = Convert.FromBase64String(secretProtector.Unprotect(user.TotpSecretEncrypted));
-            succeeded = TotpCodeGenerator.Verify(secretBytes, code, now.ToUnixTimeSeconds());
+            var step = TotpCodeGenerator.MatchStep(secretBytes, code, now.ToUnixTimeSeconds());
+            // Уже предъявленный код считается неверным: иначе подсмотренный код открывал бы вторую
+            // сессию ещё полторы минуты окна.
+            succeeded = step is not null && await TryClaimTotpStepAsync(user, step.Value, cancellationToken);
         }
 
         if (!succeeded)
@@ -181,6 +185,36 @@ public sealed class PlatformAdminTwoFactorService(
 
         var session = await tokenService.IssueAsync(user, cancellationToken);
         return (session, user.PlatformAdminUserId, TwoFactorError.None);
+    }
+
+    /// <summary>
+    /// Принять шаг кода один раз. Код того же или более раннего шага — повтор. Шаг сохраняется
+    /// сразу, до выдачи сессии: второй одновременный вход тем же кодом проиграет на токене
+    /// параллельности, а не получит вторую сессию.
+    /// </summary>
+    private async Task<bool> TryClaimTotpStepAsync(
+        PlatformAdminUserEntity user,
+        long step,
+        CancellationToken cancellationToken)
+    {
+        if (user.LastTotpStep is { } last && step <= last)
+        {
+            return false;
+        }
+
+        user.LastTotpStep = step;
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Соседний вход уже принял этот код. Перечитать запись, чтобы учёт неудачной попытки
+            // дальше писался поверх свежего состояния, а не упёрся в тот же токен.
+            await dbContext.Entry(user).ReloadAsync(cancellationToken);
+            return false;
+        }
     }
 
     public async Task<TwoFactorError> ResetAsync(Guid targetPlatformAdminUserId, CancellationToken cancellationToken)

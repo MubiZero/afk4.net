@@ -62,6 +62,25 @@ public sealed class PlatformAdminTwoFactorTests
         Assert.Equal(HttpStatusCode.TooManyRequests, afterLockout.StatusCode);
     }
 
+    // Код из приложения живёт полторы минуты окна. Раньше подсмотренный через плечо код открывал
+    // вторую сессию платформенного админа всё это время — а это деньги и права всех клубов сети.
+    // Теперь код принимается один раз (RFC 6238 §5.2); следующий код приложения — снова годен.
+    [Fact]
+    public async Task TotpCode_OpensOneSessionOnly()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await TwoFactorTestHelper.ConfigureTwoFactorAsync(factory, client, out var secret);
+        var nextStep = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 30;
+        var code = TotpCodeGenerator.Generate(secret, nextStep);
+
+        var first = await TwoFactorTestHelper.VerifyAsync(client, (await TwoFactorTestHelper.StartChallengeAsync(client)).ChallengeToken, code);
+        var replay = await TwoFactorTestHelper.VerifyAsync(client, (await TwoFactorTestHelper.StartChallengeAsync(client)).ChallengeToken, code);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
+    }
+
     [Fact]
     public async Task RecoveryCode_WorksOnceAndBurns()
     {

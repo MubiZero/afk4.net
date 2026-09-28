@@ -37,23 +37,31 @@ public static class TotpCodeGenerator
         return otp.ToString().PadLeft(digits, '0');
     }
 
-    public static bool Verify(byte[] secret, string code, long unixTimeSeconds, int allowedDriftSteps = 1)
+    public static bool Verify(byte[] secret, string code, long unixTimeSeconds, int allowedDriftSteps = 1) =>
+        MatchStep(secret, code, unixTimeSeconds, allowedDriftSteps) is not null;
+
+    /// <summary>
+    /// Номер 30-секундного шага, которому принадлежит код, или null. Нужен, чтобы код нельзя было
+    /// предъявить второй раз (RFC 6238 §5.2): вызывающий запоминает последний принятый шаг.
+    /// </summary>
+    public static long? MatchStep(byte[] secret, string code, long unixTimeSeconds, int allowedDriftSteps = 1)
     {
         var codeBytes = System.Text.Encoding.ASCII.GetBytes(code);
 
         for (var drift = -allowedDriftSteps; drift <= allowedDriftSteps; drift++)
         {
-            var candidate = Generate(secret, unixTimeSeconds + drift * DefaultStep, DefaultStep, DefaultDigits);
+            var at = unixTimeSeconds + drift * DefaultStep;
+            var candidate = Generate(secret, at, DefaultStep, DefaultDigits);
             var candidateBytes = System.Text.Encoding.ASCII.GetBytes(candidate);
 
             if (candidateBytes.Length == codeBytes.Length &&
                 CryptographicOperations.FixedTimeEquals(candidateBytes, codeBytes))
             {
-                return true;
+                return at / DefaultStep;
             }
         }
 
-        return false;
+        return null;
     }
 
     public static string ToBase32(byte[] secret)
