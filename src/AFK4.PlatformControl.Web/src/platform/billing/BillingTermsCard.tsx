@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { ErrorState } from '@/components/ui/states';
+import { Loading, SkeletonCard, SkeletonControl } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { PlansApi } from '@/api/platformClients/plans';
 import type { BillingTermsDto } from '@/api/types';
+import { useLoadable } from '../useLoadable';
 
 type Client = Pick<PlansApi, 'getTerms' | 'updateTerms'>;
 
@@ -17,27 +20,49 @@ type Client = Pick<PlansApi, 'getTerms' | 'updateTerms'>;
  */
 export function BillingTermsCard({ client, canManage }: { client: Client; canManage: boolean }) {
   const { t } = useI18n();
+  const state = useLoadable(() => client.getTerms());
+
+  if (state.status === 'loading') {
+    return (
+      <Loading>
+        <SkeletonCard description>
+          <div className="mgmt-form-grid">
+            <SkeletonControl /><SkeletonControl /><SkeletonControl />
+          </div>
+          {canManage ? <SkeletonControl width="10rem" /> : null}
+        </SkeletonCard>
+      </Loading>
+    );
+  }
+  if (state.status === 'error') {
+    return <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
+  }
+
+  return <TermsForm client={client} terms={state.data} onSaved={state.apply} canManage={canManage} />;
+}
+
+type Draft = { trialDays: string; promisedPaymentDays: string; fallbackAfterOverdueDays: string };
+const toDraft = (terms: BillingTermsDto): Draft => ({
+  trialDays: String(terms.trialDays),
+  promisedPaymentDays: String(terms.promisedPaymentDays),
+  fallbackAfterOverdueDays: String(terms.fallbackAfterOverdueDays)
+});
+
+// Отдельный компонент — не приём поверх useLoadable: draft должен взять значения ровно один раз,
+// когда условия загрузились, и больше не подменяться собой при перерисовках карточки. Компонент
+// монтируется впервые вместе с готовыми данными, поэтому ленивый useState — тот самый один раз,
+// без эффекта, который мог бы догнать правки в поле собственным перезапуском.
+function TermsForm({ client, terms, onSaved, canManage }: {
+  client: Client;
+  terms: BillingTermsDto;
+  onSaved: (next: BillingTermsDto) => void;
+  canManage: boolean;
+}) {
+  const { t } = useI18n();
   const { toast } = useToast();
-  const [terms, setTerms] = useState<BillingTermsDto | null>(null);
-  const [draft, setDraft] = useState({ trialDays: '', promisedPaymentDays: '', fallbackAfterOverdueDays: '' });
+  const [draft, setDraft] = useState<Draft>(() => toDraft(terms));
   const [pending, setPending] = useState(false);
-  const [invalid, setInvalid] = useState<Set<keyof typeof draft>>(new Set());
-
-  useEffect(() => {
-    let active = true;
-    client.getTerms().then(loaded => {
-      if (!active) return;
-      setTerms(loaded);
-      setDraft({
-        trialDays: String(loaded.trialDays),
-        promisedPaymentDays: String(loaded.promisedPaymentDays),
-        fallbackAfterOverdueDays: String(loaded.fallbackAfterOverdueDays)
-      });
-    }).catch(cause => { if (active) toast({ title: describeApiError(cause, t), variant: 'error' }); });
-    return () => { active = false; };
-  }, [client, t, toast]);
-
-  if (terms === null) return null;
+  const [invalid, setInvalid] = useState<Set<keyof Draft>>(new Set());
 
   // «-5», «2,5» и пустое поле раньше молча становились нулём — а ноль здесь что-то выключает или
   // убирает. Не число дней — не сохраняем и говорим у поля.
@@ -52,7 +77,7 @@ export function BillingTermsCard({ client, canManage }: { client: Client; canMan
       promisedPaymentDays: days(draft.promisedPaymentDays),
       fallbackAfterOverdueDays: days(draft.fallbackAfterOverdueDays)
     };
-    const wrong = new Set((Object.keys(parsed) as (keyof typeof draft)[]).filter(key => parsed[key] === null));
+    const wrong = new Set((Object.keys(parsed) as (keyof Draft)[]).filter(key => parsed[key] === null));
     setInvalid(wrong);
     if (wrong.size > 0) return;
     setPending(true);
@@ -62,7 +87,7 @@ export function BillingTermsCard({ client, canManage }: { client: Client; canMan
         promisedPaymentDays: parsed.promisedPaymentDays!,
         fallbackAfterOverdueDays: parsed.fallbackAfterOverdueDays!
       });
-      setTerms(saved);
+      onSaved(saved);
       toast({ title: t('platform.billing.terms.saved'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
@@ -71,7 +96,7 @@ export function BillingTermsCard({ client, canManage }: { client: Client; canMan
     }
   }
 
-  const field = (id: keyof typeof draft, label: string, hint?: string) => (
+  const field = (id: keyof Draft, label: string, hint?: string) => (
     <Field
       label={label}
       htmlFor={`terms-${id}`}
