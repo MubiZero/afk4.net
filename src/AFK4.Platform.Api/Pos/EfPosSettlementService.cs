@@ -255,26 +255,17 @@ public sealed class EfPosSettlementService(
             requestHashInput,
             cancellationToken), cancellationToken);
 
-        if (result.Succeeded && lowStockNotifier is not null && productIdsToNotify.Count > 0)
+        if (result.Succeeded)
         {
-            try
-            {
-                // Settlement is already durable. Notification latency must not turn a committed
-                // financial command into an ambiguous client failure, and request cancellation is
-                // no longer authoritative after commit.
-                await lowStockNotifier.EvaluateProductsAsync(
-                    saleScope.OrganizationId,
-                    saleScope.BranchId,
-                    productIdsToNotify,
-                    CancellationToken.None);
-            }
-            catch (Exception exception)
-            {
-                logger?.LogWarning(
-                    exception,
-                    "Low-stock evaluation failed after POS sale {PosSaleId} committed.",
-                    posSaleId);
-            }
+            // Settlement is already durable; request cancellation is no longer authoritative after
+            // commit, so this always runs to completion regardless of the caller's token.
+            await lowStockNotifier.NotifyAfterSaleAsync(
+                saleScope.OrganizationId,
+                saleScope.BranchId,
+                productIdsToNotify,
+                logger,
+                $"POS sale {posSaleId:D}",
+                CancellationToken.None);
         }
 
         return result;

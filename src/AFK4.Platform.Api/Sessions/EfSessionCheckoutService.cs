@@ -3,6 +3,7 @@ using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Receipts;
@@ -32,7 +33,9 @@ public sealed class EfSessionCheckoutService(
     IOpenShiftResolver openShiftResolver,
     EfBillingOutbox billingOutbox,
     ISessionLifecycleNotifier lifecycleNotifier,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ILowStockNotifier? lowStockNotifier = null,
+    ILogger<EfSessionCheckoutService>? logger = null)
 {
     private const string CheckoutOperation = "session-checkout";
     private const string SessionCheckoutReceiptType = "session_checkout";
@@ -157,6 +160,7 @@ public sealed class EfSessionCheckoutService(
         var shiftId = openShift.Response;
 
         SessionCheckoutResult result;
+        IReadOnlyList<Guid> productIdsToNotify = [];
         try
         {
             result = await ExecuteInTransactionAsync(async () =>
@@ -289,6 +293,13 @@ public sealed class EfSessionCheckoutService(
                 sale.State = PosSaleStateNames.Paid;
                 sale.PaidAtUtc = now;
             }
+
+            productIdsToNotify = saleLines.Values
+                .SelectMany(lines => lines)
+                .Where(line => line.TracksStock)
+                .Select(line => line.ProductId)
+                .Distinct()
+                .ToList();
 
             // Record each payment part against the session.
             foreach (var part in payments)
@@ -439,6 +450,13 @@ public sealed class EfSessionCheckoutService(
                     ObservedAtUtc: timeProvider.GetUtcNow(),
                     AccruedCostMinorUnits: result.Response.GrandTotal.MinorUnits,
                     CurrencyCode: result.Response.GrandTotal.CurrencyCode),
+                cancellationToken);
+            await lowStockNotifier.NotifyAfterSaleAsync(
+                settled.OrganizationId,
+                settled.BranchId,
+                productIdsToNotify,
+                logger,
+                $"session checkout {sessionId:D}",
                 cancellationToken);
         }
 

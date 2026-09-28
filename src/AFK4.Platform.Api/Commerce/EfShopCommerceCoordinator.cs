@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Pos;
@@ -18,7 +19,8 @@ public sealed class EfShopCommerceCoordinator(
     TimeProvider timeProvider,
     IShopOrderNotifier notifier,
     ILogger<EfShopCommerceCoordinator> logger,
-    IPosService? posService = null) : IShopCommerceCoordinator
+    IPosService? posService = null,
+    ILowStockNotifier? lowStockNotifier = null) : IShopCommerceCoordinator
 {
     private const string PlaceOperation = "shop-order-place";
     private const string RefundOperation = "pos-sale-refund";
@@ -64,6 +66,13 @@ public sealed class EfShopCommerceCoordinator(
             if (outcome.Notify && outcome.Result.Succeeded)
             {
                 await NotifyCreatedAsync(outcome.Result.Order!, cancellationToken);
+                await lowStockNotifier.NotifyAfterSaleAsync(
+                    outcome.OrganizationId,
+                    outcome.BranchId,
+                    outcome.ProductIdsToNotify ?? [],
+                    logger,
+                    $"bar order {outcome.Result.Order!.Id:D}",
+                    cancellationToken);
             }
 
             return outcome.Result;
@@ -282,8 +291,13 @@ public sealed class EfShopCommerceCoordinator(
                 order,
                 now);
             await dbContext.SaveChangesAsync(cancellationToken);
+            var productIdsToNotify = settlement.Lines
+                .Where(line => line.TracksStock)
+                .Select(line => line.ProductId)
+                .Distinct()
+                .ToList();
             return UnitResult<PlacementOutcome>.Committed(
-                new PlacementOutcome(ShopOrderActionResult.Ok(order), true));
+                new PlacementOutcome(ShopOrderActionResult.Ok(order), true, context.OrganizationId, context.BranchId, productIdsToNotify));
         }, cancellationToken, async () =>
         {
             var placement = await workflow.ResolvePlacementContextAsync(playerAccountId, cancellationToken);
@@ -671,7 +685,12 @@ public sealed class EfShopCommerceCoordinator(
     private static string HashRequest<T>(T request) =>
         BillingCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(request, JsonOptions));
 
-    private sealed record PlacementOutcome(ShopOrderActionResult Result, bool Notify);
+    private sealed record PlacementOutcome(
+        ShopOrderActionResult Result,
+        bool Notify,
+        Guid OrganizationId = default,
+        Guid BranchId = default,
+        IReadOnlyList<Guid>? ProductIdsToNotify = null);
     private sealed record UnitResult<TResult>(TResult Result, bool ShouldCommit)
     {
         public static UnitResult<TResult> Committed(TResult result) => new(result, true);
