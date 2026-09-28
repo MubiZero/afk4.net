@@ -4,7 +4,8 @@ import type { ShiftTipsDto } from '@afk4/contracts';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { formatMoney, formatTime } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
-import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
+import { CriticalActionConfirmation, Money, PartialLoadFailure } from '../operatorPrimitives';
+import type { OperatorErrorProjection } from '../apiErrors';
 import type { OperatorAuthSession } from '../authClient';
 
 interface TipsClient {
@@ -45,17 +46,30 @@ export function ShiftTipsSection({
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<OperatorErrorProjection | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (client === null) return undefined;
     let active = true;
-    // Отказ списка чаевых — не повод трогать остальную смену: блок просто не появится.
+    // Отказ списка чаевых — не повод трогать остальную смену, но и молчать нельзя: пропавший блок
+    // читался как «чаевых нет», и кассир не узнавал, что где-то ждут невыданные деньги.
     Promise.resolve()
       .then(() => client.forShift(shiftId))
-      .then((result) => { if (active) setTips(shaped(result)); })
-      .catch(() => {});
+      .then((result) => { if (active) { setTips(shaped(result)); setLoadFailure(null); } })
+      .catch((failure: unknown) => { if (active) setLoadFailure(projectOperatorError(failure, t)); });
     return () => { active = false; };
-  }, [client, shiftId, shiftNonce]);
+  }, [client, shiftId, shiftNonce, reload]);
+
+  if (client !== null && loadFailure !== null) {
+    return (
+      <PartialLoadFailure
+        text={t('op.cash.tips.loadFailed', { detail: loadFailure.detail })}
+        failure={loadFailure}
+        onRetry={() => setReload((value) => value + 1)}
+      />
+    );
+  }
 
   if (client === null || tips === null || tips.tips.length === 0) return null;
 
