@@ -168,3 +168,34 @@
   color: var(--text-primary);
   font-weight: 700;
 }
+
+/* Выбор клубов в форме кампании: строка поиска сверху, список отметок ниже. Своё fieldset, а не
+   <Field> (тот обернул бы фильтр, десятки чекбоксов и кнопку «Повторить» одним <label> — читалка
+   озвучивала бы кнопку текстом всего поля целиком, а не «Повторить»). Список не бесконечный:
+   высота ограничена, как у списка прав в .pc-account-perms, — форма кампании не должна
+   разъезжаться до высоты каталога клубов. */
+.mgmt-form fieldset.pc-org-picker {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mgmt-form fieldset.pc-org-picker legend {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pc-org-picker-list {
+  display: grid;
+  gap: 4px;
+  max-height: 180px;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow-y: auto;
+}
