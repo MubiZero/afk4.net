@@ -619,7 +619,6 @@ export type OrganizationOwnerInviteStatusName = (typeof OrganizationOwnerInviteS
 
 /** Словарь: Identity/OrganizationPermissionNames.cs */
 export const OrganizationPermissionNames = {
-  CreateDeviceEnrollmentCode: 'organization.devices.enrollment_codes.create',
   DispatchDeviceCommand: 'organization.devices.commands.dispatch',
   /**
    * Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает

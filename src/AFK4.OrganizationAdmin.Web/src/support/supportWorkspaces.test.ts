@@ -51,7 +51,6 @@ it('supportPermissions: a write permission only appears once its area is in the 
   expect(supportPermissions(['devices'])).toContain(permissionNames.rotateDeviceCredential);
   expect(supportPermissions(['devices'])).toContain(permissionNames.revokeDeviceCredential);
   expect(supportPermissions(['devices'])).toContain(permissionNames.dispatchDeviceCommand);
-  expect(supportPermissions(['devices'])).toContain(permissionNames.createDeviceEnrollmentCode);
 });
 
 it('supportPermissions: permissions with no server-tagged write endpoint under support never appear, regardless of areas granted', () => {
