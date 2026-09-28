@@ -1,3 +1,4 @@
+using System.Data;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
@@ -13,6 +14,8 @@ namespace AFK4.Platform.Api.Tournaments;
 /// </summary>
 public sealed class EfTournamentService(PlatformDbContext dbContext, TimeProvider timeProvider)
 {
+    private const int MaxSerializationAttempts = 3;
+
     public async Task<IReadOnlyList<TournamentDto>> ListForClubAsync(
         Guid organizationId, Guid branchId, CancellationToken ct)
     {
@@ -236,7 +239,39 @@ public sealed class EfTournamentService(PlatformDbContext dbContext, TimeProvide
             tournament.CancelReason)).ToList();
     }
 
+    /// <summary>
+    /// Запись и взнос. Проверки «есть место» и «хватает денег» — чтения перед записью: два игрока,
+    /// одновременно записавшиеся на последнее место, оба их проходили, и турнир на десять мест
+    /// принимал одиннадцать со списанным взносом. Поэтому всё идёт в серийной транзакции: Postgres
+    /// отменяет проигравшую, и та перечитывает уже занятое место.
+    /// </summary>
     public async Task<TournamentResult<PlayerTournamentDto>> RegisterAsync(
+        Guid organizationId, Guid playerAccountId, Guid tournamentId, CancellationToken ct)
+    {
+        if (!dbContext.Database.IsRelational())
+        {
+            return await RegisterAttemptAsync(organizationId, playerAccountId, tournamentId, ct);
+        }
+
+        for (var attempt = 1; ; attempt++)
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+            try
+            {
+                var result = await RegisterAttemptAsync(organizationId, playerAccountId, tournamentId, ct);
+                await transaction.CommitAsync(ct);
+                return result;
+            }
+            catch (Exception exception) when (
+                RelationalFailureClassifier.IsSerializationFailure(exception) && attempt < MaxSerializationAttempts)
+            {
+                await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, ct);
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<TournamentResult<PlayerTournamentDto>> RegisterAttemptAsync(
         Guid organizationId, Guid playerAccountId, Guid tournamentId, CancellationToken ct)
     {
         var tournament = await LoadAsync(organizationId, tournamentId, ct);
@@ -321,7 +356,7 @@ public sealed class EfTournamentService(PlatformDbContext dbContext, TimeProvide
         {
             await dbContext.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException exception) when (!RelationalFailureClassifier.IsSerializationFailure(exception))
         {
             // Уникальный индекс на живой записи: два нажатия «Записаться» подряд пришли быстрее,
             // чем первое успело закоммититься. Второе — не ошибка, а та же запись: взнос списан
