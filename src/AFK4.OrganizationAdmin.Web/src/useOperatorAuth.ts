@@ -10,6 +10,7 @@ import {
   signOutOperator,
   ChooseClubError,
   isUnauthorizedStaffAuthError,
+  OPERATOR_SESSION_ENDED_EVENT,
   type OperatorAuthSession,
   type ClubChoice
 } from './authClient';
@@ -93,6 +94,20 @@ export function useOperatorAuth(
     return () => {
       disposed = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Продление отказано где угодно в Панели — сессия кончилась. Одно событие вместо того, чтобы
+  // каждый экран по очереди показывал «нет прав» под уже мёртвым входом.
+  useEffect(() => {
+    const onEnded = () => {
+      setAuthSession(null);
+      setAuthStatus('signed-out');
+      setAuthError(t('op.auth.sessionEnded'));
+      options.onSignedOut?.();
+    };
+    window.addEventListener(OPERATOR_SESSION_ENDED_EVENT, onEnded);
+    return () => window.removeEventListener(OPERATOR_SESSION_ENDED_EVENT, onEnded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

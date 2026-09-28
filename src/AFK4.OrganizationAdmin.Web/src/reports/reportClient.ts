@@ -1,14 +1,12 @@
 import { createReportsClient } from '../api/clients/reports';
 import { createShiftClient } from '../api/clients/shifts';
 import { createFloorMapClient } from '../api/clients/floorMap';
-import { PlatformApiClient } from '../platformApi';
+import { authenticatedPlatformApi } from '../operatorHelpers';
 import type { OperatorBackendContext } from '../operatorTypes';
 
 function organizationApi(backend: OperatorBackendContext) {
-  return new PlatformApiClient({
-    baseUrl: backend.config.platformBaseUrl,
-    getAccessToken: () => backend.session.accessToken
-  }).forOrganization(backend.session.organizationId);
+  return authenticatedPlatformApi(backend.config.platformBaseUrl, backend.session)
+    .forOrganization(backend.session.organizationId);
 }
 
 export function createReportClients(backend: OperatorBackendContext) {

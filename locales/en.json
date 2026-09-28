@@ -864,6 +864,7 @@
   "op.auth.repeatPin.hint": "The same digits once more, to be sure.",
   "op.auth.repeatPin.mismatch": "The PINs didn't match. Create one again.",
   "op.auth.repeatPin.title": "Repeat your PIN",
+  "op.auth.sessionEnded": "You were signed out: the session was revoked or has expired. Sign in again.",
   "op.auth.signInSubtitle": "Sign in to open your shift and run the floor.",
   "op.auth.useCredentials": "Sign in with login or email",
   "op.auth.usePhone": "Sign in with phone",

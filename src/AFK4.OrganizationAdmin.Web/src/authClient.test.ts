@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
 import {
   ChooseClubError,
+  OPERATOR_SESSION_ENDED_EVENT,
+  operatorAccessToken,
+  renewOperatorAccessToken,
   acceptStaffInvite,
   forgotPasswordByEmail,
   loadOperatorSession,
@@ -12,6 +15,7 @@ import {
   signOutOperator,
   staffSignInNextStep
 } from './authClient';
+import { PlatformApiClient } from './platformApi';
 
 const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 
@@ -221,5 +225,74 @@ describe('forgot/reset password', () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
       phoneNumber: '+992937380070', code: '123456', newPassword: '121212'
     });
+  });
+});
+
+describe('operator access token', () => {
+  // Экран, открытый в начале смены, держал токен той минуты. Через восемь часов — ночная смена
+  // длиннее — отчёты и лента бара отвечали «нет прав». Токен берётся из сохранённой сессии,
+  // которую продление всегда переписывает.
+  it('renews an expired stored token once for concurrent requests', async () => {
+    await signInByLoginOperator(ORG, 'u', 'p');
+    sessionStorage.setItem('afk4.staff.session', JSON.stringify({
+      ...JSON.parse(sessionStorage.getItem('afk4.staff.session')!), accessTokenExpiresAtUtc: '2000-01-01T00:00:00Z'
+    }));
+    fetchMock.mockClear();
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ...sampleResponse, accessToken: 'fresh' }));
+    const screenSession = { accessToken: 'stale' } as Parameters<typeof operatorAccessToken>[0];
+
+    const [first, second] = await Promise.all([operatorAccessToken(screenSession), operatorAccessToken(screenSession)]);
+
+    expect(first).toBe('fresh');
+    expect(second).toBe('fresh');
+    expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+
+  // Токен по часам жив, а сервер отказал: сотрудника отключили или сессии отозвали. Один раз
+  // продлить и повторить запрос — 401 сервер отдаёт до того, как что-то сделать.
+  it('retries a request once with a renewed token after a 401', async () => {
+    await signInByLoginOperator(ORG, 'u', 'p');
+    const seen: string[] = [];
+    const api = new PlatformApiClient({
+      baseUrl: 'http://localhost/',
+      getAccessToken: () => 'revoked',
+      renewAccessToken: renewOperatorAccessToken,
+      fetchImpl: async (_input, init) => {
+        seen.push(new Headers(init?.headers).get('Authorization') ?? '');
+        return seen.length === 1 ? new Response('', { status: 401 }) : jsonResponse(200, { ok: true });
+      }
+    });
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ...sampleResponse, accessToken: 'renewed' }));
+
+    await expect(api.get('branches/b1/reports/summary')).resolves.toEqual({ ok: true });
+    expect(seen).toEqual(['Bearer revoked', 'Bearer renewed']);
+  });
+
+  // Продление отказано — сессия кончилась. Панель уходит на вход, а не показывает «нет прав» на
+  // каждом экране по очереди.
+  it('ends the session when the renewal itself is refused', async () => {
+    await signInByLoginOperator(ORG, 'u', 'p');
+    fetchMock.mockImplementation(async () => jsonResponse(401, { error: 'invalid_refresh_token' }));
+    let ended = false;
+    const onEnded = () => { ended = true; };
+    window.addEventListener(OPERATOR_SESSION_ENDED_EVENT, onEnded);
+
+    try {
+      await expect(renewOperatorAccessToken()).resolves.toBeNull();
+    } finally {
+      window.removeEventListener(OPERATOR_SESSION_ENDED_EVENT, onEnded);
+    }
+
+    expect(ended).toBe(true);
+    expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
+  });
+
+  // Сеть легла на продлении — это не конец сессии: вход не сбрасывается, ошибка уходит экрану.
+  it('keeps the session when the renewal fails for a transient reason', async () => {
+    await signInByLoginOperator(ORG, 'u', 'p');
+    fetchMock.mockImplementation(async () => jsonResponse(503, {}));
+
+    await expect(renewOperatorAccessToken()).rejects.toBeDefined();
+    expect(sessionStorage.getItem('afk4.staff.session')).not.toBeNull();
   });
 });

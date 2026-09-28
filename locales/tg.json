@@ -864,6 +864,7 @@
   "op.auth.repeatPin.hint": "Ҳамон рақамҳо боз як бор — то хато нашавад.",
   "op.auth.repeatPin.mismatch": "PIN-ҳо мувофиқ наомаданд. Аз нав фикр кунед.",
   "op.auth.repeatPin.title": "PIN-ро такрор кунед",
+  "op.auth.sessionEnded": "Воридшавӣ ба охир расид: сессия бекор карда шуд ё мӯҳлаташ гузашт. Аз нав ворид шавед.",
   "op.auth.signInSubtitle": "Барои кушодани навбат ва идоракунии толор ворид шавед.",
   "op.auth.useCredentials": "Ворид бо логин ё email",
   "op.auth.usePhone": "Ворид бо телефон",

@@ -1,7 +1,7 @@
 import { useEffect, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import type { OperatorAuthSession } from './authClient';
+import { operatorAccessToken, type OperatorAuthSession } from './authClient';
 import { applyDeviceStatusToSeats, type OperatorFloorMapState } from './floorMapState';
 import {
   createOperatorRealtimeClient,
@@ -137,7 +137,7 @@ export function useOperatorRealtime({
     let wasReconnecting = false;
     const realtimeOptions: OperatorRealtimeOptions = {
       baseUrl: config.platformBaseUrl,
-      getAccessToken: () => authSession.accessToken,
+      getAccessToken: () => operatorAccessToken(authSession),
       onConnectionStateChanged: (state) => {
         if (disposed) {
           return;
