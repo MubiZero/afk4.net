@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Reports;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Reports;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -10,7 +11,7 @@ internal static class ReportEndpoints
 {
     public static void MapReportEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("branches/{branchId:guid}/reports/shifts", async (
+        app.MapGet("branches/{branchId:guid}/reports/shifts", (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -19,64 +20,21 @@ internal static class ReportEndpoints
             IAuditRecordWriter auditRecordWriter,
             IReportService reportService,
             CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
+            GetReportAsync(
                 branchId,
-                OrganizationPermissionNames.ViewReports,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    branchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.ViewShiftReport,
-                    "Report",
-                    "shifts",
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var query = new ReportSearchQuery(fromUtc, toUtc, limit);
-            var result = await reportService.GetShiftReportAsync(
-                authorization.StaffContext!.OrganizationId,
-                branchId,
-                query,
-                cancellationToken);
-
-            await WriteAuditAsync(
+                authorizationService,
                 auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
+                reportService,
                 AuditActionNames.ViewShiftReport,
-                "Report",
                 "shifts",
-                AuditOutcome.Succeeded,
-                new
-                {
-                    Count = result.Rows.Count,
-                    result.Limit,
-                    fromUtc,
-                    toUtc
-                },
-                cancellationToken);
-
-            return Results.Ok(result);
-        })
+                new ReportSearchQuery(fromUtc, toUtc, limit),
+                static (service, organizationId, scopedBranchId, query, token) =>
+                    service.GetShiftReportAsync(organizationId, scopedBranchId, query, token),
+                result => new { Count = result.Rows.Count, result.Limit, fromUtc, toUtc },
+                cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
-        app.MapGet("branches/{branchId:guid}/reports/sales", async (
+        app.MapGet("branches/{branchId:guid}/reports/sales", (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -85,64 +43,21 @@ internal static class ReportEndpoints
             IAuditRecordWriter auditRecordWriter,
             IReportService reportService,
             CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
+            GetReportAsync(
                 branchId,
-                OrganizationPermissionNames.ViewReports,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    branchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.ViewSalesReport,
-                    "Report",
-                    "sales",
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var query = new ReportSearchQuery(fromUtc, toUtc, limit);
-            var result = await reportService.GetSalesReportAsync(
-                authorization.StaffContext!.OrganizationId,
-                branchId,
-                query,
-                cancellationToken);
-
-            await WriteAuditAsync(
+                authorizationService,
                 auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
+                reportService,
                 AuditActionNames.ViewSalesReport,
-                "Report",
                 "sales",
-                AuditOutcome.Succeeded,
-                new
-                {
-                    Count = result.Rows.Count,
-                    result.Limit,
-                    fromUtc,
-                    toUtc
-                },
-                cancellationToken);
-
-            return Results.Ok(result);
-        })
+                new ReportSearchQuery(fromUtc, toUtc, limit),
+                static (service, organizationId, scopedBranchId, query, token) =>
+                    service.GetSalesReportAsync(organizationId, scopedBranchId, query, token),
+                result => new { Count = result.Rows.Count, result.Limit, fromUtc, toUtc },
+                cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
-        app.MapGet("branches/{branchId:guid}/reports/gameplay-time", async (
+        app.MapGet("branches/{branchId:guid}/reports/gameplay-time", (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -151,64 +66,21 @@ internal static class ReportEndpoints
             IAuditRecordWriter auditRecordWriter,
             IReportService reportService,
             CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
+            GetReportAsync(
                 branchId,
-                OrganizationPermissionNames.ViewReports,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    branchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.ViewGameplayTimeReport,
-                    "Report",
-                    "gameplay-time",
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var query = new ReportSearchQuery(fromUtc, toUtc, limit);
-            var result = await reportService.GetGameplayTimeReportAsync(
-                authorization.StaffContext!.OrganizationId,
-                branchId,
-                query,
-                cancellationToken);
-
-            await WriteAuditAsync(
+                authorizationService,
                 auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
+                reportService,
                 AuditActionNames.ViewGameplayTimeReport,
-                "Report",
                 "gameplay-time",
-                AuditOutcome.Succeeded,
-                new
-                {
-                    Count = result.Rows.Count,
-                    result.Limit,
-                    fromUtc,
-                    toUtc
-                },
-                cancellationToken);
-
-            return Results.Ok(result);
-        })
+                new ReportSearchQuery(fromUtc, toUtc, limit),
+                static (service, organizationId, scopedBranchId, query, token) =>
+                    service.GetGameplayTimeReportAsync(organizationId, scopedBranchId, query, token),
+                result => new { Count = result.Rows.Count, result.Limit, fromUtc, toUtc },
+                cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
-        app.MapGet("branches/{branchId:guid}/reports/cash-operations", async (
+        app.MapGet("branches/{branchId:guid}/reports/cash-operations", (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -217,64 +89,21 @@ internal static class ReportEndpoints
             IAuditRecordWriter auditRecordWriter,
             IReportService reportService,
             CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
+            GetReportAsync(
                 branchId,
-                OrganizationPermissionNames.ViewReports,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    branchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.ViewCashOperationReport,
-                    "Report",
-                    "cash-operations",
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var query = new ReportSearchQuery(fromUtc, toUtc, limit);
-            var result = await reportService.GetCashOperationReportAsync(
-                authorization.StaffContext!.OrganizationId,
-                branchId,
-                query,
-                cancellationToken);
-
-            await WriteAuditAsync(
+                authorizationService,
                 auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
+                reportService,
                 AuditActionNames.ViewCashOperationReport,
-                "Report",
                 "cash-operations",
-                AuditOutcome.Succeeded,
-                new
-                {
-                    Count = result.Rows.Count,
-                    result.Limit,
-                    fromUtc,
-                    toUtc
-                },
-                cancellationToken);
-
-            return Results.Ok(result);
-        })
+                new ReportSearchQuery(fromUtc, toUtc, limit),
+                static (service, organizationId, scopedBranchId, query, token) =>
+                    service.GetCashOperationReportAsync(organizationId, scopedBranchId, query, token),
+                result => new { Count = result.Rows.Count, result.Limit, fromUtc, toUtc },
+                cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
-        app.MapGet("branches/{branchId:guid}/reports/operator-actions", async (
+        app.MapGet("branches/{branchId:guid}/reports/operator-actions", (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -286,51 +115,17 @@ internal static class ReportEndpoints
             IAuditRecordWriter auditRecordWriter,
             IReportService reportService,
             CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
+            GetReportAsync(
                 branchId,
-                OrganizationPermissionNames.ViewReports,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    branchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.ViewOperatorActionReport,
-                    "Report",
-                    "operator-actions",
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var query = new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits);
-            var result = await reportService.GetOperatorActionReportAsync(
-                authorization.StaffContext!.OrganizationId,
-                branchId,
-                query,
-                cancellationToken);
-
-            await WriteAuditAsync(
+                authorizationService,
                 auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
+                reportService,
                 AuditActionNames.ViewOperatorActionReport,
-                "Report",
                 "operator-actions",
-                AuditOutcome.Succeeded,
-                new
+                new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits),
+                static (service, organizationId, scopedBranchId, query, token) =>
+                    service.GetOperatorActionReportAsync(organizationId, scopedBranchId, query, token),
+                result => new
                 {
                     Count = result.Rows.Count,
                     result.Limit,
@@ -340,10 +135,7 @@ internal static class ReportEndpoints
                     minAmountMinorUnits,
                     maxAmountMinorUnits
                 },
-                cancellationToken);
-
-            return Results.Ok(result);
-        })
+                cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/shifts/export.csv", async (

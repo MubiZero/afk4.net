@@ -9,6 +9,71 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static partial class EndpointHelpers
 {
+    /// <summary>
+    /// Отчёт филиала в JSON: право на отчёты в филиале, отказ и просмотр — в журнал. Пять отчётов
+    /// делали это пятью одинаковыми копиями; выгрузка в CSV уже жила так — через соседний помощник.
+    /// </summary>
+    public static async Task<IResult> GetReportAsync<TReport>(
+        Guid branchId,
+        StaffAuthorizationService authorizationService,
+        IAuditRecordWriter auditRecordWriter,
+        IReportService reportService,
+        string auditAction,
+        string targetId,
+        ReportSearchQuery query,
+        Func<IReportService, Guid, Guid, ReportSearchQuery, CancellationToken, Task<TReport>> loadReportAsync,
+        Func<TReport, object> succeededDetails,
+        CancellationToken cancellationToken)
+    {
+        var authorization = await authorizationService.RequireBranchPermissionAsync(
+            branchId,
+            OrganizationPermissionNames.ViewReports,
+            cancellationToken);
+
+        if (!authorization.IsAuthenticated)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!authorization.IsAllowed)
+        {
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext!.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                auditAction,
+                "Report",
+                targetId,
+                AuditOutcome.Denied,
+                new { authorization.DenialReason },
+                cancellationToken);
+
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        var result = await loadReportAsync(
+            reportService,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            query,
+            cancellationToken);
+
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            auditAction,
+            "Report",
+            targetId,
+            AuditOutcome.Succeeded,
+            succeededDetails(result),
+            cancellationToken);
+
+        return Results.Ok(result);
+    }
+
     public static async Task<IResult> ExportReportCsvAsync<TReport>(
         Guid branchId,
         DateTimeOffset? fromUtc,
