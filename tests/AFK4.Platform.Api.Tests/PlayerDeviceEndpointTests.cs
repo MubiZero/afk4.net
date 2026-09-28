@@ -181,6 +181,63 @@ public sealed class PlayerDeviceEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    /// Счета в двух клубах — пуши нужны от обоих. Раньше вход во второй клуб переносил телефон
+    /// туда, и первый клуб замолкал. А выход из приложения снимает телефон со всех клубов сразу.
+    [Fact]
+    public async Task OnePersonInTwoClubs_GetsPushesFromBoth_AndSignOutStopsBoth()
+    {
+        await using var factory = new PlatformApiFactory();
+        var first = await SeedPlayerAsync(factory);
+        var second = await SeedSamePersonInAnotherClubAsync(factory, first);
+
+        using (var client = factory.CreateClient())
+        {
+            await AuthenticateAsync(client, first);
+            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("my-phone", "android"));
+        }
+
+        using (var client = factory.CreateClient())
+        {
+            await AuthenticateAsync(client, second);
+            await client.PostAsJsonAsync("/api/me/devices", new RegisterPlayerDeviceRequest("my-phone", "android"));
+
+            Assert.Equal(
+                new[] { first.PlayerId, second.PlayerId }.Order(),
+                (await DevicesAsync(factory)).Select(device => device.PlayerAccountId).Order());
+
+            await client.DeleteAsync("/api/me/devices/my-phone");
+        }
+
+        Assert.Empty(await DevicesAsync(factory));
+    }
+
+    private static async Task<PlayerContext> SeedSamePersonInAnotherClubAsync(PlatformApiFactory factory, PlayerContext first)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var person = (await db.PlayerAccounts.SingleAsync(account => account.PlayerAccountId == first.PlayerId)).PlatformPersonId;
+        var orgId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = orgId, Slug = $"club-{orgId.ToString("N")[..6]}", Name = "Второй клуб",
+            Status = "active", CreatedAtUtc = Now, UpdatedAtUtc = Now
+        });
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = branchId, OrganizationId = orgId, Slug = $"branch-{branchId.ToString("N")[..6]}",
+            Name = "На Сино", City = "Душанбе", CreatedAtUtc = Now
+        });
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = playerId, OrganizationId = orgId, HomeBranchId = branchId, DisplayName = "Иван",
+            PhoneNumber = first.Phone, PlatformPersonId = person, IsActive = true, CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        return new PlayerContext(orgId, playerId, first.Phone);
+    }
+
     [Fact]
     public async Task Delete_RemovesTheDevice()
     {

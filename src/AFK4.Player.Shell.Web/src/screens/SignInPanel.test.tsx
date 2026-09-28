@@ -5,6 +5,7 @@ import { ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/co
 import { App } from '../App';
 import { devScenarioState } from '../host/devHost';
 import { installFakeHost } from '../test/fakeHost';
+import { pcSignInUrl } from './SignInPanel';
 
 function renderShell() {
   return render(
@@ -166,5 +167,14 @@ describe('вошедший', () => {
     await act(async () => fireEvent.click(signOut));
 
     await waitFor(() => expect(host.requests.map((request) => request.type)).toContain(ShellBridgeRequestTypeNames.AuthSignOut));
+  });
+});
+
+describe('pcSignInUrl', () => {
+  // Клуб — в самом QR: у игрока в приложении может быть открыт другой клуб сети.
+  it('names the club so the app signs in at the right one', () => {
+    expect(pcSignInUrl('482913', '11111111-1111-1111-1111-111111111111'))
+      .toBe('https://afk4.net/s/482913?o=11111111-1111-1111-1111-111111111111');
+    expect(pcSignInUrl('482913', null)).toBe('https://afk4.net/s/482913');
   });
 });

@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
+import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'api/contracts.dart';
@@ -14,6 +17,7 @@ import 'organization/club_picker_screen.dart';
 import 'organization/organization.dart';
 import 'organization/organization_directory.dart';
 import 'organization/selected_organization_store.dart';
+import 'play/pc_sign_in_screen.dart';
 import 'push/push_messages.dart';
 import 'push/push_service.dart';
 import 'push/push_tokens.dart';
@@ -211,10 +215,52 @@ class _RootState extends State<_Root> {
   /// Игрок открыл витрину, чтобы перейти в другой клуб. Выбранный до этого никуда не делся.
   bool _pickingClub = false;
 
+  /// QR с монитора, отсканированный системной камерой, открывает приложение ссылкой
+  /// `https://afk4.net/s/{код}` (спека оболочки, §5.4). Пришла до входа — ждёт его.
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+  PcSignInLink? _pendingPcSignIn;
+
   @override
   void initState() {
     super.initState();
     _restore();
+    _listenForPcLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// Только на телефоне: в браузере и в тестах ссылками приложение не открывают.
+  void _listenForPcLinks() {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+    unawaited(_appLinks.getInitialLink().then((uri) {
+      if (uri != null) _onLink(uri);
+    }).catchError((Object _) {}));
+    _linkSubscription = _appLinks.uriLinkStream.listen(_onLink, onError: (Object _) {});
+  }
+
+  void _onLink(Uri uri) {
+    final link = parsePcSignInLink(uri.toString());
+    if (link == null) return;
+    _pendingPcSignIn = link;
+    _openPendingPcSignIn();
+  }
+
+  /// Открыть вход на ПК, если ссылка ждёт и игрок уже вошёл в приложение.
+  void _openPendingPcSignIn() {
+    final link = _pendingPcSignIn;
+    if (link == null || _restoring || _session == null || !mounted) return;
+    _pendingPcSignIn = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => PcSignInScreen(api: widget.api, initialLink: link)),
+      );
+    });
   }
 
   Future<void> _restore() async {
@@ -244,6 +290,7 @@ class _RootState extends State<_Root> {
       _session = session;
       _restoring = false;
     });
+    _openPendingPcSignIn();
     if (session != null) await _loadMe();
   }
 
@@ -287,6 +334,7 @@ class _RootState extends State<_Root> {
     }
     if (!mounted) return;
     setState(() => _session = session);
+    _openPendingPcSignIn();
     if (session != null) await _loadMe();
   }
 

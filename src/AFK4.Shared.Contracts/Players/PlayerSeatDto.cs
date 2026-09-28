@@ -20,4 +20,10 @@ public static class PlayerSeatUnavailableReasons
     public const string Session = "session";
     public const string Reservation = "reservation";
     public const string Offline = "offline";
+
+    /// <summary>ПК на обслуживании: техник его открыл, сесть за него нельзя.</summary>
+    public const string Maintenance = "maintenance";
+
+    /// <summary>ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются.</summary>
+    public const string OutsidePlan = "outside_plan";
 }

@@ -461,6 +461,43 @@
       }
     }
   },
+  "customerPcSignInBusy": "Дар ин ПК сессияи каси дигар идома дорад — ПК-и холиро интихоб кунед.",
+  "customerPcSignInCameraDenied": "Дастрасӣ ба камера нест. Онро дар танзимоти телефон иҷозат диҳед ё рамзро дар поён ворид кунед.",
+  "customerPcSignInCameraFailed": "Камера кор накард — рамзро дар поён ворид кунед.",
+  "customerPcSignInClose": "Тайёр",
+  "customerPcSignInCodeLabel": "Рамз аз экрани ПК",
+  "customerPcSignInDone": "Шумо ба ПК ворид шудед",
+  "customerPcSignInDoneHint": "Вақтро дар экрани ПК интихоб кунед — пардохт аз тавозуни шумо дар ҳамин клуб.",
+  "customerPcSignInDoneSeat": "Шумо ба {seat} ворид шудед",
+  "@customerPcSignInDoneSeat": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPcSignInEntry": "Бо QR ба ПК ворид шудан",
+  "customerPcSignInExpired": "ПК ҷавоб надод. Санҷед, ки дар экрани он QR-код ҳаст, ва боз кӯшиш кунед.",
+  "customerPcSignInFailed": "Ба ПК ворид шудан нашуд. Боз кӯшиш кунед ё дар худи ПК бо рақам ва PIN ворид шавед.",
+  "customerPcSignInHint": "Камераро ба QR-код дар экрани ПК-и холӣ равона кунед — ПК худаш ворид мешавад, рақам ва PIN лозим нест.",
+  "customerPcSignInInvalid": "Рамз нашуд. QR-кодро боз скан кунед — он ҳар ду дақиқа иваз мешавад.",
+  "customerPcSignInMaintenance": "ПК дар хизматрасонӣ аст — дигарашро интихоб кунед.",
+  "customerPcSignInNeedsAccount": "Барои ворид шудан ба ПК ба барнома бо рақами телефон ворид шавед.",
+  "customerPcSignInNotReady": "Ин ПК ҳанӯз ба толор пайваст нашудааст. Маъмурро даъват кунед.",
+  "customerPcSignInOrType": "Ё 6 рақами зери QR-кодро ворид кунед",
+  "customerPcSignInRetry": "Боз кӯшиш кардан",
+  "customerPcSignInSubmit": "Ба ПК ворид шудан",
+  "customerPcSignInTitle": "Ворид шудан ба ПК",
+  "customerPcSignInTooMany": "Рамзҳои нодуруст хеле зиёданд. Чанд дақиқа сабр кунед ё дар худи ПК бо рақам ва PIN ворид шавед.",
+  "customerPcSignInWaiting": "Интизорем, ки ПК воридшавиро қабул кунад…",
+  "customerPcSignInWaitingSeat": "Интизорем, ки {seat} воридшавиро қабул кунад…",
+  "@customerPcSignInWaitingSeat": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
   "customerPhoneCode": "Рамз аз SMS",
   "customerPhoneConfirm": "Тасдиқ кардан",
   "customerPhoneConfirming": "Санҷида истодаем…",
@@ -582,7 +619,7 @@
   "customerPlayUnavailable": "Ҳоло худатон нишастан мумкин нест — ба назди мизи қабул оед, маъмур шуморо шинонад",
   "customerProfileBirthdayChange": "Тағйир додан",
   "customerProfileBirthdayClear": "Хориҷ кардан",
-  "customerProfileBirthdayHint": "Ихтиёрӣ. Клуб санаро мебинад, то табрик гӯяд, ва агар тӯҳфа дошта бошад, онро ба тавозун мегузорад. Бозиҳои дорои маҳдудияти синну сол аз рӯи ин сана кушода мешаванд.",
+  "customerProfileBirthdayHint": "Ихтиёрӣ. Клуб санаро мебинад, то табрик гӯяд, ва агар тӯҳфа дошта бошад, онро ба тавозун мегузорад. Бозиеро, ки маҳдудияти синну солаш аз синну соли шумо зиёд аст, ПК-и клуб оғоз намекунад.",
   "customerProfileBirthdayInvalid": "Ин санаро қабул кардан мумкин нест — солро санҷед.",
   "customerProfileBirthdaySet": "Нишон додан",
   "customerProfileBirthdayTitle": "Зодрӯз",
@@ -897,6 +934,23 @@
   "customerSessionEndConfirm": "Тамом кардан",
   "customerSessionEndFailed": "Сессияро тамом кардан нашуд. Бори дигар кӯшиш кунед ё маъмурро ҷеғ занед.",
   "customerSessionEndNoRefund": "Сессия тамом шуд",
+  "customerSessionEndQuoteNothing": "Баргардонидан чизе нест: вақти пардохтшуда аллакай бозӣ шудааст.",
+  "customerSessionEndQuotePackage": "Ба баста {duration} бармегардад.",
+  "@customerSessionEndQuotePackage": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionEndQuoteRefund": "Барои вақти бозӣнакарда {amount} бармегардад.",
+  "@customerSessionEndQuoteRefund": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionEndRefunded": "Барои вақти бознакарда {amount} баргардонида шуд",
   "@customerSessionEndRefunded": {
     "placeholders": {
@@ -912,14 +966,6 @@
   "@customerSessionExtendConfirm": {
     "placeholders": {
       "duration": {
-        "type": "String"
-      }
-    }
-  },
-  "customerSessionExtendCost": "Тақрибан {amount} гирифта мешавад — маблағи дақиқро клуб аз рӯи тариф ҳисоб мекунад",
-  "@customerSessionExtendCost": {
-    "placeholders": {
-      "amount": {
         "type": "String"
       }
     }
@@ -944,6 +990,7 @@
       }
     }
   },
+  "customerSessionExtendLoadFailed": "Нархҳои дароз карданро фаҳмидан нашуд.",
   "customerSessionExtendMinutes": "{count, plural, other {{count} дақиқа}}",
   "@customerSessionExtendMinutes": {
     "placeholders": {
@@ -952,8 +999,25 @@
       }
     }
   },
+  "customerSessionExtendNothingAffordable": "Барои дароз кардан пул намерасад. Ҳамёнро дар саҳифаи асосӣ пур кунед.",
   "customerSessionExtendPending": "Дароз карда истодаем…",
+  "customerSessionExtendSummary": "То {time}. {amount} гирифта мешавад, дар ҳамён {balance} мемонад.",
+  "@customerSessionExtendSummary": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionExtendTitle": "Сессияро дароз кардан",
+  "customerSessionExtendUnavailableCounter": "Ин сессияро маъмур дароз мекунад.",
+  "customerSessionExtendUnavailablePackage": "Сессияи бастаро бо оғози нав, вақте ки ин тамом мешавад, дароз мекунанд.",
   "customerShopCancel": "Фармоишро бекор кардан",
   "customerShopCancelErrStarted": "Фармоиш аллакай омода шуда истодааст — бекор кардан мумкин нест",
   "customerShopCancelError": "Фармоишро бекор кардан муяссар нашуд",

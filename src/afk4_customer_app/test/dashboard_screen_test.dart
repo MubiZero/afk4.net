@@ -368,6 +368,14 @@ void main() {
               200
             ),
           '/api/me/features' => ('{"features":["online_topup"]}', 200),
+          // Цены продления — с сервера, как на экране ПК.
+          '/api/me/sessions/s1/extend-offers' => (
+              '{"sessionId":"s1","balance":{"currencyCode":"TJS","minorUnits":5000},"unavailableReason":null,'
+                  '"options":[{"minutes":60,"billableMinutes":60,"endsAtUtc":"2026-09-28T19:00:00Z",'
+                  '"amount":{"currencyCode":"TJS","minorUnits":3000},'
+                  '"balanceAfter":{"currencyCode":"TJS","minorUnits":2000},"affordable":true}]}',
+              200
+            ),
           '/api/me/sessions/s1/extend' => ('{}', 200),
           _ => ('[]', 200),
         });

@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Install;
@@ -185,7 +186,8 @@ internal static class PlayerCatalogEndpoints
                     device.DeviceId,
                     SeatName = seat.Name,
                     ZoneName = zone.Name,
-                    device.IsOnline
+                    device.IsOnline,
+                    InMaintenance = device.MaintenanceSinceUtc != null
                 }).ToListAsync(ct);
 
             var seatIds = seats.Select(seat => seat.SeatId).ToList();
@@ -218,11 +220,16 @@ internal static class PlayerCatalogEndpoints
 
             var busy = busySeatIds.ToHashSet();
             var reserved = reservedSeatIds.ToHashSet();
+            // Обслуживание и «вне тарифа» стойка не даст начать — и игрок не должен видеть такой ПК
+            // свободным: он подойдёт, введёт код и получит отказ.
+            var outside = (await PlanDevices.ForOrganizationAsync(dbContext, player.OrganizationId, ct)).Outside;
 
             return Results.Ok(seats
                 .Select(seat =>
                 {
                     var reason = busy.Contains(seat.SeatId) ? PlayerSeatUnavailableReasons.Session
+                        : seat.InMaintenance ? PlayerSeatUnavailableReasons.Maintenance
+                        : outside.Contains(seat.DeviceId) ? PlayerSeatUnavailableReasons.OutsidePlan
                         : reserved.Contains(seat.SeatId) ? PlayerSeatUnavailableReasons.Reservation
                         : !seat.IsOnline ? PlayerSeatUnavailableReasons.Offline
                         : null;

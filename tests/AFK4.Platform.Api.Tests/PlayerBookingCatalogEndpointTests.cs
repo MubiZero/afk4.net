@@ -295,6 +295,32 @@ public class PlayerBookingCatalogEndpointTests
         Assert.Equal(PlayerSeatUnavailableReasons.Offline, Assert.Single(seats!).UnavailableReason);
     }
 
+    // ПК на обслуживании стойка не даст начать: свободным его игроку показывать нельзя — он
+    // подойдёт, введёт код и получит отказ.
+    [Fact]
+    public async Task Seats_MarkMachinesUnderMaintenance()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234");
+        var seat = await SeedSeatAsync(factory, seeded, "PC-03");
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var device = await db.Devices.SingleAsync(candidate => candidate.DeviceId == seat.DeviceId);
+            device.MaintenanceSinceUtc = Now;
+            await db.SaveChangesAsync();
+        }
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var seats = await client.GetFromJsonAsync<List<PlayerSeatDto>>(
+            $"/api/me/branches/{seeded.BranchId}/seats");
+
+        var listed = Assert.Single(seats!);
+        Assert.False(listed.IsAvailable);
+        Assert.Equal(PlayerSeatUnavailableReasons.Maintenance, listed.UnavailableReason);
+    }
+
     [Fact]
     public async Task Seats_AreScopedToTheCallersOrganization()
     {
