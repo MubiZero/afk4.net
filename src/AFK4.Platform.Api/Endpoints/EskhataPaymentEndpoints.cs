@@ -20,7 +20,7 @@ internal static class EskhataPaymentEndpoints
         app.MapPost("/api/public/payments/eskhata/webhook", async (
             HttpRequest httpRequest,
             IEskhataMerchantClientFactory clientFactory,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             PlatformDbContext db,
             TimeProvider timeProvider,
             CancellationToken ct) =>

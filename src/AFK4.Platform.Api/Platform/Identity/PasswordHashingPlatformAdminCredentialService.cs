@@ -8,7 +8,7 @@ namespace AFK4.Platform.Api.Platform.Identity;
 public sealed class PasswordHashingPlatformAdminCredentialService(
     PlatformDbContext dbContext,
     PlatformAdminTwoFactorService twoFactorService,
-    TimeProvider timeProvider) : IPlatformAdminCredentialService
+    TimeProvider timeProvider)
 {
     // Те же пять попыток и те же пятнадцать минут, что у второго фактора: одна дверь — один
     // порядок. Порог не про удобство подбора, а про то, чтобы человек, промахнувшийся раскладкой,

@@ -13,7 +13,7 @@ internal static class PlatformUpdateEndpoints
     {
         app.MapGet("/api/platform/updates/packages", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformUpdateReleaseService releaseService,
+            EfPlatformUpdateReleaseService releaseService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewUpdates);
@@ -25,7 +25,7 @@ internal static class PlatformUpdateEndpoints
         app.MapPost("/api/platform/updates/packages", async (
             CreatePlatformUpdatePackageRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformUpdateReleaseService releaseService,
+            EfPlatformUpdateReleaseService releaseService,
             IAuditRecordWriter auditWriter,
             CancellationToken cancellationToken) =>
         {
@@ -51,7 +51,7 @@ internal static class PlatformUpdateEndpoints
             Guid packageId,
             ChangePlatformUpdatePackageStateRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformUpdateReleaseService releaseService,
+            EfPlatformUpdateReleaseService releaseService,
             IAuditRecordWriter auditWriter,
             CancellationToken cancellationToken) =>
         {
@@ -67,7 +67,7 @@ internal static class PlatformUpdateEndpoints
 
         app.MapGet("/api/platform/updates/rollouts", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformUpdateReleaseService releaseService,
+            EfPlatformUpdateReleaseService releaseService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewUpdates);
@@ -79,7 +79,7 @@ internal static class PlatformUpdateEndpoints
         app.MapPost("/api/platform/updates/rollouts", async (
             CreatePlatformUpdateRolloutRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformUpdateReleaseService releaseService,
+            EfPlatformUpdateReleaseService releaseService,
             IAuditRecordWriter auditWriter,
             CancellationToken cancellationToken) =>
         {
@@ -98,7 +98,7 @@ internal static class PlatformUpdateEndpoints
             Guid rolloutId,
             ChangePlatformUpdateRolloutStateRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformUpdateReleaseService releaseService,
+            EfPlatformUpdateReleaseService releaseService,
             IAuditRecordWriter auditWriter,
             CancellationToken cancellationToken) =>
         {

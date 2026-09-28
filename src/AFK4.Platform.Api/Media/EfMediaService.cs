@@ -7,7 +7,6 @@ namespace AFK4.Platform.Api.Media;
 
 public sealed class EfMediaService(
     PlatformDbContext db, IMediaStorage storage, IOptions<MediaOptions> options, TimeProvider clock)
-    : IMediaService
 {
     public async Task<MediaServiceResult> UploadAsync(Guid organizationId, Guid branchId, Guid staffUserId,
         string purpose, string declaredContentType, Stream content, long sizeBytes, CancellationToken ct)

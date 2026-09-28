@@ -22,7 +22,7 @@ internal static class WalletEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             PlayerPushNotifier playerPush,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,

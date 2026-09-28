@@ -4,9 +4,10 @@ using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Security;
 
+// Encrypts/decrypts small secret strings (dcgate apiKey + webhook secret) for storage at rest.
 // AES-256-GCM envelope. Format: "v1.<base64 nonce>.<base64 ciphertext>.<base64 tag>".
 // The version prefix lets the key be rotated later without breaking stored values.
-public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
+public sealed class AesGcmSecretProtector : IDisposable
 {
     private const string Version = "v1";
     private const int NonceSize = 12; // AES-GCM standard nonce

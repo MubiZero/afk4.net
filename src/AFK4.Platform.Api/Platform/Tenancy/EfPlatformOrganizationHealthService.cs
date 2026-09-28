@@ -7,7 +7,7 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 
 public sealed class EfPlatformOrganizationHealthService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IPlatformOrganizationHealthService
+    TimeProvider timeProvider)
 {
     private const int RecentErrorWindowDays = 7;
     private const int RecentErrorLimit = 10;

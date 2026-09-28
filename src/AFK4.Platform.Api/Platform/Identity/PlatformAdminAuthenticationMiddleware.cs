@@ -4,8 +4,8 @@ public sealed class PlatformAdminAuthenticationMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(
         HttpContext httpContext,
-        IPlatformAdminTokenService tokenService,
-        IPlatformAdminContextAccessor contextAccessor)
+        OpaquePlatformAdminTokenService tokenService,
+        PlatformAdminContextAccessor contextAccessor)
     {
         var authorization = httpContext.Request.Headers.Authorization.ToString();
         const string bearerPrefix = "Bearer ";

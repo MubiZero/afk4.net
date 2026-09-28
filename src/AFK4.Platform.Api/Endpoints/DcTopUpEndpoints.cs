@@ -19,7 +19,7 @@ internal static class DcTopUpEndpoints
             Guid branchId,
             CreateDcTopUpRequest request,
             StaffAuthorizationService authorizationService,
-            ISecretProtector secretProtector,
+            AesGcmSecretProtector secretProtector,
             PlatformDbContext db,
             TimeProvider timeProvider,
             CancellationToken ct) =>

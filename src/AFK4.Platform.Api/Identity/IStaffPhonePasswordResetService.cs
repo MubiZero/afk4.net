@@ -25,21 +25,3 @@ public enum ResetPasswordByPhoneStatus
 public sealed record ResetPasswordByPhoneResult(
     ResetPasswordByPhoneStatus Status,
     int RemainingAttempts);
-
-public interface IStaffPhonePasswordResetService
-{
-    /// <summary>
-    /// Sends an SMS reset code to the verified phone if it maps to an active staff account. The
-    /// result is uniform whether or not an account exists (anti-enumeration); only a malformed
-    /// phone yields <see cref="ForgotPasswordByPhoneStatus.InvalidPhone"/>.
-    /// </summary>
-    Task<ForgotPasswordByPhoneResult> RequestResetAsync(string rawPhone, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Verifies the SMS code for the phone and, on success, sets the new password and revokes the
-    /// account's active tokens. A missing account/code collapses to
-    /// <see cref="ResetPasswordByPhoneStatus.NoActiveCode"/> (no enumeration).
-    /// </summary>
-    Task<ResetPasswordByPhoneResult> ResetAsync(
-        string rawPhone, string code, string newPassword, CancellationToken cancellationToken);
-}

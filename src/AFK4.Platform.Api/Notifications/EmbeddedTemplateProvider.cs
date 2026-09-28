@@ -4,12 +4,12 @@ using System.Text.Json;
 namespace AFK4.Platform.Api.Notifications;
 
 /// <summary>
-/// <see cref="ITemplateProvider"/> backed by embedded resource files under
+/// <see cref="EmbeddedTemplateProvider"/> backed by embedded resource files under
 /// <c>Notifications/Templates/{locale}/{key}.json</c>. Each file holds <c>subject</c>,
 /// <c>bodyText</c> and <c>bodyHtml</c>. A requested locale with no template falls back to the
 /// configured default locale (D12); a key missing even in the default locale is a hard error.
 /// </summary>
-public sealed class EmbeddedTemplateProvider : ITemplateProvider
+public sealed class EmbeddedTemplateProvider
 {
     private const string ResourceRoot = "AFK4.Platform.Api.Notifications.Templates";
 
@@ -35,6 +35,10 @@ public sealed class EmbeddedTemplateProvider : ITemplateProvider
                 $"No notification template found for key '{templateKey}' in locale '{locale}' or default locale '{defaultLocale}'.");
     }
 
+    /// <summary>
+    /// Throws if any of the supplied keys has no template in the default locale. Used at startup
+    /// to fail fast on a missing template rather than dropping a send at runtime.
+    /// </summary>
     public void EnsureKeysPresent(IEnumerable<string> templateKeys)
     {
         ArgumentNullException.ThrowIfNull(templateKeys);

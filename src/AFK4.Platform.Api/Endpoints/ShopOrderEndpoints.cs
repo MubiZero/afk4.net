@@ -19,7 +19,7 @@ internal static class ShopOrderEndpoints
         app.MapGet("branches/{branchId:guid}/shop/orders", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
-            IShopOrderService shopOrderService,
+            IShopOrderWorkflow workflow,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -35,7 +35,7 @@ internal static class ShopOrderEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            return Results.Ok(await shopOrderService.ListQueueAsync(branchId, cancellationToken));
+            return Results.Ok(await workflow.ListQueueAsync(branchId, cancellationToken));
         });
 
         // Один заказ по идентификатору — для палитры: лента держит только заказы в работе, а
@@ -44,7 +44,7 @@ internal static class ShopOrderEndpoints
             Guid branchId,
             Guid orderId,
             StaffAuthorizationService authorizationService,
-            IShopOrderService shopOrderService,
+            IShopOrderWorkflow workflow,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -60,7 +60,7 @@ internal static class ShopOrderEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var order = await shopOrderService.GetForBranchAsync(branchId, orderId, cancellationToken);
+            var order = await workflow.GetForBranchAsync(branchId, orderId, cancellationToken);
             return order is null ? Results.NotFound() : Results.Ok(order);
         });
 
@@ -78,7 +78,7 @@ internal static class ShopOrderEndpoints
         IEndpointRouteBuilder app,
         string verb,
         string auditAction,
-        Func<IShopOrderService, Guid, Guid, Guid, int?, CancellationToken, Task<ShopOrderActionResult>> action,
+        Func<IShopOrderWorkflow, Guid, Guid, Guid, int?, CancellationToken, Task<ShopOrderActionResult>> action,
         bool notifyPlayer = false)
     {
         app.MapPost($"branches/{{branchId:guid}}/shop/orders/{{orderId:guid}}/{verb}", async (
@@ -87,7 +87,7 @@ internal static class ShopOrderEndpoints
             ShopOrderActionRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IShopOrderService shopOrderService,
+            IShopOrderWorkflow workflow,
             PlayerPushNotifier playerPush,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
@@ -106,7 +106,7 @@ internal static class ShopOrderEndpoints
             }
 
             var result = await action(
-                shopOrderService,
+                workflow,
                 branchId,
                 orderId,
                 authorization.StaffContext!.StaffUserId,

@@ -35,22 +35,3 @@ public sealed record SessionCheckoutQuoteResult(
 
     public static SessionCheckoutQuoteResult Invalid(string error) => new(false, false, error, null);
 }
-
-public interface ISessionCheckoutService
-{
-    Task<SessionCheckoutResult> CheckoutAsync(
-        Guid sessionId,
-        Guid actorStaffUserId,
-        SessionCheckoutRequest request,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Read-only preview of the bill the operator must settle: time charge +
-    /// attached unpaid POS = grand total, plus the player's wallet balance for
-    /// auto-suggesting a wallet part. Changes nothing.
-    /// </summary>
-    Task<SessionCheckoutQuoteResult> QuoteAsync(
-        Guid sessionId,
-        Guid organizationId,
-        CancellationToken cancellationToken);
-}

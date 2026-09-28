@@ -39,8 +39,8 @@ public sealed class PlatformHealthWatchJob(
     {
         var now = GetUtcNow();
         var db = scopedServices.GetRequiredService<PlatformDbContext>();
-        var incidents = scopedServices.GetRequiredService<IPlatformIncidentService>();
-        var notifier = scopedServices.GetRequiredService<IPlatformAlertNotifier>();
+        var incidents = scopedServices.GetRequiredService<EfPlatformIncidentService>();
+        var notifier = scopedServices.GetRequiredService<PlatformAlertNotifier>();
 
         var snapshot = await BuildSnapshotAsync(db, now, cancellationToken);
         var problems = PlatformHealthRules.Evaluate(snapshot, now);

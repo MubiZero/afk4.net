@@ -96,7 +96,7 @@ internal static class StaffEndpoints
             UpdateStaffUserRolesRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPlanLimitGuard planLimitGuard,
+            EfPlanLimitGuard planLimitGuard,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {

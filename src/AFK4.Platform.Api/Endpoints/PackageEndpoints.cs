@@ -19,7 +19,7 @@ internal static class PackageEndpoints
             CreatePackageDefinitionRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPackageService packageService,
+            EfPackageService packageService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -86,7 +86,7 @@ internal static class PackageEndpoints
             UpdatePackageDefinitionRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPackageService packageService,
+            EfPackageService packageService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -152,7 +152,7 @@ internal static class PackageEndpoints
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IOperatorReferenceDataService referenceDataService,
+            EfOperatorReferenceDataService referenceDataService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -197,7 +197,7 @@ internal static class PackageEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPackageService packageService,
+            EfPackageService packageService,
             CancellationToken cancellationToken) =>
         {
             var player = await LoadPlayerScopedEndpointAsync(

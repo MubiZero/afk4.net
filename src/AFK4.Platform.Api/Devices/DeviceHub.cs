@@ -8,10 +8,10 @@ namespace AFK4.Platform.Api.Devices;
 public sealed class DeviceHub(
     ILogger<DeviceHub> logger,
     IDeviceCredentialValidator credentialValidator,
-    IDeviceConnectionRegistry connectionRegistry,
+    InMemoryDeviceConnectionRegistry connectionRegistry,
     IDeviceCommandStore commandStore,
     IStaffTokenService staffTokenService,
-    ISessionCommandResultProcessor sessionCommandResultProcessor) : Hub
+    EfSessionCommandResultProcessor sessionCommandResultProcessor) : Hub
 {
     public override async Task OnConnectedAsync()
     {

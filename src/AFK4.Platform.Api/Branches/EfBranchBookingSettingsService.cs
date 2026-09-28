@@ -4,8 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Branches;
 
+/// <summary>
+/// Чтение и правка настроек приёма гостей у филиала.
+/// </summary>
 public sealed class EfBranchBookingSettingsService(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IBranchBookingSettingsService
 {
     public Task<BranchBookingSettingsDto> GetAsync(
         Guid organizationId,

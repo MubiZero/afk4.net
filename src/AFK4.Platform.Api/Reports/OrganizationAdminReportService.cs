@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Reports;
 
 public sealed class OrganizationAdminReportService(
     PlatformDbContext dbContext,
-    IReportService reports) : IOrganizationAdminReportService
+    IReportService reports)
 {
     private const int DetailLimit = 200;
 

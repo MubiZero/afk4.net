@@ -7,7 +7,7 @@ public sealed class AuthenticationDomainEnforcementMiddleware(RequestDelegate ne
     public async Task InvokeAsync(
         HttpContext httpContext,
         IStaffContextAccessor staffContextAccessor,
-        IPlatformAdminContextAccessor platformContextAccessor)
+        PlatformAdminContextAccessor platformContextAccessor)
     {
         var metadata = httpContext.GetEndpoint()?.Metadata.GetMetadata<AuthenticationDomainMetadata>();
         if (metadata is null)

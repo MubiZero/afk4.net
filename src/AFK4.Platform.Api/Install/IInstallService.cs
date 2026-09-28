@@ -2,36 +2,6 @@ using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.Platform.Api.Install;
 
-public interface IInstallService
-{
-    /// <param name="staffUserId">Кто ставит: сам себя он в списке сотрудников зала не считает.</param>
-    Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverForStaffAsync(
-        Guid organizationId,
-        IReadOnlySet<Guid> branchIds,
-        string ownerDisplayName,
-        Guid staffUserId,
-        CancellationToken cancellationToken);
-
-    Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatForStaffAsync(
-        Guid organizationId,
-        Guid? staffUserId,
-        AuthenticatedInstallCreateSeatRequest request,
-        CancellationToken cancellationToken);
-
-    Task<InstallOperationResult<InstallEnrollResponse>> EnrollForStaffAsync(
-        Guid organizationId,
-        AuthenticatedInstallEnrollRequest request,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Тихая установка: ПК предъявляет код вместо входа сотрудника. Код равен праву техника
-    /// ставить ПК в этом филиале — и не шире: только игровой ПК и только в филиал кода.
-    /// </summary>
-    Task<InstallOperationResult<InstallCodeEnrollment>> EnrollByCodeAsync(
-        InstallCodeEnrollRequest request,
-        CancellationToken cancellationToken);
-}
-
 /// <param name="IssuedByStaffUserId">Кто выдал код — для журнала: сам он при установке не присутствовал.</param>
 /// <param name="NewDevice">ПК встал впервые и потратил одну установку кода.</param>
 public sealed record InstallCodeEnrollment(

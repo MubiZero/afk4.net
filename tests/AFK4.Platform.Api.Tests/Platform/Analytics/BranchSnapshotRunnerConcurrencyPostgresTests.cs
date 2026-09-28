@@ -100,7 +100,7 @@ public sealed class BranchSnapshotRunnerConcurrencyPostgresTests
         }
     }
 
-    private static async Task<(int Written, Exception? Failed)> RunSafelyAsync(IBranchSnapshotRunner runner, DateTimeOffset now)
+    private static async Task<(int Written, Exception? Failed)> RunSafelyAsync(EfBranchSnapshotRunner runner, DateTimeOffset now)
     {
         try
         {

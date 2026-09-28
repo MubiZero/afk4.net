@@ -10,7 +10,7 @@ internal static class PlatformAnalyticsEndpoints
     {
         app.MapGet("/api/platform/analytics/overview", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformAnalyticsService analyticsService,
+            EfPlatformAnalyticsService analyticsService,
             int? months,
             CancellationToken cancellationToken) =>
         {

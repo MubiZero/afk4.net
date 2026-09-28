@@ -16,7 +16,7 @@ internal static class TariffEndpoints
             CreateTariffRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            ITariffService tariffService,
+            EfTariffService tariffService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -85,7 +85,7 @@ internal static class TariffEndpoints
             CreateTariffVersionRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            ITariffService tariffService,
+            EfTariffService tariffService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -159,7 +159,7 @@ internal static class TariffEndpoints
             UpdateTariffRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            ITariffService tariffService,
+            EfTariffService tariffService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -228,7 +228,7 @@ internal static class TariffEndpoints
             UpdateTariffVersionRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            ITariffService tariffService,
+            EfTariffService tariffService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -301,7 +301,7 @@ internal static class TariffEndpoints
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IOperatorReferenceDataService referenceDataService,
+            EfOperatorReferenceDataService referenceDataService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(

@@ -17,7 +17,7 @@ internal static class MediaEndpoints
             [FromForm] string purpose,
             IFormFile file,
             StaffAuthorizationService authorizationService,
-            IMediaService mediaService,
+            EfMediaService mediaService,
             CancellationToken ct) =>
         {
             if (!MediaPurposeNames.IsKnown(purpose)) return Results.BadRequest(new { Error = "Unknown media purpose." });
@@ -41,7 +41,7 @@ internal static class MediaEndpoints
         app.MapDelete("branches/{branchId:guid}/media/{mediaId:guid}", async (
             Guid branchId, Guid mediaId,
             StaffAuthorizationService authorizationService,
-            IMediaService mediaService,
+            EfMediaService mediaService,
             PlatformDbContext db,
             CancellationToken ct) =>
         {

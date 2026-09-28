@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Billing;
 
 public sealed class EfTariffService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : ITariffService
+    TimeProvider timeProvider)
 {
     private const string TariffCreateOperation = "tariff-create";
     private const string TariffVersionCreateOperation = "tariff-version-create";

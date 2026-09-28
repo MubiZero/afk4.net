@@ -10,13 +10,7 @@ namespace AFK4.Platform.Api.Platform.Entitlements;
 /// который меняется раз в месяц, — нагрузка без пользы; минута запаздывания после смены тарифа
 /// экран игрока переживёт.
 /// </summary>
-public interface IOrganizationFeatureSnapshot
-{
-    Task<IReadOnlyList<string>> GetEnabledAsync(Guid organizationId, CancellationToken cancellationToken);
-}
-
 public sealed class CachedOrganizationFeatures(IMemoryCache cache, IOrganizationEntitlements entitlements)
-    : IOrganizationFeatureSnapshot
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(1);
 

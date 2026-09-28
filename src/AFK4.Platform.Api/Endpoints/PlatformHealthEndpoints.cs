@@ -17,7 +17,7 @@ internal static class PlatformHealthEndpoints
     {
         app.MapGet("/api/platform/health/overview", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformHealthOverviewService overviewService,
+            EfPlatformHealthOverviewService overviewService,
             CancellationToken cancellationToken) =>
         {
             // Право проверяется ДО обращения к данным — не после.

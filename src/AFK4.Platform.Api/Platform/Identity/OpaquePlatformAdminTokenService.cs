@@ -10,7 +10,7 @@ namespace AFK4.Platform.Api.Platform.Identity;
 public sealed class OpaquePlatformAdminTokenService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IPlatformRolePermissionResolver rolePermissionResolver) : IPlatformAdminTokenService
+    IPlatformRolePermissionResolver rolePermissionResolver)
 {
     private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(8);
     private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);

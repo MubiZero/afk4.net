@@ -14,7 +14,7 @@ public sealed class EfBillingCommandService(
     IOpenShiftResolver openShiftResolver,
     TimeProvider timeProvider,
     ILoyaltyAccrualService loyaltyAccrualService,
-    IReferralService referralService) : IBillingCommandService
+    ReferralService referralService)
 {
     private const string PlayerCreateOperation = "player-create";
     private const string WalletTopUpOperation = "wallet-top-up";
@@ -602,6 +602,15 @@ public sealed class EfBillingCommandService(
             cancellationToken);
     }
 
+    /// <summary>
+    /// Игрок гасит долг собственными деньгами с кошелька.
+    ///
+    /// Отличие от <see cref="PayDebtAsync"/> не в том, кто нажал, а в том, откуда деньги. У стойки
+    /// они приходят наличными в ящик, поэтому там нужна открытая смена и хватает одной записи —
+    /// уменьшения долга. Здесь деньги уже лежат на кошельке этого же игрока: записи две, долг
+    /// минус и кошелёк минус, иначе сумма возникала бы из ниоткуда. Смена не нужна и не
+    /// спрашивается: ящик не открывается, а игрок платит из дома в три часа ночи.
+    /// </summary>
     public async Task<BillingCommandServiceResult<WalletSummaryDto>> PayDebtFromWalletAsync(
         Guid playerAccountId,
         Guid organizationId,

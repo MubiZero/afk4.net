@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 namespace AFK4.Platform.Api.Platform.Analytics;
 
 public sealed class EfPlatformAnalyticsService(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IPlatformAnalyticsService
 {
     public const int MinMonths = 3;
     public const int MaxMonths = 36;

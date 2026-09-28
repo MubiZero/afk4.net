@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Diagnostics;
 public sealed class EfBranchDiagnosticsService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    BranchDiagnosticsOptions options) : IBranchDiagnosticsService
+    BranchDiagnosticsOptions options)
 {
     private static readonly HashSet<string> FailedCommandStatuses = new(StringComparer.OrdinalIgnoreCase)
     {

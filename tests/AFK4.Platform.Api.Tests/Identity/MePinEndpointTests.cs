@@ -167,7 +167,7 @@ public sealed class MePinEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var tokens = scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>();
+        var tokens = scope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>();
         var person = await db.PlatformPersons.SingleAsync(
             candidate => candidate.PlatformPersonId == platformPersonId);
         var account = playerAccountId is { } id

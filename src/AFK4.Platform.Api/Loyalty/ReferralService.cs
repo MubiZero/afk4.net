@@ -18,7 +18,7 @@ namespace AFK4.Platform.Api.Loyalty;
 public sealed class ReferralService(
     PlatformDbContext dbContext,
     IOrganizationEntitlements entitlements,
-    TimeProvider timeProvider) : IReferralService
+    TimeProvider timeProvider)
 {
     /// <summary>
     /// Алфавит кода: без похожих друг на друга знаков. Код называют голосом и переписывают от
@@ -28,6 +28,7 @@ public sealed class ReferralService(
 
     private const int CodeLength = 6;
 
+    /// <summary>Настройки, если программа действительно работает; иначе null.</summary>
     public async Task<OrganizationReferralSettingsEntity?> GetActiveSettingsAsync(
         Guid organizationId,
         CancellationToken cancellationToken)
@@ -46,6 +47,7 @@ public sealed class ReferralService(
         return settings is { Enabled: true } ? settings : null;
     }
 
+    /// <summary>Код игрока; заводит его, если ещё не заводили.</summary>
     public async Task<string> EnsureCodeAsync(Guid playerAccountId, CancellationToken cancellationToken)
     {
         var player = await dbContext.PlayerAccounts
@@ -77,6 +79,7 @@ public sealed class ReferralService(
         throw new InvalidOperationException("Could not allocate a referral code.");
     }
 
+    /// <summary>Приглашённый называет код друга.</summary>
     public async Task<ReferralClaimOutcome> ClaimAsync(
         Guid inviteePlayerAccountId,
         string code,
@@ -151,6 +154,11 @@ public sealed class ReferralService(
         return ReferralClaimOutcome.Ok(referrer.DisplayName);
     }
 
+    /// <summary>
+    /// Записи бонуса, если это пополнение закрывает приглашение. Возвращает их, а не сохраняет:
+    /// деньги за друга обязаны лечь в ту же транзакцию, что и само пополнение, — иначе бонус
+    /// однажды выживет без пополнения, которое его вызвало. Тем же приёмом устроен кешбэк.
+    /// </summary>
     public async Task<IReadOnlyList<LedgerEntryEntity>> BuildTopUpRewardEntriesAsync(
         Guid organizationId,
         Guid branchId,

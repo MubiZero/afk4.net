@@ -400,7 +400,7 @@ public sealed class PlayerClubMembershipServiceTests
         PlatformApiFactory factory, Guid platformPersonId, Guid organizationId, Guid? branchId)
     {
         await using var scope = factory.Services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<IPlayerClubMembershipService>()
+        return await scope.ServiceProvider.GetRequiredService<EfPlayerClubMembershipService>()
             .EnsureAsync(platformPersonId, organizationId, branchId, CancellationToken.None);
     }
 }

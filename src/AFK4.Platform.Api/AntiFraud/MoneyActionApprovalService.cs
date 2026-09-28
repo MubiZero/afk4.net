@@ -15,7 +15,7 @@ public sealed class MoneyActionApprovalService(
     PlatformDbContext dbContext,
     IMoneyActionPolicyResolver policyResolver,
     IMoneyActionExecutor executor,
-    TimeProvider timeProvider) : IMoneyActionApprovalService
+    TimeProvider timeProvider)
 {
     private static readonly TimeSpan PendingTtl = TimeSpan.FromHours(24);
 

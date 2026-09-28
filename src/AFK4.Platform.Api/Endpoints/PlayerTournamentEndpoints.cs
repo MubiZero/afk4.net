@@ -17,9 +17,9 @@ internal static class PlayerTournamentEndpoints
     {
         app.MapGet("/api/me/branches/{branchId:guid}/tournaments", async (
             Guid branchId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IOrganizationEntitlements entitlements,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             PlatformDbContext db,
             CancellationToken ct) =>
         {
@@ -42,9 +42,9 @@ internal static class PlayerTournamentEndpoints
 
         app.MapPost("/api/me/tournaments/{tournamentId:guid}/registration", async (
             Guid tournamentId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IOrganizationEntitlements entitlements,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
@@ -65,9 +65,9 @@ internal static class PlayerTournamentEndpoints
 
         app.MapDelete("/api/me/tournaments/{tournamentId:guid}/registration", async (
             Guid tournamentId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IOrganizationEntitlements entitlements,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;

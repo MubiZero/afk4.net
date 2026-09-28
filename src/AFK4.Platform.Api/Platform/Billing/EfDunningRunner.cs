@@ -12,10 +12,12 @@ public sealed class EfDunningRunner(
     PlatformDbContext dbContext,
     IOptions<BillingOptions> options,
     IInvoiceNotifier invoiceNotifier,
-    IAuditRecordWriter auditRecordWriter) : IDunningRunner
+    IAuditRecordWriter auditRecordWriter)
 {
     private readonly BillingOptions options = options.Value;
 
+    /// <summary>Flips due invoices to overdue, sends the pre-due reminder and the overdue ladder,
+    /// and returns the number of notifications sent.</summary>
     public async Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         // Credit notes never age into "overdue" and are never chased — they are the thing that

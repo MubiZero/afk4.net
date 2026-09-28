@@ -26,7 +26,7 @@ internal static class DeviceHardwareEndpoints
             DeviceHardwareReportRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>

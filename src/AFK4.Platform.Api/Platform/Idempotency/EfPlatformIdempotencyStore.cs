@@ -5,7 +5,7 @@ namespace AFK4.Platform.Api.Platform.Idempotency;
 
 public sealed class EfPlatformIdempotencyStore(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IPlatformIdempotencyStore
+    TimeProvider timeProvider)
 {
     public async Task<TryReadIdempotencyResult> TryReadAsync(
         string scope,

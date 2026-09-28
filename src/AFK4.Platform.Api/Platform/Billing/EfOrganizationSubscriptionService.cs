@@ -8,7 +8,7 @@ namespace AFK4.Platform.Api.Platform.Billing;
 
 public sealed class EfOrganizationSubscriptionService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IOrganizationSubscriptionService
+    TimeProvider timeProvider)
 {
     private static readonly HashSet<string> AllowedStatuses = new(StringComparer.Ordinal)
     {

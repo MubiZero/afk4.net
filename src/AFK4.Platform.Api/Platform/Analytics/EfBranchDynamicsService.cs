@@ -6,12 +6,12 @@ using Microsoft.EntityFrameworkCore;
 namespace AFK4.Platform.Api.Platform.Analytics;
 
 public sealed class EfBranchDynamicsService(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IBranchDynamicsService
 {
     private const int MinDays = 7;
     private const int MaxDays = 90;
     private const int DefaultDays = 30;
 
+    /// <summary>Возвращает <c>null</c>, если такого филиала у этой организации нет.</summary>
     public async Task<BranchDynamicsDto?> GetAsync(
         Guid organizationId,
         Guid branchId,

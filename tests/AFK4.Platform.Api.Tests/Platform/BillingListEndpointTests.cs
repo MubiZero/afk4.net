@@ -17,7 +17,7 @@ public sealed class BillingListEndpointTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var org = await SeedOrgWithSubscriptionAsync(db, "acme", "Acme", SubscriptionStatusNames.Active);
 
-        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfOrganizationSubscriptionService>();
         var result = await service.ListAsync(status: null, planCode: null, CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -35,7 +35,7 @@ public sealed class BillingListEndpointTests
         await SeedOrgWithSubscriptionAsync(db, "alpha-active", "Alpha", SubscriptionStatusNames.Active);
         await SeedOrgWithSubscriptionAsync(db, "beta-cancelled", "Beta", SubscriptionStatusNames.Cancelled);
 
-        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfOrganizationSubscriptionService>();
         var result = await service.ListAsync(status: SubscriptionStatusNames.Cancelled, planCode: null, CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -49,7 +49,7 @@ public sealed class BillingListEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfOrganizationSubscriptionService>();
 
         var result = await service.ListAsync(status: "bogus", planCode: null, CancellationToken.None);
 
@@ -66,7 +66,7 @@ public sealed class BillingListEndpointTests
         await SeedOrgWithSubscriptionAsync(db, "starter-org", "Starter", SubscriptionStatusNames.Active);
         await SeedOrgWithSubscriptionAsync(db, "growth-org", "Growth", SubscriptionStatusNames.Active, planCode: "growth");
 
-        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfOrganizationSubscriptionService>();
         var result = await service.ListAsync(status: null, planCode: "growth", CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -123,7 +123,7 @@ public sealed class BillingListEndpointTests
         SeedInvoice(db, orgId, number: 2, status: InvoiceStatusNames.Paid);
         await db.SaveChangesAsync();
 
-        var service = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfInvoiceService>();
         var result = await service.ListAllAsync(status: null, CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -143,7 +143,7 @@ public sealed class BillingListEndpointTests
         SeedInvoice(db, orgId, number: 10, status: InvoiceStatusNames.Overdue);
         await db.SaveChangesAsync();
 
-        var service = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfInvoiceService>();
         var overdue = await service.ListAllAsync(status: InvoiceStatusNames.Overdue, CancellationToken.None);
         Assert.True(overdue.Succeeded);
         Assert.All(overdue.Value!, r => Assert.Equal(InvoiceStatusNames.Overdue, r.Status));

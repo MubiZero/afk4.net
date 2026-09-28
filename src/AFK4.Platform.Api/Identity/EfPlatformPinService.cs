@@ -16,10 +16,10 @@ namespace AFK4.Platform.Api.Identity;
 /// </summary>
 public sealed class EfPlatformPinService(
     PlatformDbContext dbContext,
-    IPlayerClubMembershipService clubMemberships,
-    IPlatformPersonTokenService tokenService,
+    EfPlayerClubMembershipService clubMemberships,
+    OpaquePlatformPersonTokenService tokenService,
     TimeProvider timeProvider,
-    ILogger<EfPlatformPinService> logger) : IPlatformPinService
+    ILogger<EfPlatformPinService> logger)
 {
     private const int MaxFailedAttempts = 5;
 
@@ -57,6 +57,11 @@ public sealed class EfPlatformPinService(
         return SetPinStatus.Updated;
     }
 
+    /// <summary>
+    /// Проверяет PIN и впускает человека в названный клуб, открывая счёт, если его ещё нет.
+    /// Любая неудача возвращается одним и тем же <see cref="PinSignInStatus.Refused"/>: причина
+    /// отказа — это ответ на вопрос «есть ли у этого номера аккаунт», и его никто не получает.
+    /// </summary>
     public async Task<PinSignInResult> SignInAsync(
         Guid organizationId,
         string? rawPhone,
@@ -71,6 +76,11 @@ public sealed class EfPlatformPinService(
             : PinSignInResult.Refused;
     }
 
+    /// <summary>
+    /// То же, что <see cref="SignInAsync"/>, но без выдачи токенов: вход на игровом ПК сначала
+    /// проверяет, что вошедшему есть что открыть на этой машине, и только потом выдаёт токены,
+    /// привязанные к ней. Отказ — тот же единый <see cref="PinSignInStatus.Refused"/>.
+    /// </summary>
     public async Task<PinAuthenticationResult> AuthenticateAsync(
         Guid organizationId,
         string? rawPhone,

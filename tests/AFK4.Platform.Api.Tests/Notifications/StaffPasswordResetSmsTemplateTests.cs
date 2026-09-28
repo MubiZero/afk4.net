@@ -4,7 +4,7 @@ namespace AFK4.Platform.Api.Tests.Notifications;
 
 public sealed class StaffPasswordResetSmsTemplateTests
 {
-    private static readonly ITemplateProvider Provider = new EmbeddedTemplateProvider(defaultLocale: "ru");
+    private static readonly EmbeddedTemplateProvider Provider = new EmbeddedTemplateProvider(defaultLocale: "ru");
 
     [Theory]
     [InlineData("ru")]

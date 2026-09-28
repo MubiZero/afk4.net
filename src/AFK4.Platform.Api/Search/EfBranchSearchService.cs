@@ -14,7 +14,7 @@ namespace AFK4.Platform.Api.Search;
 /// </summary>
 public sealed class EfBranchSearchService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IBranchSearchService
+    TimeProvider timeProvider)
 {
     // Одна буква совпала бы с половиной базы и гоняла бы запрос впустую на каждом нажатии.
     private const int MinimumQueryLength = 2;
@@ -29,6 +29,11 @@ public sealed class EfBranchSearchService(
 
     private static readonly string[] OpenOrderStatuses = [ShopOrderStatusNames.Placed, ShopOrderStatusNames.Accepted];
 
+    /// <param name="perKindLimit">
+    /// Сколько находок брать каждого вида. Ограничение на вид, а не на весь список: в зале на
+    /// двести мест «PC-1…PC-200» съели бы весь лимит, и чек, который человек и набирал, не
+    /// поместился бы.
+    /// </param>
     public async Task<IReadOnlyList<BranchSearchResultDto>> SearchAsync(
         Guid organizationId,
         Guid branchId,

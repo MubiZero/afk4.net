@@ -4,7 +4,7 @@ namespace AFK4.Platform.Api.Identity;
 
 public sealed class StaffAuthorizationService(
     IStaffContextAccessor staffContextAccessor,
-    IBranchResolver branchResolver)
+    BranchResolver branchResolver)
 {
     public async Task<StaffAuthorizationResult> RequireBranchPermissionAsync(
         Guid branchId,

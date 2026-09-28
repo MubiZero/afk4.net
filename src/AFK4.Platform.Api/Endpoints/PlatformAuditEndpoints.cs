@@ -13,7 +13,7 @@ internal static class PlatformAuditEndpoints
             Guid? organizationId, string? action, string? outcome, string? targetType,
             DateTimeOffset? fromUtc, DateTimeOffset? toUtc, int? limit,
             PlatformAdminAuthorizationService authorizationService,
-            IAuditSearchService auditSearchService,
+            EfAuditSearchService auditSearchService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {

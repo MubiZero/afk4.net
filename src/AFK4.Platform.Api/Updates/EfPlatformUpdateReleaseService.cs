@@ -7,7 +7,7 @@ namespace AFK4.Platform.Api.Updates;
 
 public sealed class EfPlatformUpdateReleaseService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IPlatformUpdateReleaseService
+    TimeProvider timeProvider)
 {
     public async Task<UpdateServiceResult<PlatformUpdatePackageDto>> RegisterPackageAsync(
         Guid actorPlatformAdminUserId,

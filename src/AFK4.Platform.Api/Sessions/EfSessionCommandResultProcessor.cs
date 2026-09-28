@@ -8,7 +8,7 @@ namespace AFK4.Platform.Api.Sessions;
 
 public sealed class EfSessionCommandResultProcessor(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : ISessionCommandResultProcessor
+    TimeProvider timeProvider)
 {
     private static readonly string[] AcceptedTerminalStatuses = ["Accepted", "Completed"];
 

@@ -16,7 +16,7 @@ internal static class ShowcaseEndpoints
             Guid branchId,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             DeviceShowcase showcase,
             CancellationToken cancellationToken) =>
         {

@@ -35,7 +35,8 @@ public sealed class EfShopOrderServiceTransitionTests
     private static readonly Guid Seat = Guid.NewGuid();
     private static readonly Guid Session = Guid.NewGuid();
 
-    private static EfShopOrderService NewService(PlatformDbContext db, IShopOrderNotifier? notifierOverride = null)
+    private static (EfShopCommerceCoordinator Coordinator, EfShopOrderWorkflow Workflow) NewService(
+        PlatformDbContext db, IShopOrderNotifier? notifierOverride = null)
     {
         var notifier = notifierOverride ?? new NoopShopOrderNotifier();
         var workflow = new EfShopOrderWorkflow(db, TimeProvider.System, notifier, new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
@@ -43,7 +44,7 @@ public sealed class EfShopOrderServiceTransitionTests
             db, new EfWalletSettlementService(db), new EfInventoryCostService(db), new ReceiptNumberGenerator(db));
         var coordinator = new EfShopCommerceCoordinator(
             db, workflow, settlement, TimeProvider.System, notifier, NullLogger<EfShopCommerceCoordinator>.Instance);
-        return new EfShopOrderService(coordinator, workflow);
+        return (coordinator, workflow);
     }
 
     private static async Task<ShopOrderDto> SeedPlacedOrderAsync(PlatformDbContext db)
@@ -89,7 +90,7 @@ public sealed class EfShopOrderServiceTransitionTests
             5000, 0, "TJS", "seed", "seed", null, Guid.Empty, DateTimeOffset.UnixEpoch));
         await db.SaveChangesAsync();
 
-        var placed = await NewService(db).PlaceAsync(
+        var placed = await NewService(db).Coordinator.PlaceAsync(
             Player, new PlaceShopOrderRequest([new ShopOrderLineInput(Product, 3)], $"place-{Guid.NewGuid():N}"), CancellationToken.None);
         return placed.Order!;
     }
@@ -105,11 +106,11 @@ public sealed class EfShopOrderServiceTransitionTests
         var stockCount = await db.StockMovements.CountAsync();
         var walletPaymentCount = await db.LedgerEntries.CountAsync(entry => entry.EntryType == LedgerEntryTypeNames.WalletPayment);
 
-        var accepted = await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var accepted = await service.Workflow.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
         Assert.True(accepted.Succeeded);
         Assert.Equal(ShopOrderStatusNames.Accepted, accepted.Order!.Status);
 
-        var delivered = await service.DeliverAsync(Branch, order.Id, Staff, accepted.Order.Version, CancellationToken.None);
+        var delivered = await service.Workflow.DeliverAsync(Branch, order.Id, Staff, accepted.Order.Version, CancellationToken.None);
         Assert.True(delivered.Succeeded);
         Assert.Equal(ShopOrderStatusNames.Delivered, delivered.Order!.Status);
         Assert.NotNull(delivered.Order.DeliveredAtUtc);
@@ -135,8 +136,8 @@ public sealed class EfShopOrderServiceTransitionTests
         var order = await SeedPlacedOrderAsync(db);
         var service = NewService(db);
 
-        var accepted = await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
-        var delivered = await service.DeliverAsync(Branch, order.Id, Staff, accepted.Order!.Version, CancellationToken.None);
+        var accepted = await service.Workflow.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var delivered = await service.Workflow.DeliverAsync(Branch, order.Id, Staff, accepted.Order!.Version, CancellationToken.None);
 
         Assert.True(delivered.Succeeded);
         var cashback = await db.LedgerEntries.SingleAsync(e => e.EntryType == LedgerEntryTypeNames.Cashback);
@@ -151,8 +152,8 @@ public sealed class EfShopOrderServiceTransitionTests
         var order = await SeedPlacedOrderAsync(db);
         var service = NewService(db);
 
-        var accepted = await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
-        var delivered = await service.DeliverAsync(Branch, order.Id, Staff, accepted.Order!.Version, CancellationToken.None);
+        var accepted = await service.Workflow.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var delivered = await service.Workflow.DeliverAsync(Branch, order.Id, Staff, accepted.Order!.Version, CancellationToken.None);
 
         Assert.True(delivered.Succeeded);
         Assert.Empty(db.LedgerEntries.Where(e => e.EntryType == LedgerEntryTypeNames.Cashback));
@@ -165,7 +166,7 @@ public sealed class EfShopOrderServiceTransitionTests
         var order = await SeedPlacedOrderAsync(db);
         var service = NewService(db);
 
-        var result = await service.AcceptAsync(Branch, order.Id, Staff, expectedVersion: 99, CancellationToken.None);
+        var result = await service.Workflow.AcceptAsync(Branch, order.Id, Staff, expectedVersion: 99, CancellationToken.None);
 
         Assert.True(result.Conflict);
         Assert.Equal(order.Version, result.CurrentVersion);
@@ -179,7 +180,7 @@ public sealed class EfShopOrderServiceTransitionTests
         var order = await SeedPlacedOrderAsync(db);
         interceptor.Armed = true;
 
-        var result = await NewService(db).AcceptAsync(
+        var result = await NewService(db).Workflow.AcceptAsync(
             Branch, order.Id, Staff, order.Version, CancellationToken.None);
 
         Assert.True(result.Conflict);
@@ -195,7 +196,7 @@ public sealed class EfShopOrderServiceTransitionTests
         await using var db = NewDb();
         var order = await SeedPlacedOrderAsync(db);
 
-        var result = await NewService(db, new ThrowingUpdateNotifier()).AcceptAsync(
+        var result = await NewService(db, new ThrowingUpdateNotifier()).Workflow.AcceptAsync(
             Branch, order.Id, Staff, order.Version, CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -208,7 +209,7 @@ public sealed class EfShopOrderServiceTransitionTests
         await using var db = NewDb();
         var order = await SeedPlacedOrderAsync(db);
 
-        var result = await NewService(db).DeliverAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var result = await NewService(db).Workflow.DeliverAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("invalid_transition", result.ErrorCode);
@@ -220,7 +221,7 @@ public sealed class EfShopOrderServiceTransitionTests
         await using var db = NewDb();
         var order = await SeedPlacedOrderAsync(db);
 
-        var result = await NewService(db).CancelByOperatorAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var result = await NewService(db).Coordinator.CancelByOperatorAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Equal(ShopOrderStatusNames.Cancelled, result.Order!.Status);
@@ -236,7 +237,7 @@ public sealed class EfShopOrderServiceTransitionTests
         var receipts = await db.Receipts.CountAsync();
         var ledger = await db.LedgerEntries.CountAsync();
         var movements = await db.StockMovements.CountAsync();
-        var repeated = await NewService(db).CancelByOperatorAsync(
+        var repeated = await NewService(db).Coordinator.CancelByOperatorAsync(
             Branch, order.Id, Staff, expectedVersion: order.Version, CancellationToken.None);
 
         Assert.True(repeated.Succeeded);
@@ -260,7 +261,7 @@ public sealed class EfShopOrderServiceTransitionTests
         db.PosSales.RemoveRange(db.PosSales);
         await db.SaveChangesAsync();
 
-        var result = await NewService(db).CancelByOperatorAsync(
+        var result = await NewService(db).Coordinator.CancelByOperatorAsync(
             Branch, order.Id, Staff, order.Version, CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -279,9 +280,9 @@ public sealed class EfShopOrderServiceTransitionTests
         await using var db = NewDb();
         var order = await SeedPlacedOrderAsync(db);
         var service = NewService(db);
-        await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        await service.Workflow.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
 
-        var result = await service.CancelByPlayerAsync(Player, order.Id, CancellationToken.None);
+        var result = await service.Coordinator.CancelByPlayerAsync(Player, order.Id, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("invalid_transition", result.ErrorCode);
@@ -294,10 +295,10 @@ public sealed class EfShopOrderServiceTransitionTests
         var order = await SeedPlacedOrderAsync(db);
         var service = NewService(db);
 
-        var mine = await service.ListForPlayerAsync(Player, CancellationToken.None);
+        var mine = await service.Workflow.ListForPlayerAsync(Player, CancellationToken.None);
         Assert.Contains(mine, o => o.Id == order.Id);
 
-        var queue = await service.ListQueueAsync(Branch, CancellationToken.None);
+        var queue = await service.Workflow.ListQueueAsync(Branch, CancellationToken.None);
         Assert.Contains(queue, o => o.Id == order.Id);
     }
 }

@@ -19,10 +19,10 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 public sealed class EfPlatformOrganizationService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IOrganizationOwnerInviteCodeGenerator inviteCodeGenerator,
+    RandomOrganizationOwnerInviteCodeGenerator inviteCodeGenerator,
     INotificationService notifications,
     IOptions<PlatformOrganizationOptions> organizationOptions,
-    IPlanLimitGuard planLimitGuard) : IPlatformOrganizationService
+    EfPlanLimitGuard planLimitGuard)
 {
     private const int MaxUserNameLength = 256;
     private const int MaxDisplayNameLength = 160;

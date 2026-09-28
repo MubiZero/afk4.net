@@ -13,12 +13,7 @@ public sealed record OrganizationStatusSnapshot(string Status, string? Reason)
     public bool IsDeletionPending => string.Equals(Status, OrganizationStatusNames.DeletionPending, StringComparison.Ordinal);
 }
 
-public interface IOrganizationStatusGuard
-{
-    Task<OrganizationStatusSnapshot?> GetAsync(Guid organizationId, CancellationToken cancellationToken);
-}
-
-public sealed class EfOrganizationStatusGuard(PlatformDbContext dbContext) : IOrganizationStatusGuard
+public sealed class EfOrganizationStatusGuard(PlatformDbContext dbContext)
 {
     public async Task<OrganizationStatusSnapshot?> GetAsync(Guid organizationId, CancellationToken cancellationToken)
     {

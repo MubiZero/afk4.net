@@ -13,7 +13,7 @@ namespace AFK4.Platform.Api.Outbox;
 /// simply ticks this on a schedule.
 /// </summary>
 public sealed class OutboxDispatchRunner(
-    IBillingOutbox outbox,
+    EfBillingOutbox outbox,
     IEnumerable<IOutboxMessageHandler> handlers,
     TimeProvider timeProvider,
     IOptions<OutboxOptions> options)

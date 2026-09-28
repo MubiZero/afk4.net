@@ -61,7 +61,7 @@ internal static class UpdateEndpoints
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IUpdateService updateService,
+            EfUpdateService updateService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -90,8 +90,8 @@ internal static class UpdateEndpoints
             DeviceUpdateCheckRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IUpdateService updateService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfUpdateService updateService,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -109,8 +109,8 @@ internal static class UpdateEndpoints
             DeviceUpdateStatusReportRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IUpdateService updateService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfUpdateService updateService,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)

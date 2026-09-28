@@ -17,7 +17,7 @@ internal static class BranchSearchEndpoints
             string? query,
             int? limit,
             StaffAuthorizationService authorizationService,
-            IBranchSearchService searchService,
+            EfBranchSearchService searchService,
             CancellationToken cancellationToken) =>
         {
             // Пускаем всякого, у кого есть хоть один из разделов: кассиру без карты зала поиск

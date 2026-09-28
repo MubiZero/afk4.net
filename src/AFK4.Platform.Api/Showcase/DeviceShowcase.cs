@@ -23,8 +23,8 @@ namespace AFK4.Platform.Api.Showcase;
 /// </summary>
 public sealed class DeviceShowcase(
     PlatformDbContext db,
-    IOperatorReferenceDataService referenceData,
-    IOrganizationFeatureSnapshot features,
+    EfOperatorReferenceDataService referenceData,
+    CachedOrganizationFeatures features,
     IMemoryCache cache,
     TimeProvider clock,
     Microsoft.Extensions.Options.IOptions<AFK4.Platform.Api.Install.InstallOptions> install)

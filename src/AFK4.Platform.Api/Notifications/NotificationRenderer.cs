@@ -4,11 +4,11 @@ using System.Text.RegularExpressions;
 namespace AFK4.Platform.Api.Notifications;
 
 /// <summary>
-/// Default <see cref="INotificationRenderer"/>. Substitutes every <c>{{token}}</c> placeholder
+/// Default <see cref="NotificationRenderer"/>. Substitutes every <c>{{token}}</c> placeholder
 /// from the supplied tokens; an unresolved placeholder is a hard error (never a half-rendered
 /// message). Interpolated values are HTML-escaped in the HTML body only.
 /// </summary>
-public sealed partial class NotificationRenderer : INotificationRenderer
+public sealed partial class NotificationRenderer
 {
     public RenderedNotification Render(NotificationTemplate template, IReadOnlyDictionary<string, string> tokens)
     {

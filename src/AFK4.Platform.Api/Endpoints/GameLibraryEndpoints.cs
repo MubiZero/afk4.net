@@ -384,7 +384,7 @@ internal static class GameLibraryEndpoints
             Guid branchId,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {

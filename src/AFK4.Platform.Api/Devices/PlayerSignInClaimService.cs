@@ -19,8 +19,8 @@ public sealed record PlayerSignInClaimRedeemResult(PlatformPersonSessionResponse
 /// </summary>
 public sealed class PlayerSignInClaimService(
     PlatformDbContext dbContext,
-    IPlatformPersonTokenService tokenService,
-    IDeviceBoundPlayerTokens deviceTokens,
+    OpaquePlatformPersonTokenService tokenService,
+    EfDeviceBoundPlayerTokens deviceTokens,
     TimeProvider timeProvider)
 {
     /// <summary>

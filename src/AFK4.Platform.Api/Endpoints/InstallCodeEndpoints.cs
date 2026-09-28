@@ -22,7 +22,7 @@ internal static class InstallCodeEndpoints
         organizations.MapGet("branches/{branchId:guid}/install-codes", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
-            IInstallCodeService installCodes,
+            EfInstallCodeService installCodes,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -45,7 +45,7 @@ internal static class InstallCodeEndpoints
             Guid branchId,
             CreateInstallCodeRequest request,
             StaffAuthorizationService authorizationService,
-            IInstallCodeService installCodes,
+            EfInstallCodeService installCodes,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -82,7 +82,7 @@ internal static class InstallCodeEndpoints
             Guid branchId,
             Guid installCodeId,
             StaffAuthorizationService authorizationService,
-            IInstallCodeService installCodes,
+            EfInstallCodeService installCodes,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -119,7 +119,7 @@ internal static class InstallCodeEndpoints
         app.MapPost(InstallRoutes.CodeEnroll, async (
             InstallCodeEnrollRequest request,
             HttpContext httpContext,
-            IInstallService installService,
+            EfInstallService installService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {

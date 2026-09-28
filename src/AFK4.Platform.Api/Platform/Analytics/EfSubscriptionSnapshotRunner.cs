@@ -10,11 +10,11 @@ namespace AFK4.Platform.Api.Platform.Analytics;
 /// сутки должны кончиться, прежде чем про них можно сказать что-то окончательное.
 /// </summary>
 public sealed class EfSubscriptionSnapshotRunner(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : ISubscriptionSnapshotRunner
 {
     /// <summary>Насколько глубоко задание готово доснять пропущенные дни после долгого простоя.</summary>
     private const int MaxBackfillDays = 30;
 
+    /// <summary>Дописывает недостающие суточные снимки вплоть до вчерашнего дня. Возвращает число записанных строк.</summary>
     public async Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var lastCompleteDay = DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1);

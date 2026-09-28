@@ -15,7 +15,7 @@ public static class PlatformBranchEndpoints
             Guid organizationId,
             CreateBranchRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {

@@ -10,7 +10,7 @@ namespace AFK4.Platform.Api.Billing;
 
 public sealed class SessionBillingService(
     PlatformDbContext dbContext,
-    ITariffService tariffService,
+    EfTariffService tariffService,
     IOpenShiftResolver openShiftResolver,
     ILoyaltyAccrualService loyaltyAccrualService,
     TimeProvider timeProvider) : ISessionBillingService

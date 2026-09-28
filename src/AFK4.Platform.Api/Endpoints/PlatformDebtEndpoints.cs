@@ -10,7 +10,7 @@ internal static class PlatformDebtEndpoints
     {
         app.MapGet("/api/platform/debt", async (
             PlatformAdminAuthorizationService authorizationService,
-            IDebtOverviewService debtOverviewService,
+            EfDebtOverviewService debtOverviewService,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {

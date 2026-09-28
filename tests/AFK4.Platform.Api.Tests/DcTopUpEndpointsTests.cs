@@ -131,7 +131,7 @@ public sealed class DcTopUpEndpointsTests
     }
 }
 
-// Thin seeding helpers over the repo's real primitives (StaffAuthTestHelper/TestIds/ISecretProtector),
+// Thin seeding helpers over the repo's real primitives (StaffAuthTestHelper/TestIds/AesGcmSecretProtector),
 // same ones EskhataTopUpIntentTests and DcConfigEndpointsTests already use. TestIds.BranchId/OrganizationId
 // come from StaffAuthTestHelper.AuthorizeAsAsync, which also creates the Organization/Branch rows.
 internal static class DcTestSetup
@@ -212,7 +212,7 @@ internal static class DcTestSetup
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var protector = scope.ServiceProvider.GetRequiredService<ISecretProtector>();
+        var protector = scope.ServiceProvider.GetRequiredService<AesGcmSecretProtector>();
         db.DcPayLinkConfigs.Add(new DcPayLinkConfigEntity
         {
             DcPayLinkConfigId = Guid.NewGuid(),

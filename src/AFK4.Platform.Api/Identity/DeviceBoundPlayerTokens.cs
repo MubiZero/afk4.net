@@ -10,25 +10,7 @@ namespace AFK4.Platform.Api.Identity;
 /// сделает — и следующий за машиной играл бы на чужие деньги. Поэтому граница живёт здесь: как
 /// только за ПК больше некому сидеть, его токены гаснут.
 /// </summary>
-public interface IDeviceBoundPlayerTokens
-{
-    /// <summary>
-    /// Погасить все живые токены ПК сейчас: новый вход на этой машине, перепривязка места, отказ
-    /// от устройства или отзыв его ключа. Сохраняет вызывающий.
-    /// </summary>
-    Task RevokeForDeviceAsync(Guid deviceId, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Погасить токены ПК, у которого нет живой сессии, если за ним больше некому сидеть: после
-    /// входа закончилась сессия и итог досмотрен, или вход был давно, а сессия так и не началась.
-    /// Зовётся на сердцебиении свободного ПК — занятый сюда не приходит. Сохраняет сам и
-    /// возвращает, сколько токенов погашено.
-    /// </summary>
-    Task<int> ExpireIdleAsync(Guid deviceId, CancellationToken cancellationToken);
-}
-
 public sealed class EfDeviceBoundPlayerTokens(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IDeviceBoundPlayerTokens
 {
     /// <summary>
     /// Сколько после конца сессии живёт вход: столько экран итога ждёт оценки визита и чаевых.
@@ -42,12 +24,22 @@ public sealed class EfDeviceBoundPlayerTokens(PlatformDbContext dbContext, TimeP
     /// </summary>
     public static readonly TimeSpan PreSessionWindow = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// Погасить все живые токены ПК сейчас: новый вход на этой машине, перепривязка места, отказ
+    /// от устройства или отзыв его ключа. Сохраняет вызывающий.
+    /// </summary>
     public async Task RevokeForDeviceAsync(Guid deviceId, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
         await RevokeWhereAsync(deviceId, now, _ => true, cancellationToken);
     }
 
+    /// <summary>
+    /// Погасить токены ПК, у которого нет живой сессии, если за ним больше некому сидеть: после
+    /// входа закончилась сессия и итог досмотрен, или вход был давно, а сессия так и не началась.
+    /// Зовётся на сердцебиении свободного ПК — занятый сюда не приходит. Сохраняет сам и
+    /// возвращает, сколько токенов погашено.
+    /// </summary>
     public async Task<int> ExpireIdleAsync(Guid deviceId, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();

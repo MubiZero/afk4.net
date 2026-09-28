@@ -19,7 +19,7 @@ internal static class TournamentEndpoints
         app.MapGet("branches/{branchId:guid}/tournaments", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             CancellationToken ct) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(
@@ -36,7 +36,7 @@ internal static class TournamentEndpoints
         app.MapPost("tournaments", async (
             CreateTournamentRequest request,
             StaffAuthorizationService authorizationService,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
         {
@@ -68,7 +68,7 @@ internal static class TournamentEndpoints
             Guid tournamentId,
             UpdateTournamentRequest request,
             StaffAuthorizationService authorizationService,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
         {
@@ -99,7 +99,7 @@ internal static class TournamentEndpoints
         app.MapPost("tournaments/{tournamentId:guid}/publish", async (
             Guid tournamentId,
             StaffAuthorizationService authorizationService,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
         {
@@ -133,7 +133,7 @@ internal static class TournamentEndpoints
             Guid tournamentId,
             CancelTournamentRequest request,
             StaffAuthorizationService authorizationService,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
         {
@@ -165,7 +165,7 @@ internal static class TournamentEndpoints
         app.MapGet("tournaments/{tournamentId:guid}/participants", async (
             Guid tournamentId,
             StaffAuthorizationService authorizationService,
-            ITournamentService tournaments,
+            EfTournamentService tournaments,
             CancellationToken ct) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(

@@ -52,7 +52,7 @@ public sealed class SubscriptionSnapshotRunnerTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 290000, BillingIntervalNames.Monthly);
-        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfSubscriptionSnapshotRunner>();
 
         var written = await runner.RunAsync(Now, CancellationToken.None);
 
@@ -71,7 +71,7 @@ public sealed class SubscriptionSnapshotRunnerTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 290000, BillingIntervalNames.Monthly);
-        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfSubscriptionSnapshotRunner>();
 
         await runner.RunAsync(Now, CancellationToken.None);
         var secondRun = await runner.RunAsync(Now, CancellationToken.None);
@@ -88,7 +88,7 @@ public sealed class SubscriptionSnapshotRunnerTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 3480000, BillingIntervalNames.Yearly);
-        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfSubscriptionSnapshotRunner>();
 
         await runner.RunAsync(Now, CancellationToken.None);
 
@@ -104,7 +104,7 @@ public sealed class SubscriptionSnapshotRunnerTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 300000, BillingIntervalNames.Monthly, discountPercent: 10);
-        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfSubscriptionSnapshotRunner>();
 
         await runner.RunAsync(Now, CancellationToken.None);
 
@@ -120,7 +120,7 @@ public sealed class SubscriptionSnapshotRunnerTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 290000, BillingIntervalNames.Monthly);
-        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfSubscriptionSnapshotRunner>();
 
         // Процесс стоял двое суток: снимок за пропущенный день всё равно должен появиться,
         // иначе в графике оттока навсегда останется дыра.
@@ -155,7 +155,7 @@ public sealed class SubscriptionSnapshotRunnerTests
             CreatedAtUtc = Now.AddDays(-40)
         });
         await db.SaveChangesAsync();
-        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfSubscriptionSnapshotRunner>();
 
         var written = await runner.RunAsync(Now, CancellationToken.None);
 
@@ -214,7 +214,7 @@ public sealed class SubscriptionSnapshotRunnerTests
             CreatedAtUtc = Now.AddDays(-3)
         });
         await db.SaveChangesAsync();
-        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+        var runner = scope.ServiceProvider.GetRequiredService<EfSubscriptionSnapshotRunner>();
 
         var written = await runner.RunAsync(Now, CancellationToken.None);
 

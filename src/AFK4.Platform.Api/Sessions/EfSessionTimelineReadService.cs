@@ -4,7 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Sessions;
 
-public sealed class EfSessionTimelineReadService(PlatformDbContext dbContext) : ISessionTimelineReadService
+/// <summary>
+/// Reads started sessions (running and completed) that overlap a time window, for the booking
+/// timeline. Distinct from the floor-map read service, which exposes only the current snapshot.
+/// </summary>
+public sealed class EfSessionTimelineReadService(PlatformDbContext dbContext)
 {
     public async Task<SessionTimelineResult> GetSessionsAsync(
         Guid organizationId,
