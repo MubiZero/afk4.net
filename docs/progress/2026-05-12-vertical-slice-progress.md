@@ -737,7 +737,73 @@ halves), and the current shift in the cash cockpit (without it the screen cannot
 close). Still silent by design and not touched: the players' live «now» column, branch rollup
 KPIs, the shift-close tolerance lookup.
 
+## Ponytail Pass and Three-Pass Audit of Every Part (2026-09-28)
+
+The owner asked for a three-pass audit of every part of the system, with an
+over-engineering pass first so the audit reads lean code.
+
+**Ponytail pass (#511–#521, one deploy #522).** −6450 lines of handwritten
+code: dead routes (manual POS payment, branch-wide device-command history,
+start offers by seating code, one-off migration scripts), the legacy PC
+enrollment path and its table (migration `DropDeviceEnrollmentCodes`, owner
+approved), 83 single-implementation interfaces in the API and 17 in the Agent
+(owner: remove all), money rules kept in one place (expected cash of a shift —
+close and both reports; cancelling an unanswered reservation; shop-order
+retry), one helper each for reservation, session and report route plumbing,
+2288 unused `using` lines, dead client code. Deliberately kept: the install
+request throttle (a second protection layer), manual SigV4 in the publisher
+(zero dependencies), money formatting for the bank signature vs. notifications
+(different rules), the version comparer (`System.Version` treats `1.2` and
+`1.2.0` differently).
+
+**Audit (#523–#541, one deploy).** Eight inventory agents, one per part; every
+finding checked in code before fixing.
+- *Defects.* No request timeout in the Panel, the Player Shell and the Agent
+  update download — a stalled connection held «Saving…» or an unclosable sheet
+  forever (#523). Staff token lives 8 h, a night shift is 12 h: reports, the bar
+  ticker, realtime and the phone card never renewed it, and a token revoked by
+  the server was recovered only on the floor map (#531). The platform TOTP code
+  was reusable for its whole window (#524, migration
+  `AddPlatformAdminLastTotpStep`). Simultaneous sign-ups for the last tournament
+  seat all got in and all paid (#527, a Postgres race test that fails 3/3
+  without the fix). Money approvals and QR sign-in on the PC sent a second
+  request on a second press or after a drop (#533, #526). Tips blocks swallowed
+  a load failure and read as «no tips» (#534). Open shift reported expected cash
+  as 0 (#528). Low-stock alerts fired only for till sales (#539). Install by
+  code at a suspended club answered with a bare 400 and lost the reason (#536).
+- *Friction.* The floor map showed player names, tariff and accrued money to the
+  technician, whose role grants none of that (#529). The network journal showed
+  actors as GUIDs (#537). Platform Control: resend of an owner invite without an
+  email or past its expiry (#530), a referral nobody could see (#538),
+  indistinguishable 2FA refusals (#540), ad targeting by pasted GUIDs (#541),
+  billing terms without load/error states (#525). Player app: history rows led
+  nowhere though the push already knew the destination (#532).
+- *Checked, not a defect.* The inventory average cost in `double` (integer
+  division is correctly rounded and each result is rounded to a diram); the
+  shop refund looking a sale up by id (organization is checked upstream).
+
+**Named, not done — needs the owner or a live PC.**
+- ~217 refusals in the money services carry an English phrase and no machine
+  code (3 have one); the Panel can only say «the server refused». A per-module
+  pass, not a quick fix.
+- Silent install by code always reports success to msiexec (async on purpose,
+  against nested-installer deadlocks); a failed PC is visible only as «28 of
+  30» on the code in the Panel. Reporting failures needs a new anonymous route.
+- The PC protection profile is stored unsigned; whether a guest account can
+  write the state folder must be checked on a real PC.
+- Idempotency rows and platform media are never cleaned — deferred to launch.
+- Shell design pass by the concept — waits for the owner (unchanged).
+
 ## Latest Verification
+
+- Audit merged (2026-09-28). The ponytail pass (#511–#521 via #522) and the
+  three-pass audit fixes (#523–#541, one integration branch) — see the section
+  above. The audit integration tree passed `scripts/verify.sh --all`: API
+  3316/3316 on real PostgreSQL, contracts 153, Agent 445 (+30 WindowsOnly),
+  Setup Wizard 138 (+5), Publisher 13, localization 15; web 1697 in the Panel
+  and every other workspace with builds and Biome; Flutter 613 + integration;
+  solution build with WPF (`-p:EnableWindowsTargeting=true`) without warnings.
+  Windows suites run only in CI. Not verified: anything on a live Windows PC.
 
 - Audit fixes merged (2026-09-28). After the owner asked whether everything
   built during the shell rewrite exists everywhere and works, three audits
