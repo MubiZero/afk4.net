@@ -60,6 +60,20 @@ void main() {
     expect(find.text('Пётр'), findsOneWidget);
   });
 
+  // Иконки звёзд сами по себе для экрана чтения немы (декоративная картинка) — без отдельной
+  // метки на весь ряд оценка не звучала вовсе.
+  testWidgets('оценка звёздами слышна как одна фраза, а не молчащие иконки', (tester) async {
+    final handle = tester.ensureSemantics();
+    final http = FakeHttpClient((_) => (_reviewsJson(), 200));
+    await tester.pumpWidget(harness(_directory(http)));
+    await tester.pumpAndSettle();
+
+    // Метка входит в объединённый текст строки отзыва — ищем подстрокой, а не точным совпадением.
+    expect(find.bySemanticsLabel(RegExp('Оценка 5 из 5')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Оценка 4 из 5')), findsOneWidget);
+    handle.dispose();
+  });
+
   // Ответ клуба виден под отзывом; скрытый клубом текст не выдаётся за «без текста».
   testWidgets('показывает ответ клуба и говорит, что текст скрыт', (tester) async {
     final http = FakeHttpClient((_) => (

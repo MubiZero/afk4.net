@@ -597,6 +597,7 @@
   "customer.reviews.empty": "Ҳанӯз тақриз нест — аввалин аз они шумо мешавад",
   "customer.reviews.error": "Тақризҳоро бор карда натавонистем",
   "customer.reviews.hidden": "Клуб матни шарҳро пинҳон кард — баҳо боқӣ монд.",
+  "customer.reviews.rating": "Баҳо {rating} аз 5",
   "customer.reviews.title": "Тақризҳои бозигарон",
   "customer.session.end.action": "Тамом кардан ва хестан",
   "customer.session.end.body": "Ҷой фавран озод мешавад. Вақти пардохтшуда, ки бозӣ накардаед, ба ҳамён бармегардад.",

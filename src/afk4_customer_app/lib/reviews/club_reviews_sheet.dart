@@ -108,6 +108,7 @@ class _ReviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
 
@@ -117,14 +118,26 @@ class _ReviewTile extends StatelessWidget {
         Row(
           children: [
             Expanded(child: Text(review.authorName, style: theme.textTheme.titleSmall)),
-            for (var star = 1; star <= 5; star++)
-              Icon(
-                star <= review.rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                size: 16,
-                color: star <= review.rating
-                    ? AppPalette.of(context).rating
-                    : theme.colorScheme.onSurfaceVariant,
+            // Одна метка на весь ряд звёзд: по отдельности они говорят экрану чтения только
+            // «картинка, картинка, картинка», а вслух нужна одна цифра — оценка из пяти.
+            Semantics(
+              label: l.customerReviewsRating(review.rating.toString()),
+              child: ExcludeSemantics(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var star = 1; star <= 5; star++)
+                      Icon(
+                        star <= review.rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                        size: 16,
+                        color: star <= review.rating
+                            ? AppPalette.of(context).rating
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
               ),
+            ),
           ],
         ),
         Text(

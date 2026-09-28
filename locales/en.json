@@ -597,6 +597,7 @@
   "customer.reviews.empty": "No reviews yet — yours would be the first",
   "customer.reviews.error": "Could not load the reviews",
   "customer.reviews.hidden": "The club hid the text of this review; the rating stays.",
+  "customer.reviews.rating": "Rating {rating} of 5",
   "customer.reviews.title": "Player reviews",
   "customer.session.end.action": "Finish and leave",
   "customer.session.end.body": "The seat frees up right away. Paid time you did not use comes back to your wallet.",
