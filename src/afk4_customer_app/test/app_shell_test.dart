@@ -244,6 +244,8 @@ void main() {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
+    // Плитка брони — ниже карточки «Играть»; на невысоком экране до неё надо докрутить.
+    await tester.ensureVisible(find.text('Забронировать'));
     await tester.tap(find.text('Забронировать'));
     await tester.pumpAndSettle();
 
