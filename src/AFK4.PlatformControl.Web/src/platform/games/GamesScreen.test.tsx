@@ -193,6 +193,37 @@ describe('GamesScreen', () => {
     expect(target).toHaveFocus();
   });
 
+  it('пустую свежую форму не ругает: ошибка названия ждёт ухода с поля или попытки сохранить', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    await screen.findByText('Counter-Strike 2');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить игру' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая игра' });
+    const name = within(dialog).getByLabelText('Название');
+    expect(within(dialog).queryByText('Укажите название.')).not.toBeInTheDocument();
+
+    await userEvent.click(name);
+    await userEvent.tab();
+    expect(within(dialog).getByText('Укажите название.')).toBeInTheDocument();
+    expect(name).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('пустая форма при сохранении ставит фокус на первое неверное поле — название', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    await screen.findByText('Counter-Strike 2');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить игру' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новая игра' });
+    const name = within(dialog).getByLabelText('Название');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    expect(client.createGame).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('Укажите название.')).toBeInTheDocument();
+    expect(name).toHaveFocus();
+  });
+
   it('подпись и подсказка цели запуска меняются вместе со способом', async () => {
     renderScreen(makeClient());
     await screen.findByText('Counter-Strike 2');

@@ -1,18 +1,18 @@
 import { useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
-import { ErrorBanner, Field, fieldErrorId } from '@/components/ui/field';
+import { ErrorBanner, Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useFieldErrors } from '../useFieldErrors';
 import {
   LAUNCH_KINDS,
   ageOptions,
   describeLaunchKind,
   formatAgeMark,
-  hasErrors,
   isHttpsUrl,
   launchTargetHintKey,
   launchTargetLabelKey,
@@ -48,38 +48,16 @@ const FIELD_IDS: Record<GameFormField, string> = {
 
 export function GameFormDialog({ mode, form, pending, error, onChange, onSubmit, onClose, onSteamCover, onUploadCover }: Props) {
   const { t } = useI18n();
-  // Ошибку поля показываем, когда человек из него ушёл или попробовал сохранить: красное
-  // «укажите название» на только что открытой пустой форме — упрёк за то, чего он ещё не делал.
-  const [touched, setTouched] = useState<ReadonlySet<GameFormField>>(new Set());
-  const [attempted, setAttempted] = useState(false);
   const [brokenCover, setBrokenCover] = useState<string | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const errors = validateGameForm(form);
-  const errorOf = (field: GameFormField): string | undefined => {
-    const found = errors[field];
-    return found !== undefined && (attempted || touched.has(field)) ? t(found.key, found.values) : undefined;
-  };
-  const controlProps = (field: GameFormField) => {
-    const message = errorOf(field);
-    return {
-      id: FIELD_IDS[field],
-      'aria-invalid': message !== undefined ? true : undefined,
-      'aria-describedby': message !== undefined ? fieldErrorId(FIELD_IDS[field]) : undefined,
-      onBlur: () => setTouched(previous => new Set(previous).add(field))
-    };
-  };
+  const { errorOf, controlProps, readyToSubmit } = useFieldErrors(validateGameForm(form), FIELD_IDS);
 
   function submit() {
     if (pending) return;
-    if (hasErrors(errors)) {
-      setAttempted(true);
-      const first = (Object.keys(FIELD_IDS) as GameFormField[]).find(field => errors[field] !== undefined);
-      if (first !== undefined) document.getElementById(FIELD_IDS[first])?.focus();
-      return;
-    }
+    if (!readyToSubmit()) return;
     onSubmit();
   }
 

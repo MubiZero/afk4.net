@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 // Сегментный переключатель разделов (.mgmt-tabs) — тот же контрол, что во «Управлении»
 // Organization Admin. Управляется снаружи: активная вкладка живёт в URL, а не внутри виджета.
 export interface TabItem<T extends string> {
@@ -29,8 +27,4 @@ export function Tabs<T extends string>({ items, value, onChange, label }: {
       ))}
     </div>
   );
-}
-
-export function TabPanel({ children }: { children: ReactNode }) {
-  return <div role="tabpanel">{children}</div>;
 }

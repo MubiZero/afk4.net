@@ -16,7 +16,7 @@ import {
   type CampaignForm,
   type CampaignFormField
 } from './adsModel';
-import { useFieldErrors } from './useFieldErrors';
+import { useFieldErrors } from '../useFieldErrors';
 
 // Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.
 const FIELD_IDS: Record<CampaignFormField, string> = {

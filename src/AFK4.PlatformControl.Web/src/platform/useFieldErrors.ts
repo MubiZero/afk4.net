@@ -1,10 +1,19 @@
 import { useState } from 'react';
+import type { MessageKey } from '@afk4/i18n';
 import { fieldErrorId } from '@/components/ui/field';
 import { useI18n } from '@/i18n/I18nProvider';
-import { hasErrors, type FieldError } from './adsModel';
+
+export interface FieldError {
+  key: MessageKey;
+  values?: Record<string, number>;
+}
+
+export function hasErrors(errors: Partial<Record<string, FieldError>>): boolean {
+  return Object.keys(errors).length > 0;
+}
 
 /**
- * Ошибки полей формы — то же поведение, что у формы игры каталога. Ошибку поля показываем, когда
+ * Ошибки полей формы — общее поведение всех CRUD-форм панели. Ошибку поля показываем, когда
  * человек из него ушёл или попробовал сохранить: красное «укажите название» на только что
  * открытой пустой форме — упрёк за то, чего он ещё не делал.
  *

@@ -9,7 +9,6 @@ export const SEVERITIES = ['info', 'warning', 'critical'] as const;
 export const AUDIENCE_KINDS = ['all', 'plans', 'organizations'] as const;
 
 export type Severity = (typeof SEVERITIES)[number];
-export type AudienceKind = (typeof AUDIENCE_KINDS)[number];
 
 // Каждый машинный код отказа получает свою фразу. Общее «не удалось сохранить» на все случаи —
 // это потеря конкретики, которая уже пришла с сервера.
