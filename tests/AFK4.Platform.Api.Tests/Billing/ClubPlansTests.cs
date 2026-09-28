@@ -99,6 +99,24 @@ public sealed class ClubPlansTests
         Assert.Contains(fixture.Audit.Records, record => record.Action == AuditActionNames.FallBackToFreePlan);
     }
 
+    // Обещанный платёж — один на счёт: взятый до срока, он кончился бы раньше, чем что-то грозит.
+    [Fact]
+    public async Task APromise_IsOfferedOnlyOnceTheInvoiceIsPastDue()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        var due = Start.AddDays(7);
+        await fixture.AddOverdueInvoiceAsync(due);
+
+        fixture.Clock.Now = due.AddDays(-2);
+        Assert.False((await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.PromisedPaymentAvailable);
+        Assert.Equal(ClubPlanErrorCodeNames.NothingToPromise,
+            await fixture.Plans.PromisePaymentAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None));
+
+        fixture.Clock.Now = due.AddDays(1);
+        Assert.True((await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.PromisedPaymentAvailable);
+    }
+
     [Fact]
     public async Task AFallenClub_RunsOnlyTenPcs_AndTheOwnerChoosesWhich()
     {
@@ -171,6 +189,118 @@ public sealed class ClubPlansTests
         Assert.Equal(due.AddDays(5), plan.FallbackAtUtc);
         Assert.Equal(ClubPlanErrorCodeNames.PromiseUnavailable, await fixture.Plans.PromisePaymentAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None));
         Assert.Equal(1, await fixture.Plans.RunTransitionsAsync(due.AddDays(5), CancellationToken.None));
+    }
+
+    // «Приведи клуб»: бесплатный месяц обнуляет счёт. Счёт на ноль закрыт в момент выставления — он
+    // не просрочивается, не собирает напоминаний и не переводит клуб на бесплатный тариф.
+    [Fact]
+    public async Task AFreeMonthInvoice_IsSettledAtOnce_AndNeverDropsTheClubToFree()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        var subscription = await fixture.Db.OrganizationSubscriptions.SingleAsync();
+        subscription.FreeMonths = 1;
+        await fixture.Db.SaveChangesAsync();
+        var options = Options.Create(new BillingOptions());
+        var notifier = new RecordingInvoiceNotifier();
+        var issuedAt = Start.AddMonths(1);
+
+        Assert.Equal(1, await new EfInvoiceGenerationRunner(fixture.Db, options, notifier).RunAsync(issuedAt, CancellationToken.None));
+
+        var invoice = await fixture.Db.Invoices.SingleAsync();
+        Assert.Equal(0, invoice.AmountMinorUnits);
+        Assert.Equal(4 * ClubPlanLimits.PricePerDeviceMinorUnits, invoice.GrossAmountMinorUnits);
+        Assert.Equal(InvoiceStatusNames.Paid, invoice.Status);
+        Assert.Equal(issuedAt, invoice.PaidAtUtc);
+        Assert.Empty(notifier.Issued);
+
+        fixture.Clock.Now = invoice.DueAtUtc.AddDays(30);
+        var plan = (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!;
+        Assert.Null(plan.Overdue);
+        Assert.Null(plan.FallbackAtUtc);
+        Assert.False(plan.PromisedPaymentAvailable);
+        Assert.Equal(ClubPlanErrorCodeNames.NothingToPromise,
+            await fixture.Plans.PromisePaymentAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None));
+
+        await new EfDunningRunner(fixture.Db, options, notifier, fixture.Audit).RunAsync(invoice.DueAtUtc.AddDays(30), CancellationToken.None);
+        Assert.Empty(notifier.DueSoon);
+        Assert.Empty(notifier.Overdue);
+
+        Assert.Equal(0, await fixture.Plans.RunTransitionsAsync(invoice.DueAtUtc.AddDays(60), CancellationToken.None));
+        Assert.Equal(OrganizationPlanCodeNames.PerPc, (await fixture.Db.OrganizationSubscriptions.SingleAsync()).PlanCode);
+    }
+
+    // Нулевые счета, выставленные до исправления, так и остались «к оплате» — долгом они всё равно не считаются.
+    [Fact]
+    public async Task AZeroInvoiceLeftIssued_IsNotADebt()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        var due = Start.AddDays(7);
+        fixture.Db.Invoices.Add(new InvoiceEntity
+        {
+            InvoiceId = Guid.NewGuid(), OrganizationId = fixture.OrganizationId, Number = 1, Kind = InvoiceKindNames.Subscription,
+            PeriodStartUtc = Start, PeriodEndUtc = Start.AddMonths(1), IssuedAtUtc = Start, DueAtUtc = due, AmountMinorUnits = 0,
+            GrossAmountMinorUnits = 4000, DiscountMinorUnits = 4000, CurrencyCode = "TJS", Status = InvoiceStatusNames.Issued,
+            Description = "free month", CreatedAtUtc = Start, UpdatedAtUtc = Start
+        });
+        await fixture.Db.SaveChangesAsync();
+        var notifier = new RecordingInvoiceNotifier();
+
+        await new EfDunningRunner(fixture.Db, Options.Create(new BillingOptions()), notifier, fixture.Audit)
+            .RunAsync(due.AddDays(20), CancellationToken.None);
+        fixture.Clock.Now = due.AddDays(20);
+
+        Assert.Empty(notifier.DueSoon);
+        Assert.Empty(notifier.Overdue);
+        Assert.Equal(ClubPlanErrorCodeNames.NothingToPromise,
+            await fixture.Plans.PromisePaymentAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(0, await fixture.Plans.RunTransitionsAsync(due.AddDays(ClubPlanLimits.FallbackAfterOverdueDays + 1), CancellationToken.None));
+        Assert.Equal(OrganizationPlanCodeNames.PerPc, (await fixture.Db.OrganizationSubscriptions.SingleAsync()).PlanCode);
+    }
+
+    // Льгота — та, что действовала при выставлении счёта: платформа поставила ноль — клубы с уже
+    // выставленными счетами не уходят на бесплатный в ту же минуту.
+    [Fact]
+    public async Task ChangingTheGrace_DoesNotApplyToInvoicesAlreadyIssued()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        var options = Options.Create(new BillingOptions());
+        await new EfInvoiceGenerationRunner(fixture.Db, options, new RecordingInvoiceNotifier()).RunAsync(Start.AddMonths(1), CancellationToken.None);
+        var invoice = await fixture.Db.Invoices.SingleAsync();
+        Assert.Equal(invoice.DueAtUtc.AddDays(ClubPlanLimits.FallbackAfterOverdueDays), invoice.FallbackAtUtc);
+
+        fixture.Db.PlatformBillingTerms.Add(new PlatformBillingTermsEntity
+        {
+            TrialDays = ClubPlanLimits.TrialDays, PromisedPaymentDays = ClubPlanLimits.PromisedPaymentDays, FallbackAfterOverdueDays = 0, UpdatedAtUtc = Start
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        fixture.Clock.Now = invoice.DueAtUtc.AddDays(1);
+        Assert.Equal(invoice.FallbackAtUtc, (await fixture.Plans.DescribeAsync(fixture.OrganizationId, CancellationToken.None))!.FallbackAtUtc);
+        Assert.Equal(0, await fixture.Plans.RunTransitionsAsync(invoice.DueAtUtc.AddDays(1), CancellationToken.None));
+        Assert.Equal(1, await fixture.Plans.RunTransitionsAsync(invoice.FallbackAtUtc!.Value, CancellationToken.None));
+    }
+
+    // Кредит-нота, покрывшая долг, снимает угрозу перехода на бесплатный: клуб ничего не должен.
+    [Fact]
+    public async Task ACreditNoteCoveringTheDebt_KeepsTheClubOnItsPlan()
+    {
+        var fixture = await Fixture.CreateAsync(devices: 14);
+        await fixture.Plans.SwitchToPerPcAsync(fixture.OrganizationId, Guid.NewGuid(), CancellationToken.None);
+        var due = Start.AddDays(7);
+        await fixture.AddOverdueInvoiceAsync(due);
+        fixture.Db.Invoices.Add(new InvoiceEntity
+        {
+            InvoiceId = Guid.NewGuid(), OrganizationId = fixture.OrganizationId, Number = 2, Kind = InvoiceKindNames.Credit,
+            PeriodStartUtc = Start, PeriodEndUtc = Start, IssuedAtUtc = Start, DueAtUtc = due, AmountMinorUnits = -4000,
+            GrossAmountMinorUnits = -4000, CurrencyCode = "TJS", Status = InvoiceStatusNames.Issued, Description = "credit",
+            CreatedAtUtc = Start, UpdatedAtUtc = Start
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        Assert.Equal(0, await fixture.Plans.RunTransitionsAsync(due.AddDays(ClubPlanLimits.FallbackAfterOverdueDays + 1), CancellationToken.None));
     }
 
     [Fact]

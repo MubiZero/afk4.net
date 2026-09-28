@@ -12,8 +12,10 @@ import { useFeedbackToasts } from '../../../useFeedbackToasts';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 import type { ReferralSettingsDto } from '../../../api/clients/referralSettings';
 
-// Целое неотрицательное число из поля; null — введено не то, сохранять нельзя.
+// Целое неотрицательное число из поля; null — введено не то, сохранять нельзя. Пустое поле — тоже
+// null: Number('') — это 0, а 0 здесь значит «без ограничения», и стёртое поле тихо снимало предел.
 function toWholeCount(value: string): number | null {
+  if (value.trim() === '') return null;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) return null;
   return parsed;

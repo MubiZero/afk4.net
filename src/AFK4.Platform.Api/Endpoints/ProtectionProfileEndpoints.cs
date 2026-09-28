@@ -52,7 +52,10 @@ internal static class ProtectionProfileEndpoints
             var entity = await dbContext.BranchProtectionProfiles.AsNoTracking()
                 .SingleOrDefaultAsync(profile => profile.BranchId == branchId, cancellationToken);
             return Results.Ok(new BranchProtectionProfileDto(organizationId, branchId, ProtectionProfiles.For(entity), entity?.UpdatedAtUtc));
-        });
+        })
+            // Поддержка под грантом видит «Настройки ПК», как остальные настройки филиала: раздел
+            // был виден, а сервер отвечал 403.
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
         organizations.MapPut("branches/{branchId:guid}/settings/protection", async (
             Guid branchId,
@@ -112,7 +115,8 @@ internal static class ProtectionProfileEndpoints
                 saved, cancellationToken);
 
             return Results.Ok(new BranchProtectionProfileDto(organizationId, branchId, saved, timeProvider.GetUtcNow()));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
         // Агент читает профиль ключом устройства. Организация и филиал — в строке запроса: ключ
         // проверяется вместе с ними, как в теле остальных запросов агента.

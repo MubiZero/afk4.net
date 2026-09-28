@@ -1,4 +1,5 @@
 import { Dialog } from '@/components/ui/dialog';
+import { OrganizationPlanCodeNames, PlatformFeatureNames } from '@afk4/contracts';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+
+/** Тарифы, на которые клубы переходят сами (OrganizationPlanCodeNames): выключить их нельзя. */
+const ROLE_PLANS = new Set<string>([OrganizationPlanCodeNames.Free, OrganizationPlanCodeNames.PerPc]);
 export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, onOpenChange }: Props) {
   const { t } = useI18n();
   const valid = validatePlanForm(form);
@@ -108,6 +112,8 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
               <label key={feature.featureKey} className="pc-check-row">
                 <Switch
                   checked={form.includedFeatures.includes(feature.featureKey)}
+                  disabled={form.planCode === OrganizationPlanCodeNames.PerPc && feature.featureKey === PlatformFeatureNames.PlatformAds && !form.includedFeatures.includes(feature.featureKey)}
+                  title={form.planCode === OrganizationPlanCodeNames.PerPc && feature.featureKey === PlatformFeatureNames.PlatformAds ? t('platform.billing.planForm.perPcNoAds') : undefined}
                   onCheckedChange={checked => onChange({
                     ...form,
                     includedFeatures: checked
@@ -121,9 +127,14 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
           </fieldset>
         ) : null}
 
+        {/* На бесплатный и за ПК клубы переходят сами: сервер не даст их выключить — и форма не предлагает. */}
         {mode === 'edit' ? (
-          <label className="pc-check-row">
-            <Switch checked={form.isActive} onCheckedChange={checked => onChange({ ...form, isActive: checked })} />
+          <label className="pc-check-row" title={ROLE_PLANS.has(form.planCode) ? t('platform.billing.planForm.rolePlanActive') : undefined}>
+            <Switch
+              checked={form.isActive}
+              disabled={ROLE_PLANS.has(form.planCode) && form.isActive}
+              onCheckedChange={checked => onChange({ ...form, isActive: checked })}
+            />
             {t('platform.billing.planForm.active')}
           </label>
         ) : null}

@@ -188,6 +188,7 @@ public sealed class EfOrganizationSubscriptionService(
                     PeriodEndUtc = subscription.CurrentPeriodEndUtc,
                     IssuedAtUtc = now,
                     DueAtUtc = now.AddDays(7),
+                    FallbackAtUtc = now.AddDays(7 + (await BillingTerms.LoadAsync(dbContext, cancellationToken)).FallbackAfterOverdueDays),
                     AmountMinorUnits = proration,
                     GrossAmountMinorUnits = grossProration,
                     DiscountMinorUnits = prorationDiscount,

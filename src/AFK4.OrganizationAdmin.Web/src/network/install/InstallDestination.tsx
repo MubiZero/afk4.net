@@ -20,11 +20,24 @@ export function InstallDestination({ backend }: { backend: OperatorBackendContex
     [backend?.config.platformBaseUrl, backend?.session.accessToken]
   );
 
+  const ownBranchIds = backend?.session.branchIds ?? [];
   useEffect(() => {
     if (clients === null) return undefined;
     let active = true;
+    // Список всех филиалов сети — право владельца. Техник и управляющий выдают код своим филиалам:
+    // их id — в сессии, имена — в профиле филиала (как у переключателя филиалов). Раньше отказ
+    // проглатывался, и экран писал «Филиалы не найдены» тому, кому сервер выдачу кода разрешает.
+    const ownBranches = () => Promise.all(ownBranchIds.map(async (branchId) => {
+      try {
+        const profile = await clients.settings.getBranchProfile(branchId);
+        return { branchId, name: typeof profile.name === 'string' && profile.name ? profile.name : branchId };
+      } catch {
+        return { branchId, name: branchId };
+      }
+    }));
     clients.orgBranches
       .getOwnerBranches()
+      .catch(() => ownBranches())
       .then((list) => {
         if (active) setBranches(list);
       })
@@ -34,7 +47,8 @@ export function InstallDestination({ backend }: { backend: OperatorBackendContex
     return () => {
       active = false;
     };
-  }, [clients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients, ownBranchIds.join(',')]);
 
   const steps = [
     t('op.network.install.step.run'),

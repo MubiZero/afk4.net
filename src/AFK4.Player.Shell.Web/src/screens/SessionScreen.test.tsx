@@ -82,6 +82,15 @@ describe('экран сессии', () => {
     expect(screen.getByRole('button', { name: 'Позвать администратора' })).toBeInTheDocument();
   });
 
+  it('стойка посадила сюда чужую сессию, пока другой был вошедшим, — ему «Выйти», а не мёртвое «Войти»', () => {
+    renderSession({ auth: { signedIn: true, displayName: 'Другой', playerAccountId: '00000000-0000-4000-8000-000000000099' } });
+
+    expect(screen.getByText('Эта сессия на счёте другого игрока. Выйдите, чтобы он вошёл сам.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Войти' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Продлить' })).toBeNull();
+  });
+
   it('владелец, севший с телефона, может войти, чтобы продлить', () => {
     const onSignIn = mock(() => {});
     renderSession({ onSignIn });
@@ -145,6 +154,23 @@ describe('экран сессии', () => {
 
     expect(screen.getByRole('tab', { name: 'Бар' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByText(/Клуб не выложил меню/)).toBeInTheDocument();
+  });
+
+  it('заказ из бара виден и на вкладке игр, и ведёт обратно в бар', async () => {
+    const order = {
+      id: 'o-1', branchId: 'b', seatId: 's', playerAccountId: owner.playerAccountId, playerDisplayName: 'Алишер',
+      status: 'accepted', total: { currencyCode: 'TJS', minorUnits: 1_500 }, lines: [{ name: 'Кола', quantity: 1 }],
+      createdAtUtc: '2026-09-28T10:00:00Z'
+    };
+    serve((path, method) => path.endsWith('/api/me/shop/orders') ? { status: 200, body: [order] } : api(path, method));
+    renderSession({ auth: owner });
+
+    const status = await screen.findByText('Администратор несёт заказ');
+    expect(screen.getByRole('tab', { name: 'Игры' })).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(status);
+
+    expect(screen.getByRole('tab', { name: 'Бар' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('без входа и без бара у клуба вкладок нет — заказывать не с чего', () => {

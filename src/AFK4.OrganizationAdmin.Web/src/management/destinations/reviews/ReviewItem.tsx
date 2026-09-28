@@ -22,7 +22,12 @@ export interface ReviewActions {
   show(review: BranchReviewDto): Promise<void>;
 }
 
-type Mode = { kind: 'idle' } | { kind: 'reply'; draft: string } | { kind: 'hide'; reason: ReviewHideReasonName | null };
+type Mode =
+  | { kind: 'idle' }
+  | { kind: 'reply'; draft: string }
+  | { kind: 'hide'; reason: ReviewHideReasonName | null }
+  // Ответ клуба игрок уже прочёл, может быть, с пушем: убрать его — шаг, который переспрашивают.
+  | { kind: 'removeReply' };
 
 /**
  * Отзыв в Панели. Ответ клуба игрок видит под отзывом в приложении; скрытый текст прячется от
@@ -148,6 +153,20 @@ export function ReviewItem({ review, actions }: { review: BranchReviewDto; actio
         </form>
       )}
 
+      {mode.kind === 'removeReply' && actions && (
+        <div className="reviews-confirm" role="group" aria-label={t('op.reviews.reply.remove')}>
+          <p>{t('op.reviews.reply.removeConfirm')}</p>
+          <div className="reviews-item-actions">
+            <button type="button" className="ui-btn ui-btn--sm ui-btn--danger" disabled={busy} onClick={() => void run(() => actions.reply(review, ''))}>
+              {t('op.reviews.reply.remove')}
+            </button>
+            <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => setMode({ kind: 'idle' })}>
+              {t('op.reviews.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && <p className="reviews-error" role="alert">{error}</p>}
 
       {actions && mode.kind === 'idle' && (
@@ -156,7 +175,7 @@ export function ReviewItem({ review, actions }: { review: BranchReviewDto; actio
             {review.reply ? t('op.reviews.reply.edit') : t('op.reviews.reply')}
           </button>
           {review.reply && (
-            <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => void run(() => actions.reply(review, ''))}>
+            <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => setMode({ kind: 'removeReply' })}>
               {t('op.reviews.reply.remove')}
             </button>
           )}

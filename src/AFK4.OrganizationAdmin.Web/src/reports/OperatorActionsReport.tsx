@@ -2,7 +2,7 @@ import { useState, type JSX } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
-import { downloadTextFile, operatorDisplayNameLabel } from '../operatorHelpers';
+import { auditActionLabel, downloadTextFile, operatorDisplayNameLabel } from '../operatorHelpers';
 import type { OperatorActionReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { ReportBody, ReportFiguresSkeleton, ReportRangeControls } from './ReportRangeControls';
@@ -59,7 +59,7 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
           <MgmtTable<OperatorActionReportResultDto['rows'][number]>
             columns={[
               { key: 'staff', header: t('op.reports.actions.col.staff'), render: (row) => operatorDisplayNameLabel(row.actorDisplayName, t) },
-              { key: 'action', header: t('op.reports.actions.col.action'), render: (row) => row.action },
+              { key: 'action', header: t('op.reports.actions.col.action'), render: (row) => <span title={row.action}>{auditActionLabel(row.action, t)}</span> },
               { key: 'outcome', header: t('op.reports.actions.col.outcome'), render: (row) => t(outcomeKey(row.outcome)) },
               { key: 'count', header: t('op.reports.actions.col.count'), align: 'end', render: (row) => formatNumber(row.count) },
               { key: 'last', header: t('op.reports.actions.col.last'), align: 'end', render: (row) => formatDate(row.lastAtUtc) }

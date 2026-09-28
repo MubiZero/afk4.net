@@ -27,6 +27,11 @@ export interface ProtectionForm {
   urlBlocklist: string;
   blockedTitles: string;
   blockedClasses: string;
+  /**
+   * Правила с заголовком и классом сразу (заведены через API). Полей для них в Панели нет, но
+   * терять их при сохранении нельзя: правило из одного заголовка шире и закрыло бы лишние окна.
+   */
+  compoundWindows: BlockedWindowRuleDto[];
   clearAfterSession: string[];
   /** Минуты простоя до выключения; '' — не выключать. */
   idleShutdownMinutes: string;
@@ -49,6 +54,7 @@ export const protectionDefaults: ProtectionForm = {
   urlBlocklist: '',
   blockedTitles: '',
   blockedClasses: '',
+  compoundWindows: [],
   // Как на сервере без профиля: следующий игрок не входит в чужой Steam потому, что клуб не
   // открыл эту страницу.
   clearAfterSession: [...sessionTraces],
@@ -67,9 +73,10 @@ export function protectionToForm(dto: BranchProtectionProfileDto): ProtectionFor
     hiddenDrives: [...profile.hiddenDrives],
     urlBlocklist: profile.urlBlocklist.join('\n'),
     // Панель пишет правила по одному признаку; правило с обоими признаками (например, из API)
-    // показываем заголовком — класс в нём сузил бы совпадение, а не расширил.
-    blockedTitles: profile.blockedWindows.filter((rule) => rule.titleContains).map((rule) => rule.titleContains).join('\n'),
+    // остаётся как есть: показать его заголовком и сохранить так значило бы расширить совпадение.
+    blockedTitles: profile.blockedWindows.filter((rule) => rule.titleContains && !rule.className).map((rule) => rule.titleContains).join('\n'),
     blockedClasses: profile.blockedWindows.filter((rule) => !rule.titleContains && rule.className).map((rule) => rule.className).join('\n'),
+    compoundWindows: profile.blockedWindows.filter((rule) => rule.titleContains && rule.className),
     clearAfterSession: [...profile.clearAfterSession],
     idleShutdownMinutes: profile.idleShutdownMinutes == null ? '' : String(profile.idleShutdownMinutes),
     clubRules: profile.clubRules ?? ''
@@ -82,6 +89,7 @@ export function lines(text: string): string[] {
 
 export function buildProtectionRequest(organizationId: string, form: ProtectionForm): UpdateBranchProtectionProfileRequest {
   const windows: BlockedWindowRuleDto[] = [
+    ...form.compoundWindows,
     ...lines(form.blockedTitles).map((title) => ({ titleContains: title, className: null })),
     ...lines(form.blockedClasses).map((className) => ({ titleContains: null, className }))
   ];

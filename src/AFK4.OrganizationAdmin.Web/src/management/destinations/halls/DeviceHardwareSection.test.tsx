@@ -67,7 +67,7 @@ describe('DeviceHardwareSection', () => {
     };
     renderSection({ getHardware: mock(async () => hardware), acceptHardware: mock() });
 
-    expect(await screen.findByText('Samsung SSD 980 PRO 1TB · 1000 GB · NVMe, WDC WD10EZEX · 1000 GB')).toBeInTheDocument();
+    expect(await screen.findByText('Samsung SSD 980 PRO 1TB · 1000 ГБ · NVMe, WDC WD10EZEX · 1000 ГБ')).toBeInTheDocument();
     expect(screen.getByText('S24R35x (H4ZN500123)', { selector: '.settings-device-detail-grid b' })).toBeInTheDocument();
     const changes = screen.getByRole('status');
     expect(within(changes).getByText('Мониторы')).toBeInTheDocument();

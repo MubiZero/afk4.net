@@ -229,8 +229,23 @@ public static class AdErrorCodeNames
     /// <summary>Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив.</summary>
     public const string CreativeLocked = "ad_creative_locked";
 
+    /// <summary>
+    /// У кампании есть одобренная реклама: категорию, рекламодателя и отметки закона менять нельзя —
+    /// модератор проверял креативы именно при них. Название, сроки и охват менять можно.
+    /// </summary>
+    public const string CampaignLocked = "ad_campaign_locked";
+
+    /// <summary>У рекламодателя есть одобренная реклама: имя и реквизиты подписаны на ней и не меняются.</summary>
+    public const string AdvertiserLocked = "ad_advertiser_locked";
+
     /// <summary>Картинку не удалось скачать для хранения — одобрить без копии нельзя.</summary>
     public const string ImageUnavailable = "ad_image_unavailable";
+
+    /// <summary>
+    /// Такого шага у кампании нет: черновик запускают, идущую ставят на паузу, с паузы запускают.
+    /// Вернуть в черновик показанную кампанию нельзя.
+    /// </summary>
+    public const string InvalidTransition = "ad_campaign_invalid_transition";
 }
 
 public static class AdLimits

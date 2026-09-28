@@ -47,4 +47,6 @@ public sealed record DeviceHeartbeatResponse(
     /// Версия профиля защиты филиала (§6.3). Сменилась — агент перечитывает профиль; 0 — профиля нет.
     int PolicyProfileVersion = 0,
     /// Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6).
-    int GameLibraryVersion = 0);
+    int GameLibraryVersion = 0,
+    /// Идущая сессия: начало и конец для отсчёта на экране. null — сессии нет.
+    DeviceLiveSessionDto? LiveSession = null);

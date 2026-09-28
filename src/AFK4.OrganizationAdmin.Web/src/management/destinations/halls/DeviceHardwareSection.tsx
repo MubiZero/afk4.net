@@ -98,17 +98,19 @@ export function DeviceHardwareSection({ clients, deviceId, canAccept, onAccepted
 
 function HardwareList({ snapshot }: { snapshot: HardwareSnapshotDto }) {
   const { t } = useI18n();
+  // Единица — словами языка экрана: «ГБ», а не зашитое латиницей «GB».
+  const gb = (size: number) => t('op.hardware.gb', { size });
   const rows: [MessageKey, string | null][] = [
     ['op.hardware.cpu', snapshot.cpu ? `${snapshot.cpu} · ${t('op.hardware.threads', { count: snapshot.cpuThreads })}` : null],
-    ['op.hardware.memory', snapshot.memoryGb > 0 ? `${snapshot.memoryGb} GB` : null],
-    ['op.hardware.gpu', snapshot.gpus.map((gpu) => (gpu.memoryGb ? `${gpu.name} · ${gpu.memoryGb} GB` : gpu.name)).join(', ') || null],
+    ['op.hardware.memory', snapshot.memoryGb > 0 ? gb(snapshot.memoryGb) : null],
+    ['op.hardware.gpu', snapshot.gpus.map((gpu) => (gpu.memoryGb ? `${gpu.name} · ${gb(gpu.memoryGb)}` : gpu.name)).join(', ') || null],
     ['op.hardware.motherboard', snapshot.motherboard],
-    ['op.hardware.disks', snapshot.disks.map((disk) => `${disk.name} ${disk.sizeGb} GB`).join(', ') || null]
+    ['op.hardware.disks', snapshot.disks.map((disk) => `${disk.name} ${gb(disk.sizeGb)}`).join(', ') || null]
   ];
   // null — агент этого не присылает (старая версия или не прочиталось): строки нет, а не «—».
   if (snapshot.physicalDisks) {
     rows.push(['op.hardware.physicalDisks', snapshot.physicalDisks
-      .map((disk) => [disk.model, `${disk.sizeGb} GB`, disk.interface].filter(Boolean).join(' · '))
+      .map((disk) => [disk.model, gb(disk.sizeGb), disk.interface].filter(Boolean).join(' · '))
       .join(', ') || null]);
   }
   if (snapshot.monitors) {

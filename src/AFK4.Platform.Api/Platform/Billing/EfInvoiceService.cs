@@ -101,7 +101,12 @@ public sealed class EfInvoiceService(
                 PlatformErrorCodeNames.InvoiceNumberingConflict);
         }
 
-        await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
+        // Счёт на ноль закрыт при выставлении — извещать «к оплате» не о чем.
+        if (invoice.Status == InvoiceStatusNames.Issued)
+        {
+            await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
+        }
+
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 
@@ -151,6 +156,8 @@ public sealed class EfInvoiceService(
             .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
 
         var now = timeProvider.GetUtcNow();
+        var dueAt = request.DueAtUtc ?? now.Add(options.Value.InvoiceDueAfter);
+        var terms = await BillingTerms.LoadAsync(dbContext, cancellationToken);
         var invoice = new InvoiceEntity
         {
             InvoiceId = Guid.NewGuid(),
@@ -160,7 +167,9 @@ public sealed class EfInvoiceService(
             PeriodStartUtc = now,
             PeriodEndUtc = now,
             IssuedAtUtc = now,
-            DueAtUtc = request.DueAtUtc ?? now.Add(options.Value.InvoiceDueAfter),
+            DueAtUtc = dueAt,
+            // Кредит-нота долгом не бывает — и на бесплатный тариф не переводит.
+            FallbackAtUtc = kind == InvoiceKindNames.Credit ? null : dueAt.AddDays(terms.FallbackAfterOverdueDays),
             AmountMinorUnits = request.AmountMinorUnits,
             GrossAmountMinorUnits = request.AmountMinorUnits,
             DiscountMinorUnits = 0,

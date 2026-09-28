@@ -101,6 +101,10 @@ describe('тариф клуба', () => {
 
     const start = await screen.findByRole('button', { name: 'Попробовать 30 дней без ограничений' });
     start.click();
+    // Разовый шаг и будущая плата — сначала словами, с ценой, и только потом по «Подтвердить».
+    expect(await screen.findByText(/начать его можно один раз/)).toBeInTheDocument();
+    expect(plans.startTrial).not.toHaveBeenCalled();
+    screen.getByRole('button', { name: 'Подтвердить' }).click();
     await waitFor(() => expect(plans.startTrial).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Пробный период')).toBeInTheDocument();
   });

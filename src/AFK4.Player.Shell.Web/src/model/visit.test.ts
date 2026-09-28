@@ -2,17 +2,25 @@ import { describe, expect, it } from 'bun:test';
 import { endedSessionId, playedMinutes } from './visit';
 
 describe('визит кончился', () => {
+  const me = 'player-me';
+  const mine = (screen: 'session' | 'ending') => ({ screen, sessionId: 's-1', ownerPlayerAccountId: me });
+
   it('сессия вошедшего закрылась — по таймеру или у стойки — итог по ней', () => {
-    expect(endedSessionId({ screen: 'session', sessionId: 's-1' }, 'chooseTime', true)).toBe('s-1');
-    expect(endedSessionId({ screen: 'ending', sessionId: 's-1' }, 'chooseTime', true)).toBe('s-1');
+    expect(endedSessionId(mine('session'), 'chooseTime', me)).toBe('s-1');
+    expect(endedSessionId(mine('ending'), 'chooseTime', me)).toBe('s-1');
   });
 
   it('вышел из аккаунта — итог уже не его', () => {
-    expect(endedSessionId({ screen: 'session', sessionId: 's-1' }, 'idle', false)).toBeNull();
+    expect(endedSessionId(mine('session'), 'idle', null)).toBeNull();
   });
 
   it('связь пропала — это не конец визита', () => {
-    expect(endedSessionId({ screen: 'session', sessionId: 's-1' }, 'grace', true)).toBeNull();
+    expect(endedSessionId(mine('session'), 'grace', me)).toBeNull();
+  });
+
+  it('кончилась чужая сессия — стойка посадила сюда другого, пока этот был вошедшим, — итога нет', () => {
+    expect(endedSessionId({ screen: 'session', sessionId: 's-1', ownerPlayerAccountId: 'player-other' }, 'chooseTime', me)).toBeNull();
+    expect(endedSessionId({ screen: 'session', sessionId: 's-1', ownerPlayerAccountId: null }, 'chooseTime', me)).toBeNull();
   });
 
   it('сыграно — по чеку, меньше минуты всё равно минута', () => {

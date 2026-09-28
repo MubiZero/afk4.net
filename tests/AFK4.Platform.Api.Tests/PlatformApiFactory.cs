@@ -5,6 +5,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Media;
+using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Identity;
@@ -254,6 +255,9 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                 services.AddSingleton<ISteamCoverSource, FakeSteamCoverSource>();
                 // Хранилище подставное, но настроенным быть обязано: без адреса и ключей сервис
                 // отказывает сразу — так он ведёт себя на среде, где Media__S3__* не заданы.
+                // Каталог клубов держит общий список в памяти, а память у хоста общая на все тесты,
+                // базы же у каждого свои: список из соседнего теста был бы чужим.
+                services.Configure<PublicClubDirectoryOptions>(options => options.ListCacheDuration = TimeSpan.Zero);
                 services.Configure<MediaOptions>(options =>
                 {
                     options.S3.Endpoint = "https://storage.test";

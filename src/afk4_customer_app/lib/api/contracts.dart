@@ -57,8 +57,16 @@ abstract final class AdErrorCodeNames {
   static const String permitRequired = 'ad_permit_required';
   /// Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив.
   static const String creativeLocked = 'ad_creative_locked';
+  /// У кампании есть одобренная реклама: категорию, рекламодателя и отметки закона менять нельзя —
+  /// модератор проверял креативы именно при них. Название, сроки и охват менять можно.
+  static const String campaignLocked = 'ad_campaign_locked';
+  /// У рекламодателя есть одобренная реклама: имя и реквизиты подписаны на ней и не меняются.
+  static const String advertiserLocked = 'ad_advertiser_locked';
   /// Картинку не удалось скачать для хранения — одобрить без копии нельзя.
   static const String imageUnavailable = 'ad_image_unavailable';
+  /// Такого шага у кампании нет: черновик запускают, идущую ставят на паузу, с паузы запускают.
+  /// Вернуть в черновик показанную кампанию нельзя.
+  static const String invalidTransition = 'ad_campaign_invalid_transition';
 }
 
 /// Отметки модератора при одобрении — по статьям закона РТ «О рекламе» (спека рекламы, §8.2).
@@ -608,6 +616,10 @@ abstract final class OrganizationPermissionNames {
   /// Чаевые администратору с экрана ПК: включить у клуба и вернуть игроку, пока смена открыта.
   /// Это движение денег, поэтому у владельца и управляющего, а не у стойки.
   static const String manageTips = 'organization.tips.manage';
+  /// Реклама платформы на ПК клуба и жалоба на неё. По закону (ст. 25) перед проверяющим отвечает
+  /// и управляющий филиала, поэтому право не только у владельца — и отдельно от подписки: счета
+  /// управляющему видеть незачем.
+  static const String viewPlatformAds = 'organization.ads.view';
 }
 
 /// Словарь: Platform/Organizations/OrganizationPlanCodeNames.cs
@@ -1085,11 +1097,8 @@ abstract final class ShellBridgeEventTypeNames {
   static const String inputActivity = 'input.activity';
   /// Тишина дольше порога: окно входа закрывается, вошедший выходит.
   static const String inputIdle = 'input.idle';
-  /// Игра на переднем плане — ShellGameForegroundDto: страница засыпает, чтобы не отнимать кадр.
-  static const String gameForeground = 'game.foreground';
   /// Громкость, микрофон, раскладка — ShellSystemStateDto.
   static const String systemChanged = 'system.changed';
-  static const String showcaseChanged = 'showcase.changed';
 }
 
 /// Мост хост ↔ интерфейс оболочки, версия 2 (спека оболочки, §4.4). Конверт запроса и ответа —
@@ -1320,6 +1329,8 @@ abstract final class TipErrorCodeNames {
   static const String alreadyReversed = 'tip_already_reversed';
   /// Всё, что пришло за смену, уже выдано.
   static const String nothingToPay = 'tip_nothing_to_pay';
+  /// Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды.
+  static const String alreadyPaidOut = 'tip_already_paid_out';
 }
 
 /// Словарь: Tips/TipContracts.cs
@@ -3797,6 +3808,7 @@ class ClubPlanDto {
     this.fallbackAtUtc,
     this.trialDays,
     this.promisedPaymentDays,
+    this.freeDeviceLimit,
   });
 
   final String planCode;
@@ -3834,6 +3846,10 @@ class ClubPlanDto {
   final int? trialDays;
   final int? promisedPaymentDays;
 
+  /// Предел ПК бесплатного тарифа, как его задала платформа: на него клуб уходит без оплаты, и
+  /// условия называют его числом, а не зашитой «десяткой».
+  final int? freeDeviceLimit;
+
   factory ClubPlanDto.fromJson(Map<String, dynamic> json) => ClubPlanDto(
         planCode: json['planCode'] as String,
         kind: json['kind'] as String,
@@ -3855,6 +3871,7 @@ class ClubPlanDto {
         fallbackAtUtc: json['fallbackAtUtc'] == null ? null : DateTime.parse(json['fallbackAtUtc'] as String),
         trialDays: json['trialDays'] == null ? null : (json['trialDays'] as num).toInt(),
         promisedPaymentDays: json['promisedPaymentDays'] == null ? null : (json['promisedPaymentDays'] as num).toInt(),
+        freeDeviceLimit: json['freeDeviceLimit'] == null ? null : (json['freeDeviceLimit'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -3878,6 +3895,7 @@ class ClubPlanDto {
         'fallbackAtUtc': fallbackAtUtc?.toIso8601String(),
         'trialDays': trialDays,
         'promisedPaymentDays': promisedPaymentDays,
+        'freeDeviceLimit': freeDeviceLimit,
       };
 }
 
@@ -6489,6 +6507,7 @@ class DeviceHeartbeatResponse {
     this.maintenanceByName,
     this.policyProfileVersion,
     this.gameLibraryVersion,
+    this.liveSession,
   });
 
   final DateTime serverTimeUtc;
@@ -6547,6 +6566,9 @@ class DeviceHeartbeatResponse {
   /// Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6).
   final int? gameLibraryVersion;
 
+  /// Идущая сессия: начало и конец для отсчёта на экране. null — сессии нет.
+  final DeviceLiveSessionDto? liveSession;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -6565,6 +6587,7 @@ class DeviceHeartbeatResponse {
         maintenanceByName: json['maintenanceByName'] == null ? null : json['maintenanceByName'] as String,
         policyProfileVersion: json['policyProfileVersion'] == null ? null : (json['policyProfileVersion'] as num).toInt(),
         gameLibraryVersion: json['gameLibraryVersion'] == null ? null : (json['gameLibraryVersion'] as num).toInt(),
+        liveSession: json['liveSession'] == null ? null : DeviceLiveSessionDto.fromJson(json['liveSession'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -6585,6 +6608,7 @@ class DeviceHeartbeatResponse {
         'maintenanceByName': maintenanceByName,
         'policyProfileVersion': policyProfileVersion,
         'gameLibraryVersion': gameLibraryVersion,
+        'liveSession': liveSession?.toJson(),
       };
 }
 
@@ -6688,6 +6712,36 @@ class DeviceInventoryItemDto {
         'role': role,
         'enrollmentState': enrollmentState,
         'hardwareChanged': hardwareChanged,
+      };
+}
+
+/// Идущая на ПК сессия: когда началась и когда кончится. Отсчёт «Осталось» считается от конца
+/// сессии, а не от срока аренды — аренда подписана на 15 минут и продлевается, пока сессия идёт.
+///
+/// Контракт: Devices/DeviceShellContextContracts.cs
+class DeviceLiveSessionDto {
+  const DeviceLiveSessionDto({
+    required this.sessionId,
+    this.startedAtUtc,
+    this.endsAtUtc,
+  });
+
+  final String sessionId;
+  final DateTime? startedAtUtc;
+
+  /// null — открытый счёт: конца нет, экран показывает, сколько уже идёт.
+  final DateTime? endsAtUtc;
+
+  factory DeviceLiveSessionDto.fromJson(Map<String, dynamic> json) => DeviceLiveSessionDto(
+        sessionId: json['sessionId'] as String,
+        startedAtUtc: json['startedAtUtc'] == null ? null : DateTime.parse(json['startedAtUtc'] as String),
+        endsAtUtc: json['endsAtUtc'] == null ? null : DateTime.parse(json['endsAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'sessionId': sessionId,
+        'startedAtUtc': startedAtUtc?.toIso8601String(),
+        'endsAtUtc': endsAtUtc?.toIso8601String(),
       };
 }
 
@@ -9751,6 +9805,31 @@ class NewsItemDto {
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
         'showOnPcs': showOnPcs,
+      };
+}
+
+/// Где сотрудник может публиковать новости: филиалы, где у него есть право на новости, и можно ли
+/// писать на всю сеть. На всю сеть — только тому, у кого право во всех филиалах (владелец):
+/// управляющий одного филиала не говорит от имени всех.
+///
+/// Контракт: News/NewsScopeDto.cs
+class NewsScopeDto {
+  const NewsScopeDto({
+    required this.branches,
+    required this.canPublishToAllBranches,
+  });
+
+  final List<OwnerBranchSummaryDto> branches;
+  final bool canPublishToAllBranches;
+
+  factory NewsScopeDto.fromJson(Map<String, dynamic> json) => NewsScopeDto(
+        branches: (json['branches'] as List<dynamic>).map((item) => OwnerBranchSummaryDto.fromJson(item as Map<String, dynamic>)).toList(),
+        canPublishToAllBranches: json['canPublishToAllBranches'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'branches': branches.map((item) => item.toJson()).toList(),
+        'canPublishToAllBranches': canPublishToAllBranches,
       };
 }
 
@@ -14225,6 +14304,8 @@ class PlayerShellStateDto {
     this.clubRules,
     this.idleShutdownAtUtc,
     this.showcase,
+    this.sessionStartedAtUtc,
+    this.sessionEndsAtUtc,
   });
 
   final String organizationId;
@@ -14296,6 +14377,11 @@ class PlayerShellStateDto {
   /// Витрина свободного ПК: карточки клуба с картинками из кэша ПК. Пусто — оформление клуба.
   final List<ShowcaseCardDto>? showcase;
 
+  /// Когда идущая сессия началась и когда кончится — отсчёт «Осталось» идёт от конца сессии, а не
+  /// от срока аренды. Конца нет у открытого счёта: экран показывает, сколько уже идёт.
+  final DateTime? sessionStartedAtUtc;
+  final DateTime? sessionEndsAtUtc;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -14328,6 +14414,8 @@ class PlayerShellStateDto {
         clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
         idleShutdownAtUtc: json['idleShutdownAtUtc'] == null ? null : DateTime.parse(json['idleShutdownAtUtc'] as String),
         showcase: json['showcase'] == null ? null : (json['showcase'] as List<dynamic>).map((item) => ShowcaseCardDto.fromJson(item as Map<String, dynamic>)).toList(),
+        sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
+        sessionEndsAtUtc: json['sessionEndsAtUtc'] == null ? null : DateTime.parse(json['sessionEndsAtUtc'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -14362,6 +14450,8 @@ class PlayerShellStateDto {
         'clubRules': clubRules,
         'idleShutdownAtUtc': idleShutdownAtUtc?.toIso8601String(),
         'showcase': showcase?.map((item) => item.toJson()).toList(),
+        'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
+        'sessionEndsAtUtc': sessionEndsAtUtc?.toIso8601String(),
       };
 }
 
@@ -18055,23 +18145,6 @@ class ShellBrandingDto {
         'clubName': clubName,
         'logoUrl': logoUrl,
         'accentColor': accentColor,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellGameForegroundDto {
-  const ShellGameForegroundDto({
-    required this.active,
-  });
-
-  final bool active;
-
-  factory ShellGameForegroundDto.fromJson(Map<String, dynamic> json) => ShellGameForegroundDto(
-        active: json['active'] as bool,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'active': active,
       };
 }
 

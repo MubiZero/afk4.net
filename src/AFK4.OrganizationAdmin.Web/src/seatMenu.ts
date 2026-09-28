@@ -157,15 +157,18 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
   return sections.filter((section) => section.items.length > 0);
 }
 
-/** Меню нескольких выбранных мест: только команды ПК, по одной на всех. */
-export function buildBulkMenu(seats: SeatSummary[], caps: SeatMenuCaps): SeatMenuSection[] {
+/**
+ * Меню нескольких выбранных мест: только команды ПК, по одной на всех. Пока прошлая групповая
+ * команда уходит, пункты закрыты: второй клик отправил бы ту же перезагрузку второй раз.
+ */
+export function buildBulkMenu(seats: SeatSummary[], caps: SeatMenuCaps, busy = false): SeatMenuSection[] {
   const items = bulkCommands(seats, { canDispatch: caps.canLockUnlock, canMaintain: caps.canMaintain })
     .map((command): SeatMenuItem => ({
       id: `bulk-${command}`,
       labelKey: PC_COMMAND_LABELS[command],
       feedbackKey: PC_COMMAND_LABELS[command],
       run: { kind: 'bulk', command },
-      disabled: false
+      disabled: busy
     }));
   return items.length > 0 ? [{ id: 'bulk', titleKey: 'op.map.menu.sectionPc', items }] : [];
 }

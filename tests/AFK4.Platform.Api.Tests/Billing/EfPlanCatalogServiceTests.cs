@@ -135,6 +135,29 @@ public sealed class EfPlanCatalogServiceTests
         Assert.Equal(time.Now, stored.UpdatedAtUtc);
     }
 
+    // Бесплатный и тариф за ПК — туда клубы переходят сами: выключенный тариф молча ломает переход,
+    // а реклама на тарифе за ПК — реклама у тех, кто платит за её отсутствие.
+    [Fact]
+    public async Task TheRolePlans_CannotBeTurnedOff_AndThePerPcPlanCarriesNoAds()
+    {
+        await using var db = NewContext();
+        var service = new EfPlanCatalogService(db, new FixedTimeProvider(DateTimeOffset.Parse("2026-05-31T10:00:00Z")));
+        db.PlatformFeatures.Add(new PlatformFeatureEntity
+        {
+            FeatureKey = "platform_ads", Name = "Реклама", Description = "", CreatedAtUtc = DateTimeOffset.Parse("2026-05-31T10:00:00Z")
+        });
+        await db.SaveChangesAsync();
+        await service.CreateAsync(BuildCreate("free"), CancellationToken.None);
+        await service.CreateAsync(BuildCreate("per_pc"), CancellationToken.None);
+        var off = new UpdatePlanRequest("X", 0, "TJS", BillingIntervalNames.Monthly, null, null, null, null, false, 1);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, (await service.UpdateAsync("free", off, CancellationToken.None)).Status);
+        Assert.Equal(BillingOperationStatus.BadRequest, (await service.UpdateAsync("per_pc", off, CancellationToken.None)).Status);
+        Assert.Equal(BillingOperationStatus.BadRequest,
+            (await service.UpdateAsync("per_pc", off with { IsActive = true, IncludedFeatures = ["platform_ads"] }, CancellationToken.None)).Status);
+        Assert.True((await service.UpdateAsync("free", off with { IsActive = true, IncludedFeatures = ["platform_ads"] }, CancellationToken.None)).Succeeded);
+    }
+
     [Fact]
     public async Task UpdateAsync_UnknownPlan_ReturnsNotFound()
     {

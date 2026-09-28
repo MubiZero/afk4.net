@@ -20,10 +20,12 @@ public sealed class EfDunningRunner(
     public async Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         // Credit notes never age into "overdue" and are never chased — they are the thing that
-        // settles debt, not a debt of their own (design spec §3, §5).
+        // settles debt, not a debt of their own (design spec §3, §5). Нулевой счёт (бесплатный
+        // месяц) тоже не долг: напоминать о нём нечего.
         var ladderInvoices = await dbContext.Invoices
             .Where(invoice => (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue)
-                && invoice.Kind != InvoiceKindNames.Credit)
+                && invoice.Kind != InvoiceKindNames.Credit
+                && invoice.AmountMinorUnits > 0)
             .ToListAsync(cancellationToken);
         if (ladderInvoices.Count == 0)
         {

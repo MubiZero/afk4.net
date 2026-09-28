@@ -4,10 +4,12 @@ import { createMockSession, devMockFetch } from './devMockBackend';
 const playerId = 'pl-1';
 
 describe('dev preview session', () => {
+  // Демо показывает всё, что умеет Панель, — значит, и роль владельца: с ролью «оператор» при всех
+  // правах подвал писал «Оператор», а экраны владельца всё равно открывались.
   it('contains the real role contract used by the system footer', () => {
     expect(createMockSession()).toMatchObject({
       displayName: 'Администратор смены',
-      roleNames: ['operator']
+      roleNames: ['organization_owner']
     });
   });
 
@@ -30,7 +32,7 @@ describe('devMockFetch staff auth', () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toMatchObject({ displayName: 'Администратор смены', roleNames: ['operator'] });
+    expect(body).toMatchObject({ displayName: 'Администратор смены', roleNames: ['organization_owner'] });
   });
 
   it('signs in to a chosen club with a mock session', async () => {

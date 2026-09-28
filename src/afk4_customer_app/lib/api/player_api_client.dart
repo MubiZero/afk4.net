@@ -519,6 +519,17 @@ class PlayerApiClient {
     return _parse(body, PlayerReservationDto.fromJson);
   }
 
+  /// Варианты продления с ценой от сервера: сколько спишется, до скольки и что останется.
+  /// Цену клиент не считает — округления и окна тарифа знает только сервер.
+  Future<PlayerExtendOffersDto> getExtendOffers(String sessionId) async => _parse(
+      await getJson('/api/me/sessions/${Uri.encodeComponent(sessionId)}/extend-offers'),
+      PlayerExtendOffersDto.fromJson);
+
+  /// Сколько вернётся, если встать сейчас: тот же расчёт, что при раннем выходе, без записи.
+  Future<PlayerEndQuoteDto> getEndQuote(String sessionId) async => _parse(
+      await getJson('/api/me/sessions/${Uri.encodeComponent(sessionId)}/end-quote'),
+      PlayerEndQuoteDto.fromJson);
+
   /// Продлевает идущую сессию. Деньги списываются сразу, поэтому запрос несёт ключ
   /// идемпотентности — см. `AttemptKey`. Ответ сервера не разбирается: главный экран
   /// всё равно перечитывает себя, а состояние сессии он берёт оттуда, а не из эха команды.
@@ -756,6 +767,35 @@ class PlayerApiClient {
     return _decode(response);
   }
 
+  /// Вход на ПК по QR с монитора (спека оболочки, §5.4): заявка «впустить меня на эту машину».
+  /// Клуб — тот, что назвал сам QR: ПК может быть в другом клубе сети, чем открыт в приложении.
+  ///
+  /// Отказы — коды `seating_code_invalid`, `seating_code_attempts_exceeded` (429, с
+  /// `retryAfterUtc`), `session_not_yours`, `platform_account_required`, `device_not_assigned`.
+  Future<PlayerSignInClaimDto> claimPcSignIn({
+    required String seatingCode,
+    required String idempotencyKey,
+    String? organizationId,
+  }) async {
+    const path = '/api/me/devices/sign-in-claims';
+    final body = {'seatingCode': seatingCode, 'idempotencyKey': idempotencyKey};
+    var response = await _send('POST', path, body: body, club: organizationId);
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('POST', path, body: body, club: organizationId);
+    }
+    return _parse(_decode(response), PlayerSignInClaimDto.fromJson);
+  }
+
+  /// Что стало с заявкой: ПК её забрал — человек вошёл.
+  Future<PlayerSignInClaimDto> pcSignInClaim(String claimId, {String? organizationId}) async {
+    final path = '/api/me/devices/sign-in-claims/$claimId';
+    var response = await _send('GET', path, club: organizationId);
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('GET', path, club: organizationId);
+    }
+    return _parse(_decode(response), PlayerSignInClaimDto.fromJson);
+  }
+
   Future<Map<String, dynamic>> _post(String path, Object body) async {
     final response = await _send('POST', path, body: body);
     return _decode(response);
@@ -765,12 +805,12 @@ class PlayerApiClient {
   /// кошелёк, брони и история — того заведения, которое игрок открыл.
   static const String _organizationHeader = 'X-AFK4-Organization';
 
-  Future<http.Response> _send(String method, String path, {Object? body}) async {
+  Future<http.Response> _send(String method, String path, {Object? body, String? club}) async {
     final uri = Uri.parse('$baseUrl$path');
     final headers = <String, String>{};
     final token = _session?.accessToken;
     if (token != null) headers['Authorization'] = 'Bearer $token';
-    final club = organizationId;
+    club ??= organizationId;
     if (club != null && path.startsWith('/api/me')) {
       headers[_organizationHeader] = club;
     }

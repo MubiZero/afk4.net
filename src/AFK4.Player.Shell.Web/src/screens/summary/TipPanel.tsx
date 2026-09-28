@@ -87,7 +87,7 @@ export function TipPanel({
             <button
               key={preset.minorUnits}
               type="button"
-              className="btn tip__amount"
+              className="btn btn--ghost tip__amount"
               // Не хватает баланса — сумма серая: нажать её значило бы получить отказ.
               disabled={preset.minorUnits > offer.balance.minorUnits}
               onClick={() => {

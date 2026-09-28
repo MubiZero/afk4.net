@@ -74,6 +74,9 @@ public static class TipErrorCodeNames
 
     /// <summary>Всё, что пришло за смену, уже выдано.</summary>
     public const string NothingToPay = "tip_nothing_to_pay";
+
+    /// <summary>Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды.</summary>
+    public const string AlreadyPaidOut = "tip_already_paid_out";
 }
 
 public static class TipLimits

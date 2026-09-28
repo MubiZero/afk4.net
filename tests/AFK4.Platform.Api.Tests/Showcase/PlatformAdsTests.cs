@@ -77,6 +77,8 @@ public sealed class PlatformAdsTests
         Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(moderation,
             new ModerateAdCreativeRequest(true, null, AdModerationCheckNames.All))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(state, new SetAdCampaignStateRequest(AdCampaignStateNames.Active))).StatusCode);
+        // Идущую кампанию в черновик не вернуть: черновик значит «ещё не показывали».
+        Assert.Equal(HttpStatusCode.Conflict, (await platform.PostAsJsonAsync(state, new SetAdCampaignStateRequest(AdCampaignStateNames.Draft))).StatusCode);
 
         var showcase = (await ShowcaseAsync(fixture))!;
         var ad = Assert.Single(showcase.Cards, card => card.Kind == ShowcaseCardKindNames.Ad);
@@ -158,6 +160,48 @@ public sealed class PlatformAdsTests
         var archived = await ReadAsync<AdCreativeDto>(await platform.PostAsync($"{creativePath}/archive", null));
         Assert.NotNull(archived.ArchivedAtUtc);
         Assert.DoesNotContain((await ShowcaseAsync(fixture))!.Cards, card => card.Kind == ShowcaseCardKindNames.Ad);
+    }
+
+    // Модератор проверял рекламу при этой категории и этом рекламодателе: сменить их молча значило бы
+    // показывать непроверенное. Название и сроки менять можно.
+    [Fact]
+    public async Task ACampaignWithApprovedAds_KeepsWhatWasModerated()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        using var platform = fixture.Factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(fixture.Factory, platform, roles: [PlatformAdminRoleNames.PlatformAdmin], clock: fixture.Clock);
+        var (campaignId, _) = await SeedActiveCampaignAsync(fixture, cities: []);
+        var advertiserId = await AdvertiserOfAsync(fixture, campaignId);
+        Guid otherAdvertiserId;
+        {
+            var other = await ReadAsync<AdvertiserDto>(await platform.PostAsJsonAsync(AdRoutes.Advertisers, Advertiser()));
+            otherAdvertiserId = other.AdvertiserId;
+        }
+        UpsertAdCampaignRequest Request(Guid advertiser, string category, string name) => new(
+            advertiser, name, category, DevicePlayerFixture.Start.AddDays(-1), DevicePlayerFixture.Start.AddDays(1), [], null);
+
+        var toFinance = await platform.PutAsJsonAsync($"{AdRoutes.Campaigns}/{campaignId:D}", Request(advertiserId, AdCategoryNames.Finance, "Осень"));
+        var toOther = await platform.PutAsJsonAsync($"{AdRoutes.Campaigns}/{campaignId:D}", Request(otherAdvertiserId, AdCategoryNames.Telecom, "Осень"));
+        var renamed = await platform.PutAsJsonAsync($"{AdRoutes.Campaigns}/{campaignId:D}", Request(advertiserId, AdCategoryNames.Telecom, "Осень 2026"));
+
+        Assert.Equal(HttpStatusCode.Conflict, toFinance.StatusCode);
+        Assert.Contains(AdErrorCodeNames.CampaignLocked, await toFinance.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Conflict, toOther.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+
+        // Подпись на показанной рекламе — реквизиты рекламодателя: пока реклама одобрена, они не меняются.
+        var renameAdvertiser = await platform.PutAsJsonAsync($"{AdRoutes.Advertisers}/{advertiserId:D}",
+            Advertiser() with { Name = "Другое имя" });
+        Assert.Equal(HttpStatusCode.Conflict, renameAdvertiser.StatusCode);
+        Assert.Contains(AdErrorCodeNames.AdvertiserLocked, await renameAdvertiser.Content.ReadAsStringAsync());
+    }
+
+    private static async Task<Guid> AdvertiserOfAsync(DevicePlayerFixture fixture, Guid campaignId)
+    {
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return (await db.AdCampaigns.SingleAsync(campaign => campaign.CampaignId == campaignId)).AdvertiserId;
     }
 
     [Fact]

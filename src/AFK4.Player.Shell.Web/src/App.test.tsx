@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, jest } from 'bun:test';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ShellI18nProvider } from './i18n/ShellI18nProvider';
 import { PlayerShellStateNames, ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/contracts';
-import { App } from './App';
+import { App, CONNECTING_STUCK_MS } from './App';
 import { devScenarioState } from './host/devHost';
 import { installFakeHost } from './test/fakeHost';
 
@@ -24,6 +24,21 @@ describe('оболочка выбирает экран по состоянию �
     installFakeHost({ state: null });
     renderShell();
     expect(await screen.findByText('Подключаемся к ПК…')).toBeInTheDocument();
+  });
+
+  it('служба ПК молчит дольше 20 секунд — экран говорит, что делать, а не крутит колесо', async () => {
+    installFakeHost({ state: null });
+    jest.useFakeTimers();
+    try {
+      renderShell();
+      expect(screen.queryByText(/Служба ПК не отвечает/)).toBeNull();
+
+      act(() => { jest.advanceTimersByTime(CONNECTING_STUCK_MS); });
+
+      expect(screen.getByText(/Служба ПК не отвечает/)).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('свободный ПК показывает свой номер и что он свободен', async () => {
@@ -96,6 +111,18 @@ describe('действия идут через хост', () => {
     await act(async () => play[0].click());
 
     await waitFor(() => expect(host.requests).toContainEqual({ type: ShellBridgeRequestTypeNames.AppLaunch, payload: { appId: 'cs2' } }));
+  });
+
+  it('запущенная игра не просит нажать второй раз, пока её окно открывается', async () => {
+    const host = installFakeHost({ state: devScenarioState('session') });
+    renderShell();
+    const play = await screen.findAllByRole('button', { name: 'Играть' });
+
+    await act(async () => play[0].click());
+    await waitFor(() => expect(host.requests.filter((request) => request.type === ShellBridgeRequestTypeNames.AppLaunch)).toHaveLength(1));
+
+    const tile = await screen.findByRole('button', { name: 'Запускаем…' });
+    expect(tile).toBeDisabled();
   });
 
   it('игра не запустилась — экран говорит об этом, а не молчит', async () => {
@@ -177,3 +204,35 @@ describe('итог после любого конца сессии', () => {
   });
 });
 
+
+describe('вход без сессии', () => {
+  it('Esc закрывает окно входа, и запоздалый сигнал об этой же клавише его не открывает', async () => {
+    const host = installFakeHost({ state: devScenarioState('idle') });
+    renderShell();
+    await waitFor(() => expect(document.querySelector('[data-screen="idle"]')).not.toBeNull());
+
+    act(() => host.send(ShellBridgeEventTypeNames.InputActivity));
+    await waitFor(() => expect(document.querySelector('[data-screen="approach"]')).not.toBeNull());
+
+    act(() => { fireEvent.keyDown(window, { key: 'Escape' }); });
+    act(() => host.send(ShellBridgeEventTypeNames.InputActivity));
+
+    expect(document.querySelector('[data-screen="idle"]')).not.toBeNull();
+  });
+
+  // Сервер гасит вход без сессии только через 5 минут: без выхода по тишине подошедший следом
+  // начал бы сессию на чужие деньги.
+  it('минута тишины на «Сколько играем» выводит вошедшего', async () => {
+    const host = installFakeHost({
+      state: devScenarioState('idle'),
+      auth: { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' }
+    });
+    renderShell();
+    await waitFor(() => expect(document.querySelector('[data-screen="chooseTime"]')).not.toBeNull());
+
+    act(() => host.send(ShellBridgeEventTypeNames.InputIdle));
+
+    await waitFor(() =>
+      expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthSignOut)).toBe(true));
+  });
+});

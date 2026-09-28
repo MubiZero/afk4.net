@@ -168,8 +168,9 @@ Advertising», «SaaS Plans And Onboarding», «Player App»). Порядок р
 `ui.setLocale`, `showcase.impression`.
 
 Хост → интерфейс: `state.changed`, `auth.changed {signedIn, displayName, playerAccountId}`,
-`input.activity`, `input.idle`, `game.foreground {active}`, `system.changed {volume, micMuted,
-layout}`, `showcase.changed`.
+`input.activity`, `input.idle`, `system.changed {volume, micMuted, layout}`. Когда впереди игра,
+хост прячет и замораживает страницу сам (`TrySuspendAsync`), поэтому отдельного события об этом
+нет; витрина едет в `state.changed`.
 
 Запросы к серверу интерфейс делает сам, `fetch` на `ApiBaseUrl`. Заголовок подставляет хост,
 токенов страница не видит — как сейчас.

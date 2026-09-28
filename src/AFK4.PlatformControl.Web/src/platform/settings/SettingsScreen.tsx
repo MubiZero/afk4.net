@@ -164,7 +164,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
                 return (
                   <TableRow key={item.platformAdminUserId}>
                     <TableCell>
-                      <span className="font-medium">{item.displayName}</span>{' '}
+                      <strong>{item.displayName}</strong>{' '}
                       <code className="mgmt-drawer-hint">{item.userName}</code>
                     </TableCell>
                     <TableCell><Badge variant="outline">{t(roleLabelKey(item.role))}</Badge></TableCell>

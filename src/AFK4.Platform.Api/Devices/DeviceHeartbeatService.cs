@@ -196,6 +196,9 @@ public sealed class DeviceHeartbeatService(
                     || session.State == SessionStateNames.Ending))
             .Select(session => new
             {
+                session.SessionId,
+                session.StartedAtUtc,
+                session.EndsAtUtc,
                 session.PlayerAccountId,
                 // День рождения игрока — для игр с возрастом (спека оболочки, §6.6). Тем же запросом.
                 BirthDate = dbContext.PlayerAccounts
@@ -260,7 +263,10 @@ public sealed class DeviceHeartbeatService(
             MaintenanceSinceUtc: allowOperationalCommands ? device?.MaintenanceSinceUtc : null,
             MaintenanceByName: allowOperationalCommands && inMaintenance ? device?.MaintenanceByName : null,
             PolicyProfileVersion: allowOperationalCommands ? branchInfo?.PolicyProfileVersion ?? 0 : 0,
-            GameLibraryVersion: allowOperationalCommands ? branchInfo?.GameLibraryVersion ?? 0 : 0);
+            GameLibraryVersion: allowOperationalCommands ? branchInfo?.GameLibraryVersion ?? 0 : 0,
+            LiveSession: liveSession is null
+                ? null
+                : new DeviceLiveSessionDto(liveSession.SessionId, liveSession.StartedAtUtc, liveSession.EndsAtUtc));
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

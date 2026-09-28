@@ -3,6 +3,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ShellI18nProvider } from '../../i18n/ShellI18nProvider';
 import type { ShopOrderDto } from '@afk4/contracts';
 import { BarTab } from './BarTab';
+import { useBarOrders } from './useBarOrders';
+
+// Заказы живут на экране сессии; в тесте их держит тот же хук, что и там.
+function BarWithOrders() {
+  const bar = useBarOrders('https://api.example.test/', true);
+  return <BarTab baseUrl="https://api.example.test/" orders={bar.orders} onOrderChanged={bar.apply} reloadOrders={bar.reload} />;
+}
 
 const catalog = [
   { productId: 'cola', name: 'Кола 0,5 л', sku: 'C', price: { currencyCode: 'TJS', minorUnits: 1_200 }, stockOnHand: 24 },
@@ -34,7 +41,7 @@ function serve(handler: (path: string, method: string) => { status: number; body
 function renderBar() {
   render(
     <ShellI18nProvider initialLocale="ru">
-      <BarTab baseUrl="https://api.example.test/" />
+      <BarWithOrders />
     </ShellI18nProvider>
   );
 }

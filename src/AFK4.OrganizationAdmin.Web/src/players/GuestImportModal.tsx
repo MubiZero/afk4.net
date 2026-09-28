@@ -4,7 +4,7 @@ import type { GuestImportResultDto } from '@afk4/contracts';
 import { PanelModal } from '../PanelModal';
 import { Money } from '../operatorPrimitives';
 import { projectOperatorError } from '../apiErrors';
-import { parseGuestFile, type ParsedGuestFile } from './guestImportCsv';
+import { decodeGuestFile, parseGuestFile, type ParsedGuestFile } from './guestImportCsv';
 
 export interface GuestImportClient {
   importGuests(request: {
@@ -58,7 +58,7 @@ export function GuestImportModal({
     setPreview(null);
     setDone(null);
     setError(null);
-    setParsed(parseGuestFile(await file.text()));
+    setParsed(parseGuestFile(decodeGuestFile(await file.arrayBuffer())));
   };
 
   const run = async (dryRun: boolean) => {
@@ -112,7 +112,7 @@ export function GuestImportModal({
             {summary.issues.length > 0 ? (
               <ul className="guest-import-issues">
                 {summary.issues.slice(0, 20).map((issue) => (
-                  <li key={`${issue.row}-${issue.code}`}>{t('op.players.import.issueRow', { row: issue.row })} {t(ISSUE_KEYS[issue.code] ?? 'op.players.import.issue.invalidPhone')}</li>
+                  <li key={`${issue.row}-${issue.code}`}>{t('op.players.import.issueRow', { row: parsed?.lineNumbers[issue.row - 1] ?? issue.row })} {t(ISSUE_KEYS[issue.code] ?? 'op.players.import.issue.invalidPhone')}</li>
                 ))}
               </ul>
             ) : null}

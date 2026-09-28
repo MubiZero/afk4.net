@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { NewsWorkspace } from './NewsWorkspace';
-import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
+import type { NewsItemDto, NewsItemInput, NewsScopeDto } from './operatorApiClients';
 import { PlatformApiError } from './platformApi';
 
 function client(initial: NewsItemDto[] = []) {
@@ -13,7 +13,7 @@ function client(initial: NewsItemDto[] = []) {
     created,
     removed,
     list: async () => store,
-    listBranches: async (): Promise<OwnerBranchSummaryDto[]> => [{ branchId: 'b1', name: 'Центр' }],
+    scope: async (): Promise<NewsScopeDto> => ({ branches: [{ branchId: 'b1', name: 'Центр' }], canPublishToAllBranches: true }),
     create: async (req: NewsItemInput) => {
       created.push(req);
       const dto: NewsItemDto = {
@@ -115,10 +115,10 @@ describe('NewsWorkspace', () => {
       createdAtUtc: '2026-06-01T00:00:00Z', updatedAtUtc: '2026-06-01T00:00:00Z'
     }]);
     const list = mock(c.list);
-    const listBranches = mock()
+    const scope = mock()
       .mockRejectedValueOnce(new PlatformApiError('boom', 500, 'Internal Server Error', ''))
-      .mockResolvedValue([{ branchId: 'b1', name: 'Центр' }]);
-    renderWorkspace({ ...c, list, listBranches });
+      .mockResolvedValue({ branches: [{ branchId: 'b1', name: 'Центр' }], canPublishToAllBranches: true });
+    renderWorkspace({ ...c, list, scope });
 
     expect(await screen.findByText('Турнир')).toBeInTheDocument();
     expect(screen.getByText(/Не удалось загрузить филиалы/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
@@ -126,7 +126,7 @@ describe('NewsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
 
     expect(await screen.findByText('Центр')).toBeInTheDocument();
-    expect(listBranches).toHaveBeenCalledTimes(2);
+    expect(scope).toHaveBeenCalledTimes(2);
     expect(list).toHaveBeenCalledTimes(1);
   });
 
@@ -143,5 +143,41 @@ describe('NewsWorkspace', () => {
 
     expect(await screen.findByText('Новостей пока нет')).toBeInTheDocument();
     expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('управляющему одного филиала «на всю сеть» не предлагается — новость сразу в его филиале', async () => {
+    const c = client();
+    renderWorkspace({
+      ...c,
+      scope: async () => ({ branches: [{ branchId: 'b1', name: 'Центр' }], canPublishToAllBranches: false })
+    });
+    await screen.findAllByRole('button', { name: /создать новость/i });
+    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+
+    const where = screen.getByLabelText(/филиал/i) as HTMLSelectElement;
+    expect(where.value).toBe('b1');
+    expect(within(where).queryByText('Все филиалы')).toBeNull();
+  });
+
+  it('отказ сохранения — в форме, введённое не пропадает, двойной клик не делает двух новостей', async () => {
+    const c = client();
+    let release: () => void = () => {};
+    const create = mock(() => new Promise<never>((_resolve, reject) => {
+      release = () => reject(new PlatformApiError('boom', 500, 'Internal Server Error', ''));
+    }));
+    renderWorkspace({ ...c, create });
+    await screen.findAllByRole('button', { name: /создать новость/i });
+    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+    fireEvent.change(screen.getByLabelText(/заголовок/i), { target: { value: 'Турнир' } });
+    fireEvent.change(screen.getByLabelText(/текст/i), { target: { value: 'В субботу' } });
+
+    const save = screen.getByRole('button', { name: /сохранить/i });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    release();
+
+    expect(await screen.findByText('Сервер вернул ошибку. Повторите позже.')).toBeInTheDocument();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect((screen.getByLabelText(/заголовок/i) as HTMLInputElement).value).toBe('Турнир');
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Newspaper } from 'lucide-react';
 import { MediaPurposeNames } from '@afk4/contracts';
@@ -8,7 +8,7 @@ import { CriticalActionConfirmation, EmptyState, PartialLoadFailure } from './op
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
-import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
+import type { NewsItemDto, NewsItemInput, NewsScopeDto, OwnerBranchSummaryDto } from './operatorApiClients';
 import { DeferredSkeleton, SkeletonTable } from './LoadingSkeleton';
 import { MediaUpload } from './components/MediaUpload';
 
@@ -17,7 +17,8 @@ const NEWS_GRID = '1.6fr 1fr 0.8fr 1.2fr';
 
 interface NewsClient {
   list(): Promise<NewsItemDto[]>;
-  listBranches(): Promise<OwnerBranchSummaryDto[]>;
+  /** Где сотрудник может публиковать: свои филиалы и «на всю сеть», если право во всех. */
+  scope(): Promise<NewsScopeDto>;
   create(request: NewsItemInput): Promise<NewsItemDto>;
   update(id: string, request: NewsItemInput): Promise<NewsItemDto>;
   remove(id: string): Promise<void>;
@@ -68,6 +69,8 @@ export function NewsWorkspace({
 
   const [items, setItems] = useState<NewsItemDto[]>([]);
   const [branches, setBranches] = useState<OwnerBranchSummaryDto[]>([]);
+  // Управляющий одного филиала на всю сеть не пишет: сервер откажет, и выбора «Все филиалы» у него нет.
+  const [canPublishToAll, setCanPublishToAll] = useState(false);
   const [form, setForm] = useState({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -75,6 +78,20 @@ export function NewsWorkspace({
   const [branchesError, setBranchesError] = useState<OperatorErrorProjection | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null); // id или '__new__' для создания
   const [deleteTarget, setDeleteTarget] = useState<NewsItemDto | null>(null);
+  // Сохранение или удаление в пути: второй клик не создаст вторую новость. Ref — для кликов в одном
+  // кадре, пока кнопка ещё не перерисовалась неактивной.
+  const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false);
+  const begin = () => {
+    if (inFlight.current) return false;
+    inFlight.current = true;
+    setSaving(true);
+    return true;
+  };
+  const finish = () => {
+    inFlight.current = false;
+    setSaving(false);
+  };
   const isDrawerOpen = selectedId !== null;
   const isCreate = selectedId === '__new__';
 
@@ -84,12 +101,12 @@ export function NewsWorkspace({
     // Филиалы нужны новостям только ради подписи «где показывается» и выбора в форме: их отказ
     // не должен прятать сами новости. Раньше отказ любого из двух запросов никто не ловил, и
     // экран так и оставался в загрузке.
-    Promise.allSettled([client.list(), client.listBranches()]).then(([list, branchList]) => {
+    Promise.allSettled([client.list(), client.scope()]).then(([list, scope]) => {
       if (!active) return;
       if (list.status === 'fulfilled') setItems(list.value);
       else setListError(projectOperatorError(list.reason, t).detail);
-      if (branchList.status === 'fulfilled') setBranches(branchList.value);
-      else setBranchesError(projectOperatorError(branchList.reason, t));
+      if (scope.status === 'fulfilled') applyScope(scope.value);
+      else setBranchesError(projectOperatorError(scope.reason, t));
       setReady(true);
     });
     return () => { active = false; };
@@ -104,13 +121,19 @@ export function NewsWorkspace({
       .catch((reason) => setListError(projectOperatorError(reason, t).detail));
   };
 
+  const applyScope = (scope: NewsScopeDto) => {
+    setBranches(scope.branches);
+    setCanPublishToAll(scope.canPublishToAllBranches);
+  };
+
   const retryBranches = () => {
     if (client === null) return;
     setBranchesError(null);
-    client.listBranches()
-      .then(setBranches)
+    client.scope()
+      .then(applyScope)
       .catch((reason) => setBranchesError(projectOperatorError(reason, t)));
   };
+
 
   const reload = async () => {
     if (client === null) return;
@@ -134,7 +157,8 @@ export function NewsWorkspace({
   };
 
   const openCreate = () => {
-    setForm({ ...EMPTY });
+    // Кому «вся сеть» закрыта, у того новость сразу в его филиале, а не в запрещённом «Все».
+    setForm({ ...EMPTY, branchId: canPublishToAll ? '' : branches[0]?.branchId ?? '' });
     setError(null);
     setSelectedId('__new__');
   };
@@ -162,21 +186,38 @@ export function NewsWorkspace({
       expiresAtUtc,
       showOnPcs: form.showOnPcs
     };
-    if (form.id === null) {
-      await client.create(request);
-    } else {
-      await client.update(form.id, request);
+    if (!begin()) return;
+    try {
+      if (form.id === null) {
+        await client.create(request);
+      } else {
+        await client.update(form.id, request);
+      }
+    } catch (reason) {
+      // Отказ сервера — в форме, где человек его увидит; введённое остаётся на месте.
+      setError(projectOperatorError(reason, t).detail);
+      finish();
+      return;
     }
     setForm({ ...EMPTY });
-    await reload();
     setSelectedId(null);
+    finish();
+    await reload().catch((reason) => setListError(projectOperatorError(reason, t).detail));
   };
 
   const remove = async (id: string) => {
-    if (client === null) return;
-    await client.remove(id);
-    await reload();
+    if (client === null || !begin()) return;
+    try {
+      await client.remove(id);
+    } catch (reason) {
+      setError(projectOperatorError(reason, t).detail);
+      finish();
+      return;
+    }
     setSelectedId(null);
+    setForm({ ...EMPTY });
+    finish();
+    await reload().catch((reason) => setListError(projectOperatorError(reason, t).detail));
   };
 
   if (!ready) {
@@ -263,19 +304,20 @@ export function NewsWorkspace({
                   <button
                     type="button"
                     className="ui-btn ui-btn--danger"
+                    disabled={saving}
                     onClick={() => setDeleteTarget(items.find((n) => n.id === form.id) ?? null)}
                   >
                     {t('op.news.delete')}
                   </button>
                 )}
-                <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()}>
+                <button type="button" className="ui-btn ui-btn--primary" disabled={saving} onClick={() => void save()}>
                   {t('op.news.save')}
                 </button>
               </div>
             ) : undefined
           }
         >
-          <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); if (canManage) void save(); }}>
+          <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); if (canManage && !saving) void save(); }}>
             <label>
               {t('op.news.fieldTitle')}
               <input value={form.title} disabled={!canManage} onChange={(event) => setForm({ ...form, title: event.target.value })} />
@@ -286,7 +328,7 @@ export function NewsWorkspace({
                   филиала — значит соврать и тихо перенаправить её при сохранении. Поле замирает
                   на том, что есть, причина — в строке над таблицей. */}
               <select value={form.branchId} disabled={!canManage || branchesError !== null} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>
-                <option value="">{t('op.news.allBranches')}</option>
+                {canPublishToAll || form.branchId === '' ? <option value="">{t('op.news.allBranches')}</option> : null}
                 {branchesError !== null && form.branchId !== '' && <option value={form.branchId}>—</option>}
                 {branches.map((branch) => (
                   <option key={branch.branchId} value={branch.branchId}>{branch.name}</option>

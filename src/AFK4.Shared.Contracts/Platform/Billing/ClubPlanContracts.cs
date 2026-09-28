@@ -33,7 +33,10 @@ public sealed record ClubPlanDto(
     DateTimeOffset? FallbackAtUtc = null,
     // Условия, которые задала платформа: экран не должен обещать свои числа.
     int TrialDays = ClubPlanLimits.TrialDays,
-    int PromisedPaymentDays = ClubPlanLimits.PromisedPaymentDays);
+    int PromisedPaymentDays = ClubPlanLimits.PromisedPaymentDays,
+    // Предел ПК бесплатного тарифа, как его задала платформа: на него клуб уходит без оплаты, и
+    // условия называют его числом, а не зашитой «десяткой».
+    int FreeDeviceLimit = ClubPlanLimits.FreeDevices);
 
 /// <summary>Игровые ПК клуба глазами тарифа: какие работают на бесплатном и какие отметил владелец.</summary>
 public sealed record ClubPlanDevicesDto(

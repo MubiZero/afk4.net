@@ -36,8 +36,8 @@ public static class PlatformMedia
 /// <summary>Откуда берётся обложка игры из Steam. В тестах — подставная, без сети.</summary>
 public interface ISteamCoverSource
 {
-    /// <summary>Картинка игры и её тип; null — у Steam такой нет или не ответил.</summary>
-    Task<(byte[] Bytes, string ContentType)?> FetchAsync(string steamAppId, CancellationToken ct);
+    /// <summary>Картинка игры, её тип и адрес у Steam; null — у Steam такой нет или не ответил.</summary>
+    Task<(byte[] Bytes, string ContentType, string Url)?> FetchAsync(string steamAppId, CancellationToken ct);
 }
 
 /// <summary>
@@ -50,19 +50,20 @@ public sealed class SteamCdnCoverSource(IHttpClientFactory httpClients) : ISteam
 
     private static readonly string[] Candidates = ["capsule_616x353.jpg", "header.jpg"];
 
-    public async Task<(byte[] Bytes, string ContentType)?> FetchAsync(string steamAppId, CancellationToken ct)
+    public async Task<(byte[] Bytes, string ContentType, string Url)?> FetchAsync(string steamAppId, CancellationToken ct)
     {
         var http = httpClients.CreateClient(HttpClientName);
         foreach (var file in Candidates)
         {
+            var url = $"https://cdn.akamai.steamstatic.com/steam/apps/{steamAppId}/{file}";
             try
             {
-                using var response = await http.GetAsync($"https://cdn.akamai.steamstatic.com/steam/apps/{steamAppId}/{file}", ct);
+                using var response = await http.GetAsync(url, ct);
                 if (!response.IsSuccessStatusCode) continue;
                 var bytes = await response.Content.ReadAsByteArrayAsync(ct);
                 if (bytes.Length is 0 or > 2 * 1024 * 1024) continue;
                 var contentType = MediaValidation.SniffImageContentType(bytes.AsSpan(0, Math.Min(bytes.Length, 16)));
-                if (contentType is not null) return (bytes, contentType);
+                if (contentType is not null) return (bytes, contentType, url);
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
             {
@@ -78,17 +79,25 @@ public static class SteamCovers
 {
     /// <summary>
     /// Копия обложки Steam в нашем хранилище — адрес Steam может смениться, а ПК клубов держат его в
-    /// кэше. Хранилище не настроено — отдаём сам адрес Steam: картинка важнее, чем место её хранения.
+    /// кэше. Хранилище не настроено или не ответило — отдаём адрес той картинки, что нашлась у Steam:
+    /// картинка важнее, чем место её хранения, а сохранение игры не должно падать из-за обложки.
     /// </summary>
     public static async Task<string?> StoreAsync(
         ISteamCoverSource source, IMediaStorage storage, MediaOptions options, string steamAppId, CancellationToken ct)
     {
         var image = await source.FetchAsync(steamAppId, ct);
         if (image is not { } found) return null;
-        if (!options.S3.IsConfigured) return $"https://cdn.akamai.steamstatic.com/steam/apps/{steamAppId}/capsule_616x353.jpg";
+        if (!options.S3.IsConfigured) return found.Url;
 
         var objectKey = $"platform/{PlatformMediaPurposeNames.CatalogCover}/steam-{steamAppId}-{Guid.NewGuid():N}.{MediaValidation.ExtensionFor(found.ContentType)}";
         using var content = new MemoryStream(found.Bytes);
-        return await storage.PutAsync(objectKey, found.ContentType, content, ct);
+        try
+        {
+            return await storage.PutAsync(objectKey, found.ContentType, content, ct);
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            return found.Url;
+        }
     }
 }

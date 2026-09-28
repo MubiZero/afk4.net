@@ -1,6 +1,8 @@
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Games;
 using AFK4.Agent.Service.Protection;
+using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
 
@@ -43,14 +45,19 @@ public sealed class PlayerShellStateBuilder(
         var lastContactUtc = offlineGraceState.LastSuccessfulContactUtc;
         var isOnline = ShellConnectivity.IsOnline(lastContactUtc, heartbeatSnapshot.IntervalSeconds, now);
 
-        int? remainingSeconds = lease is null
-            ? null
-            : Math.Max(0, (int)(lease.ExpiresAtUtc - now).TotalSeconds);
+        // Сессия — та, о которой говорит и аренда, и сервер в сердцебиении: иначе сразу после
+        // старта новой сессии экран взял бы конец предыдущей.
+        var liveSession = heartbeatSnapshot.LiveSession is { } live
+            && (lease is null || live.SessionId == lease.SessionId)
+            ? live
+            : null;
+        int? remainingSeconds = RemainingSeconds(lease, liveSession, isOnline, now);
         var state = ResolveState(runtimeState.State, remainingSeconds, isOnline);
         var isGraceMode = string.Equals(state, PlayerShellStateNames.Grace, StringComparison.Ordinal);
         var inMaintenance = string.Equals(state, PlayerShellStateNames.Maintenance, StringComparison.Ordinal);
         var threshold = agentOptions.ShellWarningThresholdSeconds;
         var sessionId = lease?.SessionId ?? runtimeState.ActiveSessionId;
+        var sessionOwner = heartbeatSnapshot.SessionOwnerFor(sessionId);
 
         // Предупреждение живёт ровно столько, сколько сессия, к которой оно пришло.
         shellWarningStore.ForgetUnless(sessionId);
@@ -69,7 +76,7 @@ public sealed class PlayerShellStateBuilder(
             Message: CreateMessage(state),
             LauncherApps: catalog is null
                 ? CreateLauncherApps(agentOptions)
-                : CreateLauncherApps(catalog, heartbeatSnapshot.SessionOwner?.PlayerAge),
+                : CreateLauncherApps(catalog, sessionOwner?.PlayerAge),
             ClubRules: protection?.Profile.ClubRules,
             IdleShutdownAtUtc: idleShutdown?.ShutdownAtUtc,
             Showcase: ShowcaseFor(state),
@@ -88,15 +95,38 @@ public sealed class PlayerShellStateBuilder(
             // Место и права — последние, что сервер назвал: без связи экран всё равно пишет «ПК 07».
             SeatLabel: heartbeatSnapshot.Seat?.Label,
             ZoneName: heartbeatSnapshot.Seat?.ZoneName,
-            SessionOwnerKind: heartbeatSnapshot.SessionOwner?.Kind,
-            SessionOwnerPlayerAccountId: heartbeatSnapshot.SessionOwner?.PlayerAccountId,
+            SessionOwnerKind: sessionOwner?.Kind,
+            SessionOwnerPlayerAccountId: sessionOwner?.PlayerAccountId,
             Features: heartbeatSnapshot.Features,
             // Кто и когда — только в обслуживании: вне его полосе нечего писать.
             MaintenanceSinceUtc: inMaintenance ? heartbeatSnapshot.MaintenanceSinceUtc : null,
             MaintenanceByName: inMaintenance ? heartbeatSnapshot.MaintenanceByName : null,
             // В обслуживании технику нужны и командная строка, и реестр — окна не закрываются.
-            BlockedWindows: inMaintenance || protection is null ? [] : protection.BlockedWindows);
+            BlockedWindows: inMaintenance || protection is null ? [] : protection.BlockedWindows,
+            SessionStartedAtUtc: lease is null ? null : liveSession?.StartedAtUtc,
+            SessionEndsAtUtc: lease is null ? null : liveSession?.EndsAtUtc);
     }
+
+    /// <summary>
+    /// Сколько осталось: до конца сессии, а не до конца аренды — аренда подписана на 15 минут и
+    /// продлевается, пока сессия идёт. Без связи сессия живёт не дольше подписанной аренды, поэтому
+    /// берётся ближайшее из двух. У открытого счёта конца нет: на связи — null (экран показывает,
+    /// сколько идёт), без связи — остаток аренды.
+    /// </summary>
+    public static int? RemainingSeconds(SessionLeaseDto? lease, DeviceLiveSessionDto? liveSession, bool isOnline, DateTimeOffset now)
+    {
+        if (lease is null)
+        {
+            return null;
+        }
+
+        DateTimeOffset? until = liveSession?.EndsAtUtc is { } endsAt
+            ? isOnline ? endsAt : Min(endsAt, lease.ExpiresAtUtc)
+            : isOnline && liveSession is not null ? null : lease.ExpiresAtUtc;
+        return until is { } end ? Math.Max(0, (int)(end - now).TotalSeconds) : null;
+    }
+
+    private static DateTimeOffset Min(DateTimeOffset left, DateTimeOffset right) => left < right ? left : right;
 
     /// <summary>
     /// Реклама платформы — только на свободном ПК (PRD): во время сессии, в её последнюю минуту и в

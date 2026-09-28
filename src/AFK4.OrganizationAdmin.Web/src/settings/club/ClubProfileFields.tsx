@@ -104,7 +104,6 @@ export function ClubProfileFields({ form, brand, currencyCode, backend, disabled
             <label className="club-logo-field club-identity-logo">{t('op.club.field.logo')}
               <MediaUpload
                 value={form.logoUrl}
-                mediaId={form.logoMediaId}
                 purpose={BRANCH_LOGO_PURPOSE}
                 branchId={backend.branchId}
                 backend={backend}
@@ -120,7 +119,6 @@ export function ClubProfileFields({ form, brand, currencyCode, backend, disabled
             <label className="club-logo-field club-identity-cover">{t('op.club.field.cover')}
               <MediaUpload
                 value={form.coverImageUrl}
-                mediaId={form.coverMediaId}
                 purpose={BRANCH_COVER_PURPOSE}
                 branchId={backend.branchId}
                 backend={backend}

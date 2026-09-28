@@ -117,6 +117,25 @@ public sealed class VisitTipsTests
         Assert.False(await db.LedgerEntries.AnyAsync(entry => entry.EntryType == LedgerEntryTypeNames.Refund));
     }
 
+    // Выданное из кассы уже на руках у администратора: вернуть его ещё и игроку — клуб заплатит дважды.
+    [Fact]
+    public async Task APaidOutTip_CannotBeReturnedToThePlayer()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        var club = await ClubAsync(fixture, enabled: true, walletMinorUnits: 5000);
+        using var phone = await fixture.PhoneClientAsync();
+        await phone.PostAsJsonAsync(TipRoutes.Visit(club.SessionId), new PlayerTipRequest(Tjs(1000), "tip-1"));
+        var shift = (await fixture.Client.GetFromJsonAsync<ShiftTipsDto>(ShiftTipsRoute(fixture, club.ShiftId)))!;
+        var tipId = shift.Tips.Single().LedgerEntryId;
+        await fixture.Client.PostAsJsonAsync($"{ShiftTipsRoute(fixture, club.ShiftId)}/payout", new PayOutShiftTipsRequest("payout-1"));
+
+        var reverse = await fixture.Client.PostAsync($"{ShiftTipsRoute(fixture, club.ShiftId)}/{tipId:D}/reverse", content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, reverse.StatusCode);
+        Assert.Contains(TipErrorCodeNames.AlreadyPaidOut, await reverse.Content.ReadAsStringAsync());
+    }
+
     // Выдача из кассы — обычная выдача наличных; выданное второй раз не выдаётся.
     [Fact]
     public async Task TheShiftPaysTipsOutOfTheDrawer_Once()

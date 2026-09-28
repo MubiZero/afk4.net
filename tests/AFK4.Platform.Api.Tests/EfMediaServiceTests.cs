@@ -134,6 +134,42 @@ public sealed class EfMediaServiceTests
         Assert.Equal(1, await db.UploadedMedia.CountAsync());
     }
 
+    // Новая обложка ещё не сохранена: «Отмена» в форме не должна оставить клуб со ссылкой на
+    // стёртую. Сохранённую обложку новая загрузка не трогает, а промежуточные — стирает.
+    [Fact]
+    public async Task Upload_NewCover_KeepsTheSavedOne_UntilItIsNoLongerSaved()
+    {
+        await using var db = CreateDbContext();
+        var storage = new FakeMediaStorage();
+        var service = CreateService(db, storage);
+        db.Organizations.Add(new AFK4.Platform.Api.Data.OrganizationEntity
+        {
+            OrganizationId = TestIds.OrganizationId, Name = "Org", CreatedAtUtc = DateTimeOffset.Parse("2026-09-28T00:00:00Z")
+        });
+        var branch = new AFK4.Platform.Api.Data.BranchEntity
+        {
+            BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Name = "Branch",
+            CreatedAtUtc = DateTimeOffset.Parse("2026-09-28T00:00:00Z")
+        };
+        db.Branches.Add(branch);
+        await db.SaveChangesAsync();
+
+        Task<MediaServiceResult> Upload() => service.UploadAsync(
+            TestIds.OrganizationId, TestIds.BranchId, TestIds.TechnicianStaffUserId,
+            MediaPurposeNames.BranchCover, "image/png", Png(), 12, CancellationToken.None);
+
+        var saved = await Upload();
+        branch.CoverImageUrl = saved.Media!.Url;
+        await db.SaveChangesAsync();
+
+        await Upload();
+        var latest = await Upload();
+
+        var left = await db.UploadedMedia.Select(media => media.PublicUrl).ToListAsync();
+        Assert.Equal(new[] { saved.Media.Url, latest.Media!.Url }.Order(), left.Order());
+        Assert.Equal(2, storage.Objects.Count);
+    }
+
     [Fact]
     public async Task Delete_RemovesObjectAndRecord()
     {

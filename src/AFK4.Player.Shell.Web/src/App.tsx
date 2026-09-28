@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ShellBridgeRequestTypeNames } from '@afk4/contracts';
-import { apiBaseUrl } from './api/playerApi';
+import { PLAYER_UNAUTHORIZED_EVENT, apiBaseUrl } from './api/playerApi';
 import { useI18n, isLocale } from '@afk4/i18n';
 import { AlertOctagon, Loader2, WifiOff } from 'lucide-react';
 import { requestHost, useShellHost } from './host/shellHost';
@@ -17,6 +17,32 @@ import { SummaryScreen } from './screens/SummaryScreen';
 import { AssistButton } from './ui/AssistButton';
 import { SeatBadge } from './ui/SeatBadge';
 import { SystemBar } from './ui/SystemBar';
+
+/**
+ * Сколько ждать службу ПК, прежде чем сказать, что она не отвечает. Обычно состояние приходит за
+ * секунду после запуска; двадцать — уже не «подключаемся», а сбой, и крутить колесо дальше — молчать.
+ */
+export const CONNECTING_STUCK_MS = 20_000;
+
+function ConnectingScreen() {
+  const { t } = useI18n();
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStuck(true), CONNECTING_STUCK_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  // Позвать администратора кнопкой нельзя: вызов идёт через ту самую службу, что молчит.
+  return (
+    <StatusScreen
+      icon={<Loader2 className="spin" />}
+      title={t('playerShell.connecting.title')}
+      body={stuck ? t('playerShell.connecting.stuck') : undefined}
+    />
+  );
+}
+
+/** Сколько после закрытия окна входа ввод не считается подходом: дольше шага сигналов хоста. */
+const DISMISS_GRACE_MS = 2000;
 
 export function App() {
   const { t, setLocale } = useI18n();
@@ -43,16 +69,40 @@ export function App() {
   }, []);
 
   // Подошли к свободному ПК — витрина уступает место окну входа; отошли — возвращается.
+  // Закрыли окно сами (Esc, «Назад») — эта клавиша тоже ввод, и хост сообщит о нём с опозданием до
+  // секунды (`InputActivityTracker.DefaultActivityEvery`). Такой сигнал — не «подошли снова».
   const lastActivity = useRef(host.activity);
+  const dismissedAtMs = useRef(0);
   useEffect(() => {
     if (host.activity !== lastActivity.current) {
       lastActivity.current = host.activity;
-      setApproached(true);
+      if (Date.now() - dismissedAtMs.current >= DISMISS_GRACE_MS) setApproached(true);
     }
   }, [host.activity]);
+  const dismissSignIn = useCallback(() => {
+    dismissedAtMs.current = Date.now();
+    setApproached(false);
+  }, []);
+  // Минута тишины: витрина возвращается, а вошедший, но так и не начавший сессию, выходит. Сервер
+  // гасит такой вход только через 5 минут — и всё это время подошедший следом начал бы сессию на
+  // чужие деньги (`DeviceBoundPlayerTokens.PreSessionWindow`).
+  const screenNow = useRef<ShellScreen>('connecting');
   useEffect(() => {
-    if (host.idle > 0) setApproached(false);
+    if (host.idle === 0) return;
+    setApproached(false);
+    if (screenNow.current === 'chooseTime') void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
   }, [host.idle]);
+
+  // Сервер отказал входу (401): токены погашены — по сроку или новым входом. Экран с чужим именем и
+  // балансом держать незачем: выходим, как при тишине.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setEnded(null);
+      void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
+    };
+    window.addEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
 
   // Язык филиала — пока человек не выбрал свой. Флаг выбора — ref, а не состояние: эффект от
   // пришедшего состояния может выполниться уже после клика «Тоҷ» (React откладывает эффекты), и
@@ -63,21 +113,40 @@ export function App() {
     if (!localeChosen.current && branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
   }, [branchLocale, setLocale]);
 
+  // Выбор языка — этого игрока: вышел — следующий видит язык клуба, а не чужой выбор.
+  const signedIn = host.auth.signedIn;
+  const wasSignedIn = useRef(signedIn);
+  useEffect(() => {
+    if (wasSignedIn.current && !signedIn) {
+      localeChosen.current = false;
+      if (branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
+    }
+    wasSignedIn.current = signedIn;
+  }, [signedIn, branchLocale, setLocale]);
+
   // Цвет клуба — поверх палитры, если его можно читать; иначе остаётся фирменный зелёный.
   const accent = clubAccent(state?.branding?.accentColor);
   const shellStyle = accent ? ({ '--club-accent': accent } as CSSProperties) : undefined;
 
   const screen = selectScreen({ state, signedIn: host.auth.signedIn, approached, ended: ended !== null });
+  screenNow.current = screen;
 
   // Сессия вошедшего закрылась сама — по таймеру или у стойки: итог нужен и тогда. Смотрим на экран
   // без учёта итога, иначе он сам себя и перекрывал бы.
   const baseScreen = selectScreen({ state, signedIn: host.auth.signedIn, approached });
-  const previous = useRef<{ screen: ShellScreen; sessionId: string | null }>({ screen: baseScreen, sessionId: null });
+  const previous = useRef<{ screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null }>({
+    screen: baseScreen, sessionId: null, ownerPlayerAccountId: null
+  });
+  const signedInAccountId = host.auth.signedIn ? host.auth.playerAccountId ?? null : null;
+  const sessionOwnerAccountId = state?.sessionOwnerPlayerAccountId ?? null;
   useEffect(() => {
-    const sessionId = endedSessionId(previous.current, baseScreen, host.auth.signedIn);
-    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null });
-    previous.current = { screen: baseScreen, sessionId: state?.sessionId ?? previous.current.sessionId };
-  }, [baseScreen, host.auth.signedIn, state?.sessionId]);
+    const sessionId = endedSessionId(previous.current, baseScreen, signedInAccountId);
+    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null, endedAtMs: Date.now() });
+    // Кончилась сессия — следующее состояние уже без неё: помним, чья была последняя.
+    previous.current = state?.sessionId
+      ? { screen: baseScreen, sessionId: state.sessionId, ownerPlayerAccountId: sessionOwnerAccountId }
+      : { ...previous.current, screen: baseScreen };
+  }, [baseScreen, signedInAccountId, state?.sessionId, sessionOwnerAccountId]);
   const online = state?.isOnline ?? false;
 
   return (
@@ -93,9 +162,7 @@ export function App() {
     const seat = state ? <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} /> : null;
     switch (screen) {
       case 'connecting':
-        return (
-          <StatusScreen icon={<Loader2 className="spin" />} title={t('playerShell.connecting.title')} />
-        );
+        return <ConnectingScreen />;
       case 'offline':
         return (
           <StatusScreen
@@ -132,7 +199,7 @@ export function App() {
               system={host.system}
               auth={host.auth}
               onSignIn={() => setSigningIn(true)}
-              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd })}
+              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd, endedAtMs: Date.now() })}
             />
             {signingIn && !host.auth.signedIn ? <SignInPanel state={state!} onClose={() => setSigningIn(false)} /> : null}
           </>
@@ -150,15 +217,15 @@ export function App() {
         );
       case 'chooseTime':
         return <ChooseTimeScreen state={state!} auth={host.auth} />;
-      case 'approach':
+      default:
+        // Простой и «подошли» — одна витрина: окно входа ложится поверх того же экземпляра, и после
+        // отхода от ПК показ продолжается с той же карточки, а не с первой.
         return (
           <>
-            <IdleScreen state={state!} dimmed />
-            <SignInPanel state={state!} onClose={() => setApproached(false)} />
+            <IdleScreen state={state!} dimmed={screen === 'approach'} />
+            {screen === 'approach' ? <SignInPanel state={state!} onClose={dismissSignIn} /> : null}
           </>
         );
-      default:
-        return <IdleScreen state={state!} />;
     }
   }
 }

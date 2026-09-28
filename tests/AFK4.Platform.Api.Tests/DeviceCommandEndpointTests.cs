@@ -74,11 +74,12 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
-    public async Task PostDeviceCommand_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    public async Task PostDeviceCommand_WithoutTheCommandRight_ReturnsForbiddenAndWritesDeniedAudit()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        // Команды ПК теперь и у стойки; без права на них — бухгалтер.
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -400,11 +401,12 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
-    public async Task GetBranchDeviceCommands_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    public async Task GetBranchDeviceCommands_WithoutTheStatusRight_ReturnsForbiddenAndWritesDeniedAudit()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        // Статус команд теперь видит и стойка; без этого права — бухгалтер.
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedDeviceAsync(factory);
 
         var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-commands");
@@ -421,11 +423,12 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
-    public async Task GetDeviceCommands_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    public async Task GetDeviceCommands_WithoutTheStatusRight_ReturnsForbiddenAndWritesDeniedAudit()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        // Статус команд теперь видит и стойка; без этого права — бухгалтер.
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedDeviceAsync(factory);
 
         var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands");
@@ -468,11 +471,12 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
-    public async Task GetDeviceCommandStatus_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    public async Task GetDeviceCommandStatus_WithoutTheStatusRight_ReturnsForbiddenAndWritesDeniedAudit()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        // Статус команд теперь видит и стойка; без этого права — бухгалтер.
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
         await SeedDeviceAsync(factory);
         await SeedPendingCommandAsync(factory, commandId);

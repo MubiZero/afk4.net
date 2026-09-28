@@ -40,10 +40,18 @@ export async function postJson<T>(baseUrl: string, path: string, body: unknown):
   );
 }
 
+/**
+ * Событие окна: сервер ответил 401 — вход игрока на этом ПК погашен. Экран слушает его и выходит,
+ * а не показывает «не получилось» под чужим именем.
+ */
+export const PLAYER_UNAUTHORIZED_EVENT = 'afk4:player-unauthorized';
+
 async function readResponse<T>(response: Response): Promise<T> {
   if (response.ok) {
     return (response.status === 204 ? null : await response.json()) as T;
   }
+
+  if (response.status === 401) window.dispatchEvent(new Event(PLAYER_UNAUTHORIZED_EVENT));
 
   let code: string | null = null;
   try {

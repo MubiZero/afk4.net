@@ -86,7 +86,7 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
             <TableBody>
               {state.data.map(plan => (
                 <TableRow key={plan.planCode}>
-                  <TableCell><span className="font-medium">{plan.name}</span> <code className="mgmt-drawer-hint">{plan.planCode}</code></TableCell>
+                  <TableCell><strong>{plan.name}</strong> <code className="mgmt-drawer-hint">{plan.planCode}</code></TableCell>
                   <TableCell className="pc-num">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
                   <TableCell className="pc-num">
                     {(plan.pricePerDeviceMinorUnits ?? 0) > 0

@@ -69,6 +69,30 @@ public sealed class BranchReviewEndpointTests
         Assert.Null(second.NextBefore);
     }
 
+    // Курсор — время: отзывы с тем же временем, что у последнего на странице, раньше пропадали
+    // между страницами. Теперь они приходят на ту же страницу.
+    [Fact]
+    public async Task ReviewsWithTheSameTime_AreNotLostBetweenPages()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var ids = await SeedAsync(factory, Enumerable.Range(0, 55).Select(_ => (4, (string?)null)).ToArray());
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            // 50-й и 51-й отзывы — в одну минуту: граница страницы проходит между ними.
+            var tie = await db.ClubReviews.SingleAsync(review => review.ReviewId == ids[50]);
+            tie.CreatedAtUtc = (await db.ClubReviews.SingleAsync(review => review.ReviewId == ids[49])).CreatedAtUtc;
+            await db.SaveChangesAsync();
+        }
+
+        var first = (await client.GetFromJsonAsync<BranchReviewsPageDto>(Route()))!;
+        var second = (await client.GetFromJsonAsync<BranchReviewsPageDto>(Route($"?before={Uri.EscapeDataString(first.NextBefore!.Value.ToString("O"))}")))!;
+
+        Assert.Equal(55, first.Items.Concat(second.Items).Select(review => review.ReviewId).Distinct().Count());
+    }
+
     // Отзыв бывает и о смене: стойка его не читает, читают владелец и управляющий.
     [Fact]
     public async Task AnOperator_DoesNotReadReviews()
@@ -157,9 +181,10 @@ public sealed class BranchReviewEndpointTests
         Assert.Single(await RepliedPushesAsync(factory));
     }
 
-    // В шторку уходит начало ответа, обрезанное по слову: целиком его читают в приложении.
+    // Ответ уходит целиком, одной строкой: лента в приложении хранит то же, что ушло пушем, и игрок,
+    // открывший её по пушу, должен прочесть ответ там же. Шторка длинное сворачивает сама.
     [Fact]
-    public async Task ALongAnswer_ArrivesAsItsBeginning_CutBetweenWords()
+    public async Task ALongAnswer_ArrivesWhole_InOneLine()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -172,8 +197,8 @@ public sealed class BranchReviewEndpointTests
 
         var body = Assert.Single(await RepliedPushesAsync(factory)).BodyText;
         Assert.StartsWith("Demo Branch: Спасибо, что написали. Мышь поменяли", body);
-        Assert.EndsWith(" Приходите…", body);
-        Assert.True(body.Length <= "Demo Branch: ".Length + PlayerPushNotifier.ReplyExcerptLength + 1, body);
+        Assert.EndsWith(" Приходите", body);
+        Assert.DoesNotContain("\n", body);
     }
 
     [Theory]

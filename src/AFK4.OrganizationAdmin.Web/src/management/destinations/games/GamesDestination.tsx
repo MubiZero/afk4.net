@@ -9,6 +9,7 @@ import { DeferredSkeleton, SkeletonTable } from '../../../LoadingSkeleton';
 import { createAuthenticatedOperatorClients } from '../../../operatorHelpers';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
+import { useToast } from '../../../operatorToast';
 import type { BranchGameDto, CatalogGameDto } from '../../../api/clients/games';
 import type { DestinationProps } from '../types';
 import {
@@ -25,6 +26,9 @@ import {
   type GameForm,
   type LaunchKind
 } from './gamesModel';
+
+// Пределы полей — те же, что у сервера (GameLibraryLimits): длинное имя уходило и получало отказ.
+const GAME_LIMITS = { name: 120, genre: 60, launchTarget: 200, path: 512, arguments: 512 } as const;
 
 const GAMES_GRID = '56px 1.4fr 1.4fr 140px';
 
@@ -47,6 +51,7 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
   const [games, setGames] = useState<BranchGameDto[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const toast = useToast();
   const [drawer, setDrawer] = useState<Drawer>({ mode: 'closed' });
   const [form, setForm] = useState<GameForm>(emptyGameForm);
   const [formError, setFormError] = useState<string | null>(null);
@@ -127,6 +132,8 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
     }
   };
 
+  // Перестановку и удаление запускают из строки таблицы, а не из формы: их отказ — тостом.
+  // Раньше он писался в состояние экрана, которое при уже загруженном списке не показывалось.
   const move = async (game: BranchGameDto, delta: -1 | 1) => {
     if (client === null || branchId === null || backend === null) return;
     const order = moved(games.map((item) => item.branchGameId), game.branchGameId, delta);
@@ -134,7 +141,8 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
     try {
       setGames(await client.reorder(branchId, { organizationId: backend.session.organizationId, branchGameIds: order }));
     } catch (error) {
-      setLoadError(projectOperatorError(error, t).detail);
+      toast.error(projectOperatorError(error, t).detail);
+      void load();
     }
   };
 
@@ -146,11 +154,12 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
       await load();
       close();
     } catch (error) {
-      setFormError(projectOperatorError(error, t).detail);
+      toast.error(projectOperatorError(error, t).detail);
     }
   };
 
   const kindLabel = (kind: LaunchKind) => t(launchKindLabel[kind]);
+  const inLibrary = new Set(games.map((game) => game.catalogGameId).filter((id): id is string => id !== null));
 
   const content = () => {
     if (status === 'loading' && games.length === 0) {
@@ -250,9 +259,11 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
                 <ul className="games-catalog-list">
                   {catalog.map((game) => (
                     <li key={game.catalogGameId}>
+                      {/* Игра уже в библиотеке — второй раз её не добавить: на ПК стояли бы две одинаковые плитки. */}
                       <button
                         type="button"
                         className="games-catalog-item"
+                        disabled={inLibrary.has(game.catalogGameId)}
                         onClick={() => { setForm(formFromCatalog(game)); setFormError(null); setDrawer({ mode: 'form' }); }}
                       >
                         {game.coverUrl
@@ -260,7 +271,7 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
                           : <span className="games-cover games-cover--empty" aria-hidden="true">{game.name.slice(0, 1)}</span>}
                         <span className="games-catalog-text">
                           <strong>{game.name}</strong>
-                          <span>{[game.genre, game.minAge === null ? null : t('op.games.age', { age: game.minAge })].filter(Boolean).join(' · ')}</span>
+                          <span>{[game.genre, game.minAge === null ? null : t('op.games.age', { age: game.minAge }), inLibrary.has(game.catalogGameId) ? t('op.games.inLibrary') : null].filter(Boolean).join(' · ')}</span>
                         </span>
                       </button>
                     </li>
@@ -288,7 +299,7 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
               {form.catalogCoverUrl && <img className="games-cover games-cover--large" src={form.catalogCoverUrl} alt="" />}
               <label>
                 {t('op.games.field.name')}
-                <input value={form.name} disabled={!canManage} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+                <input value={form.name} maxLength={GAME_LIMITS.name} disabled={!canManage} onChange={(event) => setForm({ ...form, name: event.target.value })} />
               </label>
               <label>
                 {t('op.games.field.kind')}
@@ -303,13 +314,14 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
               {form.launchKind !== 'exe' && (
                 <label>
                   {t(launchTargetLabel[form.launchKind])}
-                  <input value={form.launchTarget} disabled={!canManage} onChange={(event) => setForm({ ...form, launchTarget: event.target.value })} />
+                  <input value={form.launchTarget} maxLength={GAME_LIMITS.launchTarget} disabled={!canManage} onChange={(event) => setForm({ ...form, launchTarget: event.target.value })} />
                 </label>
               )}
               <label className="mgmt-form-wide">
                 {t(form.launchKind === 'exe' ? 'op.games.field.path' : 'op.games.field.pathOverride')}
                 <input
                   value={form.executablePath}
+                  maxLength={GAME_LIMITS.path}
                   disabled={!canManage}
                   spellCheck={false}
                   placeholder="C:\Games\Game\game.exe"
@@ -319,13 +331,13 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
               </label>
               <label className="mgmt-form-wide">
                 {t('op.games.field.arguments')}
-                <input value={form.arguments} disabled={!canManage} spellCheck={false} onChange={(event) => setForm({ ...form, arguments: event.target.value })} />
+                <input value={form.arguments} maxLength={GAME_LIMITS.arguments} disabled={!canManage} spellCheck={false} onChange={(event) => setForm({ ...form, arguments: event.target.value })} />
               </label>
               {!form.catalogGameId && (
                 <>
                   <label>
                     {t('op.games.field.genre')}
-                    <input value={form.genre} disabled={!canManage} onChange={(event) => setForm({ ...form, genre: event.target.value })} />
+                    <input value={form.genre} maxLength={GAME_LIMITS.genre} disabled={!canManage} onChange={(event) => setForm({ ...form, genre: event.target.value })} />
                   </label>
                   <label>
                     {t('op.games.field.age')}

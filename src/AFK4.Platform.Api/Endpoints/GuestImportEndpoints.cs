@@ -31,8 +31,8 @@ internal static class GuestImportEndpoints
                 return Results.BadRequest(new { error = "Currency and idempotency key are required." });
 
             var staff = authorization.StaffContext;
-            var result = await import.RunAsync(staff.OrganizationId, branchId, staff.StaffUserId, request, ct);
-            if (result.Committed)
+            var (result, replayed) = await import.RunAsync(staff.OrganizationId, branchId, staff.StaffUserId, request, ct);
+            if (result.Committed && !replayed)
             {
                 await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
                     staff.OrganizationId, branchId, staff.StaffUserId, AuditActionNames.ImportPlayers, "PlayerImport",

@@ -30,13 +30,17 @@ public sealed class EfMediaService(
         buffer.Position = 0;
 
         // У «одиночных» назначений (логотип, обложка) новая загрузка вытесняет прежнюю.
-        // Галерея так себя не ведёт: там второе фото стирало бы первое.
+        // Галерея так себя не ведёт: там второе фото стирало бы первое. Кроме файла, на который
+        // ссылается сохранённая запись: новая картинка ещё не сохранена, и «Отмена» в форме оставила
+        // бы клуб со ссылкой на стёртый логотип. Он уйдёт со следующей загрузкой, когда перестанет
+        // быть сохранённым.
         if (MediaPurposeNames.IsSingle(purpose))
         {
+            var saved = await SavedUrlAsync(organizationId, branchId, purpose, ct);
             var previous = await db.UploadedMedia
                 .Where(m => m.OrganizationId == organizationId && m.BranchId == branchId && m.Purpose == purpose)
                 .ToListAsync(ct);
-            foreach (var old in previous)
+            foreach (var old in previous.Where(old => old.PublicUrl != saved))
             {
                 await storage.DeleteAsync(old.ObjectKey, ct);
                 db.UploadedMedia.Remove(old);
@@ -58,6 +62,20 @@ public sealed class EfMediaService(
         await db.SaveChangesAsync(ct);
         return new(true, null, new UploadedMediaDto(mediaId, url, sniffed, sizeBytes));
     }
+
+    private Task<string?> SavedUrlAsync(Guid organizationId, Guid branchId, string purpose, CancellationToken ct) => purpose switch
+    {
+        MediaPurposeNames.BranchLogo => db.Branches.AsNoTracking()
+            .Where(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId)
+            .Select(branch => branch.LogoUrl).SingleOrDefaultAsync(ct),
+        MediaPurposeNames.BranchCover => db.Branches.AsNoTracking()
+            .Where(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId)
+            .Select(branch => branch.CoverImageUrl).SingleOrDefaultAsync(ct),
+        MediaPurposeNames.OrganizationLogo => db.Organizations.AsNoTracking()
+            .Where(organization => organization.OrganizationId == organizationId)
+            .Select(organization => organization.LogoUrl).SingleOrDefaultAsync(ct),
+        _ => Task.FromResult<string?>(null)
+    };
 
     public async Task<bool> DeleteAsync(Guid organizationId, Guid branchId, Guid mediaId, CancellationToken ct)
     {

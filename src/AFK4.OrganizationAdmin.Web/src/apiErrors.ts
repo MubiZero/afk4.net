@@ -27,6 +27,26 @@ export class PermissionRefusal extends Error {
 }
 
 const codeMessageKeys = {
+  // Тариф: отказы «Сеть → Подписка». Раньше любой из них выходил как «данные изменились».
+  plan_trial_used: 'op.error.code.planTrialUsed',
+  plan_trial_unavailable: 'op.error.code.planTrialUnavailable',
+  plan_overdue_invoices: 'op.error.code.planOverdueInvoices',
+  plan_nothing_to_promise: 'op.error.code.planNothingToPromise',
+  plan_promise_used: 'op.error.code.planPromiseUsed',
+  plan_promise_unavailable: 'op.error.code.planPromiseUnavailable',
+  plan_already_on_plan: 'op.error.code.planAlreadyOnPlan',
+  plan_devices_too_many: 'op.error.code.planDevicesTooMany',
+  plan_device_unknown: 'op.error.code.planDeviceUnknown',
+  // Чаевые смены.
+  tip_shift_closed: 'op.error.code.tipShiftClosed',
+  tip_already_reversed: 'op.error.code.tipAlreadyReversed',
+  tip_nothing_to_pay: 'op.error.code.tipNothingToPay',
+  tip_already_paid_out: 'op.error.code.tipAlreadyPaidOut',
+  // Библиотека игр и консоли.
+  game_library_full: 'op.error.code.gameLibraryFull',
+  catalog_game_not_found: 'op.error.code.catalogGameNotFound',
+  console_seat_taken: 'op.error.code.consoleSeatTaken',
+  console_seat_not_found: 'op.error.code.consoleSeatNotFound',
   // Пять промахов подряд запирают вход на четверть часа. Под общим «неверный логин или пароль»
   // человек продолжал бы подбирать и злиться, не понимая, почему верный пароль не подходит.
   too_many_password_attempts: 'op.error.code.tooManyPasswordAttempts',

@@ -10,6 +10,8 @@ public sealed class FakeSteamCoverSource : ISteamCoverSource
 
     public readonly ConcurrentDictionary<string, byte[]> Known = new();
 
-    public Task<(byte[] Bytes, string ContentType)?> FetchAsync(string steamAppId, CancellationToken ct) =>
-        Task.FromResult<(byte[] Bytes, string ContentType)?>(Known.TryGetValue(steamAppId, out var bytes) ? (bytes, "image/jpeg") : null);
+    public Task<(byte[] Bytes, string ContentType, string Url)?> FetchAsync(string steamAppId, CancellationToken ct) =>
+        Task.FromResult<(byte[] Bytes, string ContentType, string Url)?>(Known.TryGetValue(steamAppId, out var bytes)
+            ? (bytes, "image/jpeg", $"https://cdn.akamai.steamstatic.com/steam/apps/{steamAppId}/header.jpg")
+            : null);
 }

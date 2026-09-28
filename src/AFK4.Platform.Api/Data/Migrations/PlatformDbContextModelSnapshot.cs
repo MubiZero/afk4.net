@@ -1621,6 +1621,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<int>("DunningStage")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("FallbackAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<long>("GrossAmountMinorUnits")
                         .HasColumnType("bigint");
 
@@ -3858,7 +3861,7 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasIndex("PlayerAccountId");
 
-                    b.HasIndex("PushToken")
+                    b.HasIndex("PushToken", "PlayerAccountId")
                         .IsUnique();
 
                     b.ToTable("player_devices", (string)null);

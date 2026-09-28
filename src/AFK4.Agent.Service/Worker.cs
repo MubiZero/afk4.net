@@ -146,6 +146,7 @@ public sealed class Worker(
                     heartbeat.Branding,
                     heartbeat.HeartbeatIntervalSeconds);
                 shellHeartbeatSnapshot.RecordPlace(heartbeat.Seat, heartbeat.SessionOwner, heartbeat.Features);
+                shellHeartbeatSnapshot.RecordLiveSession(heartbeat.LiveSession);
                 shellHeartbeatSnapshot.RecordMaintenance(heartbeat.MaintenanceSinceUtc, heartbeat.MaintenanceByName);
                 if (maintenanceMode is not null)
                 {

@@ -104,14 +104,33 @@ public sealed class DeviceCommandPolicyEndpointTests
     public void Maintenance_IsItsOwnRight_GivenToThoseWhoLookAfterThePcs()
     {
         Assert.Equal(OrganizationPermissionNames.MaintainDevice, DeviceCommandPolicy.RequiredPermission(DeviceCommandTypeNames.MaintenanceOn));
-        foreach (var role in new[] { OrganizationRoleNames.OrganizationOwner, OrganizationRoleNames.BranchManager, OrganizationRoleNames.Technician })
+        foreach (var role in new[] { OrganizationRoleNames.OrganizationOwner, OrganizationRoleNames.BranchManager, OrganizationRoleNames.Technician, OrganizationRoleNames.ShiftSupervisor })
         {
             Assert.Contains(OrganizationPermissionNames.MaintainDevice, OrganizationPermissionCatalog.GetPermissions([role]));
         }
 
+        // Закрыть ПК для зала решает старший смены или техник, а не стойка.
         Assert.DoesNotContain(
             OrganizationPermissionNames.MaintainDevice,
             OrganizationPermissionCatalog.GetPermissions([OrganizationRoleNames.Operator]));
+    }
+
+    // Решение владельца 2026-09-28: каждой роли — то, что нужно ей по работе.
+    [Fact]
+    public void EachRole_GetsWhatItsWorkNeeds()
+    {
+        static IReadOnlySet<string> Of(string role) => OrganizationPermissionCatalog.GetPermissions([role]);
+
+        // Стойка и старший смены сами перезагружают, запирают и пишут на ПК — ночью техника нет.
+        Assert.Contains(OrganizationPermissionNames.DispatchDeviceCommand, Of(OrganizationRoleNames.Operator));
+        Assert.Contains(OrganizationPermissionNames.ViewDeviceCommandStatus, Of(OrganizationRoleNames.Operator));
+        Assert.Contains(OrganizationPermissionNames.DispatchDeviceCommand, Of(OrganizationRoleNames.ShiftSupervisor));
+        // Бухгалтер видит счета платформы, но тариф не меняет.
+        Assert.Contains(OrganizationPermissionNames.ViewSubscription, Of(OrganizationRoleNames.Accountant));
+        Assert.DoesNotContain(OrganizationPermissionNames.ManageSubscription, Of(OrganizationRoleNames.Accountant));
+        // Управляющий отвечает за рекламу на ПК перед проверяющим — видит её, но не счета.
+        Assert.Contains(OrganizationPermissionNames.ViewPlatformAds, Of(OrganizationRoleNames.BranchManager));
+        Assert.DoesNotContain(OrganizationPermissionNames.ViewSubscription, Of(OrganizationRoleNames.BranchManager));
     }
 
     [Fact]

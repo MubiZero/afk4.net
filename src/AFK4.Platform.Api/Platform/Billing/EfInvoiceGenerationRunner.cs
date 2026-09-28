@@ -29,7 +29,11 @@ public sealed class EfInvoiceGenerationRunner(
             if (invoice is not null)
             {
                 await InvoiceNumbering.SaveAsync(dbContext, invoice, cancellationToken);
-                await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
+                if (invoice.Status == InvoiceStatusNames.Issued)
+                {
+                    await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
+                }
+
                 issued++;
             }
         }
@@ -92,6 +96,13 @@ public sealed class EfInvoiceGenerationRunner(
             subscription.FreeMonths--;
         }
 
+        // Счёт на ноль (бесплатный месяц, скидка во всю сумму) платить не за что: он закрыт в момент
+        // выставления. Выставленный на ноль «к оплате» просрочился бы, собрал напоминания и через
+        // льготу перевёл бы клуб на бесплатный тариф — за долг, которого нет.
+        var amount = gross - discount;
+        var settled = amount <= 0;
+        var dueAt = now.Add(options.InvoiceDueAfter);
+        var terms = await BillingTerms.LoadAsync(dbContext, cancellationToken);
         var invoice = new InvoiceEntity
         {
             InvoiceId = Guid.NewGuid(),
@@ -101,12 +112,14 @@ public sealed class EfInvoiceGenerationRunner(
             PeriodStartUtc = subscription.CurrentPeriodStartUtc,
             PeriodEndUtc = subscription.CurrentPeriodEndUtc,
             IssuedAtUtc = now,
-            DueAtUtc = now.Add(options.InvoiceDueAfter),
-            AmountMinorUnits = gross - discount,
+            DueAtUtc = dueAt,
+            FallbackAtUtc = dueAt.AddDays(terms.FallbackAfterOverdueDays),
+            AmountMinorUnits = amount,
             GrossAmountMinorUnits = gross,
             DiscountMinorUnits = discount,
             CurrencyCode = subscription.CurrencyCode,
-            Status = InvoiceStatusNames.Issued,
+            Status = settled ? InvoiceStatusNames.Paid : InvoiceStatusNames.Issued,
+            PaidAtUtc = settled ? now : null,
             Description = $"Subscription {subscription.PlanCode} " +
                 $"({subscription.CurrentPeriodStartUtc:yyyy-MM-dd} – {subscription.CurrentPeriodEndUtc:yyyy-MM-dd})" +
                 (plan is not null && ClubPlans.IsPerDevice(plan) ? $", PCs: {devices}, billable: {Math.Max(0, devices - plan.IncludedDevices)}" : string.Empty) +

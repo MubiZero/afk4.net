@@ -25,6 +25,11 @@ interface SignInPanelProps {
  * справа. Раскрывается из знака ПК и закрывается по Esc или тишине. Деньги и вход решает сервер:
  * пока ждём ответа — «Входим…», и экран не делает вид, что уже вошли.
  */
+/** Ссылка QR для входа с телефона (спека, §5.4); приложение разбирает её в `parsePcSignInLink`. */
+export function pcSignInUrl(code: string, organizationId: string | null | undefined): string {
+  return organizationId ? `https://afk4.net/s/${code}?o=${encodeURIComponent(organizationId)}` : `https://afk4.net/s/${code}`;
+}
+
 export function SignInPanel({ state, onClose }: SignInPanelProps) {
   const { t } = useI18n();
   const [phone, setPhone] = useState('');
@@ -66,7 +71,7 @@ export function SignInPanel({ state, onClose }: SignInPanelProps) {
   return (
     <div className="sign-in" role="dialog" aria-modal="true" aria-labelledby="sign-in-title">
       <div className="sign-in__head">
-        <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} free />
+        <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} free={state.sessionId === null} />
         <button type="button" className="sign-in__back" onClick={onClose}>{t('playerShell.signIn.back')}</button>
       </div>
 
@@ -110,7 +115,9 @@ export function SignInPanel({ state, onClose }: SignInPanelProps) {
         <h2 className="sign-in__title">{t('playerShell.signIn.qrTitle')}</h2>
         {code ? (
           <div className="sign-in__qr">
-            <QrCode value={`https://afk4.net/s/${code}`} label={t('playerShell.signIn.qrTitle')} />
+            {/* Клуб — в самом QR: у игрока в приложении может быть открыт другой клуб сети, а код
+                посадки сервер ищет внутри клуба. */}
+            <QrCode value={pcSignInUrl(code, state.organizationId)} label={t('playerShell.signIn.qrTitle')} />
             <p>{t('playerShell.signIn.qrHint', { code: formatSeatingCode(code) })}</p>
           </div>
         ) : null}

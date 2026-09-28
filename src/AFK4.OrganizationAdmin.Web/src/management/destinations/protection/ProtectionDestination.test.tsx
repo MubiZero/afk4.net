@@ -145,5 +145,9 @@ describe('ProtectionDestination', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     expect(await screen.findByText(/Защиту уже изменил кто-то другой/)).toBeInTheDocument();
+    // «Отменить» вернул бы ту же старую версию — выход один: перечитать.
+    const loadsBefore = getProtectionProfile.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Перечитать' }));
+    await waitFor(() => expect(getProtectionProfile.mock.calls.length).toBe(loadsBefore + 1));
   });
 });

@@ -16,20 +16,27 @@ import {
 } from '../../model/bar';
 import { INTL_LOCALES } from '../../model/offers';
 
-/** Как часто спрашивать, где заказ: стойка отвечает за минуты, а не за секунды. */
-const ORDER_POLL_MS = 10_000;
-
 /**
  * Бар к месту (группа 1 решений по Панели): меню клуба, заказ с кошелька, статус и отмена, пока
  * заказ не начали готовить. Деньги списываются при заказе и возвращаются при отмене — так же, как
  * в приложении; экран говорит об этом словами, а не молчит.
  */
-export function BarTab({ baseUrl }: { baseUrl: string }) {
+export function BarTab({
+  baseUrl,
+  orders,
+  onOrderChanged,
+  reloadOrders
+}: {
+  baseUrl: string;
+  /** Заказы живут на экране сессии (`useBarOrders`): статус виден и с других вкладок. */
+  orders: readonly ShopOrderDto[];
+  onOrderChanged: (order: ShopOrderDto) => void;
+  reloadOrders: () => Promise<void>;
+}) {
   const { t, locale } = useI18n();
   const [catalog, setCatalog] = useState<ShopCatalogItemDto[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [cart, setCart] = useState<Cart>({});
-  const [orders, setOrders] = useState<ShopOrderDto[]>([]);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -49,27 +56,11 @@ export function BarTab({ baseUrl }: { baseUrl: string }) {
     }
   }, [baseUrl]);
 
-  const loadOrders = useCallback(async () => {
-    try {
-      const list = await getJson<ShopOrderDto[]>(baseUrl, '/api/me/shop/orders');
-      if (Array.isArray(list)) setOrders(list);
-    } catch {
-      // Статус заказа подтянется на следующем круге; меню от этого не ломается.
-    }
-  }, [baseUrl]);
-
   useEffect(() => {
     void loadCatalog();
-    void loadOrders();
-  }, [loadCatalog, loadOrders]);
+  }, [loadCatalog]);
 
   const active = orders.filter(isOrderActive);
-  const hasActive = active.length > 0;
-  useEffect(() => {
-    if (!hasActive) return;
-    const timer = window.setInterval(() => void loadOrders(), ORDER_POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [hasActive, loadOrders]);
 
   const place = async () => {
     if (placing || !catalog) return;
@@ -80,7 +71,7 @@ export function BarTab({ baseUrl }: { baseUrl: string }) {
         lines: cartLines(cart),
         idempotencyKey: idempotencyKey.current
       });
-      setOrders((current) => [order, ...current.filter((existing) => existing.id !== order.id)]);
+      onOrderChanged(order);
       setCart({});
       idempotencyKey.current = crypto.randomUUID();
     } catch (reason) {
@@ -100,10 +91,10 @@ export function BarTab({ baseUrl }: { baseUrl: string }) {
     setError(null);
     try {
       const updated = await postJson<ShopOrderDto>(baseUrl, `/api/me/shop/orders/${order.id}/cancel`, {});
-      setOrders((current) => current.map((existing) => (existing.id === updated.id ? updated : existing)));
+      onOrderChanged(updated);
     } catch {
       setError('playerShell.bar.cancelFailed');
-      void loadOrders();
+      void reloadOrders();
     } finally {
       setCancelling(null);
     }

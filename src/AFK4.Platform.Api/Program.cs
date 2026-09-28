@@ -433,7 +433,8 @@ builder.Services.Configure<MediaOptions>(mediaSection);
 // Singleton: AmazonS3Client is thread-safe and owns an HttpClient/connection pool; a per-request
 // (Scoped) client would leak handlers/sockets under load. MediaOptions is read once at construction.
 builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
-builder.Services.AddHttpClient(SteamCdnCoverSource.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10));
+// Две картинки на игру по очереди — пять секунд на каждую: сохранение игры не ждёт Steam по 20 с.
+builder.Services.AddHttpClient(SteamCdnCoverSource.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(5));
 builder.Services.AddSingleton<ISteamCoverSource, SteamCdnCoverSource>();
 builder.Services.AddScoped<IMediaService, EfMediaService>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
@@ -448,7 +449,8 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 
 builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
 // Копия картинки рекламы при одобрении: короткий срок — модератор ждёт ответа.
-builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10))
+    .ConfigurePrimaryHttpMessageHandler(AFK4.Platform.Api.Ads.PublicAddressGuard.CreateHandler);
 builder.Services.AddScoped<IEskhataMerchantClientFactory, EskhataMerchantClientFactory>();
 
 // Адрес клиента за Traefik (см. TrustedProxies): без этого все ограничения «по IP» считают адрес прокси.

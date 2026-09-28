@@ -79,14 +79,21 @@ export interface LedgerEntryView {
   isReversal: boolean; // запись реверсирует другую (reversesLedgerEntryId != null)
 }
 
+function humanReason(entry: LedgerEntryDto, t: TFunc): string {
+  const birthday = entry.entryType === 'birthday_bonus' ? /^birthday (\d{4})$/.exec(entry.reason ?? '') : null;
+  return birthday ? t('op.players.ledger.birthdayYear', { year: birthday[1] }) : entry.reason ?? '';
+}
+
 export function projectLedgerEntry(entry: LedgerEntryDto, t: TFunc): LedgerEntryView {
   const minorUnits = entry.amount?.minorUnits ?? 0;
   return {
     id: entry.ledgerEntryId,
     timeLabel: formatTime(entry.createdAtUtc),
     typeLabel: ledgerTypeLabel(entry.entryType, t),
-    description: entry.description ?? '',
-    reason: entry.reason ?? '',
+    // У подарка на день рождения сервер пишет машинные описание и причину («birthday_bonus ·
+    // birthday 2026»): тип записи уже назван словами, а год — переводим.
+    description: entry.description === entry.entryType ? '' : entry.description ?? '',
+    reason: humanReason(entry, t),
     accountType: entry.accountType,
     quantitySeconds: entry.quantitySeconds ?? 0,
     amountMinorUnits: minorUnits,

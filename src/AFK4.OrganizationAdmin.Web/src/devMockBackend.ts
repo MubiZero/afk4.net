@@ -36,9 +36,116 @@ export function createMockSession({ withoutBranch = false }: { withoutBranch?: b
     refreshTokenExpiresAtUtc: FAR_FUTURE,
     branchIds: [BRANCH],
     activeBranchId: BRANCH,
-    roleNames: ['operator'],
+    // Все права — значит владелец: с ролью «оператор» полоса внизу писала «Оператор» человеку,
+    // который управляет подпиской.
+    roleNames: ['organization_owner'],
     permissions: Object.values(permissionNames)
   };
+}
+
+// Отчёты учебного клуба за неделю: без них раздел «Отчёты» падал на пустом ответе.
+const REPORT_STAFF = '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134';
+function reportPeriod() {
+  const to = new Date();
+  const from = new Date(to.getTime() - 6 * 24 * 3600 * 1000);
+  const day = (value: Date) => value.toISOString().slice(0, 10);
+  return { fromDate: day(from), toDate: day(to), timeZone: 'Asia/Dushanbe', fromUtc: `${day(from)}T00:00:00Z`, toUtc: to.toISOString() };
+}
+const REPORT_DAILY = [182000, 214500, 198000, 256000, 301500, 344000, 287500];
+function reportSummary() {
+  const period = reportPeriod();
+  const start = new Date(`${period.fromDate}T00:00:00Z`).getTime();
+  const total = REPORT_DAILY.reduce((sum, value) => sum + value, 0);
+  return {
+    period,
+    attentionTotalCount: 1,
+    attentionItems: [{ kind: 'shift_discrepancy', title: 'Расхождение в кассе', detail: 'Смена 24 сент.', targetId: 'sh-prev', amount: money(-1500) }],
+    figures: { netRevenue: money(total), gameplayRevenue: money(Math.round(total * 0.78)), posNetSales: money(Math.round(total * 0.22)), gameplaySeconds: 412 * 3600 },
+    trend: REPORT_DAILY.map((value, index) => ({ date: new Date(start + index * 24 * 3600 * 1000).toISOString().slice(0, 10), netRevenue: money(value) })),
+    activeShift: { shiftId: 'sh1', openedByStaffUserId: REPORT_STAFF, openedAtUtc: minutesAgoUtc(7 * 60), expectedCash: money(84500), isProvisional: true }
+  };
+}
+function reportRevenue() {
+  const total = REPORT_DAILY.reduce((sum, value) => sum + value, 0);
+  return {
+    period: reportPeriod(),
+    grossRevenue: money(total + 6000), refunds: money(6000), netRevenue: money(total),
+    gameplayRevenue: money(Math.round(total * 0.78)), gameplaySeconds: 412 * 3600, posNetSales: money(Math.round(total * 0.22)),
+    comparison: { previousNetRevenue: money(1612000), differenceMinorUnits: total - 1612000, changePercent: Math.round(((total - 1612000) / 1612000) * 1000) / 10 },
+    sources: [{ source: 'gameplay', revenue: money(Math.round(total * 0.78)) }, { source: 'pos', revenue: money(Math.round(total * 0.22)) }],
+    paymentMethods: [
+      { key: 'cash', label: 'Наличные', revenue: money(Math.round(total * 0.46)) },
+      { key: 'wallet', label: 'Баланс гостя', revenue: money(Math.round(total * 0.39)) },
+      { key: 'card', label: 'Карта', revenue: money(Math.round(total * 0.15)) }
+    ],
+    operators: [
+      { key: REPORT_STAFF, label: 'Шерзод', revenue: money(Math.round(total * 0.57)) },
+      { key: 'staff-2', label: 'Фаридун', revenue: money(Math.round(total * 0.43)) }
+    ]
+  };
+}
+function reportShiftsCash() {
+  const shift = (id: string, hoursAgo: number, open: boolean, difference: number | null) => ({
+    shiftId: id, organizationId: ORG, branchId: BRANCH, openedByStaffUserId: REPORT_STAFF, closedByStaffUserId: open ? null : REPORT_STAFF,
+    state: open ? 'open' : 'closed', startingCash: money(20000), cashMovementsTotal: money(-3500), posCashPaymentsTotal: money(41000),
+    posRefundsTotal: money(0), billingCashImpactTotal: money(27000), expectedCash: money(84500),
+    countedCash: difference === null ? null : money(84500 + difference), difference: difference === null ? null : money(difference),
+    openedAtUtc: minutesAgoUtc(hoursAgo * 60), closedAtUtc: open ? null : minutesAgoUtc((hoursAgo - 12) * 60)
+  });
+  return {
+    period: reportPeriod(),
+    shifts: [shift('sh1', 7, true, null), shift('sh-prev', 31, false, -1500), shift('sh-prev-2', 55, false, 0)],
+    cashOperations: [
+      { operationId: 'op-1', organizationId: ORG, branchId: BRANCH, shiftId: 'sh1', createdByStaffUserId: REPORT_STAFF, sourceType: 'cash_movement', operationType: 'cash_out', cashImpact: money(-3500), reason: 'Чаевые: Шерзод', createdAtUtc: minutesAgoUtc(60), createdByDisplayName: 'Шерзод' },
+      { operationId: 'op-2', organizationId: ORG, branchId: BRANCH, shiftId: 'sh-prev', createdByStaffUserId: REPORT_STAFF, sourceType: 'cash_movement', operationType: 'cash_in', cashImpact: money(10000), reason: 'Размен', createdAtUtc: minutesAgoUtc(30 * 60), createdByDisplayName: 'Шерзод' }
+    ],
+    cashInTotal: money(10000), cashOutTotal: money(3500), netCashTotal: money(6500)
+  };
+}
+
+function reportGameplayTime() {
+  const row = (id: string, seatId: string, hours: number, revenue: number, kind: string, startedHoursAgo: number, packageHours = 0) => ({
+    sessionId: id, organizationId: ORG, branchId: BRANCH, seatId, deviceId: `d-${seatId}`, createdByStaffUserId: REPORT_STAFF,
+    playerKind: kind, playerAccountId: kind === 'guest' ? null : 'pl-2', state: 'Ended',
+    durationSeconds: hours * 3600, packageSeconds: packageHours * 3600, bonusSeconds: 0, gameplayRevenue: money(revenue),
+    startedAtUtc: minutesAgoUtc(startedHoursAgo * 60), endedAtUtc: minutesAgoUtc((startedHoursAgo - hours) * 60), endsAtUtc: null
+  });
+  const rows = [
+    row('gs-1', 'a1', 3, 30000, 'account', 5),
+    row('gs-2', 'a3', 2, 20000, 'guest', 9),
+    row('gs-3', 'b1', 5, 0, 'account', 26, 5),
+    row('gs-4', 'a2', 1, 10000, 'guest', 30)
+  ];
+  return {
+    rows, limit: 200,
+    totalDurationSeconds: rows.reduce((sum, item) => sum + item.durationSeconds, 0),
+    totalPackageSeconds: rows.reduce((sum, item) => sum + item.packageSeconds, 0),
+    totalBonusSeconds: 0,
+    gameplayRevenueTotal: money(rows.reduce((sum, item) => sum + item.gameplayRevenue.minorUnits, 0))
+  };
+}
+
+function reportOperatorActions() {
+  const SECOND_STAFF = '9c2f6e1a-4b7d-4e3a-8f21-5d6c7b8a9e01';
+  const row = (actorStaffUserId: string | null, actorDisplayName: string, action: string, outcome: string, count: number, lastMinutesAgo: number) => ({
+    actorStaffUserId, actorDisplayName, action, outcome, count,
+    firstAtUtc: minutesAgoUtc(lastMinutesAgo + 8 * 60), lastAtUtc: minutesAgoUtc(lastMinutesAgo)
+  });
+  const rows = [
+    row(REPORT_STAFF, 'Шерзод', 'sessions.start', 'Succeeded', 24, 12),
+    row(REPORT_STAFF, 'Шерзод', 'sessions.extend', 'Succeeded', 11, 30),
+    row(REPORT_STAFF, 'Шерзод', 'pos.sales.create', 'Succeeded', 38, 5),
+    row(SECOND_STAFF, 'Нилуфар', 'sessions.end', 'Succeeded', 9, 45),
+    row(SECOND_STAFF, 'Нилуфар', 'pos.sales.refund', 'Succeeded', 2, 140),
+    row(SECOND_STAFF, 'Нилуфар', 'pos.sales.void', 'Denied', 1, 200)
+  ];
+  return { rows, limit: 500, totalActionCount: rows.reduce((sum, item) => sum + item.count, 0) };
+}
+
+/** День рождения сегодня — чтобы в демо было видно «Сегодня день рождения». */
+function birthdayToday(year: number): string {
+  const today = new Date();
+  return `${year}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 }
 
 function json(body: unknown): Response {
@@ -72,7 +179,7 @@ function floorMap() {
       { seatId: 'a6', seatName: 'PC-06', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 60, state: 'Free', deviceId: 'd8', deviceName: 'PC-06', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
       // VIP — поменьше, с одним местом на обслуживании.
       { seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 10, state: 'Active', deviceId: 'd5', deviceName: 'VIP-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's5', remainingSeconds: 5400, playerDisplayName: 'Мадина С.', tariffName: 'VIP час', sessionStartedAtUtc: minutesAgoUtc(50) },
-      { seatId: 'b2', seatName: 'VIP-02', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 20, state: 'Maintenance', deviceId: 'd6', deviceName: 'VIP-02', isDeviceOnline: false, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T08:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'b2', seatName: 'VIP-02', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 20, state: 'Maintenance', deviceId: 'd6', deviceName: 'VIP-02', isDeviceOnline: false, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T08:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null, maintenanceSinceUtc: minutesAgoUtc(90) },
       { seatId: 'b3', seatName: 'VIP-03', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 30, state: 'Free', deviceId: 'd9', deviceName: 'VIP-03', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
       // Зал B — две проблемы (ошибка команды + нет связи) и одна сессия.
       { seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 10, state: 'Failed', deviceId: 'd10', deviceName: 'PC-07', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
@@ -677,6 +784,18 @@ function eskhataConfig(): Record<string, unknown> {
   return mutableEskhataConfig;
 }
 
+function demoNews() {
+  const item = (id: string, title: string, body: string, branchId: string | null, publishedHoursAgo: number, showOnPcs: boolean) => ({
+    id, branchId, title, body, imageUrl: null, isPublished: true, showOnPcs,
+    publishAtUtc: minutesAgoUtc(publishedHoursAgo * 60), expiresAtUtc: null,
+    createdAtUtc: minutesAgoUtc(publishedHoursAgo * 60), updatedAtUtc: minutesAgoUtc(publishedHoursAgo * 60)
+  });
+  return [
+    item('n-1', 'Турнир по CS2 в субботу', 'Сбор в 18:00, призовой фонд — 500 с. Запись у администратора.', BRANCH, 5, true),
+    item('n-2', 'Ночной пакет подешевел', 'С 22:00 до 06:00 — 25 с. вместо 30 с.', null, 30, false)
+  ];
+}
+
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
 function route(pathname: string, method: string): unknown | undefined {
@@ -685,10 +804,20 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
+  // Новости: где владелец может публиковать, и пара примеров, чтобы экран не стоял пустым.
+  if (pathname.endsWith('/news/scope') && method === 'GET') {
+    return { branches: previewOwnerBranches, canPublishToAllBranches: true };
+  }
+  if (pathname.endsWith('/news') && method === 'GET') return demoNews();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
   if (pathname.endsWith('/birthday-gift-settings') && method === 'GET') return mockBirthdayGiftSettings;
   if (pathname.endsWith('/tip-settings') && method === 'GET') return { enabled: mockTipsEnabled };
   if (pathname.endsWith('/plan') && method === 'GET') return mockPlan;
+  if (pathname.endsWith('/reports/workspace/summary') && method === 'GET') return reportSummary();
+  if (pathname.endsWith('/reports/gameplay-time') && method === 'GET') return reportGameplayTime();
+  if (pathname.endsWith('/reports/operator-actions') && method === 'GET') return reportOperatorActions();
+  if (pathname.endsWith('/reports/workspace/revenue') && method === 'GET') return reportRevenue();
+  if (pathname.endsWith('/reports/workspace/shifts-cash') && method === 'GET') return reportShiftsCash();
   if (pathname.endsWith('/platform-ads') && method === 'GET') return mockClubAds();
   if (pathname.endsWith('/subscription') && method === 'GET') return mockSubscription();
   if (pathname.endsWith('/invoices') && method === 'GET') return [];
@@ -731,7 +860,9 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/inventory/stock-movements') && method === 'POST') return { stockMovementId: 'mock-movement' };
   if (pathname.endsWith('/commands') && method === 'GET') return [];
   if (pathname.endsWith('/diagnostics') && method === 'GET') return diagnostics();
-  if (pathname.includes('/devices/') && method === 'GET') return deviceDetail();
+  // Карточка ПК — но не его опись железа: та отвечается ниже своим обработчиком. Раньше это правило
+  // перехватывало и её, экран получал карточку вместо описи и ронял весь раздел «Управление».
+  if (pathname.includes('/devices/') && !/\/hardware(\/accept)?$/.test(pathname) && method === 'GET') return deviceDetail();
   return undefined;
 }
 
@@ -741,6 +872,7 @@ type MockPlayer = {
   debtBalanceMinorUnits: number; activePackageCount: number; isActive: boolean;
   createdAtUtc: string; lastActivityAtUtc: string | null;
   activePackageName: string | null; activePackageRemainingMinutes: number;
+  platformPersonId?: string | null; birthDate?: string | null;
 };
 let mutablePlayers: MockPlayer[] | null = null;
 function players(): MockPlayer[] {
@@ -749,8 +881,8 @@ function players(): MockPlayer[] {
       // Давний клиент, играет прямо сейчас — тег «Новый» не горит, визит «сейчас», есть банк времени.
       { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true, createdAtUtc: daysAgoUtc(400), lastActivityAtUtc: minutesAgoUtc(15), activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150 },
       // Зарегистрирован 3 дня назад (< 7 — тег «Новый») и заходил вчера.
-      { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(3), lastActivityAtUtc: daysAgoUtc(1), activePackageName: null, activePackageRemainingMinutes: 0 },
-      { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(200), lastActivityAtUtc: daysAgoUtc(3), activePackageName: null, activePackageRemainingMinutes: 0 },
+      { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(3), lastActivityAtUtc: daysAgoUtc(1), activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: 'person-2', birthDate: birthdayToday(2004) },
+      { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(200), lastActivityAtUtc: daysAgoUtc(3), activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: 'person-3', birthDate: '1999-03-14' },
       // Визит 10 дней назад — колонка показывает «недели», а не «дни».
       { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(150), lastActivityAtUtc: daysAgoUtc(10), activePackageName: null, activePackageRemainingMinutes: 0 },
       { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true, createdAtUtc: daysAgoUtc(60), lastActivityAtUtc: daysAgoUtc(2), activePackageName: 'Дневной абонемент', activePackageRemainingMinutes: 420 },
@@ -1288,6 +1420,18 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     prependLedger(entry);
     return json(entry);
   }
+  if (url.pathname.endsWith('/plan/per-pc') && method === 'POST') {
+    mockPlan = { ...mockPlan, planCode: 'per_pc', kind: 'per_pc', trialAvailable: false, canSwitchToPerPc: false, devicesOutsidePlan: 0 };
+    return json(mockPlan);
+  }
+  if (url.pathname.endsWith('/plan/promised-payment') && method === 'POST') {
+    mockPlan = { ...mockPlan, promisedPaymentAvailable: false, promisedPaymentUntilUtc: minutesAgoUtc(-60 * 24 * 7) };
+    return json(mockPlan);
+  }
+  if (url.pathname.endsWith('/billing/status') && method === 'GET') {
+    // Учебный клуб долгов платформе не имеет — баннера нет, как у честного клуба.
+    return json({ inArrears: false, outstandingMinorUnits: 0, currencyCode: 'TJS', oldestOverdueInvoiceNumber: null, daysOverdue: 0, graceUntilUtc: null });
+  }
   if (url.pathname.endsWith('/plan/trial') && method === 'POST') {
     mockPlan = { ...mockPlan, planCode: 'per_pc', kind: 'trial', trialAvailable: false, canSwitchToPerPc: false, trialEndsAtUtc: minutesAgoUtc(-60 * 24 * 30) };
     return json(mockPlan);
@@ -1392,7 +1536,9 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     const snapshot = (gpu: string) => ({
       cpu: 'AMD Ryzen 5 5600X 6-Core Processor', cpuThreads: 12, memoryGb: 16, gpus: [{ name: gpu, memoryGb: 12 }],
       motherboard: 'ASUSTeK PRIME B550M-A', disks: [{ name: 'C:', sizeGb: 500 }, { name: 'D:', sizeGb: 1000 }],
-      os: 'Windows 11 Pro 23H2 build 22631', bios: 'American Megatrends 2803'
+      os: 'Windows 11 Pro 23H2 build 22631', bios: 'American Megatrends 2803',
+      physicalDisks: [{ model: 'Samsung SSD 980 1TB', sizeGb: 1000, interface: 'NVMe' }, { model: 'WDC WD10EZEX', sizeGb: 1000, interface: 'SATA' }],
+      monitors: [{ name: 'AOC 24G2', manufacturer: 'AOC', serial: 'GZXK4HA012345' }]
     });
     if (hardwareMatch[1] || previewHardwareAccepted) {
       previewHardwareAccepted = true;
@@ -1437,6 +1583,28 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   const branchGamesMatch = url.pathname.match(/\/branches\/[^/]+\/games(?:\/([^/]+))?$/);
   if (branchGamesMatch && method === 'GET') return json(previewBranchGames);
+  // Порядок, правка и удаление: раньше отвечали «готово» без тела — экран получал null вместо списка
+  // и падал на перестановке.
+  if (branchGamesMatch?.[1] === 'order' && method === 'PUT') {
+    const ids = (JSON.parse(String(init?.body ?? '{}')) as { branchGameIds?: string[] }).branchGameIds ?? [];
+    previewBranchGames = ids
+      .map((id) => previewBranchGames.find((game) => game.branchGameId === id))
+      .filter((game): game is BranchGameDto => game !== undefined)
+      .map((game, index) => ({ ...game, sortOrder: index }));
+    return json(previewBranchGames);
+  }
+  if (branchGamesMatch?.[1] && method === 'PUT') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as Partial<BranchGameDto>;
+    const current = previewBranchGames.find((game) => game.branchGameId === branchGamesMatch[1]);
+    if (!current) return jsonError(404, 'not_found', 'Game not found.');
+    const updated: BranchGameDto = { ...current, ...request, branchGameId: current.branchGameId, sortOrder: current.sortOrder };
+    previewBranchGames = previewBranchGames.map((game) => (game.branchGameId === current.branchGameId ? updated : game));
+    return json(updated);
+  }
+  if (branchGamesMatch?.[1] && method === 'DELETE') {
+    previewBranchGames = previewBranchGames.filter((game) => game.branchGameId !== branchGamesMatch[1]);
+    return noContent();
+  }
   if (branchGamesMatch && !branchGamesMatch[1] && method === 'POST') {
     const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
     const catalog = previewCatalogGames.find((game) => game.catalogGameId === request.catalogGameId);

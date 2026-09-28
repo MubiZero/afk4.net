@@ -33,7 +33,7 @@ const actionsReport = {
   totalActionCount: 12,
   rows: [
     {
-      actorStaffUserId: 'staff-1', actorDisplayName: 'Cashier One', action: 'reservation.cancel',
+      actorStaffUserId: 'staff-1', actorDisplayName: 'Cashier One', action: 'reservations.cancel',
       outcome: 'Denied', count: 3, firstAtUtc: '2026-07-29T10:00:00Z', lastAtUtc: '2026-07-29T18:00:00Z'
     }
   ]
@@ -132,7 +132,9 @@ describe('OperatorActionsReport', () => {
   it('показывает, кто что делал и чем это кончилось', async () => {
     render(<I18nProvider initialLocale="ru"><OperatorActionsReport backend={backend} /></I18nProvider>);
 
-    expect(await screen.findByText('reservation.cancel')).toBeInTheDocument();
+    // Действие приходит кодом аудита — на экране оно словами, код остаётся подсказкой.
+    expect((await screen.findByText('Бронь отменена')).getAttribute('title')).toBe('reservations.cancel');
+    expect(screen.queryByText('reservations.cancel')).not.toBeInTheDocument();
     // Итог приходит машинным словом Denied — на экране оно должно быть по-русски.
     expect(screen.getByText('Отказано')).toBeInTheDocument();
     expect(screen.queryByText('Denied')).not.toBeInTheDocument();
@@ -142,7 +144,7 @@ describe('OperatorActionsReport', () => {
   it('выгружает тот же период в CSV', async () => {
     render(<I18nProvider initialLocale="ru"><OperatorActionsReport backend={backend} /></I18nProvider>);
 
-    await screen.findByText('reservation.cancel');
+    await screen.findByText('Бронь отменена');
     fireEvent.click(screen.getByRole('button', { name: 'Экспорт CSV' }));
 
     await waitFor(() => expect(requestedUrls.some((url) => url.includes('/reports/operator-actions/export.csv'))).toBe(true));

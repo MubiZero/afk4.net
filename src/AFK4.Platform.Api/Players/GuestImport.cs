@@ -25,11 +25,15 @@ public sealed class GuestImport(PlatformDbContext db, TimeProvider clock)
 
     private sealed record Line(int Row, string Phone, string Name, long Balance, long Bonus);
 
-    public async Task<GuestImportResultDto> RunAsync(
+    /// <summary>
+    /// Перенос или его проверка. <paramref name="replayed"/> — тот же ключ уже переносил: ответ тот же,
+    /// но ничего не записано, и журнал второй раз писать не о чем.
+    /// </summary>
+    public async Task<(GuestImportResultDto Result, bool Replayed)> RunAsync(
         Guid organizationId, Guid branchId, Guid actorStaffUserId, GuestImportRequest request, CancellationToken ct)
     {
         var keyHash = BillingCommandIdempotencyKeyHasher.Hash(request.IdempotencyKey);
-        if (!request.DryRun && await ReplayAsync(organizationId, branchId, keyHash, ct) is { } replay) return replay;
+        if (!request.DryRun && await ReplayAsync(organizationId, branchId, keyHash, ct) is { } replay) return (replay, true);
 
         var currency = request.CurrencyCode.Trim().ToUpperInvariant();
         var issues = new List<GuestImportIssueDto>();
@@ -106,7 +110,7 @@ public sealed class GuestImport(PlatformDbContext db, TimeProvider clock)
             !request.DryRun, request.Rows.Count, created, matched, request.Rows.Count - created - matched,
             new MoneyDto(currency, balanceTotal), new MoneyDto(currency, bonusTotal),
             issues.OrderBy(issue => issue.Row).ToList());
-        if (request.DryRun) return result;
+        if (request.DryRun) return (result, false);
 
         db.BillingCommandIdempotency.Add(new BillingCommandIdempotencyEntity
         {
@@ -116,7 +120,7 @@ public sealed class GuestImport(PlatformDbContext db, TimeProvider clock)
         });
         await db.SaveChangesAsync(ct);
         await transaction!.CommitAsync(ct);
-        return result;
+        return (result, false);
     }
 
     /// <summary>
