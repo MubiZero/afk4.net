@@ -244,8 +244,10 @@ void main() {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    // Плитка брони — ниже карточки «Играть»; на невысоком экране до неё надо докрутить.
-    await tester.ensureVisible(find.text('Забронировать'));
+    // Плитка брони — ниже карточки «Играть»; на невысоком экране до неё надо докрутить — и до
+    // середины, иначе её край закрывает нижняя панель разделов.
+    await Scrollable.ensureVisible(tester.element(find.text('Забронировать')), alignment: 0.5);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Забронировать'));
     await tester.pumpAndSettle();
 
