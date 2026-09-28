@@ -10,6 +10,13 @@ public sealed class InvoiceEntity
     public DateTimeOffset PeriodEndUtc { get; set; }
     public DateTimeOffset IssuedAtUtc { get; set; }
     public DateTimeOffset DueAtUtc { get; set; }
+
+    /// <summary>
+    /// Когда неоплата этого счёта переведёт клуб на бесплатный тариф: срок плюс льгота, действовавшая
+    /// при выставлении. Платформа меняет льготу — уже выставленные счета живут по своей. Пусто у
+    /// счетов, выставленных до этого поля: для них действует текущая льгота.
+    /// </summary>
+    public DateTimeOffset? FallbackAtUtc { get; set; }
     public long AmountMinorUnits { get; set; }
     public string CurrencyCode { get; set; } = "TJS";
     public string Status { get; set; } = "issued";

@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
@@ -108,7 +109,7 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
     private static DateTimeOffset? FallbackAt(OrganizationSubscriptionEntity subscription, InvoiceEntity? unpaid, BillingTermsDto terms)
     {
         if (unpaid is null || subscription.PlanCode != OrganizationPlanCodeNames.PerPc) return null;
-        var afterDue = unpaid.DueAtUtc.AddDays(terms.FallbackAfterOverdueDays);
+        var afterDue = unpaid.FallbackAtUtc ?? unpaid.DueAtUtc.AddDays(terms.FallbackAfterOverdueDays);
         return subscription.PaymentGraceUntilUtc > afterDue ? subscription.PaymentGraceUntilUtc : afterDue;
     }
 
@@ -236,13 +237,29 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
             changed++;
         }
 
-        var fallbackBefore = now.AddDays(-(await BillingTerms.LoadAsync(db, ct)).FallbackAfterOverdueDays);
-        var overdueOrganizations = await db.Invoices.AsNoTracking()
-            .Where(invoice => (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue)
-                && invoice.DueAtUtc <= fallbackBefore)
+        // Льгота — та, что действовала при выставлении счёта (FallbackAtUtc): платформа поменяла
+        // условия — уже выставленные счета живут по своим. Текущая льгота — только для счетов,
+        // выставленных до этого поля.
+        var legacyFallbackBefore = now.AddDays(-(await BillingTerms.LoadAsync(db, ct)).FallbackAfterOverdueDays);
+        var fallenDue = await db.Invoices.AsNoTracking()
+            .Where(IsDebt)
+            .Where(invoice => (invoice.FallbackAtUtc != null && invoice.FallbackAtUtc <= now)
+                || (invoice.FallbackAtUtc == null && invoice.DueAtUtc <= legacyFallbackBefore))
             .Select(invoice => invoice.OrganizationId)
             .Distinct()
             .ToListAsync(ct);
+        // Кредит-нота гасит долг, не трогая статус самого счёта: клуб, которому всё зачли, не должен
+        // ничего и на бесплатный не уходит.
+        var unpaidOfFallen = await db.Invoices.AsNoTracking()
+            .Where(invoice => fallenDue.Contains(invoice.OrganizationId)
+                && (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue))
+            .Select(invoice => new { invoice.OrganizationId, invoice.AmountMinorUnits })
+            .ToListAsync(ct);
+        var overdueOrganizations = unpaidOfFallen
+            .GroupBy(invoice => invoice.OrganizationId)
+            .Where(group => group.Sum(invoice => invoice.AmountMinorUnits) > 0)
+            .Select(group => group.Key)
+            .ToList();
         var falling = await db.OrganizationSubscriptions
             .Where(subscription => overdueOrganizations.Contains(subscription.OrganizationId)
                 && subscription.PlanCode == OrganizationPlanCodeNames.PerPc
@@ -313,10 +330,19 @@ public sealed class ClubPlans(PlatformDbContext db, IAuditRecordWriter audit, Ti
 
     private Task<InvoiceEntity?> OldestUnpaidAsync(Guid organizationId, CancellationToken ct) =>
         db.Invoices.AsNoTracking()
-            .Where(invoice => invoice.OrganizationId == organizationId
-                && (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue))
+            .Where(IsDebt)
+            .Where(invoice => invoice.OrganizationId == organizationId)
             .OrderBy(invoice => invoice.DueAtUtc)
             .FirstOrDefaultAsync(ct);
+
+    /// <summary>
+    /// Счёт, который клуб должен оплатить: не закрыт, не кредит-нота и не на ноль. Счёт на ноль
+    /// (бесплатный месяц) долгом не бывает — ни обещанного платежа под него, ни перехода на бесплатный.
+    /// </summary>
+    private static readonly Expression<Func<InvoiceEntity, bool>> IsDebt = invoice =>
+        (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue)
+        && invoice.Kind != InvoiceKindNames.Credit
+        && invoice.AmountMinorUnits > 0;
 
     private async Task SaveWithAuditAsync(Guid organizationId, Guid actorStaffUserId, string action, object details, CancellationToken ct)
     {
