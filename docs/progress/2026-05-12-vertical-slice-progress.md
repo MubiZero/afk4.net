@@ -1120,7 +1120,8 @@ thrown away rather than polished.
    `manager_workstation` pass at 100%/125%, and the physical Windows gaming-PC
    smoke.
 
-Known smaller debts worth picking up between the big pieces: `/api/me/achievements` reading the
-whole visit history and the weight of `/api/public/organizations` — both deferred until the first
-club. Closed on 2026-09-23: the `mock.module` leak (#424), the report-plan tail (#418), the running
+Known smaller debts: none open. Closed on 2026-09-26: `/api/me/achievements` recomputes from the
+whole visit history only after the history changes (a cheap stamp per request), and
+`/api/public/organizations` shares the plain list for 30 seconds, takes the «price from» as a
+database minimum and counts seats in one query. Closed on 2026-09-23: the `mock.module` leak (#424), the report-plan tail (#418), the running
 balance and hold lines in the wallet statement (#396).

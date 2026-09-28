@@ -7,6 +7,7 @@ using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Reviews;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace AFK4.Platform.Api.Endpoints;
 
@@ -231,6 +232,7 @@ internal static class ClubReviewEndpoints
         app.MapGet("/api/me/achievements", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
+            IMemoryCache cache,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -240,7 +242,7 @@ internal static class ClubReviewEndpoints
             }
 
             var achievements = await PlayerAchievementsProjector.GetAsync(
-                dbContext, player.PlayerAccountId, cancellationToken);
+                dbContext, cache, player.PlayerAccountId, cancellationToken);
             return Results.Ok(achievements);
         }).RequireRateLimiting("player-me");
 
