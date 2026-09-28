@@ -450,6 +450,34 @@ public sealed class EfSessionCheckoutServiceTests
         Assert.Equal(saleMovement.UnitCostMinorUnits, refundMovement.UnitCostMinorUnits);
     }
 
+    // A bar order attached to a session settles at checkout, not at the register — the same
+    // low-stock alert must fire here too (was previously wired only into EfPosSettlementService).
+    [Fact]
+    public async Task CheckoutAsync_WithAttachedPosSale_NotifiesLowStockAfterCommit()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        await SeedAttachedPosSaleAsync(db, totalMinorUnits: 1000, quantity: 2, unitCostMinorUnits: 175);
+        var lowStockNotifier = new RecordingLowStockNotifier();
+        var service = CreateService(db, new RecordingDispatch(), lowStockNotifier: lowStockNotifier);
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge + 1000))],
+                "checkout-low-stock-001"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded, result.Error);
+        var call = Assert.Single(lowStockNotifier.Calls);
+        Assert.Equal(TestIds.OrganizationId, call.OrganizationId);
+        Assert.Equal(TestIds.BranchId, call.BranchId);
+        Assert.Equal([ProductId], call.ProductIds);
+    }
+
     [Fact]
     public async Task CheckoutAsync_SplitWalletAndCash_ConsumesWalletAndNetsDebt()
     {
@@ -665,7 +693,8 @@ public sealed class EfSessionCheckoutServiceTests
     private static EfSessionCheckoutService CreateService(
         PlatformDbContext db,
         RecordingDispatch dispatcher,
-        RecordingSessionLifecycleNotifier? lifecycleNotifier = null)
+        RecordingSessionLifecycleNotifier? lifecycleNotifier = null,
+        ILowStockNotifier? lowStockNotifier = null)
     {
         var timeProvider = new FixedTimeProvider(Now);
         var shiftService = new EfShiftService(db, timeProvider);
@@ -678,7 +707,8 @@ public sealed class EfSessionCheckoutServiceTests
             shiftService,
             new EfBillingOutbox(db),
             lifecycleNotifier ?? new RecordingSessionLifecycleNotifier(),
-            timeProvider);
+            timeProvider,
+            lowStockNotifier);
     }
 
     private static async Task SeedCoreAsync(PlatformDbContext db)
@@ -874,6 +904,23 @@ public sealed class EfSessionCheckoutServiceTests
             CreatedAtUtc = Now.AddMinutes(-60)
         });
         await db.SaveChangesAsync();
+    }
+
+    private sealed class RecordingLowStockNotifier : ILowStockNotifier
+    {
+        public List<Call> Calls { get; } = [];
+
+        public Task EvaluateProductsAsync(
+            Guid organizationId,
+            Guid branchId,
+            IReadOnlyCollection<Guid> productIds,
+            CancellationToken cancellationToken)
+        {
+            Calls.Add(new Call(organizationId, branchId, productIds.ToArray()));
+            return Task.CompletedTask;
+        }
+
+        public sealed record Call(Guid OrganizationId, Guid BranchId, IReadOnlyList<Guid> ProductIds);
     }
 
     private sealed class RecordingDispatch : IDeviceCommandDispatchService

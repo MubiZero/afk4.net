@@ -68,6 +68,28 @@ public sealed class EfShopCommerceCoordinatorTests
         Assert.Equal(1, notifier.CreatedCount);
     }
 
+    // Bar order paid from the wallet decrements stock exactly like a POS sale — the same
+    // low-stock alert must fire here too, not only at the register (EfPosSettlementServiceTests).
+    [Fact]
+    public async Task PlaceAsync_TrackedProductSale_NotifiesLowStockAfterCommit()
+    {
+        await using var db = NewDb();
+        var product = await SeedAsync(db);
+        var lowStockNotifier = new RecordingLowStockNotifier();
+        var service = CreateService(db, new RecordingNotifier(db), lowStockNotifier: lowStockNotifier);
+
+        var result = await service.PlaceAsync(
+            PlayerAccountId,
+            new PlaceShopOrderRequest([new ShopOrderLineInput(product.ProductId, 3)], "place-low-stock"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded, result.ErrorCode);
+        var call = Assert.Single(lowStockNotifier.Calls);
+        Assert.Equal(OrganizationId, call.OrganizationId);
+        Assert.Equal(BranchId, call.BranchId);
+        Assert.Equal([product.ProductId], call.ProductIds);
+    }
+
     [Theory]
     [InlineData("missing_shift", "open_shift_required")]
     [InlineData("insufficient_funds", "insufficient_funds")]
@@ -358,7 +380,8 @@ public sealed class EfShopCommerceCoordinatorTests
         PlatformDbContext db,
         IShopOrderNotifier notifier,
         IShopOrderWorkflow? workflow = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ILowStockNotifier? lowStockNotifier = null)
     {
         timeProvider ??= TimeProvider.System;
         workflow ??= CreateWorkflow(db, notifier, timeProvider);
@@ -373,7 +396,8 @@ public sealed class EfShopCommerceCoordinatorTests
             settlement,
             timeProvider,
             notifier,
-            NullLogger<EfShopCommerceCoordinator>.Instance);
+            NullLogger<EfShopCommerceCoordinator>.Instance,
+            lowStockNotifier: lowStockNotifier);
     }
 
     private static EfShopOrderWorkflow CreateWorkflow(
@@ -549,6 +573,23 @@ public sealed class EfShopCommerceCoordinatorTests
             throw new InvalidOperationException("realtime unavailable");
 
         public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class RecordingLowStockNotifier : ILowStockNotifier
+    {
+        public List<Call> Calls { get; } = [];
+
+        public Task EvaluateProductsAsync(
+            Guid organizationId,
+            Guid branchId,
+            IReadOnlyCollection<Guid> productIds,
+            CancellationToken cancellationToken)
+        {
+            Calls.Add(new Call(organizationId, branchId, productIds.ToArray()));
+            return Task.CompletedTask;
+        }
+
+        public sealed record Call(Guid OrganizationId, Guid BranchId, IReadOnlyList<Guid> ProductIds);
     }
 
     private sealed class ThrowConcurrencyOnSaveInterceptor : SaveChangesInterceptor
