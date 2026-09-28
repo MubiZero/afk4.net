@@ -4,7 +4,6 @@ import type { PaymentPartDto } from './operatorApiClients';
 import type { SeatSummary } from './operatorData';
 
 export type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'cash' | 'players' | 'management' | 'stock' | 'network';
-export type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
 export type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 export type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
 export type Feedback = { label: string; state: FeedbackState; detail?: string };
@@ -13,7 +12,6 @@ export type LoadStatus = 'fixture' | 'loading' | 'backend' | 'failed';
 // Фильтры карты: всё / свободно / сессии / нет связи. Один серый бакет «нет связи» вместо
 // прежнего зоопарка (проблемы/сбой/обслуживание) — см. SeatTone.
 export type MapFilterId = 'all' | 'ready' | 'active' | 'endingSoon' | 'offline';
-export type MapViewMode = 'grid' | 'plan';
 export type OperatorConfig = ReturnType<typeof getOperatorConfig>;
 export type OperatorBackendContext = {
   config: OperatorConfig;

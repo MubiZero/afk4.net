@@ -2857,7 +2857,6 @@ export const tg = {
   "op.reports.schedule.emptyHint": "Аввалинро дар шакли боло танзим кунед — то он вақт ҳисоботҳо дар ҳамин ҷо дастӣ кушода мешаванд.",
   "op.reports.schedule.frequency.daily": "Ҳар рӯз",
   "op.reports.schedule.frequency.monthly": "Ҳар моҳ",
-  "op.reports.schedule.frequency.unknown": "Басомади номаълум",
   "op.reports.schedule.frequency.weekly": "Ҳар ҳафта",
   "op.reports.schedule.frequencyLabel": "Чӣ қадар зуд-зуд",
   "op.reports.schedule.frequencyOf": "Басомади фиристодани «{report}»",

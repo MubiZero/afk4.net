@@ -117,7 +117,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         var shift = SeedOpenShift(staff.OrganizationOwner.StaffUserId);
 
         SeedSessions(staff.OrganizationOwner.StaffUserId, seats, devices, players, billing.StandardTariffVersionId);
-        SeedLedger(staff.OrganizationOwner.StaffUserId, shift.ShiftId, players);
+        SeedLedger(shift.ShiftId, players);
         SeedPos(staff.OrganizationOwner.StaffUserId, shift.ShiftId, players.PrimaryPlayerId);
         SeedReservations(staff.OrganizationOwner.StaffUserId, seats, players);
         SeedUpdates(PlatformAdminUserId, devices);
@@ -171,7 +171,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         return new StaffSeed(owner, cashier, technician);
     }
 
-    private StaffUserEntity CreateStaff(Guid staffUserId, string userName, string displayName, params string[] roleNames)
+    private StaffUserEntity CreateStaff(Guid staffUserId, string userName, string displayName, string roleName)
     {
         var staffUser = new StaffUserEntity
         {
@@ -187,18 +187,14 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         staffUser.PasswordHash = new PasswordHasher<StaffUserEntity>().HashPassword(staffUser, operatorPassword);
         dbContext.StaffUsers.Add(staffUser);
 
-        var roleOffset = 0;
-        foreach (var roleName in roleNames)
+        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {
-            dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
-            {
-                StaffRoleAssignmentId = StableGuid(6200 + Math.Abs(HashCode.Combine(staffUserId, roleName)) % 7000 + roleOffset++),
-                StaffUserId = staffUserId,
-                OrganizationId = OrganizationId,
-                BranchId = BranchId,
-                RoleName = roleName
-            });
-        }
+            StaffRoleAssignmentId = StableGuid(6200 + Math.Abs(HashCode.Combine(staffUserId, roleName)) % 7000),
+            StaffUserId = staffUserId,
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            RoleName = roleName
+        });
 
         return staffUser;
     }
@@ -534,7 +530,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         }
     }
 
-    private void SeedLedger(Guid staffUserId, Guid shiftId, PlayerSeed players)
+    private void SeedLedger(Guid shiftId, PlayerSeed players)
     {
         dbContext.LedgerEntries.AddRange(
             Ledger(StableGuid(14001), shiftId, players.PrimaryPlayerId, LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 30000, 0, "Пополнение депозита", "Стартовый депозит"),

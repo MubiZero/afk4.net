@@ -7,15 +7,8 @@ import { postHostRequest as postRequest, postHostWindowMessage } from '@afk4/hos
  * этому хосту: набор оконных команд, изменение размера за край и таймаут.
  */
 export {
-  hostBridgeTimeoutCode,
-  hostBridgeUnavailableMessage,
-  HostBridgeRequestError,
-  HostBridgeUnavailableError,
   isHostBridgeAvailable,
-  isHostBridgeUnavailableError,
-  type HostBridgeError,
-  type HostBridgeMessageEvent,
-  type HostBridgeResponse
+  type HostBridgeMessageEvent
 } from '@afk4/host-bridge';
 
 /** Команды, которые понимает OrganizationAdminWindow.TryHandleWindowMessage. */

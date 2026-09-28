@@ -4,20 +4,6 @@ namespace AFK4.Update.Publisher;
 
 public sealed class EcdsaUpdatePackageSigner
 {
-    public async Task<string> SignAsync(
-        string privateKeyPemPath,
-        byte[] payload,
-        CancellationToken cancellationToken)
-    {
-        if (!File.Exists(privateKeyPemPath))
-        {
-            throw new FileNotFoundException("Update signing private key was not found.", privateKeyPemPath);
-        }
-
-        var pem = await File.ReadAllTextAsync(privateKeyPemPath, cancellationToken);
-        return SignPem(pem, payload);
-    }
-
     public string SignPem(string privateKeyPem, byte[] payload)
     {
         using var ecdsa = ECDsa.Create();

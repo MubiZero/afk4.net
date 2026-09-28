@@ -120,14 +120,6 @@ public static class UpdatePackagePublishCommand
             : throw new ArgumentException($"{name} must be a non-empty GUID.");
     }
 
-    private static Uri RequiredUri(IReadOnlyDictionary<string, string> values, string name)
-    {
-        var value = Required(values, name);
-        return Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            ? uri
-            : throw new ArgumentException($"{name} must be an absolute URI.");
-    }
-
     private static Uri? OptionalUri(IReadOnlyDictionary<string, string> values, string name)
     {
         if (!values.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))

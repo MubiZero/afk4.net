@@ -10,10 +10,6 @@ export interface PlatformApiOptions {
   pathPrefix?: string;
 }
 
-export interface QueryValue {
-  toString(): string;
-}
-
 export type QueryParams = Record<string, string | number | boolean | Date | null | undefined>;
 
 export class PlatformApiError extends Error {

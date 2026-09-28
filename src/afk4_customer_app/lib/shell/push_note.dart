@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'top_banner.dart';
 
 /// Уведомление, пришедшее, пока игрок в приложении.
 ///
@@ -18,44 +19,34 @@ class PushNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
+    return TopBanner(
       color: theme.colorScheme.secondaryContainer,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
-          child: Row(
-            children: [
-              Icon(Icons.notifications_active_outlined,
-                  size: 18, color: theme.colorScheme.onSecondaryContainer),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  text,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
-                ),
-              ),
-              if (onOpen != null)
-                TextButton(
-                  onPressed: onOpen,
-                  // Полоса залита подсветкой акцента, и сам акцент на ней не читается: в
-                  // светлой теме фирменный зелёный давал 3,9:1. Текст на подложке — её пара.
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.onSecondaryContainer,
-                  ),
-                  child: Text(L.of(context).customerPushOpen),
-                ),
-              IconButton(
-                onPressed: onDismiss,
-                icon: const Icon(Icons.close, size: 18),
-                color: theme.colorScheme.onSecondaryContainer,
-                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-              ),
-            ],
-          ),
-        ),
+      foreground: theme.colorScheme.onSecondaryContainer,
+      icon: Icons.notifications_active_outlined,
+      padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
+      content: Text(
+        text,
+        style: theme.textTheme.bodyMedium
+            ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
       ),
+      actions: [
+        if (onOpen != null)
+          TextButton(
+            onPressed: onOpen,
+            // Полоса залита подсветкой акцента, и сам акцент на ней не читается: в
+            // светлой теме фирменный зелёный давал 3,9:1. Текст на подложке — её пара.
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSecondaryContainer,
+            ),
+            child: Text(L.of(context).customerPushOpen),
+          ),
+        IconButton(
+          onPressed: onDismiss,
+          icon: const Icon(Icons.close, size: 18),
+          color: theme.colorScheme.onSecondaryContainer,
+          tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+        ),
+      ],
     );
   }
 }
