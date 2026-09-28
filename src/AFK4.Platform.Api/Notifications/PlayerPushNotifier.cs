@@ -17,10 +17,12 @@ public sealed class PlayerPushNotifier(
     ILogger<PlayerPushNotifier> logger)
 {
     /// <summary>
-    /// Сколько ответа клуба уходит в пуш. Целиком его читают в приложении, а длинное шторка
-    /// всё равно обрежет — только посреди слова.
+    /// Сколько ответа клуба уходит в пуш — весь ответ. Лента уведомлений в приложении хранит то же,
+    /// что ушло пушем: игрок, открывший ленту по пушу, читает ответ там, а не ищет свой отзыв в
+    /// списке отзывов клуба. Длинный текст шторка телефона сворачивает сама. Предел — тот же, что у
+    /// ответа (ReviewLimits.ReplyMax).
     /// </summary>
-    internal const int ReplyExcerptLength = 120;
+    internal const int ReplyExcerptLength = AFK4.Shared.Contracts.Reviews.ReviewLimits.ReplyMax;
 
     public async Task BalanceToppedUpAsync(
         Guid playerAccountId,

@@ -519,6 +519,17 @@ class PlayerApiClient {
     return _parse(body, PlayerReservationDto.fromJson);
   }
 
+  /// Варианты продления с ценой от сервера: сколько спишется, до скольки и что останется.
+  /// Цену клиент не считает — округления и окна тарифа знает только сервер.
+  Future<PlayerExtendOffersDto> getExtendOffers(String sessionId) async => _parse(
+      await getJson('/api/me/sessions/${Uri.encodeComponent(sessionId)}/extend-offers'),
+      PlayerExtendOffersDto.fromJson);
+
+  /// Сколько вернётся, если встать сейчас: тот же расчёт, что при раннем выходе, без записи.
+  Future<PlayerEndQuoteDto> getEndQuote(String sessionId) async => _parse(
+      await getJson('/api/me/sessions/${Uri.encodeComponent(sessionId)}/end-quote'),
+      PlayerEndQuoteDto.fromJson);
+
   /// Продлевает идущую сессию. Деньги списываются сразу, поэтому запрос несёт ключ
   /// идемпотентности — см. `AttemptKey`. Ответ сервера не разбирается: главный экран
   /// всё равно перечитывает себя, а состояние сессии он берёт оттуда, а не из эха команды.

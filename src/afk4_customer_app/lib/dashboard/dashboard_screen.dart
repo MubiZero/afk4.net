@@ -421,12 +421,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => ExtendSessionSheet(
-        api: widget.api,
-        sessionId: session.sessionId,
-        pricePerHourMinorUnits: session.pricePerHourMinorUnits,
-        currencyCode: session.currencyCode,
-      ),
+      builder: (_) => ExtendSessionSheet(api: widget.api, sessionId: session.sessionId),
     );
     if (minutes == null || !mounted) return;
 
@@ -444,11 +439,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// раньше» и «мне вернули столько-то» это одно событие.
   Future<void> _endSession(ActiveSessionDto session) async {
     final l = L.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
+    // Сколько вернётся — до «Закончить», а не после: сервер считает это тем же расчётом, что и сам
+    // ранний выход. Не ответил — диалог говорит общее правило, а не выдуманную сумму.
+    PlayerEndQuoteDto? quote;
+    try {
+      quote = await widget.api.getEndQuote(session.sessionId);
+    } catch (_) {
+      quote = null;
+    }
+    if (!mounted) return;
+    final quoteLine = switch (quote) {
+      null => null,
+      PlayerEndQuoteDto(:final refund) when refund.minorUnits > 0 =>
+        l.customerSessionEndQuoteRefund(formatMoney(refund.minorUnits, refund.currencyCode, locale: locale)),
+      PlayerEndQuoteDto(:final packageMinutesReturned) when packageMinutesReturned > 0 =>
+        l.customerSessionEndQuotePackage(extendDurationLabel(l, packageMinutesReturned)),
+      _ => l.customerSessionEndQuoteNothing,
+    };
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l.customerSessionEndTitle),
-        content: Text(l.customerSessionEndBody),
+        content: Text(quoteLine == null ? l.customerSessionEndBody : '${l.customerSessionEndBody}\n\n$quoteLine'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -471,7 +484,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _endAttempt.done();
       if (!mounted) return;
       unawaited(HapticFeedback.lightImpact());
-      final locale = Localizations.localeOf(context).languageCode;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(ended.refunded.minorUnits > 0
             ? l.customerSessionEndRefunded(

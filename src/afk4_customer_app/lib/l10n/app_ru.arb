@@ -619,7 +619,7 @@
   "customerPlayUnavailable": "Сесть самому сейчас нельзя — подойдите к стойке, администратор посадит вас за ПК",
   "customerProfileBirthdayChange": "Изменить",
   "customerProfileBirthdayClear": "Убрать",
-  "customerProfileBirthdayHint": "По желанию. Клуб увидит дату, чтобы поздравить, а если у него есть подарок — положит его на баланс. Игры с возрастной отметкой откроются по этой дате.",
+  "customerProfileBirthdayHint": "По желанию. Клуб увидит дату, чтобы поздравить, а если у него есть подарок — положит его на баланс. Игру с возрастной отметкой старше вашего возраста ПК клуба не запустит.",
   "customerProfileBirthdayInvalid": "Такую дату не принять — проверьте год.",
   "customerProfileBirthdaySet": "Указать",
   "customerProfileBirthdayTitle": "День рождения",
@@ -934,6 +934,23 @@
   "customerSessionEndConfirm": "Закончить",
   "customerSessionEndFailed": "Не удалось закончить сессию. Попробуйте ещё раз или позовите администратора.",
   "customerSessionEndNoRefund": "Сессия закончена",
+  "customerSessionEndQuoteNothing": "Возвращать нечего: оплаченное время уже сыграно.",
+  "customerSessionEndQuotePackage": "В пакет вернётся {duration}.",
+  "@customerSessionEndQuotePackage": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionEndQuoteRefund": "Вернётся {amount} за неигранное время.",
+  "@customerSessionEndQuoteRefund": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionEndRefunded": "Вернули {amount} за неигранное время",
   "@customerSessionEndRefunded": {
     "placeholders": {
@@ -949,14 +966,6 @@
   "@customerSessionExtendConfirm": {
     "placeholders": {
       "duration": {
-        "type": "String"
-      }
-    }
-  },
-  "customerSessionExtendCost": "Спишется примерно {amount} — точную сумму посчитает клуб по тарифу",
-  "@customerSessionExtendCost": {
-    "placeholders": {
-      "amount": {
         "type": "String"
       }
     }
@@ -981,6 +990,7 @@
       }
     }
   },
+  "customerSessionExtendLoadFailed": "Не удалось узнать цены продления.",
   "customerSessionExtendMinutes": "{count, plural, one {{count} минута} few {{count} минуты} many {{count} минут} other {{count} минуты}}",
   "@customerSessionExtendMinutes": {
     "placeholders": {
@@ -989,8 +999,25 @@
       }
     }
   },
+  "customerSessionExtendNothingAffordable": "На продление не хватает денег. Пополните кошелёк на главной.",
   "customerSessionExtendPending": "Продлеваем…",
+  "customerSessionExtendSummary": "До {time}. Спишется {amount}, на кошельке останется {balance}.",
+  "@customerSessionExtendSummary": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionExtendTitle": "Продлить сессию",
+  "customerSessionExtendUnavailableCounter": "Эту сессию продлевает администратор.",
+  "customerSessionExtendUnavailablePackage": "Сессию по пакету продлевают новым стартом, когда эта закончится.",
   "customerShopCancel": "Отменить заказ",
   "customerShopCancelErrStarted": "Заказ уже готовят — отменить его нельзя",
   "customerShopCancelError": "Не удалось отменить заказ",

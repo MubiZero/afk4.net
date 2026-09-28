@@ -11,7 +11,10 @@ public sealed class PlayerDeviceEntity
 
     public Guid PlayerAccountId { get; set; }
 
-    /// <summary>Токен FCM. Уникален: тот же телефон, перезашедший в другой аккаунт, меняет владельца строки, а не заводит вторую.</summary>
+    /// <summary>
+    /// Токен FCM. Уникален в паре со счётом: у человека со счетами в двух клубах телефон записан на
+    /// оба. Другой человек на том же телефоне вытесняет строки прежнего.
+    /// </summary>
     public string PushToken { get; set; } = string.Empty;
 
     /// <summary>android / ios. Нужно для диагностики: «не доходит на iOS» — это первый вопрос.</summary>

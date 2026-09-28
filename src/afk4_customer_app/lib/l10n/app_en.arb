@@ -619,7 +619,7 @@
   "customerPlayUnavailable": "Self-service seating is unavailable right now — the desk will seat you",
   "customerProfileBirthdayChange": "Change",
   "customerProfileBirthdayClear": "Remove",
-  "customerProfileBirthdayHint": "Optional. The club will see the date to congratulate you and, if it has a gift, add it to your balance. Games with an age rating open by this date.",
+  "customerProfileBirthdayHint": "Optional. The club will see the date to congratulate you and, if it has a gift, add it to your balance. A game rated above your age won't launch on the club's PCs.",
   "customerProfileBirthdayInvalid": "That date can't be accepted — check the year.",
   "customerProfileBirthdaySet": "Add",
   "customerProfileBirthdayTitle": "Birthday",
@@ -934,6 +934,23 @@
   "customerSessionEndConfirm": "Finish",
   "customerSessionEndFailed": "Could not finish the session. Try again or ask an admin.",
   "customerSessionEndNoRefund": "Session finished",
+  "customerSessionEndQuoteNothing": "Nothing to return: the paid time is already played.",
+  "customerSessionEndQuotePackage": "{duration} will go back to your package.",
+  "@customerSessionEndQuotePackage": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionEndQuoteRefund": "{amount} will be returned for the unplayed time.",
+  "@customerSessionEndQuoteRefund": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionEndRefunded": "Refunded {amount} for the time you did not use",
   "@customerSessionEndRefunded": {
     "placeholders": {
@@ -949,14 +966,6 @@
   "@customerSessionExtendConfirm": {
     "placeholders": {
       "duration": {
-        "type": "String"
-      }
-    }
-  },
-  "customerSessionExtendCost": "About {amount} will be charged — the club counts the exact sum by the tariff",
-  "@customerSessionExtendCost": {
-    "placeholders": {
-      "amount": {
         "type": "String"
       }
     }
@@ -981,6 +990,7 @@
       }
     }
   },
+  "customerSessionExtendLoadFailed": "Couldn't get the extension prices.",
   "customerSessionExtendMinutes": "{count, plural, one {{count} minute} other {{count} minutes}}",
   "@customerSessionExtendMinutes": {
     "placeholders": {
@@ -989,8 +999,25 @@
       }
     }
   },
+  "customerSessionExtendNothingAffordable": "Not enough money to extend. Top up your wallet on the home screen.",
   "customerSessionExtendPending": "Adding time…",
+  "customerSessionExtendSummary": "Until {time}. {amount} will be charged, {balance} will be left in the wallet.",
+  "@customerSessionExtendSummary": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "customerSessionExtendTitle": "Add time to your session",
+  "customerSessionExtendUnavailableCounter": "The admin extends this session.",
+  "customerSessionExtendUnavailablePackage": "A package session is extended by a new start once this one ends.",
   "customerShopCancel": "Cancel the order",
   "customerShopCancelErrStarted": "The order is already being made — it cannot be cancelled",
   "customerShopCancelError": "Couldn't cancel the order",

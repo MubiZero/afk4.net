@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -7,7 +9,7 @@ import 'package:afk4_customer_app/l10n/localization_setup.dart';
 
 import 'support/fake_http.dart';
 
-Widget harness(PlayerApiClient api, {void Function(int?)? onClosed, int? pricePerHour}) => MaterialApp(
+Widget harness(PlayerApiClient api, {void Function(int?)? onClosed}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -17,11 +19,7 @@ Widget harness(PlayerApiClient api, {void Function(int?)? onClosed, int? pricePe
             onPressed: () async {
               final result = await showModalBottomSheet<int>(
                 context: context,
-                builder: (_) => ExtendSessionSheet(
-                  api: api,
-                  sessionId: 's1',
-                  pricePerHourMinorUnits: pricePerHour,
-                ),
+                builder: (_) => ExtendSessionSheet(api: api, sessionId: 's1'),
               );
               onClosed?.call(result);
             },
@@ -31,8 +29,27 @@ Widget harness(PlayerApiClient api, {void Function(int?)? onClosed, int? pricePe
       ),
     );
 
-FakeHttpClient _serve(int status, {String body = '{}'}) =>
-    FakeHttpClient((_) => (body, status));
+Map<String, dynamic> _money(int minor) => {'currencyCode': 'TJS', 'minorUnits': minor};
+
+Map<String, dynamic> _option(int minutes, int amount, {bool affordable = true}) => {
+      'minutes': minutes,
+      'billableMinutes': minutes,
+      'endsAtUtc': DateTime.utc(2026, 9, 28, 18).add(Duration(minutes: minutes)).toIso8601String(),
+      'amount': _money(amount),
+      'balanceAfter': _money(5000 - amount),
+      'affordable': affordable,
+    };
+
+String _offers({String? unavailableReason, List<Map<String, dynamic>>? options}) => jsonEncode({
+      'sessionId': 's1',
+      'balance': _money(5000),
+      'options': options ?? [_option(30, 1500), _option(60, 3000), _option(120, 6000, affordable: false)],
+      'unavailableReason': unavailableReason,
+    });
+
+/// Цены — с сервера; POST продления отвечает кодом [status] и телом [body].
+FakeHttpClient _serve({int status = 200, String body = '{}', String? offers}) => FakeHttpClient((request) =>
+    request.method == 'GET' ? (offers ?? _offers(), 200) : (body, status));
 
 Future<void> openSheet(WidgetTester tester) async {
   await tester.tap(find.text('открыть'));
@@ -43,24 +60,40 @@ void main() {
   // Пустой выбор заставлял бы игрока решать с нуля посреди игры. Час — то, что берут чаще
   // всего, и он же стоит на кнопке до первого касания.
   testWidgets('час предвыбран, кнопка называет выбранное время', (tester) async {
-    await tester.pumpWidget(harness(PlayerApiClient(baseUrl: 'https://api', httpClient: _serve(200))));
+    await tester.pumpWidget(harness(PlayerApiClient(baseUrl: 'https://api', httpClient: _serve())));
     await openSheet(tester);
 
     expect(find.text('Продлить на 1 час'), findsOneWidget);
   });
 
-  testWidgets('выбор другого варианта меняет и кнопку', (tester) async {
-    await tester.pumpWidget(harness(PlayerApiClient(baseUrl: 'https://api', httpClient: _serve(200))));
+  // Раньше лист умножал цену часа на минуты и писал «примерно»: минимум и шаг тарифа знает
+  // только сервер. Теперь сумма и остаток — его.
+  testWidgets('сумма и остаток — с сервера, для выбранного варианта', (tester) async {
+    await tester.pumpWidget(harness(PlayerApiClient(baseUrl: 'https://api', httpClient: _serve())));
     await openSheet(tester);
+
+    expect(find.textContaining('Спишется 30'), findsOneWidget);
+    expect(find.textContaining('останется 20'), findsOneWidget);
 
     await tester.tap(find.text('30 минут'));
     await tester.pumpAndSettle();
 
+    expect(find.textContaining('Спишется 15'), findsOneWidget);
     expect(find.text('Продлить на 30 минут'), findsOneWidget);
   });
 
+  testWidgets('на что не хватает денег — не выбрать', (tester) async {
+    await tester.pumpWidget(harness(PlayerApiClient(baseUrl: 'https://api', httpClient: _serve())));
+    await openSheet(tester);
+
+    await tester.tap(find.text('2 часа'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Продлить на 1 час'), findsOneWidget);
+  });
+
   testWidgets('продление уходит на сервер с выбранными минутами и ключом', (tester) async {
-    final http = _serve(200);
+    final http = _serve();
     int? closedWith;
     await tester.pumpWidget(harness(
       PlayerApiClient(baseUrl: 'https://api', httpClient: http),
@@ -68,44 +101,28 @@ void main() {
     ));
     await openSheet(tester);
 
-    await tester.tap(find.text('2 часа'));
+    await tester.tap(find.text('30 минут'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Продлить на 2 часа'));
+    await tester.tap(find.text('Продлить на 30 минут'));
     await tester.pumpAndSettle();
 
-    expect(http.paths, ['/api/me/sessions/s1/extend']);
-    expect(http.bodies.single['additionalMinutes'], 120);
+    expect(http.paths, ['/api/me/sessions/s1/extend-offers', '/api/me/sessions/s1/extend']);
+    expect(http.bodies.single['additionalMinutes'], 30);
     // Ключ идемпотентности — единственная защита от двойного списания, когда ответ потерялся.
-    expect(http.bodies.single['idempotencyKey'], isA<String>());
     expect((http.bodies.single['idempotencyKey'] as String).isNotEmpty, isTrue);
     // Лист возвращает выбранное время: сообщение об успехе показывает главный экран.
-    expect(closedWith, 120);
+    expect(closedWith, 30);
   });
 
-  /// Продление было единственной денежной кнопкой, которая списывала вслепую: и посадка,
-  /// и бронь называют сумму до нажатия.
-  testWidgets('лист называет, сколько примерно спишется', (tester) async {
-    await tester.pumpWidget(harness(
-      PlayerApiClient(baseUrl: 'https://api', httpClient: _serve(200)),
-      pricePerHour: 3000,
-    ));
+  testWidgets('сессию по пакету лист не продлевает деньгами, а объясняет почему', (tester) async {
+    await tester.pumpWidget(harness(PlayerApiClient(
+      baseUrl: 'https://api',
+      httpClient: _serve(offers: _offers(unavailableReason: 'package_session', options: [])),
+    )));
     await openSheet(tester);
 
-    expect(find.textContaining('30,00'), findsOneWidget);
-
-    await tester.tap(find.text('2 часа'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('60,00'), findsOneWidget);
-  });
-
-  // У сессии, заведённой на стойке руками, тарифа нет вовсе: выдуманная ставка хуже молчания.
-  testWidgets('без цены часа лист о сумме молчит', (tester) async {
-    await tester.pumpWidget(
-        harness(PlayerApiClient(baseUrl: 'https://api', httpClient: _serve(200))));
-    await openSheet(tester);
-
-    expect(find.textContaining('Спишется примерно'), findsNothing);
+    expect(find.textContaining('продлевают новым стартом'), findsOneWidget);
+    expect(find.textContaining('Продлить на'), findsNothing);
   });
 
   // Деньги — самая частая причина отказа, и «что-то пошло не так» здесь бесполезно: игрок
@@ -113,7 +130,7 @@ void main() {
   testWidgets('нехватка денег объясняется словами про кошелёк', (tester) async {
     await tester.pumpWidget(harness(PlayerApiClient(
       baseUrl: 'https://api',
-      httpClient: _serve(409, body: '{"error":"insufficient_balance"}'),
+      httpClient: _serve(status: 409, body: '{"error":"insufficient_balance"}'),
     )));
     await openSheet(tester);
     await tester.tap(find.text('Продлить на 1 час'));
@@ -127,7 +144,7 @@ void main() {
   testWidgets('завершившаяся сессия названа завершившейся, а не общей ошибкой', (tester) async {
     await tester.pumpWidget(harness(PlayerApiClient(
       baseUrl: 'https://api',
-      httpClient: _serve(404, body: '{}'),
+      httpClient: _serve(status: 404),
     )));
     await openSheet(tester);
     await tester.tap(find.text('Продлить на 1 час'));
@@ -141,7 +158,7 @@ void main() {
   testWidgets('конфликт не про деньги не выдаётся за нехватку денег', (tester) async {
     await tester.pumpWidget(harness(PlayerApiClient(
       baseUrl: 'https://api',
-      httpClient: _serve(409, body: '{"error":"invalid_tariff"}'),
+      httpClient: _serve(status: 409, body: '{"error":"invalid_tariff"}'),
     )));
     await openSheet(tester);
     await tester.tap(find.text('Продлить на 1 час'));
@@ -154,7 +171,7 @@ void main() {
   testWidgets('прочий отказ сервера не выдаёт себя за успех', (tester) async {
     await tester.pumpWidget(harness(PlayerApiClient(
       baseUrl: 'https://api',
-      httpClient: _serve(500, body: '{}'),
+      httpClient: _serve(status: 500),
     )));
     await openSheet(tester);
     await tester.tap(find.text('Продлить на 1 час'));
