@@ -9761,6 +9761,31 @@ class NewsItemDto {
       };
 }
 
+/// Где сотрудник может публиковать новости: филиалы, где у него есть право на новости, и можно ли
+/// писать на всю сеть. На всю сеть — только тому, у кого право во всех филиалах (владелец):
+/// управляющий одного филиала не говорит от имени всех.
+///
+/// Контракт: News/NewsScopeDto.cs
+class NewsScopeDto {
+  const NewsScopeDto({
+    required this.branches,
+    required this.canPublishToAllBranches,
+  });
+
+  final List<OwnerBranchSummaryDto> branches;
+  final bool canPublishToAllBranches;
+
+  factory NewsScopeDto.fromJson(Map<String, dynamic> json) => NewsScopeDto(
+        branches: (json['branches'] as List<dynamic>).map((item) => OwnerBranchSummaryDto.fromJson(item as Map<String, dynamic>)).toList(),
+        canPublishToAllBranches: json['canPublishToAllBranches'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'branches': branches.map((item) => item.toJson()).toList(),
+        'canPublishToAllBranches': canPublishToAllBranches,
+      };
+}
+
 /// The outcome of a user-waiting send (OTP / password reset) after its first dispatch attempt.
 ///
 /// Контракт: Notifications/NotificationContracts.cs

@@ -4494,6 +4494,18 @@ export interface NewsItemDto {
 }
 
 /**
+ * Где сотрудник может публиковать новости: филиалы, где у него есть право на новости, и можно ли
+ * писать на всю сеть. На всю сеть — только тому, у кого право во всех филиалах (владелец):
+ * управляющий одного филиала не говорит от имени всех.
+ *
+ * Контракт: News/NewsScopeDto.cs
+ */
+export interface NewsScopeDto {
+  branches: OwnerBranchSummaryDto[];
+  canPublishToAllBranches: boolean;
+}
+
+/**
  * The outcome of a user-waiting send (OTP / password reset) after its first dispatch attempt.
  *
  * Контракт: Notifications/NotificationContracts.cs

@@ -76,6 +76,10 @@ public sealed class GuestImportTests
         Assert.Equal(GuestImportIssueNames.AlreadyImported, Assert.Single(again.Issues).Code);
 
         Assert.Equal(1, await OpeningEntriesAsync(fixture));
+        // Повтор тем же ключом — тот же ответ, а не второй перенос и не вторая запись в журнале.
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(2, await db.AuditRecords.CountAsync(record => record.Action == AFK4.Platform.Api.Audit.AuditActionNames.ImportPlayers));
     }
 
     [Theory]
