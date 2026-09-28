@@ -5,7 +5,6 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Platform.Api.Tests.Identity;
 using AFK4.Shared.Contracts.Tournaments;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Tournaments;
 

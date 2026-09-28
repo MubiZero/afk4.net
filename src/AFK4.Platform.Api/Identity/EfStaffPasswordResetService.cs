@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 namespace AFK4.Platform.Api.Identity;
 
 /// <summary>
-/// EF Core <see cref="IStaffPasswordResetService"/>. The email channel mirrors the SMS channel
+/// EF Core <see cref="EfStaffPasswordResetService"/>. The email channel mirrors the SMS channel
 /// (<see cref="EfStaffPhonePasswordResetService"/>): a 6-digit OTP is emailed and stored hashed in
 /// <see cref="PasswordResetTokenEntity"/>, then verified (resolved by login/email) with an attempt
 /// counter. On success the password is rehashed and the account's active sessions are revoked.
@@ -24,7 +24,7 @@ public sealed class EfStaffPasswordResetService(
     IPhoneOtpGenerator generator,
     TimeProvider timeProvider,
     IOptions<PhoneOtpOptions> otpOptions,
-    IOptions<NotificationOptions> options) : IStaffPasswordResetService
+    IOptions<NotificationOptions> options)
 {
     // Email delivery is slower than SMS, so the emailed code lives longer than the 5-minute SMS one.
     private static readonly TimeSpan CodeLifetime = TimeSpan.FromMinutes(15);
@@ -33,6 +33,10 @@ public sealed class EfStaffPasswordResetService(
     private readonly PhoneOtpOptions otpOptions = otpOptions.Value;
     private readonly NotificationOptions options = options.Value;
 
+    /// <summary>
+    /// Resolve the staff/owner by username or email; if found with a contact email, issue a 6-digit
+    /// code and email it. Always completes without signalling whether the account exists.
+    /// </summary>
     public async Task RequestResetAsync(string userNameOrEmail, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(userNameOrEmail);
@@ -98,6 +102,11 @@ public sealed class EfStaffPasswordResetService(
         await notifications.SendNowAsync(request, cancellationToken);
     }
 
+    /// <summary>
+    /// Verify the emailed code for the account resolved from <paramref name="userNameOrEmail"/>, set
+    /// the new password hash, and revoke active sessions. Reports invalid/expired/too-many-attempts
+    /// with remaining attempts so the UI can guide the user (parity with the SMS reset).
+    /// </summary>
     public async Task<ResetPasswordByEmailResult> ResetAsync(
         string userNameOrEmail, string code, string newPassword, CancellationToken cancellationToken)
     {

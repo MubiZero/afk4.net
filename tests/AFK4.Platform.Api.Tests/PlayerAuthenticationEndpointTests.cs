@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Players;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -135,7 +134,7 @@ public sealed class PlayerAuthenticationEndpointTests
         var (orgId, playerId) = await SeedPlayerWithPinAsync(factory, "1234");
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var tokenService = scope.ServiceProvider.GetRequiredService<IPlayerTokenService>();
+        var tokenService = scope.ServiceProvider.GetRequiredService<OpaquePlayerTokenService>();
         var account = await db.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == playerId);
 
         var issued = await tokenService.IssueAsync(account, true, default);
@@ -164,7 +163,7 @@ public sealed class PlayerAuthenticationEndpointTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            var tokenService = scope.ServiceProvider.GetRequiredService<IPlayerTokenService>();
+            var tokenService = scope.ServiceProvider.GetRequiredService<OpaquePlayerTokenService>();
             var account = await db.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == playerId);
             accessToken = (await tokenService.IssueAsync(account, true, default)).AccessToken;
             account.IsActive = false;
@@ -172,7 +171,7 @@ public sealed class PlayerAuthenticationEndpointTests
         }
         await using (var scope = factory.Services.CreateAsyncScope())
         {
-            var tokenService = scope.ServiceProvider.GetRequiredService<IPlayerTokenService>();
+            var tokenService = scope.ServiceProvider.GetRequiredService<OpaquePlayerTokenService>();
             Assert.Null(await tokenService.ValidateAsync(accessToken, default));
         }
     }

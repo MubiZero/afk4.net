@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 namespace AFK4.Platform.Api.Platform.Health;
 
 public sealed class EfPlatformIncidentService(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IPlatformIncidentService
 {
     /// <summary>Пока инцидент открыт, напоминание уходит не чаще раза в сутки.</summary>
     private static readonly TimeSpan ReminderInterval = TimeSpan.FromDays(1);
@@ -68,6 +67,9 @@ public sealed class EfPlatformIncidentService(PlatformDbContext dbContext, TimeP
         }
     }
 
+    /// <summary>Закрывает открытые инциденты видов из <paramref name="evaluatedKinds"/>, чьих ключей
+    /// нет в <paramref name="stillOpenKeys"/>. Виды вне <paramref name="evaluatedKinds"/> не трогает —
+    /// вызывающий, проверивший не все виды за проход, не должен молча закрыть чужие инциденты.</summary>
     public async Task<IReadOnlyList<PlatformIncidentEntity>> ResolveMissingAsync(
         IReadOnlyCollection<string> evaluatedKinds,
         IReadOnlyCollection<string> stillOpenKeys,

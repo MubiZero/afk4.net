@@ -138,22 +138,7 @@ public static class OwnerDailySummaryAggregator
                 DiscrepancyShiftCount,
                 DiscrepancyTotalMinorUnits);
 
-        private string ResolveName(IReadOnlyDictionary<Guid, string> actorNames)
-        {
-            if (actorStaffUserId is null)
-            {
-                return "System";
-            }
-
-            if (SystemActorIds.TryGetDisplayName(actorStaffUserId.Value, out var systemDisplayName))
-            {
-                return systemDisplayName;
-            }
-
-            return actorNames.TryGetValue(actorStaffUserId.Value, out var displayName)
-                && !string.IsNullOrWhiteSpace(displayName)
-                ? displayName
-                : actorStaffUserId.Value.ToString("N")[..8];
-        }
+        private string ResolveName(IReadOnlyDictionary<Guid, string> actorNames) =>
+            SystemActorIds.ResolveDisplayName(actorStaffUserId, actorNames);
     }
 }

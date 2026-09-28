@@ -126,7 +126,7 @@ public sealed class DeviceMaintenanceEndpointTests
         Assert.Equal(HttpStatusCode.NoContent, returned.StatusCode);
         Assert.False((await fixture.HeartbeatAsync()).Maintenance);
         Assert.NotEqual(SeatStateNames.Maintenance, (await SeatAsync(fixture)).State);
-        Assert.Equal(AuditActionNames.ReturnDeviceFromMaintenance, (await LastDeviceAuditAsync(fixture))?.Action);
+        Assert.NotNull(await LastDeviceAuditAsync(fixture, AuditActionNames.ReturnDeviceFromMaintenance));
 
         // Второе нажатие — не ошибка: ПК уже в зале.
         Assert.Equal(HttpStatusCode.NoContent, (await ReturnFromPcAsync(fixture, fixture.Device.CredentialSecret)).StatusCode);
@@ -161,8 +161,8 @@ public sealed class DeviceMaintenanceEndpointTests
         Assert.Equal(1, await RunExpiryAsync(fixture));
 
         Assert.False((await fixture.HeartbeatAsync()).Maintenance);
-        var trace = await LastDeviceAuditAsync(fixture);
-        Assert.Equal(AuditActionNames.ExpireDeviceMaintenance, trace?.Action);
+        var trace = await LastDeviceAuditAsync(fixture, AuditActionNames.ExpireDeviceMaintenance);
+        Assert.NotNull(trace);
         Assert.Null(trace?.ActorStaffUserId);
         Assert.Contains("Tech One", trace?.DetailsJson, StringComparison.Ordinal);
     }
@@ -246,16 +246,18 @@ public sealed class DeviceMaintenanceEndpointTests
         return await scope.ServiceProvider.GetRequiredService<DeviceMaintenanceExpiryRunner>().RunOnceAsync(CancellationToken.None);
     }
 
-    private static async Task<AuditRecordEntity?> LastDeviceAuditAsync(DevicePlayerFixture fixture)
+    // По действию, не «по последнему»: установка ПК своим кодом тоже пишет запись с тем же
+    // TargetType "Device", и при неподвижных часах фикстуры её метка времени совпадает с меткой
+    // проверяемого действия — «последняя» тогда не гарантирована.
+    private static async Task<AuditRecordEntity?> LastDeviceAuditAsync(DevicePlayerFixture fixture, string action)
     {
         await using var scope = fixture.Factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var deviceId = fixture.Device.DeviceId.ToString("D");
-        return (await db.AuditRecords.AsNoTracking()
-                .Where(record => record.TargetType == "Device" && record.TargetId == deviceId)
-                .ToListAsync())
+        return await db.AuditRecords.AsNoTracking()
+            .Where(record => record.TargetType == "Device" && record.TargetId == deviceId && record.Action == action)
             .OrderByDescending(record => record.CreatedAtUtc)
-            .FirstOrDefault();
+            .FirstOrDefaultAsync();
     }
 
     private static Task<HttpResponseMessage> StartAsync(DevicePlayerFixture fixture, Guid seatId, string idempotencyKey) =>

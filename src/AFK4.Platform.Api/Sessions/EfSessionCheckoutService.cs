@@ -30,9 +30,9 @@ public sealed class EfSessionCheckoutService(
     IReceiptNumberGenerator receiptNumberGenerator,
     IDeviceCommandDispatchService deviceCommandDispatchService,
     IOpenShiftResolver openShiftResolver,
-    IBillingOutbox billingOutbox,
+    EfBillingOutbox billingOutbox,
     ISessionLifecycleNotifier lifecycleNotifier,
-    TimeProvider timeProvider) : ISessionCheckoutService
+    TimeProvider timeProvider)
 {
     private const string CheckoutOperation = "session-checkout";
     private const string SessionCheckoutReceiptType = "session_checkout";
@@ -445,6 +445,11 @@ public sealed class EfSessionCheckoutService(
         return result;
     }
 
+    /// <summary>
+    /// Read-only preview of the bill the operator must settle: time charge +
+    /// attached unpaid POS = grand total, plus the player's wallet balance for
+    /// auto-suggesting a wallet part. Changes nothing.
+    /// </summary>
     public async Task<SessionCheckoutQuoteResult> QuoteAsync(
         Guid sessionId,
         Guid organizationId,

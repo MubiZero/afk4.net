@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Billing;
 
 public sealed class EfOperatorReferenceDataService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IOperatorReferenceDataService
+    TimeProvider timeProvider)
 {
     private const int MinimumSearchLength = 2;
     private const int DefaultLimit = 20;

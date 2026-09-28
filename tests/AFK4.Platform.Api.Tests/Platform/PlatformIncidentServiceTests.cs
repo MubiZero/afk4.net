@@ -15,7 +15,7 @@ public sealed class PlatformIncidentServiceTests
         await using var factory = new PlatformApiFactory();
         _ = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IPlatformIncidentService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfPlatformIncidentService>();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
 
         var first = await service.OpenOrTouchAsync(
@@ -36,7 +36,7 @@ public sealed class PlatformIncidentServiceTests
         await using var factory = new PlatformApiFactory();
         _ = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IPlatformIncidentService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfPlatformIncidentService>();
 
         await service.OpenOrTouchAsync(
             PlatformIncidentKindNames.JobFailing, "job_failing:billing_outbox",
@@ -63,7 +63,7 @@ public sealed class PlatformIncidentServiceTests
         await using var factory = new PlatformApiFactory();
         _ = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IPlatformIncidentService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfPlatformIncidentService>();
 
         await service.OpenOrTouchAsync(
             PlatformIncidentKindNames.JobFailing, "job_failing:billing_outbox",
@@ -86,7 +86,7 @@ public sealed class PlatformIncidentServiceTests
         await using var factory = new PlatformApiFactory();
         _ = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IPlatformIncidentService>();
+        var service = scope.ServiceProvider.GetRequiredService<EfPlatformIncidentService>();
 
         await service.OpenOrTouchAsync(
             PlatformIncidentKindNames.JobOverdue, "job_overdue:auto_protection",

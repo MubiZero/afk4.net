@@ -12,7 +12,7 @@ import {
 } from './wizardApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
 import type { SignInPrefill } from './ForgotPasswordScreen';
-import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
+import { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
 
 interface PhoneLoginScreenProps {
   /// `signedInAs` — под каким номером или логином вошли: при «Назад» к входу поле встречает им,

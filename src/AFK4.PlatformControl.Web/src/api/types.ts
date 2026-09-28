@@ -282,13 +282,6 @@ export interface AuditSearchResult {
   limit: number;
 }
 
-export const OrganizationStatus = {
-  Active: 'active',
-  Suspended: 'suspended',
-  DeletionPending: 'deletion_pending'
-} as const;
-export type OrganizationStatusValue = (typeof OrganizationStatus)[keyof typeof OrganizationStatus];
-
 export const OrganizationPlanCode = {
   // Спека тарифов клуба: бесплатно до 10 ПК, дальше за ПК. Прежняя сетка снята с продажи.
   Free: 'free',
@@ -303,23 +296,6 @@ export const SubscriptionStatus = {
   Active: 'active',
   PastDue: 'past_due',
   Cancelled: 'cancelled'
-} as const;
-
-export const BillingInterval = {
-  Monthly: 'monthly',
-  Yearly: 'yearly'
-} as const;
-
-export const InvoiceStatus = {
-  Issued: 'issued',
-  Paid: 'paid',
-  Void: 'void',
-  Overdue: 'overdue'
-} as const;
-
-export const InvoiceKind = {
-  Subscription: 'subscription',
-  Proration: 'proration'
 } as const;
 
 export interface SubscriptionPlan {

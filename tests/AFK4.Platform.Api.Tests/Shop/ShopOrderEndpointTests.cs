@@ -3,12 +3,10 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Endpoints;
 using AFK4.Platform.Api.Identity;
-using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
 

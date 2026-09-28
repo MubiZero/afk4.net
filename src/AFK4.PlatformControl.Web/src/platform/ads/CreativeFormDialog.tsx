@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/I18nProvider';
 import { AD_LIMITS, IMAGE_MAX_MB, validateCreativeForm, type CreativeForm, type CreativeFormField } from './adsModel';
 import { AdImagePreview } from './AdImages';
-import { useFieldErrors } from './useFieldErrors';
+import { useFieldErrors } from '../useFieldErrors';
 import type { ImageResult } from '../mediaErrors';
 
 // Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.

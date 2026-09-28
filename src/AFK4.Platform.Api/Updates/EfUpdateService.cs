@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Updates;
 
 public sealed class EfUpdateService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IUpdateService
+    TimeProvider timeProvider)
 {
     public async Task<UpdateServiceResult<IReadOnlyList<UpdateRolloutStatusDto>>> ListRolloutStatusesAsync(
         Guid organizationId,

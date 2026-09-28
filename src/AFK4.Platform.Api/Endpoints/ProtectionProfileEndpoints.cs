@@ -126,7 +126,7 @@ internal static class ProtectionProfileEndpoints
             Guid branchId,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {

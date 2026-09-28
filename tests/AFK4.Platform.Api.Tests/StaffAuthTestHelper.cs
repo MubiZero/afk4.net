@@ -1,9 +1,9 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -50,19 +50,29 @@ internal static class StaffAuthTestHelper
         };
         user.PasswordHash = hasher.HashPassword(user, "246813");
 
-        dbContext.Organizations.Add(new OrganizationEntity
+        // Идемпотентно: кто-то мог завести организацию и филиал раньше (например тестовая
+        // установка ПК своим кодом до входа сотрудника) — тут их не дублируем.
+        if (!await dbContext.Organizations.AnyAsync(organization => organization.OrganizationId == TestIds.OrganizationId))
         {
-            OrganizationId = TestIds.OrganizationId,
-            Name = "Demo Org",
-            CreatedAtUtc = createdAt
-        });
-        dbContext.Branches.Add(new BranchEntity
+            dbContext.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Org",
+                CreatedAtUtc = createdAt
+            });
+        }
+
+        if (!await dbContext.Branches.AnyAsync(branch => branch.BranchId == TestIds.BranchId))
         {
-            BranchId = TestIds.BranchId,
-            OrganizationId = TestIds.OrganizationId,
-            Name = "Demo Branch",
-            CreatedAtUtc = createdAt
-        });
+            dbContext.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Branch",
+                CreatedAtUtc = createdAt
+            });
+        }
+
         dbContext.StaffUsers.Add(user);
         dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {

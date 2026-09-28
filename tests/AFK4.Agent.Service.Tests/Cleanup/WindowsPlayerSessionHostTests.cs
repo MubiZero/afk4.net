@@ -42,7 +42,10 @@ public sealed class WindowsPlayerSessionHostTests
             Assert.Contains(host.ProtectedRoots, root => SessionTraceCatalog.IsInside(seen.ExecutablePath!, root));
 
             Assert.True(host.TryTerminate(child.Id));
-            Assert.True(child.WaitForExit(5000));
+            // Завершение процесса в Windows асинхронно: TerminateProcess возвращается сразу, а выход
+            // наступает позже. На раннере, где параллельно идут тесты API, пяти секунд не хватало —
+            // тест мигал. Проверяется свойство «процесс закрылся», а не скорость.
+            Assert.True(child.WaitForExit(30_000));
             Assert.False(host.IsRunning(child.Id));
         }
         finally

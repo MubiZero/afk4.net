@@ -1,9 +1,7 @@
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Support;
-using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Platform.Support;
-using Microsoft.AspNetCore.RateLimiting;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -54,7 +52,7 @@ internal static class SupportAccessSessionEndpoints
         }).RequireRateLimiting("player-public");
 
         app.MapDelete("/api/support-access/session", async (
-            IPlatformSupportContextAccessor supportContextAccessor,
+            PlatformSupportContextAccessor supportContextAccessor,
             PlatformSupportAccessGrantService supportAccessService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>

@@ -13,17 +13,7 @@ public sealed record ShellWarning(Guid? SessionId, string Kind);
 /// и раньше агент отвечал «принято» и выбрасывал команду, так что игрок узнавал о долге по погасшему
 /// экрану. Здесь она и живёт, пока сессия не сменилась.
 /// </summary>
-public interface IShellWarningStore
-{
-    ShellWarning? Current { get; }
-
-    void Warn(Guid? sessionId, string kind);
-
-    /// <summary>Сбрасывает предупреждение, если оно относилось к другой сессии (или сессии больше нет).</summary>
-    void ForgetUnless(Guid? sessionId);
-}
-
-public sealed class ShellWarningStore : IShellWarningStore
+public sealed class ShellWarningStore
 {
     private readonly Lock gate = new();
     private ShellWarning? current;
@@ -52,6 +42,7 @@ public sealed class ShellWarningStore : IShellWarningStore
         }
     }
 
+    /// <summary>Сбрасывает предупреждение, если оно относилось к другой сессии (или сессии больше нет).</summary>
     public void ForgetUnless(Guid? sessionId)
     {
         lock (gate)

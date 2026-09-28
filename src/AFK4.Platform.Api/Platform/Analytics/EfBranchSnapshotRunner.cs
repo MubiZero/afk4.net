@@ -9,8 +9,8 @@ namespace AFK4.Platform.Api.Platform.Analytics;
 /// окно досъёмки, а не по одному на клуб: правило пульса действует и здесь.
 /// </summary>
 public sealed class EfBranchSnapshotRunner(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IBranchSnapshotRunner
 {
+    /// <summary>Дописывает недостающие суточные снимки филиалов вплоть до вчерашнего дня. Возвращает число записанных строк.</summary>
     public async Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var branches = await dbContext.Branches

@@ -57,7 +57,7 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
     setFiltersKey((key) => key + 1);
   };
 
-  const records = state.status === 'ready' ? state.records : [];
+  const records = state.status === 'ready' ? state.data : [];
   const rows = state.status === 'ready' ? toAuditRows(records, { formatDate }, t('op.network.journal.actor.system')) : [];
 
   // Выгружается ровно то, что на экране: тот же фильтр, тот же лимит. Отдельного серверного

@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Loyalty;
-using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -103,7 +102,7 @@ public class PlayerReferralEndpointTests
     private static async Task TopUpAsync(PlatformApiFactory factory, Club club, Guid playerId, long minorUnits)
     {
         await using var scope = factory.Services.CreateAsyncScope();
-        var billing = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Billing.IBillingCommandService>();
+        var billing = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Billing.EfBillingCommandService>();
         var result = await billing.CreditOnlineTopUpAsync(
             playerId,
             club.BranchId,

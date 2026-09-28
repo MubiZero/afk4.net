@@ -12,7 +12,6 @@ namespace AFK4.Platform.Api.Identity;
 /// в базе лежит только хеш.
 /// </summary>
 public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IPlatformPersonTokenService
 {
     private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(1);
     private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
@@ -22,12 +21,23 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
     private static readonly TimeSpan DeviceAccessTokenLifetime = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan DeviceRefreshTokenLifetime = TimeSpan.FromHours(12);
 
+    /// <summary>
+    /// Выдаёт пару токенов личности. <paramref name="pinnedAccount"/> — клуб, который клиент
+    /// назвал при входе: он закрепляется в токене, чтобы клиент, ещё не умеющий выбирать клуб
+    /// заголовком, продолжал попадать туда же, куда и вчера. <c>null</c> — человек, у которого
+    /// клуба пока нет вовсе или их несколько: он зарегистрировался дома и выберет клуб сам.
+    /// </summary>
     public Task<PlatformPersonSessionResponse> IssueAsync(
         PlatformPersonEntity person,
         PlayerAccountEntity? pinnedAccount,
         CancellationToken cancellationToken) =>
         IssueCoreAsync(person, pinnedAccount, device: null, cancellationToken);
 
+    /// <summary>
+    /// Выдаёт пару токенов, привязанную к игровому ПК: сроки короче, а гасит их сервер сам, когда
+    /// за машиной больше некому сидеть (<see cref="EfDeviceBoundPlayerTokens"/>). Обновление
+    /// сохраняет привязку и время входа.
+    /// </summary>
     public Task<PlatformPersonSessionResponse> IssueOnDeviceAsync(
         PlatformPersonEntity person,
         PlayerAccountEntity pinnedAccount,
@@ -182,6 +192,10 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
             DeviceId: stored.DeviceId);
     }
 
+    /// <summary>
+    /// Выход гасит предъявленную пару токенов. Телефон бывает общим, и «выйти» должно значить
+    /// «этим токеном больше не войти», а не «убрал с экрана».
+    /// </summary>
     public async Task<bool> RevokeAsync(
         string? refreshToken,
         string? accessToken,

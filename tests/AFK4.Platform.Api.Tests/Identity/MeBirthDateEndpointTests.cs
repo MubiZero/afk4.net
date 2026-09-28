@@ -120,7 +120,7 @@ public sealed class MeBirthDateEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var tokens = scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>();
+        var tokens = scope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>();
         var person = await db.PlatformPersons.SingleAsync(candidate => candidate.PlatformPersonId == platformPersonId);
         var session = await tokens.IssueAsync(person, null, CancellationToken.None);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);

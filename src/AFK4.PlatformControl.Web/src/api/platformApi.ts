@@ -1,4 +1,4 @@
-import { isAccessTokenExpired, type PlatformAdminSession } from '../auth/tokenStore';
+import type { PlatformAdminSession } from '../auth/tokenStore';
 import { PlatformTransport, type PlatformTransportOptions, type SignInOutcome } from './platformTransport';
 import { OrganizationsApi } from './platformClients/organizations';
 import { OrganizationOwnerInvitesApi } from './platformClients/organizationOwnerInvites';
@@ -105,11 +105,4 @@ export class PlatformApiClient {
   public signOut(): Promise<void> {
     return this.transport.signOut();
   }
-}
-
-export function isExpiredOrMissing(session: PlatformAdminSession | null, now: Date = new Date()): boolean {
-  if (session === null) {
-    return true;
-  }
-  return isAccessTokenExpired(session, now);
 }

@@ -17,9 +17,12 @@ import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
 import type { OrganizationOwnerInvite, OrganizationBranch } from '@/api/types';
 import { useLoadable } from '../useLoadable';
-import { INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL } from './organizationsModel';
+import { INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL, canResendOwnerInvite } from './organizationsModel';
 
-type Client = Pick<OrganizationOwnerInvitesApi, 'listOrganizationOwnerInvites' | 'createOrganizationOwnerInvite' | 'revokeOrganizationOwnerInvite'>;
+type Client = Pick<
+  OrganizationOwnerInvitesApi,
+  'listOrganizationOwnerInvites' | 'createOrganizationOwnerInvite' | 'revokeOrganizationOwnerInvite' | 'resendOrganizationOwnerInvite'
+>;
 
 interface Props {
   client: Client;
@@ -48,6 +51,7 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
   const [handoff, setHandoff] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   // Код выдаётся на филиал. У организации без филиала список пуст, и серая кнопка без слов не
   // говорила, что сначала нужен филиал.
   const noBranch = useBlockedReason(branchId === '' ? t('platform.organization.invites.blocked.noBranch') : null);
@@ -73,6 +77,19 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
       toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function resend(organizationOwnerInviteId: string) {
+    if (resendingId !== null) return;
+    setResendingId(organizationOwnerInviteId);
+    try {
+      await client.resendOrganizationOwnerInvite(organizationOwnerInviteId);
+      toast({ title: t('platform.organization.invites.resent'), variant: 'success' });
+    } catch (cause) {
+      toast({ title: describeApiError(cause, t), variant: 'error' });
+    } finally {
+      setResendingId(null);
     }
   }
 
@@ -171,6 +188,16 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
                     <TableCell>{inv.ownerUserName ?? '—'}</TableCell>
                     <TableCell className="pc-num">{formatDate(inv.expiresAtUtc)}</TableCell>
                     <TableCell className="pc-num">
+                      {canResendOwnerInvite(inv) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={resendingId !== null}
+                          onClick={() => void resend(inv.organizationOwnerInviteId)}
+                        >
+                          {t('platform.organization.invites.resend')}
+                        </Button>
+                      )}
                       {inv.status === 'pending' && (
                         <Button variant="ghost" size="sm" onClick={() => setRevokeId(inv.organizationOwnerInviteId)}>
                           {t('platform.organization.invites.revoke')}

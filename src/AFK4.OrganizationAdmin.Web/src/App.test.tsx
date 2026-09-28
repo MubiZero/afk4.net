@@ -2333,7 +2333,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('draft'));
   }
 
-  if (pathname.includes('/payments/manual') || pathname.endsWith('/settlements')) {
+  if (pathname.endsWith('/settlements')) {
     return jsonResponse(createPosSale('paid'));
   }
 
@@ -2507,11 +2507,6 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/layout/zones')) {
     return jsonResponse(createZones());
-  }
-
-  if (pathname.endsWith('/device-enrollment-codes') && init?.method === 'POST') {
-    const body = JSON.parse(String(init.body));
-    return jsonResponse(createDeviceEnrollmentCode(body));
   }
 
   if (pathname.endsWith('/seat-assignment') && init?.method === 'POST') {
@@ -3573,16 +3568,6 @@ function createZones() {
       ]
     }
   ];
-}
-
-function createDeviceEnrollmentCode(overrides: Record<string, unknown> = {}) {
-  return {
-    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
-    code: 'AFK4-DEVICE-1234',
-    expiresAtUtc: '2026-05-21T10:00:00Z',
-    ...overrides
-  };
 }
 
 function createDeviceSeatAssignment(overrides: Record<string, unknown> = {}) {

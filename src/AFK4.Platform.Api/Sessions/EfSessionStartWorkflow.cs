@@ -19,7 +19,7 @@ public sealed class EfSessionStartWorkflow(
     TimeProvider timeProvider,
     ISessionBillingService sessionBillingService,
     ISessionLifecycleNotifier lifecycleNotifier,
-    IPlanLimitGuard planLimitGuard) : ISessionStartWorkflow
+    EfPlanLimitGuard planLimitGuard) : ISessionStartWorkflow
 {
     private const int LeaseMinutes = 15;
     private const int CompReasonMinLength = 8;

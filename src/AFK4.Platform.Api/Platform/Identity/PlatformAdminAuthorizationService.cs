@@ -1,6 +1,6 @@
 namespace AFK4.Platform.Api.Platform.Identity;
 
-public sealed class PlatformAdminAuthorizationService(IPlatformAdminContextAccessor contextAccessor)
+public sealed class PlatformAdminAuthorizationService(PlatformAdminContextAccessor contextAccessor)
 {
     public PlatformAdminAuthorizationResult RequirePermission(string permission)
     {

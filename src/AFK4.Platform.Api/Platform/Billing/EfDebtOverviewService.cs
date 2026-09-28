@@ -8,8 +8,9 @@ namespace AFK4.Platform.Api.Platform.Billing;
 
 public sealed class EfDebtOverviewService(
     PlatformDbContext dbContext,
-    IOptions<BillingOptions> options) : IDebtOverviewService
+    IOptions<BillingOptions> options)
 {
+    /// <summary>Clubs that need a money decision, oldest debt first.</summary>
     public async Task<IReadOnlyList<DebtRowDto>> GetAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var unpaid = await dbContext.Invoices.AsNoTracking()

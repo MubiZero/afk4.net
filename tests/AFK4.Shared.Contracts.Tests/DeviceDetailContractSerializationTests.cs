@@ -101,6 +101,12 @@ public sealed class DeviceDetailContractSerializationTests
     }
 
     [Fact]
+    public void DeviceCredentialHeaders_AreStable()
+    {
+        Assert.Equal("X-AFK4-Device-Credential", DeviceCredentialHeaders.CredentialSecret);
+    }
+
+    [Fact]
     public void DeviceAdminRequests_RoundTripThroughJson()
     {
         var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");

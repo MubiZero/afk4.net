@@ -1,9 +1,3 @@
-﻿using AFK4.Platform.Api.Data;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
-using Npgsql;
-
 namespace AFK4.Platform.Api.Tests.Migrations;
 
 /// <summary>

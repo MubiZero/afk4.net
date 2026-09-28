@@ -6,7 +6,6 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Consoles;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

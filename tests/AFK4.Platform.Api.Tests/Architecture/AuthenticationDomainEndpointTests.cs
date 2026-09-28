@@ -40,8 +40,7 @@ public sealed class AuthenticationDomainEndpointTests
         "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/layout",
         "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/staff",
         "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/devices",
-        "/api/organizations/{organizationId:guid}/devices",
-        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/device-enrollment-codes"
+        "/api/organizations/{organizationId:guid}/devices"
     };
 
     [Fact]
@@ -121,8 +120,7 @@ public sealed class AuthenticationDomainEndpointTests
         [PlatformSupportWritableAreas.Devices] =
         [
             "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/devices",
-            "/api/organizations/{organizationId:guid}/devices",
-            "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/device-enrollment-codes"
+            "/api/organizations/{organizationId:guid}/devices"
         ],
         [PlatformSupportWritableAreas.Staff] =
         [

@@ -4,7 +4,6 @@ using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Notifications;
 

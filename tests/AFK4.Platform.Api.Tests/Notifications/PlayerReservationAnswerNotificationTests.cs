@@ -3,7 +3,6 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Notifications;
 

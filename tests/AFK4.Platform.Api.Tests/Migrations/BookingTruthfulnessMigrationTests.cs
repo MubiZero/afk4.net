@@ -1,5 +1,3 @@
-using Npgsql;
-
 namespace AFK4.Platform.Api.Tests.Migrations;
 
 /// <summary>

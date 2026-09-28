@@ -1,11 +1,10 @@
 using AFK4.Shared.Contracts.Install;
-﻿using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Endpoints;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Dashboard;
-using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
@@ -19,7 +18,7 @@ namespace AFK4.Platform.Api.Dashboard;
 public sealed class EfOperatorDashboardService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IOptions<BranchDiagnosticsOptions> diagnosticsOptions) : IOperatorDashboardService
+    IOptions<BranchDiagnosticsOptions> diagnosticsOptions)
 {
     private const string DefaultCurrencyCode = "TJS";
     private const int DefaultLimit = 8;

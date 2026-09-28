@@ -1,5 +1,4 @@
 using AFK4.Platform.Api.Platform.Health;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Platform.Billing;
@@ -34,7 +33,7 @@ public sealed class InvoiceGenerationHostedService(
             logger.LogInformation("Invoice generation tick issued {Count} invoice(s).", issued);
         }
 
-        var notified = await scopedServices.GetRequiredService<IDunningRunner>().RunAsync(now, cancellationToken);
+        var notified = await scopedServices.GetRequiredService<EfDunningRunner>().RunAsync(now, cancellationToken);
         if (notified > 0)
         {
             logger.LogInformation("Dunning tick sent {Count} notice(s).", notified);

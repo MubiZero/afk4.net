@@ -18,11 +18,3 @@ public sealed record PlatformAdminSignInResult(
 
     public static PlatformAdminSignInResult LockedOut() => new(null, true);
 }
-
-public interface IPlatformAdminCredentialService
-{
-    // Password check only — this issues a sign-in challenge, never a working session. The caller
-    // must complete /auth/2fa/setup or /auth/2fa/verify with the returned ChallengeToken to obtain
-    // a real PlatformAdminSignInResponse.
-    Task<PlatformAdminSignInResult> SignInAsync(PlatformAdminSignInRequest request, CancellationToken cancellationToken);
-}

@@ -4,7 +4,6 @@ using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

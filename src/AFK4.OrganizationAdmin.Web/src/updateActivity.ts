@@ -4,7 +4,7 @@ const criticalMutationMethods = new Set(['post', 'patch', 'put', 'delete', 'post
 const criticalPathSegments = [
   /(^|\/)sessions(?:\/|$)/,
   /(^|\/)pos(?:\/|$)/,
-  /(^|\/)(?:devices|device-enrollment-codes)(?:\/|$)/,
+  /(^|\/)devices(?:\/|$)/,
   /(^|\/)shifts(?:\/|$)/,
   /(^|\/)money-actions(?:\/|$)/,
   /(^|\/)wallet(?:\/|$)/,

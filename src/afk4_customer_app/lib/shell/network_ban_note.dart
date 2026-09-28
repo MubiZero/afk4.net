@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'top_banner.dart';
 
 /// «Платформа закрыла вход в сеть» — состояние, в котором человек всё видит, но ничего не
 /// начинает.
@@ -20,46 +21,34 @@ class NetworkBanNote extends StatelessWidget {
     final theme = Theme.of(context);
     final reason = this.reason?.trim();
 
-    return Material(
+    return TopBanner(
       color: theme.colorScheme.errorContainer,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.block, size: 18, color: theme.colorScheme.onErrorContainer),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l.customerBanTitle,
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(color: theme.colorScheme.onErrorContainer),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l.customerBanHint,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.onErrorContainer),
-                    ),
-                    if (reason != null && reason.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        l.customerBanReason(reason),
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.colorScheme.onErrorContainer),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+      foreground: theme.colorScheme.onErrorContainer,
+      icon: Icons.block,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.customerBanTitle,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(color: theme.colorScheme.onErrorContainer),
           ),
-        ),
+          const SizedBox(height: 4),
+          Text(
+            l.customerBanHint,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onErrorContainer),
+          ),
+          if (reason != null && reason.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              l.customerBanReason(reason),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onErrorContainer),
+            ),
+          ],
+        ],
       ),
     );
   }

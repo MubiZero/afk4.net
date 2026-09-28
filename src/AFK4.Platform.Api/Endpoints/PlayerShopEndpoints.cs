@@ -16,7 +16,7 @@ internal static class PlayerShopEndpoints
     public static void MapPlayerShopEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/shop/catalog", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IOrganizationEntitlements entitlements,
             PlatformDbContext db,
             CancellationToken ct) =>
@@ -65,7 +65,7 @@ internal static class PlayerShopEndpoints
 
         app.MapPost("/api/me/shop/orders", async (
             PlaceShopOrderRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IShopCommerceCoordinator commerceCoordinator,
             IOrganizationEntitlements entitlements,
             CancellationToken ct) =>
@@ -82,18 +82,18 @@ internal static class PlayerShopEndpoints
         }).RequireRateLimiting("player-me");
 
         app.MapGet("/api/me/shop/orders", async (
-            IPlayerContextAccessor playerContextAccessor,
-            IShopOrderService shopOrderService,
+            PlayerContextAccessor playerContextAccessor,
+            IShopOrderWorkflow workflow,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
-            return Results.Ok(await shopOrderService.ListForPlayerAsync(player.PlayerAccountId, ct));
+            return Results.Ok(await workflow.ListForPlayerAsync(player.PlayerAccountId, ct));
         }).RequireRateLimiting("player-me");
 
         app.MapPost("/api/me/shop/orders/{orderId:guid}/cancel", async (
             Guid orderId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IShopCommerceCoordinator commerceCoordinator,
             CancellationToken ct) =>
         {

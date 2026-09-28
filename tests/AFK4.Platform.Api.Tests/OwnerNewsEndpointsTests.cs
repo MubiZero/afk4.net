@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Shared.Contracts.News;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

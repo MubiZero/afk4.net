@@ -1,12 +1,10 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Loyalty;
-using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Reservations;
-using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
 

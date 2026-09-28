@@ -15,7 +15,7 @@ public sealed class PlatformSupportSessionMiddleware(RequestDelegate next)
         HttpContext context,
         PlatformSupportAccessGrantService supportAccessService,
         IStaffContextAccessor staffContextAccessor,
-        IPlatformSupportContextAccessor supportContextAccessor,
+        PlatformSupportContextAccessor supportContextAccessor,
         PlatformDbContext dbContext)
     {
         var header = context.Request.Headers[PlatformSupportAccessGrantService.GrantHeaderName].ToString();

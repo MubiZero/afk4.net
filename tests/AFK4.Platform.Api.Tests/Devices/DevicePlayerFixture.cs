@@ -7,6 +7,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Tests.Identity;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -36,7 +37,7 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
 
     public MovableTimeProvider Clock { get; }
 
-    public DeviceEnrollmentResponse Device { get; private set; } = null!;
+    public InstallEnrollResponse Device { get; private set; } = null!;
 
     public Guid PlayerAccountId { get; private set; }
 
@@ -86,7 +87,7 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
 
     public async Task<DeviceHeartbeatResponse> HeartbeatAsync(
         Guid? activeSessionId = null,
-        DeviceEnrollmentResponse? device = null,
+        InstallEnrollResponse? device = null,
         string? macAddress = null,
         string? subnet = null)
     {
@@ -255,29 +256,10 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
     }
 
     /// <summary>Ещё один ПК того же клуба — чужой для заявки, заведённой у первого.</summary>
-    public Task<DeviceEnrollmentResponse> EnrollAnotherDeviceAsync() => EnrollDeviceAsync();
+    public Task<InstallEnrollResponse> EnrollAnotherDeviceAsync() => EnrollDeviceAsync();
 
-    private async Task<DeviceEnrollmentResponse> EnrollDeviceAsync()
-    {
-        var codeResponse = await Client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
-        Assert.True(codeResponse.IsSuccessStatusCode, await codeResponse.Content.ReadAsStringAsync());
-        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
-
-        var enrollmentResponse = await Client.PostAsJsonAsync(
-            "/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                OrganizationId: TestIds.OrganizationId,
-                BranchId: TestIds.BranchId,
-                EnrollmentCode: code!.Code,
-                MachineName: "PC-007",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: Start));
-        Assert.True(enrollmentResponse.IsSuccessStatusCode, await enrollmentResponse.Content.ReadAsStringAsync());
-        return (await enrollmentResponse.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>())!;
-    }
+    private Task<InstallEnrollResponse> EnrollDeviceAsync() =>
+        TestDeviceEnrollment.EnrollDeviceAsync(Client, TestIds.OrganizationId, TestIds.BranchId, machineName: "PC-007");
 
     public async ValueTask DisposeAsync()
     {

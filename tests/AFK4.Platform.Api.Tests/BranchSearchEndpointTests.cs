@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
-using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Reservations;

@@ -12,12 +12,6 @@ public interface IPosService
         CreatePosSaleRequest request,
         CancellationToken cancellationToken);
 
-    Task<BillingCommandServiceResult<PosSaleDto>> PaySaleAsync(
-        Guid posSaleId,
-        Guid actorStaffUserId,
-        ManualPaymentRequest request,
-        CancellationToken cancellationToken);
-
     Task<BillingCommandServiceResult<PosSaleDto>> RefundSaleAsync(
         Guid posSaleId,
         Guid actorStaffUserId,

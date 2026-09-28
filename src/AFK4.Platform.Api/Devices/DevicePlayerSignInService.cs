@@ -13,15 +13,6 @@ public sealed record DevicePlayerSignInResult(
     string? Error = null,
     DateTimeOffset? RetryAfterUtc = null);
 
-public interface IDevicePlayerSignInService
-{
-    Task<DevicePlayerSignInResult> SignInAsync(
-        DeviceEntity device,
-        string? phoneNumber,
-        string? pin,
-        CancellationToken cancellationToken);
-}
-
 /// <summary>
 /// Вход номером и ПИН-кодом на самом игровом ПК (спека оболочки, §5.2). Проверка ПИН-кода — та
 /// же, что у публичного входа; отличие в том, что сервер знает машину: считает попытки на неё,
@@ -29,10 +20,10 @@ public interface IDevicePlayerSignInService
 /// </summary>
 public sealed class DevicePlayerSignInService(
     PlatformDbContext dbContext,
-    IPlatformPinService pinService,
-    IPlatformPersonTokenService tokenService,
-    IDeviceBoundPlayerTokens deviceTokens,
-    TimeProvider timeProvider) : IDevicePlayerSignInService
+    EfPlatformPinService pinService,
+    OpaquePlatformPersonTokenService tokenService,
+    EfDeviceBoundPlayerTokens deviceTokens,
+    TimeProvider timeProvider)
 {
     /// <summary>
     /// Неудач с одной машины за окно. Предел ПИН-кода — пять на человека, и он не мешает

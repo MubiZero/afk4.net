@@ -1,72 +1,10 @@
-using System.Globalization;
-using System.Net;
-using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text.Json;
-using System.Text;
-using Microsoft.Extensions.Options;
-using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Audit;
-using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Dashboard;
-using AFK4.Platform.Api.Diagnostics;
-using AFK4.Platform.Api.Devices;
-using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Install;
-using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
-using AFK4.Platform.Api.Payments;
-using AFK4.Platform.Api.Platform.Billing;
-using AFK4.Platform.Api.Platform.Idempotency;
-using AFK4.Platform.Api.Platform.Identity;
-using AFK4.Platform.Api.Platform.Tenancy;
-using AFK4.Platform.Api.Pos;
-using AFK4.Platform.Api.Receipts;
-using AFK4.Platform.Api.Reports;
 using AFK4.Platform.Api.Reservations;
-using AFK4.Platform.Api.Players;
-using AFK4.Platform.Api.Sessions;
-using AFK4.Platform.Api.Shifts;
-using AFK4.Platform.Api.Security;
-using AFK4.Platform.Api.Tenancy;
-using AFK4.Platform.Api.Updates;
-using AFK4.Shared.Contracts.Billing;
-using AFK4.Shared.Contracts.Audit;
-using AFK4.Shared.Contracts.Branches;
-using AFK4.Shared.Contracts.Diagnostics;
-using AFK4.Shared.Contracts.Devices;
-using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
-using AFK4.Shared.Contracts.Players;
-using AFK4.Shared.Contracts.Install;
-using AFK4.Shared.Contracts.Inventory;
-using AFK4.Shared.Contracts.Layout;
-using AFK4.Shared.Contracts.Operator;
-using AFK4.Shared.Contracts.Packages;
-using AFK4.Shared.Contracts.Payments;
-using AFK4.Shared.Contracts.Branding;
-using AFK4.Shared.Contracts.Platform.Auth;
-using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Identity.AccountActivation;
-using AFK4.Shared.Contracts.Platform.Operator;
-using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Organizations;
-using AFK4.Shared.Contracts.Pos;
-using AFK4.Shared.Contracts.Receipts;
-using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Reservations;
-using AFK4.Shared.Contracts.Sessions;
-using AFK4.Shared.Contracts.Shifts;
-using AFK4.Shared.Contracts.Tariffs;
-using AFK4.Shared.Contracts.Updates;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using System.Threading.RateLimiting;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -85,7 +23,7 @@ internal static class ReservationEndpoints
             Guid? playerAccountId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -146,7 +84,7 @@ internal static class ReservationEndpoints
             Guid? excludeReservationId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -209,7 +147,7 @@ internal static class ReservationEndpoints
             CreateReservationRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -276,7 +214,7 @@ internal static class ReservationEndpoints
             CreateReservationGroupRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -340,451 +278,48 @@ internal static class ReservationEndpoints
             }
         });
 
-        app.MapPatch("reservations/{reservationId:guid}", async (
-            Guid reservationId,
-            UpdateReservationRequest request,
-            PlatformDbContext dbContext,
-            IStaffContextAccessor staffContextAccessor,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
-            CancellationToken cancellationToken) =>
-        {
-            var scoped = await LoadReservationForStaffAsync(
-                dbContext,
-                staffContextAccessor,
-                reservationId,
-                cancellationToken);
-            if (scoped.Result is not null)
-            {
-                return scoped.Result;
-            }
+        MapReservationAction<UpdateReservationRequest>(
+            app, HttpMethods.Patch, string.Empty, AuditActionNames.UpdateReservation,
+            (service, reservationId, staffUserId, request, ct) => service.UpdateAsync(reservationId, staffUserId, request, ct),
+            (reservation, _) => new { reservation.SeatId, reservation.StartsAtUtc, reservation.State },
+            request => request.OrganizationId,
+            deniedDetails: (request, denialReason) => new { request.SeatId, request.StartsAtUtc, DenialReason = denialReason });
 
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                scoped.Reservation!.BranchId,
-                OrganizationPermissionNames.ManageReservations,
-                cancellationToken);
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
+        MapReservationAction<ConfirmReservationRequest>(
+            app, HttpMethods.Post, "/confirm", AuditActionNames.ConfirmReservation,
+            (service, reservationId, staffUserId, request, ct) => service.ConfirmAsync(reservationId, staffUserId, request, ct),
+            (reservation, _) => new { reservation.State },
+            request => request.OrganizationId,
+            afterSuccess: (push, reservation, ct) => NotifyReservationAnsweredAsync(push, reservation, confirmed: true, ct));
 
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    scoped.Reservation.BranchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.UpdateReservation,
-                    "Reservation",
-                    reservationId.ToString("D"),
-                    AuditOutcome.Denied,
-                    new { request.SeatId, request.StartsAtUtc, authorization.DenialReason },
-                    cancellationToken);
+        MapReservationAction<SeatReservationRequest>(
+            app, HttpMethods.Post, "/seat", AuditActionNames.SeatReservation,
+            (service, reservationId, staffUserId, request, ct) => service.SeatAsync(reservationId, staffUserId, request, ct),
+            (reservation, _) => new { reservation.SeatId, reservation.State },
+            request => request.OrganizationId);
 
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
+        // Причина в журнале та же, что уехала игроку: у вопроса «почему клубу отказали
+        // третий вечер подряд» должен быть один ответ, а не два.
+        MapReservationAction<RejectReservationRequest>(
+            app, HttpMethods.Post, "/reject", AuditActionNames.RejectReservation,
+            (service, reservationId, staffUserId, request, ct) => service.RejectAsync(reservationId, staffUserId, request, ct),
+            (reservation, _) => new { reservation.RejectReasonCode, reservation.RejectReasonNote },
+            request => request.OrganizationId,
+            afterSuccess: (push, reservation, ct) => NotifyReservationAnsweredAsync(push, reservation, confirmed: false, ct));
 
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
+        // Удержанная сумма пишется в аудит: это деньги, оставшиеся клубу по решению человека,
+        // и вопрос «кто отметил неявку, за которую игрок заплатил» обязан иметь ответ.
+        MapReservationAction<MarkReservationNoShowRequest>(
+            app, HttpMethods.Post, "/no-show", AuditActionNames.MarkReservationNoShow,
+            (service, reservationId, staffUserId, request, ct) => service.MarkNoShowAsync(reservationId, staffUserId, request, ct),
+            (reservation, _) => new { reservation.State, reservation.RetainedAmountMinorUnits },
+            request => request.OrganizationId);
 
-            var result = await reservationService.UpdateAsync(
-                reservationId,
-                authorization.StaffContext.StaffUserId,
-                request,
-                cancellationToken);
-            if (!result.Succeeded)
-            {
-                return ToReservationHttpResult(result);
-            }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                result.Response!.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.UpdateReservation,
-                "Reservation",
-                reservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { result.Response.SeatId, result.Response.StartsAtUtc, result.Response.State },
-                cancellationToken);
-
-            return Results.Ok(result.Response);
-        });
-
-        app.MapPost("reservations/{reservationId:guid}/confirm", async (
-            Guid reservationId,
-            ConfirmReservationRequest request,
-            PlatformDbContext dbContext,
-            IStaffContextAccessor staffContextAccessor,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
-            PlayerPushNotifier playerPush,
-            CancellationToken cancellationToken) =>
-        {
-            var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
-            if (scoped.Result is not null)
-            {
-                return scoped.Result;
-            }
-
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                scoped.Reservation!.BranchId,
-                OrganizationPermissionNames.ManageReservations,
-                cancellationToken);
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    scoped.Reservation.BranchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.ConfirmReservation,
-                    "Reservation",
-                    reservationId.ToString("D"),
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            var result = await reservationService.ConfirmAsync(
-                reservationId,
-                authorization.StaffContext.StaffUserId,
-                request,
-                cancellationToken);
-            if (!result.Succeeded)
-            {
-                return ToReservationHttpResult(result);
-            }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                result.Response!.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.ConfirmReservation,
-                "Reservation",
-                reservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { result.Response.State },
-                cancellationToken);
-
-            await NotifyReservationAnsweredAsync(playerPush, result.Response, confirmed: true, cancellationToken);
-
-            return Results.Ok(result.Response);
-        });
-
-        app.MapPost("reservations/{reservationId:guid}/seat", async (
-            Guid reservationId,
-            SeatReservationRequest request,
-            PlatformDbContext dbContext,
-            IStaffContextAccessor staffContextAccessor,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
-            CancellationToken cancellationToken) =>
-        {
-            var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
-            if (scoped.Result is not null)
-            {
-                return scoped.Result;
-            }
-
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                scoped.Reservation!.BranchId,
-                OrganizationPermissionNames.ManageReservations,
-                cancellationToken);
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    scoped.Reservation.BranchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.SeatReservation,
-                    "Reservation",
-                    reservationId.ToString("D"),
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            var result = await reservationService.SeatAsync(
-                reservationId,
-                authorization.StaffContext.StaffUserId,
-                request,
-                cancellationToken);
-            if (!result.Succeeded)
-            {
-                return ToReservationHttpResult(result);
-            }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                result.Response!.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.SeatReservation,
-                "Reservation",
-                reservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { result.Response.SeatId, result.Response.State },
-                cancellationToken);
-
-            return Results.Ok(result.Response);
-        });
-
-        app.MapPost("reservations/{reservationId:guid}/reject", async (
-            Guid reservationId,
-            RejectReservationRequest request,
-            PlatformDbContext dbContext,
-            IStaffContextAccessor staffContextAccessor,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
-            PlayerPushNotifier playerPush,
-            CancellationToken cancellationToken) =>
-        {
-            var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
-            if (scoped.Result is not null)
-            {
-                return scoped.Result;
-            }
-
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                scoped.Reservation!.BranchId,
-                OrganizationPermissionNames.ManageReservations,
-                cancellationToken);
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    scoped.Reservation.BranchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.RejectReservation,
-                    "Reservation",
-                    reservationId.ToString("D"),
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            var result = await reservationService.RejectAsync(
-                reservationId,
-                authorization.StaffContext.StaffUserId,
-                request,
-                cancellationToken);
-            if (!result.Succeeded)
-            {
-                return ToReservationHttpResult(result);
-            }
-
-            // Причина в журнале та же, что уехала игроку: у вопроса «почему клубу отказали
-            // третий вечер подряд» должен быть один ответ, а не два.
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                result.Response!.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.RejectReservation,
-                "Reservation",
-                reservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { result.Response.RejectReasonCode, result.Response.RejectReasonNote },
-                cancellationToken);
-
-            await NotifyReservationAnsweredAsync(playerPush, result.Response, confirmed: false, cancellationToken);
-
-            return Results.Ok(result.Response);
-        });
-
-        app.MapPost("reservations/{reservationId:guid}/no-show", async (
-            Guid reservationId,
-            MarkReservationNoShowRequest request,
-            PlatformDbContext dbContext,
-            IStaffContextAccessor staffContextAccessor,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
-            CancellationToken cancellationToken) =>
-        {
-            var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
-            if (scoped.Result is not null)
-            {
-                return scoped.Result;
-            }
-
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                scoped.Reservation!.BranchId,
-                OrganizationPermissionNames.ManageReservations,
-                cancellationToken);
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    scoped.Reservation.BranchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.MarkReservationNoShow,
-                    "Reservation",
-                    reservationId.ToString("D"),
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            var result = await reservationService.MarkNoShowAsync(
-                reservationId,
-                authorization.StaffContext.StaffUserId,
-                request,
-                cancellationToken);
-            if (!result.Succeeded)
-            {
-                return ToReservationHttpResult(result);
-            }
-
-            // Удержанная сумма пишется в аудит: это деньги, оставшиеся клубу по решению человека,
-            // и вопрос «кто отметил неявку, за которую игрок заплатил» обязан иметь ответ.
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                result.Response!.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.MarkReservationNoShow,
-                "Reservation",
-                reservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { result.Response.State, result.Response.RetainedAmountMinorUnits },
-                cancellationToken);
-
-            return Results.Ok(result.Response);
-        });
-
-        app.MapPost("reservations/{reservationId:guid}/cancel", async (
-            Guid reservationId,
-            CancelReservationRequest request,
-            PlatformDbContext dbContext,
-            IStaffContextAccessor staffContextAccessor,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
-            CancellationToken cancellationToken) =>
-        {
-            var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
-            if (scoped.Result is not null)
-            {
-                return scoped.Result;
-            }
-
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                scoped.Reservation!.BranchId,
-                OrganizationPermissionNames.ManageReservations,
-                cancellationToken);
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext!.OrganizationId,
-                    scoped.Reservation.BranchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.CancelReservation,
-                    "Reservation",
-                    reservationId.ToString("D"),
-                    AuditOutcome.Denied,
-                    new { authorization.DenialReason },
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            var result = await reservationService.CancelAsync(
-                reservationId,
-                authorization.StaffContext.StaffUserId,
-                request,
-                cancellationToken);
-            if (!result.Succeeded)
-            {
-                return ToReservationHttpResult(result);
-            }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                result.Response!.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.CancelReservation,
-                "Reservation",
-                reservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { result.Response.State, request.Reason },
-                cancellationToken);
-
-            return Results.Ok(result.Response);
-        });
+        MapReservationAction<CancelReservationRequest>(
+            app, HttpMethods.Post, "/cancel", AuditActionNames.CancelReservation,
+            (service, reservationId, staffUserId, request, ct) => service.CancelAsync(reservationId, staffUserId, request, ct),
+            (reservation, request) => new { reservation.State, request.Reason },
+            request => request.OrganizationId);
 
         app.MapPost("reservations/{reservationId:guid}/start-session", async (
             Guid reservationId,
@@ -878,6 +413,104 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
+    }
+
+    /// <summary>
+    /// Действие стойки над одной бронью: найти бронь в своей организации, проверить право в её
+    /// филиале (отказ — в журнал), сверить организацию запроса, выполнить, записать успех. Шесть
+    /// действий делали это шестью копиями по семьдесят строк.
+    /// </summary>
+    private static void MapReservationAction<TRequest>(
+        IEndpointRouteBuilder app,
+        string httpMethod,
+        string suffix,
+        string auditAction,
+        Func<EfReservationService, Guid, Guid, TRequest, CancellationToken, Task<ReservationServiceResult<ReservationDto>>> action,
+        Func<ReservationDto, TRequest, object> succeededDetails,
+        Func<TRequest, Guid> organizationOf,
+        Func<TRequest, string?, object>? deniedDetails = null,
+        Func<PlayerPushNotifier, ReservationDto, CancellationToken, Task>? afterSuccess = null)
+    {
+        app.MapMethods($"reservations/{{reservationId:guid}}{suffix}", [httpMethod], async (
+            Guid reservationId,
+            TRequest request,
+            PlatformDbContext dbContext,
+            IStaffContextAccessor staffContextAccessor,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            EfReservationService reservationService,
+            PlayerPushNotifier playerPush,
+            CancellationToken cancellationToken) =>
+        {
+            var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
+            if (scoped.Result is not null)
+            {
+                return scoped.Result;
+            }
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                scoped.Reservation!.BranchId,
+                OrganizationPermissionNames.ManageReservations,
+                cancellationToken);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    scoped.Reservation.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    auditAction,
+                    "Reservation",
+                    reservationId.ToString("D"),
+                    AuditOutcome.Denied,
+                    deniedDetails is null
+                        ? new { authorization.DenialReason }
+                        : deniedDetails(request, authorization.DenialReason),
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (organizationOf(request) != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await action(
+                reservationService,
+                reservationId,
+                authorization.StaffContext.StaffUserId,
+                request,
+                cancellationToken);
+            if (!result.Succeeded)
+            {
+                return ToReservationHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                result.Response!.BranchId,
+                authorization.StaffContext.StaffUserId,
+                auditAction,
+                "Reservation",
+                reservationId.ToString("D"),
+                AuditOutcome.Succeeded,
+                succeededDetails(result.Response, request),
+                cancellationToken);
+
+            if (afterSuccess is not null)
+            {
+                await afterSuccess(playerPush, result.Response, cancellationToken);
+            }
+
+            return Results.Ok(result.Response);
+        });
     }
 
     /// <summary>

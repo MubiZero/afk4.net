@@ -1,5 +1,4 @@
 using AFK4.Platform.Api.Platform.Health;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Platform.Analytics;
@@ -18,5 +17,5 @@ public sealed class SubscriptionSnapshotJob(
     protected override TimeSpan Interval => options.SnapshotInterval;
 
     protected override Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken) =>
-        scopedServices.GetRequiredService<ISubscriptionSnapshotRunner>().RunAsync(GetUtcNow(), cancellationToken);
+        scopedServices.GetRequiredService<EfSubscriptionSnapshotRunner>().RunAsync(GetUtcNow(), cancellationToken);
 }

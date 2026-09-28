@@ -20,12 +20,16 @@ public sealed class EfPlatformRegistrationService(
     PlatformDbContext db,
     PhoneKeyedOtpStore otpStore,
     INotificationService notifications,
-    IPlatformPersonTokenService personTokenService,
+    OpaquePlatformPersonTokenService personTokenService,
     TimeProvider timeProvider,
-    IOptions<NotificationOptions> notificationOptions) : IPlatformRegistrationService
+    IOptions<NotificationOptions> notificationOptions)
 {
     private readonly NotificationOptions notificationOptions = notificationOptions.Value;
 
+    /// <summary>
+    /// Шлёт код на номер. Личность здесь не ищется вовсе — не «ищется осторожно», а не ищется:
+    /// так неотличимость ответа держится устройством кода, а не аккуратностью следующего автора.
+    /// </summary>
     public async Task<PhoneVerificationStartResult> StartAsync(
         string rawPhone, CancellationToken cancellationToken)
     {

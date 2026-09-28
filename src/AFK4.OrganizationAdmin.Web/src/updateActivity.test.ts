@@ -15,7 +15,7 @@ describe('withCriticalUpdateActivity', () => {
     const api = withCriticalUpdateActivity(createApi(() => new Promise(resolve => resolvers.push(resolve))));
 
     const session = api.post('sessions/session-1/end', {});
-    const payment = api.post('pos/sales/sale-1/payments/manual', {});
+    const payment = api.post('pos/sales/sale-1/settlements', {});
     await Promise.resolve();
 
     expect(messages.map(message => message.type)).toEqual(['update-activity:start', 'update-activity:start']);

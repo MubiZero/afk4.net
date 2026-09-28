@@ -2687,12 +2687,6 @@ export interface CreateDcTopUpRequest {
   currencyCode: string | null;
 }
 
-/** Контракт: Devices/CreateDeviceEnrollmentCodeRequest.cs */
-export interface CreateDeviceEnrollmentCodeRequest {
-  organizationId: Guid;
-  expiresInSeconds: number;
-}
-
 /**
  * Код установки: техник ставит AFK4 на ПК зала без мастера —
  * `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
@@ -3289,35 +3283,6 @@ export interface DeviceDiagnosticsSummaryDto {
   staleDevices: number;
   staleThresholdSeconds: number;
   newestHeartbeatAtUtc: IsoDateTime | null;
-}
-
-/** Контракт: Devices/DeviceEnrollmentCodeDto.cs */
-export interface DeviceEnrollmentCodeDto {
-  organizationId: Guid;
-  branchId: Guid;
-  code: string;
-  expiresAtUtc: IsoDateTime;
-}
-
-/** Контракт: Devices/DeviceEnrollmentRequest.cs */
-export interface DeviceEnrollmentRequest {
-  organizationId: Guid;
-  branchId: Guid;
-  enrollmentCode: string;
-  machineName: string;
-  agentVersion: string;
-  shellVersion: string;
-  requestedAtUtc: IsoDateTime;
-}
-
-/** Контракт: Devices/DeviceEnrollmentResponse.cs */
-export interface DeviceEnrollmentResponse {
-  organizationId: Guid;
-  branchId: Guid;
-  deviceId: Guid;
-  credentialId: Guid;
-  credentialSecret: string;
-  enrolledAtUtc: IsoDateTime;
 }
 
 /**
@@ -4312,15 +4277,6 @@ export interface ManualLedgerCorrectionRequest {
   amount: MoneyDto;
   quantitySeconds: number;
   reason: string;
-  idempotencyKey: string;
-}
-
-/** Контракт: Payments/ManualPaymentRequest.cs */
-export interface ManualPaymentRequest {
-  organizationId: Guid;
-  paymentMethod: string;
-  amount: MoneyDto;
-  note: string;
   idempotencyKey: string;
 }
 
@@ -7418,12 +7374,6 @@ export interface SettlePosSaleRequest {
   idempotencyKey: string;
 }
 
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellAuthSignInRequest {
-  phone: string;
-  pin: string;
-}
-
 /**
  * Кто вошёл на этом ПК. Токены страница не видит: их держит хост.
  *
@@ -7440,11 +7390,6 @@ export interface ShellBrandingDto {
   clubName: string;
   logoUrl: string | null;
   accentColor: string | null;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellLaunchRequest {
-  appId: string;
 }
 
 /**
@@ -7509,33 +7454,6 @@ export interface ShellPipeRequestDto {
   /** Одно из ShellPipeRequestTypeNames. */
   type: ShellPipeRequestTypeName;
   payload: Record<string, string>;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellSetLayoutRequest {
-  /** Одно из ShellKeyboardLayoutNames. */
-  layout: ShellKeyboardLayoutName;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellSetMicMutedRequest {
-  micMuted: boolean;
-}
-
-/** Контракт: Shell/ShellBridgeContracts.cs */
-export interface ShellSetVolumeRequest {
-  /** 0–100. */
-  volume: number;
-}
-
-/**
- * Показ карточки витрины: какая и сколько миллисекунд стояла на экране.
- *
- * Контракт: Shell/ShellBridgeContracts.cs
- */
-export interface ShellShowcaseImpressionDto {
-  cardId: string;
-  shownMs: number;
 }
 
 /**

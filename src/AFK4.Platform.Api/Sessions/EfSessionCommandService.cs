@@ -18,7 +18,7 @@ public sealed class EfSessionCommandService(
     ISessionBillingService sessionBillingService,
     ISessionLifecycleNotifier lifecycleNotifier,
     ISessionStartWorkflow sessionStartWorkflow,
-    AFK4.Platform.Api.Platform.Entitlements.IPlanLimitGuard? planLimitGuard = null) : ISessionCommandService
+    AFK4.Platform.Api.Platform.Entitlements.EfPlanLimitGuard? planLimitGuard = null) : ISessionCommandService
 {
     private const int LeaseMinutes = 15;
 

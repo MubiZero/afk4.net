@@ -1142,36 +1142,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("device_credentials", (string)null);
                 });
 
-            modelBuilder.Entity("AFK4.Platform.Api.Data.DeviceEnrollmentCodeEntity", b =>
-                {
-                    b.Property<string>("Code")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ConsumedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("ExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Code");
-
-                    b.HasIndex("ExpiresAtUtc");
-
-                    b.HasIndex("OrganizationId", "BranchId");
-
-                    b.ToTable("device_enrollment_codes", (string)null);
-                });
-
             modelBuilder.Entity("AFK4.Platform.Api.Data.DeviceEntity", b =>
                 {
                     b.Property<Guid>("DeviceId")

@@ -2,7 +2,7 @@ namespace AFK4.Platform.Api.Notifications;
 
 /// <summary>
 /// The closed registry of notification template keys. Callers reference these constants rather
-/// than literal strings so a typo is a compile error, and <see cref="ITemplateProvider"/>
+/// than literal strings so a typo is a compile error, and <see cref="EmbeddedTemplateProvider"/>
 /// validates <see cref="All"/> at startup so a missing template file is a startup error rather
 /// than a silent runtime drop. Trigger integrations (§7 of the spec) add their keys here.
 /// </summary>

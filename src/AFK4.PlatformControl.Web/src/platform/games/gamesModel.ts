@@ -3,6 +3,7 @@ import { GameLaunchKindNames, GameLibraryErrorCodeNames, type GameLaunchKindName
 import { PlatformApiError } from '@/api/platformTransport';
 import { describeApiError } from '@/api/describeApiError';
 import type { CatalogGameDto, UpsertCatalogGameRequest } from '@/api/types';
+import type { FieldError } from '../useFieldErrors';
 
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -48,7 +49,7 @@ export interface GameForm {
 }
 
 export type GameFormField = 'name' | 'description' | 'genre' | 'launchTarget' | 'coverUrl';
-export type GameFormErrors = Partial<Record<GameFormField, { key: MessageKey; values?: Record<string, number> }>>;
+export type GameFormErrors = Partial<Record<GameFormField, FieldError>>;
 
 export function emptyGameForm(): GameForm {
   return {
@@ -146,10 +147,6 @@ export function validateGameForm(form: GameForm): GameFormErrors {
     errors.coverUrl = { key: 'platform.games.error.coverUrl' };
   }
   return errors;
-}
-
-export function hasErrors(errors: GameFormErrors): boolean {
-  return Object.keys(errors).length > 0;
 }
 
 const LAUNCH_KIND_LABEL_KEY: Record<GameLaunchKindName, MessageKey> = {

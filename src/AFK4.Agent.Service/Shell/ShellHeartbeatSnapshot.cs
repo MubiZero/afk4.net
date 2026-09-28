@@ -10,57 +10,7 @@ namespace AFK4.Agent.Service.Shell;
 /// Раньше это были поля работника, и собрать состояние оболочки мог только он — раз в
 /// сердцебиение. Теперь их читает сборщик, и канал отдаёт состояние, когда оно изменилось.
 /// </summary>
-public interface IShellHeartbeatSnapshot
-{
-    string? SeatingCode { get; }
-
-    DateTimeOffset? SeatingCodeExpiresAtUtc { get; }
-
-    ShellBrandingDto? Branding { get; }
-
-    /// <summary>Интервал, который сервер назвал в последний раз; <c>null</c> — сервер ещё не отвечал.</summary>
-    int? IntervalSeconds { get; }
-
-    void Record(string? seatingCode, DateTimeOffset? seatingCodeExpiresAtUtc, ShellBrandingDto? branding, int intervalSeconds);
-
-    /// <summary>Место этого ПК — «ПК 07 · Общий зал». null — ПК не привязан или сервер ещё не отвечал.</summary>
-    DeviceSeatDto? Seat { get; }
-
-    /// <summary>Чья сессия идёт на ПК — по словам сервера.</summary>
-    DeviceSessionOwnerDto? SessionOwner { get; }
-
-    /// <summary>
-    /// Владелец сессии <paramref name="sessionId"/> — только если сервер назвал его для неё же. Сразу
-    /// после старта аренда уже на ПК, а последнее сердцебиение говорит о прошлой сессии: её владелец
-    /// новой не подходит — ни для роли на экране, ни для возраста у игр. До следующего сердцебиения
-    /// владелец неизвестен (null). Без сессии — то, что сказал сервер.
-    /// </summary>
-    DeviceSessionOwnerDto? SessionOwnerFor(Guid? sessionId);
-
-    /// <summary>Права организации по тарифу: без них экран прячет разделы, которых у клуба нет.</summary>
-    IReadOnlyList<string>? Features { get; }
-
-    /// <summary>
-    /// Место, владелец сессии и права из того же сердцебиения. Отдельно от <see cref="Record"/>:
-    /// у них нет своей логики «пустое значит не прислали» — сервер отвечает всем трём сразу.
-    /// </summary>
-    void RecordPlace(DeviceSeatDto? seat, DeviceSessionOwnerDto? sessionOwner, IReadOnlyList<string>? features);
-
-    /// <summary>Идущая сессия по словам сервера: её начало и конец. null — сессии нет.</summary>
-    DeviceLiveSessionDto? LiveSession { get; }
-
-    void RecordLiveSession(DeviceLiveSessionDto? liveSession);
-
-    /// <summary>С какого момента ПК на обслуживании — по словам сервера.</summary>
-    DateTimeOffset? MaintenanceSinceUtc { get; }
-
-    /// <summary>Кто включил обслуживание.</summary>
-    string? MaintenanceByName { get; }
-
-    void RecordMaintenance(DateTimeOffset? sinceUtc, string? byName);
-}
-
-public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
+public sealed class ShellHeartbeatSnapshot
 {
     private readonly Lock gate = new();
     private string? seatingCode;
@@ -74,6 +24,7 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
     private string? maintenanceByName;
     private DeviceLiveSessionDto? liveSession;
 
+    /// <summary>Идущая сессия по словам сервера: её начало и конец. null — сессии нет.</summary>
     public DeviceLiveSessionDto? LiveSession { get { lock (gate) { return liveSession; } } }
 
     public void RecordLiveSession(DeviceLiveSessionDto? liveSession)
@@ -90,12 +41,21 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
 
     public ShellBrandingDto? Branding { get { lock (gate) { return branding; } } }
 
+    /// <summary>Интервал, который сервер назвал в последний раз; <c>null</c> — сервер ещё не отвечал.</summary>
     public int? IntervalSeconds { get { lock (gate) { return intervalSeconds; } } }
 
+    /// <summary>Место этого ПК — «ПК 07 · Общий зал». null — ПК не привязан или сервер ещё не отвечал.</summary>
     public DeviceSeatDto? Seat { get { lock (gate) { return seat; } } }
 
+    /// <summary>Чья сессия идёт на ПК — по словам сервера.</summary>
     public DeviceSessionOwnerDto? SessionOwner { get { lock (gate) { return sessionOwner; } } }
 
+    /// <summary>
+    /// Владелец сессии <paramref name="sessionId"/> — только если сервер назвал его для неё же. Сразу
+    /// после старта аренда уже на ПК, а последнее сердцебиение говорит о прошлой сессии: её владелец
+    /// новой не подходит — ни для роли на экране, ни для возраста у игр. До следующего сердцебиения
+    /// владелец неизвестен (null). Без сессии — то, что сказал сервер.
+    /// </summary>
     public DeviceSessionOwnerDto? SessionOwnerFor(Guid? sessionId)
     {
         lock (gate)
@@ -104,10 +64,13 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
         }
     }
 
+    /// <summary>Права организации по тарифу: без них экран прячет разделы, которых у клуба нет.</summary>
     public IReadOnlyList<string>? Features { get { lock (gate) { return features; } } }
 
+    /// <summary>С какого момента ПК на обслуживании — по словам сервера.</summary>
     public DateTimeOffset? MaintenanceSinceUtc { get { lock (gate) { return maintenanceSinceUtc; } } }
 
+    /// <summary>Кто включил обслуживание.</summary>
     public string? MaintenanceByName { get { lock (gate) { return maintenanceByName; } } }
 
     public void RecordMaintenance(DateTimeOffset? sinceUtc, string? byName)
@@ -119,6 +82,10 @@ public sealed class ShellHeartbeatSnapshot : IShellHeartbeatSnapshot
         }
     }
 
+    /// <summary>
+    /// Место, владелец сессии и права из того же сердцебиения. Отдельно от <see cref="Record"/>:
+    /// у них нет своей логики «пустое значит не прислали» — сервер отвечает всем трём сразу.
+    /// </summary>
     public void RecordPlace(DeviceSeatDto? seat, DeviceSessionOwnerDto? sessionOwner, IReadOnlyList<string>? features)
     {
         lock (gate)

@@ -6,7 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Tournaments;
 
-public sealed class EfTournamentService(PlatformDbContext dbContext, TimeProvider timeProvider) : ITournamentService
+/// <summary>
+/// События клуба: расписание, запись и взнос. Один сервис на обе стороны намеренно — правила
+/// «можно ли ещё записаться» и «сколько мест осталось» одни и те же, а две копии разошлись бы
+/// в первый же месяц: игрок читал бы «есть места», получая отказ.
+/// </summary>
+public sealed class EfTournamentService(PlatformDbContext dbContext, TimeProvider timeProvider)
 {
     public async Task<IReadOnlyList<TournamentDto>> ListForClubAsync(
         Guid organizationId, Guid branchId, CancellationToken ct)

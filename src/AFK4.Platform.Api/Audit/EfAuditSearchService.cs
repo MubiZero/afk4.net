@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Audit;
 
-public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSearchService
+public sealed class EfAuditSearchService(PlatformDbContext dbContext)
 {
     private const int DefaultLimit = 50;
     private const int MaxLimit = 200;

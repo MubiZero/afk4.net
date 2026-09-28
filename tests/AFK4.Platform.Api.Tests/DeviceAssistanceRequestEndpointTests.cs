@@ -3,9 +3,10 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
-using AFK4.Shared.Contracts.Audit;
+using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Install;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -126,7 +127,7 @@ public sealed class DeviceAssistanceRequestEndpointTests
 
     private static Task<HttpResponseMessage> CallOperatorAsync(
         HttpClient client,
-        DeviceEnrollmentResponse enrollment,
+        InstallEnrollResponse enrollment,
         DateTimeOffset requestedAtUtc)
     {
         var message = new HttpRequestMessage(
@@ -188,26 +189,6 @@ public sealed class DeviceAssistanceRequestEndpointTests
         await dbContext.SaveChangesAsync();
     }
 
-    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)
-    {
-        var codeResponse = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
-        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
-        Assert.NotNull(code);
-
-        var enrollmentResponse = await client.PostAsJsonAsync(
-            "/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                OrganizationId: TestIds.OrganizationId,
-                BranchId: TestIds.BranchId,
-                EnrollmentCode: code!.Code,
-                MachineName: "PC-001",
-                AgentVersion: "0.1.0",
-                ShellVersion: "0.1.0",
-                RequestedAtUtc: DateTimeOffset.Parse("2026-09-16T09:55:00Z")));
-        var enrollment = await enrollmentResponse.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
-        Assert.NotNull(enrollment);
-        return enrollment!;
-    }
+    private static Task<InstallEnrollResponse> EnrollDeviceAsync(HttpClient client) =>
+        TestDeviceEnrollment.EnrollDeviceAsync(client, TestIds.OrganizationId, TestIds.BranchId);
 }

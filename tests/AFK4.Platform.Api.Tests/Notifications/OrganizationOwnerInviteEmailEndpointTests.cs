@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Tests.Platform;
-using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;

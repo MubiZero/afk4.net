@@ -16,7 +16,7 @@ internal static class PlayerDeviceEndpoints
     {
         app.MapPost("/api/me/devices", async (
             RegisterPlayerDeviceRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IPlayerDeviceStore devices,
             CancellationToken cancellationToken) =>
         {
@@ -46,7 +46,7 @@ internal static class PlayerDeviceEndpoints
         // звать уже нечем, а токен останется висеть на прежнем игроке.
         app.MapDelete("/api/me/devices/{pushToken}", async (
             string pushToken,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IPlayerDeviceStore devices,
             CancellationToken cancellationToken) =>
         {

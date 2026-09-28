@@ -421,7 +421,7 @@ public sealed class PlayerFirstActionEndpointTests
 
         await using var tokenScope = factory.Services.CreateAsyncScope();
         var tokenDb = tokenScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var tokens = await tokenScope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>()
+        var tokens = await tokenScope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>()
             .IssueAsync(
                 await tokenDb.PlatformPersons.SingleAsync(p => p.PlatformPersonId == platformPersonId),
                 await tokenDb.PlayerAccounts.SingleAsync(a => a.PlayerAccountId == homeAccountId),

@@ -1,13 +1,14 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Platform.Api.Tests.Platform;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Updates;
 using AFK4.Shared.Contracts.Updates;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -183,7 +184,7 @@ public sealed class UpdateEndpointTests
 
     private static async Task ReportStatusAsync(
         HttpClient client,
-        DeviceEnrollmentResponse enrollment,
+        InstallEnrollResponse enrollment,
         (Guid PackageId, Guid RolloutId) release)
     {
         var response = await SendStatusAsync(client, enrollment, release, UpdateStatusNames.Installing);
@@ -192,7 +193,7 @@ public sealed class UpdateEndpointTests
 
     private static async Task<HttpResponseMessage> SendStatusAsync(
         HttpClient client,
-        DeviceEnrollmentResponse enrollment,
+        InstallEnrollResponse enrollment,
         (Guid PackageId, Guid RolloutId) release,
         string status)
     {
@@ -364,7 +365,7 @@ public sealed class UpdateEndpointTests
 
     private static async Task<DeviceUpdateCheckResponse> CheckForUpdatesAsync(
         HttpClient client,
-        DeviceEnrollmentResponse enrollment)
+        InstallEnrollResponse enrollment)
     {
         var request = new DeviceUpdateCheckRequest(
             enrollment.OrganizationId, enrollment.BranchId, enrollment.DeviceId, UpdateChannelNames.Beta,
@@ -381,23 +382,8 @@ public sealed class UpdateEndpointTests
         return (await response.Content.ReadFromJsonAsync<DeviceUpdateCheckResponse>())!;
     }
 
-    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)
+    private static async Task<InstallEnrollResponse> EnrollDeviceAsync(HttpClient client)
     {
-        var codeResponse = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
-            new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, 300));
-        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
-        Assert.Equal(HttpStatusCode.OK, codeResponse.StatusCode);
-        Assert.NotNull(code);
-
-        var enrollmentResponse = await client.PostAsJsonAsync(
-            "/api/devices/enroll",
-            new DeviceEnrollmentRequest(
-                TestIds.OrganizationId, TestIds.BranchId, code.Code, "PC-001", "1.2.2", "1.2.2",
-                DateTimeOffset.Parse("2026-07-29T13:55:00Z")));
-        var enrollment = await enrollmentResponse.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
-        Assert.Equal(HttpStatusCode.OK, enrollmentResponse.StatusCode);
-        Assert.NotNull(enrollment);
-        return enrollment;
+        return await TestDeviceEnrollment.EnrollDeviceAsync(client, TestIds.OrganizationId, TestIds.BranchId);
     }
 }

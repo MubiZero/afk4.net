@@ -3,7 +3,6 @@ using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
-using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
@@ -20,7 +19,6 @@ public sealed class EfPosService(
     TimeProvider timeProvider) : IPosService
 {
     private const string CreateSaleOperation = "pos-sale-create";
-    private const string PaySaleOperation = "pos-sale-pay";
     private const string VoidSaleOperation = "pos-sale-void";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -196,48 +194,6 @@ public sealed class EfPosService(
             request.IdempotencyKey,
             requestHashInput,
             cancellationToken), cancellationToken);
-    }
-
-    public async Task<BillingCommandServiceResult<PosSaleDto>> PaySaleAsync(
-        Guid posSaleId,
-        Guid actorStaffUserId,
-        ManualPaymentRequest request,
-        CancellationToken cancellationToken)
-    {
-        var saleScope = await dbContext.PosSales
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.PosSaleId == posSaleId, cancellationToken);
-        if (saleScope is null)
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Missing("POS sale was not found.");
-        }
-
-        var legacyRequestHashInput = new
-        {
-            PosSaleId = posSaleId,
-            Request = request
-        };
-        var legacyReplay = await GetExistingIdempotencyAsync<PosSaleDto, object>(
-            saleScope.OrganizationId,
-            saleScope.BranchId,
-            PaySaleOperation,
-            request.IdempotencyKey,
-            legacyRequestHashInput,
-            cancellationToken);
-        if (legacyReplay is not null)
-        {
-            return legacyReplay;
-        }
-
-        return await posSettlementService.SettleAsync(
-            posSaleId,
-            actorStaffUserId,
-            new SettlePosSaleRequest(
-                request.OrganizationId,
-                [new PaymentPartDto(request.PaymentMethod, request.Amount)],
-                request.Note,
-                request.IdempotencyKey),
-            cancellationToken);
     }
 
     public Task<BillingCommandServiceResult<PosSaleDto>> RefundSaleAsync(

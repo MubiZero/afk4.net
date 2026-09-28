@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Install;
-using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;

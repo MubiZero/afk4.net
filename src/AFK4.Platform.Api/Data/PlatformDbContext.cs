@@ -56,8 +56,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<DeviceCredentialEntity> DeviceCredentials => Set<DeviceCredentialEntity>();
 
-    public DbSet<DeviceEnrollmentCodeEntity> DeviceEnrollmentCodes => Set<DeviceEnrollmentCodeEntity>();
-
     public DbSet<DeviceCommandEntity> DeviceCommands => Set<DeviceCommandEntity>();
 
     public DbSet<DeviceInstalledAppEntity> DeviceInstalledApps => Set<DeviceInstalledAppEntity>();
@@ -599,15 +597,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(credential => credential.SecretHash).IsRequired();
             entity.HasIndex(credential => credential.DeviceId);
             entity.HasIndex(credential => new { credential.OrganizationId, credential.BranchId, credential.DeviceId });
-        });
-
-        modelBuilder.Entity<DeviceEnrollmentCodeEntity>(entity =>
-        {
-            entity.ToTable("device_enrollment_codes");
-            entity.HasKey(code => code.Code);
-            entity.Property(code => code.Code).HasMaxLength(32).IsRequired();
-            entity.HasIndex(code => new { code.OrganizationId, code.BranchId });
-            entity.HasIndex(code => code.ExpiresAtUtc);
         });
 
         modelBuilder.Entity<DeviceCommandEntity>(entity =>

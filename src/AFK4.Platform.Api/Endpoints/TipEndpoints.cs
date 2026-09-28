@@ -2,11 +2,9 @@ using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Tips;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Tips;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -26,7 +24,7 @@ internal static class TipEndpoints
     {
         // Чужой визит отсюда неотличим от несуществующего: 404, как у отзыва.
         app.MapGet("/api/me/visits/{sessionId:guid}/tip", async (
-            Guid sessionId, IPlayerContextAccessor playerContextAccessor, VisitTips tips, CancellationToken ct) =>
+            Guid sessionId, PlayerContextAccessor playerContextAccessor, VisitTips tips, CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
@@ -35,7 +33,7 @@ internal static class TipEndpoints
         }).RequireRateLimiting("player-me");
 
         app.MapPost("/api/me/visits/{sessionId:guid}/tip", async (
-            Guid sessionId, PlayerTipRequest request, IPlayerContextAccessor playerContextAccessor, VisitTips tips, CancellationToken ct) =>
+            Guid sessionId, PlayerTipRequest request, PlayerContextAccessor playerContextAccessor, VisitTips tips, CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
@@ -133,7 +131,7 @@ internal static class TipEndpoints
         // и два кассира, нажавших разом, выдадут один раз.
         organizations.MapPost("shifts/{shiftId:guid}/tips/payout", async (
             Guid shiftId, StaffAuthorizationService authorizationService, IAuditRecordWriter audit,
-            PlatformDbContext db, VisitTips tips, AFK4.Platform.Api.Shifts.IShiftService shifts, CancellationToken ct) =>
+            PlatformDbContext db, VisitTips tips, AFK4.Platform.Api.Shifts.EfShiftService shifts, CancellationToken ct) =>
         {
             var branchId = await ShiftBranchAsync(db, shiftId, ct);
             if (branchId is null) return Results.NotFound();

@@ -17,16 +17,21 @@ namespace AFK4.Platform.Api.Identity;
 public sealed class EfStaffPhonePasswordResetService(
     PlatformDbContext db,
     INotificationService notifications,
-    IPhoneOtpHasher hasher,
+    Sha256PhoneOtpHasher hasher,
     IPhoneOtpGenerator generator,
     TimeProvider timeProvider,
     IOptions<PhoneOtpOptions> otpOptions,
-    IOptions<NotificationOptions> notificationOptions) : IStaffPhonePasswordResetService
+    IOptions<NotificationOptions> notificationOptions)
 {
     private readonly PhoneOtpOptions otpOptions = otpOptions.Value;
     private readonly NotificationOptions notificationOptions = notificationOptions.Value;
     private readonly PasswordHasher<StaffUserEntity> passwordHasher = new();
 
+    /// <summary>
+    /// Sends an SMS reset code to the verified phone if it maps to an active staff account. The
+    /// result is uniform whether or not an account exists (anti-enumeration); only a malformed
+    /// phone yields <see cref="ForgotPasswordByPhoneStatus.InvalidPhone"/>.
+    /// </summary>
     public async Task<ForgotPasswordByPhoneResult> RequestResetAsync(string rawPhone, CancellationToken cancellationToken)
     {
         var expiresInSeconds = (int)otpOptions.Lifetime.TotalSeconds;
@@ -113,6 +118,11 @@ public sealed class EfStaffPhonePasswordResetService(
         return accepted;
     }
 
+    /// <summary>
+    /// Verifies the SMS code for the phone and, on success, sets the new password and revokes the
+    /// account's active tokens. A missing account/code collapses to
+    /// <see cref="ResetPasswordByPhoneStatus.NoActiveCode"/> (no enumeration).
+    /// </summary>
     public async Task<ResetPasswordByPhoneResult> ResetAsync(
         string rawPhone, string code, string newPassword, CancellationToken cancellationToken)
     {

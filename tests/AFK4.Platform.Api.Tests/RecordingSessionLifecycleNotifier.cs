@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Sessions;
 

@@ -42,7 +42,7 @@ internal static class EskhataConfigEndpoints
         app.MapPost("payments/eskhata-config", async (
             UpdateEskhataMerchantConfigRequest request,
             StaffAuthorizationService authorizationService,
-            ISecretProtector secretProtector,
+            AesGcmSecretProtector secretProtector,
             IAuditRecordWriter auditRecordWriter,
             TimeProvider timeProvider,
             PlatformDbContext db,

@@ -1,11 +1,6 @@
 namespace AFK4.Platform.Api.Platform.Support;
 
-public interface IPlatformSupportContextAccessor
-{
-    PlatformSupportContext? Current { get; set; }
-}
-
-public sealed class PlatformSupportContextAccessor : IPlatformSupportContextAccessor
+public sealed class PlatformSupportContextAccessor
 {
     public PlatformSupportContext? Current { get; set; }
 }

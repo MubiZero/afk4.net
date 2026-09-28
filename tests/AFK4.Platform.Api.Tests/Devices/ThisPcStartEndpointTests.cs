@@ -17,12 +17,17 @@ namespace AFK4.Platform.Api.Tests.Devices;
 /// </summary>
 public sealed class ThisPcStartEndpointTests
 {
+    /// <summary>
+    /// Экран выбора получает готовые суммы одним запросом: тарифы филиала с вариантами и пакеты
+    /// игрока с остатком. Клиент цену не считает.
+    /// </summary>
     [Fact]
-    public async Task ThePcItself_SeesThePrices_WithoutTheCode()
+    public async Task ThePcItself_SeesThePrices_AndThePlayersPackages_WithoutTheCode()
     {
         await using var fixture = DevicePlayerFixture.Create();
         await fixture.SeedAsync();
         await SeedTariffAsync(fixture, walletMinorUnits: 100_000);
+        var packageId = await SeedPackageAsync(fixture, includedSeconds: 3 * 3600);
         using var pc = await PcClientAsync(fixture);
 
         var response = await pc.GetAsync("/api/me/this-pc/start-offers");
@@ -30,8 +35,16 @@ public sealed class ThisPcStartEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var offers = await response.Content.ReadFromJsonAsync<PlayerStartOffersDto>();
         Assert.Equal("ПК 07", offers!.SeatLabel);
-        Assert.Single(offers.Tariffs);
         Assert.Equal(100_000, offers.Balance.MinorUnits);
+        var tariff = Assert.Single(offers.Tariffs);
+        Assert.Equal(60_000, tariff.PricePerHour.MinorUnits);
+        var hour = tariff.Options.Single(option => option.Minutes == 60);
+        Assert.Equal(60_000, hour.Amount.MinorUnits);
+        Assert.Equal(40_000, hour.BalanceAfter.MinorUnits);
+        Assert.False(tariff.Options.Single(option => option.Minutes == 120).Affordable);
+        var package = Assert.Single(offers.Packages);
+        Assert.Equal(packageId, package.PlayerPackageId);
+        Assert.Equal(180, package.RemainingMinutes);
     }
 
     [Fact]
@@ -95,6 +108,46 @@ public sealed class ThisPcStartEndpointTests
     }
 
     /// <summary>Тариф 10 с./мин, открытая смена и деньги на кошельке игрока.</summary>
+    private static async Task<Guid> SeedPackageAsync(DevicePlayerFixture fixture, int includedSeconds)
+    {
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var start = DevicePlayerFixture.Start;
+        var packageId = Guid.NewGuid();
+        db.PlayerPackages.Add(new PlayerPackageEntity
+        {
+            PlayerPackageId = packageId,
+            PackageDefinitionId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = fixture.PlayerAccountId,
+            Name = "Пакет 3 часа",
+            CurrencyCode = "TJS",
+            PurchasedPriceMinorUnits = 100_000,
+            IncludedSeconds = includedSeconds,
+            PurchasedAtUtc = start,
+            ExpiresAtUtc = start.AddDays(30)
+        });
+        db.LedgerEntries.Add(AFK4.Platform.Api.Billing.BillingEntryFactory.Create(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            fixture.PlayerAccountId,
+            sessionId: null,
+            packageId,
+            AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.PackagePurchase,
+            AFK4.Shared.Contracts.Billing.LedgerAccountTypeNames.PackageTime,
+            amountMinorUnits: 0,
+            includedSeconds,
+            "TJS",
+            "package purchase",
+            "package purchase",
+            reversesLedgerEntryId: null,
+            Guid.Empty,
+            start));
+        await db.SaveChangesAsync();
+        return packageId;
+    }
+
     private static async Task<Guid> SeedTariffAsync(DevicePlayerFixture fixture, long walletMinorUnits)
     {
         await using var scope = fixture.Factory.Services.CreateAsyncScope();

@@ -217,7 +217,7 @@ public sealed class MoneyActionApprovalServiceTests
         Assert.Equal(pending, list[0].MoneyActionRequestId);
     }
 
-    private async Task<Guid> SeedPendingAsync(IMoneyActionApprovalService service, string key = "refund-1")
+    private async Task<Guid> SeedPendingAsync(MoneyActionApprovalService service, string key = "refund-1")
     {
         var result = await service.RequestAsync(
             TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [OrganizationRoleNames.ShiftSupervisor],

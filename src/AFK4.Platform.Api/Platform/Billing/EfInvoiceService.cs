@@ -12,7 +12,7 @@ public sealed class EfInvoiceService(
     IInvoiceNotifier invoiceNotifier,
     TimeProvider timeProvider,
     IOptions<BillingOptions> options,
-    AFK4.Platform.Api.Audit.IAuditRecordWriter? auditRecordWriter = null) : IInvoiceService
+    AFK4.Platform.Api.Audit.IAuditRecordWriter? auditRecordWriter = null)
 {
     private const int MaxVoidReasonLength = 512;
 
@@ -110,6 +110,9 @@ public sealed class EfInvoiceService(
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 
+    /// <summary>Manually issues a one-off charge or credit note for an organization.
+    /// Automatic kinds (subscription, proration) are rejected here — they are only ever issued
+    /// by <see cref="GenerateAsync"/>.</summary>
     public async Task<BillingOperationResult<InvoiceDto>> CreateAsync(
         Guid organizationId,
         CreateInvoiceRequest request,
@@ -375,6 +378,9 @@ public sealed class EfInvoiceService(
         return BillingOperationResult<IReadOnlyList<InvoiceListItemDto>>.Success(dtos);
     }
 
+    /// <summary>Compact arrears summary for the club's own admin banner — computed from the same
+    /// <see cref="BillingBalance.Compute"/> the platform side uses, over this organization's unpaid
+    /// invoices only.</summary>
     public async Task<BillingOperationResult<OrganizationBillingStatusDto>> GetBillingStatusAsync(
         Guid organizationId,
         CancellationToken cancellationToken)

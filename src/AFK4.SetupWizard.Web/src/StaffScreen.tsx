@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, Loader2, UserPlus } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import type { WizardStaffInvited } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
-import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
+import { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
 
 // Владельца в списке нет: он и так есть — это тот, кто сейчас ставит клуб.
 const ROLES: { name: string; labelKey: MessageKey }[] = [

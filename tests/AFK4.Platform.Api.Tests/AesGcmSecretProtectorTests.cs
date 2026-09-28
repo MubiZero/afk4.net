@@ -1,7 +1,5 @@
-using System;
 using AFK4.Platform.Api.Security;
 using Microsoft.Extensions.Options;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

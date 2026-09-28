@@ -10,22 +10,15 @@ using AFK4.Shared.Contracts.Shell;
 namespace AFK4.Agent.Service.Commands;
 
 /// <summary>Команды администратора самой машине (спека оболочки, §5.8): питание, пробуждение соседа, обслуживание, экран.</summary>
-public interface IMachineCommandHandler
-{
-    bool Handles(string commandType);
-
-    Task<SessionEnforcementResult> HandleAsync(DeviceCommandDto command, CancellationToken cancellationToken);
-}
-
 public sealed class MachineCommandHandler(
     IAgentRuntimeStateStore runtimeStateStore,
-    IMaintenanceMode maintenanceMode,
+    MaintenanceMode maintenanceMode,
     IMachinePowerController powerController,
     IWakeOnLanSender wakeOnLanSender,
     INetworkIdentityProvider networkIdentity,
-    IShellHostChannel hostChannel,
+    ShellHostChannel hostChannel,
     ILogger<MachineCommandHandler> logger,
-    IProtectionEnforcer? protection = null) : IMachineCommandHandler
+    IProtectionEnforcer? protection = null)
 {
     /// <summary>Сколько Windows ждёт перед перезагрузкой: ответ серверу уходит за это время.</summary>
     public static readonly TimeSpan PowerDelay = TimeSpan.FromSeconds(10);

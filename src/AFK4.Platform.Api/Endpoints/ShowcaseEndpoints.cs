@@ -2,7 +2,6 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Showcase;
 using AFK4.Shared.Contracts.Devices;
-using Microsoft.AspNetCore.Http;
 
 namespace AFK4.Platform.Api.Endpoints;
 
@@ -17,7 +16,7 @@ internal static class ShowcaseEndpoints
             Guid branchId,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             DeviceShowcase showcase,
             CancellationToken cancellationToken) =>
         {

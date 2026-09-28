@@ -16,9 +16,9 @@ public sealed class PlayerShellRequestHandler(
     IAssistanceRequestReporter assistanceRequestReporter,
     TimeProvider timeProvider,
     ILogger<PlayerShellRequestHandler> logger,
-    IPlayerSignIn? playerSignIn = null,
+    PlayerSignIn? playerSignIn = null,
     MaintenanceReturn? maintenanceReturn = null,
-    AFK4.Agent.Service.Power.IPlayerPresence? presence = null,
+    AFK4.Agent.Service.Power.PlayerPresence? presence = null,
     AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null) : IPlayerShellRequestHandler
 {
     public const string AppIdPayloadKey = "appId";

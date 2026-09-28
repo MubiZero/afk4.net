@@ -1,7 +1,4 @@
 using AFK4.Platform.Api.Platform.Health;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace AFK4.Platform.Api.Sessions;
 

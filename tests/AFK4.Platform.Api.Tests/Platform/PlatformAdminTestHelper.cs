@@ -45,7 +45,7 @@ internal static class PlatformAdminTestHelper
     {
         await using var scope = services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var secretProtector = scope.ServiceProvider.GetRequiredService<ISecretProtector>();
+        var secretProtector = scope.ServiceProvider.GetRequiredService<AesGcmSecretProtector>();
         var hasher = new PasswordHasher<PlatformAdminUserEntity>();
         var roleNames = (roles ?? [PlatformAdminRoleNames.PlatformAdmin]).ToArray();
         var now = DateTimeOffset.Parse("2026-05-23T08:00:00Z");

@@ -4,7 +4,6 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Players;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Players;
-using Microsoft.AspNetCore.Http;
 
 namespace AFK4.Platform.Api.Endpoints;
 

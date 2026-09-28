@@ -1,7 +1,7 @@
 namespace AFK4.Platform.Api.Data;
 
 // Eskhata Merchant credentials for a organization; merchant-config-shaped (not card-shaped).
-// A null BranchId is the org-level config. The Hash key is stored encrypted via ISecretProtector.
+// A null BranchId is the org-level config. The Hash key is stored encrypted via AesGcmSecretProtector.
 // This slice only stores the credentials (UI prep); the Merchant API flow (invoice/status/webhook/credit)
 // is a separate deferred epic, so Status is never "active" here.
 public sealed class EskhataMerchantConfigEntity

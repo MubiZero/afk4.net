@@ -1,72 +1,20 @@
-﻿using System.Globalization;
-using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text.Json;
-using System.Text;
 using Microsoft.Extensions.Options;
-using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Audit;
-using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
-using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Install;
-using AFK4.Platform.Api.Inventory;
-using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
-using AFK4.Platform.Api.Payments;
-using AFK4.Platform.Api.Platform.Billing;
-using AFK4.Platform.Api.Platform.Idempotency;
-using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
-using AFK4.Platform.Api.Pos;
-using AFK4.Platform.Api.Receipts;
-using AFK4.Platform.Api.Reports;
-using AFK4.Platform.Api.Reservations;
-using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Sessions;
-using AFK4.Platform.Api.Shifts;
-using AFK4.Platform.Api.Security;
-using AFK4.Platform.Api.Tenancy;
-using AFK4.Platform.Api.Updates;
-using AFK4.Shared.Contracts.Billing;
-using AFK4.Shared.Contracts.Audit;
-using AFK4.Shared.Contracts.Branches;
-using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Devices;
-using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
-using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Install;
-using AFK4.Shared.Contracts.Inventory;
-using AFK4.Shared.Contracts.Layout;
-using AFK4.Shared.Contracts.Operator;
-using AFK4.Shared.Contracts.Packages;
-using AFK4.Shared.Contracts.Payments;
-using AFK4.Shared.Contracts.Branding;
-using AFK4.Shared.Contracts.Platform.Auth;
-using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Identity.AccountActivation;
-using AFK4.Shared.Contracts.Platform.Operator;
-using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Organizations;
-using AFK4.Shared.Contracts.Pos;
-using AFK4.Shared.Contracts.Receipts;
-using AFK4.Shared.Contracts.Reports;
-using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
-using AFK4.Shared.Contracts.Shifts;
-using AFK4.Shared.Contracts.Tariffs;
-using AFK4.Shared.Contracts.Updates;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.RateLimiting;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -85,85 +33,9 @@ internal static class DeviceEndpoints
         this WebApplication app,
         IEndpointRouteBuilder organizations)
     {
-        organizations.MapPost("branches/{branchId:guid}/device-enrollment-codes", async (
-            Guid branchId,
-            CreateDeviceEnrollmentCodeRequest request,
-            IDeviceEnrollmentService enrollmentService,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId,
-                OrganizationPermissionNames.CreateDeviceEnrollmentCode,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                    OrganizationId: authorization.StaffContext!.OrganizationId,
-                    BranchId: branchId,
-                    ActorStaffUserId: authorization.StaffContext.StaffUserId,
-                    Action: AuditActionNames.CreateDeviceEnrollmentCode,
-                    TargetType: "DeviceEnrollmentCode",
-                    TargetId: null,
-                    Outcome: AuditOutcome.Denied,
-                    SourceApp: "PlatformApi",
-                    DetailsJson: JsonSerializer.Serialize(new
-                    {
-                        request.ExpiresInSeconds,
-                        authorization.DenialReason
-                    })),
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (request.OrganizationId == Guid.Empty)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId is required." });
-            }
-
-            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
-            {
-                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
-            }
-
-            if (request.ExpiresInSeconds <= 0)
-            {
-                return Results.BadRequest(new { Error = "Enrollment code lifetime must be positive." });
-            }
-
-            var code = await enrollmentService.CreateEnrollmentCodeAsync(branchId, request, cancellationToken);
-
-            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                OrganizationId: authorization.StaffContext.OrganizationId,
-                BranchId: branchId,
-                ActorStaffUserId: authorization.StaffContext.StaffUserId,
-                Action: AuditActionNames.CreateDeviceEnrollmentCode,
-                TargetType: "DeviceEnrollmentCode",
-                TargetId: code.Code,
-                Outcome: AuditOutcome.Succeeded,
-                SourceApp: "PlatformApi",
-                DetailsJson: JsonSerializer.Serialize(new
-                {
-                    request.ExpiresInSeconds,
-                    code.ExpiresAtUtc
-                })),
-                cancellationToken);
-
-            return Results.Ok(code);
-        })
-            .AllowPlatformSupportAccess(OrganizationPermissionNames.CreateDeviceEnrollmentCode);
-
         organizations.MapPost("install/auth/discover", async (
             StaffAuthorizationService authorizationService,
-            IInstallService installService,
+            EfInstallService installService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -196,7 +68,7 @@ internal static class DeviceEndpoints
             AuthenticatedInstallCreateSeatRequest request,
             HttpContext httpContext,
             StaffAuthorizationService authorizationService,
-            IInstallService installService,
+            EfInstallService installService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -240,7 +112,7 @@ internal static class DeviceEndpoints
             AuthenticatedInstallEnrollRequest request,
             HttpContext httpContext,
             StaffAuthorizationService authorizationService,
-            IInstallService installService,
+            EfInstallService installService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -305,35 +177,13 @@ internal static class DeviceEndpoints
             // к нему не применяем, доменная защита группы остаётся.
             .AllowNonOrganizationAdminClients();
 
-        app.MapPost("/api/devices/enroll", async (
-            DeviceEnrollmentRequest request,
-            IDeviceEnrollmentService enrollmentService,
-            IOrganizationStatusGuard organizationStatusGuard,
-            CancellationToken cancellationToken) =>
-        {
-            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
-            if (suspendedCheck is not null)
-            {
-                return suspendedCheck;
-            }
-
-            var result = await enrollmentService.EnrollAsync(request, cancellationToken);
-
-            if (!result.Succeeded)
-            {
-                return Results.BadRequest(new { result.Error });
-            }
-
-            return Results.Ok(result.Response);
-        });
-
         app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
             Guid deviceId,
             DeviceHeartbeatRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceHeartbeatService heartbeatService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -374,7 +224,7 @@ internal static class DeviceEndpoints
             SelfRotateDeviceCredentialRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -424,9 +274,9 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceCommandStore commandStore,
-            ISessionCommandResultProcessor sessionCommandResultProcessor,
+            EfSessionCommandResultProcessor sessionCommandResultProcessor,
             IHubContext<DeviceHub> hubContext,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != result.DeviceId)
@@ -467,7 +317,7 @@ internal static class DeviceEndpoints
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceCommandDispatchService commandDispatchService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -588,7 +438,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -661,7 +511,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -779,8 +629,8 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
-            IDevicePlayerSignInService signInService,
+            EfOrganizationStatusGuard organizationStatusGuard,
+            DevicePlayerSignInService signInService,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -837,7 +687,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             PlayerSignInClaimService claims,
             CancellationToken cancellationToken) =>
         {
@@ -1203,7 +1053,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1368,7 +1218,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1449,7 +1299,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -1625,7 +1475,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             IDeviceCommandDispatchService commandDispatchService,
             IDeviceCommandStore commandStore,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -1908,89 +1758,6 @@ internal static class DeviceEndpoints
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
 
-        organizations.MapGet("branches/{branchId:guid}/device-commands", async (
-            Guid branchId,
-            int? limit,
-            PlatformDbContext dbContext,
-            IStaffContextAccessor staffContextAccessor,
-            StaffAuthorizationService authorizationService,
-            IAuditRecordWriter auditRecordWriter,
-            CancellationToken cancellationToken) =>
-        {
-            if (staffContextAccessor.Current is null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId,
-                OrganizationPermissionNames.ViewDeviceCommandStatus,
-                cancellationToken);
-
-            if (!authorization.IsAllowed)
-            {
-                await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                    OrganizationId: authorization.StaffContext!.OrganizationId,
-                    BranchId: branchId,
-                    ActorStaffUserId: authorization.StaffContext.StaffUserId,
-                    Action: AuditActionNames.ViewDeviceCommandStatus,
-                    TargetType: "Branch",
-                    TargetId: branchId.ToString("D"),
-                    Outcome: AuditOutcome.Denied,
-                    SourceApp: "PlatformApi",
-                    DetailsJson: JsonSerializer.Serialize(new
-                    {
-                        authorization.DenialReason
-                    })),
-                    cancellationToken);
-
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var resultLimit = Math.Clamp(limit ?? 50, 1, 100);
-            var deviceIds = await dbContext.Devices
-                .AsNoTracking()
-                .Where(device => device.BranchId == branchId)
-                .Select(device => device.DeviceId)
-                .ToListAsync(cancellationToken);
-            IReadOnlyList<DeviceCommandStatusDto> commands = deviceIds.Count == 0
-                ? []
-                : await dbContext.DeviceCommands
-                    .AsNoTracking()
-                    .Where(command => deviceIds.Contains(command.DeviceId))
-                    .OrderByDescending(command => command.CreatedAtUtc)
-                    .Take(resultLimit)
-                    .Select(command => new DeviceCommandStatusDto(
-                        command.DeviceId,
-                        command.CommandId,
-                        command.Type,
-                        command.Status,
-                        command.Message,
-                        command.CreatedAtUtc,
-                        command.UpdatedAtUtc,
-                        command.Outcome))
-                    .ToListAsync(cancellationToken);
-
-            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                OrganizationId: authorization.StaffContext!.OrganizationId,
-                BranchId: branchId,
-                ActorStaffUserId: authorization.StaffContext.StaffUserId,
-                Action: AuditActionNames.ViewDeviceCommandStatus,
-                TargetType: "Branch",
-                TargetId: branchId.ToString("D"),
-                Outcome: AuditOutcome.Succeeded,
-                SourceApp: "PlatformApi",
-                DetailsJson: JsonSerializer.Serialize(new
-                {
-                    ResultCount = commands.Count,
-                    Limit = resultLimit
-                })),
-                cancellationToken);
-
-            return Results.Ok(commands);
-        })
-            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
-
         organizations.MapGet("devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
             Guid deviceId,
             Guid commandId,
@@ -2074,7 +1841,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -2150,7 +1917,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -2219,7 +1986,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)

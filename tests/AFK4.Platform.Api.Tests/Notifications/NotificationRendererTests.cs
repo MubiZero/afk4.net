@@ -4,7 +4,7 @@ namespace AFK4.Platform.Api.Tests.Notifications;
 
 public sealed class NotificationRendererTests
 {
-    private static readonly INotificationRenderer Renderer = new NotificationRenderer();
+    private static readonly NotificationRenderer Renderer = new NotificationRenderer();
 
     [Fact]
     public void Render_SubstitutesTokensInSubjectTextAndHtml()

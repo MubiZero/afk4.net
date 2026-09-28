@@ -1,5 +1,4 @@
 using AFK4.Platform.Api.Identity;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Identity;
 

@@ -13,7 +13,7 @@ public static class PlatformBranchDynamicsEndpoints
             Guid branchId,
             int? days,
             PlatformAdminAuthorizationService authorizationService,
-            IBranchDynamicsService dynamicsService,
+            EfBranchDynamicsService dynamicsService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewOrganizations);

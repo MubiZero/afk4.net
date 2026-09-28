@@ -9,7 +9,7 @@ internal static class FeatureEndpoints
     public static void MapPlayerFeatureEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/features", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IOrganizationEntitlements entitlements,
             CancellationToken cancellationToken) =>
         {

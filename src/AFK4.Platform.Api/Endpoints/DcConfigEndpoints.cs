@@ -40,7 +40,7 @@ internal static class DcConfigEndpoints
         app.MapPost("payments/dc-config", async (
             UpdateDcPayLinkConfigRequest request,
             StaffAuthorizationService authorizationService,
-            ISecretProtector secretProtector,
+            AesGcmSecretProtector secretProtector,
             IAuditRecordWriter auditRecordWriter,
             TimeProvider timeProvider,
             PlatformDbContext db,

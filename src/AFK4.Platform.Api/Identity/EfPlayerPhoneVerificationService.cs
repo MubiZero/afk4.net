@@ -20,11 +20,11 @@ namespace AFK4.Platform.Api.Identity;
 public sealed class EfPlayerPhoneVerificationService(
     PlatformDbContext db,
     INotificationService notifications,
-    IPhoneOtpHasher hasher,
+    Sha256PhoneOtpHasher hasher,
     IPhoneOtpGenerator generator,
     TimeProvider timeProvider,
     IOptions<PhoneOtpOptions> otpOptions,
-    IOptions<NotificationOptions> notificationOptions) : IPlayerPhoneVerificationService
+    IOptions<NotificationOptions> notificationOptions)
 {
     private readonly PhoneOtpOptions otpOptions = otpOptions.Value;
     private readonly NotificationOptions notificationOptions = notificationOptions.Value;

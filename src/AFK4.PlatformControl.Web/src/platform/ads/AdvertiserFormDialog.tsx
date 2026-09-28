@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/I18nProvider';
 import { AD_LIMITS, validateAdvertiserForm, type AdvertiserForm, type AdvertiserFormField } from './adsModel';
-import { useFieldErrors } from './useFieldErrors';
+import { useFieldErrors } from '../useFieldErrors';
 
 // Порядок полей в форме — он же порядок, в котором фокус уходит к первой ошибке.
 const FIELD_IDS: Record<AdvertiserFormField, string> = {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
+import { minorToMajor } from '@afk4/money';
 import { ArrowDownToLine, ClipboardList } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
@@ -139,7 +140,7 @@ export function JournalWorkspace({
         t('op.stock.journal.csv.sum'), t('op.stock.journal.csv.reason'), t('op.stock.journal.csv.who'),
       ],
       typeLabel: (type) => stockMovementTypeLabel(type, t),
-      formatMoney: (minor) => (minor / 100).toFixed(2),
+      formatMoney: (minor) => minorToMajor(minor).toFixed(2),
       formatDateTime: (iso) => new Date(iso).toISOString().replace('T', ' ').slice(0, 16),
     });
     const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });

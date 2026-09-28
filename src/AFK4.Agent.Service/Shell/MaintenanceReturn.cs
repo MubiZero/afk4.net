@@ -50,7 +50,7 @@ public sealed class HttpMaintenanceReturnClient(
 /// </summary>
 public sealed class MaintenanceReturn(
     IMaintenanceReturnClient client,
-    IMaintenanceMode maintenanceMode,
+    MaintenanceMode maintenanceMode,
     IAgentRuntimeStateStore runtimeStateStore,
     ILogger<MaintenanceReturn> logger)
 {

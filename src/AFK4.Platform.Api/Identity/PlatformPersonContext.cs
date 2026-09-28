@@ -26,12 +26,7 @@ public sealed record PlatformPersonContext(
     bool NetworkBanned = false,
     Guid? DeviceId = null);
 
-public interface IPlatformPersonContextAccessor
-{
-    PlatformPersonContext? Current { get; set; }
-}
-
-public sealed class PlatformPersonContextAccessor : IPlatformPersonContextAccessor
+public sealed class PlatformPersonContextAccessor
 {
     public PlatformPersonContext? Current { get; set; }
 }

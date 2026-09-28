@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace AFK4.Platform.Api.Platform.Billing;
 
 public static class BillingResults

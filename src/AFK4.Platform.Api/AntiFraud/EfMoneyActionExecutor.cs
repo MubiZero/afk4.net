@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AFK4.Platform.Api.AntiFraud;
 
 /// <summary>
-/// Executes a money action through the existing, verified <see cref="IBillingCommandService"/>
+/// Executes a money action through the existing, verified <see cref="EfBillingCommandService"/>
 /// (anti-fraud spec §5.2). Refunds and manual corrections / debt write-offs are dispatched to their
 /// respective commands so ledger immutability, idempotency, currency and refund-cap checks all run
 /// as the tested code. For a refund the resulting entry id comes straight back; for a correction
@@ -15,7 +15,7 @@ namespace AFK4.Platform.Api.AntiFraud;
 /// </summary>
 public sealed class EfMoneyActionExecutor(
     PlatformDbContext dbContext,
-    IBillingCommandService billingCommandService) : IMoneyActionExecutor
+    EfBillingCommandService billingCommandService) : IMoneyActionExecutor
 {
     public async Task<MoneyActionExecutionResult> ExecuteAsync(
         Guid organizationId,

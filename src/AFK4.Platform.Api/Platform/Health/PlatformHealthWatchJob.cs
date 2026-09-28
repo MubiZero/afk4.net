@@ -1,8 +1,5 @@
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Platform.Health;
@@ -42,8 +39,8 @@ public sealed class PlatformHealthWatchJob(
     {
         var now = GetUtcNow();
         var db = scopedServices.GetRequiredService<PlatformDbContext>();
-        var incidents = scopedServices.GetRequiredService<IPlatformIncidentService>();
-        var notifier = scopedServices.GetRequiredService<IPlatformAlertNotifier>();
+        var incidents = scopedServices.GetRequiredService<EfPlatformIncidentService>();
+        var notifier = scopedServices.GetRequiredService<PlatformAlertNotifier>();
 
         var snapshot = await BuildSnapshotAsync(db, now, cancellationToken);
         var problems = PlatformHealthRules.Evaluate(snapshot, now);

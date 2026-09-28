@@ -1,5 +1,4 @@
 using AFK4.Platform.Api.Platform.Health;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Players;
 

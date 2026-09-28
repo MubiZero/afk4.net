@@ -1,16 +1,12 @@
-using System;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -56,7 +52,7 @@ public class EskhataTopUpIntentTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.ISecretProtector>();
+        var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.AesGcmSecretProtector>();
         db.EskhataMerchantConfigs.Add(new EskhataMerchantConfigEntity
         {
             EskhataMerchantConfigId = Guid.NewGuid(),

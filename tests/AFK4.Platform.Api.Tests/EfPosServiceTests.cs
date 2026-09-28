@@ -1,21 +1,18 @@
-using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
-using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -249,7 +246,7 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
-    public async Task PaySaleAsync_ManualCashMovesDraftToPaidAndCreatesPaymentReceiptAndStockMovement()
+    public async Task SettleAsync_ManualCashMovesDraftToPaidAndCreatesPaymentReceiptAndStockMovement()
     {
         await using var db = CreateDbContext();
         var shift = await SeedOpenShiftAsync(db);
@@ -258,10 +255,10 @@ public sealed class EfPosServiceTests
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
 
-        var result = await service.PaySaleAsync(
+        var result = await CreateSettlement(db).SettleAsync(
             sale.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-001", amountMinorUnits: 2400),
+            CashPayment("pay-001", amountMinorUnits: 2400),
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -290,7 +287,7 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
-    public async Task PaySaleAsync_UsesAverageCostForTrackedLineAndZeroForService()
+    public async Task SettleAsync_UsesAverageCostForTrackedLineAndZeroForService()
     {
         await using var db = CreateDbContext();
         var shift = await SeedOpenShiftAsync(db);
@@ -313,10 +310,10 @@ public sealed class EfPosServiceTests
         Assert.True(created.Succeeded);
         Assert.NotNull(created.Response);
 
-        var paid = await service.PaySaleAsync(
+        var paid = await CreateSettlement(db).SettleAsync(
             created.Response.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-cost-001", amountMinorUnits: 2400),
+            CashPayment("pay-cost-001", amountMinorUnits: 2400),
             CancellationToken.None);
         Assert.True(paid.Succeeded);
 
@@ -334,7 +331,7 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
-    public async Task PaySaleAsync_StampsBranchPreferredLocaleOnReceipt()
+    public async Task SettleAsync_StampsBranchPreferredLocaleOnReceipt()
     {
         await using var db = CreateDbContext();
         db.Branches.Add(new BranchEntity
@@ -354,14 +351,14 @@ public sealed class EfPosServiceTests
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
 
-        await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId, ManualPaymentRequest("pay-loc", 2400), CancellationToken.None);
+        await CreateSettlement(db).SettleAsync(sale.PosSaleId, ActorStaffUserId, CashPayment("pay-loc", 2400), CancellationToken.None);
 
         var receipt = await db.Receipts.SingleAsync();
         Assert.Equal("tg", receipt.Locale);
     }
 
     [Fact]
-    public async Task PaySaleAsync_StockReachesReorderThreshold_EnqueuesLowStockAlert()
+    public async Task SettleAsync_StockReachesReorderThreshold_EnqueuesLowStockAlert()
     {
         await using var db = CreateDbContext();
         await SeedOwnerAsync(db);
@@ -375,8 +372,8 @@ public sealed class EfPosServiceTests
         var service = CreateService(db, notifier);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId); // quantity 2 → stock 3 == threshold
 
-        var result = await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId,
-            ManualPaymentRequest("pay-001", amountMinorUnits: 2400), CancellationToken.None);
+        var result = await CreateSettlement(db, notifier).SettleAsync(sale.PosSaleId, ActorStaffUserId,
+            CashPayment("pay-001", amountMinorUnits: 2400), CancellationToken.None);
 
         Assert.True(result.Succeeded);
         var request = Assert.Single(recorder.Requests);
@@ -385,7 +382,7 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
-    public async Task PaySaleAsync_RejectsInsufficientStockForTrackedProducts()
+    public async Task SettleAsync_RejectsInsufficientStockForTrackedProducts()
     {
         await using var db = CreateDbContext();
         var shift = await SeedOpenShiftAsync(db);
@@ -394,10 +391,10 @@ public sealed class EfPosServiceTests
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
 
-        var result = await service.PaySaleAsync(
+        var result = await CreateSettlement(db).SettleAsync(
             sale.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-001", amountMinorUnits: 2400),
+            CashPayment("pay-001", amountMinorUnits: 2400),
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
@@ -410,7 +407,7 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
-    public async Task PaySaleAsync_ReplaysSameIdempotencyKeyWithoutDuplicateSideEffects()
+    public async Task SettleAsync_ReplaysSameIdempotencyKeyWithoutDuplicateSideEffects()
     {
         await using var db = CreateDbContext();
         var shift = await SeedOpenShiftAsync(db);
@@ -418,10 +415,10 @@ public sealed class EfPosServiceTests
         await SeedStockAsync(db, product.ProductId, quantityDelta: 5);
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
-        var request = ManualPaymentRequest("pay-001", amountMinorUnits: 2400);
+        var request = CashPayment("pay-001", amountMinorUnits: 2400);
 
-        var first = await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId, request, CancellationToken.None);
-        var second = await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId, request, CancellationToken.None);
+        var first = await CreateSettlement(db).SettleAsync(sale.PosSaleId, ActorStaffUserId, request, CancellationToken.None);
+        var second = await CreateSettlement(db).SettleAsync(sale.PosSaleId, ActorStaffUserId, request, CancellationToken.None);
 
         Assert.True(first.Succeeded);
         Assert.True(second.Succeeded);
@@ -434,65 +431,6 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
-    public async Task PaySaleAsync_ReplaysPreExistingLegacyIdempotencyForCommittedSale()
-    {
-        await using var db = CreateDbContext();
-        var shift = await SeedOpenShiftAsync(db);
-        var product = await SeedProductAsync(db);
-        var service = CreateService(db);
-        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
-        var request = ManualPaymentRequest("legacy-pay-001", amountMinorUnits: 2400);
-        var legacyResponse = sale with
-        {
-            State = PosSaleStateNames.Paid,
-            PaidAtUtc = Now
-        };
-        var trackedSale = await db.PosSales.SingleAsync(candidate => candidate.PosSaleId == sale.PosSaleId);
-        trackedSale.State = PosSaleStateNames.Paid;
-        trackedSale.PaidAtUtc = Now;
-        AddLegacyPaymentIdempotency(db, sale, request, legacyResponse);
-        await db.SaveChangesAsync();
-        db.ChangeTracker.Clear();
-
-        var replay = await service.PaySaleAsync(
-            sale.PosSaleId,
-            ActorStaffUserId,
-            request,
-            CancellationToken.None);
-
-        Assert.True(replay.Succeeded, replay.Error);
-        Assert.Equal(legacyResponse.PosSaleId, replay.Response!.PosSaleId);
-        Assert.Equal(PosSaleStateNames.Paid, replay.Response.State);
-        Assert.Empty(await db.Payments.AsNoTracking().ToListAsync());
-        Assert.Empty(await db.Receipts.AsNoTracking().ToListAsync());
-    }
-
-    [Fact]
-    public async Task PaySaleAsync_ReusedLegacyKeyForDifferentRequest_PreservesConflict()
-    {
-        await using var db = CreateDbContext();
-        var shift = await SeedOpenShiftAsync(db);
-        var product = await SeedProductAsync(db);
-        var service = CreateService(db);
-        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
-        var original = ManualPaymentRequest("legacy-pay-conflict", amountMinorUnits: 2400);
-        AddLegacyPaymentIdempotency(db, sale, original, sale);
-        await db.SaveChangesAsync();
-        db.ChangeTracker.Clear();
-
-        var conflict = await service.PaySaleAsync(
-            sale.PosSaleId,
-            ActorStaffUserId,
-            original with { PaymentMethod = PaymentMethodNames.CardManual },
-            CancellationToken.None);
-
-        Assert.False(conflict.Succeeded);
-        Assert.True(conflict.Conflict);
-        Assert.Equal("Idempotency key was already used for a different request.", conflict.Error);
-        Assert.Empty(await db.Payments.AsNoTracking().ToListAsync());
-    }
-
-    [Fact]
     public async Task RefundSaleAsync_MovesPaidToRefundedAndWritesPositiveStockMovementAndRefundReceipt()
     {
         await using var db = CreateDbContext();
@@ -501,7 +439,7 @@ public sealed class EfPosServiceTests
         await SeedStockAsync(db, product.ProductId, quantityDelta: 5);
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
-        await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId, ManualPaymentRequest("pay-001", 2400), CancellationToken.None);
+        await CreateSettlement(db).SettleAsync(sale.PosSaleId, ActorStaffUserId, CashPayment("pay-001", 2400), CancellationToken.None);
 
         var result = await service.RefundSaleAsync(
             sale.PosSaleId,
@@ -535,10 +473,10 @@ public sealed class EfPosServiceTests
         await SeedStockAsync(db, product.ProductId, quantityDelta: 10);
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
-        await service.PaySaleAsync(
+        await CreateSettlement(db).SettleAsync(
             sale.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-refund-cost-001", 2400),
+            CashPayment("pay-refund-cost-001", 2400),
             CancellationToken.None);
 
         var inventoryService = new EfInventoryService(db, new FixedTimeProvider(Now));
@@ -578,10 +516,10 @@ public sealed class EfPosServiceTests
         await SeedStockAsync(db, product.ProductId, quantityDelta: 10);
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
-        await service.PaySaleAsync(
+        await CreateSettlement(db).SettleAsync(
             sale.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-refund-currency-legacy", 2400),
+            CashPayment("pay-refund-currency-legacy", 2400),
             CancellationToken.None);
         product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId);
         product.CurrencyCode = "USD";
@@ -625,10 +563,10 @@ public sealed class EfPosServiceTests
             CancellationToken.None);
         Assert.True(created.Succeeded);
         Assert.NotNull(created.Response);
-        await service.PaySaleAsync(
+        await CreateSettlement(db).SettleAsync(
             created.Response.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-duplicate-cost-001", 2400),
+            CashPayment("pay-duplicate-cost-001", 2400),
             CancellationToken.None);
 
         var inventoryService = new EfInventoryService(db, new FixedTimeProvider(Now));
@@ -703,10 +641,10 @@ public sealed class EfPosServiceTests
             .ToListAsync();
         lines.First(line => line.ProductId == mixedProduct.ProductId).UnitCostMinorUnits = 300;
         await db.SaveChangesAsync();
-        var paid = await service.PaySaleAsync(
+        var paid = await CreateSettlement(db).SettleAsync(
             created.Response.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-mixed-cost-001", 3600),
+            CashPayment("pay-mixed-cost-001", 3600),
             CancellationToken.None);
         Assert.True(paid.Succeeded);
 
@@ -781,7 +719,7 @@ public sealed class EfPosServiceTests
         await SeedStockAsync(db, product.ProductId, quantityDelta: 5);
         var service = CreateService(db);
         var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
-        await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId, ManualPaymentRequest("pay-001", 2400), CancellationToken.None);
+        await CreateSettlement(db).SettleAsync(sale.PosSaleId, ActorStaffUserId, CashPayment("pay-001", 2400), CancellationToken.None);
 
         var result = await service.VoidSaleAsync(
             sale.PosSaleId,
@@ -806,38 +744,18 @@ public sealed class EfPosServiceTests
 
     private static EfPosService CreateService(PlatformDbContext db, ILowStockNotifier? lowStockNotifier = null)
     {
-        return new EfPosService(
-            db,
-            new EfPosSettlementService(
-                db,
-                new EfWalletSettlementService(db),
-                new EfInventoryCostService(db),
-                new ReceiptNumberGenerator(db),
-                new FixedTimeProvider(Now),
-                lowStockNotifier),
-            new FixedTimeProvider(Now));
+        return new EfPosService(db, CreateSettlement(db, lowStockNotifier), new FixedTimeProvider(Now));
     }
 
-    private static void AddLegacyPaymentIdempotency(
-        PlatformDbContext db,
-        PosSaleDto sale,
-        ManualPaymentRequest request,
-        PosSaleDto response)
+    private static EfPosSettlementService CreateSettlement(PlatformDbContext db, ILowStockNotifier? lowStockNotifier = null)
     {
-        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-        var requestHashInput = new { PosSaleId = sale.PosSaleId, Request = request };
-        db.BillingCommandIdempotency.Add(new BillingCommandIdempotencyEntity
-        {
-            BillingCommandIdempotencyId = Guid.NewGuid(),
-            OrganizationId = sale.OrganizationId,
-            BranchId = sale.BranchId,
-            Operation = "pos-sale-pay",
-            IdempotencyKeyHash = BillingCommandIdempotencyKeyHasher.Hash(request.IdempotencyKey),
-            RequestHash = BillingCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(requestHashInput, options)),
-            ResponseJson = JsonSerializer.Serialize(response, options),
-            CreatedAtUtc = Now,
-            ExpiresAtUtc = Now.AddDays(1)
-        });
+        return new EfPosSettlementService(
+            db,
+            new EfWalletSettlementService(db),
+            new EfInventoryCostService(db),
+            new ReceiptNumberGenerator(db),
+            new FixedTimeProvider(Now),
+            lowStockNotifier);
     }
 
     private static async Task SeedOwnerAsync(PlatformDbContext db)
@@ -997,12 +915,11 @@ public sealed class EfPosServiceTests
             playerAccountId);
     }
 
-    private static ManualPaymentRequest ManualPaymentRequest(string idempotencyKey, long amountMinorUnits)
+    private static SettlePosSaleRequest CashPayment(string idempotencyKey, long amountMinorUnits)
     {
-        return new ManualPaymentRequest(
+        return new SettlePosSaleRequest(
             TestIds.OrganizationId,
-            PaymentMethodNames.Cash,
-            new MoneyDto("TJS", amountMinorUnits),
+            [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", amountMinorUnits))],
             "cash drawer",
             idempotencyKey);
     }

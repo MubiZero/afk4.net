@@ -4238,27 +4238,6 @@ class CreateDcTopUpRequest {
       };
 }
 
-/// Контракт: Devices/CreateDeviceEnrollmentCodeRequest.cs
-class CreateDeviceEnrollmentCodeRequest {
-  const CreateDeviceEnrollmentCodeRequest({
-    required this.organizationId,
-    required this.expiresInSeconds,
-  });
-
-  final String organizationId;
-  final int expiresInSeconds;
-
-  factory CreateDeviceEnrollmentCodeRequest.fromJson(Map<String, dynamic> json) => CreateDeviceEnrollmentCodeRequest(
-        organizationId: json['organizationId'] as String,
-        expiresInSeconds: (json['expiresInSeconds'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'expiresInSeconds': expiresInSeconds,
-      };
-}
-
 /// Код установки: техник ставит AFK4 на ПК зала без мастера —
 /// `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
 /// числом новых ПК; сервер хранит его хешем, открытым он виден один раз — при выдаче.
@@ -6156,113 +6135,6 @@ class DeviceDiagnosticsSummaryDto {
         'staleDevices': staleDevices,
         'staleThresholdSeconds': staleThresholdSeconds,
         'newestHeartbeatAtUtc': newestHeartbeatAtUtc?.toIso8601String(),
-      };
-}
-
-/// Контракт: Devices/DeviceEnrollmentCodeDto.cs
-class DeviceEnrollmentCodeDto {
-  const DeviceEnrollmentCodeDto({
-    required this.organizationId,
-    required this.branchId,
-    required this.code,
-    required this.expiresAtUtc,
-  });
-
-  final String organizationId;
-  final String branchId;
-  final String code;
-  final DateTime expiresAtUtc;
-
-  factory DeviceEnrollmentCodeDto.fromJson(Map<String, dynamic> json) => DeviceEnrollmentCodeDto(
-        organizationId: json['organizationId'] as String,
-        branchId: json['branchId'] as String,
-        code: json['code'] as String,
-        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'branchId': branchId,
-        'code': code,
-        'expiresAtUtc': expiresAtUtc.toIso8601String(),
-      };
-}
-
-/// Контракт: Devices/DeviceEnrollmentRequest.cs
-class DeviceEnrollmentRequest {
-  const DeviceEnrollmentRequest({
-    required this.organizationId,
-    required this.branchId,
-    required this.enrollmentCode,
-    required this.machineName,
-    required this.agentVersion,
-    required this.shellVersion,
-    required this.requestedAtUtc,
-  });
-
-  final String organizationId;
-  final String branchId;
-  final String enrollmentCode;
-  final String machineName;
-  final String agentVersion;
-  final String shellVersion;
-  final DateTime requestedAtUtc;
-
-  factory DeviceEnrollmentRequest.fromJson(Map<String, dynamic> json) => DeviceEnrollmentRequest(
-        organizationId: json['organizationId'] as String,
-        branchId: json['branchId'] as String,
-        enrollmentCode: json['enrollmentCode'] as String,
-        machineName: json['machineName'] as String,
-        agentVersion: json['agentVersion'] as String,
-        shellVersion: json['shellVersion'] as String,
-        requestedAtUtc: DateTime.parse(json['requestedAtUtc'] as String),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'branchId': branchId,
-        'enrollmentCode': enrollmentCode,
-        'machineName': machineName,
-        'agentVersion': agentVersion,
-        'shellVersion': shellVersion,
-        'requestedAtUtc': requestedAtUtc.toIso8601String(),
-      };
-}
-
-/// Контракт: Devices/DeviceEnrollmentResponse.cs
-class DeviceEnrollmentResponse {
-  const DeviceEnrollmentResponse({
-    required this.organizationId,
-    required this.branchId,
-    required this.deviceId,
-    required this.credentialId,
-    required this.credentialSecret,
-    required this.enrolledAtUtc,
-  });
-
-  final String organizationId;
-  final String branchId;
-  final String deviceId;
-  final String credentialId;
-  final String credentialSecret;
-  final DateTime enrolledAtUtc;
-
-  factory DeviceEnrollmentResponse.fromJson(Map<String, dynamic> json) => DeviceEnrollmentResponse(
-        organizationId: json['organizationId'] as String,
-        branchId: json['branchId'] as String,
-        deviceId: json['deviceId'] as String,
-        credentialId: json['credentialId'] as String,
-        credentialSecret: json['credentialSecret'] as String,
-        enrolledAtUtc: DateTime.parse(json['enrolledAtUtc'] as String),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'branchId': branchId,
-        'deviceId': deviceId,
-        'credentialId': credentialId,
-        'credentialSecret': credentialSecret,
-        'enrolledAtUtc': enrolledAtUtc.toIso8601String(),
       };
 }
 
@@ -9223,39 +9095,6 @@ class ManualLedgerCorrectionRequest {
         'amount': amount.toJson(),
         'quantitySeconds': quantitySeconds,
         'reason': reason,
-        'idempotencyKey': idempotencyKey,
-      };
-}
-
-/// Контракт: Payments/ManualPaymentRequest.cs
-class ManualPaymentRequest {
-  const ManualPaymentRequest({
-    required this.organizationId,
-    required this.paymentMethod,
-    required this.amount,
-    required this.note,
-    required this.idempotencyKey,
-  });
-
-  final String organizationId;
-  final String paymentMethod;
-  final MoneyDto amount;
-  final String note;
-  final String idempotencyKey;
-
-  factory ManualPaymentRequest.fromJson(Map<String, dynamic> json) => ManualPaymentRequest(
-        organizationId: json['organizationId'] as String,
-        paymentMethod: json['paymentMethod'] as String,
-        amount: MoneyDto.fromJson(json['amount'] as Map<String, dynamic>),
-        note: json['note'] as String,
-        idempotencyKey: json['idempotencyKey'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'organizationId': organizationId,
-        'paymentMethod': paymentMethod,
-        'amount': amount.toJson(),
-        'note': note,
         'idempotencyKey': idempotencyKey,
       };
 }
@@ -18121,27 +17960,6 @@ class SettlePosSaleRequest {
       };
 }
 
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellAuthSignInRequest {
-  const ShellAuthSignInRequest({
-    required this.phone,
-    required this.pin,
-  });
-
-  final String phone;
-  final String pin;
-
-  factory ShellAuthSignInRequest.fromJson(Map<String, dynamic> json) => ShellAuthSignInRequest(
-        phone: json['phone'] as String,
-        pin: json['pin'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'phone': phone,
-        'pin': pin,
-      };
-}
-
 /// Кто вошёл на этом ПК. Токены страница не видит: их держит хост.
 ///
 /// Контракт: Shell/ShellBridgeContracts.cs
@@ -18191,23 +18009,6 @@ class ShellBrandingDto {
         'clubName': clubName,
         'logoUrl': logoUrl,
         'accentColor': accentColor,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellLaunchRequest {
-  const ShellLaunchRequest({
-    required this.appId,
-  });
-
-  final String appId;
-
-  factory ShellLaunchRequest.fromJson(Map<String, dynamic> json) => ShellLaunchRequest(
-        appId: json['appId'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'appId': appId,
       };
 }
 
@@ -18380,84 +18181,6 @@ class ShellPipeRequestDto {
         'requestId': requestId,
         'type': type,
         'payload': payload.map((key, value) => MapEntry(key, value)),
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellSetLayoutRequest {
-  const ShellSetLayoutRequest({
-    required this.layout,
-  });
-
-
-  /// Одно из ShellKeyboardLayoutNames.
-  final String layout;
-
-  factory ShellSetLayoutRequest.fromJson(Map<String, dynamic> json) => ShellSetLayoutRequest(
-        layout: json['layout'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'layout': layout,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellSetMicMutedRequest {
-  const ShellSetMicMutedRequest({
-    required this.micMuted,
-  });
-
-  final bool micMuted;
-
-  factory ShellSetMicMutedRequest.fromJson(Map<String, dynamic> json) => ShellSetMicMutedRequest(
-        micMuted: json['micMuted'] as bool,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'micMuted': micMuted,
-      };
-}
-
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellSetVolumeRequest {
-  const ShellSetVolumeRequest({
-    required this.volume,
-  });
-
-
-  /// 0–100.
-  final int volume;
-
-  factory ShellSetVolumeRequest.fromJson(Map<String, dynamic> json) => ShellSetVolumeRequest(
-        volume: (json['volume'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'volume': volume,
-      };
-}
-
-/// Показ карточки витрины: какая и сколько миллисекунд стояла на экране.
-///
-/// Контракт: Shell/ShellBridgeContracts.cs
-class ShellShowcaseImpressionDto {
-  const ShellShowcaseImpressionDto({
-    required this.cardId,
-    required this.shownMs,
-  });
-
-  final String cardId;
-  final int shownMs;
-
-  factory ShellShowcaseImpressionDto.fromJson(Map<String, dynamic> json) => ShellShowcaseImpressionDto(
-        cardId: json['cardId'] as String,
-        shownMs: (json['shownMs'] as num).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'cardId': cardId,
-        'shownMs': shownMs,
       };
 }
 

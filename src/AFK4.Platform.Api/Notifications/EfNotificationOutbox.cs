@@ -4,12 +4,12 @@ using Microsoft.EntityFrameworkCore;
 namespace AFK4.Platform.Api.Notifications;
 
 /// <summary>
-/// EF Core implementation of <see cref="INotificationOutbox"/> over <see cref="PlatformDbContext"/>.
+/// EF Core implementation of <see cref="EfNotificationOutbox"/> over <see cref="PlatformDbContext"/>.
 /// Idempotency is enforced by a query-then-insert plus the unique index on
 /// <see cref="NotificationOutboxEntity.IdempotencyKey"/> (the index is the real backstop against a race;
 /// the query collapses the common duplicate-trigger / retry case).
 /// </summary>
-public sealed class EfNotificationOutbox(PlatformDbContext db) : INotificationOutbox
+public sealed class EfNotificationOutbox(PlatformDbContext db)
 {
     public async Task<NotificationOutboxAddResult> AddIfAbsentAsync(NotificationOutboxEntity row, CancellationToken cancellationToken)
     {

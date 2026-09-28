@@ -11,7 +11,6 @@ using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
 
@@ -77,15 +76,14 @@ public sealed class EfShopOrderServicePlaceTests
         await db.SaveChangesAsync();
     }
 
-    private static EfShopOrderService NewService(PlatformDbContext db)
+    private static EfShopCommerceCoordinator NewService(PlatformDbContext db)
     {
         var notifier = new NoopShopOrderNotifier();
         var workflow = new EfShopOrderWorkflow(db, TimeProvider.System, notifier, new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
         var settlement = new EfShopPosSettlementService(
             db, new EfWalletSettlementService(db), new EfInventoryCostService(db), new ReceiptNumberGenerator(db));
-        var coordinator = new EfShopCommerceCoordinator(
+        return new EfShopCommerceCoordinator(
             db, workflow, settlement, TimeProvider.System, notifier, NullLogger<EfShopCommerceCoordinator>.Instance);
-        return new EfShopOrderService(coordinator, workflow);
     }
 
     [Fact]

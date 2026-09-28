@@ -7,7 +7,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Entitlements;
 
-public sealed class EfPlanLimitGuard(PlatformDbContext dbContext, TimeProvider? timeProvider = null) : IPlanLimitGuard
+/// <summary>
+/// Проверки лимитов тарифа в точках роста. Возвращают <c>null</c>, если добавлять можно,
+/// и <see cref="PlanLimitExceededDto"/> с числами, если нельзя.
+/// </summary>
+public sealed class EfPlanLimitGuard(PlatformDbContext dbContext, TimeProvider? timeProvider = null)
 {
     // Снятое и отклонённое устройство места на филиале не занимает; ожидающее одобрения — занимает,
     // иначе очередь из ожидающих перепрыгнет лимит в момент одобрения.
@@ -32,6 +36,10 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext, TimeProvider? 
         return Verdict(PlanLimitNames.Branches, limit, current, plan.PlanCode);
     }
 
+    /// <summary>
+    /// Лимит ПК филиала. Считаются только игровые ПК: рабочее место управляющего играм не служит и
+    /// место в лимите бесплатного тарифа («до десяти ПК») не занимает — его регистрация не упирается.
+    /// </summary>
     public async Task<PlanLimitExceededDto?> CheckDeviceAsync(
         Guid organizationId, Guid branchId, CancellationToken cancellationToken, string role = DeviceRoleNames.GamingPc)
     {
@@ -76,6 +84,10 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext, TimeProvider? 
         return Verdict(PlanLimitNames.DevicesPerBranch, limit, current, plan.PlanCode);
     }
 
+    /// <summary>
+    /// ПК «вне тарифа» — сверх предела ПК на клуб (спека тарифов клуба, §5a): новую сессию на нём не
+    /// начать и чужую на него не перенести. Идущая сессия доживает — её эта проверка не трогает.
+    /// </summary>
     public async Task<PlanLimitExceededDto?> CheckDeviceOnPlanAsync(Guid organizationId, Guid deviceId, CancellationToken cancellationToken)
     {
         var allowance = await PlanDevices.ForOrganizationAsync(dbContext, organizationId, cancellationToken);
@@ -108,6 +120,10 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext, TimeProvider? 
         return Verdict(PlanLimitNames.ConcurrentSessions, limit, current, plan.PlanCode);
     }
 
+    /// <param name="excludingInviteId">
+    /// Приглашение, которое не считать «непринятым» — при приёме именно оно превращается в
+    /// сотрудника, а не добавляет место сверх уже занятого.
+    /// </param>
     public async Task<PlanLimitExceededDto?> CheckStaffUserAsync(
         Guid organizationId, Guid branchId, CancellationToken cancellationToken, Guid? excludingInviteId = null)
     {

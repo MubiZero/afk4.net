@@ -1,5 +1,5 @@
-using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
@@ -75,35 +75,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         var rows = shifts.Select(shift =>
         {
             var currencyCode = shift.CurrencyCode;
-            var cashMovementTotal = cashMovements
-                .Where(movement => movement.ShiftId == shift.ShiftId && IsCurrency(movement.CurrencyCode, currencyCode))
-                .Sum(movement => movement.MovementType == CashMovementTypeNames.CashIn
-                    ? movement.AmountMinorUnits
-                    : -movement.AmountMinorUnits);
-            var posCashPaymentsTotal = payments
-                .Where(payment =>
-                    payment.ShiftId == shift.ShiftId &&
-                    IsCurrency(payment.CurrencyCode, currencyCode) &&
-                    payment.PaymentMethod == PaymentMethodNames.Cash &&
-                    payment.PaymentKind == PaymentKindPayment)
-                .Sum(payment => payment.AmountMinorUnits);
-            var posRefundsTotal = payments
-                .Where(payment =>
-                    payment.ShiftId == shift.ShiftId &&
-                    IsCurrency(payment.CurrencyCode, currencyCode) &&
-                    payment.PaymentMethod == PaymentMethodNames.Cash &&
-                    payment.PaymentKind == PaymentKindRefund)
-                .Sum(payment => payment.AmountMinorUnits);
-            var billingCashImpactTotal = ledgerEntries
-                .Where(entry => entry.ShiftId == shift.ShiftId && IsCurrency(entry.CurrencyCode, currencyCode))
-                .Sum(entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment
-                    ? -entry.AmountMinorUnits
-                    : entry.AmountMinorUnits);
-            var expectedCash = shift.StartingCashMinorUnits +
-                cashMovementTotal +
-                posCashPaymentsTotal +
-                posRefundsTotal +
-                billingCashImpactTotal;
+            var cash = ShiftExpectedCash.Compute(shift, cashMovements, payments, ledgerEntries);
             var isClosed = shift.State == ShiftStateNames.Closed;
 
             return new ShiftReportRowDto(
@@ -114,13 +86,13 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 shift.ClosedByStaffUserId,
                 shift.State,
                 Money(currencyCode, shift.StartingCashMinorUnits),
-                Money(currencyCode, cashMovementTotal),
-                Money(currencyCode, posCashPaymentsTotal),
-                Money(currencyCode, posRefundsTotal),
-                Money(currencyCode, billingCashImpactTotal),
-                Money(currencyCode, expectedCash),
+                Money(currencyCode, cash.CashMovements),
+                Money(currencyCode, cash.PosCashPayments),
+                Money(currencyCode, cash.PosCashRefunds),
+                Money(currencyCode, cash.BillingCash),
+                Money(currencyCode, cash.Expected),
                 isClosed ? Money(currencyCode, shift.CountedCashMinorUnits) : null,
-                isClosed ? Money(currencyCode, shift.CountedCashMinorUnits - expectedCash) : null,
+                isClosed ? Money(currencyCode, shift.CountedCashMinorUnits - cash.Expected) : null,
                 shift.OpenedAtUtc,
                 shift.ClosedAtUtc);
         }).ToList();
@@ -473,7 +445,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             pageRows
                 .Select(row => row with
                 {
-                    CreatedByDisplayName = GetActorDisplayName(row.CreatedByStaffUserId, actorNames)
+                    CreatedByDisplayName = SystemActorIds.ResolveDisplayName(row.CreatedByStaffUserId, actorNames)
                 })
                 .ToList(),
             limit,
@@ -546,7 +518,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             })
             .Select(group => new OperatorActionReportRowDto(
                 group.Key.ActorStaffUserId,
-                GetActorDisplayName(group.Key.ActorStaffUserId, actorNames),
+                SystemActorIds.ResolveDisplayName(group.Key.ActorStaffUserId, actorNames),
                 group.Key.Action,
                 group.Key.Outcome,
                 group.Count(),
@@ -679,22 +651,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Where(e => e.EntryType == LedgerEntryTypeNames.TopUp && Cur(e.CurrencyCode))
             .Sum(e => e.AmountMinorUnits);
 
-        var cashMovementTotal = cashMovements
-            .Where(m => Cur(m.CurrencyCode))
-            .Sum(m => m.MovementType == CashMovementTypeNames.CashIn ? m.AmountMinorUnits : -m.AmountMinorUnits);
-        var posCashPayments = payments
-            .Where(p => p.PaymentMethod == PaymentMethodNames.Cash && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindPayment)
-            .Sum(p => p.AmountMinorUnits);
-        var posCashRefunds = payments
-            .Where(p => p.PaymentMethod == PaymentMethodNames.Cash && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindRefund)
-            .Sum(p => p.AmountMinorUnits);
-        var billingCashImpact = ledger
-            .Where(e => Cur(e.CurrencyCode) &&
-                (e.EntryType == LedgerEntryTypeNames.TopUp ||
-                 e.EntryType == LedgerEntryTypeNames.DebtPayment ||
-                 e.EntryType == LedgerEntryTypeNames.ManualCorrection))
-            .Sum(e => e.EntryType == LedgerEntryTypeNames.DebtPayment ? -e.AmountMinorUnits : e.AmountMinorUnits);
-        var expectedCash = shift.StartingCashMinorUnits + cashMovementTotal + posCashPayments + posCashRefunds + billingCashImpact;
+        var expectedCash = ShiftExpectedCash.Compute(shift, cashMovements, payments, ledger).Expected;
         var isClosed = shift.State == ShiftStateNames.Closed;
 
         return new ShiftRevenueDto(
@@ -757,26 +714,6 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         }
 
         return (int)Math.Min(int.MaxValue, Math.Floor((effectiveEnd.Value - startedAtUtc.Value).TotalSeconds));
-    }
-
-    private static string GetActorDisplayName(
-        Guid? actorStaffUserId,
-        IReadOnlyDictionary<Guid, string> actorNames)
-    {
-        if (actorStaffUserId is null)
-        {
-            return "System";
-        }
-
-        if (SystemActorIds.TryGetDisplayName(actorStaffUserId.Value, out var systemDisplayName))
-        {
-            return systemDisplayName;
-        }
-
-        return actorNames.TryGetValue(actorStaffUserId.Value, out var displayName) &&
-            !string.IsNullOrWhiteSpace(displayName)
-            ? displayName
-            : actorStaffUserId.Value.ToString("N")[..8];
     }
 
     private static MoneyDto Money(string currencyCode, long minorUnits)

@@ -1,72 +1,15 @@
-﻿using System.Globalization;
-using System.Net;
-using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text.Json;
-using System.Text;
-using Microsoft.Extensions.Options;
-using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Audit;
-using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Dashboard;
-using AFK4.Platform.Api.Diagnostics;
-using AFK4.Platform.Api.Devices;
-using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Install;
-using AFK4.Platform.Api.Inventory;
-using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
-using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
-using AFK4.Platform.Api.Pos;
-using AFK4.Platform.Api.Receipts;
-using AFK4.Platform.Api.Reports;
-using AFK4.Platform.Api.Reservations;
-using AFK4.Platform.Api.Players;
-using AFK4.Platform.Api.Sessions;
-using AFK4.Platform.Api.Shifts;
-using AFK4.Platform.Api.Security;
-using AFK4.Platform.Api.Tenancy;
-using AFK4.Platform.Api.Updates;
-using AFK4.Shared.Contracts.Billing;
-using AFK4.Shared.Contracts.Audit;
-using AFK4.Shared.Contracts.Branches;
-using AFK4.Shared.Contracts.Diagnostics;
-using AFK4.Shared.Contracts.Devices;
-using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
-using AFK4.Shared.Contracts.Players;
-using AFK4.Shared.Contracts.Install;
-using AFK4.Shared.Contracts.Inventory;
-using AFK4.Shared.Contracts.Layout;
-using AFK4.Shared.Contracts.Operator;
-using AFK4.Shared.Contracts.Packages;
-using AFK4.Shared.Contracts.Payments;
-using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Identity.AccountActivation;
-using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Organizations;
-using AFK4.Shared.Contracts.Pos;
-using AFK4.Shared.Contracts.Receipts;
-using AFK4.Shared.Contracts.Reports;
-using AFK4.Shared.Contracts.Reservations;
-using AFK4.Shared.Contracts.Sessions;
-using AFK4.Shared.Contracts.Shifts;
-using AFK4.Shared.Contracts.Tariffs;
-using AFK4.Shared.Contracts.Updates;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using System.Threading.RateLimiting;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -79,7 +22,7 @@ internal static class PlatformBillingEndpoints
     {
         app.MapGet("/api/platform/plans", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlanCatalogService planCatalogService,
+            EfPlanCatalogService planCatalogService,
             IAuditRecordWriter auditRecordWriter,
             bool? includeInactive,
             CancellationToken cancellationToken) =>
@@ -108,7 +51,7 @@ internal static class PlatformBillingEndpoints
 
         app.MapPost("/api/platform/plans", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlanCatalogService planCatalogService,
+            EfPlanCatalogService planCatalogService,
             IAuditRecordWriter auditRecordWriter,
             CreatePlanRequest request,
             CancellationToken cancellationToken) =>
@@ -151,7 +94,7 @@ internal static class PlatformBillingEndpoints
         app.MapPatch("/api/platform/plans/{planCode}", async (
             string planCode,
             PlatformAdminAuthorizationService authorizationService,
-            IPlanCatalogService planCatalogService,
+            EfPlanCatalogService planCatalogService,
             IAuditRecordWriter auditRecordWriter,
             UpdatePlanRequest request,
             CancellationToken cancellationToken) =>
@@ -233,7 +176,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}/subscription", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -278,7 +221,7 @@ internal static class PlatformBillingEndpoints
         app.MapPatch("/api/platform/organizations/{organizationId:guid}/subscription", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             UpdateSubscriptionRequest request,
             CancellationToken cancellationToken) =>
@@ -330,7 +273,7 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             string? status,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -373,7 +316,7 @@ internal static class PlatformBillingEndpoints
         organizations.MapGet("subscription", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
@@ -391,7 +334,7 @@ internal static class PlatformBillingEndpoints
         organizations.MapGet("invoices", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
@@ -409,7 +352,7 @@ internal static class PlatformBillingEndpoints
         organizations.MapGet("billing/status", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
@@ -428,7 +371,7 @@ internal static class PlatformBillingEndpoints
             string? status,
             string? planCode,
             PlatformAdminAuthorizationService authorizationService,
-            IOrganizationSubscriptionService subscriptionService,
+            EfOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -457,7 +400,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/invoices", async (
             string? status,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
+            EfInvoiceService invoiceService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -487,8 +430,8 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -569,8 +512,8 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             CreateInvoiceRequest request,
             CancellationToken cancellationToken) =>
@@ -652,8 +595,8 @@ internal static class PlatformBillingEndpoints
             Guid invoiceId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             MarkInvoicePaidRequest request,
             CancellationToken cancellationToken) =>
@@ -735,8 +678,8 @@ internal static class PlatformBillingEndpoints
             Guid invoiceId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IInvoiceService invoiceService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfInvoiceService invoiceService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             VoidInvoiceRequest request,
             CancellationToken cancellationToken) =>
@@ -817,7 +760,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}/health", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationHealthService healthService,
+            EfPlatformOrganizationHealthService healthService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -881,7 +824,7 @@ internal static class PlatformBillingEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}/support-notes", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformSupportNoteService supportNoteService,
+            EfPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -945,7 +888,7 @@ internal static class PlatformBillingEndpoints
             Guid organizationId,
             CreateOrganizationSupportNoteRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformSupportNoteService supportNoteService,
+            EfPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -1016,7 +959,7 @@ internal static class PlatformBillingEndpoints
             Guid organizationSupportNoteId,
             UpdateOrganizationSupportNoteRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformSupportNoteService supportNoteService,
+            EfPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {

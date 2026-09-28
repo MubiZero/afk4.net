@@ -36,10 +36,6 @@ export function reportTypeLabelKey(value: string): MessageKey {
   return REPORT_TYPES.find((type) => type.value === value)?.labelKey ?? 'op.reports.schedule.type.unknown';
 }
 
-export function frequencyLabelKey(value: string): MessageKey {
-  return FREQUENCIES.find((item) => item.value === value)?.labelKey ?? 'op.reports.schedule.frequency.unknown';
-}
-
 /** Уже заведённые сочетания «отчёт + частота»: второе такое же письмо владельцу не нужно. */
 export function scheduledPairs(schedules: ReportScheduleDto[]): Set<string> {
   return new Set(schedules.map((schedule) => `${schedule.reportType}:${schedule.frequency}`));

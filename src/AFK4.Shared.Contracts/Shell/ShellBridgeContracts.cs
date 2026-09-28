@@ -86,17 +86,11 @@ public static class ShellBridgeErrorCodeNames
     public const string SystemUnavailable = "system_unavailable";
 }
 
-public sealed record ShellAuthSignInRequest(
-    string Phone,
-    string Pin);
-
 /// <summary>Кто вошёл на этом ПК. Токены страница не видит: их держит хост.</summary>
 public sealed record ShellAuthStateDto(
     bool SignedIn,
     string? DisplayName = null,
     Guid? PlayerAccountId = null);
-
-public sealed record ShellLaunchRequest(string AppId);
 
 /// <summary>
 /// Звук, микрофон и раскладка ПК. Пусто — у ПК этого нет или Windows не ответила (нет
@@ -118,22 +112,9 @@ public static class ShellKeyboardLayoutNames
     public const string Tajik = "TG";
 }
 
-public sealed record ShellSetVolumeRequest(
-    // 0–100.
-    int Volume);
-
-public sealed record ShellSetMicMutedRequest(bool MicMuted);
-
-public sealed record ShellSetLayoutRequest(
-    // Одно из ShellKeyboardLayoutNames.
-    string Layout);
-
 /// <summary>Всё, что хост знает к моменту, когда страница загрузилась.</summary>
 public sealed record ShellSnapshotDto(
     // Пусто — агент ещё не прислал состояния: экран говорит «подключаемся к ПК».
     PlayerShellStateDto? State,
     ShellAuthStateDto Auth,
     ShellSystemStateDto? System = null);
-
-/// <summary>Показ карточки витрины: какая и сколько миллисекунд стояла на экране.</summary>
-public sealed record ShellShowcaseImpressionDto(string CardId, int ShownMs);

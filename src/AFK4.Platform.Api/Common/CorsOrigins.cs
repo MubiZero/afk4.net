@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Configuration;
-
 namespace AFK4.Platform.Api.Common;
 
 /// <summary>

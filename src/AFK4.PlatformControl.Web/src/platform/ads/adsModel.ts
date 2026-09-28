@@ -14,6 +14,7 @@ import { PlatformApiError } from '@/api/platformTransport';
 import { describeApiError } from '@/api/describeApiError';
 import type { BadgeVariant } from '@/components/ui/badge';
 import { fromLocalInput, toLocalInput } from '@/lib/localDateTime';
+import type { FieldError } from '../useFieldErrors';
 import type {
   AdCampaignComplianceDto,
   AdCampaignDto,
@@ -56,16 +57,8 @@ export const IMAGE_MAX_MB = AD_LIMITS.imageMaxBytes / (1024 * 1024);
 /** Порядок категорий в форме — тот, в котором их перечисляет контракт. */
 export const AD_CATEGORIES: readonly AdCategoryName[] = Object.values(AdCategoryNames);
 
-export interface FieldError {
-  key: MessageKey;
-  values?: Record<string, number>;
-}
-
+export type { FieldError };
 type Errors<Field extends string> = Partial<Record<Field, FieldError>>;
-
-export function hasErrors(errors: Errors<string>): boolean {
-  return Object.keys(errors).length > 0;
-}
 
 function blankToNull(value: string): string | null {
   const trimmed = value.trim();

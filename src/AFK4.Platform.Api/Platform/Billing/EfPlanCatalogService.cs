@@ -8,7 +8,7 @@ namespace AFK4.Platform.Api.Platform.Billing;
 
 public sealed class EfPlanCatalogService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IPlanCatalogService
+    TimeProvider timeProvider)
 {
     private const int MaxPlanCodeLength = 64;
     private const int MaxNameLength = 160;

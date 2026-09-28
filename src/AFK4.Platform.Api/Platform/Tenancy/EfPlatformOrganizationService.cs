@@ -1,9 +1,7 @@
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
-using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Audit;
-using AFK4.Platform.Api.Endpoints;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Platform.Entitlements;
@@ -21,10 +19,10 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 public sealed class EfPlatformOrganizationService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IOrganizationOwnerInviteCodeGenerator inviteCodeGenerator,
+    RandomOrganizationOwnerInviteCodeGenerator inviteCodeGenerator,
     INotificationService notifications,
     IOptions<PlatformOrganizationOptions> organizationOptions,
-    IPlanLimitGuard planLimitGuard) : IPlatformOrganizationService
+    EfPlanLimitGuard planLimitGuard)
 {
     private const int MaxUserNameLength = 256;
     private const int MaxDisplayNameLength = 160;

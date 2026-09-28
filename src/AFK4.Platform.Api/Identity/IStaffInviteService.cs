@@ -3,44 +3,6 @@ using AFK4.Shared.Contracts.Platform.Organizations;
 
 namespace AFK4.Platform.Api.Identity;
 
-/// <summary>
-/// Единственный путь завести сотрудника клуба: руководитель добавляет его по номеру телефона и
-/// получает код первого входа, человек при первом входе вводит свой номер и этот код и придумывает
-/// себе ПИН сам. SMS код только дублирует. Заведения с готовым ПИНом нет намеренно — ПИН должен
-/// знать только его владелец.
-/// </summary>
-public interface IStaffInviteService
-{
-    Task<StaffInviteCreateResult> CreateInviteAsync(
-        Guid organizationId,
-        Guid branchId,
-        string userName,
-        string displayName,
-        string phoneNumber,
-        string? email,
-        IReadOnlyList<string> roleNames,
-        CancellationToken cancellationToken);
-
-    Task<StaffInviteAcceptResult> AcceptInviteAsync(
-        string phoneNumber, string code, string password, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Сверить код, ничего не заводя: вход спрашивает код до ПИНа, чтобы опечатка в коде
-    /// всплыла сразу, а не после двух экранов. Промах тратит ту же попытку, что и при приёме.
-    /// </summary>
-    Task<StaffInviteAcceptResult> CheckInviteAsync(
-        string phoneNumber, string code, CancellationToken cancellationToken);
-
-    /// <summary>Что спросить вторым шагом входа по номеру (<see cref="Shared.Contracts.Identity.StaffSignInStepNames"/>).</summary>
-    Task<string> ResolveSignInStepAsync(string phoneNumber, CancellationToken cancellationToken);
-
-    /// <summary>Кого добавили в филиал, но кто ещё не входил, — со статусом кода.</summary>
-    Task<IReadOnlyList<StaffInviteSummaryDto>> ListPendingAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken);
-
-    /// <summary>Отозвать код первого входа. false — такого ожидающего приглашения в филиале нет.</summary>
-    Task<bool> RevokeAsync(Guid organizationId, Guid branchId, Guid staffInviteId, CancellationToken cancellationToken);
-}
-
 /// <param name="Code">Код приглашения, который человек вводит при приёме (не путать с
 /// <paramref name="ErrorCode"/>).</param>
 /// <param name="ErrorCode">

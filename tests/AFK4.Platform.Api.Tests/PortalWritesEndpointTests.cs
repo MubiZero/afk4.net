@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Players;
@@ -12,7 +9,6 @@ using AFK4.Shared.Contracts.Shifts;
 using AFK4.Platform.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -529,7 +525,7 @@ public class PortalWritesEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    // ---- B1: IReservationService.CreateOnlineAsync + CancelOnlineAsync ----
+    // ---- B1: EfReservationService.CreateOnlineAsync + CancelOnlineAsync ----
 
     private static async Task<(Guid SeatId, Guid ZoneId)> SeedSeatAsync(
         PlatformApiFactory factory, Guid orgId, Guid branchId, string name = "PC-01")
@@ -584,7 +580,7 @@ public class PortalWritesEndpointTests
         db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
-        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var svc = scope.ServiceProvider.GetRequiredService<EfReservationService>();
         var startsAt = DateTimeOffset.UtcNow.AddHours(2);
         var endsAt = startsAt.AddHours(1);
 
@@ -632,7 +628,7 @@ public class PortalWritesEndpointTests
         db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
-        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var svc = scope.ServiceProvider.GetRequiredService<EfReservationService>();
         var startsAt = DateTimeOffset.UtcNow.AddHours(2);
         var endsAt = startsAt.AddHours(1);
         var req = new CreatePlayerReservationRequest(seatId, startsAt, endsAt, null);
@@ -666,7 +662,7 @@ public class PortalWritesEndpointTests
         db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
-        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var svc = scope.ServiceProvider.GetRequiredService<EfReservationService>();
         var created = await svc.CreateOnlineAsync(
             playerId, orgId, branchId,
             new CreatePlayerReservationRequest(null, DateTimeOffset.UtcNow.AddHours(3), DateTimeOffset.UtcNow.AddHours(4), null),
@@ -697,7 +693,7 @@ public class PortalWritesEndpointTests
         db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
-        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var svc = scope.ServiceProvider.GetRequiredService<EfReservationService>();
         var created = await svc.CreateOnlineAsync(
             ownerId, orgId, branchId,
             new CreatePlayerReservationRequest(null, DateTimeOffset.UtcNow.AddHours(3), DateTimeOffset.UtcNow.AddHours(4), null),

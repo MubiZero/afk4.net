@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace AFK4.Platform.Api.Devices;
 
-public sealed class InMemoryDeviceConnectionRegistry : IDeviceConnectionRegistry
+public sealed class InMemoryDeviceConnectionRegistry
 {
     private readonly ConcurrentDictionary<string, DeviceConnectionIdentity> connections = new(StringComparer.Ordinal);
 

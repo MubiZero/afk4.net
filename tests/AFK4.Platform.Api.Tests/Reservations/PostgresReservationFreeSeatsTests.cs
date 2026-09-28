@@ -1,6 +1,5 @@
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Tests.Sessions;
-using AFK4.Shared.Contracts.Reservations;
 
 namespace AFK4.Platform.Api.Tests.Reservations;
 

@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Notifications;
 
-/// <summary>EF Core <see cref="INotificationPreferenceService"/> over <see cref="PlatformDbContext"/>.</summary>
-public sealed class EfNotificationPreferenceService(PlatformDbContext db, TimeProvider timeProvider) : INotificationPreferenceService
+/// <summary>EF Core <see cref="EfNotificationPreferenceService"/> over <see cref="PlatformDbContext"/>.</summary>
+public sealed class EfNotificationPreferenceService(PlatformDbContext db, TimeProvider timeProvider)
 {
     public async Task<bool> IsSuppressedAsync(
         NotificationRecipient recipient,
@@ -39,6 +39,7 @@ public sealed class EfNotificationPreferenceService(PlatformDbContext db, TimePr
         return preference is { OptedOut: true };
     }
 
+    /// <summary>Upsert an opt-out. Throws if <paramref name="category"/> is Transactional (§8).</summary>
     public async Task SetPreferenceAsync(
         Guid? staffUserId,
         Guid? playerAccountId,

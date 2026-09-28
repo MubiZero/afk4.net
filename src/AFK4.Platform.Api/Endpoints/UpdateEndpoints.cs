@@ -3,13 +3,10 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
-using AFK4.Platform.Api.Tenancy;
 using AFK4.Platform.Api.Updates;
-using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Updates;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
@@ -64,7 +61,7 @@ internal static class UpdateEndpoints
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IUpdateService updateService,
+            EfUpdateService updateService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -93,8 +90,8 @@ internal static class UpdateEndpoints
             DeviceUpdateCheckRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IUpdateService updateService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfUpdateService updateService,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -112,8 +109,8 @@ internal static class UpdateEndpoints
             DeviceUpdateStatusReportRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IUpdateService updateService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfUpdateService updateService,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)

@@ -3,7 +3,6 @@ using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shop;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
 

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
@@ -7,7 +6,6 @@ using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Devices;
 
@@ -237,7 +235,7 @@ public sealed class AgentCredentialRotationTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var lifecycle = scope.ServiceProvider
-                .GetRequiredService<IDeviceCredentialLifecycleService>();
+                .GetRequiredService<EfDeviceCredentialLifecycleService>();
             await lifecycle.RotateAsync(device.DeviceId, CancellationToken.None);
         }
 

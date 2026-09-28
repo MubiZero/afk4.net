@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Tenancy;
 
-public sealed class BranchResolver(PlatformDbContext dbContext) : IBranchResolver
+public sealed class BranchResolver(PlatformDbContext dbContext)
 {
     public Task<BranchEntity?> FindAsync(Guid branchId, CancellationToken cancellationToken)
     {

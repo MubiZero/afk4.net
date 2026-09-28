@@ -32,7 +32,6 @@ public sealed class OrganizationExportParityTests
         ["PlayerRefreshTokens"] = "токен обновления игрока — секрет",
         ["PlayerCredentials"] = "хеши паролей игроков",
         ["DeviceCredentials"] = "секреты устройств",
-        ["DeviceEnrollmentCodes"] = "одноразовые коды подключения машин",
         ["InstallCodes"] = "коды тихой установки ПК — хеши секретов, живут дни",
 
         // Технические очереди и следы исполнения: клубу они ничего не объясняют, а восстановить по

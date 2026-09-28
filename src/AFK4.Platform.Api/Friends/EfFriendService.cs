@@ -13,7 +13,7 @@ namespace AFK4.Platform.Api.Friends;
 /// Присутствие считается из живых сессий и показывается **только принятым друзьям** — и только
 /// если человек сам этого не запретил.
 /// </summary>
-public sealed class EfFriendService(PlatformDbContext dbContext, TimeProvider timeProvider) : IFriendService
+public sealed class EfFriendService(PlatformDbContext dbContext, TimeProvider timeProvider)
 {
     public async Task<FriendsDto> ListAsync(Guid personId, CancellationToken ct)
     {

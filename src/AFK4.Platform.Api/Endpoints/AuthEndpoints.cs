@@ -1,74 +1,10 @@
-﻿using System.Globalization;
-using System.Net;
-using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text.Json;
-using System.Text;
 using Microsoft.Extensions.Options;
-using AFK4.Platform.Api.AntiFraud;
-using AFK4.Platform.Api.Audit;
-using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Dashboard;
-using AFK4.Platform.Api.Diagnostics;
-using AFK4.Platform.Api.Devices;
-using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Identity.PhoneOtp;
-using AFK4.Platform.Api.Install;
-using AFK4.Platform.Api.Inventory;
-using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
-using AFK4.Platform.Api.Payments;
-using AFK4.Platform.Api.Platform.Billing;
-using AFK4.Platform.Api.Platform.Idempotency;
-using AFK4.Platform.Api.Platform.Identity;
-using AFK4.Platform.Api.Platform.Tenancy;
-using AFK4.Platform.Api.Pos;
-using AFK4.Platform.Api.Receipts;
-using AFK4.Platform.Api.Reports;
-using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Players;
-using AFK4.Platform.Api.Sessions;
-using AFK4.Platform.Api.Shifts;
-using AFK4.Platform.Api.Security;
-using AFK4.Platform.Api.Tenancy;
-using AFK4.Platform.Api.Updates;
-using AFK4.Shared.Contracts.Billing;
-using AFK4.Shared.Contracts.Audit;
-using AFK4.Shared.Contracts.Branches;
-using AFK4.Shared.Contracts.Diagnostics;
-using AFK4.Shared.Contracts.Devices;
-using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Players;
-using AFK4.Shared.Contracts.Install;
-using AFK4.Shared.Contracts.Inventory;
-using AFK4.Shared.Contracts.Layout;
-using AFK4.Shared.Contracts.Operator;
-using AFK4.Shared.Contracts.Packages;
-using AFK4.Shared.Contracts.Payments;
-using AFK4.Shared.Contracts.Branding;
-using AFK4.Shared.Contracts.Platform.Auth;
-using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Identity.AccountActivation;
-using AFK4.Shared.Contracts.Platform.Operator;
-using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Organizations;
-using AFK4.Shared.Contracts.Pos;
-using AFK4.Shared.Contracts.Receipts;
-using AFK4.Shared.Contracts.Reports;
-using AFK4.Shared.Contracts.Reservations;
-using AFK4.Shared.Contracts.Sessions;
-using AFK4.Shared.Contracts.Shifts;
-using AFK4.Shared.Contracts.Tariffs;
-using AFK4.Shared.Contracts.Updates;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using System.Threading.RateLimiting;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -94,7 +30,7 @@ internal static class AuthEndpoints
         organizations.MapPost("auth/staff/sign-in", async (
             Guid organizationId,
             StaffSignInRequest request,
-            IStaffCredentialService credentialService,
+            PasswordHashingStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             if (request.OrganizationId != organizationId)
@@ -108,7 +44,7 @@ internal static class AuthEndpoints
         organizations.MapPost("auth/staff/sign-in-by-organization-key", async (
             Guid organizationId,
             StaffSignInByOrganizationKeyRequest request,
-            IStaffCredentialService credentialService,
+            PasswordHashingStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             var outcome = await credentialService.SignInByOrganizationKeyAsync(request, cancellationToken);
@@ -122,7 +58,7 @@ internal static class AuthEndpoints
         organizations.MapPost("auth/staff/sign-in-by-login", async (
             Guid organizationId,
             StaffSignInByLoginRequest request,
-            IStaffCredentialService credentialService,
+            PasswordHashingStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             var resolution = await credentialService.SignInByLoginAsync(
@@ -146,7 +82,7 @@ internal static class AuthEndpoints
         // получал 404 на первом же экране при зелёных тестах с обеих сторон.
         app.MapPost(StaffAuthRoutes.SignIn, async (
             StaffSignInRequest request,
-            IStaffCredentialService credentialService,
+            PasswordHashingStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             return SignInResult(await credentialService.SignInAsync(request, cancellationToken));
@@ -154,7 +90,7 @@ internal static class AuthEndpoints
 
         app.MapPost(StaffAuthRoutes.SignInByLogin, async (
             StaffSignInByLoginRequest request,
-            IStaffCredentialService credentialService,
+            PasswordHashingStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             var resolution = await credentialService.SignInByLoginAsync(
@@ -179,7 +115,7 @@ internal static class AuthEndpoints
 
         app.MapPost(StaffAuthRoutes.SignInByPhone, async (
             StaffSignInByPhoneRequest request,
-            IStaffCredentialService credentialService,
+            PasswordHashingStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             return SignInResult(await credentialService.SignInByPhoneAsync(request, cancellationToken));
@@ -190,7 +126,7 @@ internal static class AuthEndpoints
         // что и сам вход.
         app.MapPost(StaffAuthRoutes.NextStep, async (
             StaffSignInNextStepRequest request,
-            IStaffInviteService staffInviteService,
+            EfStaffInviteService staffInviteService,
             CancellationToken cancellationToken) =>
             Results.Ok(new StaffSignInNextStepResponse(
                 await staffInviteService.ResolveSignInStepAsync(request.PhoneNumber, cancellationToken))))
@@ -248,7 +184,7 @@ internal static class AuthEndpoints
         // справочник «у кого в этой сети есть аккаунт».
         app.MapPost("/api/public/player/sign-in", async (
             PlayerSignInRequest request,
-            IPlatformPinService pinService,
+            EfPlatformPinService pinService,
             CancellationToken cancellationToken) =>
         {
             var result = await pinService.SignInAsync(
@@ -265,8 +201,8 @@ internal static class AuthEndpoints
 
         app.MapPost("/api/public/player/refresh", async (
             PlayerRefreshRequest request,
-            IPlatformPersonTokenService personTokenService,
-            IPlayerTokenService tokenService,
+            OpaquePlatformPersonTokenService personTokenService,
+            OpaquePlayerTokenService tokenService,
             CancellationToken cancellationToken) =>
         {
             var session = await personTokenService.RefreshAsync(request.RefreshToken, cancellationToken);
@@ -284,7 +220,7 @@ internal static class AuthEndpoints
         app.MapPost("/api/public/player/sign-out", async (
             PlayerSignOutRequest request,
             HttpContext httpContext,
-            IPlatformPersonTokenService personTokenService,
+            OpaquePlatformPersonTokenService personTokenService,
             CancellationToken cancellationToken) =>
         {
             var revoked = await personTokenService.RevokeAsync(
@@ -312,7 +248,7 @@ internal static class AuthEndpoints
         organizations.MapPost("auth/staff/sign-in-by-phone", async (
             Guid organizationId,
             StaffSignInByPhoneRequest request,
-            IStaffCredentialService credentialService,
+            PasswordHashingStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             var outcome = await credentialService.SignInByPhoneAsync(request, cancellationToken);
@@ -326,7 +262,7 @@ internal static class AuthEndpoints
         organizations.MapPost("account/phone/start-verification", async (
             StaffPhoneStartVerificationRequest request,
             IStaffContextAccessor staffContextAccessor,
-            IStaffPhoneVerificationService verificationService,
+            EfStaffPhoneVerificationService verificationService,
             CancellationToken cancellationToken) =>
         {
             var staff = staffContextAccessor.Current;
@@ -357,7 +293,7 @@ internal static class AuthEndpoints
         organizations.MapPost("account/phone/confirm", async (
             StaffPhoneConfirmRequest request,
             IStaffContextAccessor staffContextAccessor,
-            IStaffPhoneVerificationService verificationService,
+            EfStaffPhoneVerificationService verificationService,
             CancellationToken cancellationToken) =>
         {
             var staff = staffContextAccessor.Current;
@@ -388,7 +324,7 @@ internal static class AuthEndpoints
 
         organizations.MapGet("account/phone", async (
             IStaffContextAccessor staffContextAccessor,
-            IStaffPhoneVerificationService verificationService,
+            EfStaffPhoneVerificationService verificationService,
             CancellationToken cancellationToken) =>
         {
             var staff = staffContextAccessor.Current;
@@ -403,7 +339,7 @@ internal static class AuthEndpoints
 
         app.MapPost("/api/auth/staff/forgot-password-by-phone", async (
             StaffForgotPasswordByPhoneRequest request,
-            IStaffPhonePasswordResetService resetService,
+            EfStaffPhonePasswordResetService resetService,
             CancellationToken cancellationToken) =>
         {
             var result = await resetService.RequestResetAsync(request.PhoneNumber, cancellationToken);
@@ -418,7 +354,7 @@ internal static class AuthEndpoints
 
         app.MapPost("/api/auth/staff/reset-password-by-phone", async (
             StaffResetPasswordByPhoneRequest request,
-            IStaffPhonePasswordResetService resetService,
+            EfStaffPhonePasswordResetService resetService,
             CancellationToken cancellationToken) =>
         {
             var passwordValidation = ValidateStaffPin(request.NewPassword);

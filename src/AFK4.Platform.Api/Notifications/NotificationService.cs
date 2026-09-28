@@ -11,10 +11,10 @@ namespace AFK4.Platform.Api.Notifications;
 /// (recorded for audit, never delivered) rather than a silent drop.
 /// </summary>
 public sealed class NotificationService(
-    INotificationOutbox outbox,
-    ITemplateProvider templateProvider,
-    INotificationRenderer renderer,
-    INotificationPreferenceService preferences,
+    EfNotificationOutbox outbox,
+    EmbeddedTemplateProvider templateProvider,
+    NotificationRenderer renderer,
+    EfNotificationPreferenceService preferences,
     NotificationDispatchRunner dispatchRunner,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options) : INotificationService

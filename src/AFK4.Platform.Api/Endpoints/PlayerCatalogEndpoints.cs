@@ -19,9 +19,9 @@ internal static class PlayerCatalogEndpoints
     {
         app.MapGet("/api/me/branches/{branchId:guid}/tariffs", async (
             Guid branchId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
-            IOperatorReferenceDataService referenceData,
+            EfOperatorReferenceDataService referenceData,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
@@ -32,9 +32,9 @@ internal static class PlayerCatalogEndpoints
 
         app.MapGet("/api/me/branches/{branchId:guid}/packages", async (
             Guid branchId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
-            IOperatorReferenceDataService referenceData,
+            EfOperatorReferenceDataService referenceData,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
@@ -50,9 +50,9 @@ internal static class PlayerCatalogEndpoints
             Guid branchId,
             Guid packageDefinitionId,
             PurchasePackageFromAppRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
-            IPackageService packageService,
+            EfPackageService packageService,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
@@ -79,7 +79,7 @@ internal static class PlayerCatalogEndpoints
         // «куда делись мои часы» — такой же законный вопрос, как «сколько осталось», а исчезнувшая
         // из списка покупка читается как пропажа денег.
         app.MapGet("/api/me/packages", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken ct) =>
         {
@@ -129,8 +129,8 @@ internal static class PlayerCatalogEndpoints
         // новому гостю — ноль визитов, ноль активных броней, — а счёта чтение правил не открывает.
         app.MapGet("/api/me/branches/{branchId:guid}/booking-rules", async (
             Guid branchId,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken ct) =>
@@ -158,7 +158,7 @@ internal static class PlayerCatalogEndpoints
         // компьютером — за место без машины сесть всё равно нельзя.
         app.MapGet("/api/me/branches/{branchId:guid}/seats", async (
             Guid branchId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken ct) =>
@@ -244,7 +244,7 @@ internal static class PlayerCatalogEndpoints
         // биллинге, и вторая реализация в клиенте разошлась бы с настоящим списанием.
         app.MapPost("/api/me/reservations/quote", async (
             ReservationQuoteRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken ct) =>

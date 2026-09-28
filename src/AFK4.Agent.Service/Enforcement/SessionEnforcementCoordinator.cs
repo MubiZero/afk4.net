@@ -12,7 +12,7 @@ public sealed class SessionEnforcementCoordinator(
     IWorkstationLockController workstationLockController,
     TimeProvider timeProvider,
     ISessionCleanup? sessionCleanup = null,
-    AFK4.Agent.Service.Games.ISessionAutostart? autostart = null) : ISessionEnforcementCoordinator
+    AFK4.Agent.Service.Games.SessionAutostart? autostart = null) : ISessionEnforcementCoordinator
 {
     public async Task<SessionEnforcementResult> UnlockAsync(
         SessionLeaseDto lease,
