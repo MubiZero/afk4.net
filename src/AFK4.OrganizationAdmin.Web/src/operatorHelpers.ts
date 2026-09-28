@@ -1546,6 +1546,8 @@ export function auditActionLabel(action: string, t: TFunc): string {
       return t('op.helper.audit.staffRolesUpdate');
     case 'identity.staff.branch.remove':
       return t('op.helper.audit.staffBranchRemove');
+    case 'reservations.cancel':
+      return t('op.helper.audit.reservationCancel');
     case 'updates.rollouts.view':
       return t('op.helper.audit.updatesView');
     case 'updates.rollouts.state.change':
@@ -1557,6 +1559,10 @@ export function auditActionLabel(action: string, t: TFunc): string {
 
       if (normalized.includes('session')) {
         return t('op.helper.audit.opSession');
+      }
+
+      if (normalized.includes('reservation')) {
+        return t('op.helper.audit.opReservation');
       }
 
       if (normalized.includes('device')) {
