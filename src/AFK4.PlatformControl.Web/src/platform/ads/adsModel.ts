@@ -649,6 +649,8 @@ const ERROR_CODE_MESSAGE: Record<string, FieldError> = {
   // У кампании или рекламодателя уже есть одобренная реклама — модератор проверял её при нынешних данных.
   [AdErrorCodeNames.CampaignLocked]: { key: 'platform.ads.error.campaignLocked' },
   [AdErrorCodeNames.AdvertiserLocked]: { key: 'platform.ads.error.advertiserLocked' },
+  // Состояние поменяли в другой вкладке: запустить уже идущую или вернуть в черновик нельзя.
+  [AdErrorCodeNames.InvalidTransition]: { key: 'platform.ads.error.invalidTransition' },
   [AdErrorCodeNames.ImageUnavailable]: { key: 'platform.ads.error.imageUnavailable', values: { mb: IMAGE_MAX_MB } }
 };
 

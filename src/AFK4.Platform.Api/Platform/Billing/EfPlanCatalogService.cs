@@ -1,5 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
+using AFK4.Shared.Contracts.Platform.Features;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Billing;
@@ -109,6 +111,11 @@ public sealed class EfPlanCatalogService(
             return BillingOperationResult<SubscriptionPlanDto>.NotFound($"Plan '{normalized}' was not found.");
         }
 
+        if (ValidateRolePlan(normalized, request) is { } roleError)
+        {
+            return BillingOperationResult<SubscriptionPlanDto>.BadRequest(roleError);
+        }
+
         entity.Name = request.Name.Trim();
         entity.PriceMinorUnits = request.PriceMinorUnits;
         entity.CurrencyCode = request.CurrencyCode.Trim().ToUpperInvariant();
@@ -140,6 +147,29 @@ public sealed class EfPlanCatalogService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return BillingOperationResult<SubscriptionPlanDto>.Success((await DescribeAsync([entity], cancellationToken))[0]);
+    }
+
+    /// <summary>
+    /// Бесплатный тариф и тариф за ПК — не просто строки каталога: на бесплатный клуб уходит без
+    /// оплаты, на тариф за ПК переходит сам. Выключи любой — и переход молча перестанет работать
+    /// (<see cref="ClubPlans"/> их не найдёт). А реклама платформы на тарифе за ПК — это реклама
+    /// у тех, кто платит как раз за то, чтобы её не было.
+    /// </summary>
+    private static string? ValidateRolePlan(string planCode, UpdatePlanRequest request)
+    {
+        var isRolePlan = planCode is OrganizationPlanCodeNames.Free or OrganizationPlanCodeNames.PerPc;
+        if (isRolePlan && !request.IsActive)
+        {
+            return $"Plan '{planCode}' is where clubs move by themselves and cannot be turned off.";
+        }
+
+        if (planCode == OrganizationPlanCodeNames.PerPc
+            && (request.IncludedFeatures ?? []).Contains(PlatformFeatureNames.PlatformAds, StringComparer.OrdinalIgnoreCase))
+        {
+            return "The per-PC plan is paid for having no platform ads.";
+        }
+
+        return null;
     }
 
     private static string? ValidateCommon(string planCode, string? name, string? currencyCode, string? interval, long price)

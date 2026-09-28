@@ -64,6 +64,9 @@ abstract final class AdErrorCodeNames {
   static const String advertiserLocked = 'ad_advertiser_locked';
   /// Картинку не удалось скачать для хранения — одобрить без копии нельзя.
   static const String imageUnavailable = 'ad_image_unavailable';
+  /// Такого шага у кампании нет: черновик запускают, идущую ставят на паузу, с паузы запускают.
+  /// Вернуть в черновик показанную кампанию нельзя.
+  static const String invalidTransition = 'ad_campaign_invalid_transition';
 }
 
 /// Отметки модератора при одобрении — по статьям закона РТ «О рекламе» (спека рекламы, §8.2).

@@ -82,6 +82,11 @@ export const AdErrorCodeNames = {
   AdvertiserLocked: 'ad_advertiser_locked',
   /** Картинку не удалось скачать для хранения — одобрить без копии нельзя. */
   ImageUnavailable: 'ad_image_unavailable',
+  /**
+   * Такого шага у кампании нет: черновик запускают, идущую ставят на паузу, с паузы запускают.
+   * Вернуть в черновик показанную кампанию нельзя.
+   */
+  InvalidTransition: 'ad_campaign_invalid_transition',
 } as const;
 export type AdErrorCodeName = (typeof AdErrorCodeNames)[keyof typeof AdErrorCodeNames];
 

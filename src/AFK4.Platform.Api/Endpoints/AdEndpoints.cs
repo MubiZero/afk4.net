@@ -151,6 +151,10 @@ internal static class AdEndpoints
             if (!AdCampaignStateNames.All.Contains(request.State)) return Invalid("Unknown campaign state.");
             var campaign = await db.AdCampaigns.SingleOrDefaultAsync(candidate => candidate.CampaignId == campaignId, ct);
             if (campaign is null) return Results.NotFound();
+            if (!CanMove(campaign.State, request.State))
+            {
+                return Results.Conflict(new { Error = $"A campaign cannot go from '{campaign.State}' to '{request.State}'.", Code = AdErrorCodeNames.InvalidTransition });
+            }
 
             // Запустить кампанию без одобренного креатива — значит запустить пустоту: показывать нечего.
             if (request.State == AdCampaignStateNames.Active
@@ -170,6 +174,15 @@ internal static class AdEndpoints
             return Results.Ok(await CampaignDtoAsync(db, campaign, ct));
         });
     }
+
+    /// <summary>
+    /// Шаги кампании: черновик → идёт, идёт ⇄ пауза. Повтор того же состояния — не ошибка. Показанную
+    /// кампанию в черновик не вернуть: черновик значит «ещё не видели».
+    /// </summary>
+    private static bool CanMove(string from, string to) =>
+        from == to || (from, to) is (AdCampaignStateNames.Draft, AdCampaignStateNames.Active)
+            or (AdCampaignStateNames.Active, AdCampaignStateNames.Paused)
+            or (AdCampaignStateNames.Paused, AdCampaignStateNames.Active);
 
     private static async Task<IResult> UpsertCampaignAsync(Guid? campaignId, UpsertAdCampaignRequest request,
         PlatformAdminAuthorizationService authorizationService, IAuditRecordWriter audit, PlatformDbContext db, TimeProvider clock,

@@ -77,6 +77,8 @@ public sealed class PlatformAdsTests
         Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(moderation,
             new ModerateAdCreativeRequest(true, null, AdModerationCheckNames.All))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await platform.PostAsJsonAsync(state, new SetAdCampaignStateRequest(AdCampaignStateNames.Active))).StatusCode);
+        // Идущую кампанию в черновик не вернуть: черновик значит «ещё не показывали».
+        Assert.Equal(HttpStatusCode.Conflict, (await platform.PostAsJsonAsync(state, new SetAdCampaignStateRequest(AdCampaignStateNames.Draft))).StatusCode);
 
         var showcase = (await ShowcaseAsync(fixture))!;
         var ad = Assert.Single(showcase.Cards, card => card.Kind == ShowcaseCardKindNames.Ad);

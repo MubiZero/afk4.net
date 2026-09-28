@@ -80,7 +80,7 @@ export function ComplaintsTab({ client, onOpenCampaign }: {
                 <TableRow key={complaint.complaintId}>
                   <TableCell>{formatDate(complaint.createdAtUtc)}</TableCell>
                   <TableCell>
-                    <span className="font-medium">{complaint.organizationName}</span>
+                    <strong>{complaint.organizationName}</strong>
                     {complaint.reportedBy ? <span className="mgmt-drawer-hint"> · {complaint.reportedBy}</span> : null}
                   </TableCell>
                   <TableCell>

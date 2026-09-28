@@ -19,4 +19,19 @@ describe('BillingTermsCard', () => {
     await waitFor(() => expect(client.updateTerms).toHaveBeenCalledWith({ trialDays: 14, promisedPaymentDays: 0, fallbackAfterOverdueDays: 14 }));
     expect(await screen.findByText('Условия оплаты сохранены')).toBeInTheDocument();
   });
+
+  it('«-5» и пустое поле не сохраняются нулём — ошибка у поля', async () => {
+    const client = {
+      getTerms: mock().mockResolvedValue({ trialDays: 30, promisedPaymentDays: 7, fallbackAfterOverdueDays: 14, updatedAtUtc: null }),
+      updateTerms: mock()
+    };
+    render(<I18nProvider><ToastProvider><BillingTermsCard client={client} canManage /></ToastProvider></I18nProvider>);
+
+    fireEvent.change(await screen.findByLabelText('Пробный период, дней'), { target: { value: '-5' } });
+    fireEvent.change(screen.getByLabelText('Обещанный платёж, дней'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить условия' }));
+
+    expect(screen.getAllByText('Дни — целое число, не меньше нуля.')).toHaveLength(2);
+    expect(client.updateTerms).not.toHaveBeenCalled();
+  });
 });
