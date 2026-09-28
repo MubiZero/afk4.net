@@ -86,6 +86,11 @@ internal static partial class EndpointHelpers
             InstallOperationStatus.Succeeded => Results.Ok(result.Value),
             InstallOperationStatus.Conflict => Results.Conflict(new { Error = result.Error, result.Code }),
             InstallOperationStatus.NotFound => Results.NotFound(new { Error = result.Error, result.Code }),
+            // Тот же контракт 403 OrganizationSuspended, что у остальных маршрутов ПК: Code несёт
+            // статус организации, а не код отказа (см. InstallOperationResult<T>.Suspended).
+            InstallOperationStatus.Forbidden => Results.Json(
+                new { Error = result.Error, Status = result.Code, result.Reason },
+                statusCode: StatusCodes.Status403Forbidden),
             _ => Results.BadRequest(new { Error = result.Error, result.Code })
         };
     }

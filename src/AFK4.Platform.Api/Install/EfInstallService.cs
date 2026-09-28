@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Platform.Entitlements;
+using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
@@ -20,6 +21,7 @@ public sealed class EfInstallService(
     IOptions<SessionLeaseOptions> sessionLeaseOptions,
     TimeProvider timeProvider,
     EfPlanLimitGuard planLimitGuard,
+    EfOrganizationStatusGuard organizationStatusGuard,
     EfDeviceBoundPlayerTokens? deviceTokens = null)
 {
     /// <summary>
@@ -133,7 +135,8 @@ public sealed class EfInstallService(
                 code.OrganizationId,
                 code.BranchId,
                 code.CreatedByStaffUserId,
-                result.Code);
+                result.Code,
+                result.Reason);
     }
 
     // Одна причина на «неизвестен, истёк, отозван, исчерпан»: угадывающему не надо знать, какой
@@ -202,12 +205,19 @@ public sealed class EfInstallService(
         bool seatRequired = true,
         InstallCodeEntity? installCode = null)
     {
-        var organization = await dbContext.Organizations
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
-        if (organization is null || organization.Status != OrganizationStatusNames.Active)
+        // Анонимная тихая установка по коду не проходит через OrganizationSuspensionMiddleware
+        // (нет сотрудника) — тот же guard и тот же контракт 403 OrganizationSuspended, что у
+        // остальных маршрутов ПК, а не свой BadRequest без кода.
+        var organizationStatus = await organizationStatusGuard.GetAsync(organizationId, cancellationToken);
+        if (organizationStatus is null)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest("Organization is not active.");
+        }
+
+        if (!organizationStatus.IsActive)
+        {
+            return InstallOperationResult<InstallEnrollResponse>.Suspended(
+                organizationStatus.Status, organizationStatus.Reason, organizationId, branchId);
         }
 
         var branch = await dbContext.Branches
@@ -534,15 +544,20 @@ public sealed class EfInstallService(
         Guid? staffUserId,
         CancellationToken cancellationToken)
     {
-        var organization = await dbContext.Organizations
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
-        if (organization is null || organization.Status != OrganizationStatusNames.Active)
+        // Тот же guard и тот же контракт 403 OrganizationSuspended, что у остальных маршрутов ПК.
+        var organizationStatus = await organizationStatusGuard.GetAsync(organizationId, cancellationToken);
+        if (organizationStatus is null)
         {
             return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
                 "Organization is not active.",
                 organizationId,
                 staffUserId: staffUserId);
+        }
+
+        if (!organizationStatus.IsActive)
+        {
+            return InstallOperationResult<InstallCreateSeatResponse>.Suspended(
+                organizationStatus.Status, organizationStatus.Reason, organizationId, staffUserId: staffUserId);
         }
 
         var branchExists = await dbContext.Branches.AnyAsync(

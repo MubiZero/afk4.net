@@ -233,15 +233,13 @@ public sealed class OrganizationSuspensionEnforcementTests
         await AssertOrganizationSuspendedAsync(response, OrganizationStatusNames.Suspended, "Suspended");
     }
 
-    // ВНИМАНИЕ: тихая установка по коду не проходит через IOrganizationStatusGuard, которым
-    // защищены остальные device-эндпойнты (heartbeat, session-reconciliation, updates/*), и не даёт
-    // тот же контракт «403 OrganizationSuspended со статусом и причиной». Отказ она всё же
-    // возвращает — приостановленную/удаляемую организацию EfInstallService проверяет сам
-    // (EnrollResolvedAsync: organization.Status != Active), но обычным BadRequest 400 с общей
-    // фразой. Тест фиксирует то, что путь реально делает, а не то, что делают остальные эндпойнты —
-    // расхождение форматов ошибок между этим путём и остальными названо владельцу отдельно.
+    // Тихая установка по коду не проходит через OrganizationSuspensionMiddleware (нет сотрудника —
+    // это анонимный маршрут), поэтому раньше EfInstallService проверял приостановку сам и отвечал
+    // обычным BadRequest 400 с общей фразой без кода — единственный маршрут ПК с другим форматом
+    // отказа. Теперь EnrollResolvedAsync переиспользует EfOrganizationStatusGuard и отдаёт тот же
+    // контракт 403 OrganizationSuspended со статусом и причиной, что и остальные device-эндпойнты.
     [Fact]
-    public async Task DeviceEnrollment_OnSuspendedOrganization_IsRefusedButNotWithTheSharedContract()
+    public async Task DeviceEnrollment_OnSuspendedOrganization_Returns403WithTheSharedContract()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -270,10 +268,7 @@ public sealed class OrganizationSuspensionEnforcementTests
                 MachineName: "PC-suspended",
                 DevicePublicKey: $"test-key-{Guid.NewGuid():N}"));
 
-        Assert.Equal(HttpStatusCode.BadRequest, enrollResponse.StatusCode);
-        using var document = await enrollResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        Assert.NotNull(document);
-        Assert.Equal("Organization is not active.", document.RootElement.GetProperty("error").GetString());
+        await AssertOrganizationSuspendedAsync(enrollResponse, OrganizationStatusNames.Suspended, "Frozen");
     }
 
     [Fact]
