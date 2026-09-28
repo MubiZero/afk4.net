@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-26
+Last updated: 2026-09-28
 
 ## Purpose
 
@@ -739,6 +739,24 @@ KPIs, the shift-close tolerance lookup.
 
 ## Latest Verification
 
+- Audit fixes merged (2026-09-28). After the owner asked whether everything
+  built during the shell rewrite exists everywhere and works, three audits
+  (shell vs. concept, Panel + Platform Control, player app) found real bugs;
+  #503–#508 fix them and went in through one integration branch as one deploy:
+  #503 (read caches), #504 (demo Panel on GitHub Pages), #505 (app: QR sign-in
+  on the PC, extend prices and early-end refund from the server, pushes from
+  every club of a person, seats under maintenance not shown free), #506 (Panel
+  and server: a zero invoice is no debt, grace fixed at issue, news scoped to
+  the branch, SSRF guard on ad images, moderated campaigns locked, plan steps
+  confirmed with the price, cp1251 guest import, roles per the owner on
+  2026-09-28), #507 (shell: countdown to the session end, sign-out on silence,
+  summary within the token window, all 17 audit items), #508 (demo mock answers
+  every screen). The integration tree built clean (solution, `tsc` for every web
+  workspace, Biome, `flutter analyze`, EF model has no pending changes, the demo
+  build walked screen by screen); tests were run only by CI — the owner asked
+  not to run them locally. Not verified: anything on a live Windows PC, the QR
+  scanner and pushes on a real phone.
+
 - Shell stack and its leftovers merged (2026-09-26). #449–#500 went in through
   one integration branch: `main` equals the integration tree, and the full PR
   Verification (web, Flutter, Windows, PostgreSQL) was green on ffa4c24e. Then
@@ -951,6 +969,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   deployment, or physical Windows smoke was performed.
 
 ## Known Gaps
+
+- **Named after the 2026-09-28 audits, not done.** Device commands carry no
+  idempotency key on the server (double sends from the Panel are closed, a
+  manual retry after a dropped connection is not); guest import cannot be
+  undone; replaced news and product photos stay in storage; unpaid tips after a
+  shift closes are not shown anywhere; the tip reason is written by the server
+  in Russian; the player gets no push when the club hides their review text; the
+  shell does not yet follow the concept's choreography (centred sign-in window,
+  PIN cells, game search and categories, «Recent», «Step away»).
 
 - **Sign-in and commands on the PC go through the agent, proven only by tests.**
   The player signs in on the PC by phone and PIN or by the app's QR; the agent
