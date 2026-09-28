@@ -15,6 +15,7 @@ import '../organization/organization.dart';
 import '../events/events_screen.dart';
 import '../friends/friends_screen.dart';
 import '../packages/packages_screen.dart';
+import '../play/pc_sign_in_screen.dart';
 import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
 import '../referral/referral_screen.dart';
@@ -318,6 +319,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool get _loyaltyEnabled => widget.features == null || widget.features!.contains(PlatformFeatureNames.loyalty);
 
+  Future<void> _signInOnPc() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => PcSignInScreen(api: widget.api)),
+    );
+    if (mounted) await _refresh();
+  }
+
   Future<void> _startSession() async {
     final l = L.of(context);
     final branchId = _branchId;
@@ -618,6 +626,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _StartPlayingCard(
                     // Сесть можно, только когда известен филиал: места у клуба свои.
                     onPlay: _branchId == null ? null : _startSession,
+                    onSignInOnPc: _signInOnPc,
                   ),
                 const SizedBox(height: 16),
                 QuickActions(actions: _actions(l, data)),
@@ -771,7 +780,11 @@ class _StaleBanner extends StatelessWidget {
 /// Действие здесь ровно одно. Бронь живёт плиткой ниже: два призыва подряд заставляют
 /// выбирать вместо того, чтобы делать, а игрок в зале пришёл играть сейчас.
 class _StartPlayingCard extends StatelessWidget {
-  const _StartPlayingCard({required this.onPlay});
+  const _StartPlayingCard({required this.onPlay, required this.onSignInOnPc});
+
+  /// Войти на ПК по QR с монитора: игрок стоит у свободного ПК, и набирать номер с ПИН-кодом на
+  /// клавиатуре зала ему незачем.
+  final VoidCallback onSignInOnPc;
 
   /// Сесть за свободный ПК прямо сейчас. Это главное действие пустого состояния: игрок,
   /// открывший приложение в клубе, хочет играть, а не бронировать на завтра.
@@ -833,6 +846,15 @@ class _StartPlayingCard extends StatelessWidget {
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onSignInOnPc,
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                label: Text(l.customerPcSignInEntry),
+              ),
+            ),
           ],
         ),
       ),

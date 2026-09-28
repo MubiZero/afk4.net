@@ -461,6 +461,43 @@
       }
     }
   },
+  "customerPcSignInBusy": "Someone else's session is running on this PC — pick a free one.",
+  "customerPcSignInCameraDenied": "No camera access. Allow it in the phone settings or type the code below.",
+  "customerPcSignInCameraFailed": "The camera didn't start — type the code below.",
+  "customerPcSignInClose": "Done",
+  "customerPcSignInCodeLabel": "Code from the PC screen",
+  "customerPcSignInDone": "You're signed in on the PC",
+  "customerPcSignInDoneHint": "Choose the time on the PC screen — it's paid from your balance at this club.",
+  "customerPcSignInDoneSeat": "You're signed in on {seat}",
+  "@customerPcSignInDoneSeat": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPcSignInEntry": "Sign in on a PC by QR",
+  "customerPcSignInExpired": "The PC didn't respond. Check that its screen shows the QR code and try again.",
+  "customerPcSignInFailed": "Couldn't sign in on the PC. Try again or sign in on the PC itself with your number and PIN.",
+  "customerPcSignInHint": "Point the camera at the QR code on a free PC's screen — the PC signs you in, no phone number or PIN to type.",
+  "customerPcSignInInvalid": "The code didn't work. Scan the QR code again — it changes every couple of minutes.",
+  "customerPcSignInMaintenance": "This PC is under maintenance — pick another one.",
+  "customerPcSignInNeedsAccount": "To sign in on a PC, sign in to the app with your phone number.",
+  "customerPcSignInNotReady": "This PC isn't set up in the hall yet. Ask the administrator.",
+  "customerPcSignInOrType": "Or type the 6 digits under the QR code",
+  "customerPcSignInRetry": "Try again",
+  "customerPcSignInSubmit": "Sign in on the PC",
+  "customerPcSignInTitle": "Sign in on a PC",
+  "customerPcSignInTooMany": "Too many wrong codes. Wait a few minutes or sign in on the PC itself with your number and PIN.",
+  "customerPcSignInWaiting": "Waiting for the PC to let you in…",
+  "customerPcSignInWaitingSeat": "Waiting for {seat} to let you in…",
+  "@customerPcSignInWaitingSeat": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
   "customerPhoneCode": "Code from the SMS",
   "customerPhoneConfirm": "Confirm",
   "customerPhoneConfirming": "Checking…",

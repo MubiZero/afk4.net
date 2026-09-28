@@ -461,6 +461,43 @@
       }
     }
   },
+  "customerPcSignInBusy": "На этом ПК идёт чужая сессия — выберите свободный ПК.",
+  "customerPcSignInCameraDenied": "Нет доступа к камере. Разрешите его в настройках телефона или введите код ниже.",
+  "customerPcSignInCameraFailed": "Камера не запустилась — введите код ниже.",
+  "customerPcSignInClose": "Готово",
+  "customerPcSignInCodeLabel": "Код с экрана ПК",
+  "customerPcSignInDone": "Вы вошли на ПК",
+  "customerPcSignInDoneHint": "Выберите время на экране ПК — оплата с вашего баланса в этом клубе.",
+  "customerPcSignInDoneSeat": "Вы вошли на {seat}",
+  "@customerPcSignInDoneSeat": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPcSignInEntry": "Войти на ПК по QR",
+  "customerPcSignInExpired": "ПК не ответил. Проверьте, что на его экране QR-код, и попробуйте ещё раз.",
+  "customerPcSignInFailed": "Не получилось войти на ПК. Попробуйте ещё раз или войдите на самом ПК номером и ПИН-кодом.",
+  "customerPcSignInHint": "Наведите камеру на QR-код на экране свободного ПК — ПК войдёт сам, номер и ПИН-код набирать не нужно.",
+  "customerPcSignInInvalid": "Код не подошёл. Отсканируйте QR-код ещё раз — он меняется каждые пару минут.",
+  "customerPcSignInMaintenance": "ПК на обслуживании — выберите другой.",
+  "customerPcSignInNeedsAccount": "Для входа на ПК войдите в приложение по номеру телефона.",
+  "customerPcSignInNotReady": "Этот ПК ещё не подключён к залу. Позовите администратора.",
+  "customerPcSignInOrType": "Или введите 6 цифр под QR-кодом",
+  "customerPcSignInRetry": "Попробовать ещё раз",
+  "customerPcSignInSubmit": "Войти на ПК",
+  "customerPcSignInTitle": "Вход на ПК",
+  "customerPcSignInTooMany": "Слишком много неверных кодов. Подождите несколько минут или войдите на самом ПК номером и ПИН-кодом.",
+  "customerPcSignInWaiting": "Ждём, пока ПК примет вход…",
+  "customerPcSignInWaitingSeat": "Ждём, пока {seat} примет вход…",
+  "@customerPcSignInWaitingSeat": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
   "customerPhoneCode": "Код из SMS",
   "customerPhoneConfirm": "Подтвердить",
   "customerPhoneConfirming": "Проверяем…",
