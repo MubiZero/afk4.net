@@ -48,6 +48,8 @@ async function toStaffAuthApiError(res: Response): Promise<StaffAuthApiError> {
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+const AUTH_REQUEST_TIMEOUT_MS = 20_000;
+
 export class StaffAuthApi {
   private readonly base: URL;
   private readonly fetchImpl: FetchLike;
@@ -69,7 +71,10 @@ export class StaffAuthApi {
         ...organizationAdminHeaders(),
         ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {})
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      // Без предела подвисшая сеть держала бы вход на «Входим…» вечно. Превышение — не 401, и
+      // вызывающие уже читают такой сбой как временный: сессию он не сбрасывает.
+      signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS)
     });
     if (res.status === 409 && on409) return on409(res);
     if (!res.ok) throw await toStaffAuthApiError(res);

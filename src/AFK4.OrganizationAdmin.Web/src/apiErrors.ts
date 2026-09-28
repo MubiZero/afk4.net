@@ -161,7 +161,9 @@ function statusMessageKey(status: number): MessageKey {
   if (status === 401 || status === 403) return 'op.error.status.forbidden';
   if (status === 404) return 'op.error.status.notFound';
   if (status === 409 || status === 412 || status === 422) return 'op.error.status.conflict';
-  if (status >= 500 || status === 0) return 'op.error.status.server';
+  // 0 — сервер не ответил за отведённое время: для того, кто за кассой, это та же пропавшая связь.
+  if (status === 0) return 'op.error.status.network';
+  if (status >= 500) return 'op.error.status.server';
   return 'op.error.status.invalid';
 }
 

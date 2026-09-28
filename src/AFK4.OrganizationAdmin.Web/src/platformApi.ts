@@ -8,9 +8,18 @@ export interface PlatformApiOptions {
   getAccessToken: () => string | null | Promise<string | null>;
   fetchImpl?: FetchLike;
   pathPrefix?: string;
+  timeoutMs?: number;
 }
 
 export type QueryParams = Record<string, string | number | boolean | Date | null | undefined>;
+
+/**
+ * Сколько ждать ответа. Без предела подвисшее соединение — обычное дело в клубе — держало экран на
+ * «Сохраняю…» вечно: ни ошибки, ни разблокированной кнопки, пока браузер сам не оборвёт связь.
+ */
+const REQUEST_TIMEOUT_MS = 20_000;
+// Фото зала на медленной сети грузится дольше обычного запроса.
+const UPLOAD_TIMEOUT_MS = 120_000;
 
 export class PlatformApiError extends Error {
   constructor(
@@ -29,12 +38,14 @@ export class PlatformApiClient {
   private readonly getAccessToken: PlatformApiOptions['getAccessToken'];
   private readonly fetchImpl: FetchLike;
   private readonly pathPrefix: string;
+  private readonly timeoutMs: number;
 
   constructor(options: PlatformApiOptions) {
     this.baseUrl = new URL(options.baseUrl);
     this.getAccessToken = options.getAccessToken;
     this.fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
     this.pathPrefix = options.pathPrefix?.replace(/\/$/, '') ?? '';
+    this.timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
   }
 
   forOrganization(organizationId: string): PlatformApiClient {
@@ -42,7 +53,8 @@ export class PlatformApiClient {
       baseUrl: this.baseUrl.toString(),
       getAccessToken: this.getAccessToken,
       fetchImpl: this.fetchImpl,
-      pathPrefix: `/api/organizations/${organizationId}`
+      pathPrefix: `/api/organizations/${organizationId}`,
+      timeoutMs: this.timeoutMs
     });
   }
 
@@ -73,20 +85,19 @@ export class PlatformApiClient {
   // Multipart uploads (e.g. media). Body is sent as-is so the browser sets the
   // `Content-Type: multipart/form-data; boundary=...` header itself — forcing
   // `application/json` (like the other methods do) would break the boundary.
-  async postForm<TResponse>(path: string, formData: FormData): Promise<TResponse> {
-    const response = await this.fetchAuthorizedRaw('POST', path, formData);
-    await ensureSuccess(response);
-    if (response.status === 204) {
-      return null as TResponse;
-    }
-    return await response.json() as TResponse;
+  postForm<TResponse>(path: string, formData: FormData): Promise<TResponse> {
+    return withTimeout(Math.max(this.timeoutMs, UPLOAD_TIMEOUT_MS), async (signal) => {
+      const response = await this.fetchAuthorizedRaw('POST', path, formData, signal);
+      await ensureSuccess(response);
+      if (response.status === 204) {
+        return null as TResponse;
+      }
+      return await response.json() as TResponse;
+    });
   }
 
-  async put<TResponse, TRequest = unknown>(path: string, body: TRequest): Promise<TResponse> {
-    const response = await this.fetchAuthorized('PUT', path, body);
-    await ensureSuccess(response);
-    if (response.status === 204) return null as TResponse;
-    return await response.json() as TResponse;
+  put<TResponse, TRequest = unknown>(path: string, body: TRequest): Promise<TResponse> {
+    return this.send<TResponse>('PUT', path, body);
   }
 
   buildUrl(path: string, query?: QueryParams): string {
@@ -107,37 +118,42 @@ export class PlatformApiClient {
     return url.toString();
   }
 
-  private async send<TResponse>(
+  private send<TResponse>(
     method: string,
     path: string,
     body?: unknown,
     query?: QueryParams,
     nullStatuses: number[] = []
   ): Promise<TResponse> {
-    const response = await this.fetchAuthorized(method, path, body, query);
-    if (nullStatuses.includes(response.status)) {
-      return null as TResponse;
-    }
+    return withTimeout(this.timeoutMs, async (signal) => {
+      const response = await this.fetchAuthorized(method, path, body, query, signal);
+      if (nullStatuses.includes(response.status)) {
+        return null as TResponse;
+      }
 
-    await ensureSuccess(response);
-    if (response.status === 204) {
-      return null as TResponse;
-    }
+      await ensureSuccess(response);
+      if (response.status === 204) {
+        return null as TResponse;
+      }
 
-    return await response.json() as TResponse;
+      return await response.json() as TResponse;
+    });
   }
 
-  private async sendText(method: string, path: string, query?: QueryParams): Promise<string> {
-    const response = await this.fetchAuthorized(method, path, undefined, query);
-    await ensureSuccess(response);
-    return await response.text();
+  private sendText(method: string, path: string, query?: QueryParams): Promise<string> {
+    return withTimeout(this.timeoutMs, async (signal) => {
+      const response = await this.fetchAuthorized(method, path, undefined, query, signal);
+      await ensureSuccess(response);
+      return await response.text();
+    });
   }
 
   private async fetchAuthorized(
     method: string,
     path: string,
     body?: unknown,
-    query?: QueryParams
+    query?: QueryParams,
+    signal?: AbortSignal
   ): Promise<Response> {
     const headers = new Headers(organizationAdminHeaders());
     const supportSession = readSupportSession();
@@ -153,11 +169,12 @@ export class PlatformApiClient {
     return await this.fetchImpl(this.buildUrl(path, query), {
       method,
       headers,
-      body: requestBody
+      body: requestBody,
+      signal
     });
   }
 
-  private async fetchAuthorizedRaw(method: string, path: string, body: BodyInit): Promise<Response> {
+  private async fetchAuthorizedRaw(method: string, path: string, body: BodyInit, signal?: AbortSignal): Promise<Response> {
     // No Content-Type set here on purpose — the caller's BodyInit (e.g. FormData)
     // dictates it, and forcing one here would drop the multipart boundary.
     const headers = new Headers(organizationAdminHeaders());
@@ -169,7 +186,8 @@ export class PlatformApiClient {
     return await this.fetchImpl(this.buildUrl(path), {
       method,
       headers,
-      body
+      body,
+      signal
     });
   }
 }
@@ -194,6 +212,23 @@ function resolveAuthHeader(
     throw new Error('Operator access token is missing.');
   }
   return ['Authorization', `Bearer ${accessToken}`];
+}
+
+/**
+ * Запрос целиком — и ответ, и чтение тела — укладывается в предел. Превышение становится
+ * PlatformApiError со статусом 0: исход неизвестен (запрос мог дойти), у экранов уже есть разбор
+ * по статусу, и повтор уйдёт с тем же ключом.
+ */
+async function withTimeout<T>(timeoutMs: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const signal = AbortSignal.timeout(timeoutMs);
+  try {
+    return await run(signal);
+  } catch (cause) {
+    if (signal.aborted && !(cause instanceof PlatformApiError)) {
+      throw new PlatformApiError('Platform API did not answer in time.', 0, 'Timeout', '');
+    }
+    throw cause;
+  }
 }
 
 async function ensureSuccess(response: Response): Promise<void> {

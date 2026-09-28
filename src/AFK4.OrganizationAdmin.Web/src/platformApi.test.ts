@@ -1,9 +1,49 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 const originalFetch = globalThis.fetch;
 import { PlatformApiClient, PlatformApiError } from './platformApi';
+import { isOutcomeUnknown } from './unsettledKeys';
 import { clearSupportSession, writeSupportSession } from './support/supportSession';
 
 describe('PlatformApiClient', () => {
+  // Подвисшее соединение — обычное дело в клубе. Без предела экран кассы стоял на «Сохраняю…»
+  // вечно; теперь запрос кончается ошибкой, а исход считается неизвестным — повтор уйдёт с тем же
+  // ключом, и сервер не проведёт деньги второй раз.
+  it('gives up on a silent server and marks the outcome as unknown', async () => {
+    const api = new PlatformApiClient({
+      baseUrl: 'https://api.test/',
+      getAccessToken: () => 'token',
+      timeoutMs: 20,
+      fetchImpl: (_input, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+      })
+    });
+
+    const failure = await api.post('wallet/top-ups', {}).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(PlatformApiError);
+    expect((failure as PlatformApiError).status).toBe(0);
+    expect(isOutcomeUnknown(failure)).toBe(true);
+  });
+
+  // Предел — на весь обмен: сервер, начавший отвечать и замолчавший посреди тела, держал бы экран так же.
+  it('gives up when the body stops arriving after the headers', async () => {
+    const api = new PlatformApiClient({
+      baseUrl: 'https://api.test/',
+      getAccessToken: () => 'token',
+      timeoutMs: 20,
+      fetchImpl: async (_input, init) => new Response(new ReadableStream({
+        start(controller) {
+          init?.signal?.addEventListener('abort', () => controller.error(init.signal?.reason));
+        }
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    });
+
+    const failure = await api.get('branches/branch-1/settings').catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(PlatformApiError);
+    expect((failure as PlatformApiError).status).toBe(0);
+  });
+
   it('builds organization-scoped URLs from domain-relative paths', async () => {
     let requestedUrl = '';
     const api = new PlatformApiClient({

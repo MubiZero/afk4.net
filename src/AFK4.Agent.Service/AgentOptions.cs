@@ -94,6 +94,9 @@ public sealed class AgentOptions
 
     public string UpdateChannel { get; init; } = "stable";
 
+    /// <summary>Сколько загрузка пакета может молчать, прежде чем её бросить и повторить на следующей проверке.</summary>
+    public TimeSpan UpdateDownloadStallTimeout { get; init; } = TimeSpan.FromSeconds(60);
+
     public string UpdateStagingDirectory { get; init; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "AFK4",

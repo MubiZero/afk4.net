@@ -33,16 +33,22 @@ public sealed class HttpUpdateArtifactDownloader(
 
         var tempPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
 
+        // Предел — на тишину, а не на всю загрузку: медленная, но живая сеть клуба докачает пакет,
+        // а соединение, которое замолчало, больше не вешает цикл обновлений до перезапуска службы.
+        var stallTimeout = options.Value.UpdateDownloadStallTimeout;
+        using var stall = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        stall.CancelAfter(stallTimeout);
+
         try
         {
             var client = httpClientFactory.CreateClient("updates");
             using var response = await client.GetAsync(
                 artifactUri,
                 HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+                stall.Token);
             response.EnsureSuccessStatusCode();
 
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var source = await response.Content.ReadAsStreamAsync(stall.Token))
             await using (var target = new FileStream(
                 tempPath,
                 FileMode.CreateNew,
@@ -51,7 +57,14 @@ public sealed class HttpUpdateArtifactDownloader(
                 bufferSize: 81920,
                 useAsync: true))
             {
-                await source.CopyToAsync(target, cancellationToken);
+                var buffer = new byte[81920];
+                int read;
+                while ((read = await source.ReadAsync(buffer, stall.Token)) > 0)
+                {
+                    await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                    stall.CancelAfter(stallTimeout);
+                }
+
                 await target.FlushAsync(cancellationToken);
             }
 
@@ -67,6 +80,11 @@ public sealed class HttpUpdateArtifactDownloader(
                 instruction,
                 filePath,
                 downloadedLength);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Повторится на следующей проверке: TimeoutException координатор считает временным сбоем.
+            throw new TimeoutException($"Update download was silent for {stallTimeout}.");
         }
         finally
         {
