@@ -10747,6 +10747,7 @@ class OrganizationDetailDto {
     required this.branches,
     required this.createdAtUtc,
     required this.updatedAtUtc,
+    required this.referral,
     this.contactEmail,
     this.contactPhone,
     this.legalDetails,
@@ -10766,6 +10767,7 @@ class OrganizationDetailDto {
   final List<OrganizationBranchDto> branches;
   final DateTime createdAtUtc;
   final DateTime updatedAtUtc;
+  final OrganizationReferralDto referral;
   final String? contactEmail;
   final String? contactPhone;
   final String? legalDetails;
@@ -10785,6 +10787,7 @@ class OrganizationDetailDto {
         branches: (json['branches'] as List<dynamic>).map((item) => OrganizationBranchDto.fromJson(item as Map<String, dynamic>)).toList(),
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
         updatedAtUtc: DateTime.parse(json['updatedAtUtc'] as String),
+        referral: OrganizationReferralDto.fromJson(json['referral'] as Map<String, dynamic>),
         contactEmail: json['contactEmail'] == null ? null : json['contactEmail'] as String,
         contactPhone: json['contactPhone'] == null ? null : json['contactPhone'] as String,
         legalDetails: json['legalDetails'] == null ? null : json['legalDetails'] as String,
@@ -10805,6 +10808,7 @@ class OrganizationDetailDto {
         'branches': branches.map((item) => item.toJson()).toList(),
         'createdAtUtc': createdAtUtc.toIso8601String(),
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
+        'referral': referral.toJson(),
         'contactEmail': contactEmail,
         'contactPhone': contactPhone,
         'legalDetails': legalDetails,
@@ -11234,6 +11238,54 @@ class OrganizationOwnerInviteSummaryDto {
         'revokedAtUtc': revokedAtUtc?.toIso8601String(),
         'revokedReason': revokedReason,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+      };
+}
+
+/// Сводка по программе «Приведи клуб» (ClubReferrals, спека тарифов клуба) для карточки клуба в
+/// Platform Control. Раньше поддержке нечем было ответить на жалобу «обещали месяц за друга» —
+/// OrganizationDetailDto не нёс ни своего кода клуба, ни того, кто его привёл, ни
+/// списка приведённых.
+/// <param name="Code">
+/// Свой код клуба. Сервер выдаёт его лениво при первом обращении к тарифу (см. ClubReferrals.
+/// EnsureCodeAsync) — до этого момента null, а не пустая строка.
+/// </param>
+/// <param name="ReferredByOrganizationId">Кто привёл этот клуб, если он пришёл по чужому коду.</param>
+/// <param name="ReferredByOrganizationName">Имя пригласившего клуба — то же условие, что и выше.</param>
+/// <param name="RewardedAtUtc">
+/// Когда пригласившему начислен месяц за то, что этот клуб оплатил первый счёт подписки. Null —
+/// либо клуб пришёл не по коду, либо ещё не оплатил первый счёт (ClubReferrals.RewardIfFirstPaidAsync).
+/// </param>
+///
+/// Контракт: Platform/Organizations/OrganizationReferralDto.cs
+class OrganizationReferralDto {
+  const OrganizationReferralDto({
+    this.code,
+    this.referredByOrganizationId,
+    this.referredByOrganizationName,
+    this.rewardedAtUtc,
+    required this.referred,
+  });
+
+  final String? code;
+  final String? referredByOrganizationId;
+  final String? referredByOrganizationName;
+  final DateTime? rewardedAtUtc;
+  final List<ReferredOrganizationDto> referred;
+
+  factory OrganizationReferralDto.fromJson(Map<String, dynamic> json) => OrganizationReferralDto(
+        code: json['code'] == null ? null : json['code'] as String,
+        referredByOrganizationId: json['referredByOrganizationId'] == null ? null : json['referredByOrganizationId'] as String,
+        referredByOrganizationName: json['referredByOrganizationName'] == null ? null : json['referredByOrganizationName'] as String,
+        rewardedAtUtc: json['rewardedAtUtc'] == null ? null : DateTime.parse(json['rewardedAtUtc'] as String),
+        referred: (json['referred'] as List<dynamic>).map((item) => ReferredOrganizationDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'referredByOrganizationId': referredByOrganizationId,
+        'referredByOrganizationName': referredByOrganizationName,
+        'rewardedAtUtc': rewardedAtUtc?.toIso8601String(),
+        'referred': referred.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -15865,6 +15917,37 @@ class ReferralSettingsDto {
         'minimumTopUpMinorUnits': minimumTopUpMinorUnits,
         'claimWindowDays': claimWindowDays,
         'maxRewardedPerReferrer': maxRewardedPerReferrer,
+      };
+}
+
+/// Клуб, приведённый этим клубом по его коду.
+///
+/// Контракт: Platform/Organizations/OrganizationReferralDto.cs
+class ReferredOrganizationDto {
+  const ReferredOrganizationDto({
+    required this.organizationId,
+    required this.name,
+    required this.createdAtUtc,
+    required this.rewarded,
+  });
+
+  final String organizationId;
+  final String name;
+  final DateTime createdAtUtc;
+  final bool rewarded;
+
+  factory ReferredOrganizationDto.fromJson(Map<String, dynamic> json) => ReferredOrganizationDto(
+        organizationId: json['organizationId'] as String,
+        name: json['name'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        rewarded: json['rewarded'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'name': name,
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+        'rewarded': rewarded,
       };
 }
 

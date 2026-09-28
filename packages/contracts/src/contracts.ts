@@ -4828,6 +4828,7 @@ export interface OrganizationDetailDto {
   branches: OrganizationBranchDto[];
   createdAtUtc: IsoDateTime;
   updatedAtUtc: IsoDateTime;
+  referral: OrganizationReferralDto;
   contactEmail?: string | null;
   contactPhone?: string | null;
   legalDetails?: string | null;
@@ -4964,6 +4965,32 @@ export interface OrganizationOwnerInviteSummaryDto {
   revokedAtUtc: IsoDateTime | null;
   revokedReason: string | null;
   createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Сводка по программе «Приведи клуб» (ClubReferrals, спека тарифов клуба) для карточки клуба в
+ * Platform Control. Раньше поддержке нечем было ответить на жалобу «обещали месяц за друга» —
+ * OrganizationDetailDto не нёс ни своего кода клуба, ни того, кто его привёл, ни
+ * списка приведённых.
+ * <param name="Code">
+ * Свой код клуба. Сервер выдаёт его лениво при первом обращении к тарифу (см. ClubReferrals.
+ * EnsureCodeAsync) — до этого момента null, а не пустая строка.
+ * </param>
+ * <param name="ReferredByOrganizationId">Кто привёл этот клуб, если он пришёл по чужому коду.</param>
+ * <param name="ReferredByOrganizationName">Имя пригласившего клуба — то же условие, что и выше.</param>
+ * <param name="RewardedAtUtc">
+ * Когда пригласившему начислен месяц за то, что этот клуб оплатил первый счёт подписки. Null —
+ * либо клуб пришёл не по коду, либо ещё не оплатил первый счёт (ClubReferrals.RewardIfFirstPaidAsync).
+ * </param>
+ *
+ * Контракт: Platform/Organizations/OrganizationReferralDto.cs
+ */
+export interface OrganizationReferralDto {
+  code: string | null;
+  referredByOrganizationId: Guid | null;
+  referredByOrganizationName: string | null;
+  rewardedAtUtc: IsoDateTime | null;
+  referred: ReferredOrganizationDto[];
 }
 
 /** Контракт: Platform/Billing/OrganizationSubscriptionDto.cs */
@@ -6625,6 +6652,18 @@ export interface ReferralSettingsDto {
   minimumTopUpMinorUnits: number;
   claimWindowDays: number;
   maxRewardedPerReferrer: number;
+}
+
+/**
+ * Клуб, приведённый этим клубом по его коду.
+ *
+ * Контракт: Platform/Organizations/OrganizationReferralDto.cs
+ */
+export interface ReferredOrganizationDto {
+  organizationId: Guid;
+  name: string;
+  createdAtUtc: IsoDateTime;
+  rewarded: boolean;
 }
 
 /** Контракт: Billing/RefundLedgerEntryRequest.cs */

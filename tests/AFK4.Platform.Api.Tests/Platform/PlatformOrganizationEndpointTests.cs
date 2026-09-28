@@ -23,11 +23,12 @@ public sealed class PlatformOrganizationEndpointTests
     private static CreateOrganizationRequest BuildCreateOrganizationRequest(
         string orgSlug = "demo-club",
         string branchSlug = "demo-branch",
-        string? ownerUserName = "owner@demo-club.test")
+        string? ownerUserName = "owner@demo-club.test",
+        string organizationName = "Demo Club")
     {
         return new CreateOrganizationRequest(
             OrganizationSlug: orgSlug,
-            OrganizationName: "Demo Club",
+            OrganizationName: organizationName,
             BranchSlug: branchSlug,
             BranchName: "Demo Branch",
             BranchCity: "Dushanbe",
@@ -258,6 +259,56 @@ public sealed class PlatformOrganizationEndpointTests
         Assert.Equal(80, detail.Limits.MaxConcurrentSessions);
         Assert.Equal(20, detail.Limits.MaxStaffUsersPerBranch);
         Assert.Single(detail.Branches);
+    }
+
+    // Поддержке нечем было ответить на «обещали месяц за друга»: карточка клуба не несла ни его
+    // кода, ни того, кто его привёл, ни списка приведённых (см. ClubReferrals в Platform/Billing).
+    [Fact]
+    public async Task GetOrganizationById_ReturnsReferralSummaryForReferrerAndReferred()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var referrerResponse = await client.PostAsJsonAsync("/api/platform/organizations",
+            BuildCreateOrganizationRequest(orgSlug: "referrer-club", branchSlug: "referrer-branch", organizationName: "Referrer Club"));
+        var referrer = await referrerResponse.Content.ReadFromJsonAsync<CreateOrganizationResponse>();
+        var referredResponse = await client.PostAsJsonAsync("/api/platform/organizations",
+            BuildCreateOrganizationRequest(orgSlug: "referred-club", branchSlug: "referred-branch", organizationName: "Referred Club"));
+        var referred = await referredResponse.Content.ReadFromJsonAsync<CreateOrganizationResponse>();
+        Assert.NotNull(referrer);
+        Assert.NotNull(referred);
+
+        var rewardedAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var referrerEntity = await dbContext.Organizations.SingleAsync(org => org.OrganizationId == referrer.Organization.OrganizationId);
+            referrerEntity.ReferralCode = "AFK-TEST01";
+            var referredEntity = await dbContext.Organizations.SingleAsync(org => org.OrganizationId == referred.Organization.OrganizationId);
+            referredEntity.ReferredByOrganizationId = referrer.Organization.OrganizationId;
+            referredEntity.ReferralRewardedAtUtc = rewardedAt;
+            await dbContext.SaveChangesAsync();
+        }
+
+        var referrerDetailResponse = await client.GetAsync($"/api/platform/organizations/{referrer.Organization.OrganizationId:D}");
+        var referrerDetail = await referrerDetailResponse.Content.ReadFromJsonAsync<OrganizationDetailDto>();
+        Assert.NotNull(referrerDetail);
+        Assert.Equal("AFK-TEST01", referrerDetail.Referral.Code);
+        Assert.Null(referrerDetail.Referral.ReferredByOrganizationId);
+        Assert.Single(referrerDetail.Referral.Referred);
+        Assert.Equal(referred.Organization.OrganizationId, referrerDetail.Referral.Referred[0].OrganizationId);
+        Assert.Equal("Referred Club", referrerDetail.Referral.Referred[0].Name);
+        Assert.True(referrerDetail.Referral.Referred[0].Rewarded);
+
+        var referredDetailResponse = await client.GetAsync($"/api/platform/organizations/{referred.Organization.OrganizationId:D}");
+        var referredDetail = await referredDetailResponse.Content.ReadFromJsonAsync<OrganizationDetailDto>();
+        Assert.NotNull(referredDetail);
+        Assert.Null(referredDetail.Referral.Code);
+        Assert.Equal(referrer.Organization.OrganizationId, referredDetail.Referral.ReferredByOrganizationId);
+        Assert.Equal("Referrer Club", referredDetail.Referral.ReferredByOrganizationName);
+        Assert.Equal(rewardedAt, referredDetail.Referral.RewardedAtUtc);
+        Assert.Empty(referredDetail.Referral.Referred);
     }
 
     [Fact]

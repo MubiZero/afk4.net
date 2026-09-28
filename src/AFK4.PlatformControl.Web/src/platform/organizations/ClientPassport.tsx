@@ -193,6 +193,27 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
               stable/beta/internal, и один и тот же канал на одном экране читался двумя способами. */}
           {t(channelLabelKey(organization.updateChannel))}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
         </Row>
+        <Row label={t('platform.organization.passport.referral.code')}>
+          {organization.referral.code ?? t('platform.organization.passport.referral.codeNotIssued')}
+        </Row>
+        {/* «Приведён кем-то» — не общий случай, и держать строку «—» для всех клубов, которые
+            пришли сами, было бы шумом. Показываем только тем, у кого правда есть реферер. */}
+        {organization.referral.referredByOrganizationId !== null ? (
+          <Row label={t('platform.organization.passport.referral.referredBy')}>
+            {organization.referral.referredByOrganizationName ?? '—'}
+            {' · '}
+            {organization.referral.rewardedAtUtc !== null
+              ? t('platform.organization.passport.referral.rewardedOn', { date: formatDate(organization.referral.rewardedAtUtc) })
+              : t('platform.organization.passport.referral.notRewardedYet')}
+          </Row>
+        ) : null}
+        {organization.referral.referred.length > 0 ? (
+          <Row label={t('platform.organization.passport.referral.referredClubs')}>
+            {organization.referral.referred
+              .map(club => club.rewarded ? club.name : `${club.name} (${t('platform.organization.passport.referral.notRewarded')})`)
+              .join(', ')}
+          </Row>
+        ) : null}
       </dl>
 
       {/* Иерархия действий явная: главный рычаг — условия обслуживания, остальное вторично,

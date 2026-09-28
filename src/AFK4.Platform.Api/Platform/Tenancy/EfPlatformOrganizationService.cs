@@ -1034,11 +1034,42 @@ public sealed class EfPlatformOrganizationService(
             Branches: branches.Select(ToBranchDto).ToList(),
             CreatedAtUtc: organization.CreatedAtUtc,
             UpdatedAtUtc: organization.UpdatedAtUtc,
+            Referral: await BuildReferralAsync(organization, cancellationToken),
             ContactEmail: organization.ContactEmail,
             ContactPhone: organization.ContactPhone,
             LegalDetails: organization.LegalDetails,
             UpdateChannel: organization.UpdateChannel,
             PinnedClientVersion: organization.PinnedClientVersion);
+    }
+
+    // Поддержке нечем было ответить на «обещали месяц за друга» — карточка клуба не несла ни его
+    // кода, ни того, кто его привёл, ни списка приведённых (см. ClubReferrals). Код не генерируем
+    // здесь: это read-путь, а код выдаётся лениво при первом обращении клуба к своему тарифу
+    // (ClubReferrals.EnsureCodeAsync) — до этого он честно null, а не подделанное значение.
+    private async Task<OrganizationReferralDto> BuildReferralAsync(OrganizationEntity organization, CancellationToken cancellationToken)
+    {
+        string? referredByName = null;
+        if (organization.ReferredByOrganizationId is { } referrerId)
+        {
+            referredByName = await dbContext.Organizations.AsNoTracking()
+                .Where(candidate => candidate.OrganizationId == referrerId)
+                .Select(candidate => candidate.Name)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        var referred = await dbContext.Organizations.AsNoTracking()
+            .Where(candidate => candidate.ReferredByOrganizationId == organization.OrganizationId)
+            .OrderBy(candidate => candidate.CreatedAtUtc)
+            .Select(candidate => new ReferredOrganizationDto(
+                candidate.OrganizationId, candidate.Name, candidate.CreatedAtUtc, candidate.ReferralRewardedAtUtc != null))
+            .ToListAsync(cancellationToken);
+
+        return new OrganizationReferralDto(
+            Code: organization.ReferralCode,
+            ReferredByOrganizationId: organization.ReferredByOrganizationId,
+            ReferredByOrganizationName: referredByName,
+            RewardedAtUtc: organization.ReferralRewardedAtUtc,
+            Referred: referred);
     }
 
     private static OrganizationBranchDto ToBranchDto(BranchEntity branch) =>
