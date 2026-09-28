@@ -4,8 +4,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Reports;
 
-public sealed class EfReportScheduleService(PlatformDbContext dbContext, TimeProvider timeProvider) : IReportScheduleService
+/// <summary>
+/// Manages branch report schedules picked up by the scheduled-report runner. Organization isolation is
+/// enforced by always scoping to (organizationId, branchId).
+/// </summary>
+public sealed class EfReportScheduleService(PlatformDbContext dbContext, TimeProvider timeProvider)
 {
+    /// <summary>
+    /// Есть ли у филиала уже такая же рассылка. Две одинаковые означают два одинаковых письма
+    /// владельцу каждый период — вреда счетам нет, но чинить это владелец будет удалением, а
+    /// предотвращает стойка.
+    /// </summary>
     public Task<bool> ExistsAsync(
         Guid organizationId,
         Guid branchId,

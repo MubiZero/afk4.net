@@ -15,7 +15,7 @@ internal static class ReportScheduleEndpoints
             Guid branchId,
             CreateReportScheduleRequest request,
             StaffAuthorizationService authorizationService,
-            IReportScheduleService reportScheduleService,
+            EfReportScheduleService reportScheduleService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -96,7 +96,7 @@ internal static class ReportScheduleEndpoints
         app.MapGet("branches/{branchId:guid}/report-schedules", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
-            IReportScheduleService reportScheduleService,
+            EfReportScheduleService reportScheduleService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -130,7 +130,7 @@ internal static class ReportScheduleEndpoints
             Guid scheduleId,
             UpdateReportScheduleRequest request,
             StaffAuthorizationService authorizationService,
-            IReportScheduleService reportScheduleService,
+            EfReportScheduleService reportScheduleService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -213,7 +213,7 @@ internal static class ReportScheduleEndpoints
             Guid branchId,
             Guid scheduleId,
             StaffAuthorizationService authorizationService,
-            IReportScheduleService reportScheduleService,
+            EfReportScheduleService reportScheduleService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {

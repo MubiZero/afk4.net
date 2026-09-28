@@ -12,7 +12,7 @@ public sealed class DcPayLinkConfigEntity
     // null => org-уровень (v1 использует только его).
     public Guid? BranchId { get; set; }
 
-    // Полный номер карты приёма, шифрован ISecretProtector. Нужен для сборки ссылки.
+    // Полный номер карты приёма, шифрован AesGcmSecretProtector. Нужен для сборки ссылки.
     public string ReceivingCardEncrypted { get; set; } = string.Empty;
 
     // Последние 4 цифры для показа в UI (наружу PAN не отдаём).

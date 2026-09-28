@@ -7,7 +7,7 @@ namespace AFK4.Platform.Api.Payments.Eskhata;
 public sealed class EskhataMerchantClientFactory(
     IHttpClientFactory httpClientFactory,
     PlatformDbContext db,
-    ISecretProtector secretProtector) : IEskhataMerchantClientFactory
+    AesGcmSecretProtector secretProtector) : IEskhataMerchantClientFactory
 {
     public const string HttpClientName = "eskhata";
 

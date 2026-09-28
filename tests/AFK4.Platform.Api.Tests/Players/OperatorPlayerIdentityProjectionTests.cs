@@ -112,7 +112,7 @@ public sealed class OperatorPlayerIdentityProjectionTests
         Guid platformPersonId)
     {
         await using var scope = factory.Services.CreateAsyncScope();
-        var result = await scope.ServiceProvider.GetRequiredService<IPlayerClubMembershipService>()
+        var result = await scope.ServiceProvider.GetRequiredService<EfPlayerClubMembershipService>()
             .EnsureAsync(platformPersonId, TestIds.OrganizationId, TestIds.BranchId, CancellationToken.None);
         Assert.True(result.Succeeded);
         return result.Account!;

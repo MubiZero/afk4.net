@@ -23,7 +23,7 @@ internal static class ReservationEndpoints
             Guid? playerAccountId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -84,7 +84,7 @@ internal static class ReservationEndpoints
             Guid? excludeReservationId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -147,7 +147,7 @@ internal static class ReservationEndpoints
             CreateReservationRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -214,7 +214,7 @@ internal static class ReservationEndpoints
             CreateReservationGroupRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -425,7 +425,7 @@ internal static class ReservationEndpoints
         string httpMethod,
         string suffix,
         string auditAction,
-        Func<IReservationService, Guid, Guid, TRequest, CancellationToken, Task<ReservationServiceResult<ReservationDto>>> action,
+        Func<EfReservationService, Guid, Guid, TRequest, CancellationToken, Task<ReservationServiceResult<ReservationDto>>> action,
         Func<ReservationDto, TRequest, object> succeededDetails,
         Func<TRequest, Guid> organizationOf,
         Func<TRequest, string?, object>? deniedDetails = null,
@@ -438,7 +438,7 @@ internal static class ReservationEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IReservationService reservationService,
+            EfReservationService reservationService,
             PlayerPushNotifier playerPush,
             CancellationToken cancellationToken) =>
         {

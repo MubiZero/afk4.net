@@ -52,7 +52,7 @@ public class EskhataTopUpIntentTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.ISecretProtector>();
+        var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.AesGcmSecretProtector>();
         db.EskhataMerchantConfigs.Add(new EskhataMerchantConfigEntity
         {
             EskhataMerchantConfigId = Guid.NewGuid(),

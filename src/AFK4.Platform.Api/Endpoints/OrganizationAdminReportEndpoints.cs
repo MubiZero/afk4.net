@@ -13,7 +13,7 @@ internal static class OrganizationAdminReportEndpoints
         app.MapGet("branches/{branchId:guid}/reports/workspace/summary", async (
             Guid branchId, DateOnly fromDate, DateOnly toDate,
             StaffAuthorizationService authorizationService, IAuditRecordWriter auditRecordWriter,
-            IOrganizationAdminReportService service, CancellationToken cancellationToken) =>
+            OrganizationAdminReportService service, CancellationToken cancellationToken) =>
             await ExecuteAsync(branchId, "summary", fromDate, toDate, authorizationService, auditRecordWriter,
                 (organizationId, token) => service.GetSummaryAsync(organizationId, branchId, fromDate, toDate, token), cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
@@ -21,7 +21,7 @@ internal static class OrganizationAdminReportEndpoints
         app.MapGet("branches/{branchId:guid}/reports/workspace/shifts-cash", async (
             Guid branchId, DateOnly fromDate, DateOnly toDate,
             StaffAuthorizationService authorizationService, IAuditRecordWriter auditRecordWriter,
-            IOrganizationAdminReportService service, CancellationToken cancellationToken) =>
+            OrganizationAdminReportService service, CancellationToken cancellationToken) =>
             await ExecuteAsync(branchId, "shifts-cash", fromDate, toDate, authorizationService, auditRecordWriter,
                 (organizationId, token) => service.GetShiftCashAsync(organizationId, branchId, fromDate, toDate, token), cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
@@ -29,7 +29,7 @@ internal static class OrganizationAdminReportEndpoints
         app.MapGet("branches/{branchId:guid}/reports/workspace/revenue", async (
             Guid branchId, DateOnly fromDate, DateOnly toDate,
             StaffAuthorizationService authorizationService, IAuditRecordWriter auditRecordWriter,
-            IOrganizationAdminReportService service, CancellationToken cancellationToken) =>
+            OrganizationAdminReportService service, CancellationToken cancellationToken) =>
             await ExecuteAsync(branchId, "revenue", fromDate, toDate, authorizationService, auditRecordWriter,
                 (organizationId, token) => service.GetRevenueAsync(organizationId, branchId, fromDate, toDate, token), cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
@@ -37,7 +37,7 @@ internal static class OrganizationAdminReportEndpoints
         app.MapGet("branches/{branchId:guid}/reports/workspace/shifts-cash/export.csv", async (
             Guid branchId, DateOnly fromDate, DateOnly toDate,
             StaffAuthorizationService authorizationService, IAuditRecordWriter auditRecordWriter,
-            IOrganizationAdminReportService service, CancellationToken cancellationToken) =>
+            OrganizationAdminReportService service, CancellationToken cancellationToken) =>
             await ExecuteCsvAsync(branchId, "shifts-cash-csv", fromDate, toDate, authorizationService, auditRecordWriter,
                 async (organizationId, token) => OrganizationAdminReportCsvExporter.Export(await service.GetShiftCashAsync(organizationId, branchId, fromDate, toDate, token)), cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
@@ -45,7 +45,7 @@ internal static class OrganizationAdminReportEndpoints
         app.MapGet("branches/{branchId:guid}/reports/workspace/revenue/export.csv", async (
             Guid branchId, DateOnly fromDate, DateOnly toDate,
             StaffAuthorizationService authorizationService, IAuditRecordWriter auditRecordWriter,
-            IOrganizationAdminReportService service, CancellationToken cancellationToken) =>
+            OrganizationAdminReportService service, CancellationToken cancellationToken) =>
             await ExecuteCsvAsync(branchId, "revenue-csv", fromDate, toDate, authorizationService, auditRecordWriter,
                 async (organizationId, token) => OrganizationAdminReportCsvExporter.Export(await service.GetRevenueAsync(organizationId, branchId, fromDate, toDate, token)), cancellationToken))
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
