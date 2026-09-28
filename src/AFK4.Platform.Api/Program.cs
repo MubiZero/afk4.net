@@ -437,6 +437,8 @@ builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
 builder.Services.AddHttpClient(SteamCdnCoverSource.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(5));
 builder.Services.AddSingleton<ISteamCoverSource, SteamCdnCoverSource>();
 builder.Services.AddScoped<IMediaService, EfMediaService>();
+builder.Services.AddScoped<OrphanMediaSweeper>();
+builder.Services.AddHostedService<OrphanMediaSweepHostedService>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
     // Track Media:MaxBytes (not a hardcoded literal) + headroom for multipart framing, so raising

@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Platform.Analytics;
@@ -45,6 +46,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.DeviceMaintenanceExpiry] = deviceMaintenanceExpiryOptions.TickInterval,
         [PlatformJobNames.PlayerReminders] = notificationOptions.Value.PlayerReminderInterval,
         [PlatformJobNames.ReputationSnapshot] = reputationSnapshotOptions.TickInterval,
-        [PlatformJobNames.BirthdayGifts] = BirthdayGiftHostedService.TickInterval
+        [PlatformJobNames.BirthdayGifts] = BirthdayGiftHostedService.TickInterval,
+        [PlatformJobNames.OrphanMediaSweep] = OrphanMediaSweepHostedService.TickInterval
     };
 }

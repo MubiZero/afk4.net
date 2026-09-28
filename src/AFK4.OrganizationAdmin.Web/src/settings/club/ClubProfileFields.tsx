@@ -1,19 +1,13 @@
 import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
+import { MediaPurposeNames } from '@afk4/contracts';
 import { MediaUpload } from '../../components/MediaUpload';
 import { GalleryUpload, type GalleryPhoto } from '../../components/GalleryUpload';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import type { BranchWorkingHoursDay } from '../../api/clients/settings';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
 import { SkeletonControl, SkeletonLine } from '../../LoadingSkeleton';
-
-// Media purpose used by the branch-logo upload. The frontend has no `@afk4/contracts` package
-// (that name is a C# assembly, `AFK4.Shared.Contracts`) — `MediaUpload`'s `purpose` prop is a
-// plain string, and the existing MediaUpload.test.tsx already uses this same literal.
-const BRANCH_LOGO_PURPOSE = 'branch-logo';
-const BRANCH_COVER_PURPOSE = 'branch-cover';
-const ORGANIZATION_LOGO_PURPOSE = 'organization-logo';
 
 // Та же палитра, что в мастере установки: цвет выбирают один раз при установке, а меняют — здесь,
 // и два разных набора образцов означали бы, что выбранное при установке тут не найти.
@@ -104,7 +98,7 @@ export function ClubProfileFields({ form, brand, currencyCode, backend, disabled
             <label className="club-logo-field club-identity-logo">{t('op.club.field.logo')}
               <MediaUpload
                 value={form.logoUrl}
-                purpose={BRANCH_LOGO_PURPOSE}
+                purpose={MediaPurposeNames.BranchLogo}
                 branchId={backend.branchId}
                 backend={backend}
                 disabled={disabled}
@@ -119,7 +113,7 @@ export function ClubProfileFields({ form, brand, currencyCode, backend, disabled
             <label className="club-logo-field club-identity-cover">{t('op.club.field.cover')}
               <MediaUpload
                 value={form.coverImageUrl}
-                purpose={BRANCH_COVER_PURPOSE}
+                purpose={MediaPurposeNames.BranchCover}
                 branchId={backend.branchId}
                 backend={backend}
                 disabled={disabled}
@@ -192,7 +186,7 @@ export function ClubProfileFields({ form, brand, currencyCode, backend, disabled
             <label className="club-logo-field">{t('op.club.field.brandLogo')}
               <MediaUpload
                 value={brand.logoUrl}
-                purpose={ORGANIZATION_LOGO_PURPOSE}
+                purpose={MediaPurposeNames.OrganizationLogo}
                 branchId={backend.branchId}
                 backend={backend}
                 disabled={disabled}
