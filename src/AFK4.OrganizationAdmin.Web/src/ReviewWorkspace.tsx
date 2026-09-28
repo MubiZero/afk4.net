@@ -130,7 +130,13 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
     void loadStaffNames(backend, shared);
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
+  // Решение по заявке — одно нажатие. Второй клик раньше уходил вторым запросом: сервер
+  // схлопывает повтор в тот же итог, но оператор получал 409 и противоречивое «не удалось»
+  // поверх уже принятого решения.
+  const deciding = feedback?.state === 'pending';
+
   const approveRequest = async (request: MoneyActionRequestDto) => {
+    if (deciding) return;
     setFeedback({ label: t('op.review.feedbackApprove'), state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -144,6 +150,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
   };
 
   const confirmReject = async (request: MoneyActionRequestDto) => {
+    if (deciding) return;
     const reason = decisionReason.trim();
     if (reason.length === 0) {
       setFeedback({ label: t('op.review.feedbackReject'), state: 'failed', detail: t('op.review.rejectReasonRequired') });
@@ -254,7 +261,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
             <h2>{selectedRequest.reason}</h2>
             <strong>{formatMinorUnits(selectedRequest.amountMinorUnits, selectedRequest.currencyCode || currencyCode)}</strong>
             <dl><div><dt>{t('op.review.requestedByLabel')}</dt><dd>{resolveStaffName(selectedRequest.requestedByStaffUserId)}</dd></div><div><dt>{t('op.review.createdLabel')}</dt><dd>{formatTime(selectedRequest.createdAtUtc)}</dd></div><div><dt>{t('op.review.expiresLabel')}</dt><dd>{formatTime(selectedRequest.expiresAtUtc)} {reviewExpiryBadge(selectedRequest.expiresAtUtc, Date.now(), t)?.label ?? ''}</dd></div></dl>
-            {rejectingId === selectedRequest.moneyActionRequestId ? <div className="review-reject-form"><label>{t('op.review.rejectReasonLabel')}<input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder={t('op.review.rejectReasonPlaceholder')} /></label><div className="review-request-actions"><button type="button" onClick={() => void confirmReject(selectedRequest)}>{t('op.review.confirmRejectBtn')}</button><button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>{t('common.cancel')}</button></div></div> : <div className="review-request-actions"><button type="button" onClick={() => void approveRequest(selectedRequest)}>{t('op.review.approveBtn')}</button><button type="button" onClick={() => { setRejectingId(selectedRequest.moneyActionRequestId); setDecisionReason(''); }}>{t('devices.action.reject')}</button></div>}
+            {rejectingId === selectedRequest.moneyActionRequestId ? <div className="review-reject-form"><label>{t('op.review.rejectReasonLabel')}<input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder={t('op.review.rejectReasonPlaceholder')} /></label><div className="review-request-actions"><button type="button" disabled={deciding} onClick={() => void confirmReject(selectedRequest)}>{t('op.review.confirmRejectBtn')}</button><button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>{t('common.cancel')}</button></div></div> : <div className="review-request-actions"><button type="button" disabled={deciding} onClick={() => void approveRequest(selectedRequest)}>{t('op.review.approveBtn')}</button><button type="button" disabled={deciding} onClick={() => { setRejectingId(selectedRequest.moneyActionRequestId); setDecisionReason(''); }}>{t('devices.action.reject')}</button></div>}
           </div> : <p className="cash-inspector-empty">{t('op.review.selectHint')}</p>}
         />
       )}
