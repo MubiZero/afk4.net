@@ -66,7 +66,7 @@ export function SignInPanel({ state, onClose }: SignInPanelProps) {
   return (
     <div className="sign-in" role="dialog" aria-modal="true" aria-labelledby="sign-in-title">
       <div className="sign-in__head">
-        <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} free />
+        <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} free={state.sessionId === null} />
         <button type="button" className="sign-in__back" onClick={onClose}>{t('playerShell.signIn.back')}</button>
       </div>
 

@@ -65,6 +65,9 @@ export function TimeMoneyColumn({ state, receivedAtMs, role, offline, onExtend, 
             {t('playerShell.session.endEarly')}
           </button>
           {offline ? <p className="time-money__hint" role="status">{t('playerShell.session.graceHint')}</p> : null}
+          {/* Позвать администратора нужно и тому, кто играет со своего счёта: мышь сломалась,
+              игра не запускается. Раньше кнопка была только у сессии со стойки. */}
+          <AssistButton />
           <button type="button" className="time-money__sign-out" onClick={onSignOut}>
             {t('playerShell.signOut')}
           </button>
@@ -75,6 +78,7 @@ export function TimeMoneyColumn({ state, receivedAtMs, role, offline, onExtend, 
           <button type="button" className="btn btn--primary btn--wide" onClick={onSignIn}>
             {t('playerShell.signIn.submit')}
           </button>
+          <AssistButton />
         </div>
       ) : (
         <div className="time-money__actions">

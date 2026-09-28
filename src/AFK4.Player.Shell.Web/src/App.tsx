@@ -80,6 +80,17 @@ export function App() {
     if (!localeChosen.current && branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
   }, [branchLocale, setLocale]);
 
+  // Выбор языка — этого игрока: вышел — следующий видит язык клуба, а не чужой выбор.
+  const signedIn = host.auth.signedIn;
+  const wasSignedIn = useRef(signedIn);
+  useEffect(() => {
+    if (wasSignedIn.current && !signedIn) {
+      localeChosen.current = false;
+      if (branchLocale && isLocale(branchLocale)) setLocale(branchLocale);
+    }
+    wasSignedIn.current = signedIn;
+  }, [signedIn, branchLocale, setLocale]);
+
   // Цвет клуба — поверх палитры, если его можно читать; иначе остаётся фирменный зелёный.
   const accent = clubAccent(state?.branding?.accentColor);
   const shellStyle = accent ? ({ '--club-accent': accent } as CSSProperties) : undefined;

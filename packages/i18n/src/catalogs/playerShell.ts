@@ -75,7 +75,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.extend.unavailable.package": "Сессию по пакету продлевают новым стартом, когда эта закончится.",
     "playerShell.grace.banner": "Связь с клубом пропала. Сессия продолжается, но продлить её сейчас нельзя.",
     "playerShell.idle.hint": "Подвиньте мышь или нажмите клавишу, чтобы сесть",
-    "playerShell.idle.shutdown": "ПК выключится через {seconds} с — за ним никого. Тронь мышь, и он останется включённым.",
+    "playerShell.idle.shutdown": "ПК выключится через {seconds} с — за ним никого. Двиньте мышь, и он останется включённым.",
     "playerShell.maintenance.bandTitle": "{seat} на обслуживании",
     "playerShell.maintenance.onAt": "Включено из Панели AFK4.net в {time}",
     "playerShell.maintenance.onBy": "Включено из Панели AFK4.net в {time} · {name}",
@@ -93,7 +93,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.rating.send": "Отправить оценку",
     "playerShell.rating.sending": "Отправляем…",
     "playerShell.rating.star": "{count, plural, one {{count} звезда} few {{count} звезды} many {{count} звёзд} other {{count} звезды}}",
-    "playerShell.rating.thanks": "Спасибо! Клуб увидит вашу оценку.",
+    "playerShell.rating.thanks": "Спасибо. Клуб увидит вашу оценку.",
     "playerShell.rating.title": "Как вам визит?",
     "playerShell.seat.free": "Свободен",
     "playerShell.session.ageLocked": "С {age} лет — по дню рождения в профиле",
@@ -172,7 +172,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.tip.noBalance": "На балансе не хватает денег.",
     "playerShell.tip.send": "Оставить чаевые",
     "playerShell.tip.sending": "Отправляем…",
-    "playerShell.tip.thanks": "Спасибо! {amount} — {name}.",
+    "playerShell.tip.thanks": "Спасибо. {amount} — {name}.",
     "playerShell.tip.title": "Чаевые — {name}",
     "playerShell.topUp.again": "Пополнить ещё",
     "playerShell.topUp.back": "Назад",
@@ -189,7 +189,9 @@ export const playerShellCatalog: Catalog = {
     "playerShell.topUp.scan": "Наведите камеру телефона на код — оплата откроется в приложении банка.",
     "playerShell.topUp.slow": "Банк пока не ответил. Если оплата прошла, деньги зачислятся сами — проверьте баланс через пару минут.",
     "playerShell.topUp.title": "Пополнить счёт",
-    "playerShell.topUp.waiting": "Ждём подтверждения банка…"
+    "playerShell.topUp.waiting": "Ждём подтверждения банка…",
+    "playerShell.warning.creditLimit": "Достигнут предел долга — продлить можно только после оплаты у стойки.",
+    "playerShell.warning.lowBalance": "На балансе почти не осталось денег — пополните, чтобы продлить сессию."
   },
   en: {
     "playerShell.assist.call": "Call the admin",
@@ -282,7 +284,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.rating.send": "Send rating",
     "playerShell.rating.sending": "Sending…",
     "playerShell.rating.star": "{count, plural, one {{count} star} other {{count} stars}}",
-    "playerShell.rating.thanks": "Thank you! The club will see your rating.",
+    "playerShell.rating.thanks": "Thank you. The club will see your rating.",
     "playerShell.rating.title": "How was your visit?",
     "playerShell.seat.free": "Free",
     "playerShell.session.ageLocked": "Ages {age}+ — by the birthday in your profile",
@@ -361,7 +363,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.tip.noBalance": "Your balance is too low.",
     "playerShell.tip.send": "Leave the tip",
     "playerShell.tip.sending": "Sending…",
-    "playerShell.tip.thanks": "Thank you! {amount} goes to {name}.",
+    "playerShell.tip.thanks": "Thank you. {amount} goes to {name}.",
     "playerShell.tip.title": "Tip {name}",
     "playerShell.topUp.again": "Top up again",
     "playerShell.topUp.back": "Back",
@@ -378,7 +380,9 @@ export const playerShellCatalog: Catalog = {
     "playerShell.topUp.scan": "Point your phone camera at the code — the payment opens in your bank app.",
     "playerShell.topUp.slow": "The bank has not answered yet. If the payment went through, the money arrives on its own — check the balance in a couple of minutes.",
     "playerShell.topUp.title": "Top up your balance",
-    "playerShell.topUp.waiting": "Waiting for the bank…"
+    "playerShell.topUp.waiting": "Waiting for the bank…",
+    "playerShell.warning.creditLimit": "The debt limit is reached — you can extend only after paying at the desk.",
+    "playerShell.warning.lowBalance": "Your balance is almost empty — top up to extend the session."
   },
   tg: {
     "playerShell.assist.call": "Маъмурро даъват кардан",
@@ -471,7 +475,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.rating.send": "Фиристодани баҳо",
     "playerShell.rating.sending": "Мефиристем…",
     "playerShell.rating.star": "{count, plural, other {{count} ситора}}",
-    "playerShell.rating.thanks": "Ташаккур! Клуб баҳои шуморо мебинад.",
+    "playerShell.rating.thanks": "Ташаккур. Клуб баҳои шуморо мебинад.",
     "playerShell.rating.title": "Ташрифатон чӣ тавр буд?",
     "playerShell.seat.free": "Озод",
     "playerShell.session.ageLocked": "Аз {age} сола — аз рӯи зодрӯз дар профил",
@@ -550,7 +554,7 @@ export const playerShellCatalog: Catalog = {
     "playerShell.tip.noBalance": "Дар баланс пул намерасад.",
     "playerShell.tip.send": "Чойпулӣ гузоштан",
     "playerShell.tip.sending": "Фиристода истодаем…",
-    "playerShell.tip.thanks": "Ташаккур! {amount} — {name}.",
+    "playerShell.tip.thanks": "Ташаккур. {amount} — {name}.",
     "playerShell.tip.title": "Чойпулӣ — {name}",
     "playerShell.topUp.again": "Боз пур кардан",
     "playerShell.topUp.back": "Бозгашт",
@@ -567,6 +571,8 @@ export const playerShellCatalog: Catalog = {
     "playerShell.topUp.scan": "Камераи телефонро ба рамз равона кунед — пардохт дар барномаи бонк кушода мешавад.",
     "playerShell.topUp.slow": "Бонк ҳанӯз ҷавоб надод. Агар пардохт гузашта бошад, пул худаш меояд — пас аз ду дақиқа бақияро бинед.",
     "playerShell.topUp.title": "Пур кардани ҳисоб",
-    "playerShell.topUp.waiting": "Тасдиқи бонкро интизорем…"
+    "playerShell.topUp.waiting": "Тасдиқи бонкро интизорем…",
+    "playerShell.warning.creditLimit": "Ҳадди қарз расид — дароз кардан танҳо пас аз пардохт дар назди маъмур мумкин аст.",
+    "playerShell.warning.lowBalance": "Дар тавозун қариб пул намонд — барои дароз кардани сессия пур кунед."
   }
 };

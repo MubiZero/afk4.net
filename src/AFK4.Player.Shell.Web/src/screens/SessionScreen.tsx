@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
   PlatformFeatureNames,
   ShellBridgeRequestTypeNames,
@@ -8,7 +8,7 @@ import {
   type ShellAuthStateDto,
   type ShellSystemStateDto
 } from '@afk4/contracts';
-import { useI18n } from '@afk4/i18n';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { AlertTriangle, WifiOff } from 'lucide-react';
 import { apiBaseUrl } from '../api/playerApi';
 import { requestHost } from '../host/shellHost';
@@ -41,6 +41,12 @@ const signedOut: ShellAuthStateDto = { signedIn: false, displayName: null, playe
  * Идёт оплаченная сессия (кадр 03): игры клуба и колонка «время и деньги» — продлить, встать
  * раньше. Вкладки бара и пополнения — срез P4c-3.
  */
+/** Ключи — зеркало `PlayerShellWarningKinds` (C#): кодоген переносит только классы `*Names`. */
+const WARNING_KEY: Partial<Record<string, MessageKey>> = {
+  low_balance: 'playerShell.warning.lowBalance',
+  credit_limit: 'playerShell.warning.creditLimit'
+};
+
 export function SessionScreen({
   state,
   receivedAtMs,
@@ -64,6 +70,14 @@ export function SessionScreen({
   const tabsShown = barAvailable || topUpAvailable;
   const [tab, setTab] = useState<'games' | 'bar' | 'topUp'>('games');
   const tabsId = useId();
+  const warningKey = state.warningKind ? WARNING_KEY[state.warningKind] : undefined;
+
+  // «Продлено до …» — подтверждение, а не вывеска: через полминуты уходит, остаток и так в колонке.
+  useEffect(() => {
+    if (!extendedUntil) return undefined;
+    const timer = window.setTimeout(() => setExtendedUntil(null), 30_000);
+    return () => window.clearTimeout(timer);
+  }, [extendedUntil]);
 
   return (
     <main className="session-screen">
@@ -88,6 +102,15 @@ export function SessionScreen({
       {extendedUntil ? (
         <p className="banner banner--success" role="status">
           {t('playerShell.extend.done', { time: clubTime(extendedUntil, undefined, locale) })}
+        </p>
+      ) : null}
+
+      {/* Предупреждения агента: деньги кончаются, упёрлись в лимит долга. Связь и «мало времени»
+          уже сказаны полосами выше — второй раз не повторяем. */}
+      {warningKey ? (
+        <p className="banner banner--warning" role="status">
+          <AlertTriangle aria-hidden="true" />
+          {t(warningKey)}
         </p>
       ) : null}
 
@@ -228,7 +251,7 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
         : <span className="library-tile__cover library-tile__cover--name" aria-hidden="true">{app.displayName.slice(0, 1)}</span>}
       <span className="library-tile__name">
         {app.displayName}
-        {app.minAge !== null && app.minAge !== undefined ? <span className="library-tile__age">{app.minAge}+</span> : null}
+        {app.minAge ? <span className="library-tile__age">{app.minAge}+</span> : null}
       </span>
       <span className="library-tile__category">{app.category}</span>
       {app.ageLocked ? (
