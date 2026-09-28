@@ -13,6 +13,7 @@ public sealed record OrganizationDetailDto(
     IReadOnlyList<OrganizationBranchDto> Branches,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
+    OrganizationReferralDto Referral,
     string? ContactEmail = null,
     string? ContactPhone = null,
     string? LegalDetails = null,
