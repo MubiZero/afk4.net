@@ -1,8 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Tests;
-using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.News;
 
 namespace AFK4.Platform.Api.Tests;

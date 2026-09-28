@@ -1,4 +1,3 @@
-using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Organizations;
 

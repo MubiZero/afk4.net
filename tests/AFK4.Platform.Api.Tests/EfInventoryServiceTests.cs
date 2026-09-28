@@ -5,7 +5,6 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
-using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Pos;
 using Microsoft.EntityFrameworkCore;
 

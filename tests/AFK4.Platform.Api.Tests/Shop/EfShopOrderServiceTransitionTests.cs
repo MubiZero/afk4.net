@@ -12,7 +12,6 @@ using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
 

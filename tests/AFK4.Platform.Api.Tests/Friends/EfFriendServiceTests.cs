@@ -4,7 +4,6 @@ using AFK4.Platform.Api.Tests.Identity;
 using AFK4.Shared.Contracts.Friends;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Friends;
 

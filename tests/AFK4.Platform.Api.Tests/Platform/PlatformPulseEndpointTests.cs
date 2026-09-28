@@ -6,7 +6,6 @@ using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Platform.Pulse;
 using AFK4.Shared.Contracts.Platform.Updates;
 using AFK4.Shared.Contracts.Updates;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Platform;

@@ -1,14 +1,11 @@
-﻿using AFK4.Platform.Api.Endpoints;
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.RegularExpressions;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using AFK4.Platform.Api.Data;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

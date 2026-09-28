@@ -7,7 +7,6 @@ using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

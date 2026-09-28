@@ -6,7 +6,6 @@ using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Identity;
 

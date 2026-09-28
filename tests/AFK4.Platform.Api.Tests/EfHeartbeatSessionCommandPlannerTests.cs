@@ -1,6 +1,5 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;

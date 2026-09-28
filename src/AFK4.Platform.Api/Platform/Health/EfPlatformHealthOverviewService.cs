@@ -1,6 +1,5 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
 using AFK4.Shared.Contracts.Platform.Health;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

@@ -1,12 +1,10 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Common;
 using AFK4.Shared.Contracts.Players;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;

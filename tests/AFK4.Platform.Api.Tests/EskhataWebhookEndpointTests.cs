@@ -1,15 +1,10 @@
-using System;
 using System.Net;
-using System.Net.Http;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Payments.Eskhata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

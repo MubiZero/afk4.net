@@ -7,7 +7,6 @@ using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Players;
 

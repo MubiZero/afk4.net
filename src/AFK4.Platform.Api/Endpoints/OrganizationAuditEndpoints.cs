@@ -1,6 +1,5 @@
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Identity;
-using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Identity;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 

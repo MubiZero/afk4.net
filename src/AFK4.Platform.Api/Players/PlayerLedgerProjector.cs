@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Common;
 using AFK4.Platform.Api.Data;

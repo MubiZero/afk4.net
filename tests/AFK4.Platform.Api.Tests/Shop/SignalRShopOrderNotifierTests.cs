@@ -4,7 +4,6 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.AspNetCore.SignalR;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
 

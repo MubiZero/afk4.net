@@ -1,5 +1,4 @@
 using AFK4.Platform.Api.Platform.Billing;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

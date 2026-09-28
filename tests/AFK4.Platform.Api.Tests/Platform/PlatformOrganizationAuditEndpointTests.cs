@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Audit;
-using AFK4.Shared.Contracts.Platform.Auth;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Platform;

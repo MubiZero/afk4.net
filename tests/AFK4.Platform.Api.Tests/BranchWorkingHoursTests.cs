@@ -1,6 +1,4 @@
 using AFK4.Platform.Api.Branches;
-using AFK4.Shared.Contracts.Branches;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
 

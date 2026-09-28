@@ -1,5 +1,4 @@
 using AFK4.Platform.Api.Notifications;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Notifications;
 

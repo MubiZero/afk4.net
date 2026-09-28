@@ -1,11 +1,10 @@
 using AFK4.Shared.Contracts.Install;
-﻿using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Endpoints;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Dashboard;
-using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;

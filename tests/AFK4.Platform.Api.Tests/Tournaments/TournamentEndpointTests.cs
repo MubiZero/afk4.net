@@ -9,7 +9,6 @@ using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Tournaments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Tournaments;
 

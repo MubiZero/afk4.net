@@ -7,7 +7,6 @@ using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Shared.Contracts.Ads;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Platform.Auth;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 

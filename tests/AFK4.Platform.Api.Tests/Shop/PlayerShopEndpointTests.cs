@@ -6,7 +6,6 @@ using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
 
