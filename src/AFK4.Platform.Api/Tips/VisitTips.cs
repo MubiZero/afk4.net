@@ -171,7 +171,7 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
         return (await ForShiftAsync(organizationId, shiftId, ct), null);
     }
 
-    public enum ReverseOutcome { Reversed, NotFound, ShiftClosed, AlreadyReversed }
+    public enum ReverseOutcome { Reversed, NotFound, ShiftClosed, AlreadyReversed, AlreadyPaidOut }
 
     public async Task<ReverseOutcome> ReverseAsync(Guid organizationId, Guid shiftId, Guid ledgerEntryId, Guid actorStaffUserId, CancellationToken ct)
     {
@@ -184,6 +184,17 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
         var shiftOpen = await db.Shifts.AnyAsync(shift => shift.ShiftId == shiftId && shift.State == ShiftStateNames.Open, ct);
         if (!shiftOpen) return ReverseOutcome.ShiftClosed;
         if (await db.LedgerEntries.AnyAsync(entry => entry.ReversesLedgerEntryId == ledgerEntryId, ct)) return ReverseOutcome.AlreadyReversed;
+
+        // Выданное из кассы уже на руках у администратора. Вернуть его ещё и игроку — клуб заплатит
+        // дважды: чаевые смены после возврата не могут стать меньше выданного.
+        var shiftTips = await db.LedgerEntries.AsNoTracking()
+            .Where(entry => entry.ShiftId == shiftId && entry.EntryType == LedgerEntryTypeNames.Tip
+                && !db.LedgerEntries.Any(reversal => reversal.ReversesLedgerEntryId == entry.LedgerEntryId))
+            .SumAsync(entry => -entry.AmountMinorUnits, ct);
+        var paidOut = await db.ShiftTipPayouts.AsNoTracking()
+            .Where(payout => payout.ShiftId == shiftId)
+            .SumAsync(payout => payout.AmountMinorUnits, ct);
+        if (shiftTips - -tip.AmountMinorUnits < paidOut) return ReverseOutcome.AlreadyPaidOut;
 
         db.LedgerEntries.Add(BillingEntryFactory.Create(
             tip.OrganizationId, tip.BranchId, tip.PlayerAccountId, tip.SessionId, playerPackageId: null,

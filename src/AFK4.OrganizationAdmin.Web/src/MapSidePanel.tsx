@@ -243,7 +243,8 @@ export function MapSidePanel({
     : lead.kind === 'postpaid'
       ? t('op.map.seatOpenTab')
       : null;
-  const hasDevice = Boolean(seat.deviceId) || Boolean(seat.deviceName);
+  // Консоль — место без агента: блока «Управление ПК» у неё нет (команды ей не доходят).
+  const hasDevice = !seat.isConsole && (Boolean(seat.deviceId) || Boolean(seat.deviceName));
   const connectionLabel = seat.isDeviceOnline === true
     ? t('op.helper.deviceStatus.online')
     : seat.isDeviceOnline === false

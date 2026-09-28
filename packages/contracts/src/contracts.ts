@@ -1582,6 +1582,8 @@ export const TipErrorCodeNames = {
   AlreadyReversed: 'tip_already_reversed',
   /** Всё, что пришло за смену, уже выдано. */
   NothingToPay: 'tip_nothing_to_pay',
+  /** Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды. */
+  AlreadyPaidOut: 'tip_already_paid_out',
 } as const;
 export type TipErrorCodeName = (typeof TipErrorCodeNames)[keyof typeof TipErrorCodeNames];
 

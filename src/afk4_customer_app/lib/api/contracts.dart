@@ -1325,6 +1325,8 @@ abstract final class TipErrorCodeNames {
   static const String alreadyReversed = 'tip_already_reversed';
   /// Всё, что пришло за смену, уже выдано.
   static const String nothingToPay = 'tip_nothing_to_pay';
+  /// Эти чаевые уже выданы из кассы — вернуть их игроку значит заплатить дважды.
+  static const String alreadyPaidOut = 'tip_already_paid_out';
 }
 
 /// Словарь: Tips/TipContracts.cs

@@ -115,6 +115,7 @@ internal static class TipEndpoints
             if (outcome == VisitTips.ReverseOutcome.NotFound) return Results.NotFound();
             if (outcome == VisitTips.ReverseOutcome.ShiftClosed) return Results.Conflict(new { error = TipErrorCodeNames.ShiftClosed });
             if (outcome == VisitTips.ReverseOutcome.AlreadyReversed) return Results.Conflict(new { error = TipErrorCodeNames.AlreadyReversed });
+            if (outcome == VisitTips.ReverseOutcome.AlreadyPaidOut) return Results.Conflict(new { error = TipErrorCodeNames.AlreadyPaidOut });
 
             await audit.WriteAsync(new AuditRecordWriteRequest(
                 staff.OrganizationId, BranchId: branchId, ActorStaffUserId: staff.StaffUserId, Action: AuditActionNames.ReverseTip,

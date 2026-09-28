@@ -150,9 +150,11 @@ export function applyDeviceStatusToSeats(
 export function isSeatReadyForGuest(dto: SeatStatusDto): boolean {
   const hasActiveSession = dto.activeSessionId !== null && dto.activeSessionId !== undefined;
   const hasDevice = dto.deviceId !== null && dto.deviceId !== undefined;
+  // У консоли нет агента и нет «связи» — она свободна, если на ней никто не играет (как на карте).
+  const isDeviceOnline = dto.isConsole === true ? true : dto.isDeviceOnline ?? false;
   return !hasActiveSession
     && dto.isOutsidePlan !== true
-    && resolveTone(normalizeState(dto.state), hasDevice, dto.isDeviceOnline ?? false, false) === 'ready';
+    && resolveTone(normalizeState(dto.state), hasDevice, isDeviceOnline, false) === 'ready';
 }
 
 function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSummary {
