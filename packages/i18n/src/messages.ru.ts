@@ -598,6 +598,7 @@ export const ru = {
   "customer.reviews.empty": "Отзывов пока нет — ваш будет первым",
   "customer.reviews.error": "Не удалось загрузить отзывы",
   "customer.reviews.hidden": "Клуб скрыл текст отзыва — оценка осталась.",
+  "customer.reviews.rating": "Оценка {rating} из 5",
   "customer.reviews.title": "Отзывы игроков",
   "customer.session.end.action": "Закончить и встать",
   "customer.session.end.body": "Место освободится сразу. Оплаченное, но неигранное время вернётся на кошелёк.",
