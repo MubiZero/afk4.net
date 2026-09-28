@@ -11,7 +11,7 @@ namespace AFK4.Platform.Api.Notifications;
 /// <see cref="NotificationDispatcher"/> simply ticks this on a schedule.
 /// </summary>
 public sealed class NotificationDispatchRunner(
-    INotificationOutbox outbox,
+    EfNotificationOutbox outbox,
     IEnumerable<INotificationChannel> channels,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options)

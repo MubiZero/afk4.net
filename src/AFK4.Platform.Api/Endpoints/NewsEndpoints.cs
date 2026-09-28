@@ -15,7 +15,7 @@ internal static class NewsEndpoints
     {
         app.MapGet("news", async (
             StaffAuthorizationService authorizationService,
-            INewsService news,
+            EfNewsService news,
             PlatformDbContext db,
             CancellationToken ct) =>
         {
@@ -69,7 +69,7 @@ internal static class NewsEndpoints
         app.MapPost("news", async (
             CreateNewsItemRequest request,
             StaffAuthorizationService authorizationService,
-            INewsService news,
+            EfNewsService news,
             PlatformDbContext db,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
@@ -106,7 +106,7 @@ internal static class NewsEndpoints
             Guid id,
             UpdateNewsItemRequest request,
             StaffAuthorizationService authorizationService,
-            INewsService news,
+            EfNewsService news,
             PlatformDbContext db,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
@@ -146,7 +146,7 @@ internal static class NewsEndpoints
         app.MapDelete("news/{id:guid}", async (
             Guid id,
             StaffAuthorizationService authorizationService,
-            INewsService news,
+            EfNewsService news,
             PlatformDbContext db,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.News;
 
-public sealed class EfNewsService(PlatformDbContext db, TimeProvider timeProvider) : INewsService
+public sealed class EfNewsService(PlatformDbContext db, TimeProvider timeProvider)
 {
     private const int TitleMax = 200;
     private const int BodyMax = 4000;
