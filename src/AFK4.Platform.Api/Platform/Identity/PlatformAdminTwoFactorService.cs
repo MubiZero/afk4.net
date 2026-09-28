@@ -128,7 +128,10 @@ public sealed class PlatformAdminTwoFactorService(
     }
 
     // See CompleteSetupAsync above for why PlatformAdminUserId travels separately from Session.
-    public async Task<(PlatformAdminSignInResponse? Session, Guid? PlatformAdminUserId, TwoFactorError Error)> VerifyAsync(
+    // LockedUntilUtc rides along the same way, only ever populated for TwoFactorError.LockedOut —
+    // the endpoint hands it to the caller so the lockout screen can say when to try again instead
+    // of a bare "too many attempts".
+    public async Task<(PlatformAdminSignInResponse? Session, Guid? PlatformAdminUserId, DateTimeOffset? LockedUntilUtc, TwoFactorError Error)> VerifyAsync(
         string challengeToken,
         string code,
         CancellationToken cancellationToken)
@@ -136,13 +139,13 @@ public sealed class PlatformAdminTwoFactorService(
         var (challenge, user) = await FindActiveChallengeAsync(challengeToken, cancellationToken);
         if (challenge is null || user is null)
         {
-            return (null, null, TwoFactorError.InvalidChallenge);
+            return (null, null, null, TwoFactorError.InvalidChallenge);
         }
 
         var now = timeProvider.GetUtcNow();
         if (user.TwoFactorLockedUntilUtc is { } lockedUntil && lockedUntil > now)
         {
-            return (null, user.PlatformAdminUserId, TwoFactorError.LockedOut);
+            return (null, user.PlatformAdminUserId, lockedUntil, TwoFactorError.LockedOut);
         }
 
         var succeeded = false;
@@ -175,7 +178,7 @@ public sealed class PlatformAdminTwoFactorService(
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            return (null, user.PlatformAdminUserId, TwoFactorError.InvalidCode);
+            return (null, user.PlatformAdminUserId, null, TwoFactorError.InvalidCode);
         }
 
         user.FailedTwoFactorAttempts = 0;
@@ -184,7 +187,7 @@ public sealed class PlatformAdminTwoFactorService(
         challenge.ConsumedAtUtc = now;
 
         var session = await tokenService.IssueAsync(user, cancellationToken);
-        return (session, user.PlatformAdminUserId, TwoFactorError.None);
+        return (session, user.PlatformAdminUserId, null, TwoFactorError.None);
     }
 
     /// <summary>

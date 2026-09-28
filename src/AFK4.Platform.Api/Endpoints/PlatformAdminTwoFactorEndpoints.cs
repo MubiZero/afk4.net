@@ -75,7 +75,7 @@ internal static class PlatformAdminTwoFactorEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var (session, resolvedUserId, error) = await twoFactorService.VerifyAsync(request.ChallengeToken, request.Code, cancellationToken);
+            var (session, resolvedUserId, lockedUntilUtc, error) = await twoFactorService.VerifyAsync(request.ChallengeToken, request.Code, cancellationToken);
 
             if (error != TwoFactorError.None)
             {
@@ -92,7 +92,7 @@ internal static class PlatformAdminTwoFactorEndpoints
                     outcome: AuditOutcome.Denied,
                     details: new { Error = error.ToString() },
                     cancellationToken);
-                return TwoFactorErrorResult(error);
+                return TwoFactorErrorResult(error, lockedUntilUtc);
             }
 
             await WritePlatformAuditAsync(
@@ -154,11 +154,30 @@ internal static class PlatformAdminTwoFactorEndpoints
         });
     }
 
-    private static IResult TwoFactorErrorResult(TwoFactorError error) => error switch
+    // Both InvalidChallenge and InvalidCode used to answer a bare 401 — same status, same body,
+    // and the screen could not tell "your two-minute window died, start over" apart from "that
+    // code was wrong, try again": every failure looked like a typo, including a challenge that had
+    // simply expired between rendering the form and submitting it. LockedOut carried no unlock
+    // time either, even though the service already computes one. `Error` here is the machine code
+    // the panel switches on, same shape as `already_configured` below.
+    private static IResult TwoFactorErrorResult(TwoFactorError error, DateTimeOffset? lockedUntilUtc = null) => error switch
     {
-        TwoFactorError.InvalidChallenge => Results.Unauthorized(),
-        TwoFactorError.InvalidCode => Results.Unauthorized(),
-        TwoFactorError.LockedOut => Results.StatusCode(StatusCodes.Status429TooManyRequests),
+        TwoFactorError.InvalidChallenge => Results.Json(new
+        {
+            Error = "two_factor_challenge_expired",
+            Message = "The sign-in window expired. Start over."
+        }, statusCode: StatusCodes.Status401Unauthorized),
+        TwoFactorError.InvalidCode => Results.Json(new
+        {
+            Error = "two_factor_code_invalid",
+            Message = "That code didn't match. Try again."
+        }, statusCode: StatusCodes.Status401Unauthorized),
+        TwoFactorError.LockedOut => Results.Json(new
+        {
+            Error = "two_factor_locked",
+            Message = "Too many attempts. Try again later.",
+            LockedUntilUtc = lockedUntilUtc
+        }, statusCode: StatusCodes.Status429TooManyRequests),
         TwoFactorError.AlreadyConfigured => Results.Conflict(new
         {
             Error = "already_configured",

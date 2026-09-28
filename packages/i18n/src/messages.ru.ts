@@ -112,6 +112,7 @@ export const ru = {
   "auth.twoFactor.error.expired": "Время на подтверждение истекло. Войдите заново.",
   "auth.twoFactor.error.invalidCode": "Неверный код. Проверьте время на телефоне и попробуйте ещё раз.",
   "auth.twoFactor.error.lockedOut": "Слишком много попыток. Аккаунт заблокирован на 15 минут — попробуйте снова позже.",
+  "auth.twoFactor.error.lockedOutUntil": "Слишком много попыток. Аккаунт заблокирован до {time} — попробуйте снова позже.",
   "auth.twoFactor.field.code": "Код подтверждения",
   "auth.twoFactor.recovery.ack": "Я сохранил(а) коды восстановления",
   "auth.twoFactor.recovery.continue": "Продолжить",

@@ -122,6 +122,33 @@ describe('TwoFactorSetup', () => {
     expect(await screen.findByText(/слишком много попыток/i)).toBeInTheDocument();
   });
 
+  // Тот же разбор кодов, что у экрана повторного входа (TwoFactorChallenge): мёртвая на сервере
+  // сессия ведёт назад к паролю, а не остаётся на форме подтверждения с «неверный код».
+  it('истёкшая на сервере сессия при подтверждении ведёт назад, на пароль', async () => {
+    let expiredCalls = 0;
+    const client = buildClient({
+      completeSetup: async () => { throw new PlatformApiError(401, 'x', 'two_factor_challenge_expired'); }
+    });
+
+    render(
+      <I18nProvider>
+        <TwoFactorSetup
+          client={client}
+          challengeToken="chal-1"
+          onExpired={() => { expiredCalls += 1; }}
+          onComplete={() => {}}
+          onCancel={() => {}}
+        />
+      </I18nProvider>
+    );
+
+    await userEvent.type(await screen.findByLabelText(/код из приложения/i), '123456');
+    await userEvent.click(screen.getByRole('button', { name: /подтвердить и включить/i }));
+
+    await waitFor(() => expect(expiredCalls).toBe(1));
+    expect(screen.queryByText(/неверный код/i)).not.toBeInTheDocument();
+  });
+
   // Находка 1: the challenge window can die while still on the QR screen, before any code is
   // ever submitted — the countdown must bounce the person out on its own.
   it('вызывает onExpired по истечении окна ещё на экране QR', async () => {

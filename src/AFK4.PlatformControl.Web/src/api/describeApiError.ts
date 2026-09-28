@@ -88,3 +88,52 @@ export function describeApiError(
   if (cause instanceof TypeError) return t('state.error.network');
   return t('state.error.server');
 }
+
+/**
+ * Отказы шага 2FA (`/2fa/setup`, `/2fa/setup/confirm`, `/2fa/verify`) — сессия входа истекла,
+ * опечатка в коде и блокировка по попыткам раньше отвечали одинаковым голым 401/429, и экран не
+ * мог сказать, начинать ли заново или просто попробовать снова. `lockedUntilUtc` в теле ответа
+ * `CODE_KEYS` не передаёт (там только статический текст по ключу) — отсюда отдельная функция,
+ * а не запись в общий словарь.
+ */
+export type TwoFactorErrorOutcome =
+  // Экран сам решает, что делать с истёкшей сессией (обычно — вернуться к паролю); текста для
+  // него здесь нет, чтобы не плодить два места с формулировкой одного и того же «начните заново».
+  | { kind: 'expired' }
+  | { kind: 'message'; text: string };
+
+export function describeTwoFactorError(
+  cause: unknown,
+  t: Translate,
+  formatDateTime: (iso: string) => string
+): TwoFactorErrorOutcome {
+  if (cause instanceof PlatformApiError) {
+    if (cause.errorCode === 'two_factor_challenge_expired') return { kind: 'expired' };
+    if (cause.errorCode === 'two_factor_code_invalid') {
+      return { kind: 'message', text: t('auth.twoFactor.error.invalidCode') };
+    }
+    if (cause.errorCode === 'two_factor_locked' || cause.status === 429) {
+      const lockedUntilUtc = readLockedUntilUtc(cause);
+      return {
+        kind: 'message',
+        text: lockedUntilUtc !== null
+          ? t('auth.twoFactor.error.lockedOutUntil', { time: formatDateTime(lockedUntilUtc) })
+          : t('auth.twoFactor.error.lockedOut')
+      };
+    }
+    // A bare 401 with none of the codes above is either an older API build that predates them, or
+    // a build/deploy skew window (the panel and the API deploy independently) — falling back to
+    // "wrong code" keeps the old behaviour instead of a blank "server error".
+    if (cause.status === 401) return { kind: 'message', text: t('auth.twoFactor.error.invalidCode') };
+  }
+  return { kind: 'message', text: describeApiError(cause, t) };
+}
+
+function readLockedUntilUtc(cause: PlatformApiError): string | null {
+  try {
+    const parsed = JSON.parse(cause.body) as { lockedUntilUtc?: string };
+    return parsed.lockedUntilUtc ?? null;
+  } catch {
+    return null;
+  }
+}
