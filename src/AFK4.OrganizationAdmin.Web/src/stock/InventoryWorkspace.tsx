@@ -6,8 +6,9 @@ import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { StockHero } from './StockHero';
 import { ScanSearchBar } from './ScanSearchBar';
-import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
+import { createAuthenticatedOperatorClients, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { retryKeys } from '../unsettledKeys';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { matchByBarcode } from '../barcodeScanner';
 import { useBarcodeScanner } from '../useBarcodeScanner';
@@ -128,15 +129,17 @@ export function InventoryWorkspace({
     let posted = 0;
     try {
       for (const adj of adjustments) {
-        await api.inventory.createStockMovement(nextBackend.branchId, {
+        const movement = {
           organizationId: nextBackend.session.organizationId,
           productId: adj.productId,
           movementType: 'adjustment',
           quantityDelta: adj.quantityDelta,
           unitCost: { currencyCode, minorUnits: adj.unitCostMinorUnits },
-          reason,
-          idempotencyKey: createIdempotencyKey('stock-movement-create'),
-        });
+          reason
+        };
+        // Строка, ответ на которую потерялся, при повторе уйдёт с тем же ключом и не проведётся дважды.
+        await retryKeys.send('stock-movement-create', [nextBackend.branchId, movement], (idempotencyKey) =>
+          api.inventory.createStockMovement(nextBackend.branchId, { ...movement, idempotencyKey }));
         // Учётный := факт, чтобы ретрай при сбое не провёл строку дважды.
         setLines((cur) => markPosted(cur, adj.productId));
         posted += 1;

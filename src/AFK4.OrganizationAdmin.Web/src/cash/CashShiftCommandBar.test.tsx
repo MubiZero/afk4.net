@@ -104,6 +104,29 @@ describe('CashShiftCommandBar', () => {
     expect(request).toMatchObject({ countedCash: { currencyCode: 'TJS', minorUnits: 11500 } });
   });
 
+  // Ответ на изъятие потерялся: деньги могли уйти. Повтор обязан прийти с тем же ключом, чтобы
+  // сервер вернул уже записанное изъятие, а не провёл его второй раз.
+  it('изъятие, ответ на которое потерялся, повторяется с тем же ключом', async () => {
+    const keys: string[] = [];
+    const actions = fakeActions();
+    actions.recordCashMovement = mock(async (_shiftId: string, request: { idempotencyKey: string }) => {
+      keys.push(request.idempotencyKey);
+      if (keys.length === 1) throw new TypeError('Failed to fetch');
+      return {};
+    }) as never;
+    renderBar({ isOpen: true, actions });
+    fireEvent.click(screen.getByRole('button', { name: 'Изъять' }));
+    fireEvent.change(screen.getByLabelText('Сумма'), { target: { value: '50.00' } });
+    const submit = within(screen.getByRole('dialog')).getByRole('button', { name: 'Подтвердить' });
+    fireEvent.click(submit);
+    await waitFor(() => expect(keys).toHaveLength(1));
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.click(submit);
+    await waitFor(() => expect(keys).toHaveLength(2));
+    expect(keys[0]).toMatch(/^shift-cash-movement-/);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
   const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
   const makeRevenue = () => ({
     shiftId: 's1', organizationId: 'o', branchId: 'b1', openedByStaffUserId: 'u1', closedByStaffUserId: null,

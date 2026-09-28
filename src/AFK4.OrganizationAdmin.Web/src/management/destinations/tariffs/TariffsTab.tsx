@@ -8,6 +8,7 @@ import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
 import { CriticalActionConfirmation, Money } from '../../../operatorPrimitives';
 import { projectOperatorError } from '../../../apiErrors';
+import { retryKeys } from '../../../unsettledKeys';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
@@ -167,12 +168,11 @@ export function TariffsTab({
       }
 
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const tariff = await apiClients.settings.createTariff(nextBackend.branchId, {
-        organizationId: nextBackend.session.organizationId,
-        name: trimmedName,
-        idempotencyKey: createIdempotencyKey('tariff-create'),
-        schedule: schedulePayload
-      });
+      const newTariff = { organizationId: nextBackend.session.organizationId, name: trimmedName, schedule: schedulePayload };
+      // Повтор после обрыва вернёт уже заведённый тариф, а не второй с тем же именем. Версия цены
+      // ниже едет со своим ключом: у неё дата начала — момент нажатия.
+      const tariff = await retryKeys.send('tariff-create', [nextBackend.branchId, newTariff], (idempotencyKey) =>
+        apiClients.settings.createTariff(nextBackend.branchId, { ...newTariff, idempotencyKey }));
       const tariffId = readString(tariff, 'tariffId');
       if (tariffId) {
         await apiClients.settings.createTariffVersion(nextBackend.branchId, tariffId, {

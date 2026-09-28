@@ -17,7 +17,7 @@ import {
   type OperatorCommandType
 } from './actionOutbox';
 import type { SeatSummary } from './operatorData';
-import { UnsettledKeys } from './unsettledKeys';
+import { retryKeys } from './unsettledKeys';
 import type {
   AuthStatus,
   OperatorConfig,
@@ -92,7 +92,6 @@ export function useFloorMap({
 }: UseFloorMapOptions): FloorMap {
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
   const floorMapRef = useRef(floorMap);
-  const commandKeys = useRef(new UnsettledKeys());
   const [selectedSeatId, setSelectedSeatId] = useState('');
   const [remainingNowMs, setRemainingNowMs] = useState(() => Date.now());
   const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
@@ -255,6 +254,8 @@ export function useFloorMap({
     // отвечает 409 `stale_version`, если сессию успели изменить: иначе теряется не одновременный
     // доступ (его ловит база), а устаревший взгляд — второй оператор продлил, первый завершил по
     // прежнему виду, и продление исчезло молча.
+    // Ключ нажатия держится, пока исход неизвестен (retryKeys): повтор после обрыва получит
+    // исходный ответ сервера, а не «место занято» или «устарело» за уже сделанное.
     let response: SessionActionResponse;
     if (request.type === 'start') {
       if (!hasPermission(session, permissionNames.startSession)) {
@@ -267,20 +268,21 @@ export function useFloorMap({
 
       const billing = request.billing;
       const isOpenTab = request.durationMode === 'open';
-      response = await clients.sessions.startGuestSession(branchId, {
+      const start = {
         organizationId: session.organizationId,
         seatId: request.seat.id,
         durationMode: isOpenTab ? 'open' : 'fixed',
         durationMinutes: isOpenTab ? null : (request.durationMinutes ?? defaultSessionDurationMinutes),
         tariffRuleVersionId: billing.tariffRuleVersionId,
-        idempotencyKey: createIdempotencyKey('session-start'),
         playerAccountId: billing.playerAccountId ?? null,
         billingMode: billing.mode === 'guest' ? '' : billing.mode,
         tariffVersionId: billing.tariffVersionId ?? null,
         playerPackageId: billing.playerPackageId ?? null,
         isComp: request.isComp ?? false,
         compReason: request.compReason ?? null
-      });
+      };
+      response = await retryKeys.send('session-start', [branchId, start], (idempotencyKey) =>
+        clients.sessions.startGuestSession(branchId, { ...start, idempotencyKey }));
     } else if (request.type === 'extend') {
       if (!hasPermission(session, permissionNames.extendSession)) {
         throw new Error(t('op.shell.err.noPermExtend'));
@@ -291,16 +293,18 @@ export function useFloorMap({
       }
 
       const billing = request.billing;
-      response = await clients.sessions.extendSession(request.seat.activeSessionId, {
+      const sessionId = request.seat.activeSessionId;
+      const extend = {
         additionalMinutes: request.minutes,
         tariffRuleVersionId: billing.tariffRuleVersionId,
-        idempotencyKey: createIdempotencyKey('session-extend'),
         expectedVersion: request.seat.sessionVersion ?? null,
         playerAccountId: billing.playerAccountId ?? null,
         billingMode: billing.mode === 'guest' ? '' : billing.mode,
         tariffVersionId: billing.tariffVersionId ?? null,
         playerPackageId: billing.playerPackageId ?? null
-      });
+      };
+      response = await retryKeys.send('session-extend', [sessionId, extend], (idempotencyKey) =>
+        clients.sessions.extendSession(sessionId, { ...extend, idempotencyKey }));
     } else if (request.type === 'transfer') {
       if (!hasPermission(session, permissionNames.transferSession)) {
         throw new Error(t('op.shell.err.noPermTransfer'));
@@ -310,11 +314,10 @@ export function useFloorMap({
         throw new Error(t('op.map.panel.noActiveSession'));
       }
 
-      response = await clients.sessions.transferSession(request.seat.activeSessionId, {
-        targetSeatId: request.targetSeatId,
-        idempotencyKey: createIdempotencyKey('session-transfer'),
-        expectedVersion: request.seat.sessionVersion ?? null
-      });
+      const sessionId = request.seat.activeSessionId;
+      const transfer = { targetSeatId: request.targetSeatId, expectedVersion: request.seat.sessionVersion ?? null };
+      response = await retryKeys.send('session-transfer', [sessionId, transfer], (idempotencyKey) =>
+        clients.sessions.transferSession(sessionId, { ...transfer, idempotencyKey }));
     } else if (request.type === 'pause' || request.type === 'resume') {
       if (!hasPermission(session, permissionNames.pauseSession)) {
         throw new Error(t('op.shell.err.noPermPause'));
@@ -324,14 +327,12 @@ export function useFloorMap({
         throw new Error(t('op.map.panel.noActiveSession'));
       }
 
-      const payload = {
-        reason: 'operator',
-        idempotencyKey: createIdempotencyKey(`session-${request.type}`),
-        expectedVersion: request.seat.sessionVersion ?? null
-      };
-      response = request.type === 'pause'
-        ? await clients.sessions.pauseSession(request.seat.activeSessionId, payload)
-        : await clients.sessions.resumeSession(request.seat.activeSessionId, payload);
+      const sessionId = request.seat.activeSessionId;
+      const change = { reason: 'operator', expectedVersion: request.seat.sessionVersion ?? null };
+      const pause = request.type === 'pause';
+      response = await retryKeys.send(`session-${request.type}`, [sessionId, change], (idempotencyKey) => pause
+        ? clients.sessions.pauseSession(sessionId, { ...change, idempotencyKey })
+        : clients.sessions.resumeSession(sessionId, { ...change, idempotencyKey }));
     } else if (request.type === 'checkout') {
       if (!hasPermission(session, permissionNames.endSession)) {
         throw new Error(t('op.shell.err.noPermCheckout'));
@@ -341,12 +342,14 @@ export function useFloorMap({
         throw new Error(t('op.map.panel.noActiveSession'));
       }
 
-      response = await clients.sessions.checkoutSession(request.seat.activeSessionId, {
+      const sessionId = request.seat.activeSessionId;
+      const checkout = {
         organizationId: session.organizationId,
         payments: request.payments,
-        idempotencyKey: createIdempotencyKey('session-checkout'),
         expectedVersion: request.seat.sessionVersion ?? null
-      });
+      };
+      response = await retryKeys.send('session-checkout', [sessionId, checkout], (idempotencyKey) =>
+        clients.sessions.checkoutSession(sessionId, { ...checkout, idempotencyKey }));
     } else {
       if (!hasPermission(session, permissionNames.endSession)) {
         throw new Error(t('op.shell.err.noPermEnd'));
@@ -356,11 +359,10 @@ export function useFloorMap({
         throw new Error(t('op.map.panel.noActiveSession'));
       }
 
-      response = await clients.sessions.endSession(request.seat.activeSessionId, {
-        reason: 'operator',
-        idempotencyKey: createIdempotencyKey('session-end'),
-        expectedVersion: request.seat.sessionVersion ?? null
-      });
+      const sessionId = request.seat.activeSessionId;
+      const end = { reason: 'operator', expectedVersion: request.seat.sessionVersion ?? null };
+      response = await retryKeys.send('session-end', [sessionId, end], (idempotencyKey) =>
+        clients.sessions.endSession(sessionId, { ...end, idempotencyKey }));
     }
 
     const detail = await describeSeatActionResult(clients, session, request.seat, response, t);
@@ -448,9 +450,9 @@ export function useFloorMap({
     deviceId: string,
     type: PcControlActionId,
     payload: Record<string, string>
-  ) => commandKeys.current.send(
-    `${deviceId}|${type}|${payload.text ?? ''}`,
+  ) => retryKeys.send(
     `device-${type}`,
+    [deviceId, payload],
     (idempotencyKey) => clients.devices.dispatchDeviceCommand(deviceId, { type, payload, idempotencyKey })
   );
 

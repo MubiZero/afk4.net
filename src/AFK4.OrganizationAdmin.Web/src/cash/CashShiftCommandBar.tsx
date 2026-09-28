@@ -3,11 +3,11 @@ import { useI18n } from '@afk4/i18n';
 import { Lock, ArrowDownToLine, ArrowUpFromLine, Unlock, FileText } from 'lucide-react';
 import {
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   parseMoneyInputMinorUnits,
   parseNonNegativeMoneyInputMinorUnits
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { retryKeys } from '../unsettledKeys';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext, Feedback } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
@@ -193,12 +193,14 @@ export function CashShiftCommandBar({
     run(t('op.cash.action.open'), async (actions) => {
       const minor = parseNonNegativeMoneyInputMinorUnits(startingCash);
       if (minor === null) throw new Error(t('op.cash.open.startingCashLabel'));
-      await actions.openShift(backend!.branchId, {
+      const branchId = backend!.branchId;
+      const opening = {
         organizationId: backend!.session.organizationId,
         startingCash: { currencyCode, minorUnits: minor },
-        openingNote: openingNote.trim(),
-        idempotencyKey: createIdempotencyKey('shift-open')
-      });
+        openingNote: openingNote.trim()
+      };
+      await retryKeys.send('shift-open', [branchId, opening], (idempotencyKey) =>
+        actions.openShift(branchId, { ...opening, idempotencyKey }));
     });
 
   const submitMovement = (movementType: 'cash_in' | 'cash_out') => () =>
@@ -206,13 +208,14 @@ export function CashShiftCommandBar({
       const minor = parseMoneyInputMinorUnits(movementAmount);
       const reason = movementReason.trim();
       if (minor === null || !reason || shiftId === null) throw new Error(t('op.cash.movement.amountLabel'));
-      await actions.recordCashMovement(shiftId, {
+      const movement = {
         organizationId: backend!.session.organizationId,
         movementType,
         amount: { currencyCode, minorUnits: minor },
-        reason,
-        idempotencyKey: createIdempotencyKey('shift-cash-movement')
-      });
+        reason
+      };
+      await retryKeys.send('shift-cash-movement', [shiftId, movement], (idempotencyKey) =>
+        actions.recordCashMovement(shiftId, { ...movement, idempotencyKey }));
       setMovementAmount('');
       setMovementReason(t('op.cash.movement.defaultReason'));
     });
@@ -223,15 +226,18 @@ export function CashShiftCommandBar({
       setSignOffDemanded(false);
       const minor = parseNonNegativeMoneyInputMinorUnits(countedCash);
       if (minor === null || shiftId === null) throw new Error(t('op.cash.close.countedLabel'));
-      const closed = await actions.closeShift(shiftId, {
+      const closing = {
         organizationId: backend!.session.organizationId,
         countedCash: { currencyCode, minorUnits: minor },
         closingNote: closingNote.trim(),
-        idempotencyKey: createIdempotencyKey('shift-close'),
         // Пусто — обычное закрытие в пределах допуска; сервер тогда подписи и не спросит.
         managerSignOffStaffUserId: signOffStaffUserId || null,
         signOffReason: signOffReason.trim() || null
-      });
+      };
+      // Ответ потерялся — повтор с тем же ключом вернёт исходное закрытие и его Z-сводку,
+      // а не отказ «смена уже закрыта».
+      const closed = await retryKeys.send('shift-close', [shiftId, closing], (idempotencyKey) =>
+        actions.closeShift(shiftId, { ...closing, idempotencyKey }));
       // Z-сводка: снимок выручки (revenue) + counted/difference/closedAt из ответа close.
       if (revenue) setReport({ variant: 'z', data: buildShiftReportData(revenue, closed) });
     });

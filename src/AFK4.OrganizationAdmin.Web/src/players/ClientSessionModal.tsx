@@ -3,9 +3,10 @@ import { useI18n } from '@afk4/i18n';
 import { PanelModal } from '../PanelModal';
 import { SessionStartForm, SessionStartSkeleton, createSessionStartSelection, type SessionStartSelection } from '../session/SessionStartForm';
 import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
-import { createAuthenticatedOperatorClients, createIdempotencyKey } from '../operatorHelpers';
+import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { projectOperatorError } from '../apiErrors';
+import { retryKeys } from '../unsettledKeys';
 import type { PlayerClientItem } from '../operatorHelpers';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { isSeatReadyForGuest } from '../floorMapState';
@@ -88,20 +89,23 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
       }
       const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
       const isOpenTab = selection.durationMode === 'open';
-      await clients.sessions.startGuestSession(backend.branchId, {
+      const branchId = backend.branchId;
+      const start = {
         organizationId: backend.session.organizationId,
         seatId: selectedSeat.seatId,
         durationMode: isOpenTab ? 'open' : 'fixed',
         durationMinutes: isOpenTab ? null : selection.durationMinutes,
         tariffRuleVersionId: selection.tariffRuleVersionId,
-        idempotencyKey: createIdempotencyKey('session-start'),
         playerAccountId: player.playerAccountId,
         billingMode: selection.billingMode === 'guest' ? '' : selection.billingMode,
         tariffVersionId: selection.tariffVersionId,
         playerPackageId: selection.playerPackageId,
         isComp: selection.isComp,
         compReason: selection.compReason
-      });
+      };
+      // Тот же ключ, что у карты места: повтор после обрыва вернёт начатую сессию, а не «ПК занят».
+      await retryKeys.send('session-start', [branchId, start], (idempotencyKey) =>
+        clients.sessions.startGuestSession(branchId, { ...start, idempotencyKey }));
       await onStarted(selectedSeat.seatName);
     } catch (reason) {
       setError(projectOperatorError(reason, t).detail);

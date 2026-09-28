@@ -6,7 +6,6 @@ import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTyp
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   emptyFeedback,
   formatMinorUnits,
   formatMoneyInputMinorUnits,
@@ -41,6 +40,7 @@ import { ApprovalRequestModal } from './players/ApprovalRequestModal';
 import type { MoneyActionSubmitRequest } from './api/clients/moneyActions';
 import { correctionApprovalRequest, refundApprovalRequest } from './players/approvalDraft';
 import { PayDebtModal } from './players/PayDebtModal';
+import { retryKeys } from './unsettledKeys';
 import { DcTopUpDialog } from './players/DcTopUpDialog';
 
 type PlayerActionId = 'topUp' | 'writeOffDebt' | 'booking' | 'newCard' | 'correction' | 'refund' | 'updateProfile' | 'toggleActive';
@@ -490,12 +490,13 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         // дефолтом, что и раньше был значением поля (единая аудиторская строка).
         const reason = resolveReasonInput(walletTopUpReason, t('op.players.actions.topUpDefault'));
 
-        const wallet = await apiClients.players.topUpWallet(backendClient.playerAccountId, {
+        const topUp = {
           organizationId: nextBackend.session.organizationId,
           amount: { currencyCode, minorUnits: topUpMinorUnits },
-          reason,
-          idempotencyKey: createIdempotencyKey('wallet-top-up')
-        });
+          reason
+        };
+        const wallet = await retryKeys.send('wallet-top-up', [backendClient.playerAccountId, topUp], (idempotencyKey) =>
+          apiClients.players.topUpWallet(backendClient.playerAccountId, { ...topUp, idempotencyKey }));
         setWalletSummary(wallet);
         bumpLedger();
       } else if (id === 'writeOffDebt') {
@@ -512,12 +513,13 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         // §7.5: та же сабмит-время подстановка дефолта для пустого поля причины.
         const reason = resolveReasonInput(debtPaymentReason, t('op.players.actions.writeOffDebtDefault'));
 
-        const wallet = await apiClients.players.payDebt(backendClient.playerAccountId, {
+        const payment = {
           organizationId: nextBackend.session.organizationId,
           amount: { currencyCode, minorUnits: debtPaymentMinorUnits },
-          reason,
-          idempotencyKey: createIdempotencyKey('debt-payment')
-        });
+          reason
+        };
+        const wallet = await retryKeys.send('debt-payment', [backendClient.playerAccountId, payment], (idempotencyKey) =>
+          apiClients.players.payDebt(backendClient.playerAccountId, { ...payment, idempotencyKey }));
         setWalletSummary(wallet);
         bumpLedger();
         setPayDebtOpen(false);
@@ -545,12 +547,13 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           }
         }
 
-        const created = await apiClients.players.createPlayer(nextBackend.branchId, {
+        const newPlayer = {
           organizationId: nextBackend.session.organizationId,
           displayName,
-          phoneNumber: newPlayerPhone.trim() || null,
-          idempotencyKey: createIdempotencyKey('player-create')
-        });
+          phoneNumber: newPlayerPhone.trim() || null
+        };
+        const created = await retryKeys.send('player-create', [nextBackend.branchId, newPlayer], (idempotencyKey) =>
+          apiClients.players.createPlayer(nextBackend.branchId, { ...newPlayer, idempotencyKey }));
         const createdClient = projectPlayerClient({
           playerAccountId: readString(created, 'playerAccountId'),
           displayName: readString(created, 'displayName', t('op.players.newClient')),
@@ -584,35 +587,37 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           throw new Error(t('op.players.error.correctionInvalid'));
         }
 
-        const idempotencyKey = createIdempotencyKey('manual-correction');
-        let wallet: WalletSummaryDto;
-        try {
-          wallet = await apiClients.players.manualCorrection(backendClient.playerAccountId, {
-            organizationId: nextBackend.session.organizationId,
-            accountType: correctionAccount,
-            amount: { currencyCode, minorUnits: quantities.minorUnits },
-            quantitySeconds: quantities.quantitySeconds,
-            reason,
-            idempotencyKey
-          });
-        } catch (error) {
-          if (!requiresManagerApproval(error)) throw error;
-          setApprovalDraft({
-            label,
-            amountLabel: formatMinorUnits(Math.abs(quantities.minorUnits), currencyCode),
-            request: correctionApprovalRequest({
-              organizationId: nextBackend.session.organizationId,
-              playerAccountId: backendClient.playerAccountId,
-              accountType: correctionAccount,
-              signedAmountMinorUnits: quantities.minorUnits,
-              quantitySeconds: quantities.quantitySeconds,
-              currencyCode,
-              reason,
-              idempotencyKey
-            })
-          });
-          return;
-        }
+        const correction = {
+          organizationId: nextBackend.session.organizationId,
+          accountType: correctionAccount,
+          amount: { currencyCode, minorUnits: quantities.minorUnits },
+          quantitySeconds: quantities.quantitySeconds,
+          reason
+        };
+        // «Нужна подпись старшего» — ответ сервера, а не обрыв: ключ уходит в заявку на подпись.
+        const wallet = await retryKeys.send('manual-correction', [backendClient.playerAccountId, correction], async (idempotencyKey) => {
+          try {
+            return await apiClients.players.manualCorrection(backendClient.playerAccountId, { ...correction, idempotencyKey });
+          } catch (error) {
+            if (!requiresManagerApproval(error)) throw error;
+            setApprovalDraft({
+              label,
+              amountLabel: formatMinorUnits(Math.abs(quantities.minorUnits), currencyCode),
+              request: correctionApprovalRequest({
+                organizationId: nextBackend.session.organizationId,
+                playerAccountId: backendClient.playerAccountId,
+                accountType: correctionAccount,
+                signedAmountMinorUnits: quantities.minorUnits,
+                quantitySeconds: quantities.quantitySeconds,
+                currencyCode,
+                reason,
+                idempotencyKey
+              })
+            });
+            return null;
+          }
+        });
+        if (wallet === null) return;
         setWalletSummary(wallet);
         bumpLedger();
         setCorrectionOpen(false);
@@ -632,34 +637,38 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         if (!reason || refundMinorUnits === undefined || refundMinorUnits <= 0 || refundMinorUnits > originalMinorUnits) {
           throw new Error(t('op.players.error.refundInvalid'));
         }
-        const refundIdempotencyKey = createIdempotencyKey('ledger-refund');
-        try {
-          await apiClients.players.refundLedgerEntry(backendClient.playerAccountId, refundTarget.ledgerEntryId, {
-            organizationId: nextBackend.session.organizationId,
-            ledgerEntryId: refundTarget.ledgerEntryId,
-            amount: { currencyCode, minorUnits: refundMinorUnits },
-            reason,
-            idempotencyKey: refundIdempotencyKey
-          });
-        } catch (error) {
-          if (!requiresManagerApproval(error)) throw error;
-          setApprovalDraft({
-            label,
-            amountLabel: formatMinorUnits(refundMinorUnits, currencyCode),
-            request: refundApprovalRequest({
-              organizationId: nextBackend.session.organizationId,
-              playerAccountId: backendClient.playerAccountId,
-              ledgerEntryId: refundTarget.ledgerEntryId,
-              accountType: refundTarget.accountType,
-              originalSignedMinorUnits: refundTarget.amount.minorUnits,
-              refundMinorUnits,
-              currencyCode,
-              reason,
-              idempotencyKey: refundIdempotencyKey
-            })
-          });
-          return;
-        }
+        const target = refundTarget;
+        const refund = {
+          organizationId: nextBackend.session.organizationId,
+          ledgerEntryId: target.ledgerEntryId,
+          amount: { currencyCode, minorUnits: refundMinorUnits },
+          reason
+        };
+        const refunded = await retryKeys.send('ledger-refund', [backendClient.playerAccountId, refund], async (idempotencyKey) => {
+          try {
+            await apiClients.players.refundLedgerEntry(backendClient.playerAccountId, target.ledgerEntryId, { ...refund, idempotencyKey });
+            return true;
+          } catch (error) {
+            if (!requiresManagerApproval(error)) throw error;
+            setApprovalDraft({
+              label,
+              amountLabel: formatMinorUnits(refundMinorUnits, currencyCode),
+              request: refundApprovalRequest({
+                organizationId: nextBackend.session.organizationId,
+                playerAccountId: backendClient.playerAccountId,
+                ledgerEntryId: target.ledgerEntryId,
+                accountType: target.accountType,
+                originalSignedMinorUnits: target.amount.minorUnits,
+                refundMinorUnits,
+                currencyCode,
+                reason,
+                idempotencyKey
+              })
+            });
+            return false;
+          }
+        });
+        if (!refunded) return;
         const wallet = await apiClients.players.getWalletSummary(backendClient.playerAccountId);
         setWalletSummary(wallet);
         bumpLedger();

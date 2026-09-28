@@ -979,16 +979,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   (a retry after a lost response gets the recorded command), tips left in a
   closed shift are listed and paid from the open shift's drawer, the tip reason
   is a machine name shown in the screen's language, and a periodic job removes
-  club uploads nothing references any more.
-
-- **Some money actions in the Panel make a new idempotency key per click.**
-  Wallet top-up, debt payment, manual correction, ledger refund, shift cash
-  in/out and stock movements generate the key when the button is pressed, so a
-  retry after a lost response is a new command: a top-up could be credited
-  twice for cash taken once. Session commands are guarded by the session version,
-  POS sales and package purchases already keep an attempt key, tip payouts derive
-  theirs on the server. PC commands keep the key until the server answers
-  (`unsettledKeys.ts`); the same helper fits the rest.
+  club uploads nothing references any more. The Panel keeps an action's
+  idempotency key until the server answers (`unsettledKeys.ts`, shared by the
+  whole Panel): PC commands, session actions, wallet top-up, debt payment,
+  correction, ledger refund, package purchase, shift open/close and cash
+  in/out, POS void/refund, stock moves, and creating players, goods, packages
+  and tariffs. A retry after a lost response gets the original answer instead
+  of a second charge. POS sales, bookings and the shift gate keep their own
+  attempt logic; a tariff's price version still takes a fresh key, its start
+  date being the moment of the click.
 
 - **Sign-in and commands on the PC go through the agent, proven only by tests.**
   The player signs in on the PC by phone and PIN or by the app's QR; the agent

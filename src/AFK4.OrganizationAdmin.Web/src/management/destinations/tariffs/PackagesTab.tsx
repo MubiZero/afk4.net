@@ -8,10 +8,10 @@ import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
 import { CriticalActionConfirmation, Money } from '../../../operatorPrimitives';
 import { projectOperatorError } from '../../../apiErrors';
+import { retryKeys } from '../../../unsettledKeys';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   formatMoneyInputMinorUnits,
   isGuid,
   parseMoneyInputMinorUnits,
@@ -120,15 +120,16 @@ export function PackagesTab({
       }
 
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      await apiClients.settings.createPackageDefinition(nextBackend.branchId, {
+      const definition = {
         organizationId: nextBackend.session.organizationId,
         name: trimmedName,
         price: { currencyCode, minorUnits: priceMinorUnits },
         includedSeconds: includedMinutes * 60,
         bonusSeconds: bonusMinutesValue * 60,
-        expiresAfterDays: expiresDaysValue,
-        idempotencyKey: createIdempotencyKey('package-definition-create')
-      });
+        expiresAfterDays: expiresDaysValue
+      };
+      await retryKeys.send('package-definition-create', [nextBackend.branchId, definition], (idempotencyKey) =>
+        apiClients.settings.createPackageDefinition(nextBackend.branchId, { ...definition, idempotencyKey }));
       setCreateOpen(false);
       await onReload(nextBackend);
       onFeedback({ label, state: 'confirmed' });

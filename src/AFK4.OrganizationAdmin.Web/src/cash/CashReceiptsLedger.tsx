@@ -4,7 +4,6 @@ import { ArrowRightLeft, Ban, ReceiptText, Undo2 } from 'lucide-react';
 import {
   buildPosReceiptText,
   createAuthenticatedOperatorClients,
-  createIdempotencyKey,
   downloadTextFile,
   emptyFeedback,
   escapeHtml,
@@ -19,6 +18,7 @@ import {
 } from '../operatorHelpers';
 import { PermissionRefusal, projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { canSelfVoidSale } from './selfVoid';
+import { retryKeys } from '../unsettledKeys';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { CriticalActionConfirmation, EmptyState, LoadFailureState, Money } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
@@ -219,11 +219,10 @@ export function CashReceiptsLedger({
       if (!selectedId) throw new Error(t('op.pos.error.selectReceiptFromList'));
       const reason = voidReason.trim();
       if (!reason) throw new Error(t('op.pos.error.enterVoidReason'));
-      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.voidSale(selectedId, {
-        organizationId: nextBackend.session.organizationId,
-        reason,
-        idempotencyKey: createIdempotencyKey('pos-void')
-      });
+      const pos = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos;
+      const request = { organizationId: nextBackend.session.organizationId, reason };
+      await retryKeys.send('pos-void', [selectedId, request], (idempotencyKey) =>
+        pos.voidSale(selectedId, { ...request, idempotencyKey }));
       setFeedback({ label: t('op.pos.feedback.void'), state: 'confirmed' });
       setVoidReason('');
       setNonce((value) => value + 1);
@@ -244,11 +243,10 @@ export function CashReceiptsLedger({
       if (!selectedId) throw new Error(t('op.pos.error.selectReceiptForRefund'));
       const reason = refundReason.trim();
       if (!reason) throw new Error(t('op.pos.error.enterRefundReason'));
-      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.refundSale(selectedId, {
-        organizationId: nextBackend.session.organizationId,
-        reason,
-        idempotencyKey: createIdempotencyKey('pos-refund')
-      });
+      const pos = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos;
+      const request = { organizationId: nextBackend.session.organizationId, reason };
+      await retryKeys.send('pos-refund', [selectedId, request], (idempotencyKey) =>
+        pos.refundSale(selectedId, { ...request, idempotencyKey }));
       setFeedback({ label: t('op.pos.feedback.refund'), state: 'confirmed' });
       setSaleDetail(null);
       setDetailState({ status: 'idle', saleId: '', receiptId: '', error: null });
