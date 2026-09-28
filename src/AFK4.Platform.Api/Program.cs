@@ -137,33 +137,33 @@ builder.Services.AddScoped<EfDeviceEnrollmentService>();
 builder.Services.AddScoped<IDeviceEnrollmentService>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
 builder.Services.AddScoped<IDeviceCredentialValidator>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
 builder.Services.AddScoped<EfSeatingCodeService>();
-builder.Services.AddScoped<IDevicePlayerSignInService, DevicePlayerSignInService>();
+builder.Services.AddScoped<DevicePlayerSignInService>();
 builder.Services.AddScoped<SeatingCodeAttemptGuard>();
 builder.Services.AddScoped<PlayerSignInClaimService>();
-builder.Services.AddScoped<IDeviceCredentialLifecycleService, EfDeviceCredentialLifecycleService>();
+builder.Services.AddScoped<EfDeviceCredentialLifecycleService>();
 builder.Services.AddScoped<IDeviceCommandStore, EfDeviceCommandStore>();
-builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectionRegistry>();
+builder.Services.AddSingleton<InMemoryDeviceConnectionRegistry>();
 builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
 builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
-builder.Services.AddScoped<IFloorMapReadService, EfFloorMapReadService>();
-builder.Services.AddScoped<ISessionTimelineReadService, EfSessionTimelineReadService>();
+builder.Services.AddScoped<EfFloorMapReadService>();
+builder.Services.AddScoped<EfSessionTimelineReadService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
-builder.Services.AddScoped<IPlayerTokenService, OpaquePlayerTokenService>();
-builder.Services.AddScoped<IPlatformPinService, EfPlatformPinService>();
-builder.Services.AddScoped<IPlayerContextAccessor, PlayerContextAccessor>();
-builder.Services.AddScoped<IPlatformPersonTokenService, OpaquePlatformPersonTokenService>();
-builder.Services.AddScoped<IDeviceBoundPlayerTokens, EfDeviceBoundPlayerTokens>();
-builder.Services.AddScoped<IPlatformPersonContextAccessor, PlatformPersonContextAccessor>();
-builder.Services.AddScoped<IPlayerClubAccountResolver, EfPlayerClubAccountResolver>();
-builder.Services.AddScoped<IPlayerClubMembershipService, EfPlayerClubMembershipService>();
-builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
+builder.Services.AddScoped<OpaquePlayerTokenService>();
+builder.Services.AddScoped<EfPlatformPinService>();
+builder.Services.AddScoped<PlayerContextAccessor>();
+builder.Services.AddScoped<OpaquePlatformPersonTokenService>();
+builder.Services.AddScoped<EfDeviceBoundPlayerTokens>();
+builder.Services.AddScoped<PlatformPersonContextAccessor>();
+builder.Services.AddScoped<EfPlayerClubAccountResolver>();
+builder.Services.AddScoped<EfPlayerClubMembershipService>();
+builder.Services.AddScoped<PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
 builder.Services.AddScoped<IPlatformRolePermissionResolver, EfPlatformRolePermissionResolver>();
-builder.Services.AddScoped<IPlatformAdminTokenService, OpaquePlatformAdminTokenService>();
-builder.Services.AddScoped<IPlatformAdminCredentialService, PasswordHashingPlatformAdminCredentialService>();
+builder.Services.AddScoped<OpaquePlatformAdminTokenService>();
+builder.Services.AddScoped<PasswordHashingPlatformAdminCredentialService>();
 builder.Services.AddScoped<PlatformAdminTwoFactorService>();
-builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAccessor>();
+builder.Services.AddScoped<PlatformAdminContextAccessor>();
 builder.Services.AddScoped<PlatformAdminAuthorizationService>();
 builder.Services.AddScoped<PlatformAdminDirectoryService>();
 builder.Services.AddScoped<PlatformRoleService>();
@@ -172,7 +172,7 @@ builder.Services.AddScoped<AnnouncementFeedService>();
 builder.Services.AddScoped<OrganizationPurgeService>();
 builder.Services.AddScoped<OrganizationExportService>();
 builder.Services.AddScoped<PlatformSupportAccessGrantService>();
-builder.Services.AddScoped<IPlatformSupportContextAccessor, PlatformSupportContextAccessor>();
+builder.Services.AddScoped<PlatformSupportContextAccessor>();
 builder.Services.Configure<SupportAccessOptions>(
     builder.Configuration.GetSection(SupportAccessOptions.SectionName));
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
@@ -186,44 +186,44 @@ builder.Services.Configure<PlatformOrganizationOptions>(
     builder.Configuration.GetSection(PlatformOrganizationOptions.ConfigurationSection));
 builder.Services.Configure<OrganizationAdminCompatibilityOptions>(
     builder.Configuration.GetSection(OrganizationAdminCompatibilityOptions.SectionName));
-builder.Services.AddSingleton<IOrganizationOwnerInviteCodeGenerator, RandomOrganizationOwnerInviteCodeGenerator>();
+builder.Services.AddSingleton<RandomOrganizationOwnerInviteCodeGenerator>();
 builder.Services.Configure<InstallOptions>(
     builder.Configuration.GetSection(InstallOptions.SectionName));
-builder.Services.AddScoped<IInstallService, EfInstallService>();
-builder.Services.AddScoped<IInstallCodeService, EfInstallCodeService>();
+builder.Services.AddScoped<EfInstallService>();
+builder.Services.AddScoped<EfInstallCodeService>();
 builder.Services.AddScoped<AFK4.Platform.Api.Showcase.DeviceShowcase>();
 builder.Services.AddScoped<AFK4.Platform.Api.Tips.VisitTips>();
 builder.Services.AddScoped<AFK4.Platform.Api.Players.GuestImport>();
-builder.Services.AddSingleton<IInstallRequestThrottle, InMemoryInstallRequestThrottle>();
-builder.Services.AddScoped<IPlatformOrganizationService, EfPlatformOrganizationService>();
-builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
-builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore>();
-builder.Services.AddScoped<IPlatformOrganizationHealthService, EfPlatformOrganizationHealthService>();
+builder.Services.AddSingleton<InMemoryInstallRequestThrottle>();
+builder.Services.AddScoped<EfPlatformOrganizationService>();
+builder.Services.AddScoped<EfPlatformSupportNoteService>();
+builder.Services.AddScoped<EfPlatformIdempotencyStore>();
+builder.Services.AddScoped<EfPlatformOrganizationHealthService>();
 builder.Services.Configure<PlatformPulseOptions>(
     builder.Configuration.GetSection(PlatformPulseOptions.SectionName));
-builder.Services.AddScoped<IPlatformPulseService, EfPlatformPulseService>();
-builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
-builder.Services.AddScoped<IOrganizationSubscriptionService, EfOrganizationSubscriptionService>();
+builder.Services.AddScoped<EfPlatformPulseService>();
+builder.Services.AddScoped<EfPlanCatalogService>();
+builder.Services.AddScoped<EfOrganizationSubscriptionService>();
 builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolver>();
 builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
-builder.Services.AddScoped<IDunningRunner, EfDunningRunner>();
+builder.Services.AddScoped<EfDunningRunner>();
 builder.Services.AddScoped<ClubPlans>();
-builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
-builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
+builder.Services.AddScoped<EfInvoiceService>();
+builder.Services.AddScoped<EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddHostedService<FeatureCatalogSeedHostedService>();
 builder.Services.AddScoped<IJobRunRecorder, EfJobRunRecorder>();
-builder.Services.AddScoped<IPlatformIncidentService, EfPlatformIncidentService>();
+builder.Services.AddScoped<EfPlatformIncidentService>();
 builder.Services.Configure<PlatformAlertOptions>(
     builder.Configuration.GetSection(PlatformAlertOptions.ConfigurationSection));
-builder.Services.AddScoped<IPlatformAlertNotifier, PlatformAlertNotifier>();
+builder.Services.AddScoped<PlatformAlertNotifier>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
 builder.Services.Configure<NotificationOptions>(
     builder.Configuration.GetSection(NotificationOptions.ConfigurationSection));
-builder.Services.AddSingleton<INotificationRenderer, NotificationRenderer>();
-builder.Services.AddSingleton<ITemplateProvider>(provider =>
+builder.Services.AddSingleton<NotificationRenderer>();
+builder.Services.AddSingleton<EmbeddedTemplateProvider>(provider =>
     new EmbeddedTemplateProvider(provider.GetRequiredService<IOptions<NotificationOptions>>().Value.DefaultLocale));
 builder.Services.AddSingleton<ISmtpTransport, MailKitSmtpTransport>();
 builder.Services.AddSingleton<INotificationChannel, SmtpEmailChannel>();
@@ -268,26 +268,26 @@ builder.Services.AddScoped<PlayerReminderRunner>();
 builder.Services.AddHostedService<PlayerReminderHostedService>();
 builder.Services.AddScoped<BirthdayGiftRunner>();
 builder.Services.AddHostedService<BirthdayGiftHostedService>();
-builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
-builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPreferenceService>();
+builder.Services.AddScoped<EfNotificationOutbox>();
+builder.Services.AddScoped<EfNotificationPreferenceService>();
 builder.Services.AddScoped<NotificationDispatchRunner>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<IStaffPasswordResetService, EfStaffPasswordResetService>();
+builder.Services.AddScoped<EfStaffPasswordResetService>();
 builder.Services.Configure<PhoneOtpOptions>(
     builder.Configuration.GetSection(PhoneOtpOptions.SectionName));
-builder.Services.AddSingleton<IPhoneOtpHasher, Sha256PhoneOtpHasher>();
+builder.Services.AddSingleton<Sha256PhoneOtpHasher>();
 builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
-builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
-builder.Services.AddScoped<IPlayerPhoneVerificationService, EfPlayerPhoneVerificationService>();
+builder.Services.AddScoped<EfStaffPhoneVerificationService>();
+builder.Services.AddScoped<EfPlayerPhoneVerificationService>();
 builder.Services.AddScoped<PhoneKeyedOtpStore>();
-builder.Services.AddScoped<IPlatformRegistrationService, EfPlatformRegistrationService>();
-builder.Services.AddScoped<IStaffPhonePasswordResetService, EfStaffPhonePasswordResetService>();
-builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
+builder.Services.AddScoped<EfPlatformRegistrationService>();
+builder.Services.AddScoped<EfStaffPhonePasswordResetService>();
+builder.Services.AddScoped<EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.Configure<AFK4.Platform.Api.Reports.BusinessDayOptions>(builder.Configuration.GetSection("BusinessDay"));
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection(OutboxOptions.ConfigurationSection));
-builder.Services.AddScoped<IBillingOutbox, EfBillingOutbox>();
+builder.Services.AddScoped<EfBillingOutbox>();
 builder.Services.AddScoped<IOutboxMessageHandler, SessionCheckoutOutboxHandler>();
 builder.Services.AddScoped<OutboxDispatchRunner>();
 builder.Services.AddHostedService<OutboxDispatcher>();
@@ -305,28 +305,27 @@ builder.Services.AddSingleton<PlatformJobIntervalCatalog>();
 builder.Services.AddHostedService<PlatformHealthWatchJob>();
 builder.Services.Configure<PlatformAnalyticsOptions>(
     builder.Configuration.GetSection(PlatformAnalyticsOptions.ConfigurationSection));
-builder.Services.AddScoped<ISubscriptionSnapshotRunner, EfSubscriptionSnapshotRunner>();
+builder.Services.AddScoped<EfSubscriptionSnapshotRunner>();
 builder.Services.AddHostedService<SubscriptionSnapshotJob>();
-builder.Services.AddScoped<IBranchSnapshotRunner, EfBranchSnapshotRunner>();
+builder.Services.AddScoped<EfBranchSnapshotRunner>();
 builder.Services.AddHostedService<BranchSnapshotJob>();
-builder.Services.AddScoped<IPlatformHealthOverviewService, EfPlatformHealthOverviewService>();
-builder.Services.AddScoped<IPlatformAnalyticsService, EfPlatformAnalyticsService>();
-builder.Services.AddScoped<IBranchDynamicsService, EfBranchDynamicsService>();
-builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
-builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();
-builder.Services.AddScoped<IPlanLimitGuard, EfPlanLimitGuard>();
+builder.Services.AddScoped<EfPlatformHealthOverviewService>();
+builder.Services.AddScoped<EfPlatformAnalyticsService>();
+builder.Services.AddScoped<EfBranchDynamicsService>();
+builder.Services.AddScoped<EfOperatorConnectionResolver>();
+builder.Services.AddScoped<EfOrganizationStatusGuard>();
+builder.Services.AddScoped<EfPlanLimitGuard>();
 builder.Services.AddScoped<IOrganizationEntitlements, EfOrganizationEntitlements>();
 builder.Services.AddMemoryCache();
-builder.Services.AddScoped<IOrganizationFeatureSnapshot, CachedOrganizationFeatures>();
-builder.Services.AddScoped<IBranchResolver, BranchResolver>();
+builder.Services.AddScoped<CachedOrganizationFeatures>();
+builder.Services.AddScoped<BranchResolver>();
 builder.Services.AddScoped<IAuditRecordStager, AuditRecordStager>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
-builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
+builder.Services.AddScoped<EfAuditSearchService>();
 builder.Services.AddSingleton(new BranchDiagnosticsOptions());
-builder.Services.AddScoped<IBranchDiagnosticsService, EfBranchDiagnosticsService>();
-builder.Services.AddScoped<IShiftDiscrepancyNotifier, EfShiftDiscrepancyNotifier>();
+builder.Services.AddScoped<EfBranchDiagnosticsService>();
+builder.Services.AddScoped<EfShiftDiscrepancyNotifier>();
 builder.Services.AddScoped<EfShiftService>();
-builder.Services.AddScoped<IShiftService>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<ILowStockNotifier, EfLowStockNotifier>();
 builder.Services.AddScoped<IInventoryService, EfInventoryService>();
@@ -337,11 +336,11 @@ builder.Services.AddScoped<IShopPosSettlementService, EfShopPosSettlementService
 builder.Services.AddScoped<AFK4.Platform.Api.Commerce.IShopCommerceCoordinator, AFK4.Platform.Api.Commerce.EfShopCommerceCoordinator>();
 builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.AddScoped<IReportService, EfReportService>();
-builder.Services.AddScoped<IOrganizationAdminReportService, OrganizationAdminReportService>();
-builder.Services.AddScoped<IReportScheduleService, EfReportScheduleService>();
-builder.Services.AddScoped<IOperatorDashboardService, EfOperatorDashboardService>();
-builder.Services.AddScoped<IBranchBookingSettingsService, EfBranchBookingSettingsService>();
-builder.Services.AddScoped<IReservationService, EfReservationService>();
+builder.Services.AddScoped<OrganizationAdminReportService>();
+builder.Services.AddScoped<EfReportScheduleService>();
+builder.Services.AddScoped<EfOperatorDashboardService>();
+builder.Services.AddScoped<EfBranchBookingSettingsService>();
+builder.Services.AddScoped<EfReservationService>();
 builder.Services.AddScoped<IReservationSessionCoordinator, EfReservationSessionCoordinator>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
 builder.Services.Configure<HeartbeatOptions>(builder.Configuration.GetSection(HeartbeatOptions.ConfigurationSection));
@@ -349,12 +348,11 @@ builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
 builder.Services.AddScoped<ISessionLifecycleNotifier, SignalRSessionLifecycleNotifier>();
 builder.Services.AddScoped<IReservationChangeNotifier, SignalRReservationChangeNotifier>();
-builder.Services.AddScoped<IShopOrderService, EfShopOrderService>();
 builder.Services.AddScoped<IShopOrderWorkflow, EfShopOrderWorkflow>();
 builder.Services.AddScoped<IShopOrderNotifier, SignalRShopOrderNotifier>();
 builder.Services.AddScoped<ISessionStartWorkflow, EfSessionStartWorkflow>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
-builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
+builder.Services.AddScoped<EfSessionCheckoutService>();
 builder.Services.AddSingleton(new AutoProtectionOptions());
 builder.Services.AddSingleton(new ReservationNoShowOptions());
 builder.Services.AddScoped<ReservationNoShowRunner>();
@@ -364,30 +362,30 @@ builder.Services.AddSingleton(new DeviceMaintenanceExpiryOptions());
 builder.Services.AddScoped<DeviceMaintenanceExpiryRunner>();
 builder.Services.AddSingleton(new ReputationSnapshotOptions());
 builder.Services.AddScoped<ReputationSnapshotRunner>();
-builder.Services.AddScoped<IPlayerReputationService, EfPlayerReputationService>();
+builder.Services.AddScoped<EfPlayerReputationService>();
 builder.Services.AddScoped<AutoProtectionRunner>();
-builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
-builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
+builder.Services.AddScoped<EfSessionCommandResultProcessor>();
+builder.Services.AddScoped<EfBillingCommandService>();
 builder.Services.AddScoped<IWalletSettlementService, EfWalletSettlementService>();
 builder.Services.AddScoped<ILoyaltyAccrualService, LoyaltyAccrualService>();
-builder.Services.AddScoped<IReferralService, ReferralService>();
-builder.Services.AddScoped<INewsService, EfNewsService>();
-builder.Services.AddScoped<ITournamentService, EfTournamentService>();
-builder.Services.AddScoped<IFriendService, EfFriendService>();
+builder.Services.AddScoped<ReferralService>();
+builder.Services.AddScoped<EfNewsService>();
+builder.Services.AddScoped<EfTournamentService>();
+builder.Services.AddScoped<EfFriendService>();
 builder.Services.AddScoped<IMoneyActionPolicyResolver, EfMoneyActionPolicyResolver>();
 builder.Services.AddScoped<IMoneyActionExecutor, EfMoneyActionExecutor>();
-builder.Services.AddScoped<IMoneyActionApprovalService, MoneyActionApprovalService>();
-builder.Services.AddScoped<ITariffService, EfTariffService>();
-builder.Services.AddScoped<IPackageService, EfPackageService>();
+builder.Services.AddScoped<MoneyActionApprovalService>();
+builder.Services.AddScoped<EfTariffService>();
+builder.Services.AddScoped<EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
-builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
-builder.Services.AddScoped<IBranchSearchService, EfBranchSearchService>();
-builder.Services.AddScoped<IUpdateService, EfUpdateService>();
-builder.Services.AddScoped<IPlatformUpdateReleaseService, EfPlatformUpdateReleaseService>();
+builder.Services.AddScoped<EfOperatorReferenceDataService>();
+builder.Services.AddScoped<EfBranchSearchService>();
+builder.Services.AddScoped<EfUpdateService>();
+builder.Services.AddScoped<EfPlatformUpdateReleaseService>();
 
 builder.Services.Configure<SecretProtectionOptions>(
     builder.Configuration.GetSection(SecretProtectionOptions.SectionName));
-builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
+builder.Services.AddSingleton<AesGcmSecretProtector>();
 
 var mediaSection = builder.Configuration.GetSection(MediaOptions.SectionName);
 builder.Services.Configure<MediaOptions>(mediaSection);
@@ -397,7 +395,7 @@ builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
 // Две картинки на игру по очереди — пять секунд на каждую: сохранение игры не ждёт Steam по 20 с.
 builder.Services.AddHttpClient(SteamCdnCoverSource.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(5));
 builder.Services.AddSingleton<ISteamCoverSource, SteamCdnCoverSource>();
-builder.Services.AddScoped<IMediaService, EfMediaService>();
+builder.Services.AddScoped<EfMediaService>();
 builder.Services.AddScoped<OrphanMediaSweeper>();
 builder.Services.AddHostedService<OrphanMediaSweepHostedService>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
@@ -582,7 +580,7 @@ if (migrateAndExit || app.Configuration.GetValue<bool>("Database:ApplyMigrations
 
 // Fail fast at startup if any registered notification template key is missing its file (§8),
 // rather than discovering it when a send is attempted at runtime.
-app.Services.GetRequiredService<ITemplateProvider>().EnsureKeysPresent(NotificationTemplateKeys.All);
+app.Services.GetRequiredService<EmbeddedTemplateProvider>().EnsureKeysPresent(NotificationTemplateKeys.All);
 
 // Single UseCors call so the CORS middleware emits Access-Control-Allow-*
 // headers on preflight OPTIONS as well as the mainline request. The combined
@@ -599,7 +597,7 @@ app.Use(async (httpContext, next) =>
         HttpMethods.IsPost(httpContext.Request.Method))
     {
         var sourceIp = GetSourceIp(httpContext);
-        var throttle = httpContext.RequestServices.GetRequiredService<IInstallRequestThrottle>();
+        var throttle = httpContext.RequestServices.GetRequiredService<InMemoryInstallRequestThrottle>();
         var decision = await throttle.ApplyAsync(sourceIp, httpContext.RequestAborted);
         if (decision.IsRejected)
         {

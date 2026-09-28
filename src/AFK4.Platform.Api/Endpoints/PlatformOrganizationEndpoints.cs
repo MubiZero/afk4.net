@@ -19,7 +19,7 @@ internal static class PlatformOrganizationEndpoints
     {
         app.MapPost("/api/platform/auth/sign-in", async (
             PlatformAdminSignInRequest request,
-            IPlatformAdminCredentialService credentialService,
+            PasswordHashingPlatformAdminCredentialService credentialService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -57,7 +57,7 @@ internal static class PlatformOrganizationEndpoints
 
         app.MapPost("/api/platform/auth/refresh", async (
             PlatformAdminRefreshTokenRequest request,
-            IPlatformAdminTokenService tokenService,
+            OpaquePlatformAdminTokenService tokenService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -82,7 +82,7 @@ internal static class PlatformOrganizationEndpoints
 
         app.MapPost("/api/platform/auth/sign-out", async (
             PlatformAdminSignOutRequest request,
-            IPlatformAdminTokenService tokenService,
+            OpaquePlatformAdminTokenService tokenService,
             PlatformAdminAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
@@ -114,8 +114,8 @@ internal static class PlatformOrganizationEndpoints
             CreateOrganizationRequest request,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
-            IPlatformIdempotencyStore idempotencyStore,
+            EfPlatformOrganizationService organizationService,
+            EfPlatformIdempotencyStore idempotencyStore,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -231,7 +231,7 @@ internal static class PlatformOrganizationEndpoints
 
         app.MapGet("/api/platform/organizations", async (
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -275,7 +275,7 @@ internal static class PlatformOrganizationEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -334,8 +334,8 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationId,
             int? limit,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
-            IAuditSearchService auditSearchService,
+            EfPlatformOrganizationService organizationService,
+            EfAuditSearchService auditSearchService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -374,7 +374,7 @@ internal static class PlatformOrganizationEndpoints
         app.MapGet("/api/platform/organizations/{organizationId:guid}/organization-owner-invitations", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -440,7 +440,7 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationId,
             CreateOrganizationOwnerInviteRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -515,7 +515,7 @@ internal static class PlatformOrganizationEndpoints
         app.MapPost("/api/platform/organization-owner-invitations/{organizationOwnerInviteId:guid}/resend", async (
             Guid organizationOwnerInviteId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
@@ -587,7 +587,7 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationOwnerInviteId,
             RevokeOrganizationOwnerInviteRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
@@ -663,7 +663,7 @@ internal static class PlatformOrganizationEndpoints
 
         app.MapPost("/api/account-activation/organization-owner", async (
             AcceptOrganizationOwnerInviteRequest request,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -707,7 +707,7 @@ internal static class PlatformOrganizationEndpoints
 
         app.MapPost("/api/operator-connections/resolve", async (
             ResolveOperatorConnectionRequest request,
-            IOperatorConnectionResolver resolver,
+            EfOperatorConnectionResolver resolver,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -765,7 +765,7 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationId,
             UpdateOrganizationStatusRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
@@ -849,7 +849,7 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationId,
             UpdateOrganizationProfileRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
@@ -931,7 +931,7 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationId,
             UpdateOrganizationLimitsRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -1009,7 +1009,7 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationId,
             UpdateOrganizationUpdateChannelRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -1084,7 +1084,7 @@ internal static class PlatformOrganizationEndpoints
             Guid organizationId,
             TransferOrganizationOwnerRequest request,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformOrganizationService organizationService,
+            EfPlatformOrganizationService organizationService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {

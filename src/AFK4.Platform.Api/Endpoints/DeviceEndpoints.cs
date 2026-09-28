@@ -111,7 +111,7 @@ internal static class DeviceEndpoints
 
         organizations.MapPost("install/auth/discover", async (
             StaffAuthorizationService authorizationService,
-            IInstallService installService,
+            EfInstallService installService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -144,7 +144,7 @@ internal static class DeviceEndpoints
             AuthenticatedInstallCreateSeatRequest request,
             HttpContext httpContext,
             StaffAuthorizationService authorizationService,
-            IInstallService installService,
+            EfInstallService installService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -188,7 +188,7 @@ internal static class DeviceEndpoints
             AuthenticatedInstallEnrollRequest request,
             HttpContext httpContext,
             StaffAuthorizationService authorizationService,
-            IInstallService installService,
+            EfInstallService installService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -256,7 +256,7 @@ internal static class DeviceEndpoints
         app.MapPost("/api/devices/enroll", async (
             DeviceEnrollmentRequest request,
             IDeviceEnrollmentService enrollmentService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
@@ -281,7 +281,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceHeartbeatService heartbeatService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -322,7 +322,7 @@ internal static class DeviceEndpoints
             SelfRotateDeviceCredentialRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -372,9 +372,9 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceCommandStore commandStore,
-            ISessionCommandResultProcessor sessionCommandResultProcessor,
+            EfSessionCommandResultProcessor sessionCommandResultProcessor,
             IHubContext<DeviceHub> hubContext,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != result.DeviceId)
@@ -415,7 +415,7 @@ internal static class DeviceEndpoints
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceCommandDispatchService commandDispatchService,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -536,7 +536,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -609,7 +609,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -727,8 +727,8 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
-            IDevicePlayerSignInService signInService,
+            EfOrganizationStatusGuard organizationStatusGuard,
+            DevicePlayerSignInService signInService,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -785,7 +785,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            IOrganizationStatusGuard organizationStatusGuard,
+            EfOrganizationStatusGuard organizationStatusGuard,
             PlayerSignInClaimService claims,
             CancellationToken cancellationToken) =>
         {
@@ -1151,7 +1151,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1316,7 +1316,7 @@ internal static class DeviceEndpoints
             IHubContext<DeviceHub> hubContext,
             TimeProvider timeProvider,
             IOptions<BranchDiagnosticsOptions> diagnosticsOptions,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             CancellationToken cancellationToken) =>
         {
             var scope = await LoadDeviceMutationScopeAsync(
@@ -1397,7 +1397,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -1573,7 +1573,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             IDeviceCommandDispatchService commandDispatchService,
             IDeviceCommandStore commandStore,
-            IDeviceBoundPlayerTokens deviceTokens,
+            EfDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -1939,7 +1939,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -2015,7 +2015,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -2084,7 +2084,7 @@ internal static class DeviceEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IDeviceCredentialLifecycleService credentialLifecycleService,
+            EfDeviceCredentialLifecycleService credentialLifecycleService,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)

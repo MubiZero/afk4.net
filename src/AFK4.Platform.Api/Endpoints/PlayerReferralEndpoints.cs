@@ -18,8 +18,8 @@ internal static class PlayerReferralEndpoints
     public static void MapPlayerReferralEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/referral", async (
-            IPlayerContextAccessor playerContextAccessor,
-            IReferralService referralService,
+            PlayerContextAccessor playerContextAccessor,
+            ReferralService referralService,
             PlatformDbContext dbContext,
             CancellationToken ct) =>
         {
@@ -78,8 +78,8 @@ internal static class PlayerReferralEndpoints
 
         app.MapPost("/api/me/referral/claim", async (
             ClaimReferralCodeRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IReferralService referralService,
+            PlayerContextAccessor playerContextAccessor,
+            ReferralService referralService,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;

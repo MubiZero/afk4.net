@@ -34,7 +34,7 @@ internal static class PlayerSelfServiceEndpoints
     public static void MapPlayerSelfServiceEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/profile", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -56,7 +56,7 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapPatch("/api/me/profile", async (
             UpdatePlayerProfileRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -99,8 +99,8 @@ internal static class PlayerSelfServiceEndpoints
         // клуба, у которого такой возможности тоже не было.
         app.MapPost("/api/me/phone/start-verification", async (
             PlayerPhoneStartVerificationRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlayerPhoneVerificationService verificationService,
+            PlayerContextAccessor playerContextAccessor,
+            EfPlayerPhoneVerificationService verificationService,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -130,8 +130,8 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapPost("/api/me/phone/confirm", async (
             PlayerPhoneConfirmRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlayerPhoneVerificationService verificationService,
+            PlayerContextAccessor playerContextAccessor,
+            EfPlayerPhoneVerificationService verificationService,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -162,7 +162,7 @@ internal static class PlayerSelfServiceEndpoints
         }).RequireRateLimiting("player-me");
 
         app.MapGet("/api/me/dashboard", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -187,7 +187,7 @@ internal static class PlayerSelfServiceEndpoints
             // У стойки свой край и своё имя — переучивать надо кого-то одного, и это не игрок.
             string? cursor,
             int? limit,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -204,7 +204,7 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapGet("/api/me/visits", async (
             string? cursor,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -221,7 +221,7 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapGet("/api/me/visits/{sessionId:guid}/receipt", async (
             Guid sessionId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -238,7 +238,7 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapGet("/api/me/purchases", async (
             string? cursor,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -255,9 +255,9 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapPost("/api/me/wallet/top-up-intent", async (
             PlayerTopUpIntentRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IPlayerClubMembershipService clubMembership,
+            PlayerContextAccessor playerContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfPlayerClubMembershipService clubMembership,
             AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
             IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
@@ -422,7 +422,7 @@ internal static class PlayerSelfServiceEndpoints
         // Чем клуб принимает деньги. Спрашивается до того, как человек выбрал способ: кнопка,
         // которая откажет, хуже отсутствующей кнопки.
         app.MapGet("/api/me/wallet/top-up-methods", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IOrganizationEntitlements entitlements,
             AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
             PlatformDbContext dbContext,
@@ -457,9 +457,9 @@ internal static class PlayerSelfServiceEndpoints
         // иначе сумма возникала бы из ниоткуда.
         app.MapPost("/api/me/wallet/debt-payment", async (
             PlayerDebtPaymentRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -500,7 +500,7 @@ internal static class PlayerSelfServiceEndpoints
         }).RequireRateLimiting("player-me");
 
         app.MapGet("/api/me/wallet/top-up-intents", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -538,7 +538,7 @@ internal static class PlayerSelfServiceEndpoints
         // можно только условным UPDATE, которого не поддерживает провайдер в тестах.
         app.MapDelete("/api/me/wallet/top-up-intents/{intentId:guid}", async (
             Guid intentId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -589,9 +589,9 @@ internal static class PlayerSelfServiceEndpoints
         // that test fails on purpose if this route grows a gate later.
         app.MapPost("/api/me/wallet/top-up-intents/{intentId:guid}/eskhata-status", async (
             Guid intentId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -673,10 +673,10 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapPost("/api/me/reservations", async (
             CreatePlayerReservationRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IPlayerClubMembershipService clubMembership,
-            IReservationService reservationService,
+            PlayerContextAccessor playerContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfPlayerClubMembershipService clubMembership,
+            EfReservationService reservationService,
             IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
@@ -773,10 +773,10 @@ internal static class PlayerSelfServiceEndpoints
         // а не список, — конкретную машину игроку в приложении не выбирают, её назначает клуб.
         app.MapPost("/api/me/reservations/group", async (
             CreatePlayerReservationGroupRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IPlayerClubMembershipService clubMembership,
-            IReservationService reservationService,
+            PlayerContextAccessor playerContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfPlayerClubMembershipService clubMembership,
+            EfReservationService reservationService,
             IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
@@ -879,8 +879,8 @@ internal static class PlayerSelfServiceEndpoints
         // шанса оборваться на полпути, оставив часть денег замороженной.
         app.MapDelete("/api/me/reservations/group/{reservationGroupId:guid}", async (
             Guid reservationGroupId,
-            IPlayerContextAccessor playerContextAccessor,
-            IReservationService reservationService,
+            PlayerContextAccessor playerContextAccessor,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -906,7 +906,7 @@ internal static class PlayerSelfServiceEndpoints
         }).RequireRateLimiting("player-me").WorksWhenNetworkBanned();
 
         app.MapGet("/api/me/reservations", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -1001,8 +1001,8 @@ internal static class PlayerSelfServiceEndpoints
         app.MapPatch("/api/me/reservations/{reservationId:guid}", async (
             Guid reservationId,
             MovePlayerReservationRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IReservationService reservationService,
+            PlayerContextAccessor playerContextAccessor,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -1041,8 +1041,8 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapDelete("/api/me/reservations/{reservationId:guid}", async (
             Guid reservationId,
-            IPlayerContextAccessor playerContextAccessor,
-            IReservationService reservationService,
+            PlayerContextAccessor playerContextAccessor,
+            EfReservationService reservationService,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -1071,9 +1071,9 @@ internal static class PlayerSelfServiceEndpoints
 
         app.MapPost("/api/me/sessions/start", async (
             PlayerSelfStartRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IPlayerClubMembershipService clubMembership,
+            PlayerContextAccessor playerContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfPlayerClubMembershipService clubMembership,
             PlatformDbContext dbContext,
             ISessionCommandService sessionCommandService,
             EfSeatingCodeService seatingCodes,
@@ -1208,7 +1208,7 @@ internal static class PlayerSelfServiceEndpoints
         // Чем продлить идущую сессию — по тарифу, на котором она началась, с готовыми суммами.
         app.MapGet("/api/me/sessions/{sessionId:guid}/extend-offers", async (
             Guid sessionId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -1262,9 +1262,9 @@ internal static class PlayerSelfServiceEndpoints
         // заявку ключом устройства; номер и ПИН-код у машины не набираются вовсе.
         app.MapPost("/api/me/devices/sign-in-claims", async (
             CreatePlayerSignInClaimRequest request,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IPlayerClubMembershipService clubMembership,
+            PlayerContextAccessor playerContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfPlayerClubMembershipService clubMembership,
             PlatformDbContext dbContext,
             EfSeatingCodeService seatingCodes,
             SeatingCodeAttemptGuard attemptGuard,
@@ -1368,8 +1368,8 @@ internal static class PlayerSelfServiceEndpoints
         // Что стало с заявкой: приложение показывает «Вы вошли на ПК 07», когда ПК её забрал.
         app.MapGet("/api/me/devices/sign-in-claims/{claimId:guid}", async (
             Guid claimId,
-            IPlayerContextAccessor playerContextAccessor,
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlayerSignInClaimService claims,
             CancellationToken cancellationToken) =>
         {
@@ -1384,7 +1384,7 @@ internal static class PlayerSelfServiceEndpoints
         app.MapPost("/api/me/sessions/{sessionId:guid}/extend", async (
             Guid sessionId,
             PlayerSelfExtendRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             ISessionCommandService sessionCommandService,
             TimeProvider timeProvider,
@@ -1458,7 +1458,7 @@ internal static class PlayerSelfServiceEndpoints
         app.MapPost("/api/me/sessions/{sessionId:guid}/end", async (
             Guid sessionId,
             PlayerSelfEndSessionRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             ISessionCommandService sessionCommandService,
             CancellationToken cancellationToken) =>
@@ -1506,7 +1506,7 @@ internal static class PlayerSelfServiceEndpoints
         // другую.
         app.MapGet("/api/me/sessions/{sessionId:guid}/end-quote", async (
             Guid sessionId,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -1535,12 +1535,12 @@ internal static class PlayerSelfServiceEndpoints
 
     private static async Task<IResult> StartOffersAsync(
         string? seatingCode,
-        IPlayerContextAccessor playerContextAccessor,
-        IPlatformPersonContextAccessor personContextAccessor,
+        PlayerContextAccessor playerContextAccessor,
+        PlatformPersonContextAccessor personContextAccessor,
         PlatformDbContext dbContext,
         EfSeatingCodeService seatingCodes,
         SeatingCodeAttemptGuard attemptGuard,
-        IOperatorReferenceDataService referenceData,
+        EfOperatorReferenceDataService referenceData,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
@@ -1625,8 +1625,8 @@ internal static class PlayerSelfServiceEndpoints
     private static async Task<(Guid DeviceId, IResult? Refusal)> ResolveSeatDeviceAsync(
         string? seatingCode,
         Guid organizationId,
-        IPlayerContextAccessor playerContextAccessor,
-        IPlatformPersonContextAccessor personContextAccessor,
+        PlayerContextAccessor playerContextAccessor,
+        PlatformPersonContextAccessor personContextAccessor,
         EfSeatingCodeService seatingCodes,
         SeatingCodeAttemptGuard attemptGuard,
         CancellationToken cancellationToken)
@@ -1675,8 +1675,8 @@ internal static class PlayerSelfServiceEndpoints
     /// Счёт попыток ввода кода ведётся на личность, а у старого клубного входа — на карточку.
     /// </summary>
     private static Guid? SeatingCodeAttemptScopeId(
-        IPlayerContextAccessor playerContextAccessor,
-        IPlatformPersonContextAccessor personContextAccessor) =>
+        PlayerContextAccessor playerContextAccessor,
+        PlatformPersonContextAccessor personContextAccessor) =>
         personContextAccessor.Current?.PlatformPersonId
             ?? playerContextAccessor.Current?.PlatformPersonId
             ?? playerContextAccessor.Current?.PlayerAccountId;
@@ -1733,9 +1733,9 @@ internal static class PlayerSelfServiceEndpoints
     }
 
     private static async Task<IResult?> OpenClubAccountIfNeededAsync(
-        IPlayerContextAccessor playerContextAccessor,
-        IPlatformPersonContextAccessor personContextAccessor,
-        IPlayerClubMembershipService clubMembership,
+        PlayerContextAccessor playerContextAccessor,
+        PlatformPersonContextAccessor personContextAccessor,
+        EfPlayerClubMembershipService clubMembership,
         Guid? branchId,
         CancellationToken cancellationToken)
     {

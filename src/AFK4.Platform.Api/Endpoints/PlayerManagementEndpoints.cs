@@ -21,7 +21,7 @@ internal static class PlayerManagementEndpoints
             CreatePlayerAccountRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -88,7 +88,7 @@ internal static class PlayerManagementEndpoints
             UpdatePlayerAccountRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -156,7 +156,7 @@ internal static class PlayerManagementEndpoints
             SetPlayerActiveStateRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             CancellationToken cancellationToken) =>
         {
             var auditAction = request.IsActive
@@ -229,7 +229,7 @@ internal static class PlayerManagementEndpoints
             bool? includeInactive,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IOperatorReferenceDataService referenceDataService,
+            EfOperatorReferenceDataService referenceDataService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -282,7 +282,7 @@ internal static class PlayerManagementEndpoints
             Guid platformPersonId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPlayerReputationService reputationService,
+            EfPlayerReputationService reputationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -322,7 +322,7 @@ internal static class PlayerManagementEndpoints
             PlayerReputationLookupRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPlayerReputationService reputationService,
+            EfPlayerReputationService reputationService,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -458,7 +458,7 @@ internal static class PlayerManagementEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             CancellationToken cancellationToken) =>
         {
             var player = await LoadPlayerScopedEndpointAsync(
@@ -537,7 +537,7 @@ internal static class PlayerManagementEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             IMoneyActionPolicyResolver moneyActionPolicyResolver,
             CancellationToken cancellationToken) =>
         {
@@ -653,7 +653,7 @@ internal static class PlayerManagementEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IBillingCommandService billingCommandService,
+            EfBillingCommandService billingCommandService,
             IMoneyActionPolicyResolver moneyActionPolicyResolver,
             CancellationToken cancellationToken) =>
         {

@@ -10,9 +10,9 @@ internal static class PlayerNewsEndpoints
     public static void MapPlayerNewsEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/news", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext db,
-            INewsService news,
+            EfNewsService news,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;

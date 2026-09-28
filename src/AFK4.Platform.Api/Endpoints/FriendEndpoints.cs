@@ -13,8 +13,8 @@ internal static class FriendEndpoints
     public static void MapFriendEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/friends", async (
-            IPlatformPersonContextAccessor personContextAccessor,
-            IFriendService friends,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfFriendService friends,
             CancellationToken ct) =>
         {
             var person = personContextAccessor.Current;
@@ -25,8 +25,8 @@ internal static class FriendEndpoints
 
         app.MapPost("/api/me/friends/requests", async (
             SendFriendRequestRequest request,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IFriendService friends,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfFriendService friends,
             CancellationToken ct) =>
         {
             var person = personContextAccessor.Current;
@@ -42,8 +42,8 @@ internal static class FriendEndpoints
 
         app.MapPost("/api/me/friends/requests/{friendRequestId:guid}/accept", async (
             Guid friendRequestId,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IFriendService friends,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfFriendService friends,
             CancellationToken ct) =>
         {
             var person = personContextAccessor.Current;
@@ -57,8 +57,8 @@ internal static class FriendEndpoints
 
         app.MapPost("/api/me/friends/requests/{friendRequestId:guid}/decline", async (
             Guid friendRequestId,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IFriendService friends,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfFriendService friends,
             CancellationToken ct) =>
         {
             var person = personContextAccessor.Current;
@@ -72,8 +72,8 @@ internal static class FriendEndpoints
 
         app.MapDelete("/api/me/friends/{friendPersonId:guid}", async (
             Guid friendPersonId,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IFriendService friends,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfFriendService friends,
             CancellationToken ct) =>
         {
             var person = personContextAccessor.Current;
@@ -90,8 +90,8 @@ internal static class FriendEndpoints
         // одного ответа на вопрос «видно ли меня».
         app.MapPatch("/api/me/friends/presence", async (
             UpdatePresenceVisibilityRequest request,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IFriendService friends,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfFriendService friends,
             CancellationToken ct) =>
         {
             var person = personContextAccessor.Current;
