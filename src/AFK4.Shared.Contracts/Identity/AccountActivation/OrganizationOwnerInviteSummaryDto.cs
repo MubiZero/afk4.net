@@ -8,6 +8,7 @@ public sealed record OrganizationOwnerInviteSummaryDto(
     string Status,
     string? OwnerUserName,
     string? OwnerDisplayName,
+    bool HasEmail,
     DateTimeOffset ExpiresAtUtc,
     DateTimeOffset? AcceptedAtUtc,
     DateTimeOffset? RevokedAtUtc,

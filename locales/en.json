@@ -3917,6 +3917,8 @@
   "platform.error.invoiceNumberingConflict": "A parallel request took the invoice number. Retry — the next number will be used.",
   "platform.error.invoicePeriodAlreadyBilled": "An invoice for the current period already exists. The next one appears when the new period starts.",
   "platform.error.organizationSlugTaken": "That organization address is already taken. Pick another one.",
+  "platform.error.ownerInviteExpired": "This invite has expired. Send a new one.",
+  "platform.error.ownerInviteNoEmail": "This invite has no email address on file — there's nowhere to send it.",
   "platform.error.ownerUserNameTaken": "That owner login is already taken in this organization.",
   "platform.error.paidInvoiceCannotBeVoided": "A paid invoice is not voided — issue a credit note against it instead.",
   "platform.error.subscriptionGrace": "A grace period must be in the future: a past date defers nothing.",
