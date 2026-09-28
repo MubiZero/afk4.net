@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 namespace AFK4.Platform.Api.Identity;
 
 public sealed class OpaquePlayerTokenService(PlatformDbContext dbContext, TimeProvider timeProvider)
-    : IPlayerTokenService
 {
     // Shorter access lifetime than staff (8h) — customer devices are less trusted.
     private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(1);

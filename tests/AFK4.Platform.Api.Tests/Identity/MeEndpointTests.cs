@@ -164,7 +164,7 @@ public sealed class MeEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var service = scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>();
+        var service = scope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>();
         var person = await db.PlatformPersons.SingleAsync(
             candidate => candidate.PlatformPersonId == platformPersonId);
         var account = await db.PlayerAccounts.SingleAsync(

@@ -4,7 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Install;
 
-public sealed class EfInstallCodeService(PlatformDbContext dbContext, TimeProvider timeProvider) : IInstallCodeService
+/// <summary>Коды установки филиала в Панели: выдать, показать действующие, отозвать.</summary>
+public sealed class EfInstallCodeService(PlatformDbContext dbContext, TimeProvider timeProvider)
 {
     public async Task<InstallOperationResult<InstallCodeDto>> CreateAsync(
         Guid organizationId,
@@ -58,6 +59,7 @@ public sealed class EfInstallCodeService(PlatformDbContext dbContext, TimeProvid
         return InstallOperationResult<InstallCodeDto>.Success(ToDto(entity, code), organizationId, branchId, staffUserId);
     }
 
+    /// <summary>Действующие: не истекли и не исчерпаны. Самого кода в них нет.</summary>
     public async Task<IReadOnlyList<InstallCodeDto>> ListActiveAsync(
         Guid organizationId,
         Guid branchId,

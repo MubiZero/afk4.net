@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace AFK4.Platform.Api.Install;
 
-public sealed class InMemoryInstallRequestThrottle(TimeProvider timeProvider) : IInstallRequestThrottle
+public sealed class InMemoryInstallRequestThrottle(TimeProvider timeProvider)
 {
     private static readonly TimeSpan Window = TimeSpan.FromSeconds(60);
     private readonly ConcurrentDictionary<string, RequestWindow> windows = new(StringComparer.Ordinal);

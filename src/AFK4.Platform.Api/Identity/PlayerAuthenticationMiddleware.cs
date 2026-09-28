@@ -28,11 +28,11 @@ public sealed class PlayerAuthenticationMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(
         HttpContext httpContext,
-        IPlayerTokenService tokenService,
-        IPlatformPersonTokenService personTokenService,
-        IPlayerClubAccountResolver clubAccountResolver,
-        IPlayerContextAccessor playerContextAccessor,
-        IPlatformPersonContextAccessor personContextAccessor)
+        OpaquePlayerTokenService tokenService,
+        OpaquePlatformPersonTokenService personTokenService,
+        EfPlayerClubAccountResolver clubAccountResolver,
+        PlayerContextAccessor playerContextAccessor,
+        PlatformPersonContextAccessor personContextAccessor)
     {
         // Игрока опознаём только на его крае; на маршрутах сотрудников и платформы — никогда.
         if (!httpContext.Request.Path.StartsWithSegments(PersonScopePath, StringComparison.OrdinalIgnoreCase))

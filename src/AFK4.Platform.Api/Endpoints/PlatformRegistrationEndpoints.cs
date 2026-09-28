@@ -14,7 +14,7 @@ internal static class PlatformRegistrationEndpoints
     {
         app.MapPost("/api/public/register/start", async (
             RegistrationStartRequest request,
-            IPlatformRegistrationService registrationService,
+            EfPlatformRegistrationService registrationService,
             CancellationToken cancellationToken) =>
         {
             var result = await registrationService.StartAsync(request.PhoneNumber, cancellationToken);
@@ -30,7 +30,7 @@ internal static class PlatformRegistrationEndpoints
 
         app.MapPost("/api/public/register/confirm", async (
             RegistrationConfirmRequest request,
-            IPlatformRegistrationService registrationService,
+            EfPlatformRegistrationService registrationService,
             CancellationToken cancellationToken) =>
         {
             var result = await registrationService.ConfirmAsync(

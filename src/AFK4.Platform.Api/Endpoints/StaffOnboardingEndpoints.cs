@@ -16,7 +16,7 @@ internal static class StaffOnboardingEndpoints
     {
         app.MapPost("/api/auth/staff/forgot-password", async (
             StaffForgotPasswordRequest request,
-            IStaffPasswordResetService passwordResetService,
+            EfStaffPasswordResetService passwordResetService,
             CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(request.UserNameOrEmail))
@@ -31,7 +31,7 @@ internal static class StaffOnboardingEndpoints
 
         app.MapPost("/api/auth/staff/reset-password", async (
             StaffResetPasswordRequest request,
-            IStaffPasswordResetService passwordResetService,
+            EfStaffPasswordResetService passwordResetService,
             CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(request.UserNameOrEmail))
@@ -72,7 +72,7 @@ internal static class StaffOnboardingEndpoints
             Guid branchId,
             CreateStaffInviteRequest request,
             StaffAuthorizationService authorizationService,
-            IStaffInviteService staffInviteService,
+            EfStaffInviteService staffInviteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -173,7 +173,7 @@ internal static class StaffOnboardingEndpoints
         organizations.MapGet("branches/{branchId:guid}/staff/invites", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
-            IStaffInviteService staffInviteService,
+            EfStaffInviteService staffInviteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -201,7 +201,7 @@ internal static class StaffOnboardingEndpoints
             Guid branchId,
             Guid staffInviteId,
             StaffAuthorizationService authorizationService,
-            IStaffInviteService staffInviteService,
+            EfStaffInviteService staffInviteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -237,7 +237,7 @@ internal static class StaffOnboardingEndpoints
         // Сверка кода первого входа до ПИНа. Отказы — те же, что у приёма.
         app.MapPost(StaffAuthRoutes.CheckInvite, async (
             CheckStaffInviteRequest request,
-            IStaffInviteService staffInviteService,
+            EfStaffInviteService staffInviteService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -255,7 +255,7 @@ internal static class StaffOnboardingEndpoints
         // ту сторону тот же самый, и два разных языка отказов он читал бы как два разных сбоя.
         app.MapPost(StaffAuthRoutes.AcceptInvite, async (
             AcceptStaffInviteRequest request,
-            IStaffInviteService staffInviteService,
+            EfStaffInviteService staffInviteService,
             IStaffTokenService tokenService,
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext db,

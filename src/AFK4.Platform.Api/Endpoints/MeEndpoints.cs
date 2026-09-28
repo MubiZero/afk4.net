@@ -24,7 +24,7 @@ internal static class MeEndpoints
     public static void MapMeEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me", async (
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -91,7 +91,7 @@ internal static class MeEndpoints
         // Отдельного хранилища у списка нет: текст уже отрисован и лежит в той же очереди, из
         // которой уходил пуш. Показываются и недоставленные — именно они и есть та дыра.
         app.MapGet("/api/me/notifications", async (
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
@@ -153,7 +153,7 @@ internal static class MeEndpoints
         // уведомлений читают целиком, и строка «прочитано» на каждое сообщение здесь ничего бы не
         // добавила, кроме таблицы.
         app.MapPost("/api/me/notifications/read", async (
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -189,7 +189,7 @@ internal static class MeEndpoints
         // личность — имя, телефон, PIN, — и номер освобождается: иначе «удалить аккаунт» навсегда
         // забирало бы у человека его же телефон.
         app.MapDelete("/api/me", async (
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -282,7 +282,7 @@ internal static class MeEndpoints
 
         app.MapPatch("/api/me", async (
             UpdateMyProfileRequest request,
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -329,7 +329,7 @@ internal static class MeEndpoints
         // в PATCH /api/me: там имя и язык заменяются целиком, и старое приложение стирало бы дату.
         app.MapPut("/api/me/birth-date", async (
             SetBirthDateRequest request,
-            IPlatformPersonContextAccessor personContextAccessor,
+            PlatformPersonContextAccessor personContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -372,8 +372,8 @@ internal static class MeEndpoints
         // одной SMS. Старый PIN не спрашивается — именно этот маршрут и есть ответ забывшему его.
         app.MapPut("/api/me/pin", async (
             SetMyPinRequest request,
-            IPlatformPersonContextAccessor personContextAccessor,
-            IPlatformPinService pinService,
+            PlatformPersonContextAccessor personContextAccessor,
+            EfPlatformPinService pinService,
             CancellationToken cancellationToken) =>
         {
             var context = personContextAccessor.Current;

@@ -15,12 +15,12 @@ namespace AFK4.Platform.Api.Install;
 
 public sealed class EfInstallService(
     PlatformDbContext dbContext,
-    IFloorMapReadService floorMapReadService,
+    EfFloorMapReadService floorMapReadService,
     IOptions<InstallOptions> options,
     IOptions<SessionLeaseOptions> sessionLeaseOptions,
     TimeProvider timeProvider,
-    IPlanLimitGuard planLimitGuard,
-    IDeviceBoundPlayerTokens? deviceTokens = null) : IInstallService
+    EfPlanLimitGuard planLimitGuard,
+    EfDeviceBoundPlayerTokens? deviceTokens = null)
 {
     /// <summary>
     /// Сколько раз повторить установку по коду, если в ту же секунду код потратил соседний ПК.
@@ -50,6 +50,10 @@ public sealed class EfInstallService(
             cancellationToken);
     }
 
+    /// <summary>
+    /// Тихая установка: ПК предъявляет код вместо входа сотрудника. Код равен праву техника
+    /// ставить ПК в этом филиале — и не шире: только игровой ПК и только в филиал кода.
+    /// </summary>
     public async Task<InstallOperationResult<InstallCodeEnrollment>> EnrollByCodeAsync(
         InstallCodeEnrollRequest request,
         CancellationToken cancellationToken)
@@ -645,6 +649,7 @@ public sealed class EfInstallService(
             staffUserId);
     }
 
+    /// <param name="staffUserId">Кто ставит: сам себя он в списке сотрудников зала не считает.</param>
     public async Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverForStaffAsync(
         Guid organizationId,
         IReadOnlySet<Guid> branchIds,

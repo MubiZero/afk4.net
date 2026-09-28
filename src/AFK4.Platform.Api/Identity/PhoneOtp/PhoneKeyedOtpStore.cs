@@ -39,7 +39,7 @@ public sealed record PhoneOtpCheckResult(PhoneOtpCheckStatus Status, int Remaini
 /// </summary>
 public sealed class PhoneKeyedOtpStore(
     PlatformDbContext db,
-    IPhoneOtpHasher hasher,
+    Sha256PhoneOtpHasher hasher,
     IPhoneOtpGenerator generator,
     TimeProvider timeProvider,
     IOptions<PhoneOtpOptions> options)

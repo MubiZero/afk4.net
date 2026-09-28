@@ -21,7 +21,7 @@ public sealed class OrganizationSuspensionMiddleware(RequestDelegate next)
     public async Task InvokeAsync(
         HttpContext httpContext,
         IStaffContextAccessor staffContextAccessor,
-        IOrganizationStatusGuard organizationStatusGuard)
+        EfOrganizationStatusGuard organizationStatusGuard)
     {
         var staffContext = staffContextAccessor.Current;
         if (staffContext is not null && MutatingMethods.Contains(httpContext.Request.Method))

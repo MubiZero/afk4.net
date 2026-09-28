@@ -190,7 +190,7 @@ internal static class ClubReviewEndpoints
         // Что предложить оценить. Пусто — значит спрашивать не о чем, и приложение молчит:
         // приглашение оценить визит, которого не было, раздражает сильнее, чем его отсутствие.
         app.MapGet("/api/me/reviews/pending", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -240,7 +240,7 @@ internal static class ClubReviewEndpoints
         // Стаж игрока: уровень и достижения. Живёт рядом с отзывами, потому что «оставил отзыв» —
         // одно из достижений, и считаются они из одной и той же истории визитов.
         app.MapGet("/api/me/achievements", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             IMemoryCache cache,
             CancellationToken cancellationToken) =>
@@ -258,7 +258,7 @@ internal static class ClubReviewEndpoints
 
         app.MapPost("/api/me/reviews", async (
             CreateClubReviewRequest request,
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>

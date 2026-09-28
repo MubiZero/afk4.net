@@ -23,10 +23,10 @@ public sealed class EfStaffInviteService(
     PlatformDbContext db,
     INotificationService notifications,
     IPhoneOtpGenerator codeGenerator,
-    IPhoneOtpHasher codeHasher,
+    Sha256PhoneOtpHasher codeHasher,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options,
-    IPlanLimitGuard planLimitGuard) : IStaffInviteService
+    EfPlanLimitGuard planLimitGuard)
 {
     /// <summary>Сутки, а не неделя: шесть цифр, живущих неделю, перебираются спокойно.</summary>
     private static readonly TimeSpan InviteLifetime = TimeSpan.FromHours(24);
@@ -157,6 +157,10 @@ public sealed class EfStaffInviteService(
         return StaffInviteCreateResult.Success(inviteId, code, expiresAtUtc);
     }
 
+    /// <summary>
+    /// Сверить код, ничего не заводя: вход спрашивает код до ПИНа, чтобы опечатка в коде
+    /// всплыла сразу, а не после двух экранов. Промах тратит ту же попытку, что и при приёме.
+    /// </summary>
     public async Task<StaffInviteAcceptResult> CheckInviteAsync(
         string phoneNumber, string code, CancellationToken cancellationToken)
     {
@@ -164,6 +168,7 @@ public sealed class EfStaffInviteService(
         return refusal ?? StaffInviteAcceptResult.CodeAccepted();
     }
 
+    /// <summary>Что спросить вторым шагом входа по номеру (<see cref="Shared.Contracts.Identity.StaffSignInStepNames"/>).</summary>
     public async Task<string> ResolveSignInStepAsync(string phoneNumber, CancellationToken cancellationToken)
     {
         var normalizedPhone = PhoneNumberNormalizer.Normalize(phoneNumber);
@@ -260,6 +265,7 @@ public sealed class EfStaffInviteService(
             with { StaffInviteId = invite.StaffInviteId, BranchId = invite.BranchId };
     }
 
+    /// <summary>Кого добавили в филиал, но кто ещё не входил, — со статусом кода.</summary>
     public async Task<IReadOnlyList<StaffInviteSummaryDto>> ListPendingAsync(
         Guid organizationId, Guid branchId, CancellationToken cancellationToken)
     {
@@ -285,6 +291,7 @@ public sealed class EfStaffInviteService(
             .ToList();
     }
 
+    /// <summary>Отозвать код первого входа. false — такого ожидающего приглашения в филиале нет.</summary>
     public async Task<bool> RevokeAsync(Guid organizationId, Guid branchId, Guid staffInviteId, CancellationToken cancellationToken)
     {
         var invite = await db.StaffInvites.SingleOrDefaultAsync(

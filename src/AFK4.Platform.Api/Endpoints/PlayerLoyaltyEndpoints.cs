@@ -13,7 +13,7 @@ internal static class PlayerLoyaltyEndpoints
     public static void MapPlayerLoyaltyEndpoints(this WebApplication app)
     {
         app.MapGet("/api/me/loyalty", async (
-            IPlayerContextAccessor playerContextAccessor,
+            PlayerContextAccessor playerContextAccessor,
             IOrganizationEntitlements entitlements,
             PlatformDbContext db,
             CancellationToken ct) =>

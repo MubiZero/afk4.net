@@ -114,7 +114,7 @@ public sealed class PlatformPersonTokenServiceTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var service = scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>();
+        var service = scope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>();
         var person = await db.PlatformPersons.SingleAsync(
             candidate => candidate.PlatformPersonId == platformPersonId);
         var account = await db.PlayerAccounts.SingleAsync(
@@ -125,7 +125,7 @@ public sealed class PlatformPersonTokenServiceTests
     private static async Task<PlatformPersonContext?> ValidateAsync(PlatformApiFactory factory, string? token)
     {
         await using var scope = factory.Services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>()
+        return await scope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>()
             .ValidateAsync(token, CancellationToken.None);
     }
 
@@ -133,7 +133,7 @@ public sealed class PlatformPersonTokenServiceTests
         PlatformApiFactory factory, string token)
     {
         await using var scope = factory.Services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>()
+        return await scope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>()
             .RefreshAsync(token, CancellationToken.None);
     }
 }

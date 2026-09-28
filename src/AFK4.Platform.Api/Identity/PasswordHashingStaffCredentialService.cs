@@ -9,7 +9,7 @@ namespace AFK4.Platform.Api.Identity;
 public sealed class PasswordHashingStaffCredentialService(
     PlatformDbContext dbContext,
     IStaffTokenService tokenService,
-    TimeProvider timeProvider) : IStaffCredentialService
+    TimeProvider timeProvider)
 {
     // Те же пять попыток и те же пятнадцать минут, что у администратора платформы. Порог не про
     // подбор, а про человека, промахнувшегося раскладкой: исправиться он успевает.
@@ -115,6 +115,13 @@ public sealed class PasswordHashingStaffCredentialService(
                 cancellationToken);
     }
 
+    /// <param name="organizationId">
+    /// Организация, в которой искать учётную запись, или <c>null</c> — «искать по всей сети».
+    /// Второе нужно мастеру установки: он входит до того, как организация известна, и именно
+    /// из ответа её и узнаёт. Сотрудник, работающий в нескольких клубах, при этом получает
+    /// список на выбор — ровно тот случай, ради которого заведён
+    /// <see cref="StaffLoginResolution.Clubs"/>.
+    /// </param>
     public async Task<StaffLoginResolution> SignInByLoginAsync(
         Guid? organizationId,
         StaffSignInByLoginRequest request,

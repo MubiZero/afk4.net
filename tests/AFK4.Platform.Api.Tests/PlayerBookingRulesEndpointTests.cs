@@ -228,7 +228,7 @@ public sealed class PlayerBookingRulesEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var tokens = await scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>()
+        var tokens = await scope.ServiceProvider.GetRequiredService<OpaquePlatformPersonTokenService>()
             .IssueAsync(
                 await db.PlatformPersons.SingleAsync(p => p.PlatformPersonId == platformPersonId),
                 pinnedAccount: null,
