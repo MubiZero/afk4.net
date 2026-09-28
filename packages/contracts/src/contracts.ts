@@ -73,6 +73,13 @@ export const AdErrorCodeNames = {
   PermitRequired: 'ad_permit_required',
   /** Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив. */
   CreativeLocked: 'ad_creative_locked',
+  /**
+   * У кампании есть одобренная реклама: категорию, рекламодателя и отметки закона менять нельзя —
+   * модератор проверял креативы именно при них. Название, сроки и охват менять можно.
+   */
+  CampaignLocked: 'ad_campaign_locked',
+  /** У рекламодателя есть одобренная реклама: имя и реквизиты подписаны на ней и не меняются. */
+  AdvertiserLocked: 'ad_advertiser_locked',
   /** Картинку не удалось скачать для хранения — одобрить без копии нельзя. */
   ImageUnavailable: 'ad_image_unavailable',
 } as const;

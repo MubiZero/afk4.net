@@ -97,6 +97,21 @@ internal static class AdEndpoints
         {
             advertiser = await db.AdAdvertisers.SingleOrDefaultAsync(candidate => candidate.AdvertiserId == advertiserId, ct);
             if (advertiser is null) return Results.NotFound();
+
+            // Реквизиты рекламодателя подписаны на карточке рекламы (закон, ст. 8). Пока его реклама
+            // одобрена, их смена переписала бы подпись на уже показанном; контакт — не реквизит.
+            var changesSignature = advertiser.Name != request.Name.Trim()
+                || advertiser.LegalName != request.LegalName!.Trim()
+                || advertiser.TaxId != request.TaxId!.Trim()
+                || advertiser.Address != request.Address!.Trim();
+            if (changesSignature && await HasApprovedAdsAsync(db, advertiser.AdvertiserId, ct))
+            {
+                return Results.Conflict(new
+                {
+                    Error = "The advertiser has approved ads: its name and legal details cannot change.",
+                    Code = AdErrorCodeNames.AdvertiserLocked
+                });
+            }
         }
 
         advertiser.Name = request.Name.Trim();
@@ -179,6 +194,20 @@ internal static class AdEndpoints
         {
             campaign = await db.AdCampaigns.SingleOrDefaultAsync(candidate => candidate.CampaignId == campaignId, ct);
             if (campaign is null) return Results.NotFound();
+
+            // Одобренный креатив проверен при этой категории, этом рекламодателе и этих отметках
+            // закона. Сменить их молча значило бы показывать рекламу, которую никто не проверял:
+            // «Финансы» без своей отметки, подпись чужого рекламодателя на уже показанном.
+            var hasApproved = await db.AdCreatives.AnyAsync(creative => creative.CampaignId == campaign.CampaignId
+                && creative.Moderation == AdModerationNames.Approved && creative.ArchivedAtUtc == null, ct);
+            if (hasApproved && ChangesWhatWasModerated(campaign, request))
+            {
+                return Results.Conflict(new
+                {
+                    Error = "The campaign has approved ads: its category, advertiser and law marks cannot change.",
+                    Code = AdErrorCodeNames.CampaignLocked
+                });
+            }
         }
 
         PlatformAds.Apply(campaign, request);
@@ -189,6 +218,26 @@ internal static class AdEndpoints
             campaign.CampaignId.ToString("N"), AuditOutcome.Succeeded,
             new { campaign.Name, campaign.Category, campaign.StartsAtUtc, campaign.EndsAtUtc, request.Compliance }, ct);
         return Results.Ok(await CampaignDtoAsync(db, campaign, ct));
+    }
+
+    private static Task<bool> HasApprovedAdsAsync(PlatformDbContext db, Guid advertiserId, CancellationToken ct) =>
+        (from creative in db.AdCreatives
+         join campaign in db.AdCampaigns on creative.CampaignId equals campaign.CampaignId
+         where campaign.AdvertiserId == advertiserId
+               && creative.Moderation == AdModerationNames.Approved
+               && creative.ArchivedAtUtc == null
+         select creative.CreativeId).AnyAsync(ct);
+
+    private static bool ChangesWhatWasModerated(AdCampaignEntity campaign, UpsertAdCampaignRequest request)
+    {
+        var compliance = request.Compliance ?? new AdCampaignComplianceDto();
+        var permit = string.IsNullOrWhiteSpace(compliance.PermitNumber) ? null : compliance.PermitNumber.Trim();
+        return campaign.AdvertiserId != request.AdvertiserId
+            || campaign.Category != request.Category
+            || campaign.PermitNumber != permit
+            || campaign.DistanceSelling != compliance.DistanceSelling
+            || campaign.RequiresCertification != compliance.RequiresCertification
+            || campaign.ContainsOffer != compliance.ContainsOffer;
     }
 
     private static void MapCreatives(WebApplication app)

@@ -57,6 +57,11 @@ abstract final class AdErrorCodeNames {
   static const String permitRequired = 'ad_permit_required';
   /// Одобренный креатив не правится: его хранят как показанный. Нужен новый креатив.
   static const String creativeLocked = 'ad_creative_locked';
+  /// У кампании есть одобренная реклама: категорию, рекламодателя и отметки закона менять нельзя —
+  /// модератор проверял креативы именно при них. Название, сроки и охват менять можно.
+  static const String campaignLocked = 'ad_campaign_locked';
+  /// У рекламодателя есть одобренная реклама: имя и реквизиты подписаны на ней и не меняются.
+  static const String advertiserLocked = 'ad_advertiser_locked';
   /// Картинку не удалось скачать для хранения — одобрить без копии нельзя.
   static const String imageUnavailable = 'ad_image_unavailable';
 }

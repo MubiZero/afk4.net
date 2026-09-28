@@ -448,7 +448,8 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 
 builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
 // Копия картинки рекламы при одобрении: короткий срок — модератор ждёт ответа.
-builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10))
+    .ConfigurePrimaryHttpMessageHandler(AFK4.Platform.Api.Ads.PublicAddressGuard.CreateHandler);
 builder.Services.AddScoped<IEskhataMerchantClientFactory, EskhataMerchantClientFactory>();
 
 // Адрес клиента за Traefik (см. TrustedProxies): без этого все ограничения «по IP» считают адрес прокси.
