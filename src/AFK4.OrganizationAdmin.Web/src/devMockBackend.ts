@@ -784,6 +784,18 @@ function eskhataConfig(): Record<string, unknown> {
   return mutableEskhataConfig;
 }
 
+function demoNews() {
+  const item = (id: string, title: string, body: string, branchId: string | null, publishedHoursAgo: number, showOnPcs: boolean) => ({
+    id, branchId, title, body, imageUrl: null, isPublished: true, showOnPcs,
+    publishAtUtc: minutesAgoUtc(publishedHoursAgo * 60), expiresAtUtc: null,
+    createdAtUtc: minutesAgoUtc(publishedHoursAgo * 60), updatedAtUtc: minutesAgoUtc(publishedHoursAgo * 60)
+  });
+  return [
+    item('n-1', 'Турнир по CS2 в субботу', 'Сбор в 18:00, призовой фонд — 500 с. Запись у администратора.', BRANCH, 5, true),
+    item('n-2', 'Ночной пакет подешевел', 'С 22:00 до 06:00 — 25 с. вместо 30 с.', null, 30, false)
+  ];
+}
+
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
 function route(pathname: string, method: string): unknown | undefined {
@@ -792,6 +804,11 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
+  // Новости: где владелец может публиковать, и пара примеров, чтобы экран не стоял пустым.
+  if (pathname.endsWith('/news/scope') && method === 'GET') {
+    return { branches: previewOwnerBranches, canPublishToAllBranches: true };
+  }
+  if (pathname.endsWith('/news') && method === 'GET') return demoNews();
   if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
   if (pathname.endsWith('/birthday-gift-settings') && method === 'GET') return mockBirthdayGiftSettings;
   if (pathname.endsWith('/tip-settings') && method === 'GET') return { enabled: mockTipsEnabled };
