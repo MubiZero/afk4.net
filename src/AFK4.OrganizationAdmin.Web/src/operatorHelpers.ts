@@ -1508,72 +1508,115 @@ export function isGuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim());
 }
 
+// Код действия → подпись. Один словарь на отчёт действий, согласования и журнал сети.
+const AUDIT_ACTION_LABELS: Readonly<Record<string, MessageKey>> = {
+  'pos.sale.create': 'op.helper.audit.saleCreated',
+  'pos.sales.create': 'op.helper.audit.saleCreated',
+  'pos.sale.refund': 'op.helper.audit.saleRefund',
+  'pos.sales.refund': 'op.helper.audit.saleRefund',
+  'pos.sale.void': 'op.helper.audit.saleVoid',
+  'pos.sales.void': 'op.helper.audit.saleVoid',
+  'sessions.start': 'op.helper.audit.sessionStart',
+  'session.start': 'op.helper.audit.sessionStart',
+  'sessions.extend': 'op.helper.audit.sessionExtend',
+  'session.extend': 'op.helper.audit.sessionExtend',
+  'sessions.end': 'op.helper.audit.sessionEnd',
+  'session.end': 'op.helper.audit.sessionEnd',
+  'identity.staff.create': 'op.helper.audit.staffCreate',
+  'identity.staff.roles.update': 'op.helper.audit.staffRolesUpdate',
+  'identity.staff.branch.remove': 'op.helper.audit.staffBranchRemove',
+  'reservations.cancel': 'op.helper.audit.reservationCancel',
+  'updates.rollouts.view': 'op.helper.audit.updatesView',
+  'updates.rollouts.state.change': 'op.helper.audit.updatesStateChange',
+  'shifts.open': 'op.helper.audit.shiftOpen',
+  'shifts.close': 'op.helper.audit.shiftClose',
+  'shifts.cash_movement': 'op.helper.audit.cashMovement',
+  'shifts.signoff': 'op.helper.audit.shiftSignOff',
+  'billing.money_action.requested': 'op.helper.audit.moneyRequested',
+  'billing.money_action.approved': 'op.helper.audit.moneyApproved',
+  'billing.money_action.rejected': 'op.helper.audit.moneyRejected',
+  'billing.money_action.executed': 'op.helper.audit.moneyExecuted',
+  'billing.wallet.top_up': 'op.helper.audit.topUp',
+  'billing.refund': 'op.helper.audit.refund',
+  'billing.manual_correction': 'op.helper.audit.manualCorrection',
+  'billing.debt.pay': 'op.helper.audit.debtPay',
+  'sessions.pause': 'op.helper.audit.sessionPause',
+  'sessions.resume': 'op.helper.audit.sessionResume',
+  'sessions.transfer': 'op.helper.audit.sessionTransfer',
+  'sessions.checkout': 'op.helper.audit.sessionCheckout',
+  'tariffs.create': 'op.helper.audit.tariffCreate',
+  'tariffs.update': 'op.helper.audit.tariffUpdate',
+  'tariffs.versions.create': 'op.helper.audit.tariffUpdate',
+  'tariffs.versions.update': 'op.helper.audit.tariffUpdate',
+  'packages.create': 'op.helper.audit.packageCreate',
+  'packages.update': 'op.helper.audit.packageUpdate',
+  'packages.purchase': 'op.helper.audit.packagePurchase',
+  'news.create': 'op.helper.audit.newsCreate',
+  'news.update': 'op.helper.audit.newsUpdate',
+  'news.delete': 'op.helper.audit.newsDelete',
+  'tournament.create': 'op.helper.audit.eventCreate',
+  'tournament.update': 'op.helper.audit.eventUpdate',
+  'tournament.publish': 'op.helper.audit.eventPublish',
+  'tournament.cancel': 'op.helper.audit.eventCancel',
+  'identity.staff.invite.create': 'op.helper.audit.staffInvite',
+  'identity.staff.invite.revoke': 'op.helper.audit.staffInviteRevoke',
+  'identity.staff.state.update': 'op.helper.audit.staffState',
+  'identity.staff.profile.update': 'op.helper.audit.staffProfile',
+  'layout.zones.create': 'op.helper.audit.zoneCreate',
+  'layout.zones.update': 'op.helper.audit.zoneUpdate',
+  'layout.zones.delete': 'op.helper.audit.zoneDelete',
+  'layout.seats.create': 'op.helper.audit.seatCreate',
+  'layout.seats.update': 'op.helper.audit.seatUpdate',
+  'layout.seats.delete': 'op.helper.audit.seatDelete',
+  'branches.profile.update': 'op.helper.audit.branchProfile',
+  'branches.settings.update': 'op.helper.audit.branchSettings',
+  'branches.booking_settings.update': 'op.helper.audit.bookingSettings',
+  'branches.protection_profile.update': 'op.helper.audit.protection',
+  'loyalty.settings.update': 'op.helper.audit.loyalty',
+  'payments.eskhata.config.update': 'op.helper.audit.eskhata',
+  'payments.dc_config.update': 'op.helper.audit.dcConfig',
+  'devices.commands.dispatch': 'op.helper.audit.deviceCommand',
+  'install.codes.create': 'op.helper.audit.installCode',
+  'install.codes.revoke': 'op.helper.audit.installCodeRevoke',
+  'install.enroll.succeeded': 'op.helper.audit.enrolled',
+  'organization.branding.update': 'op.helper.audit.branding',
+  'games.library.add': 'op.helper.audit.gameAdd',
+  'games.library.remove': 'op.helper.audit.gameRemove',
+  'reviews.reply': 'op.helper.audit.reviewReply',
+  'reviews.comment.hide': 'op.helper.audit.reviewHide',
+  'tips.settings.update': 'op.helper.audit.tips',
+  'players.create': 'op.helper.audit.playerCreate',
+  'players.import': 'op.helper.audit.playersImport',
+  'reservations.create': 'op.helper.audit.reservationCreate',
+  'reservations.confirm': 'op.helper.audit.reservationConfirm',
+  'reservations.reject': 'op.helper.audit.reservationReject',
+  'pos.products.create': 'op.helper.audit.productCreate',
+  'pos.products.update': 'op.helper.audit.productUpdate',
+};
+
+/**
+ * Подпись действия, если код известен словарю, иначе null. Журнал сети показывает незнакомый код
+ * мелко как есть, а не придумывает ему группу: «Операция кассы» на месте неизвестного кода
+ * выглядела бы ответом, которого нет.
+ */
+export function knownAuditActionLabel(action: string, t: TFunc): string | null {
+  const key = AUDIT_ACTION_LABELS[action.toLowerCase()];
+  return key === undefined ? null : t(key);
+}
+
 export function auditActionLabel(action: string, t: TFunc): string {
+  const known = knownAuditActionLabel(action, t);
+  if (known !== null) return known;
+  // Незнакомый код — хотя бы его группа: отчёт действий читают по смыслу, а не по коду.
   const normalized = action.toLowerCase();
-  switch (normalized) {
-    case 'pos.sale.create':
-    case 'pos.sales.create':
-      return t('op.helper.audit.saleCreated');
-    case 'pos.sale.refund':
-    case 'pos.sales.refund':
-      return t('op.helper.audit.saleRefund');
-    case 'pos.sale.void':
-    case 'pos.sales.void':
-      return t('op.helper.audit.saleVoid');
-    case 'sessions.start':
-    case 'session.start':
-      return t('op.helper.audit.sessionStart');
-    case 'sessions.extend':
-    case 'session.extend':
-      return t('op.helper.audit.sessionExtend');
-    case 'sessions.end':
-    case 'session.end':
-      return t('op.helper.audit.sessionEnd');
-    case 'identity.staff.create':
-      return t('op.helper.audit.staffCreate');
-    case 'identity.staff.roles.update':
-      return t('op.helper.audit.staffRolesUpdate');
-    case 'identity.staff.branch.remove':
-      return t('op.helper.audit.staffBranchRemove');
-    case 'reservations.cancel':
-      return t('op.helper.audit.reservationCancel');
-    case 'updates.rollouts.view':
-      return t('op.helper.audit.updatesView');
-    case 'updates.rollouts.state.change':
-      return t('op.helper.audit.updatesStateChange');
-    default:
-      if (normalized.includes('pos')) {
-        return t('op.helper.audit.opPos');
-      }
-
-      if (normalized.includes('session')) {
-        return t('op.helper.audit.opSession');
-      }
-
-      if (normalized.includes('reservation')) {
-        return t('op.helper.audit.opReservation');
-      }
-
-      if (normalized.includes('device')) {
-        return t('op.helper.audit.opDevice');
-      }
-
-      if (normalized.includes('shift')) {
-        return t('op.helper.audit.opShift');
-      }
-
-      if (normalized.includes('identity') || normalized.includes('staff')) {
-        return t('op.helper.audit.opStaff');
-      }
-
-      if (normalized.includes('update')) {
-        return t('op.helper.audit.opUpdate');
-      }
-
-      return action
-        ? t('op.helper.audit.opPlatform')
-        : t('op.helper.audit.record');
-  }
+  if (normalized.includes('pos')) return t('op.helper.audit.opPos');
+  if (normalized.includes('session')) return t('op.helper.audit.opSession');
+  if (normalized.includes('reservation')) return t('op.helper.audit.opReservation');
+  if (normalized.includes('device')) return t('op.helper.audit.opDevice');
+  if (normalized.includes('shift')) return t('op.helper.audit.opShift');
+  if (normalized.includes('identity') || normalized.includes('staff')) return t('op.helper.audit.opStaff');
+  if (normalized.includes('update')) return t('op.helper.audit.opUpdate');
+  return action ? t('op.helper.audit.opPlatform') : t('op.helper.audit.record');
 }
 
 export function auditActorLabel(record: AuditRecordDto, backend: OperatorBackendContext | null, t: TFunc): string {

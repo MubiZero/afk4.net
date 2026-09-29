@@ -115,7 +115,7 @@ describe('devMockFetch approval preview', () => {
     const after = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/money-actions')).json();
     expect(after.requests.some((item: { moneyActionRequestId: string }) => item.moneyActionRequestId === request.moneyActionRequestId)).toBe(false);
     const audit = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/audit?limit=50')).json();
-    expect(audit.records.some((record: { action: string }) => record.action === 'money_action.approved')).toBe(true);
+    expect(audit.records.some((record: { action: string }) => record.action === 'billing.money_action.approved')).toBe(true);
   });
 });
 

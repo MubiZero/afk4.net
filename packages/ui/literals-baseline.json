@@ -136,10 +136,10 @@
     "mono": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/25-network.css": {
-    "font-size": 51,
+    "font-size": 49,
     "radius": 3,
     "spacing": 8,
-    "mono": 3
+    "mono": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/26-reports.css": {
     "font-size": 10,

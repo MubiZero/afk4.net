@@ -63,6 +63,11 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.management.dest.club', 'platform.dynamics.branch.label',
     // Группы меню «Управления»: «Клуб» — то же заимствование, «ПК» — канон терминов, одинаков во всех языках.
     'op.management.group.club', 'op.management.group.pcs',
+    // Журнал сети: «Клуб», «Филиал», «Смена», «Кэшбек», «Сервер», «ПК» — те же заимствования и канон,
+    // Eskhata и DushanbeCity — названия.
+    'op.network.journal.source.pc', 'op.network.journal.source.server', 'op.network.journal.target.branch',
+    'op.network.journal.target.device', 'op.network.journal.target.dushanbeCity', 'op.network.journal.target.eskhata',
+    'op.network.journal.target.loyalty', 'op.network.journal.target.organization', 'op.network.journal.target.shift',
     'op.eskhata.title', 'op.eskhata.baseUrl', 'op.eskhata.companyId', 'op.eskhata.merchantId',
     'op.eskhata.hashKey', 'op.dc.title',
     'op.cash.title', 'op.club.field.telegram', 'op.club.field.instagram', 'op.club.ph.city',
