@@ -204,17 +204,17 @@
   font-size: var(--text-sm);
 }
 
+/* Длинное значение переносится, а не обрезается многоточием: факт — то, ради чего открыли
+   карточку, и «не выдан — клуб ещё не откры…» прятал ровно ту часть, что объясняла причину. */
 .ui-facts-row > dd {
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .management-screen-body {
