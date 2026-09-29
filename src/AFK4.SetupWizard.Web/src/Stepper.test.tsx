@@ -38,7 +38,7 @@ describe('Stepper', () => {
   it('подписывает каждый шаг', () => {
     renderStepper(['phoneLogin', 'role', 'device', 'finished'], 'role');
 
-    for (const label of ['Вход', 'Роль', 'Устройство', 'Готово']) expect(screen.getByText(label)).toBeVisible();
+    for (const label of ['Вход', 'Роль', 'ПК', 'Готово']) expect(screen.getByText(label)).toBeVisible();
   });
 
   it('на «Готово» все шаги отмечены сделанными', () => {

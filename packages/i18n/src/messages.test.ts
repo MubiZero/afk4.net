@@ -35,6 +35,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.hardware.gb',
     // «Тариф» — заимствование, в таджикском пишется так же; переводить его нечем.
     'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
+    // «ПК» — канон и в таджикском каталоге (не «КМ», не «компютер»).
+    'setup.wizard.stepper.device',
     // «Реклама» — так и пишется по-таджикски на вывесках и в эфире; метку сверит носитель языка.
     'playerShell.showcase.kind.ad',
     // «Реклама» в Панели — то же слово, что метка на ПК; «Реклама · {advertiser}» повторяет её.

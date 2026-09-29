@@ -5,7 +5,7 @@ import { useI18n, type MessageKey } from '@afk4/i18n';
 import type { WizardStaffInvited } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
 import { WizardStepLayout } from './WizardStepLayout';
-import { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
+import { localPhoneDigits, formatLocal, fullPhoneDigits, groupCode } from '@afk4/formatting';
 
 // Владельца в списке нет: он и так есть — это тот, кто сейчас ставит клуб.
 const ROLES: { name: string; labelKey: MessageKey }[] = [
@@ -170,8 +170,8 @@ export function StaffScreen({
               <span>
                 {staff.displayName} · {t(`roles.${staff.roleName}` as MessageKey)}
               </span>
-              {/* Код показываем здесь же: SMS может не дойти, а человек стоит рядом. */}
-              <code className="wizard-staff-code">{staff.code}</code>
+              {/* Код показываем здесь же: человек стоит рядом. Тройками — его читают вслух. */}
+              <code className="wizard-staff-code ui-code">{groupCode(staff.code)}</code>
               <span className="wizard-staff-expiry">
                 {t('setup.wizard.staff.expires', { time: formatDate(staff.expiresAtUtc) })}
               </span>

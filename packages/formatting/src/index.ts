@@ -86,3 +86,11 @@ export function formatLocal(value: string): string {
 export function fullPhoneDigits(value: string): string {
   return `992${localPhoneDigits(value)}`;
 }
+
+/**
+ * Шестизначный код — «418 207»: так его читают вслух и переписывают с экрана без ошибок. Код
+ * первого входа, код посадки за ПК — одинаково во всех приложениях.
+ */
+export function groupCode(code: string): string {
+  return /^\d{6}$/.test(code) ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
+}

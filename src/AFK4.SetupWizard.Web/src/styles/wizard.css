@@ -506,8 +506,8 @@ textarea,
   padding: 10px 12px;
   border-radius: 12px;
 }.wizard-staff-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: 0.08em;
+  font-size: var(--text-md);
+  font-weight: 700;
 }.wizard-staff-expiry {
   grid-column: 1 / -1;
   font-size: 0.85em;

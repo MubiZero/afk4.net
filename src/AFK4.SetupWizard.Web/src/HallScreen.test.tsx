@@ -32,7 +32,7 @@ describe('HallScreen', () => {
     const createSeats = mock().mockResolvedValue({ names: ['ПК-1', 'ПК-2', 'ПК-3'] });
     renderScreen({ createSeats });
 
-    fireEvent.change(screen.getByLabelText('Зона'), { target: { value: 'z-2' } });
+    fireEvent.change(screen.getByLabelText('Зал'), { target: { value: 'z-2' } });
     fireEvent.change(screen.getByLabelText('Сколько мест'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Завести места' }));
 

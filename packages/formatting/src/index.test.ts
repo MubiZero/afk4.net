@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, isTajikLocale, localPhoneDigits } from './index';
+import { formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, groupCode, isTajikLocale, localPhoneDigits } from './index';
 
 it('formats numbers with locale grouping and options', () => {
   // ru-RU groups thousands with a non-breaking space (U+00A0); normalise any
@@ -76,4 +76,10 @@ describe('таджикские даты', () => {
     expect(isTajikLocale('tg')).toBe(true);
     expect(isTajikLocale('ru-RU')).toBe(false);
   });
+});
+
+it('делит шестизначный код тройками, остальное не трогает', () => {
+  expect(groupCode('418207')).toBe('418 207');
+  expect(groupCode('41820')).toBe('41820');
+  expect(groupCode('AB12CD')).toBe('AB12CD');
 });
