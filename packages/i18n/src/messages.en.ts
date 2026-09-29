@@ -2936,6 +2936,7 @@ export const en = {
   "op.reports.schedule.remove": "Remove",
   "op.reports.schedule.reportLabel": "Report",
   "op.reports.schedule.resume": "Resume",
+  "op.reports.schedule.subtitle": "The report is built on its own and emailed to the club owner. A mailout has no separate address.",
   "op.reports.schedule.type.cashOperations": "Cash operations",
   "op.reports.schedule.type.gameplayTime": "Play time",
   "op.reports.schedule.type.operatorActions": "Staff actions",

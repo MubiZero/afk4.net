@@ -2935,6 +2935,7 @@
   "op.reports.schedule.remove": "Гирифтан",
   "op.reports.schedule.reportLabel": "Ҳисобот",
   "op.reports.schedule.resume": "Идома додан",
+  "op.reports.schedule.subtitle": "Ҳисобот худаш тайёр мешавад ва бо мактуб ба соҳиби клуб меравад. Фиристода суроғаи алоҳида надорад.",
   "op.reports.schedule.type.cashOperations": "Амалиёти хазина",
   "op.reports.schedule.type.gameplayTime": "Вақти бозӣ",
   "op.reports.schedule.type.operatorActions": "Амалҳои кормандон",

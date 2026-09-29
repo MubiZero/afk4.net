@@ -2935,6 +2935,7 @@
   "op.reports.schedule.remove": "Убрать",
   "op.reports.schedule.reportLabel": "Отчёт",
   "op.reports.schedule.resume": "Возобновить",
+  "op.reports.schedule.subtitle": "Отчёт собирается сам и уходит письмом владельцу клуба. Отдельного адреса у рассылки нет.",
   "op.reports.schedule.type.cashOperations": "Операции с кассой",
   "op.reports.schedule.type.gameplayTime": "Наигранное время",
   "op.reports.schedule.type.operatorActions": "Действия сотрудников",
