@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RowActions } from '@afk4/ui/react';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ErrorState, EmptyState } from '@/components/ui/states';
@@ -117,7 +118,10 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
                   {canManage && actionable(invoice.status) ? (
                     <span className="pc-cell-actions">
                       <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'markPaid', invoice })}>{t('platform.billing.action.markPaid')}</Button>
-                      <Button variant="destructive" size="sm" onClick={() => setAction({ kind: 'void', invoice })}>{t('platform.billing.action.void')}</Button>
+                      <RowActions
+                        label={t('platform.row.more', { name: `${invoice.organizationName} №${invoice.number}` })}
+                        actions={[{ id: 'void', label: t('platform.billing.action.void'), danger: true, onSelect: () => setAction({ kind: 'void', invoice }) }]}
+                      />
                     </span>
                   ) : null}
                 </TableCell>

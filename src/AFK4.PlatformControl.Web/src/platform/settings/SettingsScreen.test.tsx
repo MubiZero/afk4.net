@@ -41,7 +41,8 @@ describe('SettingsScreen', () => {
     renderSettings({ updateAdmin });
     await screen.findByText('Второй');
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Отключить' }).find(button => !button.hasAttribute('disabled'))!);
+    await userEvent.click(screen.getByRole('button', { name: 'Ещё действия: Второй' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Отключить' }));
 
     expect(updateAdmin).not.toHaveBeenCalled();
     expect(await screen.findByText('Отключить доступ к платформе?')).toBeInTheDocument();
@@ -57,7 +58,8 @@ describe('SettingsScreen', () => {
     renderSettings({ updateAdmin });
     await screen.findByText('Второй');
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Отключить' }).find(button => !button.hasAttribute('disabled'))!);
+    await userEvent.click(screen.getByRole('button', { name: 'Ещё действия: Второй' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Отключить' }));
     await userEvent.click(screen.getByRole('button', { name: 'Отмена' }));
 
     expect(updateAdmin).not.toHaveBeenCalled();
@@ -69,7 +71,8 @@ describe('SettingsScreen', () => {
     renderSettings({ updateAdmin });
     await screen.findByText('Второй');
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Сделать поддержкой' }).find(button => !button.hasAttribute('disabled'))!);
+    await userEvent.click(screen.getByRole('button', { name: 'Ещё действия: Второй' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Сделать поддержкой' }));
 
     expect(await screen.findByText(/Второй получит роль/)).toBeInTheDocument();
 
@@ -108,24 +111,23 @@ describe('SettingsScreen', () => {
     expect(screen.queryByRole('button', { name: 'Повторить' })).not.toBeInTheDocument();
   });
 
-  // Причина жила во всплывающей подсказке, а её на неактивной кнопке браузер не показывает.
-  // Теперь это строка в ячейке, одна на обе кнопки, и обе ссылаются на неё.
+  // Действия над сотрудником — в «⋯» строки. Чего нельзя по правилу, в меню нет, а причина — строкой
+  // в ячейке, одна на оба действия (подсказку на неактивной кнопке браузер не показывает).
   it('у своей строки говорит словами, почему роль и отключение недоступны', async () => {
     renderSettings();
     await screen.findByText('Второй');
 
-    const reason = screen.getByText('Нельзя выполнить это действие в отношении собственной учётной записи.');
-    const [ownRole, otherRole] = screen.getAllByRole('button', { name: 'Сделать поддержкой' });
-    const [ownDisable, otherDisable] = screen.getAllByRole('button', { name: 'Отключить' });
-    expect(ownRole).toBeDisabled();
-    expect(ownDisable).toBeDisabled();
-    expect(ownRole.getAttribute('aria-describedby')).toBe(reason.id);
-    expect(ownDisable.getAttribute('aria-describedby')).toBe(reason.id);
-    expect(ownRole.getAttribute('title')).toBeNull();
+    expect(screen.getByText('Нельзя выполнить это действие в отношении собственной учётной записи.')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Ещё действия: Главный' }));
+    expect(screen.queryByRole('menuitem', { name: 'Сделать поддержкой' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Отключить' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Сбросить 2FA' })).toBeVisible();
+    await userEvent.keyboard('{Escape}');
 
-    // У коллеги ничего не мешает — и объяснять нечего.
-    expect(otherRole.getAttribute('aria-describedby')).toBeNull();
-    expect(otherDisable.getAttribute('aria-describedby')).toBeNull();
+    // У коллеги ничего не мешает — оба действия на месте.
+    await userEvent.click(screen.getByRole('button', { name: 'Ещё действия: Второй' }));
+    expect(screen.getByRole('menuitem', { name: 'Сделать поддержкой' })).toBeVisible();
+    expect(screen.getByRole('menuitem', { name: 'Отключить' })).toBeVisible();
   });
 
   it('у последнего администратора с полным доступом называет, почему его нельзя понизить или отключить', async () => {
@@ -137,12 +139,9 @@ describe('SettingsScreen', () => {
     });
     await screen.findByText('Второй');
 
-    const reason = screen.getByText('Нужен хотя бы один активный администратор с полным доступом.');
-    const lastAdminRole = screen.getByRole('button', { name: 'Сделать поддержкой' });
-    const lastAdminDisable = screen.getAllByRole('button', { name: 'Отключить' }).at(-1)!;
-    expect(lastAdminRole).toBeDisabled();
-    expect(lastAdminRole.getAttribute('aria-describedby')).toBe(reason.id);
-    expect(lastAdminDisable.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(screen.getByText('Нужен хотя бы один активный администратор с полным доступом.')).toBeVisible();
+    // Понизить и отключить его нельзя, а второго фактора у него нет — пустого «⋯» не рисуем.
+    expect(screen.queryByRole('button', { name: 'Ещё действия: Второй' })).toBeNull();
   });
 
   it('когда полных администраторов двое, про последнего не говорит', async () => {

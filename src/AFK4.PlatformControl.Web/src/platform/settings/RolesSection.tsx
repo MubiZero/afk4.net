@@ -133,7 +133,7 @@ export function RolesSection({ client }: { client: Client }) {
         {roles.map(role => (
           <div key={role.roleName} className="pc-kv">
             <span>
-              {role.displayName} <code>{role.roleName}</code>
+              {role.displayName}
               {role.isBuiltIn ? <Badge variant="outline">{t('platform.settings.roles.builtIn')}</Badge> : null}
               {role.grantsAllPermissions ? <Badge variant="success">{t('platform.settings.roles.fullAccess')}</Badge> : null}
             </span>

@@ -165,9 +165,8 @@
     "spacing": 3
   },
   "src/AFK4.PlatformControl.Web/src/styles/11-organization.css": {
-    "font-size": 7,
-    "radius": 1,
-    "spacing": 6
+    "font-size": 3,
+    "spacing": 2
   },
   "src/AFK4.PlatformControl.Web/src/styles/12-money.css": {
     "font-size": 9,

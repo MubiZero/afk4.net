@@ -4,6 +4,7 @@ import type { MessageKey } from '@afk4/i18n';
 import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RowActions } from '@afk4/ui/react';
 import { Dialog } from '@/components/ui/dialog';
 import { ErrorBanner, Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
@@ -95,9 +96,20 @@ export function ComplaintsTab({ client, onOpenCampaign }: {
                       ? <><Badge variant="success">{t('platform.ads.complaints.closed')}</Badge>{complaint.resolution ? <p className="mgmt-drawer-hint">{complaint.resolution}</p> : null}</>
                       : <Badge variant="warning">{t('platform.ads.complaints.open')}</Badge>}
                   </TableCell>
-                  <TableCell className="pc-cell-actions">
-                    <Button variant="outline" onClick={() => onOpenCampaign(complaint.campaignId)}>{t('platform.ads.complaints.openCampaign')}</Button>
-                    {complaint.resolvedAtUtc ? null : <Button onClick={() => setResolving(complaint)}>{t('platform.ads.complaints.resolve')}</Button>}
+                  {/* У открытой жалобы следующий шаг — ответить; кампания — в «⋯» (снимать креатив
+                      идут туда). У закрытой ответить уже нечего, на виду остаётся кампания. */}
+                  <TableCell>
+                    <span className="pc-cell-actions">
+                      {complaint.resolvedAtUtc
+                        ? <Button size="sm" variant="outline" onClick={() => onOpenCampaign(complaint.campaignId)}>{t('platform.ads.complaints.openCampaign')}</Button>
+                        : <Button size="sm" variant="outline" onClick={() => setResolving(complaint)}>{t('platform.ads.complaints.resolve')}</Button>}
+                      {complaint.resolvedAtUtc ? null : (
+                        <RowActions
+                          label={t('platform.row.more', { name: complaint.creativeTitle })}
+                          actions={[{ id: 'campaign', label: t('platform.ads.complaints.openCampaign'), onSelect: () => onOpenCampaign(complaint.campaignId) }]}
+                        />
+                      )}
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}

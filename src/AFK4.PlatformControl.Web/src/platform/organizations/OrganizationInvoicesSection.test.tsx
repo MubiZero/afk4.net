@@ -95,7 +95,8 @@ describe('OrganizationInvoicesSection', () => {
       </ToastProvider></I18nProvider>
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Аннулировать' }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Ещё действия/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Аннулировать' }));
     const dialog = await screen.findByRole('dialog');
     const confirm = within(dialog).getByRole('button', { name: /Аннулировать/ });
     expect(confirm).toBeDisabled();
@@ -131,6 +132,6 @@ describe('OrganizationInvoicesSection', () => {
 
     await screen.findByText(/#7/);
     expect(screen.queryByRole('button', { name: 'Отметить оплаченным' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Аннулировать' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Ещё действия/ })).toBeNull();
   });
 });

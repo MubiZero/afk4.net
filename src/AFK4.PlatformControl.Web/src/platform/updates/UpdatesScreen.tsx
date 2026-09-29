@@ -5,6 +5,7 @@ import type { PlatformUpdatePackage, PlatformUpdateRollout } from '@/api/types';
 import { Page } from '@/components/layout/Page';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RowActions, type RowAction } from '@afk4/ui/react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -182,27 +183,17 @@ export function UpdatesScreen({ client, organizationsClient, canManagePackages, 
                 </TableCell>
                 <TableCell>{formatDate(row.createdAtUtc)}</TableCell>
                 <TableCell>
-                  <span className="pc-cell-actions">
-                    {canManagePackages && row.state === 'registered' ? (
-                      <Button size="sm" variant="outline" onClick={() => setStateTarget({ id: row.updatePackageId, state: 'validated' })}>
-                        {t('platform.updates.package.validate')}
-                      </Button>
-                    ) : null}
-                    {canManageRollouts && rolloutsKnown && row.state === 'validated' && rolloutByPackageId.get(row.updatePackageId) === undefined ? (
-                      <Button size="sm" onClick={() => setPublishTarget(row)}>{t('platform.updates.publish.action')}</Button>
-                    ) : null}
-                    {canManageRollouts ? (
-                      <RolloutActions
-                        rollout={rolloutByPackageId.get(row.updatePackageId)}
-                        onAct={setRolloutAction}
-                      />
-                    ) : null}
-                    {canManagePackages && row.state === 'validated' ? (
-                      <Button size="sm" variant="outline" onClick={() => setStateTarget({ id: row.updatePackageId, state: 'retired' })}>
-                        {t('platform.updates.package.retire')}
-                      </Button>
-                    ) : null}
-                  </span>
+                  <PackageRowActions
+                    row={row}
+                    rollout={rolloutByPackageId.get(row.updatePackageId)}
+                    rolloutsKnown={rolloutsKnown}
+                    canManagePackages={canManagePackages}
+                    canManageRollouts={canManageRollouts}
+                    onValidate={() => setStateTarget({ id: row.updatePackageId, state: 'validated' })}
+                    onRetire={() => setStateTarget({ id: row.updatePackageId, state: 'retired' })}
+                    onPublish={() => setPublishTarget(row)}
+                    onRollout={setRolloutAction}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -294,30 +285,41 @@ function RolloutBadge({ rollout }: { rollout: PlatformUpdateRollout | undefined 
   return <Badge variant={variant}>{t(label)}</Badge>;
 }
 
-function RolloutActions({ rollout, onAct }: {
+// Строка пакета — одна кнопка следующего шага по жизни сборки (проверить → опубликовать →
+// остановить или возобновить раздачу) и «⋯» для необратимого: откат и снятие пакета. Раньше их
+// было до четырёх в ряд, откат — красной кнопкой рядом с «Остановить».
+function PackageRowActions({ row, rollout, rolloutsKnown, canManagePackages, canManageRollouts, onValidate, onRetire, onPublish, onRollout }: {
+  row: PlatformUpdatePackage;
   rollout: PlatformUpdateRollout | undefined;
-  onAct: (action: RolloutAction) => void;
+  rolloutsKnown: boolean;
+  canManagePackages: boolean;
+  canManageRollouts: boolean;
+  onValidate: () => void;
+  onRetire: () => void;
+  onPublish: () => void;
+  onRollout: (action: RolloutAction) => void;
 }) {
   const { t } = useI18n();
-  if (rollout === undefined) return null;
-  // Раскатана, откачена, отменена — итог; сервер их менять не даст, и кнопка обещала бы неправду.
-  if (rollout.state !== 'active' && rollout.state !== 'paused') return null;
-
+  // Раздана, откачена, отменена — итог; сервер их менять не даст, и кнопка обещала бы неправду.
+  const liveRollout = canManageRollouts && rollout !== undefined && (rollout.state === 'active' || rollout.state === 'paused') ? rollout : undefined;
+  const primary = canManagePackages && row.state === 'registered'
+    ? <Button size="sm" variant="outline" onClick={onValidate}>{t('platform.updates.package.validate')}</Button>
+    : canManageRollouts && rolloutsKnown && row.state === 'validated' && rollout === undefined
+      ? <Button size="sm" variant="outline" onClick={onPublish}>{t('platform.updates.publish.action')}</Button>
+      : liveRollout !== undefined
+        ? liveRollout.state === 'active'
+          ? <Button size="sm" variant="outline" onClick={() => onRollout({ rollout: liveRollout, next: 'paused' })}>{t('platform.updates.rollout.pause')}</Button>
+          : <Button size="sm" variant="outline" onClick={() => onRollout({ rollout: liveRollout, next: 'active' })}>{t('platform.updates.rollout.resume')}</Button>
+        : null;
+  const menu: RowAction[] = [
+    ...(liveRollout !== undefined ? [{ id: 'rollback', label: t('platform.updates.rollout.rollback'), danger: true, onSelect: () => onRollout({ rollout: liveRollout, next: 'rollback-requested' }) }] : []),
+    ...(canManagePackages && row.state === 'validated' ? [{ id: 'retire', label: t('platform.updates.package.retire'), danger: true, onSelect: onRetire }] : [])
+  ];
   return (
-    <>
-      {rollout.state === 'active' ? (
-        <Button size="sm" variant="outline" onClick={() => onAct({ rollout, next: 'paused' })}>
-          {t('platform.updates.rollout.pause')}
-        </Button>
-      ) : (
-        <Button size="sm" variant="outline" onClick={() => onAct({ rollout, next: 'active' })}>
-          {t('platform.updates.rollout.resume')}
-        </Button>
-      )}
-      <Button size="sm" variant="destructive" onClick={() => onAct({ rollout, next: 'rollback-requested' })}>
-        {t('platform.updates.rollout.rollback')}
-      </Button>
-    </>
+    <span className="pc-cell-actions">
+      {primary}
+      <RowActions label={t('platform.row.more', { name: `${t(componentLabelKey(row.component))} ${row.version}` })} actions={menu} />
+    </span>
   );
 }
 

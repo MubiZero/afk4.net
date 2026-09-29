@@ -6,6 +6,8 @@ import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonTable, SkeletonTiles } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useLoadable } from '../useLoadable';
+import { AuditAction } from '@/platform/audit/AuditAction';
+import { auditOutcomeLabel, auditSourceLabel } from '@/platform/audit/auditModel';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 
 type Client = Pick<OrganizationsApi, 'getHealth'>;
@@ -64,9 +66,9 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
                   {state.data.recentErrors.map((entry, index) => (
                     <TableRow key={`${entry.createdAtUtc}-${index}`}>
                       <TableCell className="pc-num">{formatDate(entry.createdAtUtc)}</TableCell>
-                      <TableCell>{entry.source}</TableCell>
-                      <TableCell>{entry.action}</TableCell>
-                      <TableCell>{entry.outcome}</TableCell>
+                      <TableCell>{auditSourceLabel(entry.source, t)}</TableCell>
+                      <TableCell><AuditAction action={entry.action} /></TableCell>
+                      <TableCell>{auditOutcomeLabel(entry.outcome, t)}</TableCell>
                       <TableCell>{entry.message ?? ''}</TableCell>
                     </TableRow>
                   ))}

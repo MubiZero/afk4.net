@@ -12,6 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useI18n } from '@/i18n/I18nProvider';
 import { useLoadable } from '../useLoadable';
 import { auditOutcomeLabel, auditOutcomeVariant, auditSourceLabel, auditTargetLabel } from '@/platform/audit/auditModel';
+// Идентификатор объекта на экран не выводится: по нему никто не узнаёт клуб — объект назван
+// словами, клуб — своей колонкой.
+import { AuditAction } from './AuditAction';
 
 export interface AuditFilters { organizationId: string; action: string; outcome: string; from: string; to: string }
 
@@ -88,7 +91,7 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
       : <div className="table-panel"><Table><TableHeader><TableRow>
           <TableHead>{t('platform.audit.time')}</TableHead><TableHead>{t('platform.audit.organization')}</TableHead><TableHead>{t('platform.audit.action')}</TableHead><TableHead>{t('platform.audit.target')}</TableHead><TableHead>{t('platform.audit.outcome')}</TableHead><TableHead>{t('platform.audit.source')}</TableHead>
         </TableRow></TableHeader><TableBody>{(state.data.records ?? []).map(record => <TableRow key={record.auditRecordId}>
-          <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell><TableCell>{record.organizationName ?? <code>{record.organizationId}</code>}</TableCell><TableCell><code>{record.action}</code></TableCell><TableCell>{auditTargetLabel(record.targetType, t)}{record.targetId ? ` · ${record.targetId}` : ''}</TableCell><TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell><TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
+          <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell><TableCell>{record.organizationName ?? <code>{record.organizationId}</code>}</TableCell><TableCell><AuditAction action={record.action} /></TableCell><TableCell>{auditTargetLabel(record.targetType, t)}</TableCell><TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell><TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
         </TableRow>)}</TableBody></Table></div>}
   </Page>;
 }

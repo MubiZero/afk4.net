@@ -81,7 +81,8 @@ describe('PayableQueue', () => {
   it('аннулирование требует причины', async () => {
     const client = setup([invoice()]);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Аннулировать' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Ещё действия/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Аннулировать' }));
     const confirm = screen.getAllByRole('button', { name: 'Аннулировать' }).at(-1)!;
     expect(confirm).toBeDisabled();
 
@@ -111,7 +112,7 @@ describe('PayableQueue', () => {
 
     await screen.findByText(/#7/);
     expect(screen.queryByRole('button', { name: 'Отметить оплаченным' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Аннулировать' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Ещё действия/ })).toBeNull();
   });
 
   it('пустая очередь так и говорит', async () => {

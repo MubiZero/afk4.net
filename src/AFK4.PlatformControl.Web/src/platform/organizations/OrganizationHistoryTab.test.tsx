@@ -21,5 +21,7 @@ it('renders the authoritative organization audit history', async () => {
 
   await waitFor(() => expect(screen.getByText('tenancy.organization.status.update')).toBeVisible());
   expect(client.listOrganizationHistory).toHaveBeenCalledWith('o1');
-  expect(screen.getByText('Клуб · o1')).toBeVisible();
+  // Объект — словами, без идентификатора: по «o1» клуб никто не узнаёт.
+  expect(screen.getByText('Клуб')).toBeVisible();
+  expect(screen.queryByText(/· o1/)).toBeNull();
 });

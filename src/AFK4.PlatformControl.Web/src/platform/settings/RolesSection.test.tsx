@@ -55,7 +55,8 @@ describe('RolesSection', () => {
     renderSection(makeClient());
 
     expect(await screen.findByText('Поддержка')).toBeInTheDocument();
-    expect(screen.getByText('platform_support')).toBeInTheDocument();
+    // Служебное имя роли на экран не выводится — роль названа словами.
+    expect(screen.queryByText('platform_support')).toBeNull();
     expect(screen.getByText('Встроенная')).toBeInTheDocument();
     expect(screen.getByText('2 администратора')).toBeInTheDocument();
   });
