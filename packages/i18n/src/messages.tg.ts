@@ -4791,6 +4791,7 @@ export const tg = {
   "playerShell.topUp.counterOnly": "Ин клуб ҳоло пардохти онлайнро қабул намекунад. Ҳисобро назди маъмур пур кардан мумкин аст.",
   "playerShell.topUp.creating": "Пардохтро тайёр мекунем…",
   "playerShell.topUp.custom": "Маблағи дигар",
+  "playerShell.topUp.done": "Тайёр",
   "playerShell.topUp.failed": "Бонк пардохтро нагузаронд. Пул гирифта нашуд.",
   "playerShell.topUp.invalidAmount": "Маблағи аз сифр зиёдро ворид кунед.",
   "playerShell.topUp.paid": "Ба ҳисоб {amount} илова шуд",

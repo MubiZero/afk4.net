@@ -108,7 +108,7 @@ export function ChooseTimeScreen({ state, auth }: { state: PlayerShellStateDto; 
         {offers ? (
           <OfferList offers={offers} choice={choice} disabled={starting} onChoose={choose} money={money} duration={duration} />
         ) : failed ? (
-          <div className="offers__failed" role="alert">
+          <div className="banner banner--danger offers__failed" role="alert">
             <p>{t('playerShell.chooseTime.loadFailed')}</p>
             <button type="button" className="btn btn--ghost" onClick={reload}>{t('playerShell.chooseTime.retry')}</button>
           </div>
@@ -118,7 +118,7 @@ export function ChooseTimeScreen({ state, auth }: { state: PlayerShellStateDto; 
       </section>
 
       <footer className="choose-time__action">
-        {error ? <p className="choose-time__error" role="alert">{t(error)}</p> : null}
+        {error ? <p className="banner banner--danger choose-time__error" role="alert">{t(error)}</p> : null}
         <button
           type="button"
           className="btn btn--primary choose-time__start"

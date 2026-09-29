@@ -147,7 +147,8 @@ export function App() {
       ? { screen: baseScreen, sessionId: state.sessionId, ownerPlayerAccountId: sessionOwnerAccountId }
       : { ...previous.current, screen: baseScreen };
   }, [baseScreen, signedInAccountId, state?.sessionId, sessionOwnerAccountId]);
-  const online = state?.isOnline ?? false;
+  // Состояния ещё нет — служба ПК не ответила, и связь с клубом не проверена вовсе.
+  const online = state ? state.isOnline : null;
 
   return (
     <div className="shell" data-screen={screen} style={shellStyle}>

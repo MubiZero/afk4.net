@@ -74,6 +74,17 @@ describe('экран сессии', () => {
     expect(screen.getByTestId('countdown')).toBeInTheDocument();
   });
 
+  // Колонка — одним столбцом одинаковых кнопок: главная «Продлить», остальные обводкой, «Выйти»
+  // последним пунктом, а не подчёркнутой ссылкой под «Позвать администратора».
+  it('все действия колонки — одной ширины, главная одна', () => {
+    renderSession({ auth: owner });
+
+    const names = ['Продлить', 'Встать раньше', 'Позвать администратора', 'Выйти'];
+    const buttons = names.map((name) => screen.getByRole('button', { name }));
+    expect(buttons.every((button) => button.className.includes('btn--wide'))).toBe(true);
+    expect(buttons.filter((button) => button.className.includes('btn--primary')).map((button) => button.textContent)).toEqual(['Продлить']);
+  });
+
   it('гостю стойки денежных кнопок нет — продлевает администратор', () => {
     renderSession({ kind: 'guest' });
 

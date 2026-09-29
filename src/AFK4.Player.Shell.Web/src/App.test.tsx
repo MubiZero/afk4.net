@@ -24,6 +24,9 @@ describe('оболочка выбирает экран по состоянию �
     installFakeHost({ state: null });
     renderShell();
     expect(await screen.findByText('Подключаемся к ПК…')).toBeInTheDocument();
+    // Связь с клубом ещё не проверена: «Нет связи» в строке снизу было бы неправдой.
+    expect(screen.queryByText('Нет связи')).not.toBeInTheDocument();
+    expect(screen.queryByText('На связи')).not.toBeInTheDocument();
   });
 
   it('служба ПК молчит дольше 20 секунд — экран говорит, что делать, а не крутит колесо', async () => {
@@ -103,10 +106,11 @@ describe('оболочка выбирает экран по состоянию �
 });
 
 describe('действия идут через хост', () => {
+  // Нажимается вся плитка; её имя для диктора — «Играть: Counter-Strike 2».
   it('«Играть» просит хост запустить игру', async () => {
     const host = installFakeHost({ state: devScenarioState('session') });
     renderShell();
-    const play = await screen.findAllByRole('button', { name: 'Играть' });
+    const play = await screen.findAllByRole('button', { name: /^Играть: / });
 
     await act(async () => play[0].click());
 
@@ -116,13 +120,21 @@ describe('действия идут через хост', () => {
   it('запущенная игра не просит нажать второй раз, пока её окно открывается', async () => {
     const host = installFakeHost({ state: devScenarioState('session') });
     renderShell();
-    const play = await screen.findAllByRole('button', { name: 'Играть' });
+    const play = await screen.findAllByRole('button', { name: /^Играть: / });
 
     await act(async () => play[0].click());
     await waitFor(() => expect(host.requests.filter((request) => request.type === ShellBridgeRequestTypeNames.AppLaunch)).toHaveLength(1));
 
-    const tile = await screen.findByRole('button', { name: 'Запускаем…' });
+    const tile = await screen.findByRole('button', { name: /^Запускаем…: / });
     expect(tile).toBeDisabled();
+  });
+
+  // Игры нет на этом ПК — плитка не нажимается, причина написана на ней.
+  it('недоступная игра — не кнопка', async () => {
+    installFakeHost({ state: devScenarioState('session') });
+    renderShell();
+    expect(await screen.findByText('Нет на этом ПК')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Valorant/ })).toBeNull();
   });
 
   it('игра не запустилась — экран говорит об этом, а не молчит', async () => {
@@ -134,7 +146,7 @@ describe('действия идут через хост', () => {
           : { ok: true, payload: {} }
     });
     renderShell();
-    const play = await screen.findAllByRole('button', { name: 'Играть' });
+    const play = await screen.findAllByRole('button', { name: /^Играть: / });
 
     await act(async () => play[0].click());
 

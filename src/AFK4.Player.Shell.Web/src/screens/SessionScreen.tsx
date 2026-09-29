@@ -9,7 +9,7 @@ import {
   type ShellSystemStateDto
 } from '@afk4/contracts';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { AlertTriangle, WifiOff } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Play, WifiOff } from 'lucide-react';
 import { apiBaseUrl } from '../api/playerApi';
 import { requestHost } from '../host/shellHost';
 import { isOrderActive } from '../model/bar';
@@ -85,38 +85,40 @@ export function SessionScreen({
 
   return (
     <main className="session-screen">
+      {/* Полосы — в шапке, поверх пустого места между номером ПК и звуком: раньше каждая
+          вставала строкой над телом и сдвигала таймер и кнопки вниз, пока не уйдёт. */}
       <header className="session-screen__top">
         <SeatBadge seatLabel={state.seatLabel} zoneName={state.zoneName} />
+        <div className="session-screen__notices">
+          {variant === 'grace' ? (
+            <p className="banner banner--warning" role="status">
+              <WifiOff aria-hidden="true" />
+              {t('playerShell.grace.banner')}
+            </p>
+          ) : null}
+          {variant === 'ending' ? (
+            <p className="banner banner--danger" role="status">
+              <AlertTriangle aria-hidden="true" />
+              {t('playerShell.ending.banner')}
+            </p>
+          ) : null}
+          {extendedUntil ? (
+            <p className="banner banner--success" role="status">
+              <CheckCircle2 aria-hidden="true" />
+              {t('playerShell.extend.done', { time: clubTime(extendedUntil, undefined, locale) })}
+            </p>
+          ) : null}
+          {/* Предупреждения агента: деньги кончаются, упёрлись в лимит долга. Связь и «мало
+              времени» уже сказаны полосами выше — второй раз не повторяем. */}
+          {warningKey ? (
+            <p className="banner banner--warning" role="status">
+              <AlertTriangle aria-hidden="true" />
+              {t(warningKey)}
+            </p>
+          ) : null}
+        </div>
         <SystemControls system={system} />
       </header>
-
-      {variant === 'grace' ? (
-        <p className="banner banner--warning" role="status">
-          <WifiOff aria-hidden="true" />
-          {t('playerShell.grace.banner')}
-        </p>
-      ) : null}
-      {variant === 'ending' ? (
-        <p className="banner banner--danger" role="status">
-          <AlertTriangle aria-hidden="true" />
-          {t('playerShell.ending.banner')}
-        </p>
-      ) : null}
-
-      {extendedUntil ? (
-        <p className="banner banner--success" role="status">
-          {t('playerShell.extend.done', { time: clubTime(extendedUntil, undefined, locale) })}
-        </p>
-      ) : null}
-
-      {/* Предупреждения агента: деньги кончаются, упёрлись в лимит долга. Связь и «мало времени»
-          уже сказаны полосами выше — второй раз не повторяем. */}
-      {warningKey ? (
-        <p className="banner banner--warning" role="status">
-          <AlertTriangle aria-hidden="true" />
-          {t(warningKey)}
-        </p>
-      ) : null}
 
       <div className="session-screen__body">
       <div className="session-screen__main">
@@ -168,7 +170,7 @@ export function SessionScreen({
           </section>
         ) : topUpAvailable && tab === 'topUp' && baseUrl ? (
           <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-topUp`}>
-            <TopUpPanel baseUrl={baseUrl} />
+            <TopUpPanel baseUrl={baseUrl} onDone={() => setTab('games')} />
           </section>
         ) : (
           <section
@@ -262,28 +264,57 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
     }
   };
 
+  const cover = app.iconUri
+    ? <img className="library-tile__cover" src={app.iconUri} alt="" loading="lazy" decoding="async" />
+    : <span className="library-tile__cover library-tile__cover--name" aria-hidden="true">{app.displayName.slice(0, 1)}</span>;
+  const title = (
+    <span className="library-tile__name">
+      {app.displayName}
+      {app.minAge ? <span className="library-tile__age">{app.minAge}+</span> : null}
+    </span>
+  );
+
+  // Недоступную игру не нажать: плитка — не кнопка, и причина написана на ней.
+  if (app.ageLocked || !app.isAvailable) {
+    return (
+      <div className={app.ageLocked ? 'library-tile library-tile--locked' : 'library-tile library-tile--unavailable'}>
+        {cover}
+        {title}
+        <span className="library-tile__category">{app.category}</span>
+        <span className="library-tile__missing">
+          {app.ageLocked
+            // Возраст из дня рождения в профиле: агент такую игру и не запустит.
+            ? t('playerShell.session.ageLocked', { age: app.minAge ?? 0 })
+            : t('playerShell.session.unavailable')}
+        </span>
+      </div>
+    );
+  }
+
+  // Нажимается вся плитка, как в любом лаунчере: раньше попасть надо было в кнопку «Играть»
+  // внизу. Сама кнопка видна на наведении и фокусе — остальное время плитку читают по обложке.
+  const launchLabel = launch === 'launching' ? t('playerShell.session.launching') : t('playerShell.session.launch');
   return (
-    <div className={app.ageLocked ? 'library-tile library-tile--locked' : 'library-tile'}>
-      {/* Обложка — из кэша ПК; её нет — плитка по названию, а не пустой квадрат. */}
-      {app.iconUri
-        ? <img className="library-tile__cover" src={app.iconUri} alt="" loading="lazy" decoding="async" />
-        : <span className="library-tile__cover library-tile__cover--name" aria-hidden="true">{app.displayName.slice(0, 1)}</span>}
-      <span className="library-tile__name">
-        {app.displayName}
-        {app.minAge ? <span className="library-tile__age">{app.minAge}+</span> : null}
-      </span>
-      <span className="library-tile__category">{app.category}</span>
-      {app.ageLocked ? (
-        // Возраст из дня рождения в профиле: агент такую игру и не запустит.
-        <span className="library-tile__missing">{t('playerShell.session.ageLocked', { age: app.minAge ?? 0 })}</span>
-      ) : app.isAvailable ? (
-        <button type="button" className="btn btn--primary" onClick={start} disabled={launch === 'launching'}>
-          {launch === 'launching' ? t('playerShell.session.launching') : t('playerShell.session.launch')}
-        </button>
-      ) : (
-        <span className="library-tile__missing">{t('playerShell.session.unavailable')}</span>
-      )}
-      {launch === 'failed' ? <p className="library-tile__error" role="alert">{t('playerShell.session.launchFailed')}</p> : null}
-    </div>
+    <>
+      <button
+        type="button"
+        className="library-tile library-tile--playable"
+        data-launching={launch === 'launching' || undefined}
+        aria-label={`${launchLabel}: ${app.displayName}`}
+        onClick={start}
+        disabled={launch === 'launching'}
+      >
+        <span className="library-tile__art">
+          {cover}
+          <span className="library-tile__play btn btn--primary" aria-hidden="true">
+            <Play aria-hidden="true" />
+            {launchLabel}
+          </span>
+        </span>
+        {title}
+        <span className="library-tile__category">{app.category}</span>
+      </button>
+      {launch === 'failed' ? <p className="banner banner--danger library-tile__error" role="alert">{t('playerShell.session.launchFailed')}</p> : null}
+    </>
   );
 }
