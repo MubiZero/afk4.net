@@ -84,7 +84,7 @@ describe('итог визита', () => {
     serve();
     renderSummary({ billedMinutes: 35, refunded: { currencyCode: 'TJS', minorUnits: 1_000 }, packageMinutesReturned: 20 });
 
-    expect(await screen.findByText(/Вернули на счёт 10/)).toBeInTheDocument();
+    expect(await screen.findByText(/Вернули на баланс 10/)).toBeInTheDocument();
     expect(screen.getByText('В пакет вернулось 20 мин')).toBeInTheDocument();
   });
 

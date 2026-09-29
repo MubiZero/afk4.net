@@ -43,7 +43,7 @@ describe('сколько играем', () => {
     renderScreen();
 
     expect(await screen.findByText('Стандарт')).toBeInTheDocument();
-    expect(screen.getByText(/На счёте 45/)).toBeInTheDocument();
+    expect(screen.getByText(/Баланс 45/)).toBeInTheDocument();
     expect(calls[0]).toEqual({ url: '/api/me/this-pc/start-offers', method: 'GET', body: null });
   });
 
@@ -109,7 +109,7 @@ describe('сколько играем', () => {
     await act(async () => fireEvent.click(within(standard).getByRole('button', { name: /^1 ч,/ })));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /Начать/ })));
 
-    expect(await screen.findByText(/Не хватает денег на счёте/)).toBeInTheDocument();
+    expect(await screen.findByText(/Не хватает денег на балансе/)).toBeInTheDocument();
     await waitFor(() => expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2));
   });
 
