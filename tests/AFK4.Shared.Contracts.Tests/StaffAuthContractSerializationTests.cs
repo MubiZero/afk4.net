@@ -34,7 +34,7 @@ public sealed class StaffAuthContractSerializationTests
             RefreshToken: "refresh-token",
             RefreshTokenExpiresAtUtc: DateTimeOffset.Parse("2026-06-11T01:00:00Z"),
             BranchIds: [Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2")],
-            Permissions: [OrganizationPermissionNames.CreateDeviceEnrollmentCode])
+            Permissions: [OrganizationPermissionNames.InstallDevice])
         {
             RoleNames = ["operator", "shift_supervisor"]
         };
@@ -47,7 +47,7 @@ public sealed class StaffAuthContractSerializationTests
         Assert.Equal(response.OrganizationId, copy.OrganizationId);
         Assert.Equal(response.RefreshToken, copy.RefreshToken);
         Assert.Equal(response.RefreshTokenExpiresAtUtc, copy.RefreshTokenExpiresAtUtc);
-        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, copy.Permissions);
+        Assert.Contains(OrganizationPermissionNames.InstallDevice, copy.Permissions);
         Assert.Single(copy.BranchIds);
         Assert.Equal(["operator", "shift_supervisor"], copy.RoleNames);
     }

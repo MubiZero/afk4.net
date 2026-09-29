@@ -79,9 +79,9 @@ public sealed class EfAuditSearchServiceTests
         var service = new EfAuditSearchService(db);
         SeedRecord(
             db,
-            AuditActionNames.CreateDeviceEnrollmentCode,
+            AuditActionNames.CreateInstallCode,
             AuditOutcome.Succeeded,
-            "DeviceEnrollmentCode",
+            "InstallCode",
             DateTimeOffset.Parse("2026-05-14T09:00:00Z"));
         await db.SaveChangesAsync();
 
@@ -108,6 +108,29 @@ public sealed class EfAuditSearchServiceTests
             .Options;
 
         return new PlatformDbContext(options);
+    }
+
+    // Журнал открывают, чтобы ответить «кто это сделал». Раньше запись несла только GUID
+    // исполнителя, и владелец получал столбец идентификаторов вместо имён.
+    [Fact]
+    public async Task SearchOrganizationAsync_NamesTheActor()
+    {
+        await using var db = CreateDbContext();
+        db.StaffUsers.Add(new StaffUserEntity
+        {
+            StaffUserId = TestIds.TechnicianStaffUserId,
+            OrganizationId = TestIds.OrganizationId,
+            UserName = "tech",
+            NormalizedUserName = "TECH",
+            DisplayName = "Шерзод"
+        });
+        SeedRecord(db, AuditActionNames.StartSession, AuditOutcome.Succeeded, "Session", DateTimeOffset.Parse("2026-05-14T09:00:00Z"));
+        await db.SaveChangesAsync();
+
+        var result = await new EfAuditSearchService(db).SearchOrganizationAsync(
+            TestIds.OrganizationId, new AuditSearchQuery(null, null, null, null, null, 10), CancellationToken.None);
+
+        Assert.Equal("Шерзод", Assert.Single(result.Records).ActorDisplayName);
     }
 
     private static AuditRecordEntity SeedRecord(

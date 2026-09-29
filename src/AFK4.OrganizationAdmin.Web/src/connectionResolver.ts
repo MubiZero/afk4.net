@@ -58,7 +58,10 @@ export class ConnectionResolver {
     const response = await this.fetchImpl(`${this.baseUrl}/api/operator-connections/resolve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request)
+      body: JSON.stringify(request),
+      // Подвисшая сеть не держит экран подключения на «Ищем…» вечно: превышение — тот же сбой до
+      // ответа, что и отсутствие сети.
+      signal: AbortSignal.timeout(20_000)
     });
 
     if (!response.ok) {

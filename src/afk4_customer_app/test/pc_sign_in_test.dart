@@ -77,4 +77,47 @@ void main() {
     expect(find.textContaining('Код не подошёл'), findsOneWidget);
     expect(find.text('Попробовать ещё раз'), findsOneWidget);
   });
+
+  testWidgets('ПК сверх тарифа клуба — говорит словами, а не общей ошибкой', (tester) async {
+    final http = FakeHttpClient((_) => (jsonEncode({'error': 'device_outside_plan'}), 400));
+    await tester.pumpWidget(_harness(_api(http), const PcSignInLink('482913')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('не принимает новые сессии'), findsOneWidget);
+  });
+
+  // Первый ответ теряется в пути (сервер мог его и принять — код на этом ПК уже одноразовый
+  // и погашается первой попыткой). Честный повтор обязан прийти с тем же ключом идемпотентности,
+  // иначе сервер увидит уже погашенный код второй раз и ответит «код неверен», хотя игрок просто
+  // жмёт ещё раз после обрыва связи.
+  testWidgets('сетевой обрыв — повтор несёт тот же ключ идемпотентности', (tester) async {
+    var attempt = 0;
+    final http = FakeHttpClient((_) {
+      attempt++;
+      if (attempt == 1) throw Exception('connection reset');
+      return (
+        jsonEncode({
+          'claimId': 'c1',
+          'status': 'redeemed',
+          'expiresAtUtc': '2030-01-01T00:00:00Z',
+          'seatLabel': 'ПК 07',
+        }),
+        200
+      );
+    });
+    await tester.pumpWidget(_harness(_api(http), const PcSignInLink('482913')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Нет связи'), findsOneWidget);
+
+    await tester.tap(find.text('Попробовать ещё раз'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.tap(find.text('Войти на ПК'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Вы вошли на ПК 07'), findsOneWidget);
+    expect(http.bodies, hasLength(2));
+    expect(http.bodies[1]['idempotencyKey'], http.bodies[0]['idempotencyKey']);
+  });
 }

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import QRCode from 'qrcode';
 import { AlertTriangle, ArrowRight, Check, Copy, Loader2 } from 'lucide-react';
 import type { PlatformAdminSession } from '../auth/tokenStore';
-import { describeApiError } from '../api/describeApiError';
+import { describeApiError, describeTwoFactorError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
 import { useChallengeExpiry } from './useChallengeExpiry';
 
@@ -31,7 +31,7 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
   onComplete: (session: PlatformAdminSession) => void;
   onCancel: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [step, setStep] = useState<Step>({ kind: 'loading' });
   const [code, setCode] = useState('');
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -92,10 +92,16 @@ export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired
       const { session, recoveryCodes } = await client.completeSetup(challengeToken, code.trim());
       setStep({ kind: 'recoveryCodes', codes: recoveryCodes, session });
     } catch (cause) {
-      setConfirmError(describeApiError(cause, t, {
-        401: 'auth.twoFactor.error.invalidCode',
-        429: 'auth.twoFactor.error.lockedOut'
-      }));
+      // Same distinction as the challenge screen (TwoFactorChallenge): a dead challenge sends the
+      // person back to the password step instead of leaving them typing into a form that can
+      // never succeed again.
+      const outcome = describeTwoFactorError(cause, t, formatDate);
+      if (outcome.kind === 'expired') {
+        if (onExpired !== undefined) onExpired();
+        else setConfirmError(t('auth.twoFactor.error.expired'));
+      } else {
+        setConfirmError(outcome.text);
+      }
     } finally {
       setConfirming(false);
     }

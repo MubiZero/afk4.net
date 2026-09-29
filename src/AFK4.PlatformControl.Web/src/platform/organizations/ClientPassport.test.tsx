@@ -24,6 +24,7 @@ function organization(overrides: Partial<OrganizationDetail> = {}): Organization
     branches: [{ branchId: 'b1', slug: 'center', name: 'Orion Center', city: 'Tashkent', createdAtUtc: '2026-01-01T00:00:00Z' }],
     createdAtUtc: '2026-01-01T00:00:00Z',
     updatedAtUtc: '2026-01-02T00:00:00Z',
+    referral: { code: null, referredByOrganizationId: null, referredByOrganizationName: null, rewardedAtUtc: null, referred: [] },
     contactEmail: null,
     contactPhone: null,
     legalDetails: null,
@@ -95,6 +96,44 @@ it('shows the name, plan, price, next invoice, owner and update channel', async 
   expect(screen.getByText('Стабильный')).toBeVisible();
   await waitFor(() => expect(screen.getByText(/1.?500/u)).toBeVisible());
   await waitFor(() => expect(screen.getByText('Alice Owner')).toBeVisible());
+});
+
+it('shows the club’s own code and says plainly when none was issued yet', () => {
+  setup(fullAccess, { referral: { code: null, referredByOrganizationId: null, referredByOrganizationName: null, rewardedAtUtc: null, referred: [] } });
+  expect(screen.getByText('не выдан — клуб ещё не открывал свой тариф')).toBeVisible();
+});
+
+it('shows who referred this club and whether the reward was credited', async () => {
+  setup(fullAccess, {
+    referral: {
+      code: 'AFK-ORION1',
+      referredByOrganizationId: 'r1',
+      referredByOrganizationName: 'Nova Gaming',
+      rewardedAtUtc: '2026-06-01T00:00:00Z',
+      referred: []
+    }
+  });
+  expect(screen.getByText('AFK-ORION1')).toBeVisible();
+  expect(screen.getByText(/Nova Gaming/u)).toBeVisible();
+  await waitFor(() => expect(screen.getByText(/начислено/u)).toBeVisible());
+});
+
+// Поддержке важно отличить друга, который уже принёс месяц скидки, от того, кто пока просто
+// зарегистрировался, — не открывая для этого счета обоих клубов по отдельности.
+it('lists clubs this one referred, marking which have not paid yet', () => {
+  setup(fullAccess, {
+    referral: {
+      code: 'AFK-ORION1',
+      referredByOrganizationId: null,
+      referredByOrganizationName: null,
+      rewardedAtUtc: null,
+      referred: [
+        { organizationId: 'a1', name: 'Alpha Club', createdAtUtc: '2026-05-01T00:00:00Z', rewarded: true },
+        { organizationId: 'b2', name: 'Beta Club', createdAtUtc: '2026-05-05T00:00:00Z', rewarded: false }
+      ]
+    }
+  });
+  expect(screen.getByText('Alpha Club, Beta Club (ещё не оплатил)')).toBeVisible();
 });
 
 it('shows a debt chip when the subscription is past due', () => {

@@ -4,7 +4,8 @@ import type { OwedShiftTipsDto, ShiftTipsDto } from '@afk4/contracts';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { formatMoney } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
-import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
+import { CriticalActionConfirmation, Money, PartialLoadFailure } from '../operatorPrimitives';
+import type { OperatorErrorProjection } from '../apiErrors';
 import type { OperatorAuthSession } from '../authClient';
 
 interface OwedTipsClient {
@@ -39,17 +40,29 @@ export function OwedTipsSection({
   const [pending, setPending] = useState<OwedShiftTipsDto | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<OperatorErrorProjection | null>(null);
 
   useEffect(() => {
     if (client === null) return undefined;
     let active = true;
-    // Отказ списка долгов — не повод трогать остальную кассу: блок просто не появится.
+    // Отказ списка долгов — не повод трогать остальную кассу, но и молчать нельзя: пропавший блок
+    // читался как «долгов по чаевым нет», хотя деньги персонала из закрытых смен ждут выдачи.
     Promise.resolve()
       .then(() => client.owed(branchId))
-      .then((result) => { if (active) setOwed(Array.isArray(result) ? result : []); })
-      .catch(() => {});
+      .then((result) => { if (active) { setOwed(Array.isArray(result) ? result : []); setLoadFailure(null); } })
+      .catch((failure: unknown) => { if (active) setLoadFailure(projectOperatorError(failure, t)); });
     return () => { active = false; };
   }, [client, branchId, shiftNonce, reload]);
+
+  if (client !== null && loadFailure !== null) {
+    return (
+      <PartialLoadFailure
+        text={t('op.cash.tips.owedLoadFailed', { detail: loadFailure.detail })}
+        failure={loadFailure}
+        onRetry={() => setReload((value) => value + 1)}
+      />
+    );
+  }
 
   if (client === null || owed.length === 0) return null;
 

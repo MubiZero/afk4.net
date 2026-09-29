@@ -2,7 +2,8 @@ import { describe, it, expect } from 'bun:test';
 import { toAuditRows, outcomeChipTone } from './orgAuditModel';
 
 const rec = {
-  auditRecordId: 'r1', branchId: null, actorStaffUserId: null, actorPlatformAdminUserId: null,
+  auditRecordId: 'r1', organizationId: 'o', organizationName: null, amountMinorUnits: null, actorDisplayName: null,
+  branchId: null, actorStaffUserId: null, actorPlatformAdminUserId: null,
   action: 'news.published', targetType: 'News', targetId: 'n1', outcome: 'Succeeded',
   sourceApp: 'PlatformApi', detailsJson: '{"x":1}', createdAtUtc: '2026-07-20T10:00:00Z'
 };
@@ -31,12 +32,14 @@ describe('orgAuditModel', () => {
     expect(rows[0].target).toBe('Organization');
   });
 
-  it('prefers the staff actor over the platform-admin actor', () => {
-    const rows = toAuditRows(
-      [{ ...rec, actorStaffUserId: 'staff-1', actorPlatformAdminUserId: 'admin-1' }],
-      { formatDate: (s) => s },
-      'система'
-    );
-    expect(rows[0].actor).toBe('staff-1');
+  // Журнал открывают, чтобы ответить «кто трогал подписку», — столбец GUID на это не отвечал.
+  it('names the actor the server resolved', () => {
+    const rows = toAuditRows([{ ...rec, actorStaffUserId: 'staff-1', actorDisplayName: 'Фаррух' }], { formatDate: (s) => s }, 'система');
+    expect(rows[0].actor).toBe('Фаррух');
+  });
+
+  it('falls back to the start of the id when the name is gone', () => {
+    const rows = toAuditRows([{ ...rec, actorStaffUserId: '3fa85f64-5717-4562-b3fc-2c963f66afa6' }], { formatDate: (s) => s }, 'система');
+    expect(rows[0].actor).toBe('3fa85f64');
   });
 });

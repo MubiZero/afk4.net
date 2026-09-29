@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Check, ChevronRight, Clock, HandPlatter } from 'lucide-react';
 import { createAuthenticatedOperatorClients, formatMinorUnits } from './operatorHelpers';
+import { operatorAccessToken } from './authClient';
 import { createOperatorRealtimeClient, createPreviewOperatorRealtimeClient } from './operatorRealtime';
 import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
@@ -76,7 +77,7 @@ export function PosOrdersTicker({ backend, canCancel, openOrder }: {
       : createOperatorRealtimeClient;
     const realtime = createRealtimeClient({
       baseUrl: backend.config.platformBaseUrl,
-      getAccessToken: () => backend.session.accessToken,
+      getAccessToken: () => operatorAccessToken(backend.session),
       onDeviceStatusChanged: () => {},
       onShopOrderCreated: (order) => setOrders((current) => reconcile(current, order, branchId)),
       onShopOrderUpdated: (order) => {

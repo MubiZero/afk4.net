@@ -31,6 +31,12 @@ public sealed class PlatformAdminUserEntity
     public DateTimeOffset? TwoFactorLockedUntilUtc { get; set; }
 
     /// <summary>
+    /// Шаг TOTP (30 с), которым вошли в последний раз. Код того же или более раннего шага второй
+    /// раз не принимается: подсмотренный через плечо код больше не открывает вторую сессию.
+    /// </summary>
+    public long? LastTotpStep { get; set; }
+
+    /// <summary>
     /// Неудачные попытки пароля подряд и запрет до этого времени.
     ///
     /// Второй фактор запирался после пяти попыток, а пароль — нет: подобрать его можно было

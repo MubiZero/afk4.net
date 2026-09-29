@@ -50,7 +50,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.False(string.IsNullOrWhiteSpace(body.RefreshToken));
         Assert.True(body.RefreshTokenExpiresAtUtc > body.AccessTokenExpiresAtUtc);
         Assert.Contains(TestIds.BranchId, body.BranchIds);
-        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+        Assert.Contains(OrganizationPermissionNames.InstallDevice, body.Permissions);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
         Assert.Equal("Tech One", body.DisplayName);
         Assert.Contains(TestIds.BranchId, body.BranchIds);
-        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+        Assert.Contains(OrganizationPermissionNames.InstallDevice, body.Permissions);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.NotEqual(signInBody.AccessToken, refreshBody.AccessToken);
         Assert.NotEqual(signInBody.RefreshToken, refreshBody.RefreshToken);
         Assert.Equal(signInBody.StaffUserId, refreshBody.StaffUserId);
-        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, refreshBody.Permissions);
+        Assert.Contains(OrganizationPermissionNames.InstallDevice, refreshBody.Permissions);
         Assert.Equal(
             [OrganizationRoleNames.Operator, OrganizationRoleNames.ShiftSupervisor, OrganizationRoleNames.Technician],
             signInBody.RoleNames);
@@ -148,7 +148,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
-        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+        Assert.Contains(OrganizationPermissionNames.InstallDevice, body.Permissions);
     }
 
     [Fact]

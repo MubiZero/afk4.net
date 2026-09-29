@@ -13,6 +13,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
 import { PlatformApiError } from '@/api/platformTransport';
 import type { AdsApi } from '@/api/platformClients/ads';
+import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { AdCampaignDto, AdCreativeDto, AdvertiserDto } from '@/api/types';
 import { CampaignFormDialog } from './CampaignFormDialog';
 import { CreativeFormDialog } from './CreativeFormDialog';
@@ -64,8 +65,9 @@ type OpenDialog =
   | { kind: 'moderation'; mode: 'approve' | 'reject'; creative: AdCreativeDto }
   | { kind: 'archive'; creative: AdCreativeDto };
 
-export function AdCampaignPage({ client, campaignId, onBack }: {
+export function AdCampaignPage({ client, organizationsClient, campaignId, onBack }: {
   client: AdCampaignClient;
+  organizationsClient: Pick<OrganizationsApi, 'listOrganizations'>;
   campaignId: string;
   onBack: () => void;
 }) {
@@ -273,6 +275,7 @@ export function AdCampaignPage({ client, campaignId, onBack }: {
           mode="edit"
           form={dialog.form}
           advertisers={advertiserList}
+          organizationsClient={organizationsClient}
           pending={pending}
           error={dialogError}
           onChange={form => setDialog({ kind: 'campaign', form })}

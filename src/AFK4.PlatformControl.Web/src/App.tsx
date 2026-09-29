@@ -160,11 +160,12 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'games' ? <GamesScreen client={client.games} />
         : route.kind === 'ads' ? <AdsScreen
             client={client.ads}
+            organizationsClient={client.organizations}
             tab={route.tab}
             onTabChange={tab => navigate({ kind: 'ads', tab })}
             onOpenCampaign={campaignId => navigate({ kind: 'adCampaign', campaignId })}
           />
-        : route.kind === 'adCampaign' ? <AdCampaignPage client={client.ads} campaignId={route.campaignId} onBack={() => navigate({ kind: 'ads', tab: 'campaigns' })} />
+        : route.kind === 'adCampaign' ? <AdCampaignPage client={client.ads} organizationsClient={client.organizations} campaignId={route.campaignId} onBack={() => navigate({ kind: 'ads', tab: 'campaigns' })} />
         : route.kind === 'people' ? <PeopleScreen client={client.people} />
         : route.kind === 'health' ? <HealthScreen client={client.health} canSendTestEmail={can(session, 'health.test_email.send')} />
         : <UnavailableScreen />}</Suspense>

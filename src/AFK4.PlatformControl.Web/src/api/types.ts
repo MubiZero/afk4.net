@@ -102,11 +102,30 @@ export interface OrganizationDetail {
   branches: OrganizationBranch[];
   createdAtUtc: string;
   updatedAtUtc: string;
+  referral: OrganizationReferral;
   contactEmail: string | null;
   contactPhone: string | null;
   legalDetails: string | null;
   updateChannel: string;
   pinnedClientVersion: string | null;
+}
+
+/** Mirrors `OrganizationReferralDto`: «Приведи клуб» для карточки клуба — свой код, кто привёл
+ * (если пришёл по чужому) и кого привёл сам. `code` — null, пока клуб ни разу не открывал свой
+ * тариф: сервер выдаёт код лениво, а не при создании клуба. */
+export interface OrganizationReferral {
+  code: string | null;
+  referredByOrganizationId: string | null;
+  referredByOrganizationName: string | null;
+  rewardedAtUtc: string | null;
+  referred: ReferredOrganization[];
+}
+
+export interface ReferredOrganization {
+  organizationId: string;
+  name: string;
+  createdAtUtc: string;
+  rewarded: boolean;
 }
 
 /** Mirrors `OrganizationFeatureStateDto`: state of one feature for a club plus WHAT decided
@@ -156,6 +175,7 @@ export interface OrganizationOwnerInviteSummary {
   status: string;
   ownerUserName: string | null;
   ownerDisplayName: string | null;
+  hasEmail: boolean;
   expiresAtUtc: string;
   acceptedAtUtc: string | null;
   revokedAtUtc: string | null;

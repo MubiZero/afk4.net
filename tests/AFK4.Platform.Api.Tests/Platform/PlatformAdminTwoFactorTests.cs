@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Identity;
@@ -60,6 +61,65 @@ public sealed class PlatformAdminTwoFactorTests
         var afterLockout = await TwoFactorTestHelper.VerifyAsync(client, challenge.ChallengeToken, correct);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, afterLockout.StatusCode);
+        // The screen needs an unlock time to say something more useful than "too many attempts,
+        // try later forever" — the service already computes it (now + 15 minutes), the response
+        // just has to carry it.
+        var body = await afterLockout.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("two_factor_locked", body.GetProperty("error").GetString());
+        var lockedUntilUtc = body.GetProperty("lockedUntilUtc").GetDateTimeOffset();
+        Assert.True(lockedUntilUtc > DateTimeOffset.UtcNow.AddMinutes(10));
+        Assert.True(lockedUntilUtc <= DateTimeOffset.UtcNow.AddMinutes(15).AddSeconds(5));
+    }
+
+    // A wrong code and a dead challenge used to both come back as a bare 401 — indistinguishable
+    // to the screen, even though one is fixed by trying again and the other only by signing in
+    // from scratch. The machine code in the body is what tells them apart now.
+    [Fact]
+    public async Task WrongCode_ReturnsInvalidCodeMachineCode()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await TwoFactorTestHelper.ConfigureTwoFactorAsync(factory, client, out _);
+        var challenge = await TwoFactorTestHelper.StartChallengeAsync(client);
+
+        var response = await TwoFactorTestHelper.VerifyAsync(client, challenge.ChallengeToken, "000000");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("two_factor_code_invalid", body.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task UnknownOrExpiredChallenge_ReturnsChallengeExpiredMachineCode()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await TwoFactorTestHelper.ConfigureTwoFactorAsync(factory, client, out _);
+
+        var response = await TwoFactorTestHelper.VerifyAsync(client, "not-a-real-challenge-token", "000000");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("two_factor_challenge_expired", body.GetProperty("error").GetString());
+    }
+
+    // Код из приложения живёт полторы минуты окна. Раньше подсмотренный через плечо код открывал
+    // вторую сессию платформенного админа всё это время — а это деньги и права всех клубов сети.
+    // Теперь код принимается один раз (RFC 6238 §5.2); следующий код приложения — снова годен.
+    [Fact]
+    public async Task TotpCode_OpensOneSessionOnly()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await TwoFactorTestHelper.ConfigureTwoFactorAsync(factory, client, out var secret);
+        var nextStep = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 30;
+        var code = TotpCodeGenerator.Generate(secret, nextStep);
+
+        var first = await TwoFactorTestHelper.VerifyAsync(client, (await TwoFactorTestHelper.StartChallengeAsync(client)).ChallengeToken, code);
+        var replay = await TwoFactorTestHelper.VerifyAsync(client, (await TwoFactorTestHelper.StartChallengeAsync(client)).ChallengeToken, code);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
     }
 
     [Fact]

@@ -18,6 +18,7 @@ function detail(over: Partial<OrganizationDetail>): OrganizationDetail {
     statusChangedAtUtc: null, planCode: 'starter', subscriptionStatus: 'active',
     limits: { maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null },
     branches: [], createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-01-01T00:00:00Z',
+    referral: { code: null, referredByOrganizationId: null, referredByOrganizationName: null, rewardedAtUtc: null, referred: [] },
     contactEmail: null, contactPhone: null, legalDetails: null, updateChannel: 'stable', pinnedClientVersion: null, ...over
   };
 }

@@ -619,7 +619,6 @@ export type OrganizationOwnerInviteStatusName = (typeof OrganizationOwnerInviteS
 
 /** Словарь: Identity/OrganizationPermissionNames.cs */
 export const OrganizationPermissionNames = {
-  CreateDeviceEnrollmentCode: 'organization.devices.enrollment_codes.create',
   DispatchDeviceCommand: 'organization.devices.commands.dispatch',
   /**
    * Увести ПК в обслуживание и вернуть в зал. Отдельно от прочих команд: обслуживание закрывает
@@ -927,6 +926,10 @@ export const PlatformErrorCodeNames = {
   BranchSlugTaken: 'branch_slug_taken',
   /** Логин владельца уже занят в этой организации. */
   OwnerUserNameTaken: 'owner_username_taken',
+  /** У приглашения нет адреса почты — отправлять письмо некуда. */
+  OwnerInviteNoEmail: 'owner_invite_no_email',
+  /** Срок приглашения истёк — повторная отправка ничего не решит. */
+  OwnerInviteExpired: 'owner_invite_expired',
 } as const;
 export type PlatformErrorCodeName = (typeof PlatformErrorCodeNames)[keyof typeof PlatformErrorCodeNames];
 
@@ -1988,6 +1991,12 @@ export interface AuditRecordDto {
    */
   organizationName: string | null;
   amountMinorUnits: number | null;
+  /**
+   * Кто сделал — по имени: сотрудник клуба, сотрудник платформы или служебный
+   * исполнитель. Журнал открывают, чтобы ответить «кто трогал подписку», и столбец GUID на этот
+   * вопрос не отвечает. Пусто — действие системы без исполнителя.
+   */
+  actorDisplayName: string | null;
 }
 
 /** Контракт: Audit/AuditSearchResultDto.cs */
@@ -4828,6 +4837,7 @@ export interface OrganizationDetailDto {
   branches: OrganizationBranchDto[];
   createdAtUtc: IsoDateTime;
   updatedAtUtc: IsoDateTime;
+  referral: OrganizationReferralDto;
   contactEmail?: string | null;
   contactPhone?: string | null;
   legalDetails?: string | null;
@@ -4959,11 +4969,38 @@ export interface OrganizationOwnerInviteSummaryDto {
   status: string;
   ownerUserName: string | null;
   ownerDisplayName: string | null;
+  hasEmail: boolean;
   expiresAtUtc: IsoDateTime;
   acceptedAtUtc: IsoDateTime | null;
   revokedAtUtc: IsoDateTime | null;
   revokedReason: string | null;
   createdAtUtc: IsoDateTime;
+}
+
+/**
+ * Сводка по программе «Приведи клуб» (ClubReferrals, спека тарифов клуба) для карточки клуба в
+ * Platform Control. Раньше поддержке нечем было ответить на жалобу «обещали месяц за друга» —
+ * OrganizationDetailDto не нёс ни своего кода клуба, ни того, кто его привёл, ни
+ * списка приведённых.
+ * <param name="Code">
+ * Свой код клуба. Сервер выдаёт его лениво при первом обращении к тарифу (см. ClubReferrals.
+ * EnsureCodeAsync) — до этого момента null, а не пустая строка.
+ * </param>
+ * <param name="ReferredByOrganizationId">Кто привёл этот клуб, если он пришёл по чужому коду.</param>
+ * <param name="ReferredByOrganizationName">Имя пригласившего клуба — то же условие, что и выше.</param>
+ * <param name="RewardedAtUtc">
+ * Когда пригласившему начислен месяц за то, что этот клуб оплатил первый счёт подписки. Null —
+ * либо клуб пришёл не по коду, либо ещё не оплатил первый счёт (ClubReferrals.RewardIfFirstPaidAsync).
+ * </param>
+ *
+ * Контракт: Platform/Organizations/OrganizationReferralDto.cs
+ */
+export interface OrganizationReferralDto {
+  code: string | null;
+  referredByOrganizationId: Guid | null;
+  referredByOrganizationName: string | null;
+  rewardedAtUtc: IsoDateTime | null;
+  referred: ReferredOrganizationDto[];
 }
 
 /** Контракт: Platform/Billing/OrganizationSubscriptionDto.cs */
@@ -6625,6 +6662,18 @@ export interface ReferralSettingsDto {
   minimumTopUpMinorUnits: number;
   claimWindowDays: number;
   maxRewardedPerReferrer: number;
+}
+
+/**
+ * Клуб, приведённый этим клубом по его коду.
+ *
+ * Контракт: Platform/Organizations/OrganizationReferralDto.cs
+ */
+export interface ReferredOrganizationDto {
+  organizationId: Guid;
+  name: string;
+  createdAtUtc: IsoDateTime;
+  rewarded: boolean;
 }
 
 /** Контракт: Billing/RefundLedgerEntryRequest.cs */

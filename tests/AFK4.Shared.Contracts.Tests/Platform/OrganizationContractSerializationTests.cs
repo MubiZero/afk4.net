@@ -64,6 +64,18 @@ public sealed class OrganizationContractSerializationTests
             ],
             CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"),
             UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:30:00Z"),
+            Referral: new OrganizationReferralDto(
+                Code: "AFK-DEMO01",
+                ReferredByOrganizationId: Guid.Parse("11111111-2222-3333-4444-555555555555"),
+                ReferredByOrganizationName: "Referrer Club",
+                RewardedAtUtc: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+                Referred: [
+                    new ReferredOrganizationDto(
+                        OrganizationId: Guid.Parse("66666666-7777-8888-9999-000000000000"),
+                        Name: "Referred Club",
+                        CreatedAtUtc: DateTimeOffset.Parse("2026-06-10T00:00:00Z"),
+                        Rewarded: false)
+                ]),
             ContactEmail: "billing@demo-org.test",
             ContactPhone: "+992000000000",
             LegalDetails: "OOO Demo Org, TIN 000000000");
@@ -83,6 +95,13 @@ public sealed class OrganizationContractSerializationTests
         Assert.Equal(detail.ContactEmail, copy.ContactEmail);
         Assert.Equal(detail.ContactPhone, copy.ContactPhone);
         Assert.Equal(detail.LegalDetails, copy.LegalDetails);
+        Assert.Equal("AFK-DEMO01", copy.Referral.Code);
+        Assert.Equal(detail.Referral.ReferredByOrganizationId, copy.Referral.ReferredByOrganizationId);
+        Assert.Equal("Referrer Club", copy.Referral.ReferredByOrganizationName);
+        Assert.Equal(detail.Referral.RewardedAtUtc, copy.Referral.RewardedAtUtc);
+        Assert.Single(copy.Referral.Referred);
+        Assert.Equal("Referred Club", copy.Referral.Referred[0].Name);
+        Assert.False(copy.Referral.Referred[0].Rewarded);
     }
 
     [Fact]
@@ -190,7 +209,8 @@ public sealed class OrganizationContractSerializationTests
                         CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"))
                 ],
                 CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"),
-                UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z")),
+                UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"),
+                Referral: new OrganizationReferralDto(null, null, null, null, [])),
             OrganizationOwnerInvite: new AFK4.Shared.Contracts.Identity.AccountActivation.OrganizationOwnerInviteDto(
                 OrganizationOwnerInviteId: Guid.Parse("99999999-1111-2222-3333-444444444444"),
                 OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),

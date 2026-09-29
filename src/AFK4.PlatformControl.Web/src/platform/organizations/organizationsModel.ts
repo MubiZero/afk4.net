@@ -36,12 +36,13 @@ export const INVITE_STATUS_LABEL: Record<string, MessageKey> = {
 export const STATUS_OPTIONS = ['active', 'suspended', 'deletion_pending'] as const;
 
 /**
- * Приглашение можно отправить ещё раз: ждёт ответа и срок ещё не вышел. Сервер сам «истёк» не
- * проставляет — статус переходит в него только при попытке принять приглашение по коду, — поэтому
- * срок сверяем здесь, а не полагаемся на одно поле status.
+ * Приглашение можно отправить ещё раз: ждёт ответа, срок ещё не вышел и есть куда слать. Сервер
+ * сам «истёк» не проставляет — статус переходит в него только при попытке принять приглашение по
+ * коду, — поэтому срок сверяем здесь, а не полагаемся на одно поле status. Без почты кнопка вела
+ * бы к тому же отказу, что сервер отдаёт кодом owner_invite_no_email.
  */
-export function canResendOwnerInvite(invite: { status: string; expiresAtUtc: string }, now: Date = new Date()): boolean {
-  return invite.status === 'pending' && new Date(invite.expiresAtUtc).getTime() > now.getTime();
+export function canResendOwnerInvite(invite: { status: string; expiresAtUtc: string; hasEmail: boolean }, now: Date = new Date()): boolean {
+  return invite.status === 'pending' && invite.hasEmail && new Date(invite.expiresAtUtc).getTime() > now.getTime();
 }
 
 /**

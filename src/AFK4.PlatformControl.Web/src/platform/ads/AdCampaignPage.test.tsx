@@ -96,10 +96,11 @@ function makeClient(initial: AdCampaignDto = campaign(), overrides: Partial<AdCa
 }
 
 function renderPage(client: AdCampaignClient, onBack = mock(() => {})) {
+  const organizationsClient = { listOrganizations: mock(async () => []) };
   render(
     <I18nProvider>
       <ToastProvider>
-        <AdCampaignPage client={client} campaignId={CAMPAIGN_ID} onBack={onBack} />
+        <AdCampaignPage client={client} organizationsClient={organizationsClient} campaignId={CAMPAIGN_ID} onBack={onBack} />
       </ToastProvider>
     </I18nProvider>
   );

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { describeApiError, retryCanHelp } from './describeApiError';
+import { describeApiError, describeTwoFactorError, retryCanHelp } from './describeApiError';
 import { PlatformApiError, PlatformStaleClientError } from './platformTransport';
 import { messages } from '@/i18n/messages';
 
@@ -45,6 +45,15 @@ describe('describeApiError', () => {
     expect(describeApiError(paid, t)).toBe(messages.ru['platform.error.invoiceAlreadyPaid']);
     expect(describeApiError(numbering, t)).toBe(messages.ru['platform.error.invoiceNumberingConflict']);
     expect(describeApiError(paid, t)).not.toBe(describeApiError(numbering, t));
+  });
+
+  it('отказ повторной отправки приглашения называет причину: нет почты или истёк срок', () => {
+    const noEmail = new PlatformApiError(400, 'x', 'owner_invite_no_email');
+    const expired = new PlatformApiError(400, 'x', 'owner_invite_expired');
+
+    expect(describeApiError(noEmail, t)).toBe(messages.ru['platform.error.ownerInviteNoEmail']);
+    expect(describeApiError(expired, t)).toBe(messages.ru['platform.error.ownerInviteExpired']);
+    expect(describeApiError(noEmail, t)).not.toBe(describeApiError(expired, t));
   });
 
   it('незнакомый код называет общими словами, а не выдумывает объяснение', () => {
@@ -95,6 +104,44 @@ describe('user-facing error copy', () => {
 
     walk(root);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('describeTwoFactorError', () => {
+  const formatDate = (iso: string) => iso;
+
+  // Раньше опечатка в коде и мёртвая сессия входа отвечали одинаковым голым 401 — экран не мог
+  // различить «попробуй ещё раз» и «начни заново», и обе ветки показывали «неверный код».
+  it('различает истёкшую сессию и неверный код — раньше оба были одним и тем же 401', () => {
+    const expired = new PlatformApiError(401, 'x', 'two_factor_challenge_expired');
+    const invalidCode = new PlatformApiError(401, 'x', 'two_factor_code_invalid');
+
+    expect(describeTwoFactorError(expired, t, formatDate)).toEqual({ kind: 'expired' });
+    expect(describeTwoFactorError(invalidCode, t, formatDate)).toEqual({
+      kind: 'message',
+      text: messages.ru['auth.twoFactor.error.invalidCode']
+    });
+  });
+
+  it('блокировка называет время, когда сервер его прислал, и общую фразу — когда нет', () => {
+    const withTime = new PlatformApiError(429, 'x', 'two_factor_locked', null, JSON.stringify({ lockedUntilUtc: '2026-10-01T10:00:00Z' }));
+    const withoutTime = new PlatformApiError(429, 'x', 'two_factor_locked');
+
+    expect(describeTwoFactorError(withTime, t, formatDate)).toEqual({
+      kind: 'message',
+      text: messages.ru['auth.twoFactor.error.lockedOutUntil'].replace('{time}', '2026-10-01T10:00:00Z')
+    });
+    expect(describeTwoFactorError(withoutTime, t, formatDate)).toEqual({
+      kind: 'message',
+      text: messages.ru['auth.twoFactor.error.lockedOut']
+    });
+  });
+
+  it('незнакомый код или сбой сети уходит в общий разбор ошибок', () => {
+    expect(describeTwoFactorError(new TypeError('network'), t, formatDate)).toEqual({
+      kind: 'message',
+      text: messages.ru['state.error.network']
+    });
   });
 });
 

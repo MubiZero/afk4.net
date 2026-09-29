@@ -2,8 +2,6 @@ namespace AFK4.Shared.Contracts.Identity;
 
 public static class OrganizationPermissionNames
 {
-    public const string CreateDeviceEnrollmentCode = "organization.devices.enrollment_codes.create";
-
     public const string DispatchDeviceCommand = "organization.devices.commands.dispatch";
 
     /// <summary>

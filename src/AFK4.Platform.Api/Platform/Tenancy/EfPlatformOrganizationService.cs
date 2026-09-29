@@ -410,12 +410,25 @@ public sealed class EfPlatformOrganizationService(
             return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest("Only pending invites can be resent.");
         }
 
-        if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
+        var now = timeProvider.GetUtcNow();
+        // Статус «истекло» сервер ставит лениво — только при попытке принять приглашение (см.
+        // AcceptOrganizationOwnerInviteAsync), поэтому приглашение может числиться Pending и уже
+        // просрочиться. Повтор такого приглашения без кода выглядел бы отправленным письмом,
+        // хотя владелец по нему уже не войдёт.
+        if (invite.ExpiresAtUtc <= now)
         {
-            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest("This invite has no email address on file.");
+            invite.Status = OrganizationOwnerInviteStatusNames.Expired;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(
+                "This invite has expired.", PlatformErrorCodeNames.OwnerInviteExpired);
         }
 
-        var now = timeProvider.GetUtcNow();
+        if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(
+                "This invite has no email address on file.", PlatformErrorCodeNames.OwnerInviteNoEmail);
+        }
+
         await SendOrganizationOwnerInviteEmailAsync(invite, $"owner-invite-resend:{invite.OrganizationOwnerInviteId:N}:{now.UtcTicks}", cancellationToken);
 
         return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.Success(ToInviteDto(invite));
@@ -1034,11 +1047,42 @@ public sealed class EfPlatformOrganizationService(
             Branches: branches.Select(ToBranchDto).ToList(),
             CreatedAtUtc: organization.CreatedAtUtc,
             UpdatedAtUtc: organization.UpdatedAtUtc,
+            Referral: await BuildReferralAsync(organization, cancellationToken),
             ContactEmail: organization.ContactEmail,
             ContactPhone: organization.ContactPhone,
             LegalDetails: organization.LegalDetails,
             UpdateChannel: organization.UpdateChannel,
             PinnedClientVersion: organization.PinnedClientVersion);
+    }
+
+    // Поддержке нечем было ответить на «обещали месяц за друга» — карточка клуба не несла ни его
+    // кода, ни того, кто его привёл, ни списка приведённых (см. ClubReferrals). Код не генерируем
+    // здесь: это read-путь, а код выдаётся лениво при первом обращении клуба к своему тарифу
+    // (ClubReferrals.EnsureCodeAsync) — до этого он честно null, а не подделанное значение.
+    private async Task<OrganizationReferralDto> BuildReferralAsync(OrganizationEntity organization, CancellationToken cancellationToken)
+    {
+        string? referredByName = null;
+        if (organization.ReferredByOrganizationId is { } referrerId)
+        {
+            referredByName = await dbContext.Organizations.AsNoTracking()
+                .Where(candidate => candidate.OrganizationId == referrerId)
+                .Select(candidate => candidate.Name)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        var referred = await dbContext.Organizations.AsNoTracking()
+            .Where(candidate => candidate.ReferredByOrganizationId == organization.OrganizationId)
+            .OrderBy(candidate => candidate.CreatedAtUtc)
+            .Select(candidate => new ReferredOrganizationDto(
+                candidate.OrganizationId, candidate.Name, candidate.CreatedAtUtc, candidate.ReferralRewardedAtUtc != null))
+            .ToListAsync(cancellationToken);
+
+        return new OrganizationReferralDto(
+            Code: organization.ReferralCode,
+            ReferredByOrganizationId: organization.ReferredByOrganizationId,
+            ReferredByOrganizationName: referredByName,
+            RewardedAtUtc: organization.ReferralRewardedAtUtc,
+            Referred: referred);
     }
 
     private static OrganizationBranchDto ToBranchDto(BranchEntity branch) =>
@@ -1183,6 +1227,7 @@ public sealed class EfPlatformOrganizationService(
             Status: entity.Status,
             OwnerUserName: entity.OwnerUserName,
             OwnerDisplayName: entity.OwnerDisplayName,
+            HasEmail: !string.IsNullOrWhiteSpace(entity.OwnerEmail),
             ExpiresAtUtc: entity.ExpiresAtUtc,
             AcceptedAtUtc: entity.AcceptedAtUtc,
             RevokedAtUtc: entity.RevokedAtUtc,

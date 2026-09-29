@@ -280,6 +280,9 @@ public sealed class EfOperatorDashboardServiceTests
         Assert.Equal(5_000, summary.Revenue.PosNetSales.MinorUnits);
     }
 
+    // Колонку ExpectedCashMinorUnits пишет только закрытие смены — у открытой смены она всегда 0,
+    // даже если в ящике реально лежат деньги. Сводка обязана считать её тем же правилом, что и
+    // закрытие (ShiftExpectedCash.Compute), а не эхом отдавать хранимый ноль.
     [Fact]
     public async Task Summary_ReportsOpenShiftAndItsExpectedCash()
     {
@@ -305,8 +308,24 @@ public sealed class EfOperatorDashboardServiceTests
                 OpenedByStaffUserId = StaffId,
                 OpenedAtUtc = DayStart.AddHours(8),
                 CurrencyCode = "TJS",
-                ExpectedCashMinorUnits = 42_500
+                StartingCashMinorUnits = 10_000,
+                // Открытие всегда пишет 0 сюда — реальный расчёт идёт по движениям.
+                ExpectedCashMinorUnits = 0
             });
+        db.CashMovements.Add(new CashMovementEntity
+        {
+            CashMovementId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ShiftId = OpenShiftId,
+            CreatedByStaffUserId = StaffId,
+            MovementType = CashMovementTypeNames.CashIn,
+            CurrencyCode = "TJS",
+            AmountMinorUnits = 5_000,
+            Reason = "Пополнение размена",
+            CreatedAtUtc = DayStart.AddHours(9)
+        });
+        db.Payments.Add(NewPayment("payment", 3_000, DayStart.AddHours(10), TestIds.BranchId));
         await db.SaveChangesAsync();
 
         var summary = await CreateService(db).GetSummaryAsync(
@@ -314,7 +333,8 @@ public sealed class EfOperatorDashboardServiceTests
 
         Assert.Equal(OpenShiftId, summary.Shift.ShiftId);
         Assert.Equal(ShiftStateNames.Open, summary.Shift.State);
-        Assert.Equal(42_500, summary.Shift.ExpectedCash.MinorUnits);
+        // 10 000 старта + 5 000 внесения + 3 000 наличной оплаты = 18 000, не 0.
+        Assert.Equal(18_000, summary.Shift.ExpectedCash.MinorUnits);
         Assert.Equal("TJS", summary.Shift.ExpectedCash.CurrencyCode);
     }
 

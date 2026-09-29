@@ -152,7 +152,14 @@ class _AppShellState extends State<AppShell> {
   /// Открыть то, о чём уведомление. Незнакомое событие не двигает игрока никуда: приложение
   /// просто открылось, и это честнее, чем увести наугад.
   void _followPush(PushNotification notification) {
-    switch (pushDestinationFor(notification.template)) {
+    final destination = pushDestinationFor(notification.template);
+    if (destination != null) _openPushDestination(destination);
+  }
+
+  /// Тот же переход, что у живого пуша — нужен и нажатию на сам пуш, и нажатию на его строку в
+  /// списке уведомлений: событие одно, и вести должно в одно и то же место.
+  void _openPushDestination(PushDestination destination) {
+    switch (destination) {
       case PushDestination.home:
         _open(AppSection.home);
       case PushDestination.reservations:
@@ -169,8 +176,6 @@ class _AppShellState extends State<AppShell> {
           _section = AppSection.home;
           _openNotificationsRequest++;
         });
-      case null:
-        break;
     }
   }
 
@@ -260,6 +265,7 @@ class _AppShellState extends State<AppShell> {
           onOpenWallet: () => _open(AppSection.wallet),
           openShopRequest: _openShopRequest,
           openNotificationsRequest: _openNotificationsRequest,
+          onOpenPushDestination: _openPushDestination,
           pinSet: widget.me?.person.pinSet,
           clock: widget.clock,
         ),

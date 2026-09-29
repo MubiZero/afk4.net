@@ -18,6 +18,7 @@ import '../packages/packages_screen.dart';
 import '../play/pc_sign_in_screen.dart';
 import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
+import '../push/push_notification.dart';
 import '../referral/referral_screen.dart';
 import '../reviews/review_invite.dart';
 import '../reviews/review_sheet.dart';
@@ -49,6 +50,7 @@ class DashboardScreen extends StatefulWidget {
     this.onOpenWallet,
     this.openShopRequest = 0,
     this.openNotificationsRequest = 0,
+    this.onOpenPushDestination,
     this.onPhoneVerified,
     this.pinSet,
     this.clock = DateTime.now,
@@ -73,6 +75,10 @@ class DashboardScreen extends StatefulWidget {
   /// Счётчик просьб открыть список уведомлений — из нажатия на пуш, которому в приложении
   /// нет другого места (ответ клуба на отзыв).
   final int openNotificationsRequest;
+
+  /// Тот же переход, что у живого пуша — список уведомлений передаёт его строке, по которой
+  /// нажали: событие должно вести туда же, куда вело бы уведомление на телефоне.
+  final void Function(PushDestination destination)? onOpenPushDestination;
 
   /// Есть ли у игрока счёт в этом клубе. Пока нет — спрашивать нечего: ни денег, ни сессии,
   /// ни истории здесь ещё не завелось.
@@ -131,6 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onRead: () {
             if (mounted) setState(() => _unreadNotifications = 0);
           },
+          onOpenDestination: widget.onOpenPushDestination,
         ),
       ),
     );

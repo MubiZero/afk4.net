@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Endpoints;
 using AFK4.Platform.Api.Platform.Analytics;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Dashboard;
 using AFK4.Shared.Contracts.Pos;
@@ -122,6 +123,16 @@ public sealed class EfOperatorDashboardService(
         var failedCommands = commands.Count(command => IsStatus(command.Status, "Failed") || IsStatus(command.Status, "Rejected"));
         var totalAlerts = pendingCommands + failedCommands + offlineDevices + endingSessionCount;
         var currencyCode = ResolveCurrencyCode(currentShift, payments, ledgerEntries);
+        // Ожидаемая наличность открытой смены не хранится в колонке (её пишет только закрытие) —
+        // считаем тем же правилом, что и закрытие, а не отдаём 0.
+        var expectedCashMinorUnits = currentShift is null
+            ? 0
+            : ShiftExpectedCash.Compute(
+                currentShift,
+                await dbContext.CashMovements.AsNoTracking().Where(movement => movement.ShiftId == currentShift.ShiftId).ToListAsync(cancellationToken),
+                await dbContext.Payments.AsNoTracking().Where(payment => payment.ShiftId == currentShift.ShiftId).ToListAsync(cancellationToken),
+                await dbContext.LedgerEntries.AsNoTracking().Where(entry => entry.ShiftId == currentShift.ShiftId).ToListAsync(cancellationToken))
+                .Expected;
         var posNetSalesMinorUnits = BranchRevenue.PosNet(
             payments.Select(payment => (Kind: payment.PaymentKind, payment.AmountMinorUnits)));
         var gameplayRevenueMinorUnits = BranchRevenue.Gameplay(
@@ -158,7 +169,7 @@ public sealed class EfOperatorDashboardService(
                 currentShift?.State ?? "none",
                 currentShift?.OpenedAtUtc,
                 currentShift?.OpenedByStaffUserId,
-                Money(currencyCode, currentShift?.ExpectedCashMinorUnits ?? 0)),
+                Money(currencyCode, expectedCashMinorUnits)),
             new OperatorDashboardRevenueSummaryDto(
                 Money(currencyCode, posNetSalesMinorUnits),
                 Money(currencyCode, gameplayRevenueMinorUnits),

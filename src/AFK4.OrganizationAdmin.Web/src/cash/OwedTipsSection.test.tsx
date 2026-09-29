@@ -5,6 +5,7 @@ import type { OwedShiftTipsDto, ShiftTipsDto } from '@afk4/contracts';
 import type { OperatorAuthSession } from '../authClient';
 import { cashReasonLabel } from '../operatorHelpers';
 import { OwedTipsSection } from './OwedTipsSection';
+import { PlatformApiError } from '../platformApi';
 
 afterEach(cleanup);
 
@@ -42,6 +43,31 @@ function renderOwed(permissions: string[], owed: OwedShiftTipsDto[] = [owedRow])
 }
 
 describe('OwedTipsSection', () => {
+  // Отказ списка раньше глотался: блок пропадал, и это читалось как «долгов по чаевым нет», хотя
+  // деньги персонала из закрытых смен ждут выдачи. Теперь — причина и «Повторить».
+  it('не загрузился — говорит об этом и перезапрашивает по «Повторить»', async () => {
+    let calls = 0;
+    const client = {
+      owed: mock(async () => {
+        calls += 1;
+        if (calls === 1) throw new PlatformApiError('boom', 503, 'Service Unavailable', '');
+        return [owedRow];
+      }),
+      payOut: mock(async () => ({} as ShiftTipsDto))
+    };
+    render(
+      <I18nProvider initialLocale="ru">
+        <OwedTipsSection client={client} session={{ permissions: [] } as unknown as OperatorAuthSession} branchId="b1" currencyCode="TJS" onShiftChanged={() => {}} />
+      </I18nProvider>
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Долг по чаевым не загрузился');
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByRole('region', { name: 'Чаевые прошлых смен к выдаче' })).toBeInTheDocument();
+    expect(client.owed).toHaveBeenCalledTimes(2);
+  });
+
   it('долгов нет — блока нет', async () => {
     const { client } = renderOwed(['organization.shifts.cash.manage'], []);
     await waitFor(() => expect(client.owed).toHaveBeenCalled());

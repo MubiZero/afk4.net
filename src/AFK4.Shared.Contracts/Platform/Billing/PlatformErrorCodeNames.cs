@@ -59,4 +59,12 @@ public static class PlatformErrorCodeNames
 
     /// <summary>Логин владельца уже занят в этой организации.</summary>
     public const string OwnerUserNameTaken = "owner_username_taken";
+
+    // --- Приглашение владельца ----------------------------------------------------------------
+
+    /// <summary>У приглашения нет адреса почты — отправлять письмо некуда.</summary>
+    public const string OwnerInviteNoEmail = "owner_invite_no_email";
+
+    /// <summary>Срок приглашения истёк — повторная отправка ничего не решит.</summary>
+    public const string OwnerInviteExpired = "owner_invite_expired";
 }

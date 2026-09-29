@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Tests.Platform;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
+using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -99,7 +101,7 @@ public sealed class OrganizationOwnerInviteEmailEndpointTests
     }
 
     [Fact]
-    public async Task ResendOrganizationOwnerInvite_WithNoEmailOnFile_ReturnsBadRequest()
+    public async Task ResendOrganizationOwnerInvite_WithNoEmailOnFile_ReturnsBadRequestWithCode()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -113,5 +115,41 @@ public sealed class OrganizationOwnerInviteEmailEndpointTests
         var resend = await client.PostAsync($"/api/platform/organization-owner-invitations/{invite!.OrganizationOwnerInviteId:D}/resend", null);
 
         Assert.Equal(HttpStatusCode.BadRequest, resend.StatusCode);
+        var body = await resend.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(PlatformErrorCodeNames.OwnerInviteNoEmail, body.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task ResendOrganizationOwnerInvite_WithExpiredInvite_MarksExpiredAndReturnsBadRequestWithCode()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var (organizationId, branchId) = await CreateOrganizationAsync(factory, client, "club-e");
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/platform/organizations/{organizationId:D}/organization-owner-invitations",
+            new CreateOrganizationOwnerInviteRequest(branchId, "newowner", "New Owner", null, "newowner@club.example"));
+        var invite = await createResponse.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var entity = await dbContext.OrganizationOwnerInvites.SingleAsync(row => row.OrganizationOwnerInviteId == invite!.OrganizationOwnerInviteId);
+            entity.ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1);
+            await dbContext.SaveChangesAsync();
+        }
+
+        var resend = await client.PostAsync($"/api/platform/organization-owner-invitations/{invite!.OrganizationOwnerInviteId:D}/resend", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, resend.StatusCode);
+        var body = await resend.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(PlatformErrorCodeNames.OwnerInviteExpired, body.GetProperty("code").GetString());
+        // Просроченный статус лениво проставляется и при повторной отправке — не только при
+        // попытке принять приглашение, — иначе список приглашений продолжал бы показывать
+        // "Ожидает" клубу, который уже не сможет войти по коду.
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var inviteAfter = await verificationDb.OrganizationOwnerInvites.SingleAsync(row => row.OrganizationOwnerInviteId == invite!.OrganizationOwnerInviteId);
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Expired, inviteAfter.Status);
     }
 }

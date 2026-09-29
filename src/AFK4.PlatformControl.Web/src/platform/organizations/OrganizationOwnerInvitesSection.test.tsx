@@ -19,7 +19,7 @@ const branches: OrganizationBranch[] = [
 function summary(over: Partial<OrganizationOwnerInviteSummary>): OrganizationOwnerInviteSummary {
   return {
     organizationOwnerInviteId: 'i1', organizationId: 'o1', branchId: 'b1', codeSuffix: '1234',
-    status: 'pending', ownerUserName: 'owner@x.io', ownerDisplayName: 'Owner',
+    status: 'pending', ownerUserName: 'owner@x.io', ownerDisplayName: 'Owner', hasEmail: true,
     expiresAtUtc: '2026-02-01T00:00:00Z', acceptedAtUtc: null, revokedAtUtc: null,
     revokedReason: null, createdAtUtc: '2026-01-01T00:00:00Z', ...over
   };
@@ -146,6 +146,21 @@ it('не предлагает повтор для принятого, отозв
   renderSection(client);
 
   await screen.findAllByText('owner@x.io');
+  expect(screen.queryByRole('button', { name: 'Отправить ещё раз' })).toBeNull();
+});
+
+// Без почты сервер отвечает owner_invite_no_email: показывать кнопку, которая гарантированно
+// приведёт к этому отказу, незачем — панель уже знает, что слать некуда.
+it('не предлагает повтор приглашению без почты', async () => {
+  const client = {
+    listOrganizationOwnerInvites: mock().mockResolvedValue([summary({ hasEmail: false })]),
+    createOrganizationOwnerInvite: mock(),
+    revokeOrganizationOwnerInvite: mock(),
+    resendOrganizationOwnerInvite: mock()
+  };
+  renderSection(client);
+
+  await screen.findByText('owner@x.io');
   expect(screen.queryByRole('button', { name: 'Отправить ещё раз' })).toBeNull();
 });
 

@@ -52,7 +52,6 @@ const AREA_TO_WRITE_PERMISSIONS: Record<string, readonly string[]> = {
   staff: [permissionNames.manageBranchStaff],
   'floor-map': [permissionNames.manageLayout],
   devices: [
-    permissionNames.createDeviceEnrollmentCode,
     permissionNames.assignDeviceSeat,
     permissionNames.rotateDeviceCredential,
     permissionNames.revokeDeviceCredential,

@@ -106,6 +106,44 @@ public sealed class OrganizationAdminReportServiceTests
         Assert.Equal(revenue.PosNetSales.MinorUnits, revenue.PaymentMethods.Sum(row => row.Revenue.MinorUnits));
     }
 
+    // Колонку ExpectedCashMinorUnits пишет только закрытие смены; у открытой смены она всегда 0.
+    // Сводка отчёта обязана считать ожидаемую наличность тем же правилом (ShiftExpectedCash),
+    // а не эхом отдавать хранимый ноль.
+    [Fact]
+    public async Task GetSummaryAsync_ComputesOpenShiftExpectedCashInsteadOfReadingStoredZero()
+    {
+        await using var db = CreateDbContext();
+        db.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Slug = "central", Name = "Central", PreferredTimeZone = "Asia/Dushanbe" });
+        var shiftId = Guid.NewGuid();
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = shiftId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = Guid.NewGuid(),
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 10_000,
+            ExpectedCashMinorUnits = 0,
+            OpenedAtUtc = DateTimeOffset.Parse("2026-07-29T05:00:00Z")
+        });
+        db.Payments.Add(new PaymentEntity
+        {
+            PaymentId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId,
+            ShiftId = shiftId, CreatedByStaffUserId = Guid.NewGuid(), PaymentKind = "payment",
+            Provider = "manual", PaymentMethod = "cash", CurrencyCode = "TJS", AmountMinorUnits = 4_000,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-07-29T06:00:00Z")
+        });
+        await db.SaveChangesAsync();
+        var service = new OrganizationAdminReportService(db, new RevenueReportStub());
+
+        var result = await service.GetSummaryAsync(TestIds.OrganizationId, TestIds.BranchId, new DateOnly(2026, 7, 29), new DateOnly(2026, 7, 29), CancellationToken.None);
+
+        Assert.NotNull(result.ActiveShift);
+        // 10 000 старта + 4 000 наличной оплаты = 14 000, не хранимый 0.
+        Assert.Equal(14_000, result.ActiveShift.ExpectedCash.MinorUnits);
+    }
+
     private static PaymentEntity Pos(string kind, long amountMinorUnits, DateTimeOffset at) => new()
     {
         PaymentId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId,

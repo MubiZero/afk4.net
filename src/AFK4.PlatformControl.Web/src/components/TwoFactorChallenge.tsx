@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
-import { describeApiError } from '../api/describeApiError';
+import { describeTwoFactorError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
 import { useChallengeExpiry } from './useChallengeExpiry';
 
@@ -16,7 +16,7 @@ export function TwoFactorChallenge({ onSubmit, onCancel, expiresAtUtc, onExpired
   expiresAtUtc?: string;
   onExpired?: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
@@ -34,10 +34,17 @@ export function TwoFactorChallenge({ onSubmit, onCancel, expiresAtUtc, onExpired
     try {
       await onSubmit(code.trim());
     } catch (cause) {
-      setError(describeApiError(cause, t, {
-        401: 'auth.twoFactor.error.invalidCode',
-        429: 'auth.twoFactor.error.lockedOut'
-      }));
+      // A dead challenge (server says so via two_factor_challenge_expired) gets the exact same
+      // treatment as the client-side countdown running out: back to the password screen, not a
+      // dead-end "invalid code" on a form that can never succeed again. If nothing is listening
+      // for that (no onExpired wired up), say so inline instead of doing nothing.
+      const outcome = describeTwoFactorError(cause, t, formatDate);
+      if (outcome.kind === 'expired') {
+        if (onExpired !== undefined) onExpired();
+        else setError(t('auth.twoFactor.error.expired'));
+      } else {
+        setError(outcome.text);
+      }
     } finally {
       setSubmitting(false);
     }

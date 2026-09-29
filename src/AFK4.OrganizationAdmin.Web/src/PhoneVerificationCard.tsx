@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { PlatformApiClient, PlatformApiError } from './platformApi';
+import { PlatformApiError } from './platformApi';
+import { authenticatedPlatformApi } from './operatorHelpers';
 import { createOperatorApiClients } from './operatorApiClients';
 import { DeferredSkeleton, SkeletonLine } from './LoadingSkeleton';
 
@@ -47,10 +48,9 @@ function describeError(err: unknown, t: (k: MessageKey) => string): string {
 export function PhoneVerificationCard({ backend }: { backend: PhoneVerificationBackend }) {
   const { t } = useI18n();
   const api = useMemo(
-    () => createOperatorApiClients(new PlatformApiClient({
-      baseUrl: backend.config.platformBaseUrl,
-      getAccessToken: () => backend.session.accessToken
-    }), backend.session.organizationId).account,
+    () => createOperatorApiClients(
+      authenticatedPlatformApi(backend.config.platformBaseUrl, backend.session),
+      backend.session.organizationId).account,
     [backend.config.platformBaseUrl, backend.session.accessToken, backend.session.organizationId]
   );
 

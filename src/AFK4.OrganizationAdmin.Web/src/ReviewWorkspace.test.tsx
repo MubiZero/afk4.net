@@ -1,5 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from './operatorToast';
 import { PlatformApiError } from './platformApi';
@@ -76,6 +76,25 @@ describe('ReviewWorkspace', () => {
     const inspector = screen.getByLabelText('Детали выбранной записи');
     expect(inspector).toHaveTextContent('Истекает');
     expect(inspector).toHaveTextContent('Ошибочный чек');
+  });
+
+  // Второй клик по «Одобрить», пока первый в пути, раньше уходил вторым запросом: сервер
+  // схлопывает повтор, но оператор получал 409 поверх уже принятого решения.
+  it('одобрение — одно нажатие: кнопки заперты, пока решение в пути', async () => {
+    let release: () => void = () => {};
+    approve.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve({}); }));
+    renderReview();
+    fireEvent.click(await screen.findByRole('row', { name: /Возврат.*120/ }));
+    const approveButton = screen.getByRole('button', { name: 'Одобрить' });
+
+    fireEvent.click(approveButton);
+    fireEvent.click(approveButton);
+
+    await waitFor(() => expect(approveButton).toBeDisabled());
+    const inspector = screen.getByLabelText('Детали выбранной записи');
+    expect(within(inspector).getByRole('button', { name: 'Отклонить' })).toBeDisabled();
+    expect(approve).toHaveBeenCalledTimes(1);
+    release();
   });
 
   it('после ошибки backend сохраняет причину отклонения', async () => {

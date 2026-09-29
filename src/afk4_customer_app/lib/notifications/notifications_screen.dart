@@ -4,6 +4,7 @@ import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
+import '../push/push_notification.dart';
 import '../shell/app_scaffold.dart';
 import '../shell/load_failure.dart';
 
@@ -15,12 +16,16 @@ import '../shell/load_failure.dart';
 ///
 /// Прочитанным список помечается при открытии, а не по одному сообщению: его читают целиком.
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key, required this.api, this.onRead});
+  const NotificationsScreen({super.key, required this.api, this.onRead, this.onOpenDestination});
 
   final PlayerApiClient api;
 
   /// Список открыли и прочитали — экрану выше пора убрать значок непрочитанного.
   final VoidCallback? onRead;
+
+  /// Тот же переход, что уводил бы нажатие на живой пуш. null — список открыт без оболочки
+  /// (тесты): строки тогда просто нечего нажимать.
+  final void Function(PushDestination destination)? onOpenDestination;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -123,6 +128,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (_, index) {
                 final item = _items[index];
+                // То же сопоставление, что уводит нажатие на живой пуш: строка истории ведёт
+                // туда же, куда вело бы то же событие, придя уведомлением прямо сейчас.
+                final destination = pushDestinationFor(item.templateKey);
                 return ListTile(
                   leading: Icon(_icon(item.templateKey)),
                   title: Text(
@@ -141,6 +149,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                     ],
                   ),
+                  onTap: destination == null || widget.onOpenDestination == null
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                          widget.onOpenDestination!(destination);
+                        },
                 );
               },
             ),
