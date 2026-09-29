@@ -1,11 +1,10 @@
 import { useState, type JSX } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
 import { auditActionLabel, downloadTextFile, operatorDisplayNameLabel } from '../operatorHelpers';
 import type { OperatorActionReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportBody, ReportFiguresSkeleton, ReportRangeControls } from './ReportRangeControls';
+import { ReportBody, ReportFiguresSkeleton, ReportRangeControls, ReportScreen } from './ReportRangeControls';
 import { SkeletonTable } from '../LoadingSkeleton';
 import { todayReportRange, toReportInstantQuery, type ReportDateRange } from './reportRange';
 import { createDetailReportClients } from './reportClient';
@@ -36,10 +35,7 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
   }
 
   return (
-    <ManagementScreen
-      title={t('op.reports.actions.title')}
-      subtitle={t('op.reports.actions.subtitle')}
-      contentWidth="full"
+    <ReportScreen
       state={state}
       skeleton={
         <>
@@ -74,7 +70,7 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
             : null}
         </ReportBody>
       ) : null}
-    </ManagementScreen>
+    </ReportScreen>
   );
 }
 

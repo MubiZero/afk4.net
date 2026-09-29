@@ -2,10 +2,38 @@ import type { JSX, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { ReportDateRange } from './reportRange';
-import { SkeletonTiles } from '../LoadingSkeleton';
+import { DeferredSkeleton, SkeletonTiles } from '../LoadingSkeleton';
 import { useDeferredFlag } from '../useDeferredFlag';
+import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
+import { LoadFailureState } from '../operatorPrimitives';
 
-// Панель периода от ответа не зависит и стоит в ManagementScreen.controls — на месте и при
+// Тело вкладки отчёта: панель периода, затем заглушка, отказ или содержимое. Своего заголовка нет:
+// имя отчёта — выбранная вкладка в шапке раздела «Отчёты». Раньше каждый отчёт жил во вложенном
+// экране Управления, и под вкладкой «Сводка» стояло ещё раз «Главное за выбранный день / Сводка».
+export function ReportScreen({ state, skeleton, failure, onRetry, controls, narrow = false, children }: {
+  state: 'loading' | 'error' | 'ready';
+  skeleton: ReactNode;
+  failure?: OperatorErrorProjection;
+  onRetry?: () => void;
+  controls?: ReactNode;
+  /** Форма, а не таблица, — мера чтения вместо всей ширины. */
+  narrow?: boolean;
+  children: ReactNode;
+}): JSX.Element {
+  const { t } = useI18n();
+  return (
+    <div className={`reports-screen${narrow ? ' reports-screen--narrow' : ''}`}>
+      {controls}
+      {state === 'loading' ? (
+        <DeferredSkeleton>{skeleton}</DeferredSkeleton>
+      ) : state === 'error' ? (
+        <LoadFailureState title={t('op.management.state.errorTitle')} failure={failure ?? projectOperatorError(undefined, t)} onRetry={onRetry} />
+      ) : children}
+    </div>
+  );
+}
+
+// Панель периода от ответа не зависит и стоит в ReportScreen.controls — на месте и при
 // загрузке, и при отказе. `refreshing` — идёт запрос за новый период поверх показанных данных.
 export function ReportRangeControls({ range, onChange, onRefresh, onExport, exporting = false, refreshing = false }: {
   range: ReportDateRange;

@@ -1,9 +1,8 @@
 import { useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { ManagementScreen } from '../management/ManagementScreen';
 import { downloadTextFile, formatMinorUnits } from '../operatorHelpers';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportBody, ReportFiguresSkeleton, ReportRangeControls } from './ReportRangeControls';
+import { ReportBody, ReportFiguresSkeleton, ReportRangeControls, ReportScreen } from './ReportRangeControls';
 import { SkeletonLine } from '../LoadingSkeleton';
 import { todayReportRange, toReportQuery, type ReportDateRange } from './reportRange';
 import { createReportClients } from './reportClient';
@@ -22,10 +21,10 @@ export function RevenueReport({ backend }: { backend: OperatorBackendContext | n
     const csv = await reports.exportWorkspaceRevenue(backend.branchId, toReportQuery(range));
     downloadTextFile(`revenue-${range.from}-${range.to}.csv`, csv);
   }
-  return <ManagementScreen title={t('op.reports.revenue.title')} subtitle={t('op.reports.revenue.subtitle')} contentWidth="full" state={state} skeleton={<RevenueSkeleton />} failure={error} onRetry={reload}
+  return <ReportScreen state={state} skeleton={<RevenueSkeleton />} failure={error} onRetry={reload}
     controls={<ReportRangeControls range={range} onChange={setRange} onRefresh={reload} onExport={() => void exportCsv()} refreshing={refreshing} />}>
-    <ReportBody refreshing={refreshing}>{data ? <div className="reports-revenue"><dl className="reports-figures"><div><dt>{t('op.reports.revenue.total')}</dt><dd>{formatMinorUnits(data.netRevenue.minorUnits, data.netRevenue.currencyCode)}</dd></div><div><dt>{t('op.reports.revenue.refunds')}</dt><dd>{formatMinorUnits(data.refunds.minorUnits, data.refunds.currencyCode)}</dd></div><div><dt>{t('op.reports.revenue.gameplayHours')}</dt><dd>{formatNumber(Math.round(data.gameplaySeconds / 360) / 10)}</dd></div></dl><section className="reports-comparison"><span>{t('op.reports.revenue.comparison')}</span><strong>{data.comparison.changePercent == null ? '—' : `${data.comparison.changePercent >= 0 ? '+' : ''}${formatNumber(data.comparison.changePercent)}%`}</strong><small>{formatMinorUnits(data.comparison.previousNetRevenue.minorUnits, data.comparison.previousNetRevenue.currencyCode)}</small></section><div className="reports-source-split">{data.sources.map((source) => <section key={source.source}><span>{source.source === 'gameplay' ? t('op.reports.revenue.gameplay') : t('op.reports.revenue.pos')}</span><strong>{formatMinorUnits(source.revenue.minorUnits, source.revenue.currencyCode)}</strong></section>)}</div><div className="reports-breakdowns"><Breakdown title={t('op.reports.revenue.paymentMethods')} rows={data.paymentMethods} /><Breakdown title={t('op.reports.revenue.operators')} rows={data.operators} /></div></div> : null}</ReportBody>
-  </ManagementScreen>;
+    <ReportBody refreshing={refreshing}>{data ? <div className="reports-revenue"><dl className="reports-figures"><div><dt>{t('op.reports.revenue.total')}</dt><dd>{formatMinorUnits(data.netRevenue.minorUnits, data.netRevenue.currencyCode)}</dd></div><div><dt>{t('op.reports.revenue.refunds')}</dt><dd>{formatMinorUnits(data.refunds.minorUnits, data.refunds.currencyCode)}</dd></div><div><dt>{t('op.reports.gameplay.total')}</dt><dd>{formatNumber(Math.round(data.gameplaySeconds / 360) / 10)}</dd></div></dl><section className="reports-comparison"><span>{t('op.reports.revenue.comparison')}</span><strong>{data.comparison.changePercent == null ? '—' : `${data.comparison.changePercent >= 0 ? '+' : ''}${formatNumber(data.comparison.changePercent)}%`}</strong><small>{formatMinorUnits(data.comparison.previousNetRevenue.minorUnits, data.comparison.previousNetRevenue.currencyCode)}</small></section><div className="reports-source-split">{data.sources.map((source) => <section key={source.source}><span>{source.source === 'gameplay' ? t('op.reports.gameplay.revenue') : t('op.reports.revenue.pos')}</span><strong>{formatMinorUnits(source.revenue.minorUnits, source.revenue.currencyCode)}</strong></section>)}</div><div className="reports-breakdowns"><Breakdown title={t('op.reports.revenue.paymentMethods')} rows={data.paymentMethods} /><Breakdown title={t('op.reports.revenue.operators')} rows={data.operators} /></div></div> : null}</ReportBody>
+  </ReportScreen>;
 }
 
 function Breakdown({ title, rows }: { title: string; rows: Array<{ key: string; label: string; revenue: { currencyCode: string; minorUnits: number } }> }) {

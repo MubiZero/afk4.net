@@ -1,11 +1,10 @@
 import { useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { ManagementScreen } from '../management/ManagementScreen';
 import { cashReasonLabel, downloadTextFile, formatMinorUnits } from '../operatorHelpers';
 import { EmptyState } from '../operatorPrimitives';
 import type { ReportShiftRowDto } from '../api/clients/reports';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportBody, ReportRangeControls } from './ReportRangeControls';
+import { ReportBody, ReportRangeControls, ReportScreen } from './ReportRangeControls';
 import { SkeletonLine } from '../LoadingSkeleton';
 import { todayReportRange, toReportQuery, type ReportDateRange } from './reportRange';
 import { createReportClients } from './reportClient';
@@ -28,10 +27,10 @@ export function ShiftCashReport({ backend, currencyCode }: { backend: OperatorBa
     const csv = await reports.exportWorkspaceShiftCash(backend.branchId, toReportQuery(range));
     downloadTextFile(`shifts-cash-${range.from}-${range.to}.csv`, csv);
   }
-  return <ManagementScreen title={t('op.reports.shifts.title')} subtitle={t('op.reports.shifts.subtitle')} contentWidth="full" state={state} skeleton={<ShiftCashSkeleton />} failure={error} onRetry={reload}
+  return <ReportScreen state={state} skeleton={<ShiftCashSkeleton />} failure={error} onRetry={reload}
     controls={<ReportRangeControls range={range} onChange={setRange} onRefresh={reload} onExport={() => void exportCsv()} refreshing={refreshing} />}>
     <ReportBody refreshing={refreshing}>{data ? <div className="reports-master-detail"><div className="reports-shift-list">{data.shifts.length ? data.shifts.map((shift) => <button key={shift.shiftId} type="button" className={shift.shiftId === selectedId ? 'active' : undefined} onClick={() => setChosenId(shift.shiftId)}><span>{formatDate(shift.openedAtUtc)}</span><strong>{shift.state === 'open' ? t('op.reports.shifts.open') : formatMinorUnits(shift.difference?.minorUnits ?? 0, shift.difference?.currencyCode ?? currencyCode)}</strong></button>) : <EmptyState inline title={t('op.reports.empty')} next={{ kind: 'elsewhere', hint: t('op.reports.emptyHint') }} />}</div>{selected ? <aside className="reports-shift-inspector"><h2>{t('op.reports.shifts.inspector')}</h2><dl><div><dt>{t('op.reports.col.expectedCash')}</dt><dd>{formatMinorUnits(selected.expectedCash.minorUnits, selected.expectedCash.currencyCode)}</dd></div><div><dt>{t('op.reports.col.countedCash')}</dt><dd>{selected.countedCash ? formatMinorUnits(selected.countedCash.minorUnits, selected.countedCash.currencyCode) : t('op.reports.shifts.provisional')}</dd></div><div><dt>{t('op.reports.col.difference')}</dt><dd>{selected.difference ? formatMinorUnits(selected.difference.minorUnits, selected.difference.currencyCode) : t('op.reports.shifts.provisional')}</dd></div></dl><h3>{t('op.reports.shifts.cashOperations')}</h3><ul>{data.cashOperations.filter((row) => row.shiftId === selected.shiftId).map((row) => <li key={row.operationId}><span>{cashReasonLabel(row.reason, t) || row.operationType}</span><strong>{formatMinorUnits(row.cashImpact.minorUnits, row.cashImpact.currencyCode)}</strong></li>)}</ul></aside> : null}</div> : null}</ReportBody>
-  </ManagementScreen>;
+  </ReportScreen>;
 }
 
 // Список смен слева и карточка выбранной справа — в тех же блоках, что и настоящий отчёт.
