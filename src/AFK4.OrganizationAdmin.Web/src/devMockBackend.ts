@@ -382,11 +382,13 @@ const previewMoneyActions: Array<Record<string, unknown>> = [{
 }];
 
 // targetId: null явно — контракт (AuditRecordDto.cs) шлёт его всегда, пропавшего ключа реальный
-// сервер не отдаёт; фикстура без него однажды маскировала разбор `undefined` как `null`.
+// сервер не отдаёт; фикстура без него однажды маскировала разбор `undefined` как `null`. Коды
+// действий и итоги — настоящие серверные (AuditActionNames, AuditOutcome): выдуманные
+// «cash.shift.opened» / «success» показывали в демо журнал, которого в клубе не бывает.
 const previewAuditRecords: Array<Record<string, unknown>> = [
-  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'cash.shift.opened', outcome: 'success', targetType: 'shift', targetId: null, amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
-  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.rejected', outcome: 'rejected', targetType: 'money_action', targetId: null, amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
-  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.approved', outcome: 'approved', targetType: 'money_action', targetId: null, amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
+  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin', action: 'shifts.open', outcome: 'Succeeded', targetType: 'Shift', targetId: null, amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
+  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin', action: 'billing.money_action.rejected', outcome: 'Succeeded', targetType: 'MoneyAction', targetId: null, amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
+  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin', action: 'billing.money_action.approved', outcome: 'Succeeded', targetType: 'MoneyAction', targetId: null, amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
 ];
 
 function previewAudit(searchParams: URLSearchParams) {
@@ -1378,9 +1380,9 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     const approved = moneyDecisionMatch[2] === 'approve';
     const auditRecord = {
       auditRecordId: `audit-preview-${Date.now()}`,
-      actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
-      action: approved ? 'money_action.approved' : 'money_action.rejected',
-      outcome: approved ? 'approved' : 'rejected', targetType: 'money_action',
+      actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin',
+      action: approved ? 'billing.money_action.approved' : 'billing.money_action.rejected',
+      outcome: 'Succeeded', targetType: 'MoneyAction',
       targetId: request.moneyActionRequestId, amountMinorUnits: request.amountMinorUnits,
       decisionReason: typeof body.decisionReason === 'string' ? body.decisionReason : null,
       createdAtUtc: new Date().toISOString()
