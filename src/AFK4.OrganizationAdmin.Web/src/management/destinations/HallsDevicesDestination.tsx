@@ -61,7 +61,6 @@ export function HallsDevicesDestination({
   return (
     <ManagementScreen
       title={t('op.management.dest.halls')}
-      subtitle={t('op.management.dest.halls.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
       skeleton={

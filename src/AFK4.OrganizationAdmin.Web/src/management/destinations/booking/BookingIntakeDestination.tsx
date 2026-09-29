@@ -152,7 +152,6 @@ export function BookingIntakeDestination({ backend, onDirtyChange }: Destination
   return (
     <ManagementScreen
       title={t('op.management.dest.booking')}
-      subtitle={t('op.management.dest.booking.subtitle')}
       contentWidth="wide"
       state={managementScreenState(loadStatus)}
       skeleton={

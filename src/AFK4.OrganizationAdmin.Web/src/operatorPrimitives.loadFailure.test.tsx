@@ -69,7 +69,7 @@ describe('PartialLoadFailure', () => {
 describe('ManagementScreen', () => {
   it('на 403 вместо тела показывает причину и подсказку, без повтора', () => {
     renderRu(
-      <ManagementScreen title="Отчёт" subtitle="s" state="error" skeleton={null} failure={failure(403)} onRetry={() => {}}>
+      <ManagementScreen title="Отчёт" state="error" skeleton={null} failure={failure(403)} onRetry={() => {}}>
         <p>тело</p>
       </ManagementScreen>
     );
@@ -82,7 +82,7 @@ describe('ManagementScreen', () => {
   it('на 503 показывает повтор', () => {
     const onRetry = mock(() => {});
     renderRu(
-      <ManagementScreen title="Отчёт" subtitle="s" state="error" skeleton={null} failure={failure(503)} onRetry={onRetry}>
+      <ManagementScreen title="Отчёт" state="error" skeleton={null} failure={failure(503)} onRetry={onRetry}>
         <p>тело</p>
       </ManagementScreen>
     );

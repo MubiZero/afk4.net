@@ -28,7 +28,7 @@ const deviceInventory: DeviceInventoryItemDto[] = [{
 } as never];
 
 describe('HallsDevicesDestination', () => {
-  it('renders the ManagementScreen title and subtitle at full content width', () => {
+  it('renders the section title at full content width', () => {
     const { container } = wrap(
       <HallsDevicesDestination
         backend={null}
@@ -40,7 +40,6 @@ describe('HallsDevicesDestination', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Залы и ПК' })).toBeTruthy();
-    expect(screen.getByText('Залы, зоны и рабочие места')).toBeTruthy();
     expect(container.querySelector('.management-content--full')).toBeTruthy();
   });
 

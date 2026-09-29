@@ -135,7 +135,6 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
   return (
     <ManagementScreen
       title={t('op.management.dest.club')}
-      subtitle={t('op.management.dest.club.subtitle')}
       contentWidth="full"
       state={backend === null ? 'ready' : load.state}
       skeleton={<ClubProfileSkeleton />}

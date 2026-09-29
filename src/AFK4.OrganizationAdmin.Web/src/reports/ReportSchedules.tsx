@@ -124,7 +124,6 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
   return (
     <ManagementScreen
       title={t('op.reports.schedule.title')}
-      subtitle={t('op.reports.schedule.subtitle')}
       contentWidth="form"
       state={state}
       skeleton={

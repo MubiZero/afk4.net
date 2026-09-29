@@ -35,7 +35,7 @@ export function SummaryReport({ backend, onNavigate }: { backend: OperatorBacken
     [backend, range]
   );
   return (
-    <ManagementScreen title={t('op.reports.summary.title')} subtitle={t('op.reports.summary.subtitle')} contentWidth="full" state={state} skeleton={<SummarySkeleton />} failure={error} onRetry={reload}
+    <ManagementScreen title={t('op.reports.summary.title')} contentWidth="full" state={state} skeleton={<SummarySkeleton />} failure={error} onRetry={reload}
       controls={<ReportRangeControls range={range} onChange={setRange} onRefresh={reload} refreshing={refreshing} />}>
       <ReportBody refreshing={refreshing}>
         {data ? <div className="reports-summary">

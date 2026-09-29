@@ -77,7 +77,6 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
   return (
     <ManagementScreen
       title={t('op.network.dest.journal')}
-      subtitle={t('op.network.dest.journal.subtitle')}
       contentWidth="full"
       state={screenState}
       skeleton={<div className="network-journal"><SkeletonTable gridTemplate={GRID} /></div>}

@@ -87,9 +87,9 @@
     "spacing": 26
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/15-settings.css": {
-    "font-size": 28,
-    "radius": 15,
-    "spacing": 28
+    "font-size": 27,
+    "radius": 13,
+    "spacing": 25
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/16-workspace-primitives.css": {
     "font-size": 19,

@@ -70,7 +70,6 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
   return (
     <ManagementScreen
       title={t('op.reports.gameplay.title')}
-      subtitle={t('op.reports.gameplay.subtitle')}
       contentWidth="full"
       state={state}
       skeleton={

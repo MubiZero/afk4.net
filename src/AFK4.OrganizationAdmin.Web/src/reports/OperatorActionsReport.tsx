@@ -38,7 +38,6 @@ export function OperatorActionsReport({ backend }: { backend: OperatorBackendCon
   return (
     <ManagementScreen
       title={t('op.reports.actions.title')}
-      subtitle={t('op.reports.actions.subtitle')}
       contentWidth="full"
       state={state}
       skeleton={

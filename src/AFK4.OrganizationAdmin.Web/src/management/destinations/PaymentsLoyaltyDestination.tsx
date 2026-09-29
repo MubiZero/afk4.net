@@ -44,7 +44,6 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
   return (
     <ManagementScreen
       title={t('op.management.dest.payments')}
-      subtitle={t('op.management.dest.payments.subtitle')}
       contentWidth="wide"
     >
       {/* Две половины одного экрана: приём слева, возврат справа. auto-fit сам сводит в одну

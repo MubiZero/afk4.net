@@ -4,6 +4,7 @@ import { useI18n } from '@afk4/i18n';
 import { EmptyState } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { allowedNetworkDestinations, type NetworkDestinationId } from './networkNav';
+import { SectionNav } from '../management/SectionNav';
 import { BranchesDestination } from './branches/BranchesDestination';
 import { BillingDestination } from './billing/BillingDestination';
 import { AdsDestination } from './ads/AdsDestination';
@@ -55,22 +56,12 @@ export function NetworkWorkspace({ backend }: { backend: OperatorBackendContext 
 
   return (
     <div className="management-layout">
-      <nav className="management-nav">
-        {destinations.map((destination) => {
-          const Icon = destination.Icon;
-          return (
-            <button
-              key={destination.id}
-              type="button"
-              className={destination.id === currentId ? 'active' : undefined}
-              onClick={() => setActive(destination.id)}
-            >
-              <Icon size={16} aria-hidden="true" />
-              <span>{t(destination.labelKey)}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <SectionNav
+        label={t('op.network.nav')}
+        groups={[{ items: destinations.map((destination) => ({ id: destination.id, label: t(destination.labelKey), Icon: destination.Icon })) }]}
+        current={currentId}
+        onSelect={setActive}
+      />
 
       <div className="management-active-pane">{renderActive()}</div>
     </div>

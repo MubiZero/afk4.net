@@ -91,10 +91,8 @@ describe('GoodsDestination', () => {
       <GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[]} />
     );
 
-    expect(screen.getByRole('heading', { name: 'Товары' })).toBeTruthy();
-    // Subtitle describes the whole section (catalog + prices + barcodes), deliberately distinct
-    // from the «Каталог товаров» POS-section title inside the body.
-    expect(container.querySelector('.management-screen-head')?.textContent).toContain('Каталог, цены и штрихкоды');
+    // Шапка раздела — одно название, без мелкой строки-пояснения над ним (решение владельца 29.09).
+    expect(container.querySelector('.ui-section-header h1')?.textContent).toBe('Товары');
   });
 
   it('renders the catalog passed in from ManagementWorkspace state', () => {
