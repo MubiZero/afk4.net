@@ -1183,7 +1183,7 @@
   "ledgerAccountBonusTime": "Бонусное время",
   "ledgerAccountDebt": "Долг",
   "ledgerAccountPackageTime": "Пакетное время",
-  "ledgerAccountWallet": "Кошелёк",
+  "ledgerAccountWallet": "Баланс",
   "ledgerBalanceAfter": "Остаток {amount}",
   "@ledgerBalanceAfter": {
     "placeholders": {
@@ -1218,5 +1218,5 @@
   "ledgerTypeTopUp": "Пополнение",
   "ledgerTypeTournamentEntryFee": "Взнос за событие",
   "ledgerTypeTournamentEntryRefund": "Возврат взноса",
-  "ledgerTypeWalletPayment": "Оплата с кошелька"
+  "ledgerTypeWalletPayment": "Оплата с баланса"
 }

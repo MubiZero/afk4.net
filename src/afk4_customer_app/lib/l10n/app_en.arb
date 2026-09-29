@@ -1183,7 +1183,7 @@
   "ledgerAccountBonusTime": "Bonus time",
   "ledgerAccountDebt": "Debt",
   "ledgerAccountPackageTime": "Package time",
-  "ledgerAccountWallet": "Wallet",
+  "ledgerAccountWallet": "Balance",
   "ledgerBalanceAfter": "Balance {amount}",
   "@ledgerBalanceAfter": {
     "placeholders": {
@@ -1218,5 +1218,5 @@
   "ledgerTypeTopUp": "Top-up",
   "ledgerTypeTournamentEntryFee": "Event entry fee",
   "ledgerTypeTournamentEntryRefund": "Entry fee returned",
-  "ledgerTypeWalletPayment": "Wallet payment"
+  "ledgerTypeWalletPayment": "Balance payment"
 }

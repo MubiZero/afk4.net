@@ -1183,7 +1183,7 @@
   "ledgerAccountBonusTime": "Вақти бонус",
   "ledgerAccountDebt": "Қарз",
   "ledgerAccountPackageTime": "Вақти пакет",
-  "ledgerAccountWallet": "Ҳамён",
+  "ledgerAccountWallet": "Тавозун",
   "ledgerBalanceAfter": "Бақия {amount}",
   "@ledgerBalanceAfter": {
     "placeholders": {
@@ -1218,5 +1218,5 @@
   "ledgerTypeTopUp": "Пуркунӣ",
   "ledgerTypeTournamentEntryFee": "Пардохти чорабинӣ",
   "ledgerTypeTournamentEntryRefund": "Баргардонидани пардохт",
-  "ledgerTypeWalletPayment": "Пардохт аз ҳамён"
+  "ledgerTypeWalletPayment": "Пардохт аз тавозун"
 }
