@@ -1,4 +1,4 @@
-import { Ban, BellRing, Hourglass, PauseCircle, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
+import { Ban, BellRing, Hourglass, PauseCircle, Plus, TrendingUp, TriangleAlert, Wrench, WifiOff } from 'lucide-react';
 import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
@@ -11,6 +11,8 @@ import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'aria-hidden'?: boolean }>>> = {
   pending: Hourglass,
   offline: WifiOff,
+  // ПК на связи, но команда не прошла — не значок обрыва: связь цела, дело в самой команде.
+  failed: TriangleAlert,
   service: Wrench
 };
 

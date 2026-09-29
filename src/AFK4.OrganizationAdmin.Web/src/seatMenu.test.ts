@@ -55,7 +55,7 @@ describe('buildSeatMenu', () => {
     expect(all.some((id) => id.startsWith('end') || id.startsWith('checkout') || id.startsWith('transfer'))).toBe(false);
   });
 
-  it('leads an active seat with quick extends and a session-aware unlock', () => {
+  it('leads an active seat with quick extends and unlock', () => {
     const sections = buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps);
     const all = ids(sections);
     expect(all).toContain('extend-15');
@@ -64,9 +64,18 @@ describe('buildSeatMenu', () => {
     expect(all).not.toContain('start-guest');
   });
 
-  it('omits unlock when there is no session to unlock into', () => {
-    const sections = buildSeatMenu(seat({ tone: 'ready' }), allCaps);
-    expect(ids(sections)).not.toContain('pc-unlock');
+  // Раньше «Разблокировать» пряталась без сессии — решала не связь ПК, а сессия (#1 аудита).
+  // Теперь пункт есть всегда, доступность зависит от isDeviceLocked, а не от сессии.
+  it('показывает «Разблокировать» и без сессии — доступность решает статус блокировки', () => {
+    const locked = buildSeatMenu(seat({ tone: 'ready', isDeviceLocked: true }), allCaps);
+    const lockedItems = flat(locked);
+    expect(lockedItems.find((item) => item.id === 'pc-unlock')?.disabled).toBe(false);
+    expect(lockedItems.find((item) => item.id === 'pc-lock')?.disabled).toBe(true);
+
+    const unlocked = buildSeatMenu(seat({ tone: 'ready', isDeviceLocked: false }), allCaps);
+    const unlockedItems = flat(unlocked);
+    expect(unlockedItems.find((item) => item.id === 'pc-unlock')?.disabled).toBe(true);
+    expect(unlockedItems.find((item) => item.id === 'pc-lock')?.disabled).toBe(false);
   });
 
   it('disables — but still shows — live ops while the backend is not ready', () => {
@@ -102,6 +111,8 @@ describe('buildSeatMenu', () => {
   it('несёт команды ПК из карточки и говорит, почему занятый ПК не перезагрузить', () => {
     const free = buildSeatMenu(seat({ tone: 'ready' }), allCaps);
     expect(ids(free)).toEqual(expect.arrayContaining(['pc-reboot', 'pc-shutdown', 'pc-message', 'pc-sign-out', 'pc-maintenance-on']));
+    // На свободном ПК сообщение и выход из аккаунта отправлять некому (#2 аудита).
+    expect(flat(free).find((item) => item.id === 'pc-message')?.disabled).toBe(true);
 
     const busy = flat(buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1' }), allCaps));
     const reboot = busy.find((item) => item.id === 'pc-reboot');

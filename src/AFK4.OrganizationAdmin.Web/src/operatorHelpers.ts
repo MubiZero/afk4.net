@@ -8,7 +8,7 @@ import { SEAT_TIME_LOW_SECONDS } from './seatTilePresentation';
 import { createOperatorApiClients, type AuditRecordDto, type BranchDiagnosticsDto, type DeviceCommandDto, type DeviceCommandStatusDto, type DeviceDetailDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ReceiptDto, type SessionActionResponse, type ShiftDto, type TariffOptionDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { operatorAccessToken, renewOperatorAccessToken, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
-import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
+import { mapFloorMapDtoToState, seatStatusLabel, isPendingSeatCommand, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto, ReservationChangedDto } from './operatorRealtime';
@@ -164,10 +164,6 @@ export function countByTone(nextSeats: SeatSummary[], tone: SeatTone): number {
   return nextSeats.filter((seat) => seat.tone === tone).length;
 }
 
-export function isPendingSeatCommand(seat: SeatSummary): boolean {
-  return seat.tone === 'pending' || seat.command.toLowerCase().includes('pending');
-}
-
 export function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): boolean {
   if (filterId === 'all') {
     return true;
@@ -196,7 +192,12 @@ export function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): bool
     return false;
   }
 
-  // «Нет связи» — единый серый бакет: сбой команды, мёртвый heartbeat, сессия без связи с ПК.
+  // Сбой команды — ПК на связи, это тоже НЕ «нет связи» (см. SeatTone.failed), в бакет не считаем.
+  if (seat.tone === 'failed') {
+    return false;
+  }
+
+  // «Нет связи» — единый серый бакет: мёртвый heartbeat, сессия без связи с ПК.
   return seat.tone === 'offline' || seat.isDeviceOnline === false;
 }
 

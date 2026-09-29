@@ -53,7 +53,8 @@ export function PaymentDialog({
   disabled,
   draftDisabled = false,
   cancelDisabled = false,
-  confirmVariant = 'danger',
+  // Приём денег — не удаление: по умолчанию главная (зелёная) кнопка, не «опасная» (красная).
+  confirmVariant = 'accent',
   endWithoutPayment,
   extraAction,
   onCancel,

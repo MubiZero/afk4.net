@@ -617,6 +617,7 @@
 .booking-seat-dot.state-active { background: var(--text-tertiary); }
 .booking-seat-dot.state-pending { background: var(--warning); }
 .booking-seat-dot.state-offline { background: #64748b; }
+.booking-seat-dot.state-failed { background: #64748b; }
 .booking-seat-dot.state-service { background: #64748b; }
 
 .booking-row-status {

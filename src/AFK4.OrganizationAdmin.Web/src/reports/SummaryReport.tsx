@@ -1,5 +1,6 @@
 import { useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { formatDateParts } from '@afk4/formatting';
 import { ManagementScreen } from '../management/ManagementScreen';
 import { formatMinorUnits } from '../operatorHelpers';
 import type { OperatorBackendContext, WorkspaceId } from '../operatorTypes';
@@ -9,10 +10,25 @@ import { todayReportRange, toReportQuery, type ReportDateRange } from './reportR
 import { createReportClients } from './reportClient';
 import { useReportData } from './useReportData';
 
+// Точка тренда несёт календарную дату (IsoDate), а не момент времени: разобрана и показана в UTC,
+// без часового пояса зрителя, иначе дата "плывёт" на границе полуночи (23 сент. в поясе клуба
+// становился 22 сент., 23:00 или 24 сент., 05:00 у зрителя — второй уже видел «завтра» с ярлыком
+// «сегодня»). Год добавляется, только если отличается от текущего, — иначе он шум на каждой точке.
+export function trendDayLabel(dateIso: string, locale: string): string {
+  const date = new Date(`${dateIso}T00:00:00Z`);
+  const showYear = date.getUTCFullYear() !== new Date().getUTCFullYear();
+  return formatDateParts(date, locale, {
+    day: 'numeric',
+    month: 'short',
+    ...(showYear ? { year: 'numeric' as const } : {}),
+    timeZone: 'UTC'
+  });
+}
+
 // Валюта не приходит пропом: каждая сумма приезжает с сервера вместе со своей валютой,
 // и брать её из соседнего места значило бы подписать чужие деньги знаком клуба.
 export function SummaryReport({ backend, onNavigate }: { backend: OperatorBackendContext | null; onNavigate: (workspace: WorkspaceId) => void }): JSX.Element {
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, locale } = useI18n();
   const [range, setRange] = useState<ReportDateRange>(() => todayReportRange());
   const { state, data, refreshing, error, reload } = useReportData(
     backend ? () => createReportClients(backend).getWorkspaceSummary(backend.branchId, toReportQuery(range)) : null,
@@ -33,7 +49,7 @@ export function SummaryReport({ backend, onNavigate }: { backend: OperatorBacken
             <div><dt>{t('op.reports.summary.gameplay')}</dt><dd>{formatMinorUnits(data.figures.gameplayRevenue.minorUnits, data.figures.gameplayRevenue.currencyCode)}</dd></div>
             <div><dt>{t('op.reports.summary.pos')}</dt><dd>{formatMinorUnits(data.figures.posNetSales.minorUnits, data.figures.posNetSales.currencyCode)}</dd></div>
           </dl>
-          <section className="reports-trend"><div><strong>{t('op.reports.summary.trend')}</strong><span>{data.period.timeZone}</span></div><div className="reports-trend-points">{data.trend.map((point) => <div key={point.date}><span>{formatDate(`${point.date}T00:00:00Z`)}</span><strong>{formatMinorUnits(point.netRevenue.minorUnits, point.netRevenue.currencyCode)}</strong></div>)}</div></section>
+          <section className="reports-trend"><div><strong>{t('op.reports.summary.trend')}</strong></div><div className="reports-trend-points">{data.trend.map((point) => <div key={point.date}><span>{trendDayLabel(point.date, locale)}</span><strong>{formatMinorUnits(point.netRevenue.minorUnits, point.netRevenue.currencyCode)}</strong></div>)}</div></section>
           {data.activeShift ? <section className="reports-active-shift"><div><span>{t('op.reports.summary.provisional')}</span><strong>{t('op.reports.summary.activeShift')}</strong><small>{formatDate(data.activeShift.openedAtUtc)}</small></div><button type="button" className="ui-btn" onClick={() => onNavigate('cash')}>{t('op.reports.summary.openShift')}</button></section> : null}
         </div> : null}
       </ReportBody>

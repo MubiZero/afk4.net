@@ -90,6 +90,31 @@ describe('TariffsTab', () => {
     expect(screen.getByRole('textbox', { name: 'Название тарифа' })).toHaveValue('Стандарт');
   });
 
+  // Список и форма читали пропавшее поле по-разному (0 в списке, 15/5 в форме) — «Сохранить» без
+  // единой правки тихо подменяло бы настоящее значение резервным. Контракт делает оба поля
+  // обязательными, так что сервер их не пропускает, но резерв на защитном чтении должен совпадать.
+  it('list and drawer fall back to the same minimum/rounding minutes when the server omits them', () => {
+    const incomplete = [{
+      tariffId,
+      tariffVersionId,
+      name: 'Без полей',
+      pricePerMinuteMinorUnits: 100,
+      isActive: true,
+      currencyCode: 'TJS',
+      effectiveFromUtc: '2026-01-01T00:00:00Z'
+    } as never];
+    wrap(
+      <TariffsTab tariffs={incomplete} currencyCode="TJS" backend={null} canManageTariffs={false} onReload={onReload} onFeedback={onFeedback} />
+    );
+    const row = screen.getByRole('button', { name: /Без полей/ });
+    expect(within(row).getByText('15')).toBeTruthy();
+    expect(within(row).getByText('5')).toBeTruthy();
+
+    fireEvent.click(row);
+    expect(screen.getByRole('textbox', { name: 'Минимум, мин' })).toHaveValue('15');
+    expect(screen.getByRole('textbox', { name: 'Шаг округления, мин' })).toHaveValue('5');
+  });
+
   it('"+ Тариф" opens the create modal and submits createTariff + createTariffVersion', async () => {
     wrap(<TariffsTab tariffs={tariffs} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
     fireEvent.click(screen.getByRole('button', { name: '+ Тариф' }));

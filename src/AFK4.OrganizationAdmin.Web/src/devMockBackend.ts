@@ -381,10 +381,12 @@ const previewMoneyActions: Array<Record<string, unknown>> = [{
   createdAtUtc: minutesAgoUtc(15), expiresAtUtc: new Date(Date.now() + 75 * 60_000).toISOString()
 }];
 
+// targetId: null явно — контракт (AuditRecordDto.cs) шлёт его всегда, пропавшего ключа реальный
+// сервер не отдаёт; фикстура без него однажды маскировала разбор `undefined` как `null`.
 const previewAuditRecords: Array<Record<string, unknown>> = [
-  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'cash.shift.opened', outcome: 'success', targetType: 'shift', amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
-  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.rejected', outcome: 'rejected', targetType: 'money_action', amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
-  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.approved', outcome: 'approved', targetType: 'money_action', amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
+  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'cash.shift.opened', outcome: 'success', targetType: 'shift', targetId: null, amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
+  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.rejected', outcome: 'rejected', targetType: 'money_action', targetId: null, amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
+  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.approved', outcome: 'approved', targetType: 'money_action', targetId: null, amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
 ];
 
 function previewAudit(searchParams: URLSearchParams) {
@@ -629,12 +631,15 @@ function checkoutResult(init?: RequestInit) {
   };
 }
 
-// Тарифы для окна запуска сессии: ставка за минуту → видна цена-превью и покрытие баланса.
+// Тарифы для окна запуска сессии и для «Управление → Тарифы»: тот же эндпоинт, тот же контракт
+// (TariffOptionDto.cs — оба поля ниже обязательные, сервер их всегда шлёт), поэтому фикстура несёт
+// их тоже — без tariffId и минут «Управление → Тарифы» рисовало 0/0 в списке при 15/5 в открытой
+// форме той же строки (список и форма подставляли разный резерв на отсутствующее поле).
 function tariffOptions() {
   return [
-    { tariffVersionId: 'tv-hourly', tariffRuleVersionId: 'rule-hourly', name: 'Почасовой', pricePerMinuteMinorUnits: 80, currencyCode: 'TJS' },
-    { tariffVersionId: 'tv-vip', tariffRuleVersionId: 'rule-vip', name: 'VIP час', pricePerMinuteMinorUnits: 150, currencyCode: 'TJS' },
-    { tariffVersionId: 'tv-night', tariffRuleVersionId: 'rule-night', name: 'Ночной', pricePerMinuteMinorUnits: 50, currencyCode: 'TJS' }
+    { tariffId: 't-hourly', tariffVersionId: 'tv-hourly', tariffRuleVersionId: 'rule-hourly', versionNumber: 1, name: 'Почасовой', pricePerMinuteMinorUnits: 80, minimumBillableMinutes: 15, roundingIncrementMinutes: 5, effectiveFromUtc: minutesAgoUtc(60 * 24 * 30), currencyCode: 'TJS' },
+    { tariffId: 't-vip', tariffVersionId: 'tv-vip', tariffRuleVersionId: 'rule-vip', versionNumber: 1, name: 'VIP час', pricePerMinuteMinorUnits: 150, minimumBillableMinutes: 30, roundingIncrementMinutes: 10, effectiveFromUtc: minutesAgoUtc(60 * 24 * 30), currencyCode: 'TJS' },
+    { tariffId: 't-night', tariffVersionId: 'tv-night', tariffRuleVersionId: 'rule-night', versionNumber: 1, name: 'Ночной', pricePerMinuteMinorUnits: 50, minimumBillableMinutes: 60, roundingIncrementMinutes: 15, effectiveFromUtc: minutesAgoUtc(60 * 24 * 30), currencyCode: 'TJS' }
   ];
 }
 

@@ -97,6 +97,11 @@ describe('SeatTile', () => {
     const { container: loud } = renderTile(seat({ tone: 'offline', remaining: 'Нет heartbeat' }));
     expect(loud.querySelector('.seat-tile')?.classList.contains('seat-tile--alert')).toBe(true);
 
+    // Аудит #4: сбой команды — своё проблемное состояние, тоже громкое, но не «нет связи».
+    const { container: failed } = renderTile(seat({ tone: 'failed', remaining: 'Сбой команды' }));
+    expect(failed.querySelector('.seat-tile')?.classList.contains('seat-tile--alert')).toBe(true);
+    expect(failed.querySelector('.seat-tile')?.classList.contains('state-failed')).toBe(true);
+
     const { container: quiet } = renderTile(seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800 }));
     expect(quiet.querySelector('.seat-tile')?.classList.contains('seat-tile--alert')).toBe(false);
   });

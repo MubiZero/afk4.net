@@ -708,7 +708,10 @@ button {
   transition: border-color var(--shell-duration-small) var(--ease-standard);
 }
 
-.offer-tile:hover:not(:disabled) {
+/* :not([aria-pressed='true']) — выбранная плитка не должна гаснуть под курсором: без него
+   :hover:not(:disabled) (три уровня специфичности) перебивал [aria-pressed='true'] (два), и
+   наведение на уже выбранный тариф стирало акцентную рамку выбора. */
+.offer-tile:hover:not(:disabled):not([aria-pressed='true']) {
   border-color: var(--text-secondary);
 }
 

@@ -231,7 +231,8 @@
   text-transform: uppercase;
 }
 .ui-field > input,
-.ui-field > select {
+.ui-field > select,
+.ui-password > input {
   height: var(--control-h);
   min-width: 0;
   padding: 0 var(--control-pad);
@@ -244,24 +245,30 @@
   transition: border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 }
-.ui-field > input::placeholder { color: var(--text-placeholder); }
+.ui-field > input::placeholder,
+.ui-password > input::placeholder { color: var(--text-placeholder); }
 /* Наведение у поля было только на экране входа, а в консоли — нет: курсор над полем ничем не
    отличался от курсора над подписью, и поле читалось как текст, а не как то, что можно править. */
 .ui-field > input:hover:not(:disabled),
-.ui-field > select:hover:not(:disabled) { border-color: var(--border-accent); }
+.ui-field > select:hover:not(:disabled),
+.ui-password > input:hover:not(:disabled) { border-color: var(--border-accent); }
 .ui-field > input:focus,
-.ui-field > select:focus {
+.ui-field > select:focus,
+.ui-password > input:focus {
   border-color: var(--accent);
   box-shadow: var(--focus-ring);
 }
 .ui-field > input:disabled,
-.ui-field > select:disabled {
+.ui-field > select:disabled,
+.ui-password > input:disabled {
   color: var(--text-quaternary);
   background: var(--surface-muted);
   cursor: not-allowed;
 }
-.ui-field > input[aria-invalid="true"] { border-color: var(--danger); }
-.ui-field > input[aria-invalid="true"]:focus { box-shadow: var(--focus-ring-danger); }
+.ui-field > input[aria-invalid="true"],
+.ui-password > input[aria-invalid="true"] { border-color: var(--danger); }
+.ui-field > input[aria-invalid="true"]:focus,
+.ui-password > input[aria-invalid="true"]:focus { box-shadow: var(--focus-ring-danger); }
 
 /* Подсказка под полем держит высоту всегда: без неё появление ошибки дёргает вёрстку. */
 .ui-field-hint {
@@ -345,7 +352,10 @@
   outline: 0;
 }
 
-/* Пароль: кнопка «показать» внутри поля, поэтому справа оставлено место под неё. */
+/* Пароль: кнопка «показать» внутри поля, поэтому справа оставлено место под неё. Инпут здесь —
+   внук .ui-field (между ними .ui-password), поэтому `.ui-field > input` его не видел, и стиль
+   поля кита выше адресован ещё и через .ui-password — без этого поле получало только рамку
+   браузера, плыло по высоте и в светлой теме рисовало чёрную полосу. */
 .ui-password { position: relative; display: flex; }
 .ui-password > input { flex: 1; padding-right: 40px; }
 

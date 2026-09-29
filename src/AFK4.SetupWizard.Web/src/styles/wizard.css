@@ -613,7 +613,9 @@ textarea,
 }.wizard-segment-button:focus-visible {
   outline: 0;
   box-shadow: var(--focus-ring);
-}.wizard-segment-button[aria-pressed="true"] {
+/* aria-checked, не aria-pressed: кнопки внутри role="radiogroup" (RoleScreen) — радиокнопки, не
+   переключатели, и разметка их так и помечает. Стиль выбора должен смотреть на тот же атрибут. */
+}.wizard-segment-button[aria-checked="true"] {
   background: var(--surface-elevated);
   border-color: var(--accent);
   color: var(--text-primary);
@@ -636,7 +638,7 @@ textarea,
   transition: background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
-}.wizard-segment-button[aria-pressed="true"] .wizard-segment-check {
+}.wizard-segment-button[aria-checked="true"] .wizard-segment-check {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--text-on-accent);
@@ -651,7 +653,7 @@ textarea,
   color: var(--text-tertiary);
   transition: background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
-}.wizard-segment-button[aria-pressed="true"] .wizard-segment-icon {
+}.wizard-segment-button[aria-checked="true"] .wizard-segment-icon {
   background: var(--accent-soft);
   color: var(--accent);
 }.wizard-segment-body {
@@ -666,7 +668,7 @@ textarea,
   color: var(--text-tertiary);
   font-size: var(--text-xs);
   font-weight: 600;
-}.wizard-segment-button[aria-pressed="true"] .wizard-segment-body span {
+}.wizard-segment-button[aria-checked="true"] .wizard-segment-body span {
   color: var(--text-secondary);
 }.wizard-empty {
   display: grid;

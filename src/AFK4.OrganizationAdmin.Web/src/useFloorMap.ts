@@ -5,6 +5,7 @@ import { refreshOperatorSession, isUnauthorizedStaffAuthError, type OperatorAuth
 import {
   createFixtureFloorMapState,
   hydrateFloorMapStateFromCache,
+  isPendingSeatCommand,
   refreshFloorMapRemaining,
   type OperatorFloorMapState
 } from './floorMapState';
@@ -32,7 +33,6 @@ import type { SessionActionResponse } from './operatorApiClients';
 import { permissionNames, hasPermission } from './operatorPermissions';
 import {
   defaultSessionDurationMinutes,
-  isPendingSeatCommand,
   createAuthenticatedOperatorClients,
   isUnauthorizedPlatformError,
   clearStoredOperatorSession,
