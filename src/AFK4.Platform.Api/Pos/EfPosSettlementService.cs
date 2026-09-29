@@ -323,7 +323,7 @@ public sealed class EfPosSettlementService(
                 .SingleAsync(candidate => candidate.PosSaleId == posSaleId, cancellationToken);
             if (sale.State != PosSaleStateNames.Paid)
             {
-                return BillingCommandServiceResult<PosSaleDto>.Invalid("Only paid POS sales can be refunded.");
+                return BillingCommandServiceResult<PosSaleDto>.Invalid("Only paid POS sales can be refunded.", PosErrorCodeNames.NotRefundable);
             }
 
             var priorRefundEffectExists = await dbContext.Payments

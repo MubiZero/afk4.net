@@ -81,7 +81,7 @@ public sealed class EfInventoryService(
                     cancellationToken);
             if (taken)
             {
-                return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Product category name already exists.");
+                return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Product category name already exists.", InventoryErrorCodeNames.CategoryNameTaken);
             }
 
             category.Name = request.Name.Trim();
@@ -182,7 +182,7 @@ public sealed class EfInventoryService(
 
         if (exists)
         {
-            return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Product category name already exists.");
+            return BillingCommandServiceResult<PosProductCategoryDto>.Invalid("Product category name already exists.", InventoryErrorCodeNames.CategoryNameTaken);
         }
 
         return await ExecuteInTransactionAsync(async () =>
@@ -284,7 +284,7 @@ public sealed class EfInventoryService(
 
         if (skuExists)
         {
-            return BillingCommandServiceResult<PosProductDto>.Invalid("Product SKU already exists.");
+            return BillingCommandServiceResult<PosProductDto>.Invalid("Product SKU already exists.", InventoryErrorCodeNames.SkuTaken);
         }
 
         return await ExecuteInTransactionAsync(async () =>
@@ -414,7 +414,7 @@ public sealed class EfInventoryService(
 
             if (skuExists)
             {
-                return BillingCommandServiceResult<PosProductDto>.Invalid("Product SKU already exists.");
+                return BillingCommandServiceResult<PosProductDto>.Invalid("Product SKU already exists.", InventoryErrorCodeNames.SkuTaken);
             }
 
             product.CategoryId = request.CategoryId;
@@ -731,7 +731,7 @@ public sealed class EfInventoryService(
 
         if (clash)
         {
-            return BillingCommandServiceResult<ProductBarcodeDto>.Invalid("Barcode is already bound to a product.");
+            return BillingCommandServiceResult<ProductBarcodeDto>.Invalid("Barcode is already bound to a product.", InventoryErrorCodeNames.BarcodeAlreadyBound);
         }
 
         var existing = await dbContext.ProductBarcodes
@@ -922,7 +922,9 @@ public sealed class EfInventoryService(
 
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
-            return BillingCommandServiceResult<TResponse>.RequestConflict("Idempotency key was already used for a different request.");
+            return BillingCommandServiceResult<TResponse>.RequestConflict(
+                "Idempotency key was already used for a different request.",
+                "idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<TResponse>(existing.ResponseJson, JsonOptions);

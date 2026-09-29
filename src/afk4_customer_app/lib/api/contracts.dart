@@ -421,6 +421,20 @@ abstract final class InstallErrorCodeNames {
   static const String installCodeInvalid = 'install_code_invalid';
 }
 
+/// Машинные имена отказов по каталогу склада: категории, товары, штрихкоды. См.
+/// Pos.PosErrorCodeNames — та же причина: имя или код уже заняты соседней записью,
+/// и форма не проверяет это заранее.
+///
+/// Словарь: Inventory/InventoryErrorCodeNames.cs
+abstract final class InventoryErrorCodeNames {
+  /// Категория с таким именем в филиале уже есть.
+  static const String categoryNameTaken = 'product_category_name_taken';
+  /// Товар с таким артикулом в филиале уже есть.
+  static const String skuTaken = 'product_sku_taken';
+  /// Этот штрихкод уже привязан к другому товару.
+  static const String barcodeAlreadyBound = 'barcode_already_bound';
+}
+
 /// Словарь: Platform/Billing/InvoiceKindNames.cs
 abstract final class InvoiceKindNames {
   static const String subscription = 'subscription';
@@ -888,6 +902,20 @@ abstract final class PlayerSignInClaimStatusNames {
   static const String redeemed = 'redeemed';
   /// ПК не забрал заявку за отведённое время.
   static const String expired = 'expired';
+}
+
+/// Машинные имена отказов по кассе. См. Sessions.SessionErrorCodeNames — та же
+/// причина: чек мог измениться между тем, что кассир видит на экране, и тем, что уже случилось
+/// на сервере.
+///
+/// Словарь: Pos/PosErrorCodeNames.cs
+abstract final class PosErrorCodeNames {
+  /// Аннулировать можно только черновик или ожидающий оплаты чек — этот уже оплачен или аннулирован.
+  static const String notVoidable = 'pos_sale_not_voidable';
+  /// Вернуть деньги можно только за оплаченный чек — этот уже возвращён или ещё не оплачен.
+  static const String notRefundable = 'pos_sale_not_refundable';
+  /// Категорию товара скрыли, пока чек уже собирали, — продать его нельзя.
+  static const String categoryHidden = 'product_category_hidden';
 }
 
 /// Словарь: Pos/PosSaleStateNames.cs

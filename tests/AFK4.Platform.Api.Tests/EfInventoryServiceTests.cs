@@ -83,6 +83,7 @@ public sealed class EfInventoryServiceTests
 
         Assert.False(sameBranch.Succeeded);
         Assert.False(sameBranch.Conflict);
+        Assert.Equal(InventoryErrorCodeNames.CategoryNameTaken, sameBranch.Code);
         Assert.True(otherBranch.Succeeded);
         Assert.Equal(2, await db.PosProductCategories.CountAsync());
     }
@@ -176,6 +177,7 @@ public sealed class EfInventoryServiceTests
 
         Assert.False(duplicate.Succeeded);
         Assert.False(duplicate.Conflict);
+        Assert.Equal(InventoryErrorCodeNames.SkuTaken, duplicate.Code);
         Assert.Single(await db.PosProducts.ToListAsync());
     }
 
@@ -292,6 +294,34 @@ public sealed class EfInventoryServiceTests
 
         Assert.False(result.Succeeded);
         Assert.False(result.Conflict);
+        Assert.Equal(InventoryErrorCodeNames.SkuTaken, result.Code);
+    }
+
+    // Кладовщик сканирует штрихкод, который уже наклеен на другой товар в том же филиале.
+    [Fact]
+    public async Task AddProductBarcodeAsync_RejectsCodeAlreadyBoundToAnotherProduct()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var first = await CreateTrackedProductAsync(service);
+        var second = await CreateTrackedProductAsync(service);
+        var bound = await service.AddProductBarcodeAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            first.ProductId,
+            new AddProductBarcodeRequest(TestIds.OrganizationId, "4870000000015"),
+            CancellationToken.None);
+        Assert.True(bound.Succeeded);
+
+        var result = await service.AddProductBarcodeAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            second.ProductId,
+            new AddProductBarcodeRequest(TestIds.OrganizationId, "4870000000015"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(InventoryErrorCodeNames.BarcodeAlreadyBound, result.Code);
     }
 
     [Fact]

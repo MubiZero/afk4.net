@@ -509,6 +509,23 @@ export const InstallErrorCodeNames = {
 } as const;
 export type InstallErrorCodeName = (typeof InstallErrorCodeNames)[keyof typeof InstallErrorCodeNames];
 
+/**
+ * Машинные имена отказов по каталогу склада: категории, товары, штрихкоды. См.
+ * Pos.PosErrorCodeNames — та же причина: имя или код уже заняты соседней записью,
+ * и форма не проверяет это заранее.
+ *
+ * Словарь: Inventory/InventoryErrorCodeNames.cs
+ */
+export const InventoryErrorCodeNames = {
+  /** Категория с таким именем в филиале уже есть. */
+  CategoryNameTaken: 'product_category_name_taken',
+  /** Товар с таким артикулом в филиале уже есть. */
+  SkuTaken: 'product_sku_taken',
+  /** Этот штрихкод уже привязан к другому товару. */
+  BarcodeAlreadyBound: 'barcode_already_bound',
+} as const;
+export type InventoryErrorCodeName = (typeof InventoryErrorCodeNames)[keyof typeof InventoryErrorCodeNames];
+
 /** Словарь: Platform/Billing/InvoiceKindNames.cs */
 export const InvoiceKindNames = {
   Subscription: 'subscription',
@@ -1068,6 +1085,23 @@ export const PlayerSignInClaimStatusNames = {
   Expired: 'expired',
 } as const;
 export type PlayerSignInClaimStatusName = (typeof PlayerSignInClaimStatusNames)[keyof typeof PlayerSignInClaimStatusNames];
+
+/**
+ * Машинные имена отказов по кассе. См. Sessions.SessionErrorCodeNames — та же
+ * причина: чек мог измениться между тем, что кассир видит на экране, и тем, что уже случилось
+ * на сервере.
+ *
+ * Словарь: Pos/PosErrorCodeNames.cs
+ */
+export const PosErrorCodeNames = {
+  /** Аннулировать можно только черновик или ожидающий оплаты чек — этот уже оплачен или аннулирован. */
+  NotVoidable: 'pos_sale_not_voidable',
+  /** Вернуть деньги можно только за оплаченный чек — этот уже возвращён или ещё не оплачен. */
+  NotRefundable: 'pos_sale_not_refundable',
+  /** Категорию товара скрыли, пока чек уже собирали, — продать его нельзя. */
+  CategoryHidden: 'product_category_hidden',
+} as const;
+export type PosErrorCodeName = (typeof PosErrorCodeNames)[keyof typeof PosErrorCodeNames];
 
 /** Словарь: Pos/PosSaleStateNames.cs */
 export const PosSaleStateNames = {

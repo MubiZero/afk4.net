@@ -137,6 +137,7 @@ public sealed class EfPosServiceTests
         Assert.False(result.Succeeded);
         // Имя категории в отказе: кассиру надо знать, что именно включить обратно.
         Assert.Contains("Снеки", result.Error);
+        Assert.Equal(PosErrorCodeNames.CategoryHidden, result.Code);
         Assert.Empty(await db.PosSales.ToListAsync());
     }
 
@@ -729,6 +730,8 @@ public sealed class EfPosServiceTests
 
         Assert.False(result.Succeeded);
         Assert.False(result.Conflict);
+        // Кассир мог открыть этот чек до того, как его оплатили в другом окне.
+        Assert.Equal(PosErrorCodeNames.NotVoidable, result.Code);
         var paid = await db.PosSales.SingleAsync();
         Assert.Equal(PosSaleStateNames.Paid, paid.State);
     }

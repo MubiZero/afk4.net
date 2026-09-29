@@ -109,6 +109,15 @@ const codeMessageKeys = {
   session_not_endable: 'op.error.code.sessionNotEndable',
   session_not_checkoutable: 'op.error.code.sessionNotCheckoutable',
   checkout_split_mismatch: 'op.error.code.checkoutSplitMismatch',
+  // Касса: чек могли оплатить или аннулировать в другом окне, категорию скрыли, пока чек
+  // собирали. Каталог склада: имя категории, артикул или штрихкод уже заняты.
+  pos_sale_not_voidable: 'op.error.code.posSaleNotVoidable',
+  pos_sale_not_refundable: 'op.error.code.posSaleNotRefundable',
+  product_category_hidden: 'op.error.code.productCategoryHidden',
+  sale_not_payable: 'op.error.code.saleNotPayable',
+  product_category_name_taken: 'op.error.code.productCategoryNameTaken',
+  product_sku_taken: 'op.error.code.productSkuTaken',
+  barcode_already_bound: 'op.error.code.barcodeAlreadyBound',
   // Брони: отказ почти всегда про состояние, которое успело измениться, — сосед подтвердил её
   // раньше, гость уже сидит, заявку уже отклонили. Дальше оператор делает разное, поэтому
   // отличать их нужно, а не сводить к одному «не получилось».
