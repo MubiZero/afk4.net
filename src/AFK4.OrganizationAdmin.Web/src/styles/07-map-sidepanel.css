@@ -1,180 +1,75 @@
-/* ── Боковая панель места: командная карточка ── */
-.seat-hero {
+/* ── Панель места на карте — Inspector кита ──
+   Сверху вниз: место и статус (справа «⋯» со всем остальным) → одна главная цифра → одна главная
+   кнопка и до трёх второстепенных → факты → одна строка о ПК. Всё, что было своими кнопками и
+   блоками (герой, «Действия», «Управление ПК» столбиком, «Статус ПК»), живёт в ките. */
+.seat-inspector {
+  min-height: 0;
+  margin: 10px 10px 10px 0;
+}
+
+/* Полоса времени — под главной цифрой, во всю ширину. */
+.seat-inspector .ui-inspector-figure-hint {
   display: grid;
-  gap: 6px;
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  padding: 9px 11px;
-  background: var(--surface-card);
+  gap: var(--space-1);
 }
 
-.seat-hero.state-pending {
-  border-left-color: var(--warning);
-}
-
-.seat-hero.state-offline,
-.seat-hero.state-failed,
-.seat-hero.state-service {
-  border-left-color: var(--status-offline);
-}
-
-.seat-hero.state-ready {
-  border-left-color: var(--success);
-}
-
-.seat-hero-head {
+/* Игрок позвал администратора: сколько ждёт и «Подошёл» — первой строкой, к зовущему идут первым.
+   Янтарь, а не красный: это просьба, а не авария. */
+.seat-calling-strip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* Зона + имя места — единый титульный блок: надзаголовок вплотную над именем. */
-.seat-hero-id {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.seat-hero-zone {
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.seat-hero-name {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
-
-.seat-hero-metric {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.seat-hero-label {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.seat-hero-value {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.seat-hero-value.is-money {
-  color: var(--accent-text);
-}
-
-/* Текстовый статус (проблема/ожидание) — не число-герой: показываем спокойнее,
-   чтобы он не кричал размером 26px там, где это просто слово. */
-.seat-hero-value.is-text {
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0;
-  white-space: normal;
-}
-
-/* «Время вышло» — фраза-статус, не таймер: янтарный «нужно действие», помельче числа-героя. */
-.seat-hero-value.is-expired {
-  color: var(--warning-text);
-  font-size: 18px;
-  letter-spacing: 0;
-  white-space: normal;
-}
-
-.seat-hero .seat-timebar {
-  width: 100%;
-}
-
-.seat-hero-sub {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.panel-actions {
-  display: grid;
-  gap: 10px;
-}
-
-/* Подсказка «время вышло» над действиями: спокойный янтарный info-ряд, направляет оператора
-   (продлить или завершить), не алярм. */
-.panel-expired-hint {
-  margin: 0;
-  border-left: 3px solid var(--warning);
-  border-radius: 6px;
-  padding: 7px 10px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 1px solid var(--warning-soft-border);
+  border-radius: var(--radius-md);
   background: var(--warning-soft-bg);
   color: var(--warning-text);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.3;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
-.quick-extend {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+.seat-calling-strip > span {
+  flex: 1;
+  min-width: 0;
 }
 
-.action-row-secondary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.quick-extend button,
-.action-row-secondary button {
-  display: inline-flex;
+/* Место ждёт ответа ПК: вместо главной кнопки — строка, что именно ушло. */
+.seat-pending-line {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 30px;
-  border: 1px solid var(--border-default);
-  border-radius: 7px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 700;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease, color 120ms ease;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
-.quick-extend button:hover:not(:disabled),
-.action-row-secondary button:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-  transform: translateY(-1px);
+/* Одна строка о ПК: связь, блокировка, имя машины, версии — через точку, мелко. */
+.seat-pc-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) 0;
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
 }
 
-.action-row-secondary button.danger {
-  border-color: var(--danger-soft-border);
-  color: var(--danger-text);
+.seat-pc-line > svg {
+  flex: none;
+  margin-right: var(--space-1);
 }
 
-.action-row-secondary button.danger:hover:not(:disabled) {
-  border-color: var(--danger);
-  background: var(--danger-soft-bg);
+.seat-pc-line > span + span::before {
+  content: '·';
+  margin: 0 6px;
+  color: var(--text-tertiary);
+}
+
+.seat-pc-line > .is-offline {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .cta-primary {
@@ -203,26 +98,6 @@
   transform: scale(0.99);
 }
 
-.panel-actions button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.panel-actions button:disabled {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-  transform: none;
-}
-
-.pc-health {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-/* Перенос — один аккуратный контрол: метка + (выбор места ⋮ кнопка) единым блоком. */
 /* Дропдаун в стиле приложения (замена нативного <select>): тёмный список, акцент на выбранном. */
 .panel-select {
   position: relative;
@@ -336,84 +211,5 @@
 .panel-select-option svg {
   flex-shrink: 0;
   color: var(--accent-text);
-}
-
-.transfer-row {
-  display: grid;
-  gap: 6px;
-}
-
-.transfer-row-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.transfer-row-controls {
-  display: flex;
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: 7px;
-  background: var(--surface-card);
-}
-
-.transfer-row-controls .transfer-select {
-  flex: 1;
-}
-
-.transfer-row-controls .panel-select-trigger {
-  height: 28px;
-  padding: 0 10px;
-  border: none;
-  border-radius: 7px 0 0 7px;
-  background: transparent;
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.transfer-row-controls .panel-select-trigger:hover:not(:disabled) {
-  border: none;
-  background: var(--surface-hover);
-}
-
-.transfer-row-controls .panel-select-trigger:focus-visible {
-  border: none;
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-.transfer-row-controls .transfer-go {
-  flex-shrink: 0;
-  min-height: 28px;
-  padding: 0 14px;
-  border: none;
-  border-left: 1px solid var(--border-default);
-  border-radius: 0 7px 7px 0;
-  background: var(--surface-hover);
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 700;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.transfer-row-controls .transfer-go:hover:not(:disabled),
-.transfer-row-controls .transfer-go:focus-visible {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  outline: none;
-}
-
-.transfer-row-controls .transfer-go:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-.transfer-row-controls .transfer-go:disabled {
-  color: var(--text-quaternary);
-  cursor: not-allowed;
 }
 

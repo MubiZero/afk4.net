@@ -6,10 +6,7 @@
   margin-bottom: 8px;
 }
 
-.screen-head span,
-.context-head span,
-.detail-row span,
-.session-timer span {
+.screen-head span {
   color: var(--text-tertiary);
   font-size: 10px;
 }
@@ -108,7 +105,6 @@
 }
 
 .screen-actions button,
-.pc-control-actions button,
 .billing-mode button {
   display: inline-flex;
   align-items: center;
@@ -143,90 +139,11 @@
 }
 
 .screen-actions button:focus-visible,
-.pc-control-actions button:focus-visible,
 .billing-mode button:focus-visible,
 .action-grid button:focus-visible,
 .dashboard-control-card:focus-visible {
   outline: 2px solid rgba(var(--accent-rgb), 0.82);
   outline-offset: 2px;
-}
-
-.pc-control-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.pc-control-actions button {
-  justify-content: center;
-  min-width: 0;
-  min-height: 30px;
-  overflow: hidden;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: border-color 120ms ease, background 120ms ease, transform 90ms ease;
-}
-
-.pc-control-actions button:not(:disabled):hover {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-
-.pc-control-actions button:not(:disabled):active {
-  transform: translateY(1px);
-}
-
-.pc-control-actions button > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pc-control-actions button:disabled {
-  border-color: var(--border-default);
-  background: var(--surface-card);
-  color: var(--text-quaternary);
-  opacity: 0.78;
-}
-
-/* PC-команды в боковой панели: вертикальный столбик, иконка+подпись слева. */
-.panel-pc-actions {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
-}
-
-.panel-pc-actions button {
-  justify-content: flex-start;
-  gap: 7px;
-  min-height: 30px;
-}
-
-/* Статус ПК раскрывается прямо под кнопкой «Статус» — обособленный блок-вкладка. */
-.pc-status-readout {
-  display: grid;
-  gap: 8px;
-}
-
-/* Строка готовности к действиям — отделяем от блока действий тонкой чертой. */
-.panel-readiness {
-  padding-top: 12px;
-  border-top: 1px solid var(--border-soft);
-}
-
-/* Результат «Статус ПК» — отчёт читается текстом (#34). */
-.pc-control-result {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.pc-control-result.failed {
-  color: var(--danger-text);
 }
 
 /* Контекст-меню места по правому клику — якорь у курсора. */
@@ -543,13 +460,6 @@
 .action-feedback.failed {
   background: var(--danger-soft-bg);
   color: var(--danger-text);
-}
-
-/* Галочка/спиннер прямо на кнопке действия (продление, перенос) — успех читается там,
-   где оператор только что нажал. */
-.quick-extend button .spin,
-.transfer-go .spin {
-  color: var(--text-secondary);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1096,10 +1006,7 @@
 
 .seat-head,
 .seat-main,
-.seat-tile footer,
-.context-head,
-.detail-row,
-.session-timer {
+.seat-tile footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1387,170 +1294,6 @@
   white-space: nowrap;
 }
 
-.context-panel {
-  display: grid;
-  align-content: start;
-  gap: 16px;
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-  margin: 10px 10px 10px 0;
-  padding: 16px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
-}
-
-.context-panel > * {
-  min-width: 0;
-}
-
-.context-head h2 {
-  margin: 1px 0 0;
-  color: var(--text-primary);
-  font-size: 24px;
-  line-height: 1;
-}
-
-.context-status-row {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--accent-hover);
-  border-radius: 7px;
-  padding: 9px 10px;
-  background: var(--surface-card);
-}
-
-.context-status-row span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.context-status-row strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.15;
-  text-align: right;
-  text-overflow: ellipsis;
-  overflow-wrap: anywhere;
-}
-
-.context-status-row.state-pending {
-  border-left-color: var(--warning);
-}
-
-/* «Нет связи» и «обслуживание» — спокойный серый кант (не красный). */
-.context-status-row.state-offline,
-.context-status-row.state-service {
-  border-left-color: var(--status-offline);
-}
-
-.context-status-row.state-ready {
-  border-left-color: var(--success);
-}
-
-.state-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  max-width: 86px;
-  overflow: hidden;
-  border-radius: 999px;
-  padding: 0 8px;
-  font-size: 10px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.state-chip.state-active,
-.state-chip.state-ready {
-  background: rgba(34, 197, 94, 0.13);
-  color: var(--success-text);
-}
-
-.state-chip.state-pending {
-  background: rgba(245, 158, 11, 0.13);
-  color: var(--warning-text);
-}
-
-.state-chip.state-offline,
-.state-chip.state-failed,
-.state-chip.state-service {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--text-strong);
-}
-
-.context-section {
-  display: grid;
-  gap: 10px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-soft);
-}
-
-.session-timer {
-  justify-content: start;
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--accent-hover);
-  border-radius: 6px;
-  padding: 10px 12px;
-  background: var(--surface-card);
-}
-
-.session-timer strong {
-  color: var(--text-primary);
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.detail-row strong {
-  max-width: 156px;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Набежавшая сумма открытого счёта — деньги акцентируем зелёным. */
-.detail-row strong.detail-value-money {
-  color: var(--accent-text);
-}
-
-/* Заголовок группы внутри карточки места — якорь для глаза, режет «список» на блоки. */
-.context-section-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-tertiary);
-}
-
-.context-section-head svg {
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-}
-
-.context-section-head span {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 /* Статус-пилюля здоровья ПК (связь/блокировка) — состояние читается иконкой + цветом + текстом. */
 .status-pill {
   display: inline-flex;
@@ -1603,13 +1346,6 @@
 
 .start-dialog-body .booking-client-field input {
   font-size: 15px;
-}
-
-/* Команды ПК сверх блокировки: тот же столбик, что у «Запереть» и «Открыть». */
-.pc-commands {
-  display: grid;
-  gap: 7px;
-  margin-top: 7px;
 }
 
 .pc-message-field {

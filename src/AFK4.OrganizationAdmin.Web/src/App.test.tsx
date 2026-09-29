@@ -110,11 +110,10 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
     expect(screen.getByLabelText('ПК зала')).toBeInTheDocument();
     expect(screen.getAllByText('Сессии').length).toBeGreaterThan(0);
-    // «Управление ПК» теперь секция в карточке выбранного места (не отдельная кнопка в тулбаре).
-    expect(screen.getByText('Управление ПК')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Завершить сессию/ })).toBeInTheDocument();
-    // Статус ПК — единый блок внизу карточки выбранного места, всегда виден (не за кнопкой).
-    expect(screen.getByText('Статус ПК')).toBeInTheDocument();
+    // Панель выбранного места — одна главная кнопка по его положению, команды ПК — в «Ещё»,
+    // статус ПК — строкой внизу (дизайн-проход 29.09).
+    expect(screen.getByRole('button', { name: 'Ещё действия' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Завершить и/ })).toBeInTheDocument();
     expect(screen.getByText(/^(за|раз)блокирован$/)).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
@@ -191,14 +190,12 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    // PC controls live in the selected seat's card (no toolbar button, no popover).
-    expect(screen.getByText('Управление ПК')).toBeInTheDocument();
-    // Статус ПК — единый блок внизу карточки, виден сразу: не действие за кнопкой, без сырого текста.
+    // Команды ПК — в «Ещё» панели выбранного места; статус ПК — строкой внизу, не кнопкой.
     expect(screen.queryByRole('button', { name: /^Статус$/ })).not.toBeInTheDocument();
-    expect(screen.getByText('Статус ПК')).toBeInTheDocument();
     expect(await screen.findByText(/^(за|раз)блокирован$/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Блокировать/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ещё действия' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Блокировать' }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/11111111-1111-1111-1111-111111111111/commands') &&
       init?.method === 'POST' &&
@@ -249,7 +246,7 @@ describe('App', () => {
     // Money surfaces (the checkout breakdown) render amounts in the configured host currency.
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     await within(dialog).findByText('К оплате');
     expect(within(dialog).getAllByText(/\$/).length).toBeGreaterThan(0);
@@ -641,7 +638,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
 
     // Finish opens the checkout modal; with nothing owed (zero-bill quote) the primary action
     // just ends the session through /end without recording a payment.
@@ -703,7 +700,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     await within(dialog).findByText('К оплате');
@@ -764,7 +761,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
     const realtimeFinishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     fireEvent.click(await within(realtimeFinishDialog).findByRole('button', { name: 'Завершить' }));
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(2));
@@ -782,7 +779,7 @@ describe('App', () => {
 
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(3));
     expect(await screen.findByRole('button', { name: /Посадить гостя/ })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: /Завершить сессию/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Завершить и/ })).not.toBeInTheDocument();
   });
 
   it('reconciles the floor map and dashboard when a session-lifecycle event arrives over realtime', async () => {
@@ -992,7 +989,9 @@ describe('App', () => {
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/commands/44444444-4444-4444-4444-444444444444/status'))).toBe(true);
   });
 
-  it('hides unauthorized workspaces and disables selected-seat actions', async () => {
+  // Нет права — действия не рисуются вовсе (решение владельца для инспекторов, 29.09): раньше
+  // были серые «15 мин» и «Завершить» с подписью «Нет прав на действия с сессией».
+  it('hides unauthorized workspaces and selected-seat actions', async () => {
     installSessionBridge(createSession({ permissions: ['organization.floor_map.view'] }));
 
     render(<App />);
@@ -1001,9 +1000,9 @@ describe('App', () => {
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect(screen.queryByTitle('Касса')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Брони')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /15 мин/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Завершить сессию/ })).toBeDisabled();
-    expect(screen.getByText('Нет прав на действия с сессией')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /15 мин/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Завершить и/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ещё действия' })).not.toBeInTheDocument();
   });
 
   it('opens workspace rail entries with partial role permissions', async () => {

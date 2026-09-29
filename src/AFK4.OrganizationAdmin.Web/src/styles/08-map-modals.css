@@ -60,8 +60,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .quick-extend button,
-  .action-row-secondary button,
   .cta-primary {
     transition: none;
   }

@@ -184,7 +184,7 @@ function floorMap() {
       // Зал B — две проблемы (ошибка команды + нет связи) и одна сессия.
       { seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 10, state: 'Failed', deviceId: 'd10', deviceName: 'PC-07', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
       { seatId: 'c2', seatName: 'PC-08', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 20, state: 'Offline', deviceId: 'd11', deviceName: 'PC-08', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T07:30:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
-      { seatId: 'c3', seatName: 'PC-09', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 30, state: 'Active', deviceId: 'd12', deviceName: 'PC-09', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's9', remainingSeconds: 900 }
+      { seatId: 'c3', seatName: 'PC-09', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 30, state: 'Active', deviceId: 'd12', deviceName: 'PC-09', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's9', remainingSeconds: 900, assistanceRequestedAtUtc: minutesAgoUtc(3) }
     ]
   };
 }

@@ -430,7 +430,8 @@ function AppInner() {
   const activeVisibleItems = activeSection.items.filter((item) => isWorkspaceOpen(item.id));
   const showWorkspaceTabs = activeVisibleItems.length > 1;
   const hasContextContent = workspace === 'map' && selectedSeat !== null;
-  const contextCol = hasContextContent ? 'minmax(260px, 292px)' : '0px';
+  // Панель места — Inspector кита: его ширина и отступ 10px справа от края окна.
+  const contextCol = hasContextContent ? 'calc(var(--inspector-w) + 10px)' : '0px';
   const actionsEnabled = floorMap.source === 'backend' && floorMap.loadStatus === 'ready';
   // Сессия поддержки приходит с именем, которое сервер записал по-русски («Поддержка
   // платформы»): в английском и таджикском окне оно оставалось русской строкой в трёх местах
@@ -610,6 +611,7 @@ function AppInner() {
               startRequestToken={startSeatToken}
               onSeatAction={handleSeatAction}
               onPcControlAction={handlePcControlAction}
+              onResolveAssistance={handleResolveAssistance}
             />
           </ContextPanel>
         )}

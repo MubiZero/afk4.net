@@ -45,15 +45,15 @@
     "radius": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/06-map-grid.css": {
-    "font-size": 68,
-    "radius": 30,
-    "spacing": 81,
+    "font-size": 60,
+    "radius": 27,
+    "spacing": 66,
     "hex": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/07-map-sidepanel.css": {
-    "font-size": 15,
-    "radius": 10,
-    "spacing": 15
+    "font-size": 3,
+    "radius": 2,
+    "spacing": 6
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/08-map-modals.css": {
     "font-size": 11,
