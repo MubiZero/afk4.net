@@ -27,16 +27,6 @@
   gap: var(--space-2);
 }
 
-/* Три частых действия в ряд в ширине инспектора не помещаются одной строкой подписи: подпись
-   переносится на вторую строку, а кнопки ряда остаются одной высоты — ряд читается как ряд. */
-.client-inspector .ui-inspector-secondary > .ui-btn {
-  height: auto;
-  min-height: var(--control-h);
-  padding-block: var(--space-1);
-  line-height: 1.2;
-  white-space: normal;
-}
-
 .client-fact-debt { color: var(--danger-text); }
 
 /* Форма диалога погашения долга (PayDebtModal). Без тег-селектора button (каскад-ловушка). */

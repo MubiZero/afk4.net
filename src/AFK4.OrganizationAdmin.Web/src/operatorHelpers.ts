@@ -1491,10 +1491,11 @@ export function describeBirthday(birthDate: string, locale: string, today: Date 
 }
 
 // Первые две буквы имени как аватар-заглушка — общий примитив для ClientsTable/ClientDrawer.
+// Первая буква каждого слова: кавычки и знаки не буквы — «Турнир «Алиф»» даёт «ТА», а не «Т«».
 export function initials(name: string): string {
   return name
-    .split(' ')
-    .map((part) => part[0])
+    .split(/\s+/)
+    .map((part) => part.match(/\p{L}|\p{N}/u)?.[0] ?? '')
     .join('')
     .slice(0, 2)
     .toUpperCase() || '—';

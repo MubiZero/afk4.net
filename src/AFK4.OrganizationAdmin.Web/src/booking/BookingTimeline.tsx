@@ -3,7 +3,7 @@ import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { Check, Clock, Globe, RotateCcw, User, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
-import { formatTime, zoneLabel } from '../operatorHelpers';
+import { formatTime, initials, zoneLabel } from '../operatorHelpers';
 import { EmptyState, Skeleton } from '../operatorPrimitives';
 import { bookingStateLabelKey, type BookingItem, type BookingTone, type SessionItem, type TimelineAxis, type ZoneRowGroup } from './bookingModel';
 
@@ -366,7 +366,7 @@ export function BookingTimeline({
                       title={sessionTitle(session.item)}
                       aria-hidden="true"
                     >
-                      <span className="booking-session-label">{session.item.playerName || t('op.booking.guest')}</span>
+                      <TrackName name={session.item.playerName || t('op.booking.guest')} className="booking-session-label" />
                       {session.open && <span className="booking-session-arrow" aria-hidden="true">→</span>}
                     </div>
                   ))}
@@ -383,7 +383,7 @@ export function BookingTimeline({
                       title={blockLabel(block.item)}
                     >
                       <span className="booking-block-icon">{toneIcon(block.item.tone)}</span>
-                      <b>{block.item.customerName}</b>
+                      <TrackName name={block.item.customerName} />
                     </button>
                   ))}
                   {ghost?.seatIds.has(row.seat.id) && (
@@ -425,5 +425,17 @@ export function BookingTimeline({
       {body}
       {legend}
     </div>
+  );
+}
+
+// Имя на дорожке. Узкий блок (бронь на полчаса) обрезал имя до «Т…» — ни прочесть, ни узнать.
+// Рядом лежат инициалы, и контейнерный запрос в стилях показывает их, когда полное имя не
+// помещается; целиком имя остаётся в подписи блока для наведения и диктора.
+function TrackName({ name, className }: { name: string; className?: string }) {
+  return (
+    <span className={`booking-track-name${className ? ` ${className}` : ''}`}>
+      <b className="booking-track-full">{name}</b>
+      <b className="booking-track-initials" aria-hidden="true">{initials(name)}</b>
+    </span>
   );
 }

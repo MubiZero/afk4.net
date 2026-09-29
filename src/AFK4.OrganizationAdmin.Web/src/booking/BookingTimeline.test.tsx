@@ -262,6 +262,17 @@ describe('BookingTimeline: состояние читается не только
     expect(container.querySelector('.booking-block')!.getAttribute('aria-label')).toContain('Онлайн');
   });
 
+  // Короткая бронь обрезала имя до «Т…». Рядом с именем лежат инициалы — какое из двух видно,
+  // решает ширина блока в стилях (контейнерный запрос); для читалки остаётся полная подпись.
+  it('носит рядом с именем инициалы для узкого блока', () => {
+    const { container } = renderWith(booking({ customerName: 'Турнир «Алиф»' }));
+    const block = container.querySelector<HTMLElement>('.booking-block')!;
+    expect(block.querySelector('.booking-track-full')).toHaveTextContent('Турнир «Алиф»');
+    const short = block.querySelector('.booking-track-initials')!;
+    expect(short).toHaveTextContent('ТА');
+    expect(short.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('объясняет цвета легендой, а не заставляет их угадывать', () => {
     const { container } = renderWith(booking());
     const legend = container.querySelector('.booking-legend')!;

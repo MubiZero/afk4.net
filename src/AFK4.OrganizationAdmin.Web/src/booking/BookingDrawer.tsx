@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundCheck, UserRoundPlus, UserRoundX, Wallet, X } from 'lucide-react';
+import { Check, Clock, Copy, TriangleAlert, Wallet, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
 import { formatLocal, localPhoneDigits } from '../phoneFormat';
 import { Skeleton } from '../operatorPrimitives';
-import { CloseButton, useBlockedReason } from '@afk4/ui/react';
+import { Button, Inspector, StatusBadge, useBlockedReason, type Fact, type RowAction, type StatusTone } from '@afk4/ui/react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
@@ -98,13 +98,10 @@ function CopyablePhone({ phone }: { phone: string }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <div className="booking-detail-phone">
-      <span>{t('clients.field.phone')}</span>
-      <button type="button" className="booking-phone-copy" onClick={copy} aria-label={t('op.booking.detail.copyPhone')}>
-        <strong>+992 {formatLocal(phone)}</strong>
-        {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
-      </button>
-    </div>
+    <button type="button" className="booking-phone-copy" onClick={copy} aria-label={t('op.booking.detail.copyPhone')}>
+      <span className="ui-num">+992 {formatLocal(phone)}</span>
+      {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+    </button>
   );
 }
 
@@ -124,7 +121,6 @@ export function BookingDrawer(props: BookingDrawerProps) {
     selected !== null && selected.startMs <= Date.now(),
     Boolean(selected?.startedSessionId)
   );
-  const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
   // Заявка из приложения может прийти без места: открыть её на карте, посадить или запустить
   // сессию не на что, пока место не выбрано.
@@ -166,256 +162,274 @@ export function BookingDrawer(props: BookingDrawerProps) {
   const hasBalance = draft.clientBalanceMinorUnits !== null;
   const inDebt = (draft.clientDebtMinorUnits ?? 0) > 0;
   const lowBalance = (draft.clientBalanceMinorUnits ?? 0) <= 0;
+  const close = { label: t('common.close'), disabled: busy, onClose: () => { if (!busy) props.onClose(); } };
+
+  if (mode === 'create') {
+    return (
+      <Inspector className="booking-inspector" title={t('op.booking.drawer.createTitle')} close={close}>
+        {isGroup ? (
+          <div className="booking-field">
+            <span>{t('op.booking.create.seats', { count: groupSeats.length })}</span>
+            <div className="booking-seat-chips" role="list">
+              {groupSeats.map((seat) => {
+                const conflicted = groupConflicts.has(seat.id);
+                const unavailable = !freeIds.has(seat.id);
+                return (
+                  <span key={seat.id} role="listitem" className={`booking-seat-chip${unavailable ? ' is-unavailable' : ''}${conflicted ? ' is-conflict' : ''}`}>
+                    {(unavailable || conflicted) && <TriangleAlert size={11} aria-hidden="true" />}
+                    <span>{zoneLabel(seat.zone, t)} · {seat.name}</span>
+                    {unavailable && <small>{seat.stateLabel}</small>}
+                    <button type="button" aria-label={t('op.booking.group.remove', { seat: seat.name })} disabled={busy} onClick={() => props.onRemoveSeat(seat.id)}><X size={11} /></button>
+                  </span>
+                );
+              })}
+            </div>
+            {hasGroupConflict && (
+              <div className="booking-conflict" role="alert">
+                <TriangleAlert size={14} aria-hidden="true" />
+                <span>{t('op.booking.group.conflict')}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="booking-field">
+            <span>{t('op.booking.create.seat')}</span>
+            <PanelSelect
+              ariaLabel={t('op.booking.create.seat')}
+              value={draft.seatId}
+              placeholder={t('op.booking.create.seatNone')}
+              disabled={busy || allSeats.length === 0}
+              options={groupSeatsByZone(allSeats).map((seat) => ({
+                value: seat.id,
+                label: `${zoneLabel(seat.zone, t)} · ${seat.name}${freeIds.has(seat.id) ? '' : ` · ${seat.stateLabel}`}`
+              }))}
+              onChange={(seatId) => props.onChangeDraft({ seatId })}
+            />
+          </div>
+        )}
+        <div className="booking-field">
+          <span>{t('op.booking.client')}</span>
+          <ClientPicker
+            value={draft.customerName}
+            linked={Boolean(draft.playerAccountId)}
+            disabled={busy}
+            search={props.searchClients}
+            onQueryChange={(name) => props.onChangeDraft({ customerName: name, playerAccountId: '', clientBalanceMinorUnits: null, clientDebtMinorUnits: null })}
+            onPick={(pick) => props.onChangeDraft({ customerName: pick.name, phoneNumber: formatLocal(pick.phoneNumber), playerAccountId: pick.playerAccountId, clientBalanceMinorUnits: pick.balanceMinorUnits, clientDebtMinorUnits: pick.debtMinorUnits })}
+            onClear={() => props.onChangeDraft({ customerName: '', phoneNumber: '', playerAccountId: '', clientBalanceMinorUnits: null, clientDebtMinorUnits: null })}
+          />
+          {hasBalance && (
+            <span className={`booking-balance${inDebt ? ' is-debt' : lowBalance ? ' is-low' : ''}`}>
+              <Wallet size={12} aria-hidden="true" />
+              {inDebt
+                ? t('op.booking.client.debt', { amount: formatMinorUnits(draft.clientDebtMinorUnits ?? 0, currencyCode) })
+                : t('op.booking.client.balance', { amount: formatMinorUnits(draft.clientBalanceMinorUnits ?? 0, currencyCode) })}
+            </span>
+          )}
+        </div>
+        <div className="booking-field">
+          <span>{t('clients.field.phone')}</span>
+          <div className="booking-phone-field">
+            <span className="booking-phone-prefix" aria-hidden="true">+992</span>
+            <input
+              type="tel"
+              inputMode="tel"
+              aria-label={t('clients.field.phone')}
+              value={draft.phoneNumber}
+              disabled={busy}
+              placeholder="93 738 00 70"
+              onChange={(e) => props.onChangeDraft({ phoneNumber: formatLocal(e.currentTarget.value) })}
+            />
+          </div>
+        </div>
+        <div className="booking-field">
+          <span>{t('op.booking.create.start')}</span>
+          <DateTimePicker
+            value={draft.startsAt}
+            disabled={busy}
+            ariaLabel={t('op.booking.create.start')}
+            onChange={(next) => props.onChangeDraft({ startsAt: next })}
+          />
+        </div>
+        <div className="booking-field">
+          <span className="booking-field-head">
+            {t('op.booking.create.duration')}
+            <em className="booking-duration-human">{humanizeDuration(draft.durationMinutes)}</em>
+          </span>
+          <div className="booking-duration-field">
+            <input type="number" min={15} step={15} value={draft.durationMinutes} disabled={busy} onChange={(e) => props.onChangeDraft({ durationMinutes: Number(e.target.value) || 60 })} />
+            <span className="booking-duration-suffix" aria-hidden="true">{t('op.booking.durationUnit')}</span>
+          </div>
+        </div>
+        <div className="booking-duration-quick" role="group" aria-label={t('op.booking.create.duration')}>
+          {[30, 60, 90, 120].map((minutes) => (
+            <button
+              key={minutes}
+              type="button"
+              className={draft.durationMinutes === minutes ? 'active' : undefined}
+              disabled={busy}
+              onClick={() => props.onChangeDraft({ durationMinutes: minutes })}
+            >{t('op.booking.durationMin', { count: minutes })}</button>
+          ))}
+        </div>
+        {conflict && (
+          <div className="booking-conflict" role="alert">
+            <TriangleAlert size={14} aria-hidden="true" />
+            <span>{t('op.booking.conflict', {
+              from: formatTime(new Date(conflict.startMs).toISOString()),
+              to: formatTime(new Date(conflict.endMs).toISOString()),
+              client: conflict.customerName
+            })}</span>
+          </div>
+        )}
+        {!conflict && seatConflict && (
+          <div className="booking-conflict" role="alert">
+            <TriangleAlert size={14} aria-hidden="true" />
+            <span>{t('op.booking.conflictSeat')}</span>
+          </div>
+        )}
+        {summaryEnd && (
+          <div className="booking-summary">
+            <Clock size={14} aria-hidden="true" />
+            <div>
+              <strong>{isGroup
+                ? t('op.booking.create.seats', { count: groupSeats.length })
+                : summarySeat ? `${zoneLabel(summarySeat.zone, t)} · ${summarySeat.name}` : t('op.booking.create.seatNone')}</strong>
+              <span>{formatTime(summaryStart.toISOString())}–{formatTime(summaryEnd.toISOString())} · {humanizeDuration(draft.durationMinutes)}</span>
+            </div>
+          </div>
+        )}
+        {isGroup ? (
+          <Button variant="primary" block disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}>{t('op.booking.create.submitGroup', { count: groupSeats.length })}</Button>
+        ) : (
+          <Button variant="primary" block disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId || seatConflict} onClick={props.onCreate}>{t('op.booking.create.submit')}</Button>
+        )}
+      </Inspector>
+    );
+  }
+
+  if (selected === null) {
+    return (
+      <Inspector className="booking-inspector" title={t('op.booking.drawer.detailTitle')} close={close}>
+        <Skeleton className="booking-detail-skel" />
+      </Inspector>
+    );
+  }
+
+  const isGroupBooking = Boolean(selected.reservationGroupId) && groupSize > 1;
+  const noSeat = !selected.seatId;
+  // Главное действие — следующий шаг брони: заявку принять, подтверждённую — посадить за ПК.
+  // Без права вести брони кнопок нет вовсе: остаётся только посмотреть место на карте.
+  const primary = !canManage
+    ? undefined
+    : actions.canConfirm
+      ? <Button variant="primary" block disabled={busy} onClick={() => props.onConfirm(selected)}>{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</Button>
+      : actions.canStart && canStartSessions
+        ? <Button variant="primary" block disabled={busy || noSeat} aria-describedby={unassigned.describedBy} onClick={props.onStart}>{t('op.booking.actions.startSession')}</Button>
+        : undefined;
+  // «Отказать» — ответ на заявку, а не отмена: игрок ничего не отменял, деньги ему вернутся
+  // целиком. Поэтому он на виду и не красный, а красное «Отменить бронь» — в «⋯».
+  const reject = canManage && actions.canReject
+    ? <Button disabled={busy} onClick={() => setRejecting(true)}>{t('op.booking.actions.reject')}</Button>
+    : null;
+  const seat = canManage && actions.canSeat
+    ? <Button disabled={busy || noSeat} aria-describedby={unassigned.describedBy} onClick={props.onSeat}>{t('op.booking.actions.seat')}</Button>
+    : null;
+  const openMap = <Button disabled={busy || noSeat} aria-describedby={unassigned.describedBy} onClick={() => props.onOpenMap(selected.seatId)}>{t('op.booking.actions.openMap')}</Button>;
+
+  const menu: RowAction[] = !canManage ? [] : [
+    ...(actions.canMarkNoShow ? [{ id: 'noShow', label: t('op.booking.actions.noShow'), onSelect: () => setConfirmingNoShow(true), danger: true, disabled: busy }] : []),
+    { id: 'cancel', label: t('op.booking.action.cancel'), onSelect: props.onCancel, danger: true, disabled: busy },
+    ...(isGroupBooking ? [{ id: 'cancelGroup', label: t('op.booking.group.cancelAll'), onSelect: props.onCancelGroup, danger: true, disabled: busy }] : []),
+  ];
+
+  const facts: Fact[] = [];
+  if (localPhoneDigits(selected.phoneNumber).length > 0) {
+    facts.push({ label: t('clients.field.phone'), value: <CopyablePhone phone={selected.phoneNumber} /> });
+  }
+  if (isGroupBooking) {
+    facts.push({ label: t('op.booking.detail.group'), value: t('op.booking.group.seats', { count: groupSize }) });
+  }
+  if (selected.state === 'pending' && selected.respondByMs !== null) {
+    facts.push({ label: t('op.booking.detail.respondBy'), value: formatTime(new Date(selected.respondByMs).toISOString()) });
+  }
+  facts.push({ label: t('op.booking.detail.source'), value: selected.source === 'online' ? t('op.booking.source.online') : t('op.booking.source.operator') });
+  // Комментарий — только когда он есть: «без комментария» строкой было шумом у каждой брони.
+  if (selected.note) {
+    facts.push({ label: t('op.booking.detail.comment'), value: selected.note });
+  }
 
   return (
-    <aside className="booking-drawer" role="dialog" aria-label={title}>
-      <header className="booking-drawer-head">
-        <strong>{title}</strong>
-        <CloseButton label={t('common.cancel')} disabled={busy} onClick={() => { if (!busy) props.onClose(); }} />
-      </header>
+    <Inspector
+      className="booking-inspector"
+      title={selected.customerName}
+      status={<StatusBadge tone={STATUS_TONE[selected.tone] ?? 'neutral'}>{t(bookingStateLabelKey(selected.state))}</StatusBadge>}
+      subtitle={[selected.zoneName ? zoneLabel(selected.zoneName, t) : '', selected.seatName, t('op.booking.durationMin', { count: selected.durationMinutes })].filter(Boolean).join(' · ')}
+      menu={{ label: t('op.booking.menu.open'), actions: menu }}
+      close={close}
+      figure={{
+        label: t('op.booking.detail.time'),
+        value: `${formatTime(new Date(selected.startMs).toISOString())}–${formatTime(new Date(selected.endMs).toISOString())}`,
+      }}
+    >
+      <Inspector.Actions
+        primary={primary}
+        hint={unassigned.hint}
+        secondary={reject !== null && seat !== null ? [reject, seat, openMap] : reject !== null ? [reject, openMap] : seat !== null ? [seat, openMap] : [openMap]}
+      />
 
-      {mode === 'create' ? (
-        <div className="booking-drawer-body">
-          {isGroup ? (
-            <div className="booking-field">
-              <span>{t('op.booking.create.seats', { count: groupSeats.length })}</span>
-              <div className="booking-seat-chips" role="list">
-                {groupSeats.map((seat) => {
-                  const conflicted = groupConflicts.has(seat.id);
-                  const unavailable = !freeIds.has(seat.id);
-                  return (
-                    <span key={seat.id} role="listitem" className={`booking-seat-chip${unavailable ? ' is-unavailable' : ''}${conflicted ? ' is-conflict' : ''}`}>
-                      {(unavailable || conflicted) && <TriangleAlert size={11} aria-hidden="true" />}
-                      <span>{zoneLabel(seat.zone, t)} · {seat.name}</span>
-                      {unavailable && <small>{seat.stateLabel}</small>}
-                      <button type="button" aria-label={t('op.booking.group.remove', { seat: seat.name })} disabled={busy} onClick={() => props.onRemoveSeat(seat.id)}><X size={11} /></button>
-                    </span>
-                  );
-                })}
-              </div>
-              {hasGroupConflict && (
-                <div className="booking-conflict" role="alert">
-                  <TriangleAlert size={14} aria-hidden="true" />
-                  <span>{t('op.booking.group.conflict')}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="booking-field">
-              <span>{t('op.booking.create.seat')}</span>
-              <PanelSelect
-                ariaLabel={t('op.booking.create.seat')}
-                value={draft.seatId}
-                placeholder={t('op.booking.create.seatNone')}
-                disabled={busy || allSeats.length === 0}
-                options={groupSeatsByZone(allSeats).map((seat) => ({
-                  value: seat.id,
-                  label: `${zoneLabel(seat.zone, t)} · ${seat.name}${freeIds.has(seat.id) ? '' : ` · ${seat.stateLabel}`}`
-                }))}
-                onChange={(seatId) => props.onChangeDraft({ seatId })}
-              />
-            </div>
-          )}
-          <div className="booking-field">
-            <span>{t('op.booking.client')}</span>
-            <ClientPicker
-              value={draft.customerName}
-              linked={Boolean(draft.playerAccountId)}
-              disabled={busy}
-              search={props.searchClients}
-              onQueryChange={(name) => props.onChangeDraft({ customerName: name, playerAccountId: '', clientBalanceMinorUnits: null, clientDebtMinorUnits: null })}
-              onPick={(pick) => props.onChangeDraft({ customerName: pick.name, phoneNumber: formatLocal(pick.phoneNumber), playerAccountId: pick.playerAccountId, clientBalanceMinorUnits: pick.balanceMinorUnits, clientDebtMinorUnits: pick.debtMinorUnits })}
-              onClear={() => props.onChangeDraft({ customerName: '', phoneNumber: '', playerAccountId: '', clientBalanceMinorUnits: null, clientDebtMinorUnits: null })}
-            />
-            {hasBalance && (
-              <span className={`booking-balance${inDebt ? ' is-debt' : lowBalance ? ' is-low' : ''}`}>
-                <Wallet size={12} aria-hidden="true" />
-                {inDebt
-                  ? t('op.booking.client.debt', { amount: formatMinorUnits(draft.clientDebtMinorUnits ?? 0, currencyCode) })
-                  : t('op.booking.client.balance', { amount: formatMinorUnits(draft.clientBalanceMinorUnits ?? 0, currencyCode) })}
-              </span>
-            )}
+      {confirmingNoShow && actions.canMarkNoShow && (
+        <div className="booking-reject" role="group" aria-label={t('op.booking.noShow.confirmTitle')}>
+          <p className="booking-reject-title">{t('op.booking.noShow.confirmTitle')}</p>
+          <p className="booking-reject-hint">{t('op.booking.noShow.confirmBody')}</p>
+          <div className="booking-reject-actions">
+            <Button variant="danger" disabled={busy} onClick={() => { setConfirmingNoShow(false); props.onMarkNoShow(); }}>
+              {t('op.booking.noShow.confirmAction')}
+            </Button>
+            <Button disabled={busy} onClick={() => setConfirmingNoShow(false)}>{t('op.booking.reject.back')}</Button>
           </div>
-          <div className="booking-field">
-            <span>{t('clients.field.phone')}</span>
-            <div className="booking-phone-field">
-              <span className="booking-phone-prefix" aria-hidden="true">+992</span>
-              <input
-                type="tel"
-                inputMode="tel"
-                aria-label={t('clients.field.phone')}
-                value={draft.phoneNumber}
-                disabled={busy}
-                placeholder="93 738 00 70"
-                onChange={(e) => props.onChangeDraft({ phoneNumber: formatLocal(e.currentTarget.value) })}
-              />
-            </div>
-          </div>
-          <div className="booking-field">
-            <span>{t('op.booking.create.start')}</span>
-            <DateTimePicker
-              value={draft.startsAt}
-              disabled={busy}
-              ariaLabel={t('op.booking.create.start')}
-              onChange={(next) => props.onChangeDraft({ startsAt: next })}
-            />
-          </div>
-          <div className="booking-field">
-            <span className="booking-field-head">
-              {t('op.booking.create.duration')}
-              <em className="booking-duration-human">{humanizeDuration(draft.durationMinutes)}</em>
-            </span>
-            <div className="booking-duration-field">
-              <input type="number" min={15} step={15} value={draft.durationMinutes} disabled={busy} onChange={(e) => props.onChangeDraft({ durationMinutes: Number(e.target.value) || 60 })} />
-              <span className="booking-duration-suffix" aria-hidden="true">{t('op.booking.durationUnit')}</span>
-            </div>
-          </div>
-          <div className="booking-duration-quick" role="group" aria-label={t('op.booking.create.duration')}>
-            {[30, 60, 90, 120].map((minutes) => (
-              <button
-                key={minutes}
-                type="button"
-                className={draft.durationMinutes === minutes ? 'active' : undefined}
-                disabled={busy}
-                onClick={() => props.onChangeDraft({ durationMinutes: minutes })}
-              >{t('op.booking.durationMin', { count: minutes })}</button>
-            ))}
-          </div>
-          {conflict && (
-            <div className="booking-conflict" role="alert">
-              <TriangleAlert size={14} aria-hidden="true" />
-              <span>{t('op.booking.conflict', {
-                from: formatTime(new Date(conflict.startMs).toISOString()),
-                to: formatTime(new Date(conflict.endMs).toISOString()),
-                client: conflict.customerName
-              })}</span>
-            </div>
-          )}
-          {!conflict && seatConflict && (
-            <div className="booking-conflict" role="alert">
-              <TriangleAlert size={14} aria-hidden="true" />
-              <span>{t('op.booking.conflictSeat')}</span>
-            </div>
-          )}
-          {summaryEnd && (
-            <div className="booking-summary">
-              <Clock size={14} aria-hidden="true" />
-              <div>
-                <strong>{isGroup
-                  ? t('op.booking.create.seats', { count: groupSeats.length })
-                  : summarySeat ? `${zoneLabel(summarySeat.zone, t)} · ${summarySeat.name}` : t('op.booking.create.seatNone')}</strong>
-                <span>{formatTime(summaryStart.toISOString())}–{formatTime(summaryEnd.toISOString())} · {humanizeDuration(draft.durationMinutes)}</span>
-              </div>
-            </div>
-          )}
-          {isGroup ? (
-            <button type="button" className="booking-primary-action" disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}><Plus size={15} />{t('op.booking.create.submitGroup', { count: groupSeats.length })}</button>
-          ) : (
-            <button type="button" className="booking-primary-action" disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId || seatConflict} onClick={props.onCreate}><Plus size={15} />{t('op.booking.create.submit')}</button>
-          )}
-        </div>
-      ) : selected ? (
-        <div className="booking-drawer-body">
-          <div className={`booking-status-card ${selected.tone}`}>
-            <span>{t(bookingStateLabelKey(selected.state))}</span>
-            <strong>{formatTime(new Date(selected.startMs).toISOString())}</strong>
-            <em>{selected.seatName ? `${zoneLabel(selected.zoneName, t)} · ${selected.seatName}` : zoneLabel(selected.zoneName, t)} · {t('op.booking.durationMin', { count: selected.durationMinutes })}</em>
-          </div>
-
-          {selected.reservationGroupId && groupSize > 1 && (
-            <div className="booking-group-note">
-              <Layers size={13} aria-hidden="true" />
-              <span>{t('op.booking.group.badge', { count: groupSize })}</span>
-            </div>
-          )}
-
-          <div className="booking-action-grid">
-            <button type="button" disabled={!selected.seatId || busy} aria-describedby={unassigned.describedBy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
-            {actions.canStart && (
-              <button type="button" disabled={!canManage || !canStartSessions || busy || !selected.seatId} aria-describedby={unassigned.describedBy} onClick={props.onStart}><UserRoundPlus size={15} />{t('op.booking.actions.startSession')}</button>
-            )}
-            {actions.canSeat && (
-              <button type="button" disabled={!canManage || busy || !selected.seatId} aria-describedby={unassigned.describedBy} onClick={props.onSeat}><UserRoundCheck size={15} />{t('op.booking.actions.seat')}</button>
-            )}
-            {actions.canConfirm && (
-              <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</button>
-            )}
-            {actions.canReject && (
-              <button type="button" className="danger" disabled={!canManage || busy} onClick={() => setRejecting(true)}><X size={15} />{t('op.booking.actions.reject')}</button>
-            )}
-            {actions.canMarkNoShow && (
-              <button type="button" className="danger" disabled={!canManage || busy} onClick={() => setConfirmingNoShow(true)}><UserRoundX size={15} />{t('op.booking.actions.noShow')}</button>
-            )}
-            <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancel}><Square size={15} />{t('op.booking.actions.cancel')}</button>
-            {selected.reservationGroupId && groupSize > 1 && (
-              <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancelGroup}><Layers size={15} />{t('op.booking.group.cancelAll')}</button>
-            )}
-          </div>
-          {unassigned.hint}
-
-          {confirmingNoShow && actions.canMarkNoShow && (
-            <div className="booking-reject" role="group" aria-label={t('op.booking.noShow.confirmTitle')}>
-              <p className="booking-reject-title">{t('op.booking.noShow.confirmTitle')}</p>
-              <p className="booking-reject-hint">{t('op.booking.noShow.confirmBody')}</p>
-              <div className="booking-action-grid">
-                <button
-                  type="button"
-                  className="danger"
-                  disabled={busy}
-                  onClick={() => { setConfirmingNoShow(false); props.onMarkNoShow(); }}
-                >
-                  {t('op.booking.noShow.confirmAction')}
-                </button>
-                <button type="button" disabled={busy} onClick={() => setConfirmingNoShow(false)}>
-                  {t('op.booking.reject.back')}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {rejecting && actions.canReject && (
-            <RejectPanel
-              busy={busy}
-              onSend={(reasonCode, note) => {
-                setRejecting(false);
-                props.onReject(reasonCode, note);
-              }}
-              onDismiss={() => setRejecting(false)}
-            />
-          )}
-
-          <div className="booking-field">
-            <span>{t('op.booking.move.seat')}</span>
-            <PanelSelect
-              ariaLabel={t('op.booking.move.seat')}
-              value=""
-              placeholder={movePlaceholder}
-              disabled={!canManage || busy || moveTargets.status !== 'ready' || moveTargets.seats.length === 0}
-              options={groupSeatsByZone(moveTargets.seats).map((seat) => ({
-                value: seat.id,
-                label: `${zoneLabel(seat.zone, t)} · ${seat.name}`
-              }))}
-              onChange={(seatId) => { if (seatId) props.onMove(seatId); }}
-            />
-          </div>
-
-          <div className="booking-detail-list">
-            <div><span>{t('op.booking.client')}</span><strong>{selected.customerName}</strong></div>
-            {localPhoneDigits(selected.phoneNumber).length > 0 && <CopyablePhone phone={selected.phoneNumber} />}
-            <div><span>{t('op.booking.detail.comment')}</span><strong>{selected.note || t('op.booking.noComment')}</strong></div>
-            <div><span>{t('op.booking.detail.source')}</span><strong>{selected.source === 'online' ? t('op.booking.source.online') : t('op.booking.source.operator')}</strong></div>
-            {selected.state === 'pending' && selected.respondByMs !== null && (
-              <div><span>{t('op.booking.detail.respondBy')}</span><strong>{formatTime(new Date(selected.respondByMs).toISOString())}</strong></div>
-            )}
-          </div>
-
-          <ReputationCard controller={props.reputation} />
-        </div>
-      ) : (
-        <div className="booking-drawer-body">
-          <Skeleton className="booking-detail-skel" />
         </div>
       )}
-    </aside>
+
+      {rejecting && actions.canReject && (
+        <RejectPanel
+          busy={busy}
+          onSend={(reasonCode, note) => {
+            setRejecting(false);
+            props.onReject(reasonCode, note);
+          }}
+          onDismiss={() => setRejecting(false)}
+        />
+      )}
+
+      {canManage && (
+        <div className="booking-field">
+          <span>{t('op.booking.move.seat')}</span>
+          <PanelSelect
+            ariaLabel={t('op.booking.move.seat')}
+            value=""
+            placeholder={movePlaceholder}
+            disabled={busy || moveTargets.status !== 'ready' || moveTargets.seats.length === 0}
+            options={groupSeatsByZone(moveTargets.seats).map((seat) => ({
+              value: seat.id,
+              label: `${zoneLabel(seat.zone, t)} · ${seat.name}`
+            }))}
+            onChange={(seatId) => { if (seatId) props.onMove(seatId); }}
+          />
+        </div>
+      )}
+
+      <Inspector.Facts items={facts} />
+
+      <ReputationCard controller={props.reputation} />
+    </Inspector>
   );
 }
+
+// Тон статуса брони — словарь кита, в тон блоку на ленте: заявка ждёт (жёлтый), подтверждённая
+// (зелёный), онлайн (акцент); посаженная и отменённая — спокойные.
+const STATUS_TONE: Partial<Record<BookingItem['tone'], StatusTone>> = {
+  pending: 'warning',
+  confirmed: 'success',
+  online: 'accent',
+};

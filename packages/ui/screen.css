@@ -177,7 +177,17 @@
   gap: var(--space-2);
 }
 
-.ui-inspector-secondary > .ui-btn { min-width: 0; }
+/* Три кнопки в ширине инспектора не помещают подпись одной строкой («Перевод DushanbeCity»,
+   «Открыть карту»): подпись переносится, а кнопки ряда остаются одной высоты — ряд читается как
+   ряд, а не обрезается по краю. */
+.ui-inspector-secondary > .ui-btn {
+  min-width: 0;
+  height: auto;
+  min-height: var(--control-h);
+  padding-block: var(--space-1);
+  line-height: 1.2;
+  white-space: normal;
+}
 
 .ui-inspector-section {
   display: grid;

@@ -45,9 +45,9 @@
     "radius": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/06-map-grid.css": {
-    "font-size": 72,
-    "radius": 33,
-    "spacing": 90,
+    "font-size": 71,
+    "radius": 32,
+    "spacing": 89,
     "hex": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/07-map-sidepanel.css": {
@@ -66,9 +66,9 @@
     "spacing": 22
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/10-booking.css": {
-    "font-size": 58,
-    "radius": 34,
-    "spacing": 78
+    "font-size": 43,
+    "radius": 26,
+    "spacing": 47
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/11-pos.css": {
     "font-size": 8,

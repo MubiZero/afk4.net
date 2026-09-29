@@ -81,7 +81,7 @@ it('blocks drawer close while a reservation command is pending', () => {
     onConfirm: () => {}, onOpenMap: () => {}, onSeat: () => {}
   };
   const result = render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
-  const close = result.getByRole('button', { name: 'Отмена' });
+  const close = result.getByRole('button', { name: 'Закрыть' });
   expect(close).toBeDisabled();
   fireEvent.click(close);
   expect(onClose).not.toHaveBeenCalled();
@@ -94,15 +94,37 @@ describe('BookingDrawer arbitrary group selection', () => {
     expect(result.getByText('В сессии')).toBeTruthy();
     expect(result.getByText('Обслуживание')).toBeTruthy();
     expect(result.container.querySelectorAll('.booking-seat-chip.is-unavailable')).toHaveLength(2);
-    expect(result.container.querySelector<HTMLButtonElement>('.booking-primary-action')?.disabled).toBe(false);
+    expect(result.getByRole('button', { name: 'Создать на 2 ПК' })).not.toBeDisabled();
   });
 
   it('оставляет фактическое пересечение видимым и блокирует групповое создание', () => {
     const result = renderDrawer(new Set(['a1']));
 
     expect(result.container.querySelector('.booking-seat-chip.is-conflict')).not.toBeNull();
-    expect(result.container.querySelector<HTMLButtonElement>('.booking-primary-action')?.disabled).toBe(true);
+    expect(result.getByRole('button', { name: 'Создать на 2 ПК' })).toBeDisabled();
     expect(result.getByRole('alert')).toBeTruthy();
+  });
+});
+
+// «Отказать» и «Отменить бронь» — разные вещи, и выглядят по-разному: отказ — ответ на заявку,
+// на виду и не красный (деньги игроку вернутся целиком); отмена — красным пунктом в «⋯».
+describe('BookingDrawer · отказ и отмена различимы', () => {
+  it('заявке «Принять» — главная, «Отказать» — обычная кнопка, «Отменить бронь» — опасный пункт меню', () => {
+    const result = detail('pending', () => {}, () => {}, () => {}, Date.now() + 60_000);
+    expect(result.getByRole('button', { name: 'Подтвердить' })).toHaveClass('ui-btn--primary');
+    const reject = result.getByRole('button', { name: 'Отказать' });
+    expect(reject).not.toHaveClass('ui-btn--danger');
+    expect(result.queryByRole('button', { name: /Отменить/ })).toBeNull();
+    fireEvent.click(result.getByRole('button', { name: 'Действия с бронью' }));
+    expect(result.getByRole('menuitem', { name: 'Отменить бронь' })).toHaveClass('is-danger');
+  });
+
+  it('без права вести брони — ни главной, ни меню, только «Открыть карту»', () => {
+    const result = detail('pending', () => {}, () => {}, () => {}, Date.now() + 60_000, () => {}, { canManage: false });
+    expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
+    expect(result.queryByRole('button', { name: 'Отказать' })).toBeNull();
+    expect(result.queryByRole('button', { name: 'Действия с бронью' })).toBeNull();
+    expect(result.getByRole('button', { name: 'Открыть карту' })).toBeInTheDocument();
   });
 });
 
@@ -110,13 +132,13 @@ describe('BookingDrawer reservation lifecycle actions', () => {
   it('pending offers Confirm but not Start', () => {
     const result = detail('pending');
     expect(result.getByRole('button', { name: 'Подтвердить' })).toBeTruthy();
-    expect(result.queryByRole('button', { name: 'Начать сессию' })).toBeNull();
+    expect(result.queryByRole('button', { name: 'Посадить за ПК' })).toBeNull();
   });
 
   it('confirmed offers Start but not Confirm', () => {
     const onStart = mock(() => {});
     const result = detail('confirmed', () => {}, onStart);
-    const button = result.getByRole('button', { name: 'Начать сессию' });
+    const button = result.getByRole('button', { name: 'Посадить за ПК' });
     expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
     fireEvent.click(button);
     expect(onStart).toHaveBeenCalledTimes(1);
@@ -125,14 +147,14 @@ describe('BookingDrawer reservation lifecycle actions', () => {
   it('cancelled offers neither lifecycle action', () => {
     const result = detail('cancelled');
     expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
-    expect(result.queryByRole('button', { name: 'Начать сессию' })).toBeNull();
+    expect(result.queryByRole('button', { name: 'Посадить за ПК' })).toBeNull();
   });
 
   // Посаженная бронь без запущенной сессии — это отмеченный приход: человек у стойки, машина
-  // ещё не запущена. Забрать у него «Начать сессию» значило бы рвать связь брони с сессией.
+  // ещё не запущена. Забрать у него «Посадить за ПК» значило бы рвать связь брони с сессией.
   it('посаженная бронь всё ещё предлагает запустить сессию', () => {
     const result = detail('seated');
-    expect(result.getByRole('button', { name: 'Начать сессию' })).toBeTruthy();
+    expect(result.getByRole('button', { name: 'Посадить за ПК' })).toBeTruthy();
     expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
     expect(result.queryByRole('button', { name: 'Пришёл' })).toBeNull();
   });
@@ -146,7 +168,9 @@ it('неявка отмечается у начавшейся подтвержд
   const onMarkNoShow = mock(() => {});
   const result = detail('confirmed', () => {}, () => {}, onMarkNoShow, Date.now() - 60_000);
 
-  fireEvent.click(result.getByRole('button', { name: 'Не приехал' }));
+  // Неявка терминальна — пункт «⋯», а не кнопка рядом с «Пришёл».
+  fireEvent.click(result.getByRole('button', { name: 'Действия с бронью' }));
+  fireEvent.click(result.getByRole('menuitem', { name: 'Не приехал' }));
   expect(onMarkNoShow).not.toHaveBeenCalled();
 
   fireEvent.click(result.getByRole('button', { name: 'Отметить неявку' }));
@@ -156,13 +180,15 @@ it('неявка отмечается у начавшейся подтвержд
 // Человек не опоздал, пока его время не наступило.
 it('у ещё не начавшейся брони кнопки неявки нет', () => {
   const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000);
-  expect(result.queryByRole('button', { name: 'Не приехал' })).toBeNull();
+  fireEvent.click(result.getByRole('button', { name: 'Действия с бронью' }));
+  expect(result.queryByRole('menuitem', { name: 'Не приехал' })).toBeNull();
 });
 
 // Заявка, на которую клуб сам не ответил, — это молчание стойки, а не прогул игрока.
 it('у неотвеченной заявки кнопки неявки нет', () => {
   const result = detail('pending', () => {}, () => {}, () => {}, Date.now() - 60_000);
-  expect(result.queryByRole('button', { name: 'Не приехал' })).toBeNull();
+  fireEvent.click(result.getByRole('button', { name: 'Действия с бронью' }));
+  expect(result.queryByRole('menuitem', { name: 'Не приехал' })).toBeNull();
 });
 
 // Отметить приход было нечем. Маршрут `reservations/{id}/seat` и клиентский метод существовали с
@@ -234,13 +260,13 @@ describe('BookingDrawer · почему нельзя перенести', () => 
   });
 });
 
-// Заявка из приложения может прийти без места. У такой брони «Открыть карту», «Начать сессию»
+// Заявка из приложения может прийти без места. У такой брони «Открыть карту», «Посадить за ПК»
 // и «Пришёл» были серыми молча.
 describe('BookingDrawer · бронь без места', () => {
   it('говорит, что сначала нужно выбрать место', () => {
     const result = detail('confirmed', () => {}, () => {}, () => {}, Date.now() + 60_000, () => {}, { seatId: '' });
     const reason = result.getByText(/У брони нет места/);
-    for (const name of ['Открыть карту', 'Начать сессию', 'Пришёл']) {
+    for (const name of ['Открыть карту', 'Посадить за ПК', 'Пришёл']) {
       const button = result.getByRole('button', { name });
       expect(button).toBeDisabled();
       expect(button.getAttribute('aria-describedby')).toBe(reason.id);

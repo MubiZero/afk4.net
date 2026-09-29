@@ -1064,7 +1064,7 @@ describe('App', () => {
     expect(screen.queryByText('Журнал филиала')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Брони'));
-    const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.booking-header');
+    const bookingHead = screen.getByRole('heading', { name: 'Брони' }).closest('.ui-section-header');
     expect(bookingHead).toBeInTheDocument();
     // Дата-нав нового дизайна: кнопки «‹»/«›» + метка текущей даты (не вкладки «Завтра»/«Неделя»).
     expect(bookingHead).not.toHaveTextContent('Завтра');
@@ -1541,9 +1541,9 @@ describe('App', () => {
     // Бронь из мока отрисована в гриде таймлайна — значит данные сервера получены.
     expect((await screen.findAllByText('Aziz P.')).length).toBeGreaterThan(0);
 
-    // Создание: кнопка «Добавить бронь» в тулбаре открывает drawer → submit «Создать бронь» → бэкенд-вызов.
+    // Создание: главная кнопка шапки «Добавить бронь» открывает карточку → «Создать бронь» → бэкенд-вызов.
     fireEvent.click(screen.getByRole('button', { name: 'Добавить бронь' }));
-    const createDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    const createDrawer = await screen.findByRole('complementary', { name: 'Новая бронь' });
     expect(createDrawer).toBeInTheDocument();
     fireEvent.click(within(createDrawer).getByRole('button', { name: 'Создать бронь' }));
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
@@ -1562,13 +1562,12 @@ describe('App', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Aziz P\./ }));
     });
-    // Ждём drawer детали — содержит заголовок «Бронь».
-    const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
-    expect(detailDrawer).toBeInTheDocument();
-    // «Отменить» — кнопка в action-grid detail-режима drawer.
-    const cancelBtn = within(detailDrawer).getByRole('button', { name: 'Отменить' });
+    // Карточка брони подписана именем клиента.
+    const detailDrawer = await screen.findByRole('complementary', { name: 'Aziz P.' });
+    // «Отменить бронь» — опасное действие, живёт в «⋯» карточки, а не рядом с «Отказать».
+    fireEvent.click(within(detailDrawer).getByRole('button', { name: 'Действия с бронью' }));
     await act(async () => {
-      fireEvent.click(cancelBtn);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Отменить бронь' }));
     });
     // Сначала убедиться, что бэкенд-вызов отмены реально произошёл, потом проверять текст.
     await waitFor(() => {
@@ -1579,7 +1578,9 @@ describe('App', () => {
     expect(await screen.findByText('Отменить бронь: подтверждено')).toBeInTheDocument();
   });
 
-  it('keeps booking mutation controls disabled without reservation manage permission', async () => {
+  // Без права вести брони кнопок изменения нет вовсе — не серые, а не нарисованные: строка
+  // «только просмотр» над лентой говорит почему, а на карточке остаётся лишь «Открыть карту».
+  it('draws no booking mutation controls without reservation manage permission', async () => {
     installSessionBridge(createSession({ permissions: ['organization.floor_map.view', 'organization.reservations.view'] }));
 
     render(<App />);
@@ -1588,29 +1589,24 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Брони'));
     expect(await screen.findByText('Aziz P.')).toBeInTheDocument();
 
-    // Кнопка создания брони в тулбаре заблокирована без права manageReservations.
-    expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Добавить бронь' })).toBeNull();
 
-    // Клик по треку дорожки (не по блоку) открывает create-drawer вне зависимости от прав,
-    // чтобы проверить, что кнопка submit внутри тоже заблокирована.
+    // Клик по треку дорожки (не по блоку) открывает карточку создания вне зависимости от прав,
+    // поэтому проверяем, что создать из неё тоже нельзя.
     const track = document.querySelector<HTMLElement>('.booking-row-track');
     expect(track).not.toBeNull();
     fireEvent.click(track!);
-    const createDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    const createDrawer = await screen.findByRole('complementary', { name: 'Новая бронь' });
     expect(within(createDrawer).getByRole('button', { name: 'Создать бронь' })).toBeDisabled();
-    // Закрываем create-drawer перед открытием detail-drawer.
-    fireEvent.click(within(createDrawer).getByRole('button', { name: 'Отмена' }));
+    fireEvent.click(within(createDrawer).getByRole('button', { name: 'Закрыть' }));
 
-    // Pending сначала нужно подтвердить: старый state-only «Посадить» и Start не показываем.
     fireEvent.click(screen.getByText('Aziz P.'));
-    const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
-    expect(within(detailDrawer).queryByRole('button', { name: 'Посадить' })).toBeNull();
-    expect(within(detailDrawer).queryByRole('button', { name: 'Начать сессию' })).toBeNull();
-    // «Перенести на место» — select, а не button; проверяем его disabled.
-    expect(within(detailDrawer).getByRole('combobox')).toBeDisabled();
-    expect(within(detailDrawer).getByRole('button', { name: 'Отменить' })).toBeDisabled();
-    // «Принять» виден только для online+pending брони (мок: source=online, state=pending).
-    expect(within(detailDrawer).getByRole('button', { name: 'Принять' })).toBeDisabled();
+    const detailDrawer = await screen.findByRole('complementary', { name: 'Aziz P.' });
+    expect(within(detailDrawer).queryByRole('button', { name: 'Принять' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Посадить за ПК' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Действия с бронью' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('combobox', { name: 'Перенести на место' })).toBeNull();
+    expect(within(detailDrawer).getByRole('button', { name: 'Открыть карту' })).toBeInTheDocument();
   });
 
   it('creates a reservation from the selected backend player card', async () => {

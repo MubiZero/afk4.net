@@ -111,7 +111,9 @@ describe('BackendBookingWorkspace · только просмотр', () => {
 
     await screen.findByText('+992 93 738 00 70');
     expect(screen.getByRole('note')).toHaveTextContent(viewOnly);
-    expect(screen.getByRole('button', { name: /Добавить бронь/ })).toBeDisabled();
+    // Без права кнопок изменения не рисуем вовсе: причину называет эта строка, а не серый цвет.
+    expect(screen.queryByRole('button', { name: /Добавить бронь/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Принять' })).toBeNull();
   });
 
   it('молчит, когда брони можно вести', async () => {
