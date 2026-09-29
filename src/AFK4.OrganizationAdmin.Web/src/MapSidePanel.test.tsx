@@ -429,9 +429,17 @@ describe('MapSidePanel: почему действие недоступно', () 
     expect(screen.getByText(/ПК не на связи — запустить на нём сессию сейчас нельзя/)).toBeInTheDocument();
   });
 
-  it('говорит, что разблокировать можно только ПК с сессией', () => {
-    renderWith(seat({ tone: 'ready', activeSessionId: null, hasActiveSession: false }), ['organization.sessions.start'], true);
+  // Аудит #1: доступность блокировки/разблокировки решает статус самого ПК (isDeviceLocked),
+  // а не то, идёт ли на нём сессия — заблокированный свободный ПК всё равно можно разблокировать.
+  it('разблокировать можно и без сессии — решает статус блокировки ПК, а не сессия', () => {
+    renderWith(
+      seat({ tone: 'ready', activeSessionId: null, hasActiveSession: false, isDeviceLocked: true }),
+      ['organization.sessions.start'],
+      true
+    );
 
-    expect(screen.getByText(/Разблокировать можно ПК, на котором идёт сессия/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Разблокировать/ })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /Блокировать/ })).toBeDisabled();
+    expect(screen.getByText('ПК уже заблокирован.')).toBeInTheDocument();
   });
 });

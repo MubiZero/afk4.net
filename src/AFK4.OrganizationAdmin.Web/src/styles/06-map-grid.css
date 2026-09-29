@@ -1235,6 +1235,9 @@
 .seat-tile.state-active { --seat-color: var(--text-tertiary); }
 .seat-tile.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
 .seat-tile.state-offline { --seat-color: #64748b; }
+/* Сбой команды — тот же серый (см. «Красного на карте больше нет» выше), различают значок и
+   подпись, не цвет; кант остаётся тревожным (4px, как «нет связи» — см. --alert ниже). */
+.seat-tile.state-failed { --seat-color: #64748b; }
 /* Обслуживание — тот же серый, что «нет связи», но спокойный (без 4px-канта-тревоги). */
 .seat-tile.state-service { --seat-color: #64748b; }
 
@@ -1628,6 +1631,7 @@
 }
 
 .state-chip.state-offline,
+.state-chip.state-failed,
 .state-chip.state-service {
   background: rgba(148, 163, 184, 0.12);
   color: var(--text-strong);

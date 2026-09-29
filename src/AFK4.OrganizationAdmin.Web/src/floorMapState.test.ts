@@ -113,6 +113,35 @@ describe('floor-map state', () => {
     expect(isSeatReadyForGuest(createSeat({ state: 'Free', isOutsidePlan: true }))).toBe(false);
   });
 
+  // Аудит #4: сбой последней команды на ПК, который на связи, — своё состояние, не «нет связи».
+  // Раньше оба сводились к тону offline, и посадка гостя гасла с ложной причиной «нет сети».
+  it('maps a failed command on an online PC to its own "failed" tone, distinct from «нет связи»', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [createSeat({ state: 'Failed' as unknown as FloorMapDto['seats'][number]['state'], isDeviceOnline: true })]
+    }, t);
+
+    expect(state.seats[0]).toMatchObject({
+      tone: 'failed',
+      stateLabel: 'Сбой команды',
+      remaining: 'Сбой команды'
+    });
+    expect(isSeatReadyForGuest(createSeat({ state: 'Failed' as unknown as FloorMapDto['seats'][number]['state'], isDeviceOnline: true }))).toBe(true);
+  });
+
+  it('a failed command on an OFFLINE PC still counts as «нет связи», not "failed"', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [createSeat({ state: 'Failed' as unknown as FloorMapDto['seats'][number]['state'], isDeviceOnline: false })]
+    }, t);
+
+    expect(state.seats[0].tone).toBe('offline');
+  });
+
   it('maps a maintenance PC to the calm "service" tone, separate from the «нет связи» bucket', () => {
     const state = mapFloorMapDtoToState({
       branchId,

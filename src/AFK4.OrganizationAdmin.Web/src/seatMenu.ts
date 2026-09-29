@@ -1,7 +1,7 @@
 import type { MessageKey } from '@afk4/i18n';
 import type { PcControlActionId } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
-import { pcCommandsFor, type PcCommandId } from './pc/pcCommandOptions';
+import { pcCommandsFor, pcLockCommandsFor, type PcCommandId } from './pc/pcCommandOptions';
 import { PC_COMMAND_LABELS, type PcCommandOrLock } from './pc/pcCommandCopy';
 import { bulkCommands, shortBlockReason } from './pc/pcBulk';
 
@@ -117,24 +117,27 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
   }
 
   // Статус ПК больше не пункт меню — он живёт единым блоком внизу карточки места.
+  // Обе кнопки показаны всегда: доступна только та, что меняет состояние блокировки (см.
+  // pcLockCommandsFor) — не сессия решает, а сам ПК заперт он сейчас или нет.
   const pc: SeatMenuItem[] = [];
   if (hasDevice && caps.canLockUnlock) {
+    const [lockOption, unlockOption] = pcLockCommandsFor(seat);
     pc.push({
       id: 'pc-lock',
       labelKey: 'op.map.actionLockBtn',
       feedbackKey: 'op.map.actionLock',
+      hintKey: lockOption.hintKey ?? undefined,
       run: { kind: 'pc', action: 'lock' },
-      disabled: false
+      disabled: lockOption.disabled
     });
-    if (hasSession) {
-      pc.push({
-        id: 'pc-unlock',
-        labelKey: 'op.map.actionUnlockBtn',
-        feedbackKey: 'op.map.actionUnlock',
-        run: { kind: 'pc', action: 'unlock' },
-        disabled: false
-      });
-    }
+    pc.push({
+      id: 'pc-unlock',
+      labelKey: 'op.map.actionUnlockBtn',
+      feedbackKey: 'op.map.actionUnlock',
+      hintKey: unlockOption.hintKey ?? undefined,
+      run: { kind: 'pc', action: 'unlock' },
+      disabled: unlockOption.disabled
+    });
   }
 
   // Остальные команды ПК — те же, что в карточке места, и закрыты по тем же причинам: почему,
