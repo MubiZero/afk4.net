@@ -66,4 +66,12 @@ describe('summarize', () => {
     expect(r.lowCount).toBe(1);
     expect(r.totalValueMinorUnits).toBe(0 * 500 + 2 * 600 + 12 * 400);
   });
+
+  it('себестоимость не заведена ни у одного товара на полке → стоимость неизвестна, а не 0', () => {
+    const r = summarize([
+      item({ stockOnHand: 3, avgCostMinorUnits: 0 }),
+      item({ stockOnHand: 0, avgCostMinorUnits: 500 })
+    ]);
+    expect(r.totalValueMinorUnits).toBeNull();
+  });
 });

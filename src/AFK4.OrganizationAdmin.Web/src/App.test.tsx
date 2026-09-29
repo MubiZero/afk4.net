@@ -2065,9 +2065,11 @@ describe('App', () => {
     await screen.findByRole('heading', { name: 'Карта зала' });
     // Раздел «Склад» — одиночный элемент рейла, открывается прямым кликом (нет таб-секции).
     gotoWorkspace('Склад');
-    // Экран Остатков: заголовок секции + кнопка фильтра «Все»
-    expect(await screen.findByText('Остатки на складе')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Все/ })).toBeInTheDocument();
+    // Шапка раздела «Склад» и выбранная вкладка «Остатки» с фильтром «Все»: имя вкладки внутри
+    // больше не повторяется заголовком «Остатки на складе».
+    expect(await screen.findByRole('heading', { level: 1, name: 'Склад' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Остатки' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('button', { name: /^Все/ })).toBeInTheDocument();
   });
 });
 

@@ -116,14 +116,14 @@
     "hex": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/21-cash.css": {
-    "font-size": 65,
+    "font-size": 61,
     "radius": 4,
-    "spacing": 5
+    "spacing": 4
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/22-stock.css": {
     "font-size": 38,
     "spacing": 22,
-    "mono": 19
+    "mono": 5
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/23-management-crud.css": {
     "font-size": 8,
