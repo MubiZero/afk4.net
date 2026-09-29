@@ -23,6 +23,7 @@ import { ExtendSheet } from './session/ExtendSheet';
 import { TimeMoneyColumn } from './session/TimeMoneyColumn';
 import { TopUpPanel } from './session/TopUpPanel';
 import { useBarOrders } from './session/useBarOrders';
+import { useWalletBalance } from './session/useWalletBalance';
 
 interface SessionScreenProps {
   state: PlayerShellStateDto;
@@ -74,6 +75,12 @@ export function SessionScreen({
   const tabsId = useId();
   const warningKey = state.warningKind ? WARNING_KEY[state.warningKind] : undefined;
   const bar = useBarOrders(baseUrl, barAvailable);
+  const wallet = useWalletBalance(baseUrl, role === 'owner');
+  const { reload: reloadBalance } = wallet;
+  const applyOrder = (order: Parameters<typeof bar.apply>[0]) => {
+    bar.apply(order);
+    void reloadBalance();
+  };
   const activeOrder = barAvailable ? bar.orders.find(isOrderActive) ?? null : null;
 
   // «Продлено до …» — подтверждение, а не вывеска: через полминуты уходит, остаток и так в колонке.
@@ -166,11 +173,11 @@ export function SessionScreen({
 
         {barAvailable && tab === 'bar' && baseUrl ? (
           <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-bar`}>
-            <BarTab baseUrl={baseUrl} orders={bar.orders} onOrderChanged={bar.apply} reloadOrders={bar.reload} />
+            <BarTab baseUrl={baseUrl} orders={bar.orders} onOrderChanged={applyOrder} reloadOrders={bar.reload} />
           </section>
         ) : topUpAvailable && tab === 'topUp' && baseUrl ? (
           <section className="session-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-topUp`}>
-            <TopUpPanel baseUrl={baseUrl} onDone={() => setTab('games')} />
+            <TopUpPanel baseUrl={baseUrl} onPaid={() => void reloadBalance()} onDone={() => setTab('games')} />
           </section>
         ) : (
           <section
@@ -200,6 +207,7 @@ export function SessionScreen({
         receivedAtMs={receivedAtMs}
         role={role}
         signedIn={auth.signedIn}
+        balance={wallet.balance}
         activeOrder={tab === 'bar' ? null : activeOrder}
         onOpenBar={() => setTab('bar')}
         offline={offline || !baseUrl}
@@ -218,6 +226,7 @@ export function SessionScreen({
           onExtended={(endsAtUtc) => {
             setSheet(null);
             setExtendedUntil(endsAtUtc);
+            void reloadBalance();
           }}
         />
       ) : null}

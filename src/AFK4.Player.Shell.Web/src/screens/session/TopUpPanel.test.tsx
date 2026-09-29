@@ -72,7 +72,7 @@ describe('пополнение по QR', () => {
       method: 'eskhata'
     });
 
-    expect(await screen.findByText(/Счёт пополнен на 50/)).toBeInTheDocument();
+    expect(await screen.findByText(/Баланс пополнен на 50/)).toBeInTheDocument();
     expect(onPaid).toHaveBeenCalledTimes(1);
   });
 

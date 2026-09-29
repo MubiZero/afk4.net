@@ -1,7 +1,8 @@
-import type { PlayerShellStateDto, ShopOrderDto } from '@afk4/contracts';
+import type { MoneyDto, PlayerShellStateDto, ShopOrderDto } from '@afk4/contracts';
+import { formatMoney } from '@afk4/money';
 import { useI18n } from '@afk4/i18n';
 import { ORDER_STATUS_KEYS } from '../../model/bar';
-import { clubTime } from '../../model/offers';
+import { INTL_LOCALES, clubTime } from '../../model/offers';
 import type { SessionRole } from '../../model/session';
 import { LogOut } from 'lucide-react';
 import { AssistButton } from '../../ui/AssistButton';
@@ -14,6 +15,8 @@ interface TimeMoneyColumnProps {
   role: SessionRole;
   /** На ПК кто-то вошёл: выйти ему можно при любой сессии, даже чужой. */
   signedIn: boolean;
+  /** Баланс владельца; null — не узнали или сессия не его: строки нет. */
+  balance?: MoneyDto | null;
   /** Заказ бара в работе — статус виден, на какой бы вкладке ни был человек. */
   activeOrder?: ShopOrderDto | null;
   onOpenBar?: () => void;
@@ -34,6 +37,7 @@ export function TimeMoneyColumn({
   receivedAtMs,
   role,
   signedIn,
+  balance = null,
   activeOrder = null,
   onOpenBar = () => {},
   offline,
@@ -74,6 +78,15 @@ export function TimeMoneyColumn({
           </>
         )}
       </div>
+
+      {/* Сколько денег осталось — рядом с тем, сколько времени: решать, продлевать ли, по одному
+          взгляду на колонку. */}
+      {balance ? (
+        <p className="time-money__balance">
+          <span className="time-money__label">{t('playerShell.session.balance')}</span>
+          <span className="time-money__balance-amount">{formatMoney(balance.minorUnits, balance.currencyCode, INTL_LOCALES[locale])}</span>
+        </p>
+      ) : null}
 
       {activeOrder ? (
         <button type="button" className="time-money__order" onClick={onOpenBar} aria-live="polite">
