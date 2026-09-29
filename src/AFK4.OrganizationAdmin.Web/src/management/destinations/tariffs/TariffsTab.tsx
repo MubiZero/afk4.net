@@ -29,6 +29,14 @@ type Tariff = TariffOptionDto;
 
 const TARIFFS_GRID = '1.3fr 0.9fr 0.8fr 0.8fr 1.1fr 0.7fr';
 
+// Контракт делает оба поля обязательными (сервер всегда шлёт реальное значение — TariffOptionDto.cs),
+// но readNumber — защитный доступ на случай устаревшего кэша или неполных данных превью. Резерв на
+// этот случай один и тот же в списке и в форме: иначе список показывал 0 (значение, которое сервер
+// никогда не примет — оба поля обязаны быть больше нуля), а открытая форма той же строки — 15/5, и
+// «Сохранить» без единой правки тихо подменяло одно на другое.
+const FALLBACK_MINIMUM_MINUTES = 15;
+const FALLBACK_ROUNDING_MINUTES = 5;
+
 export function TariffsTabSkeleton({ canManageTariffs }: { canManageTariffs: boolean }) {
   return (
     <div className="mgmt-master-detail">
@@ -121,8 +129,8 @@ export function TariffsTab({
     if (!selectedTariff) return;
     setName(readString(selectedTariff, 'name'));
     setPricePerHour(formatMoneyInputMinorUnits(readNumber(selectedTariff, 'pricePerMinuteMinorUnits', 0) * 60));
-    setMinimumMinutes(String(readNumber(selectedTariff, 'minimumBillableMinutes', 15)));
-    setRoundingMinutes(String(readNumber(selectedTariff, 'roundingIncrementMinutes', 5)));
+    setMinimumMinutes(String(readNumber(selectedTariff, 'minimumBillableMinutes', FALLBACK_MINIMUM_MINUTES)));
+    setRoundingMinutes(String(readNumber(selectedTariff, 'roundingIncrementMinutes', FALLBACK_ROUNDING_MINUTES)));
     setEffectiveFromUtc(readString(selectedTariff, 'effectiveFromUtc', new Date().toISOString()));
     setSchedule(scheduleFromOption(
       readNumber(selectedTariff, 'appliesOnDaysMask', 0),
@@ -354,8 +362,8 @@ export function TariffsTab({
               align: 'end',
               render: (tariff) => <Money minorUnits={readNumber(tariff, 'pricePerMinuteMinorUnits', 0) * 60} currencyCode={readString(tariff, 'currencyCode', currencyCode)} />
             },
-            { key: 'min', header: t('op.management.tariffs.col.minMinutes'), align: 'end', render: (tariff) => String(readNumber(tariff, 'minimumBillableMinutes', 0)) },
-            { key: 'rounding', header: t('op.management.tariffs.col.rounding'), align: 'end', render: (tariff) => String(readNumber(tariff, 'roundingIncrementMinutes', 0)) },
+            { key: 'min', header: t('op.management.tariffs.col.minMinutes'), align: 'end', render: (tariff) => String(readNumber(tariff, 'minimumBillableMinutes', FALLBACK_MINIMUM_MINUTES)) },
+            { key: 'rounding', header: t('op.management.tariffs.col.rounding'), align: 'end', render: (tariff) => String(readNumber(tariff, 'roundingIncrementMinutes', FALLBACK_ROUNDING_MINUTES)) },
             {
               key: 'schedule',
               header: t('op.management.tariffs.col.schedule'),

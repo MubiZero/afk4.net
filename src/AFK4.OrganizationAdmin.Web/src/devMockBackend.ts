@@ -629,12 +629,15 @@ function checkoutResult(init?: RequestInit) {
   };
 }
 
-// Тарифы для окна запуска сессии: ставка за минуту → видна цена-превью и покрытие баланса.
+// Тарифы для окна запуска сессии и для «Управление → Тарифы»: тот же эндпоинт, тот же контракт
+// (TariffOptionDto.cs — оба поля ниже обязательные, сервер их всегда шлёт), поэтому фикстура несёт
+// их тоже — без tariffId и минут «Управление → Тарифы» рисовало 0/0 в списке при 15/5 в открытой
+// форме той же строки (список и форма подставляли разный резерв на отсутствующее поле).
 function tariffOptions() {
   return [
-    { tariffVersionId: 'tv-hourly', tariffRuleVersionId: 'rule-hourly', name: 'Почасовой', pricePerMinuteMinorUnits: 80, currencyCode: 'TJS' },
-    { tariffVersionId: 'tv-vip', tariffRuleVersionId: 'rule-vip', name: 'VIP час', pricePerMinuteMinorUnits: 150, currencyCode: 'TJS' },
-    { tariffVersionId: 'tv-night', tariffRuleVersionId: 'rule-night', name: 'Ночной', pricePerMinuteMinorUnits: 50, currencyCode: 'TJS' }
+    { tariffId: 't-hourly', tariffVersionId: 'tv-hourly', tariffRuleVersionId: 'rule-hourly', versionNumber: 1, name: 'Почасовой', pricePerMinuteMinorUnits: 80, minimumBillableMinutes: 15, roundingIncrementMinutes: 5, effectiveFromUtc: minutesAgoUtc(60 * 24 * 30), currencyCode: 'TJS' },
+    { tariffId: 't-vip', tariffVersionId: 'tv-vip', tariffRuleVersionId: 'rule-vip', versionNumber: 1, name: 'VIP час', pricePerMinuteMinorUnits: 150, minimumBillableMinutes: 30, roundingIncrementMinutes: 10, effectiveFromUtc: minutesAgoUtc(60 * 24 * 30), currencyCode: 'TJS' },
+    { tariffId: 't-night', tariffVersionId: 'tv-night', tariffRuleVersionId: 'rule-night', versionNumber: 1, name: 'Ночной', pricePerMinuteMinorUnits: 50, minimumBillableMinutes: 60, roundingIncrementMinutes: 15, effectiveFromUtc: minutesAgoUtc(60 * 24 * 30), currencyCode: 'TJS' }
   ];
 }
 
