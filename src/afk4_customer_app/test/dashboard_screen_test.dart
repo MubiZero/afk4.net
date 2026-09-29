@@ -200,13 +200,14 @@ void main() {
   });
 
   // Филиал неизвестен — предлагать посадку нечем: и места, и тарифы у клуба свои.
-  testWidgets('без филиала посадка не предлагается', (tester) async {
+  // Без зала на телефоне не выбрать тариф, но сесть можно: код с монитора впускает на ПК, а время
+  // выбирается на его экране. Дверь одна при любом профиле.
+  testWidgets('без филиала посадка всё равно предлагается — одной дверью', (tester) async {
     await tester.pumpWidget(harness(clientWith(_serve((_dashboardJson(), 200)))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Сесть за ПК'), findsNothing);
-    // Молча исчезнувшее действие читается как поломка приложения, хотя причина внешняя.
-    expect(find.textContaining('подойдите к стойке'), findsOneWidget);
+    expect(find.text('Сесть за ПК'), findsOneWidget);
+    expect(find.text('Войти на ПК по QR'), findsNothing);
     await unmount(tester);
   });
 
@@ -398,15 +399,15 @@ void main() {
   // Заказ к месту имеет смысл только при идущей сессии — сервер и меню отдаёт по месту.
   // Меню открыто всегда: цены смотрят и до игры, а плитка, появляющаяся только при сессии,
   // выглядит как пропавшая.
-  testWidgets('заказ еды предлагается и до, и во время сессии', (tester) async {
+  testWidgets('заказ еды предлагается и до, и во время сессии — одной кнопкой', (tester) async {
     await tester.pumpWidget(harness(
       clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
       features: const ['player_shop'],
     ));
     await tester.pumpAndSettle();
-    // Во время сессии заказ зовут дважды: кнопкой в карточке — там, где заказ и возможен, —
-    // и плиткой ниже, которая остаётся входом в меню.
-    expect(find.text('Заказать еду'), findsNWidgets(2));
+    // Во время сессии заказ стоит в её карточке — там, где он и возможен. Плитка с тем же
+    // словом ниже была второй дверью в то же место и уходит.
+    expect(find.text('Заказать еду'), findsOneWidget);
     await unmount(tester);
 
     await tester.pumpWidget(harness(

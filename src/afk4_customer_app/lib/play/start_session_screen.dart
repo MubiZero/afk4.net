@@ -23,19 +23,43 @@ import '../theme/space.dart';
 /// телефоном в руке, и лишний выбор здесь стоит ему времени, а клубу — очереди на стойке.
 const List<int> playDurationsMinutes = [60, 120, 180];
 
-/// Самостоятельная посадка: выбрать свободный ПК, тариф и время — и начать играть.
+/// Чем кончился шаг выбора времени.
+sealed class SitDownOutcome {
+  const SitDownOutcome();
+}
+
+/// Сессия началась с телефона — на этом ПК.
+final class SessionStarted extends SitDownOutcome {
+  const SessionStarted(this.seatName);
+
+  final String seatName;
+}
+
+/// Время игрок выберет на самом ПК: телефон только впускает его.
+final class ChooseOnPc extends SitDownOutcome {
+  const ChooseOnPc();
+}
+
+/// Второй шаг «Сесть за ПК»: ПК уже назван кодом с его монитора, осталось выбрать тариф и время
+/// и начать играть с баланса.
 ///
 /// Это та операция, ради которой обычно ищут оператора. Пока он занят с другим гостем, игрок
-/// ждёт; здесь он не ждёт вообще.
+/// ждёт; здесь он не ждёт вообще. Выбирать здесь не обязательно: тихая кнопка внизу отдаёт выбор
+/// самому ПК — там тот же прайс, и кому-то удобнее решать, уже сев.
 class StartSessionScreen extends StatefulWidget {
   const StartSessionScreen({
     super.key,
     required this.api,
     required this.branchId,
+    required this.seatingCode,
     this.pinSet,
   });
 
   final PlayerApiClient api;
+
+  /// Код с монитора, прочитанный на первом шаге. Раньше здесь лежал выбранный из списка ПК — и
+  /// занять машину можно было не приходя в клуб.
+  final String seatingCode;
 
   /// Задан ли ПИН-код для посадки за ПК. null — неизвестно (профиль не прочитан): тогда молчим,
   /// потому что пугать человека предупреждением о том, чего мы не знаем, хуже молчания.
@@ -53,9 +77,6 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   List<TariffOptionDto> _tariffs = const [];
   bool _loadFailed = false;
 
-  /// Код с монитора. Раньше здесь лежал выбранный из списка ПК — и занять машину можно было
-  /// не приходя в клуб.
-  final TextEditingController _code = TextEditingController();
   String? _tariffId;
   int _minutes = playDurationsMinutes.first;
 
@@ -127,8 +148,8 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   Future<void> _start() async {
     final l = L.of(context);
     final tariffId = _tariffId;
-    final code = _code.text.trim();
-    if (tariffId == null || code.isEmpty) return;
+    final code = widget.seatingCode;
+    if (tariffId == null) return;
 
     setState(() {
       _starting = true;
@@ -151,7 +172,7 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
           ?.where((seat) => seat.seatId == seatId)
           .firstOrNull
           ?.seatName;
-      Navigator.of(context).pop(seatName ?? l.customerPlayTitle);
+      Navigator.of(context).pop(SessionStarted(seatName ?? l.customerPlayTitle));
     } on PlayerApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -242,6 +263,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
         icon: Icons.payments_outlined,
         title: l.customerPlayNoTariffs,
         hint: l.customerPlayNoTariffsHint,
+        // Цены на телефоне не заведены, но ПК, может быть, пустит: вход на нём не требует выбора
+        // здесь.
+        action: SecondaryButton(action: AppAction(l.customerPlayChooseOnPc, _chooseOnPc)),
       );
     }
 
@@ -271,22 +295,8 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
             ),
             const SizedBox(height: Space.s4),
           ],
-          // Код набирают, а места показываются справкой: «есть ли вообще куда сесть». Выбирать
-          // из списка больше нечего — машину называет тот ПК, перед которым человек стоит.
-          GroupHeader(l.customerPlayCode),
-          TextField(
-            controller: _code,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: '000000',
-              helperText: l.customerPlayCodeHint,
-              counterText: '',
-            ),
-          ),
-          const SizedBox(height: Space.s2),
+          // Места — справкой: «есть ли вообще куда сесть». Выбирать из списка нечего — машину
+          // назвал тот ПК, перед которым человек стоит.
           Text(
             l.customerPlaySeatsFree(seats.where((seat) => seat.isAvailable).length.toString()),
             style: theme.textTheme.bodyMedium
@@ -347,30 +357,25 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   Widget _footer(L l) {
     final locale = Localizations.localeOf(context).languageCode;
     final quote = _quote;
-    final code = _code.text.trim();
-    final hasCode = code.length == 6;
 
     return PinnedActions(
       child: ActionStack(
         error: _error,
         // Чего ждёт выключенная кнопка — строкой над ней, а не вместо её названия.
-        hint: _starting
-            ? null
-            : !hasCode
-                ? l.customerPlayHintCode
-                : _tariffId == null
-                    ? l.customerPlayPickTariff
-                    : null,
+        hint: _starting || _tariffId != null ? null : l.customerPlayPickTariff,
         primary: AppAction(
-          switch ((_starting, hasCode && _tariffId != null ? quote : null)) {
+          switch ((_starting, _tariffId == null ? null : quote)) {
             (true, _) => l.customerPlayStarting,
             (_, final ready?) =>
               l.customerPlayConfirm(formatMoney(ready.amountMinorUnits, ready.currencyCode, locale: locale)),
             _ => l.customerPlayTitle,
           },
-          _starting || !hasCode || _tariffId == null ? null : _start,
+          _starting || _tariffId == null ? null : _start,
         ),
+        tertiary: AppAction(l.customerPlayChooseOnPc, _starting ? null : _chooseOnPc),
       ),
     );
   }
+
+  void _chooseOnPc() => Navigator.of(context).pop(const ChooseOnPc());
 }

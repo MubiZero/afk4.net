@@ -16,7 +16,6 @@ import '../events/events_screen.dart';
 import '../friends/friends_screen.dart';
 import '../packages/packages_screen.dart';
 import '../play/pc_sign_in_screen.dart';
-import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
 import '../push/push_notification.dart';
 import '../referral/referral_screen.dart';
@@ -34,6 +33,7 @@ import 'live_session_card.dart';
 import 'quick_actions.dart';
 import '../shell/app_sheet.dart';
 import '../theme/space.dart';
+import '../shell/actions.dart';
 
 /// Главный экран: что происходит с сессией прямо сейчас и сколько денег в кошельке.
 ///
@@ -326,30 +326,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool get _loyaltyEnabled => widget.features == null || widget.features!.contains(PlatformFeatureNames.loyalty);
 
-  Future<void> _signInOnPc() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => PcSignInScreen(api: widget.api)),
-    );
-    if (mounted) await _refresh();
-  }
-
-  Future<void> _startSession() async {
+  /// Одна дверь «Сесть за ПК»: код с монитора, дальше тариф на телефоне или вход на самом ПК.
+  Future<void> _sitDown() async {
     final l = L.of(context);
-    final branchId = _branchId;
-    if (branchId == null) return;
-
     final seatName = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) =>
-            StartSessionScreen(api: widget.api, branchId: branchId, pinSet: widget.pinSet),
+        builder: (_) => PcSignInScreen(api: widget.api, branchId: _branchId, pinSet: widget.pinSet),
       ),
     );
-    if (seatName == null || !mounted) return;
-
+    if (!mounted) return;
     // Куда садиться — единственное, что игроку сейчас нужно знать: он стоит посреди зала.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.customerPlayStarted(seatName))),
-    );
+    if (seatName != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerPlayStarted(seatName))),
+      );
+    }
     await _refresh();
   }
 
@@ -509,9 +500,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: l.customerActionsBook,
             onOpen: widget.onOpenReservations!,
           ),
-        // Меню открыто всегда: цены смотрят и до игры, а плитка, появляющаяся только при
-        // сессии, выглядит как пропавшая. Что заказ несут за ПК, объясняет сам экран.
-        if (_shopEnabled)
+        // Меню смотрят и до игры — тогда оно плиткой. Во время сессии «Заказать еду» уже стоит в
+        // её карточке, и вторая такая же дверь ниже только отнимала место у остальных.
+        if (_shopEnabled && data.activeSession == null)
           QuickAction(
             icon: Icons.local_cafe_outlined,
             label: l.customerActionsOrder,
@@ -640,13 +631,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     clock: widget.clock,
                   )
                 else
-                  _StartPlayingCard(
-                    // Сесть можно, только когда известен филиал: места у клуба свои.
-                    onPlay: _branchId == null ? null : _startSession,
-                    onSignInOnPc: _signInOnPc,
-                  ),
+                  _StartPlayingCard(onPlay: _sitDown),
                 const SizedBox(height: Space.s4),
-                QuickActions(actions: _actions(l, data)),
+                QuickActions(actions: _actions(l, data), moreLabel: l.customerActionsMore),
                 // Новости внизу: акция клуба важна, но не важнее идущей сессии и денег.
                 const SizedBox(height: Space.s6),
                 NewsSection(api: widget.api),
@@ -792,21 +779,16 @@ class _StaleBanner extends StatelessWidget {
   }
 }
 
-/// Пустое состояние с выходом: раньше здесь была серая надпись и никакого следующего шага.
+/// Сессии нет — и одна дверь, чтобы она началась.
 ///
-/// Намерение здесь одно — сесть за ПК сейчас: выбрать место или войти на ПК по QR с монитора.
-/// Бронь живёт плиткой ниже: два разных призыва подряд заставляют выбирать вместо того, чтобы
-/// делать, а игрок в зале пришёл играть сейчас.
+/// Намерение здесь одно — сесть за ПК сейчас. Бронь живёт плиткой ниже: два разных призыва
+/// подряд заставляют выбирать вместо того, чтобы делать, а игрок в зале пришёл играть сейчас.
+/// Раньше и здесь было две двери — «Сесть за ПК» и «Войти на ПК по QR», — и обе начинались одним
+/// и тем же кодом с монитора.
 class _StartPlayingCard extends StatelessWidget {
-  const _StartPlayingCard({required this.onPlay, required this.onSignInOnPc});
+  const _StartPlayingCard({required this.onPlay});
 
-  /// Войти на ПК по QR с монитора: игрок стоит у свободного ПК, и набирать номер с ПИН-кодом на
-  /// клавиатуре зала ему незачем.
-  final VoidCallback onSignInOnPc;
-
-  /// Сесть за свободный ПК прямо сейчас. Это главное действие пустого состояния: игрок,
-  /// открывший приложение в клубе, хочет играть, а не бронировать на завтра.
-  final VoidCallback? onPlay;
+  final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -815,7 +797,7 @@ class _StartPlayingCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Space.s8, horizontal: Space.s5),
+        padding: const EdgeInsets.all(Space.s5),
         child: Column(
           children: [
             Container(
@@ -826,52 +808,23 @@ class _StartPlayingCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: theme.colorScheme.primary.withValues(alpha: 0.12),
               ),
-              child:
-                  Icon(Icons.sports_esports_outlined, color: theme.colorScheme.primary, size: 28),
+              child: Icon(Icons.sports_esports_outlined, color: theme.colorScheme.primary, size: 28),
             ),
-            const SizedBox(height: Space.s4),
+            const SizedBox(height: Space.s3),
             Text(
               l.customerDashboardNoSession,
-              style:
-                  theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
             ),
-            // Кнопки нет — сказать, почему. Молча исчезнувшее действие читается как поломка
-            // приложения, хотя причина внешняя: клуб не назвал зал или места ещё не заведены.
-            if (onPlay == null) ...[
-              const SizedBox(height: Space.s2),
-              Text(
-                l.customerPlayUnavailable,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-            if (onPlay != null) ...[
-              const SizedBox(height: Space.s4),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onPlay,
-                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                  label: Text(l.customerPlayStart),
-                ),
-              ),
-              const SizedBox(height: Space.s2),
-              Text(
-                l.customerPlayStartHint,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-            const SizedBox(height: Space.s3),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onSignInOnPc,
-                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                label: Text(l.customerPcSignInEntry),
-              ),
+            const SizedBox(height: Space.s1),
+            Text(
+              l.customerPlayStartHint,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: Space.s4),
+            PrimaryButton(
+              action: AppAction(l.customerPlayStart, onPlay, icon: Icons.qr_code_scanner_rounded),
             ),
           ],
         ),
