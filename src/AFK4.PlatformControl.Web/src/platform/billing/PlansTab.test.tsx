@@ -91,7 +91,7 @@ describe('PlansTab', () => {
   it('пустой каталог зовёт завести первый тариф', async () => {
     setup([]);
 
-    await screen.findByText('Тарифов пока нет. Без тарифа организации не назначить подписку.');
+    await screen.findByText('Тарифов пока нет. Без тарифа клубу не назначить подписку.');
     fireEvent.click(screen.getByRole('button', { name: 'Завести первый тариф' }));
 
     expect(await screen.findByLabelText('Код тарифа')).toBeInTheDocument();

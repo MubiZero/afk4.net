@@ -102,7 +102,7 @@ it('says so when there are no recent failures', async () => {
   render(
     <I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({ recentFailures: [] }))} /></I18nProvider>
   );
-  expect(await screen.findByText('Свежих провалов нет — уведомления и биллинг уходят. Неудачная отправка появится здесь с причиной.')).toBeTruthy();
+  expect(await screen.findByText('Свежих провалов нет — уведомления и счета уходят. Неудачная отправка появится здесь с причиной.')).toBeTruthy();
 });
 
 // Кнопка существует ради текста ошибки: без него «письмо не ушло» отправляет разбираться в базу.

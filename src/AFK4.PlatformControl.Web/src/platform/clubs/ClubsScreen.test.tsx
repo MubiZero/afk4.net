@@ -104,7 +104,7 @@ it('expands clubs from the chevron without leaving the screen', async () => {
   const onOpenOrganization = mock();
   setup({ client: client({ getPulse }), onOpenOrganization });
 
-  const chevron = await screen.findByRole('button', { name: 'Показать клубы сети Arena 0' });
+  const chevron = await screen.findByRole('button', { name: 'Показать филиалы клуба Arena 0' });
   expect(chevron).toHaveAttribute('aria-expanded', 'false');
   fireEvent.click(chevron);
   expect(chevron).toHaveAttribute('aria-expanded', 'true');
@@ -118,7 +118,7 @@ it('даёт завести организацию', () => {
   const onCreateOrganization = mock();
   setup({ onCreateOrganization });
 
-  fireEvent.click(screen.getByRole('button', { name: 'Новая организация' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Новый клуб' }));
 
   expect(onCreateOrganization).toHaveBeenCalledTimes(1);
 });
@@ -128,7 +128,7 @@ it('даёт завести организацию', () => {
 it('без права заводить организации кнопки не показывает', () => {
   setup();
 
-  expect(screen.queryByRole('button', { name: 'Новая организация' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Новый клуб' })).toBeNull();
 });
 
 // Сотрудник без права на обзор должен прочитать, что дело в правах, а не жать «Повторить» до
@@ -173,8 +173,8 @@ it('пустая платформа зовёт завести первую ор�
   const onCreateOrganization = mock();
   setup({ onCreateOrganization });
 
-  expect(await screen.findByText('Организаций пока нет. Заведите первую — здесь появятся её клубы и их сигналы.')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Завести первую организацию' }));
+  expect(await screen.findByText('Клубов пока нет. Заведите первый — здесь появятся его филиалы и их сигналы.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Завести первый клуб' }));
 
   expect(onCreateOrganization).toHaveBeenCalledTimes(1);
 });
@@ -182,8 +182,8 @@ it('пустая платформа зовёт завести первую ор�
 it('без права заводить говорит, у кого оно есть, и кнопки не рисует', async () => {
   setup({ view: 'all' });
 
-  expect(await screen.findByText('Это может сотрудник платформы с правом «Заводить новые организации».')).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Завести первую организацию' })).toBeNull();
+  expect(await screen.findByText('Это может сотрудник платформы с правом «Заводить новые клубы».')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Завести первый клуб' })).toBeNull();
 });
 
 // Нет должников — хорошая новость, и кнопке здесь делать нечего.
@@ -194,6 +194,6 @@ it('пустой вид долгов говорит, что всё в поряд
   });
   setup({ client: client({ getPulse }), view: 'debt', onCreateOrganization: mock() });
 
-  expect(await screen.findByText('Долгов нет — все организации расплатились. Организация с долгом появится здесь.')).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Завести первую организацию' })).toBeNull();
+  expect(await screen.findByText('Долгов нет — все клубы расплатились. Клуб с долгом появится здесь.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Завести первый клуб' })).toBeNull();
 });

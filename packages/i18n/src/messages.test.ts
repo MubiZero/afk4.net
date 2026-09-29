@@ -52,12 +52,16 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
     // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
     'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',
+    // Клиент платформы — «клуб» и по-таджикски (решение владельца 2026-09-29): то же заимствование,
+    // что у «Клуб» в отчёте рекламы; «ПК» пишется одинаково на всех трёх языках.
+    'platform.audit.organization', 'platform.audit.target.Organization', 'platform.billing.column.organization',
+    'platform.newOrganization.section.organization', 'platform.search.kind.organization', 'platform.organization.health.devices',
     'platform.organization.invites.branch', 'op.network.install.codes.branch', 'op.pc.bulk.seats', 'op.hardware.os', 'op.games.age', 'op.games.kind.steam', 'op.games.kind.epic', 'op.games.kind.riot', 'op.games.kind.battlenet', 'op.games.field.genre', 'op.status.club', 'platform.search.kind.club', 'op.cash.shift.cashier',
     'platform.audit.target', 'platform.organization.history.target',
     'roles.technician',
     'op.network.billing.col.number',
-    'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone',
-    'platform.health.queue.billing_outbox', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
+    'account.phone.placeholder', 'clients.field.phone',
+    'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
     'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
     'op.management.dest.club', 'platform.dynamics.branch.label',

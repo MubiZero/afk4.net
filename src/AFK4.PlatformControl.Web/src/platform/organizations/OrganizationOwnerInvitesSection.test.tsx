@@ -235,7 +235,7 @@ it('без филиала говорит, почему код не создат�
 
   const create = screen.getByRole('button', { name: 'Создать код' });
   expect(create).toBeDisabled();
-  const reason = screen.getByText('Код приглашения выдаётся на филиал, а у организации их пока нет. Филиал добавляют на вкладке «Клубы».');
+  const reason = screen.getByText('Код приглашения выдаётся на филиал, а у клуба их пока нет. Филиал добавляют на вкладке «Филиалы».');
   expect(create.getAttribute('aria-describedby')).toBe(reason.id);
 });
 
@@ -245,7 +245,7 @@ it('без филиала пустой список не зовёт к форм�
   const client = { listOrganizationOwnerInvites: mock().mockResolvedValue([]), createOrganizationOwnerInvite: mock(), revokeOrganizationOwnerInvite: mock() };
   renderSection(client, []);
 
-  await screen.findByText('Кодов пока нет. Сначала добавьте филиал на вкладке «Клубы» — после этого код создаётся формой выше.');
+  await screen.findByText('Кодов пока нет. Сначала добавьте филиал на вкладке «Филиалы» — после этого код создаётся формой выше.');
   expect(screen.queryByText(/Создайте код формой выше/)).toBeNull();
 });
 

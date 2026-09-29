@@ -250,7 +250,7 @@ it('hides billing and organization-management levers without the matching rights
   expect(screen.queryByRole('button', { name: 'Отсрочка' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Править профиль' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Приостановить' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Передать' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Передать владельцу' })).not.toBeInTheDocument();
 });
 
 it('shows billing and organization-management levers with the matching rights', () => {
@@ -260,7 +260,7 @@ it('shows billing and organization-management levers with the matching rights', 
   expect(screen.getByRole('button', { name: 'Отсрочка' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Править профиль' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Приостановить' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Передать' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Передать владельцу' })).toBeVisible();
 });
 
 // Раньше сбой любого из трёх фоновых запросов гасился пустым catch: цена и дата счёта висели
@@ -278,7 +278,7 @@ it('несостоявшуюся загрузку сведений видно с
   );
 
   await waitFor(() => expect(screen.getAllByText('Не удалось узнать').length).toBeGreaterThan(0));
-  expect(screen.getByText('Часть сведений о клиенте не загрузилась.')).toBeVisible();
+  expect(screen.getByText('Часть сведений о клубе не загрузилась.')).toBeVisible();
   const edit = screen.getByRole('button', { name: 'Изменить подписку' });
   expect(edit).toBeDisabled();
   // Полоса сверху говорит «что-то не загрузилось», а какая из кнопок из-за этого серая — нет.
