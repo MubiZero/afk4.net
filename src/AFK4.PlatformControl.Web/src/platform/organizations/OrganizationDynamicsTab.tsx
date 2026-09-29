@@ -111,9 +111,9 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
       {/* Явные три величины связи рядом: не выходил на связь (data.daysWithoutAgent) и нет данных
           (data.daysWithUnknownAgent) — разные факты, которые нельзя схлопывать в один «плохой»
           бакет. Оба берутся из ответа сервера, а не пересчитываются заново. */}
-      <div className="pc-kv"><span>{t('platform.dynamics.agent.alive')}</span><span className="pc-num">{formatNumber(aliveDays)}</span></div>
-      <div className="pc-kv"><span>{t('platform.dynamics.agent.dead')}</span><span className="pc-num">{formatNumber(data.daysWithoutAgent)}</span></div>
-      <div className="pc-kv"><span>{t('platform.dynamics.agent.unknown')}</span><span className="pc-num">{formatNumber(data.daysWithUnknownAgent)}</span></div>
+      <div className="pc-kv"><span>{t('platform.dynamics.agent.alive')}</span><span className="ui-num">{formatNumber(aliveDays)}</span></div>
+      <div className="pc-kv"><span>{t('platform.dynamics.agent.dead')}</span><span className="ui-num">{formatNumber(data.daysWithoutAgent)}</span></div>
+      <div className="pc-kv"><span>{t('platform.dynamics.agent.unknown')}</span><span className="ui-num">{formatNumber(data.daysWithUnknownAgent)}</span></div>
 
       <Card>
         <CardHeader>

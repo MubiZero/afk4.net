@@ -92,7 +92,7 @@ export function PeopleScreen({ client }: { client: Client }) {
           ? (searched ? <EmptyState message={t('platform.people.notFound')} next="formAbove" /> : null)
           : (
             <div className="mgmt-form">
-              <p className="pc-num">+992 {formatLocal(person.phoneNumber)}</p>
+              <p className="ui-num">+992 {formatLocal(person.phoneNumber)}</p>
               <p>{person.displayName}</p>
               <p className="mgmt-drawer-hint">
                 {t('platform.people.registeredAt', { date: formatDate(person.registeredAtUtc) })}

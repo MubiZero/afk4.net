@@ -130,8 +130,8 @@ function ReportTable({ rows, formatNumber }: {
           <TableHead>{t('platform.ads.report.column.club')}</TableHead>
           <TableHead>{t('platform.ads.report.column.branch')}</TableHead>
           <TableHead>{t('platform.ads.report.column.city')}</TableHead>
-          <TableHead className="pc-num">{t('platform.ads.report.column.impressions')}</TableHead>
-          <TableHead className="pc-num">{t('platform.ads.report.column.seconds')}</TableHead>
+          <TableHead className="ui-num">{t('platform.ads.report.column.impressions')}</TableHead>
+          <TableHead className="ui-num">{t('platform.ads.report.column.seconds')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -143,16 +143,16 @@ function ReportTable({ rows, formatNumber }: {
             <TableCell>{row.organizationName === '' ? '—' : row.organizationName}</TableCell>
             <TableCell>{row.branchName === '' ? '—' : row.branchName}</TableCell>
             <TableCell>{row.city === '' ? '—' : row.city}</TableCell>
-            <TableCell className="pc-num">{formatNumber(row.impressions)}</TableCell>
-            <TableCell className="pc-num">{formatNumber(row.shownSeconds)}</TableCell>
+            <TableCell className="ui-num">{formatNumber(row.impressions)}</TableCell>
+            <TableCell className="ui-num">{formatNumber(row.shownSeconds)}</TableCell>
           </TableRow>
         ))}
       </TableBody>
       <tfoot className="pc-ad-totals">
         <tr>
           <td colSpan={6}>{t('platform.ads.report.total')}</td>
-          <td className="pc-num">{formatNumber(totals.impressions)}</td>
-          <td className="pc-num">{formatNumber(totals.shownSeconds)}</td>
+          <td className="ui-num">{formatNumber(totals.impressions)}</td>
+          <td className="ui-num">{formatNumber(totals.shownSeconds)}</td>
         </tr>
       </tfoot>
     </Table>

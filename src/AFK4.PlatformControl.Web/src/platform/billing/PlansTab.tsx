@@ -85,8 +85,8 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
                 <TableRow key={plan.planCode}>
                   {/* Код тарифа — служебный ключ; он виден в форме тарифа, где его и сверяют. */}
                   <TableCell><strong>{plan.name}</strong></TableCell>
-                  <TableCell className="pc-num">{formatMoney(plan.priceMinorUnits, plan.currencyCode)}</TableCell>
-                  <TableCell className="pc-num">
+                  <TableCell className="ui-num">{formatMoney(plan.priceMinorUnits, plan.currencyCode)}</TableCell>
+                  <TableCell className="ui-num">
                     {(plan.pricePerDeviceMinorUnits ?? 0) > 0
                       ? t('platform.billing.plans.perDevice', {
                           price: formatMoney(plan.pricePerDeviceMinorUnits ?? 0, plan.currencyCode),
@@ -94,7 +94,7 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
                         })
                       : '—'}
                   </TableCell>
-                  <TableCell className="pc-num">{plan.maxDevices ?? '—'}</TableCell>
+                  <TableCell className="ui-num">{plan.maxDevices ?? '—'}</TableCell>
                   <TableCell>{INTERVAL_LABEL[plan.billingInterval] ? t(INTERVAL_LABEL[plan.billingInterval]) : plan.billingInterval}</TableCell>
                   {/* Скрытый тариф назван словом, а не цветом кружка. «Активен» в каждой строке —
                       шум (решение владельца 29.09): отмечаем только отклонение. */}

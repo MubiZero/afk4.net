@@ -60,7 +60,7 @@ export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
               <TableHead>{t('platform.billing.column.organization')}</TableHead>
               <TableHead>{t('platform.billing.column.plan')}</TableHead>
               <TableHead>{t('platform.billing.column.status')}</TableHead>
-              <TableHead className="pc-num">{t('platform.billing.column.amount')}</TableHead>
+              <TableHead className="ui-num">{t('platform.billing.column.amount')}</TableHead>
               <TableHead>{t('platform.billing.column.interval')}</TableHead>
               <TableHead>{t('platform.billing.column.periodEnd')}</TableHead>
             </TableRow>
@@ -75,7 +75,7 @@ export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
                     {SUBSCRIPTION_STATUS_LABEL[subscription.status] !== undefined ? t(SUBSCRIPTION_STATUS_LABEL[subscription.status]) : subscription.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="pc-num">{formatMoney(subscription.amountMinorUnits, subscription.currencyCode)}</TableCell>
+                <TableCell className="ui-num">{formatMoney(subscription.amountMinorUnits, subscription.currencyCode)}</TableCell>
                 <TableCell>{INTERVAL_LABEL[subscription.billingInterval] !== undefined ? t(INTERVAL_LABEL[subscription.billingInterval]) : subscription.billingInterval}</TableCell>
                 <TableCell>{formatDate(subscription.currentPeriodEndUtc)}</TableCell>
               </TableRow>

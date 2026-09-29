@@ -51,7 +51,7 @@ type DialogKind = 'profile' | 'subscription' | 'grace' | 'ownerTransfer' | null;
 type StatusTarget = 'active' | 'suspended' | 'deletion_pending';
 
 export function ClientPassport({ client, organization, access, onUpdated }: Props) {
-  const { t, formatDate, locale } = useI18n();
+  const { t, locale } = useI18n();
   const { toast } = useToast();
 
   const [openDialog, setOpenDialog] = useState<DialogKind>(null);
@@ -185,7 +185,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
     ...(organization.referral.referredByOrganizationId !== null ? [{
       label: t('platform.organization.passport.referral.referredBy'),
       value: `${organization.referral.referredByOrganizationName ?? '—'} · ${organization.referral.rewardedAtUtc !== null
-        ? t('platform.organization.passport.referral.rewardedOn', { date: formatDate(organization.referral.rewardedAtUtc) })
+        ? t('platform.organization.passport.referral.rewardedOn', { date: formatDateParts(organization.referral.rewardedAtUtc, locale, { dateStyle: 'medium' }) })
         : t('platform.organization.passport.referral.notRewardedYet')}`
     }] : []),
     ...(organization.referral.referred.length > 0 ? [{

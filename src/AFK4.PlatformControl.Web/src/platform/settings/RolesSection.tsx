@@ -138,7 +138,7 @@ export function RolesSection({ client }: { client: Client }) {
               {role.grantsAllPermissions ? <Badge variant="success">{t('platform.settings.roles.fullAccess')}</Badge> : null}
             </span>
             <span>
-              <span className="pc-num">{t('platform.settings.roles.holders', { count: role.adminCount })}</span>
+              <span className="ui-num">{t('platform.settings.roles.holders', { count: role.adminCount })}</span>
               <Button variant="outline" disabled={pending} onClick={() => setDraft(draftFrom(role))}>
                 {t('platform.settings.roles.edit')}
               </Button>

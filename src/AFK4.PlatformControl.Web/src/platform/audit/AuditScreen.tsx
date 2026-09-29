@@ -97,7 +97,7 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
       : <Table><TableHeader><TableRow>
           <TableHead>{t('platform.audit.time')}</TableHead><TableHead>{t('platform.audit.organization')}</TableHead><TableHead>{t('platform.audit.action')}</TableHead><TableHead>{t('platform.audit.target')}</TableHead><TableHead>{t('platform.audit.outcome')}</TableHead><TableHead>{t('platform.audit.source')}</TableHead>
         </TableRow></TableHeader><TableBody>{(state.data.records ?? []).map(record => <TableRow key={record.auditRecordId}>
-          <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell><TableCell>{record.organizationName ?? <code>{record.organizationId}</code>}</TableCell><TableCell><AuditAction action={record.action} /></TableCell><TableCell>{auditTargetLabel(record.targetType, t)}</TableCell><TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell><TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
+          <TableCell className="ui-num">{formatDate(record.createdAtUtc)}</TableCell><TableCell>{record.organizationName ?? <code>{record.organizationId}</code>}</TableCell><TableCell><AuditAction action={record.action} /></TableCell><TableCell>{auditTargetLabel(record.targetType, t)}</TableCell><TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell><TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
         </TableRow>)}</TableBody></Table>}
   </Page>;
 }

@@ -175,7 +175,7 @@ export function UpdatesScreen({ client, organizationsClient, canManagePackages, 
             {packages.map(row => (
               <TableRow key={row.updatePackageId}>
                 <TableCell>{t(componentLabelKey(row.component))}</TableCell>
-                <TableCell className="pc-num">{row.version}</TableCell>
+                <TableCell className="ui-num">{row.version}</TableCell>
                 <TableCell>{t(channelLabelKey(row.channel))}</TableCell>
                 <TableCell>
                   <StateBadge state={row.state} />

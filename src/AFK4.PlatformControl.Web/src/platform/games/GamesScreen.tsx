@@ -126,7 +126,7 @@ export function GamesScreen({ client }: { client: Client }) {
                     </span>
                   </TableCell>
                   <TableCell>{game.genre ?? '—'}</TableCell>
-                  <TableCell><span className="pc-num">{formatAgeMark(game.minAge) ?? '—'}</span></TableCell>
+                  <TableCell><span className="ui-num">{formatAgeMark(game.minAge) ?? '—'}</span></TableCell>
                   <TableCell><LaunchCell game={game} /></TableCell>
                   <TableCell>
                     <Badge variant={game.isPublished ? 'success' : 'outline'}>

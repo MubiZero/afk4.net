@@ -95,7 +95,7 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
               <TableHead>{t('platform.billing.column.number')}</TableHead>
               <TableHead>{t('platform.billing.column.organization')}</TableHead>
               <TableHead>{t('platform.billing.column.kind')}</TableHead>
-              <TableHead className="pc-num">{t('platform.billing.column.amount')}</TableHead>
+              <TableHead className="ui-num">{t('platform.billing.column.amount')}</TableHead>
               <TableHead>{t('platform.billing.column.status')}</TableHead>
               <TableHead>{t('platform.billing.column.due')}</TableHead>
               <TableHead>{t('platform.billing.column.actions')}</TableHead>
@@ -104,10 +104,10 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
           <TableBody>
             {rows.map(invoice => (
               <TableRow key={invoice.invoiceId}>
-                <TableCell className="pc-num">#{invoice.number}</TableCell>
+                <TableCell className="ui-num">#{invoice.number}</TableCell>
                 <TableCell>{invoice.organizationName}</TableCell>
                 <TableCell>{INVOICE_KIND_LABEL[invoice.kind] !== undefined ? t(INVOICE_KIND_LABEL[invoice.kind]) : invoice.kind}</TableCell>
-                <TableCell className="pc-num">{formatMoney(invoice.amountMinorUnits, invoice.currencyCode)}</TableCell>
+                <TableCell className="ui-num">{formatMoney(invoice.amountMinorUnits, invoice.currencyCode)}</TableCell>
                 <TableCell>
                   <Badge variant={INVOICE_STATUS_VARIANT[invoice.status] ?? 'outline'}>
                     {INVOICE_STATUS_LABEL[invoice.status] !== undefined ? t(INVOICE_STATUS_LABEL[invoice.status]) : invoice.status}

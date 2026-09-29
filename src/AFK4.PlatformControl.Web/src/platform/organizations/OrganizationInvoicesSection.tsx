@@ -103,9 +103,9 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
         ) : (
           state.data.map(inv => (
             <div key={inv.invoiceId} className="pc-list-row">
-              <span className="pc-num">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
+              <span className="ui-num">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
               <span className="pc-cell-actions">
-                <span className="pc-num">{formatMoney(inv.amountMinorUnits, inv.currencyCode)}</span>
+                <span className="ui-num">{formatMoney(inv.amountMinorUnits, inv.currencyCode)}</span>
                 <Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[inv.status] ? t(INVOICE_STATUS_LABEL[inv.status]) : inv.status}</Badge>
                 {canManageInvoices && actionable(inv.status) ? (
                   <>

@@ -28,7 +28,7 @@ export function OrganizationHistoryTab({ client, organizationId }: {
       <TableHead>{t('platform.organization.history.source')}</TableHead>
     </TableRow></TableHeader>
     <TableBody>{state.data.records.map(record => <TableRow key={record.auditRecordId}>
-      <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell>
+      <TableCell className="ui-num">{formatDate(record.createdAtUtc)}</TableCell>
       <TableCell><AuditAction action={record.action} /></TableCell>
       <TableCell>{auditTargetLabel(record.targetType, t)}</TableCell>
       <TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell>
