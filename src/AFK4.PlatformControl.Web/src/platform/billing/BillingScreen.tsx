@@ -1,5 +1,5 @@
 import { Page } from '@/components/layout/Page';
-import { Tabs } from '@/components/ui/tabs';
+import { Tabs } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { BillingTab } from '@/routing/platformRoute';
@@ -23,7 +23,7 @@ export function BillingScreen({ client, tab, onTabChange, canManageInvoices, can
 }) {
   const { t } = useI18n();
   return (
-    <Page title={t('nav.platform.money')} description={t('platform.billing.subtitle')}>
+    <Page title={t('nav.platform.money')}>
       <DebtSection client={client} access={debtAccess} />
       <PayableQueue client={client.invoices} canManage={canManageInvoices} />
 

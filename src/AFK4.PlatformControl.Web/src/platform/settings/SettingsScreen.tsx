@@ -8,7 +8,7 @@ import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons'
 import { Dialog } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
-import { useBlockedReason } from '@/components/ui/blockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdminsApi } from '@/api/platformClients/admins';
 import type { TwoFactorApi } from '@/api/platformClients/twoFactor';

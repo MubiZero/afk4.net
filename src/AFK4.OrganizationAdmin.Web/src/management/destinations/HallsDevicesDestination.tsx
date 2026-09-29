@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { Tabs } from '@afk4/ui/react';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { isGuid } from '../../operatorHelpers';
@@ -72,26 +73,15 @@ export function HallsDevicesDestination({
       failure={failure}
       onRetry={onRetry}
     >
-      <div className="mgmt-tabs" role="tablist" aria-label={t('op.management.dest.halls')}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'layout'}
-          className={`mgmt-tab${activeTab === 'layout' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('layout')}
-        >
-          {t('op.management.halls.tab.layout')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'devices'}
-          className={`mgmt-tab${activeTab === 'devices' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('devices')}
-        >
-          {t('op.management.halls.tab.devices')}
-        </button>
-      </div>
+      <Tabs
+        label={t('op.management.dest.halls')}
+        value={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { value: 'layout', label: t('op.management.halls.tab.layout') },
+          { value: 'devices', label: t('op.management.halls.tab.devices') }
+        ]}
+      />
 
       {activeTab === 'layout' ? (
         <ZonesTab

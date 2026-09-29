@@ -122,7 +122,6 @@ export function UpdatesScreen({ client, organizationsClient, canManagePackages, 
   // Шапка экрана — описание и кнопка по праву — известна до ответа и стоит так же, как встанет.
   const pageHead = {
     title: t('nav.platform.updates'),
-    description: t('platform.updates.packages.description'),
     actions: canManagePackages ? <Button onClick={() => setPackageFormOpen(true)}>{t('platform.updates.packages.register')}</Button> : undefined
   };
   if (packagesState.status === 'loading' || (rolloutsState.status === 'loading' && !rolloutsAnswered.current)) {

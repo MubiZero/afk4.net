@@ -435,7 +435,7 @@ describe('BackendPosWorkspace', () => {
     await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(1));
 
     const dialog = screen.getByRole('dialog', { name: 'Оплата' });
-    const closeButton = dialog.querySelector<HTMLButtonElement>('.panel-modal-close');
+    const closeButton = dialog.querySelector<HTMLButtonElement>('[data-dialog-close]');
     expect(closeButton).not.toBeNull();
     expect(closeButton).toBeDisabled();
     fireEvent.click(closeButton!);
@@ -484,7 +484,7 @@ describe('BackendPosWorkspace', () => {
     await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(2));
 
     const dialog = screen.getByRole('dialog', { name: 'Оплата' });
-    const closeButton = dialog.querySelector<HTMLButtonElement>('.panel-modal-close')!;
+    const closeButton = dialog.querySelector<HTMLButtonElement>('[data-dialog-close]')!;
     expect(closeButton).toBeDisabled();
     const cancelButtons = screen.getAllByRole('button', { name: 'Отмена' });
     expect(cancelButtons).toHaveLength(2);

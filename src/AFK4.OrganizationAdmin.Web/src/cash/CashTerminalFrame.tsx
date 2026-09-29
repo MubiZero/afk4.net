@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { X } from 'lucide-react';
 import { SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
+import { CloseButton } from '@afk4/ui/react';
 
 export interface CashMetricItem {
   label: string;
@@ -54,9 +54,7 @@ export function CashTerminalSplit({
     <div className={`cash-terminal-split${inspectorOpen ? ' inspector-open' : ''}`}>
       <section className="cash-terminal-register">{register}</section>
       <aside className="cash-terminal-inspector" aria-label={inspectorLabel}>
-        <button type="button" className="cash-inspector-close" aria-label={closeLabel} onClick={onCloseInspector}>
-          <X size={16} aria-hidden="true" />
-        </button>
+        <CloseButton className="cash-inspector-close" label={closeLabel} onClick={onCloseInspector} />
         {inspector}
       </aside>
     </div>

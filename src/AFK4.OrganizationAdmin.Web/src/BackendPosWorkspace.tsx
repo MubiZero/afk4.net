@@ -36,7 +36,7 @@ import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
 import { useFeedbackToasts } from './useFeedbackToasts';
-import { useBlockedReason } from './components/BlockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { PackagePurchasePanel } from './PackagePurchasePanel';
 
 type PosCatalogItem = {

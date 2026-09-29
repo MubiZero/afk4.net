@@ -1,6 +1,6 @@
 import { RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@afk4/ui/react';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonTable, SkeletonTiles } from '@/components/ui/skeletons';
@@ -28,9 +28,7 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
     <Card>
       <CardHeader>
         <CardTitle>{t('platform.organization.section.health')}</CardTitle>
-        <Button variant="ghost" size="icon-sm" aria-label={t('platform.organization.health.refresh')} onClick={state.retry}>
-          <RefreshCw size={14} aria-hidden="true" />
-        </Button>
+        <IconButton variant="ghost" size="sm" label={t('platform.organization.health.refresh')} icon={<RefreshCw size={14} aria-hidden="true" />} onClick={state.retry} />
       </CardHeader>
       <CardContent>
         {state.status === 'error' ? (

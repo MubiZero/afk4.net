@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonCard, SkeletonLine, SkeletonTable } from '@/components/ui/skeletons';
-import { useBlockedReason } from '@/components/ui/blockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
@@ -99,7 +99,7 @@ export function AdCampaignPage({ client, organizationsClient, campaignId, onBack
 
   if (state.status === 'loading') {
     return (
-      <Page back={back} title={<Loading><SkeletonLine width="12em" /></Loading>} description={<Loading><SkeletonLine width="8em" /></Loading>}>
+      <Page back={back} title={<Loading><SkeletonLine width="12em" /></Loading>}>
         <Loading>
           <SkeletonCard />
           <SkeletonCard action><SkeletonTable columns={3} rows={2} /></SkeletonCard>
@@ -204,7 +204,6 @@ export function AdCampaignPage({ client, organizationsClient, campaignId, onBack
     <Page
       back={back}
       title={current.name}
-      description={current.advertiserName === '' ? undefined : current.advertiserName}
       actions={
         <>
           {actions.map(next => (

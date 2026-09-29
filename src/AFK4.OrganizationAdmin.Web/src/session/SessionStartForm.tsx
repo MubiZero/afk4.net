@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useBlockedReason } from '../components/BlockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { useI18n } from '@afk4/i18n';
 import type { TariffOptionDto } from '../operatorApiClients';
 import type { SessionBillingModeId } from '../operatorTypes';

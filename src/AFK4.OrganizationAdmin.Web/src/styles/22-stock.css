@@ -655,7 +655,7 @@
 /* ── Штрих-коды в карточке товара (ProductBarcodesSection) ── */
 .settings-barcodes-section { margin-top: var(--space-4); }
 .settings-barcodes-empty { font-size: 13px; color: var(--text-secondary); margin: 0; }
-.settings-barcodes-error { font-size: 12px; color: var(--danger, #e05260); margin: var(--space-2) 0 0; }
+.settings-barcodes-error { font-size: 12px; color: var(--danger); margin: var(--space-2) 0 0; }
 .settings-barcodes-save-hint { font-size: 12px; color: var(--text-secondary); margin: var(--space-2) 0; }
 
 .barcode-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }

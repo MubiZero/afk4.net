@@ -127,7 +127,7 @@ describe('TariffsPackagesDestination', () => {
       />
     );
     await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
-    expect(container.querySelector('.mgmt-tabs')).toBeTruthy();
+    expect(container.querySelector('.ui-tabs')).toBeTruthy();
     expect(container.querySelectorAll('[data-skeleton="table"] .ctable-head > span')).toHaveLength(6);
     expect(screen.queryByText('Стандарт')).toBeNull();
   });

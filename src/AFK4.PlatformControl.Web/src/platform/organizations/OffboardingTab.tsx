@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/ui/states';
 import { Loading, SkeletonCard, SkeletonControl, SkeletonLine } from '@/components/ui/skeletons';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
-import { useBlockedReason } from '@/components/ui/blockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OffboardingApi } from '@/api/platformClients/offboarding';
 import { purgeBlockReasonKey } from './offboardingModel';

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select } from '@/components/ui/select';
-import { useBlockedReason } from '@/components/ui/blockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor, majorToMinor } from '@/lib/money';
 import { validatePlanForm, type PlanForm } from './billingModel';

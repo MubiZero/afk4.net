@@ -151,11 +151,11 @@ export function SkeletonChart({ height }: { height: number }) {
   );
 }
 
-// Вкладки (.mgmt-tabs) — по числу настоящих.
+// Вкладки (.ui-tabs кита) — по числу настоящих.
 export function SkeletonTabs({ count }: { count: number }) {
   return (
-    <div className="mgmt-tabs" aria-hidden="true">
-      {times(count).map(index => <span key={index} className="mgmt-tab"><SkeletonLine width="6em" /></span>)}
+    <div className="ui-tabs" aria-hidden="true">
+      {times(count).map(index => <span key={index} className="ui-tab"><SkeletonLine width="6em" /></span>)}
     </div>
   );
 }

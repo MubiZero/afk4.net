@@ -1,5 +1,5 @@
 import { Page } from '@/components/layout/Page';
-import { Tabs } from '@/components/ui/tabs';
+import { Tabs } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdsTab } from '@/routing/platformRoute';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
@@ -23,18 +23,22 @@ export function AdsScreen({ client, organizationsClient, tab, onTabChange, onOpe
 }) {
   const { t } = useI18n();
   return (
-    <Page title={t('nav.platform.ads')} description={t('platform.ads.subtitle')}>
-      <Tabs
-        label={t('platform.ads.tabs.label')}
-        value={tab}
-        onChange={onTabChange}
-        items={[
-          { value: 'campaigns', label: t('platform.ads.tab.campaigns') },
-          { value: 'advertisers', label: t('platform.ads.tab.advertisers') },
-          { value: 'report', label: t('platform.ads.tab.report') },
-          { value: 'complaints', label: t('platform.ads.tab.complaints') }
-        ]}
-      />
+    <Page
+      title={t('nav.platform.ads')}
+      tabs={(
+        <Tabs
+          label={t('platform.ads.tabs.label')}
+          value={tab}
+          onChange={onTabChange}
+          items={[
+            { value: 'campaigns', label: t('platform.ads.tab.campaigns') },
+            { value: 'advertisers', label: t('platform.ads.tab.advertisers') },
+            { value: 'report', label: t('platform.ads.tab.report') },
+            { value: 'complaints', label: t('platform.ads.tab.complaints') }
+          ]}
+        />
+      )}
+    >
 
       <div role="tabpanel">
         {tab === 'campaigns' ? (
