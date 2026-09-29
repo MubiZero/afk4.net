@@ -426,13 +426,21 @@ export function DevicesTab({
               key: 'health',
               header: t('op.management.halls.col.health'),
               align: 'end',
-              render: (device) => device.role === 'console' ? '—' : t('op.settings.devices.deviceSummary', {
-                agentVersion: readString(device, 'agentVersion', '—'),
-                appCount: readNumber(device, 'installedAppCount', 0),
-                pending: readNumber(device, 'pendingCommandCount', 0),
-                failed: readNumber(device, 'failedCommandCount', 0),
-                lastHeartbeat: formatTime(readString(device, 'lastHeartbeatAtUtc'))
-              })
+              // В строке — только то, что зовёт посмотреть: когда ПК был на связи и, если есть,
+              // зависшие и упавшие команды. Версии и число приложений — в карточке ПК: пять фактов
+              // одной строкой обрезались на «в работе 0 · ошибо…» и прятали как раз ошибки.
+              render: (device) => {
+                if (device.role === 'console') return '—';
+                const pending = readNumber(device, 'pendingCommandCount', 0);
+                const failed = readNumber(device, 'failedCommandCount', 0);
+                return (
+                  <span className="mgmt-status-pair">
+                    <span className="ui-num">{formatTime(readString(device, 'lastHeartbeatAtUtc'))}</span>
+                    {pending > 0 && <span className="ui-chip ui-chip--status ui-chip--xs is-neutral">{t('op.management.halls.health.pending', { count: pending })}</span>}
+                    {failed > 0 && <span className="ui-chip ui-chip--status ui-chip--xs is-danger">{t('op.management.halls.health.failed', { count: failed })}</span>}
+                  </span>
+                );
+              }
             }
           ]}
           rows={deviceInventory}
