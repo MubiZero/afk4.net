@@ -1,0 +1,201 @@
+{
+  "packages/ui/auth.css": {
+    "font-size": 14,
+    "radius": 3,
+    "spacing": 6
+  },
+  "packages/ui/chrome.css": {
+    "font-size": 2,
+    "radius": 1,
+    "spacing": 3
+  },
+  "packages/ui/kit.css": {
+    "font-size": 2,
+    "spacing": 4,
+    "mono": 1
+  },
+  "packages/ui/mgmt.css": {
+    "font-size": 9,
+    "mono": 1
+  },
+  "packages/ui/overlays.css": {
+    "font-size": 10,
+    "radius": 7,
+    "spacing": 14
+  },
+  "packages/ui/rail.css": {
+    "font-size": 6,
+    "radius": 3,
+    "spacing": 8
+  },
+  "packages/ui/workspace.css": {
+    "font-size": 2,
+    "radius": 3,
+    "spacing": 4
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/02-shell.css": {
+    "font-size": 1,
+    "radius": 1,
+    "spacing": 3
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/04-rail.css": {
+    "font-size": 3
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/05-workspace-frame.css": {
+    "radius": 2
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/06-map-grid.css": {
+    "font-size": 72,
+    "radius": 33,
+    "spacing": 90,
+    "hex": 1
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/07-map-sidepanel.css": {
+    "font-size": 15,
+    "radius": 10,
+    "spacing": 15
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/08-map-modals.css": {
+    "font-size": 11,
+    "radius": 6,
+    "spacing": 10
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/09-dashboard.css": {
+    "font-size": 20,
+    "radius": 8,
+    "spacing": 22
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/10-booking.css": {
+    "font-size": 58,
+    "radius": 35,
+    "spacing": 78
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/11-pos.css": {
+    "font-size": 8,
+    "mono": 13
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/12-players.css": {
+    "font-size": 40,
+    "radius": 13,
+    "spacing": 39,
+    "hex": 1,
+    "mono": 9
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/13-payments.css": {
+    "font-size": 20,
+    "radius": 13,
+    "spacing": 26
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/15-settings.css": {
+    "font-size": 28,
+    "radius": 15,
+    "spacing": 28
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/16-workspace-primitives.css": {
+    "font-size": 19,
+    "radius": 9,
+    "spacing": 13
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/17-status-bar.css": {
+    "font-size": 2,
+    "spacing": 2
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/18-review.css": {
+    "font-size": 13,
+    "radius": 4,
+    "spacing": 1,
+    "mono": 5
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/19-account-panel.css": {
+    "font-size": 10,
+    "radius": 5,
+    "spacing": 10
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/20-overlays.css": {
+    "font-size": 7,
+    "radius": 4,
+    "spacing": 11,
+    "hex": 2
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/21-cash.css": {
+    "font-size": 72,
+    "radius": 6,
+    "spacing": 6,
+    "hex": 1,
+    "mono": 29
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/22-stock.css": {
+    "font-size": 38,
+    "spacing": 22,
+    "mono": 19
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/23-management-crud.css": {
+    "font-size": 8,
+    "radius": 3,
+    "spacing": 3
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/24-payments-setup.css": {
+    "font-size": 20,
+    "spacing": 18,
+    "mono": 1
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/25-network.css": {
+    "font-size": 51,
+    "radius": 3,
+    "spacing": 8,
+    "mono": 3
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/26-reports.css": {
+    "font-size": 11,
+    "radius": 9,
+    "spacing": 16
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/27-support-mode.css": {
+    "font-size": 4
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/28-billing-banner.css": {
+    "font-size": 3
+  },
+  "src/AFK4.OrganizationAdmin.Web/src/styles/29-platform-messages.css": {
+    "font-size": 3
+  },
+  "src/AFK4.PlatformControl.Web/src/styles/02-shell.css": {
+    "font-size": 3,
+    "radius": 3,
+    "spacing": 4
+  },
+  "src/AFK4.PlatformControl.Web/src/styles/10-clubs.css": {
+    "font-size": 6,
+    "spacing": 3
+  },
+  "src/AFK4.PlatformControl.Web/src/styles/11-organization.css": {
+    "font-size": 7,
+    "radius": 1,
+    "spacing": 6
+  },
+  "src/AFK4.PlatformControl.Web/src/styles/12-money.css": {
+    "font-size": 9,
+    "spacing": 3
+  },
+  "src/AFK4.PlatformControl.Web/src/styles/13-forms.css": {
+    "font-size": 13,
+    "spacing": 6,
+    "mono": 3
+  },
+  "src/AFK4.PlatformControl.Web/src/styles/14-games.css": {
+    "spacing": 1
+  },
+  "src/AFK4.PlatformControl.Web/src/styles/15-ads.css": {
+    "font-size": 6,
+    "spacing": 5
+  },
+  "src/AFK4.Player.Shell.Web/src/styles/shell.css": {
+    "font-size": 3,
+    "radius": 2
+  },
+  "src/AFK4.SetupWizard.Web/src/styles/wizard.css": {
+    "radius": 2,
+    "spacing": 20,
+    "hex": 2
+  }
+}

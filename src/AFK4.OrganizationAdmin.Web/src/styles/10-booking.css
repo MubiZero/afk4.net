@@ -616,8 +616,8 @@
 .booking-seat-dot.state-ready { background: var(--accent); }
 .booking-seat-dot.state-active { background: var(--text-tertiary); }
 .booking-seat-dot.state-pending { background: var(--warning); }
-.booking-seat-dot.state-offline { background: #64748b; }
-.booking-seat-dot.state-service { background: #64748b; }
+.booking-seat-dot.state-offline { background: var(--status-offline); }
+.booking-seat-dot.state-service { background: var(--status-offline); }
 
 .booking-row-status {
   overflow: hidden;
@@ -1456,10 +1456,10 @@
 .booking-start-warning {
   margin-bottom: 12px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warning, #f4b740) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, transparent);
   border-radius: 10px;
   color: var(--text-primary);
-  background: color-mix(in srgb, var(--warning, #f4b740) 10%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
   font-size: 12px;
   line-height: 1.45;
 }

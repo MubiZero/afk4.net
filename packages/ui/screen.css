@@ -8,19 +8,214 @@
   flex-shrink: 0;
   display: grid;
   gap: 2px;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-3);
 }
 
 .management-screen-head span {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 
 .management-screen-head h1 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--text-md);
   line-height: 1.15;
+}
+
+/* ============ Шапка раздела ============ */
+/* Один порядок на все разделы: строка 1 — название слева, справа до трёх счётчиков и одна главная
+   кнопка; строка 2 — вкладки; строка 3 — инструменты (поиск, фильтры). Без мелкой строки над
+   названием и без повтора имени вкладки под вкладками. Было пять шаблонов: слоган через точку,
+   подпись над заголовком, вкладки над заголовком, заголовок 12px — и шапка, которая исчезала на
+   одной из вкладок, отчего вкладки прыгали. */
+.ui-section-header {
+  display: grid;
+  flex-shrink: 0;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.ui-section-header-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: var(--control-md);
+}
+
+.ui-section-title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-section-header-aside {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.ui-section-header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ============ Инспектор ============ */
+/* Правая колонка карточки записи. Сверху вниз: кто это (название, статус, подзаголовок; справа «⋯»
+   и закрыть) → одна главная цифра → одна главная кнопка во всю ширину и до трёх второстепенных
+   ровным рядом → факты «подпись — значение» → секции. Опасное живёт в «⋯», а не пятой кнопкой. */
+.ui-inspector {
+  display: flex;
+  flex-direction: column;
+  width: var(--inspector-w);
+  max-width: 100%;
+  min-height: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.ui-inspector-head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.ui-inspector-id {
+  display: grid;
+  flex: 1;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ui-inspector-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ui-inspector-title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-inspector-subtitle {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-inspector-head-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+}
+
+.ui-inspector-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  overflow-y: auto;
+}
+
+.ui-inspector-figure {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ui-inspector-figure-value {
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.ui-inspector-figure-hint {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.ui-inspector-actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Второстепенные — одной ширины, сколько бы их ни было (до трёх): ряд читается как ряд, а не как
+   россыпь кнопок по длине подписи. */
+.ui-inspector-secondary {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: var(--space-2);
+}
+
+.ui-inspector-secondary > .ui-btn { min-width: 0; }
+
+.ui-inspector-section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Факты «подпись — значение»: подпись тихая слева, значение справа, числа в колонку. */
+.ui-facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.ui-facts-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ui-facts-row > dt {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.ui-facts-row > dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .management-screen-body {
@@ -60,10 +255,10 @@
 .management-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px 20px;
+  gap: 16px;
+  padding: 16px 20px;
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-card);
 }
@@ -73,8 +268,8 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: 10px;
-  padding: 11px 16px;
+  gap: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -86,11 +281,11 @@
   max-width: 360px;
   height: 34px;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0 12px;
   background: var(--surface-sunken);
   color: var(--text-quaternary);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .tt-search:focus-within {
@@ -105,7 +300,7 @@
   outline: 0;
   background: transparent;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .tt-search input::placeholder {

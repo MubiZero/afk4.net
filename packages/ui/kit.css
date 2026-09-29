@@ -1,5 +1,6 @@
 /* @afk4 UI-kit — общие атомы визуального языка оператора (btn/chip/card/field/money/ledger).
-   Извлечены из «эталонных» разделов (Касса/Карта/Брони): только токены, деньги = mono+tabular,
+   Извлечены из «эталонных» разделов (Касса/Карта/Брони): только токены, числа = tabular-nums
+   основным шрифтом (моноширинный — только коды, .ui-code),
    карточка = кант + подъём тенью, состояние = цвет. Грузится сразу после 01-base, до секционных
    стилей: во время миграции секционные правила ещё выигрывают по каскаду; после переезда раздела
    его дубли-атомы удаляются. Namespace .ui-*. */
@@ -27,7 +28,9 @@
 }
 .ui-btn:hover:not(:disabled) { border-color: var(--border-accent); }
 .ui-btn:active:not(:disabled) { transform: scale(0.98); }
-.ui-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* Фокус — сплошная обводка, а не полупрозрачное свечение: кольцо --focus-ring на тёмной подложке
+   давало меньше 3:1 и терялось, а --focus-outline держит контраст к любой поверхности (tokens.test). */
+.ui-btn:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 2px; }
 .ui-btn:disabled {
   border-color: var(--border-default);
   background: var(--surface-muted);
@@ -96,8 +99,9 @@
 .ui-chip--filter { cursor: pointer; }
 .ui-chip--filter:hover { border-color: var(--border-accent); }
 .ui-chip--filter:active { transform: scale(0.98); }
-.ui-chip--filter:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.ui-chip--filter.is-active {
+.ui-chip--filter:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 2px; }
+.ui-chip--filter.is-active,
+.ui-chip--filter[aria-pressed="true"] {
   border-color: var(--accent);
   background: var(--surface-accent-soft);
   color: var(--accent-bright);
@@ -150,8 +154,8 @@
      резолвится от другой базы. */
   font-weight: normal;
 }
-.ui-chip--count > span { color: var(--text-tertiary); font-size: 10px; }
-.ui-chip--count > strong { color: var(--text-primary); font-size: 11px; }
+.ui-chip--count > span { color: var(--text-tertiary); font-size: var(--text-xs); }
+.ui-chip--count > strong { color: var(--text-primary); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 
 .ui-chip--count.is-critical { border-color: var(--border-strong); }
 .ui-chip--count.is-critical::before {
@@ -468,11 +472,18 @@
   .ui-scanner-pulse { animation: none; }
 }
 
-/* ============ Money ============ */
-.ui-money {
-  font-family: var(--font-mono);
+/* ============ Числа ============ */
+/* Деньги и любые другие числа — основным шрифтом с цифрами одной ширины: колонка сумм стоит ровно,
+   таймер не дрожит, а строка не рассыпается на два шрифта. Моноширинный остаётся кодам — артикулу,
+   штрихкоду, версии, коду приглашения, — где важна каждая буква, а не выравнивание. */
+.ui-money,
+.ui-num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.ui-code {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
 }
 .ui-money--pos { color: var(--success-text); }
 .ui-money--neg { color: var(--danger-text); }
@@ -491,7 +502,6 @@
 .ui-ledger-row:last-child { border-bottom: 0; }
 .ui-ledger-time {
   color: var(--text-tertiary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
 }
@@ -723,4 +733,176 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ui-spinner { animation-duration: 2400ms; }
+}
+
+/* ============ Подпись секции ============ */
+/* Одна капс-подпись над группой: «БАЛАНС», «ДЕЙСТВИЯ», «КАТЕГОРИИ». До неё их было семь — 10/11/12px,
+   вес 600/700, трекинг 0.04–0.08em, три цвета, — и одна и та же роль на соседних экранах читалась
+   по-разному. Капс просит трекинг, иначе буквы слипаются. */
+.ui-section-label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+/* ============ Вкладки страницы ============ */
+/* Вкладки страницы — подчёркиванием, во всю строку под шапкой раздела. Сегмент (.ui-segmented) —
+   только выбор внутри формы: вкладки меняют экран, сегмент — значение. Пока оба рисовались сегментом,
+   человек не отличал «перейти» от «выбрать». */
+.ui-tabs {
+  display: flex;
+  gap: var(--space-5);
+  min-width: 0;
+  border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ui-tab {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.ui-tab::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  content: "";
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.ui-tab:hover { color: var(--text-primary); }
+.ui-tab[aria-selected="true"] { color: var(--text-primary); }
+.ui-tab[aria-selected="true"]::after { background: var(--accent); }
+
+/* Обводка, а не box-shadow: --focus-ring — это тень, и `outline: var(--focus-ring)` в Отчётах был
+   невалидным значением — браузер выбрасывал свойство, и фокус на вкладках не было видно вовсе.
+   Внутрь (offset −2px): полоса вкладок прокручивается, и внешняя обводка обрезалась бы её краем. */
+.ui-tab:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+
+.ui-tab-count {
+  color: var(--text-tertiary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ Сегмент ============ */
+/* Выбор одного значения из двух–четырёх внутри формы или панели: «Наличные / Карта», «День / Неделя». */
+.ui-segmented {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.ui-segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.ui-segment:hover:not(:disabled) { color: var(--text-primary); }
+.ui-segment[aria-checked="true"] {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+}
+.ui-segment:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 0; }
+.ui-segment:disabled { color: var(--text-quaternary); cursor: not-allowed; }
+
+/* ============ Меню «⋯» ============ */
+/* Меню действий строки и инспектора: одна кнопка «⋯», список под ней. Опасные пункты — последними,
+   за разделителем. */
+.ui-menu { position: relative; display: inline-flex; }
+
+.ui-menu-list {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 208px;
+  padding: var(--space-1);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-elevated);
+}
+
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-md);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.ui-menu-item:hover:not(:disabled) { background: var(--surface-hover); }
+.ui-menu-item:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+.ui-menu-item:disabled { color: var(--text-quaternary); cursor: not-allowed; }
+.ui-menu-item.is-danger { color: var(--danger-text); }
+.ui-menu-item.is-danger:hover:not(:disabled) { background: var(--danger-soft-bg); }
+
+.ui-menu-sep {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--border-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-tab,
+  .ui-tab::after,
+  .ui-segment,
+  .ui-menu-item {
+    transition-duration: 0.01ms;
+  }
 }

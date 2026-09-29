@@ -15,7 +15,7 @@
 
 .seat-hero.state-offline,
 .seat-hero.state-service {
-  border-left-color: #64748b;
+  border-left-color: var(--status-offline);
 }
 
 .seat-hero.state-ready {

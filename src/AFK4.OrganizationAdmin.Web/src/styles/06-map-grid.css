@@ -1234,9 +1234,9 @@
 .seat-tile.state-ready { --seat-color: var(--accent); }
 .seat-tile.state-active { --seat-color: var(--text-tertiary); }
 .seat-tile.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
-.seat-tile.state-offline { --seat-color: #64748b; }
+.seat-tile.state-offline { --seat-color: var(--status-offline); }
 /* Обслуживание — тот же серый, что «нет связи», но спокойный (без 4px-канта-тревоги). */
-.seat-tile.state-service { --seat-color: #64748b; }
+.seat-tile.state-service { --seat-color: var(--status-offline); }
 
 .seat-head,
 .seat-main,
@@ -1595,7 +1595,7 @@
 /* «Нет связи» и «обслуживание» — спокойный серый кант (не красный). */
 .context-status-row.state-offline,
 .context-status-row.state-service {
-  border-left-color: #64748b;
+  border-left-color: var(--status-offline);
 }
 
 .context-status-row.state-ready {
