@@ -84,7 +84,7 @@ export function GoodsDestination({
   const [categories, setCategories] = useState<unknown[]>([]);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
-  const [price, setPrice] = useState('0.00');
+  const [price, setPrice] = useState('0,00');
   const [trackStock, setTrackStock] = useState(true);
   const [allowNegativeStock, setAllowNegativeStock] = useState(false);
   const [availableInShell, setAvailableInShell] = useState(false);
@@ -147,7 +147,7 @@ export function GoodsDestination({
     setSelectedCategoryId(categoryOptions[0]?.categoryId ?? '');
     setName('');
     setSku('');
-    setPrice('0.00');
+    setPrice('0,00');
     setTrackStock(true);
     setAllowNegativeStock(false);
     setAvailableInShell(false);
