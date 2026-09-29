@@ -12,6 +12,13 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
+import '../shell/actions.dart';
+import '../shell/empty_state.dart';
+import '../shell/group_header.dart';
+import '../shell/quantity_stepper.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
+import '../shell/status_badge.dart';
 
 /// Заказ еды и напитков за игровое место.
 ///
@@ -236,12 +243,11 @@ class _ShopScreenState extends State<ShopScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 24),
-        Text(l.customerShopPastTitle, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s6),
+        GroupHeader(l.customerShopPastTitle),
         for (final order in _pastOrders)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: Space.s2),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -249,7 +255,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_pastStatus(l, order.status)),
+                      Text(formatMoney(order.total.minorUnits, order.total.currencyCode, locale: locale)),
                       Text(
                         formatDateTime(l, order.placedAtUtc, locale),
                         style: theme.textTheme.bodySmall
@@ -258,7 +264,10 @@ class _ShopScreenState extends State<ShopScreen> {
                     ],
                   ),
                 ),
-                Text(formatMoney(order.total.minorUnits, order.total.currencyCode, locale: locale)),
+                StatusBadge(
+                  label: _pastStatus(l, order.status),
+                  tone: order.status == 'delivered' ? StatusTone.positive : StatusTone.neutral,
+                ),
               ],
             ),
           ),
@@ -275,7 +284,7 @@ class _ShopScreenState extends State<ShopScreen> {
     final order = _order;
     if (order != null) {
       return SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Space.s4),
         child: _OrderCard(order: order, onCancel: _cancel, onBackToMenu: _backToMenu),
       );
     }
@@ -284,17 +293,23 @@ class _ShopScreenState extends State<ShopScreen> {
     if (catalog == null) {
       return _loadFailed
           ? LoadFailure(message: l.customerShopLoadError, onRetry: _load)
-          : const Center(child: CircularProgressIndicator());
+          : ListSkeleton(label: l.customerCommonLoading);
     }
 
-    if (catalog.isEmpty) return _EmptyMenu();
+    if (catalog.isEmpty) {
+      return EmptyState(
+        icon: Icons.local_cafe_outlined,
+        title: l.customerShopEmpty,
+        hint: l.customerShopEmptyHint,
+      );
+    }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       // Последняя строка — прошлые заказы, когда они есть: список меню и история живут в одном
       // прокручиваемом полотне, чтобы за меню не пряталась вторая прокрутка.
       itemCount: catalog.length + (_pastOrders.isEmpty ? 0 : 1),
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: Space.s2),
       itemBuilder: (_, index) {
         if (index == catalog.length) return _pastOrders_(l);
         final product = catalog[index];
@@ -308,37 +323,29 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   Widget _checkout(L l) {
-    final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
     final total = _cartTotalMinorUnits;
     final empty = total == 0;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-              const SizedBox(height: 8),
-            ],
-            FilledButton(
-              // Кнопка не выключается молча: она говорит, чего не хватает — сессии или
-              // товаров в корзине. Выключенная кнопка без объяснения — самый частый тупик
-              // в заказе.
-              onPressed: _placing || empty || !widget.sessionActive ? null : _place,
-              child: Text(
-                switch ((_placing, widget.sessionActive, empty)) {
-                  (true, _, _) => l.customerShopPlacing,
-                  (_, false, _) => l.customerShopErrNoSession,
-                  (_, _, true) => l.customerShopCartEmpty,
-                  _ => l.customerShopPlace(formatMoney(total, _currencyCode, locale: locale)),
-                },
-              ),
-            ),
-          ],
+    return PinnedActions(
+      child: ActionStack(
+        error: _error,
+        // Кнопка не выключается молча: над ней сказано, чего не хватает — сессии или товаров в
+        // корзине. Раньше это было написано в самой выключенной кнопке, серым по серому.
+        hint: _placing
+            ? null
+            : !widget.sessionActive
+                ? l.customerShopErrNoSession
+                : empty
+                    ? l.customerShopCartEmpty
+                    : null,
+        primary: AppAction(
+          _placing
+              ? l.customerShopPlacing
+              : empty
+                  ? l.customerShopPlaceAction
+                  : l.customerShopPlace(formatMoney(total, _currencyCode, locale: locale)),
+          _placing || empty || !widget.sessionActive ? null : _place,
         ),
       ),
     );
@@ -367,7 +374,7 @@ class _ProductTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.radiusControl),
         border: Border.all(color: theme.colorScheme.outline),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s2, Space.s2),
       child: Row(
         children: [
           Expanded(
@@ -376,7 +383,7 @@ class _ProductTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(product.name, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 2),
+                const SizedBox(height: Space.s1),
                 Text(
                   formatMoney(product.price.minorUnits, product.price.currencyCode, locale: locale),
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
@@ -390,46 +397,14 @@ class _ProductTile extends StatelessWidget {
               ],
             ),
           ),
-          if (quantity == 0)
-            IconButton.filledTonal(
-              onPressed: () => onChange(1),
-              icon: const Icon(Icons.add),
-              tooltip: product.name,
-            )
-          else ...[
-            IconButton(onPressed: () => onChange(-1), icon: const Icon(Icons.remove)),
-            Text('$quantity', style: theme.textTheme.titleMedium),
-            IconButton(onPressed: () => onChange(1), icon: const Icon(Icons.add)),
-          ],
+          QuantityStepper(
+            value: quantity,
+            collapsed: true,
+            onChanged: (next) => onChange(next - quantity),
+            decreaseLabel: l.customerShopRemoveOne(product.name),
+            increaseLabel: l.customerShopAddOne(product.name),
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyMenu extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.local_cafe_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(l.customerShopEmpty, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              l.customerShopEmptyHint,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -465,20 +440,20 @@ class _OrderCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppTheme.radiusCard),
             border: Border.all(color: theme.colorScheme.outline),
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(Space.s5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l.customerShopOrderTitle, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 6),
+              const SizedBox(height: Space.s2),
               Text(
                 _status(l),
                 style: theme.textTheme.titleLarge?.copyWith(color: theme.colorScheme.primary),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               for (final line in order.lines)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: Space.s2),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -502,11 +477,13 @@ class _OrderCard extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: Space.s4),
+        // Отмена разрушает заказ, но не насовсем — можно заказать заново: красная обводка, не
+        // заливка.
         if (order.isCancellable)
-          OutlinedButton(onPressed: onCancel, child: Text(l.customerShopCancel))
+          SecondaryButton(action: AppAction(l.customerShopCancel, onCancel, danger: true))
         else
-          FilledButton(onPressed: onBackToMenu, child: Text(l.customerShopNewOrder)),
+          PrimaryButton(action: AppAction(l.customerShopNewOrder, onBackToMenu)),
       ],
     );
   }

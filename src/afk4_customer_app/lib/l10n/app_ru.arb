@@ -589,6 +589,7 @@
   "customerPlayErrOutsidePlan": "Этот ПК сейчас не принимает новые сессии — выберите другой или спросите администратора.",
   "customerPlayErrTaken": "Место только что заняли — выберите другое",
   "customerPlayErrCode": "Код не подошёл. Проверьте цифры на экране — он меняется каждые пару минут.",
+  "customerPlayHintCode": "Введите код с экрана ПК",
   "customerPlayLoadError": "Не удалось загрузить места",
   "customerPlayNoSeats": "Свободных мест нет",
   "customerPlayNoSeatsHint": "Подойдите к стойке — администратор подскажет, когда освободится.",
@@ -1026,6 +1027,14 @@
   "customerSessionExtendTitle": "Продлить сессию",
   "customerSessionExtendUnavailableCounter": "Эту сессию продлевает администратор.",
   "customerSessionExtendUnavailablePackage": "Сессию по пакету продлевают новым стартом, когда эта закончится.",
+  "customerShopAddOne": "Добавить: {name}",
+  "@customerShopAddOne": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "customerShopCancel": "Отменить заказ",
   "customerShopCancelErrStarted": "Заказ уже готовят — отменить его нельзя",
   "customerShopCancelError": "Не удалось отменить заказ",
@@ -1057,7 +1066,16 @@
       }
     }
   },
+  "customerShopPlaceAction": "Заказать",
   "customerShopPlacing": "Оформляем…",
+  "customerShopRemoveOne": "Убрать: {name}",
+  "@customerShopRemoveOne": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "customerShopStatusAccepted": "Администратор несёт заказ",
   "customerShopStatusCancelled": "Заказ отменён",
   "customerShopStatusDelivered": "Заказ принесли",

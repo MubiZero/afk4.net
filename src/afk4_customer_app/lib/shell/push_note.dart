@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import 'top_banner.dart';
+import '../theme/space.dart';
 
 /// Уведомление, пришедшее, пока игрок в приложении.
 ///
@@ -23,7 +24,7 @@ class PushNote extends StatelessWidget {
       color: theme.colorScheme.secondaryContainer,
       foreground: theme.colorScheme.onSecondaryContainer,
       icon: Icons.notifications_active_outlined,
-      padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
+      padding: const EdgeInsets.fromLTRB(Space.s5, Space.s3, Space.s2, Space.s3),
       content: Text(
         text,
         style: theme.textTheme.bodyMedium

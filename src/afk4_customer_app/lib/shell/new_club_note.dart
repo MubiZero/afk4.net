@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'actions.dart';
+import '../theme/space.dart';
 
 /// «Здесь вы ещё не играли» — состояние клуба, в котором у игрока пока нет счёта.
 ///
@@ -22,34 +24,27 @@ class NewClubNote extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Space.s5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(Icons.storefront_outlined, size: 18, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
+                const SizedBox(width: Space.s2),
                 Expanded(
                   child: Text(l.customerClubsNoAccount, style: theme.textTheme.titleMedium),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Space.s2),
             Text(
               l.customerClubsNoAccountHint,
               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             if (onOpenWallet case final openWallet?) ...[
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FilledButton.icon(
-                  onPressed: openWallet,
-                  icon: const Icon(Icons.add, size: 20),
-                  label: Text(l.customerWalletTopUp),
-                ),
-              ),
+              const SizedBox(height: Space.s4),
+              PrimaryButton(action: AppAction(l.customerWalletTopUp, openWallet, icon: Icons.add)),
             ],
           ],
         ),

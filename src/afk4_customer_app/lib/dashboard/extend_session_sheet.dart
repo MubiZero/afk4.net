@@ -7,6 +7,11 @@ import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../shell/actions.dart';
+import '../shell/app_sheet.dart';
+import '../shell/load_failure.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
 
 /// Предвыбранный вариант. Пустой выбор заставил бы игрока принимать решение с нуля, а час —
 /// то, что берут чаще всего; переключить его — одно касание.
@@ -137,81 +142,84 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
       _ => null,
     };
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(l.customerSessionExtendTitle, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 16),
-          if (offers == null && !_loadFailed)
-            const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
-          else if (offers == null) ...[
-            Text(l.customerSessionExtendLoadFailed),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton(onPressed: _load, child: Text(l.customerCommonRetry)),
-            ),
-          ] else if (unavailable != null)
-            Text(unavailable, style: theme.textTheme.bodyMedium)
-          else ...[
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+    final ready = offers != null && unavailable == null;
+
+    return AppSheet(
+      title: l.customerSessionExtendTitle,
+      content: [
+        if (offers == null && !_loadFailed)
+          Semantics(
+            label: l.customerCommonLoading,
+            child: const Row(
               children: [
-                for (final option in offers.options)
-                  ChoiceChip(
-                    label: Text(extendDurationLabel(l, option.minutes)),
-                    selected: choice?.minutes == option.minutes,
-                    // На что не хватает — видно, но не нажать: отказ после нажатия хуже.
-                    onSelected: _pending || !option.affordable
-                        ? null
-                        : (_) => setState(() {
-                              _choice = option;
-                              _error = null;
-                            }),
-                  ),
+                Expanded(child: SkeletonBox(height: 48)),
+                SizedBox(width: Space.s2),
+                Expanded(child: SkeletonBox(height: 48)),
+                SizedBox(width: Space.s2),
+                Expanded(child: SkeletonBox(height: 48)),
               ],
             ),
-            const SizedBox(height: 16),
-            if (choice != null)
-              // Сколько именно спишется и что останется — до нажатия, словами сервера.
-              Text(
-                l.customerSessionExtendSummary(
-                  DateFormat.Hm(dateLocale(locale)).format(choice.endsAtUtc.toLocal()),
-                  money(choice.amount),
-                  money(choice.balanceAfter),
+          )
+        else if (offers == null)
+          LoadFailure(message: l.customerSessionExtendLoadFailed, onRetry: _load)
+        else if (unavailable != null)
+          Text(unavailable, style: theme.textTheme.bodyMedium)
+        else ...[
+          Wrap(
+            spacing: Space.s2,
+            runSpacing: Space.s2,
+            children: [
+              for (final option in offers.options)
+                ChoiceChip(
+                  label: Text(extendDurationLabel(l, option.minutes)),
+                  selected: choice?.minutes == option.minutes,
+                  // На что не хватает — видно, но не нажать: отказ после нажатия хуже.
+                  onSelected: _pending || !option.affordable
+                      ? null
+                      : (_) => setState(() {
+                            _choice = option;
+                            _error = null;
+                          }),
                 ),
-                style: theme.textTheme.bodyMedium,
-              )
-            else
-              Text(l.customerSessionExtendNothingAffordable, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _pending || choice == null ? null : () => _submit(choice),
-              child: Text(
-                _pending
-                    ? l.customerSessionExtendPending
-                    : l.customerSessionExtendConfirm(extendDurationLabel(l, choice?.minutes ?? defaultExtendMinutes)),
-              ),
-            ),
-          ],
-          // Ошибка живёт рядом с кнопкой, а не всплывашкой поверх: игрок должен видеть
-          // причину и сразу выбрать другой вариант, а не ловить исчезающую подсказку.
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          ],
-          const SizedBox(height: 12),
-          // Откуда возьмутся деньги — сказано до нажатия, а не после списания.
-          Text(
-            l.customerSessionExtendHint,
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ],
           ),
+          const SizedBox(height: Space.s4),
+          if (choice != null)
+            // Сколько именно спишется и что останется — до нажатия, словами сервера.
+            Text(
+              l.customerSessionExtendSummary(
+                DateFormat.Hm(dateLocale(locale)).format(choice.endsAtUtc.toLocal()),
+                money(choice.amount),
+                money(choice.balanceAfter),
+              ),
+              style: theme.textTheme.bodyMedium,
+            )
+          else
+            Text(l.customerSessionExtendNothingAffordable, style: theme.textTheme.bodyMedium),
         ],
-      ),
+        const SizedBox(height: Space.s3),
+        // Откуда возьмутся деньги — сказано до нажатия, а не после списания.
+        Text(
+          l.customerSessionExtendHint,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
+      // Ошибка живёт рядом с кнопкой, а не всплывашкой поверх: игрок должен видеть причину и
+      // сразу выбрать другой вариант, а не ловить исчезающую подсказку.
+      actions: ready || _error != null
+          ? ActionStack(
+              error: _error,
+              primary: ready
+                  ? AppAction(
+                      _pending
+                          ? l.customerSessionExtendPending
+                          : l.customerSessionExtendConfirm(
+                              extendDurationLabel(l, choice?.minutes ?? defaultExtendMinutes)),
+                      _pending || choice == null ? null : () => _submit(choice),
+                    )
+                  : null,
+            )
+          : null,
     );
   }
 }

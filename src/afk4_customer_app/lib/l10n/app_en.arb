@@ -589,6 +589,7 @@
   "customerPlayErrOutsidePlan": "This PC isn't taking new sessions right now — pick another one or ask the admin.",
   "customerPlayErrTaken": "That seat was just taken; pick another",
   "customerPlayErrCode": "That code did not work. Check the screen — it changes every couple of minutes.",
+  "customerPlayHintCode": "Enter the code from the PC screen",
   "customerPlayLoadError": "Couldn't load the seats",
   "customerPlayNoSeats": "No free seats",
   "customerPlayNoSeatsHint": "Ask at the desk; they'll tell you when one frees up.",
@@ -1026,6 +1027,14 @@
   "customerSessionExtendTitle": "Add time to your session",
   "customerSessionExtendUnavailableCounter": "The admin extends this session.",
   "customerSessionExtendUnavailablePackage": "A package session is extended by a new start once this one ends.",
+  "customerShopAddOne": "Add {name}",
+  "@customerShopAddOne": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "customerShopCancel": "Cancel the order",
   "customerShopCancelErrStarted": "The order is already being made — it cannot be cancelled",
   "customerShopCancelError": "Couldn't cancel the order",
@@ -1057,7 +1066,16 @@
       }
     }
   },
+  "customerShopPlaceAction": "Order",
   "customerShopPlacing": "Placing the order…",
+  "customerShopRemoveOne": "Remove {name}",
+  "@customerShopRemoveOne": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "customerShopStatusAccepted": "An admin is bringing it",
   "customerShopStatusCancelled": "Order cancelled",
   "customerShopStatusDelivered": "Order delivered",

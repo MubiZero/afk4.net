@@ -15,6 +15,8 @@ import 'club_map.dart';
 import 'nearby_location.dart';
 import 'organization.dart';
 import 'organization_directory.dart';
+import '../shell/app_sheet.dart';
+import '../theme/space.dart';
 
 /// Выбор клуба — первый экран приложения. У мобильной сборки нет поддомена, из которого веб
 /// берёт организацию, а войти без неё нельзя: игрок опознаётся парой организация + телефон.
@@ -123,20 +125,16 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
   }
 
   void _openReviews(Organization club) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => ClubReviewsSheet(directory: widget.directory, club: club),
+    showAppSheet<void>(
+      context,
+      (_) => ClubReviewsSheet(directory: widget.directory, club: club),
     );
   }
 
   void _openDetails(Organization club) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (sheetContext) => ClubDetailsSheet(
+    showAppSheet<void>(
+      context,
+      (sheetContext) => ClubDetailsSheet(
         club: club,
         onChoose: () {
           Navigator.of(sheetContext).pop();
@@ -157,24 +155,24 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(Space.s4, Space.s3, Space.s4, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const BrandMark(),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: Space.s5),
                   Text(
                     l.customerClubPickerTitle,
                     style: theme.textTheme.headlineMedium,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: Space.s1),
                   Text(
                     l.customerClubPickerSubtitle,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Space.s4),
                   TextField(
                     decoration: InputDecoration(
                       labelText: l.customerClubPickerSearch,
@@ -183,7 +181,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                     textInputAction: TextInputAction.search,
                     onChanged: _onQueryChanged,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.s3),
                   ..._cityFilter(l),
                   // Список и карта — два взгляда на один и тот же каталог: поиск сверху
                   // относится к обоим, поэтому переключатель стоит под ним, а не над.
@@ -205,7 +203,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                     onSelectionChanged: (selection) =>
                         setState(() => _view = selection.first),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.s3),
                 ],
               ),
             ),
@@ -318,7 +316,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           scrollDirection: Axis.horizontal,
           children: [
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: Space.s2),
               child: ChoiceChip(
                 label: Text(l.customerClubPickerAllCities),
                 selected: _city == null && _here == null,
@@ -332,7 +330,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
             // спрашивают, когда человек сам о нём попросил, и грубый — до района.
             if (_anyClubHasPoint)
               Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: Space.s2),
                 child: ChoiceChip(
                   avatar: _locating
                       ? const SizedBox(
@@ -350,7 +348,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
             if (cities.length > 1)
               for (final city in cities)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: Space.s2),
                   child: ChoiceChip(
                     label: Text(city),
                     selected: _city == city,
@@ -365,7 +363,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           ],
         ),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: Space.s3),
     ];
   }
 
@@ -395,7 +393,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     return [
       _SectionTitle(l.customerClubsMine),
       ...rows,
-      const SizedBox(height: 8),
+      const SizedBox(height: Space.s2),
       _SectionTitle(l.customerClubsAll),
     ];
   }
@@ -416,7 +414,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
       ),
       _Ready(clubs: final clubs) => switch (_view) {
         _View.list => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          padding: const EdgeInsets.fromLTRB(Space.s4, 0, Space.s4, Space.s6),
           children: [
             ..._myClubsSection(l, clubs),
             for (final club in _inCity(clubs)) ...[
@@ -427,14 +425,14 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                 onOpenReviews: () => _openReviews(club),
                 onOpenDetails: () => _openDetails(club),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: Space.s4),
             ],
           ],
         ),
         // Карта показывает то же, что список: выбранный город сужает оба, иначе переключение
         // вида молча отменяло бы фильтр.
         _View.map => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          padding: const EdgeInsets.fromLTRB(Space.s4, 0, Space.s4, Space.s6),
           child: ClubMap(clubs: _inCity(clubs), onSelected: widget.onSelected),
         ),
       },
@@ -450,7 +448,7 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.only(bottom: Space.s3),
     child: Text(text, style: Theme.of(context).textTheme.titleSmall),
   );
 }
@@ -475,7 +473,7 @@ class _MyClubRow extends StatelessWidget {
     final locale = Localizations.localeOf(context).languageCode;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: Space.s3),
       child: ListTile(
         title: Text(club.organizationName),
         subtitle: Column(
@@ -530,7 +528,7 @@ class _Message extends StatelessWidget {
         children: [
           Text(text, textAlign: TextAlign.center),
           if (actionLabel != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.s3),
             FilledButton(onPressed: onAction, child: Text(actionLabel!)),
           ],
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_palette.dart';
+import 'space.dart';
 
 /// Тема клиентского приложения.
 ///
@@ -283,7 +284,7 @@ class AppTheme {
         labelStyle: TextStyle(color: text, fontSize: 14, fontWeight: FontWeight.w600),
         secondaryLabelStyle: TextStyle(color: onAccent, fontSize: 14, fontWeight: FontWeight.w600),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s3),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -332,7 +333,7 @@ class AppTheme {
         filled: true,
         fillColor: brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : surface,
         constraints: const BoxConstraints(minHeight: primaryButtonHeight),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s4),
         labelStyle: TextStyle(color: textMuted),
         floatingLabelStyle: TextStyle(color: accent),
         // Рамка по умолчанию не рисуется: поле — заливка, а не коробка. Обводка появляется
@@ -413,25 +414,43 @@ class AppTheme {
     );
   }
 
-  /// Крупные заголовки с плотным трекингом и цифры фиксированной ширины: суммы и таймеры не
-  /// должны дёргаться при каждом обновлении.
-  static TextTheme _typography(TextTheme base) => base.copyWith(
-        displaySmall: base.displaySmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.4,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-        headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -1),
-        headlineMedium: base.headlineMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.8,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-        headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
-        titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.4),
-        titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.2),
-        bodyLarge: base.bodyLarge?.copyWith(letterSpacing: -0.1),
-        bodyMedium: base.bodyMedium?.copyWith(letterSpacing: -0.1),
-        labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-      );
+  /// Крупные заголовки с плотным трекингом и цифры фиксированной ширины во всех стилях.
+  ///
+  /// Ровные цифры стояли только у крупных стилей, и суммы в строках списков, цены в меню и
+  /// «Осталось 12 мин» набирались пляшущими цифрами: столбец денег не выравнивался, а время
+  /// дёргалось при каждом обновлении. Цифры одной ширины нужны везде, где стоит число.
+  static TextTheme _typography(TextTheme base) {
+    final shaped = base.copyWith(
+      displaySmall: base.displaySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -1.4),
+      headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -1),
+      headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.8),
+      headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
+      titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.4),
+      titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.2),
+      titleSmall: base.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      bodyLarge: base.bodyLarge?.copyWith(letterSpacing: -0.1),
+      bodyMedium: base.bodyMedium?.copyWith(letterSpacing: -0.1),
+      labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+      labelMedium: base.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+    );
+    TextStyle? even(TextStyle? style) =>
+        style?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    return TextTheme(
+      displayLarge: even(shaped.displayLarge),
+      displayMedium: even(shaped.displayMedium),
+      displaySmall: even(shaped.displaySmall),
+      headlineLarge: even(shaped.headlineLarge),
+      headlineMedium: even(shaped.headlineMedium),
+      headlineSmall: even(shaped.headlineSmall),
+      titleLarge: even(shaped.titleLarge),
+      titleMedium: even(shaped.titleMedium),
+      titleSmall: even(shaped.titleSmall),
+      bodyLarge: even(shaped.bodyLarge),
+      bodyMedium: even(shaped.bodyMedium),
+      bodySmall: even(shaped.bodySmall),
+      labelLarge: even(shaped.labelLarge),
+      labelMedium: even(shaped.labelMedium),
+      labelSmall: even(shaped.labelSmall),
+    );
+  }
 }

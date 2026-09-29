@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import 'cursor_list.dart';
 import 'cursor_list_view.dart';
 import 'receipt_screen.dart';
+import '../theme/space.dart';
 
 /// Движения по кошельку: откуда деньги пришли и куда ушли.
 ///
@@ -58,6 +59,7 @@ class _LedgerTabState extends State<LedgerTab> {
       loadingLabel: l.a11yLoadingLedger,
       errorText: l.customerWalletLedgerError,
       emptyText: l.customerWalletLedgerEmpty,
+      emptyIcon: Icons.swap_vert,
       itemBuilder: (context, entry) => _LedgerRow(
         entry: entry,
         // Строка про визит ведёт в его чек: сумма без состава — это половина ответа на
@@ -132,7 +134,7 @@ class _LedgerRow extends StatelessWidget {
         onTap: onOpenReceipt,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Space.s4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +161,7 @@ class _LedgerRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: Space.s3),
               // Знак перед суммой — главное в строке: человек листает выписку, чтобы понять, где
               // прибыло, а где убыло, и цвет тут помогает, но решает именно знак.
               Column(
@@ -185,7 +187,7 @@ class _LedgerRow extends StatelessWidget {
                 ],
               ),
               if (onOpenReceipt != null) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: Space.s1),
                 Icon(
                   Icons.chevron_right,
                   size: 20,

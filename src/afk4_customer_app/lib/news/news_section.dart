@@ -4,6 +4,7 @@ import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../theme/space.dart';
 
 /// Новости и акции клуба на главной.
 ///
@@ -55,10 +56,10 @@ class _NewsSectionState extends State<NewsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(l.customerNewsTitle, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s2),
         for (final item in shown)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: Space.s2),
             child: _NewsCard(item: item),
           ),
       ],
@@ -95,13 +96,13 @@ class _NewsCard extends StatelessWidget {
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(Space.s4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.title, style: theme.textTheme.titleMedium),
                 if (item.body.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: Space.s1),
                   Text(item.body, style: theme.textTheme.bodyMedium),
                 ],
               ],

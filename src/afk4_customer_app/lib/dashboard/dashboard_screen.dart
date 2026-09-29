@@ -32,6 +32,8 @@ import '../shell/load_failure.dart';
 import 'extend_session_sheet.dart';
 import 'live_session_card.dart';
 import 'quick_actions.dart';
+import '../shell/app_sheet.dart';
+import '../theme/space.dart';
 
 /// Главный экран: что происходит с сессией прямо сейчас и сколько денег в кошельке.
 ///
@@ -280,11 +282,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// игрок может, а вот навязчивость он запомнит.
   Future<void> _rateVisit(PendingClubReviewDto visit) async {
     final l = L.of(context);
-    final sent = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => ReviewSheet(api: widget.api, visit: visit),
+    final sent = await showAppSheet<bool>(
+      context,
+      (_) => ReviewSheet(api: widget.api, visit: visit),
     );
     if (!mounted) return;
 
@@ -424,11 +424,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// гадать, списались деньги или нет.
   Future<void> _extend(ActiveSessionDto session) async {
     final l = L.of(context);
-    final minutes = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => ExtendSessionSheet(api: widget.api, sessionId: session.sessionId),
+    final minutes = await showAppSheet<int>(
+      context,
+      (_) => ExtendSessionSheet(api: widget.api, sessionId: session.sessionId),
     );
     if (minutes == null || !mounted) return;
 
@@ -599,7 +597,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               if (_stale && data != null) ...[
                 const _StaleBanner(),
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s3),
               ],
               // В клубе, где счёта ещё нет, спрашивать нечего: ни денег, ни сессии, ни
               // новостей — сервер отвечает на них только своим игрокам.
@@ -616,7 +614,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   debt: data.debtBalance,
                   onOpen: widget.onOpenWallet,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s3),
                 // Спросить об ушедшем вечере уместно, только пока он свежий, — и до новостей
                 // клуба: это разговор с игроком, а не объявление для него.
                 if (_pendingReview != null && data.activeSession == null) ...[
@@ -625,7 +623,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onRate: () => _rateVisit(_pendingReview!),
                     onDismiss: () => setState(() => _pendingReview = null),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.s3),
                 ],
                 // Идущая сессия — то, ради чего экран открывают посреди игры. Когда её нет,
                 // на её месте стоит приглашение сесть: пустое место сообщало бы только об
@@ -647,10 +645,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onPlay: _branchId == null ? null : _startSession,
                     onSignInOnPc: _signInOnPc,
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Space.s4),
                 QuickActions(actions: _actions(l, data)),
                 // Новости внизу: акция клуба важна, но не важнее идущей сессии и денег.
-                const SizedBox(height: 24),
+                const SizedBox(height: Space.s6),
                 NewsSection(api: widget.api),
               ],
             ],
@@ -669,13 +667,13 @@ class _DashboardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => const Column(
         children: [
           SkeletonBox(height: 72),
-          SizedBox(height: 12),
+          SizedBox(height: Space.s3),
           SkeletonBox(height: 168, radius: 24),
-          SizedBox(height: 16),
+          SizedBox(height: Space.s4),
           Row(
             children: [
               Expanded(child: SkeletonBox(height: 88)),
-              SizedBox(width: 12),
+              SizedBox(width: Space.s3),
               Expanded(child: SkeletonBox(height: 88)),
             ],
           ),
@@ -710,7 +708,7 @@ class _BalanceStrip extends StatelessWidget {
     return Pressable(
       onPressed: onOpen,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppTheme.radiusControl),
           border: Border.all(color: theme.colorScheme.outline),
@@ -720,7 +718,7 @@ class _BalanceStrip extends StatelessWidget {
           children: [
             Icon(Icons.account_balance_wallet_outlined,
                 size: 20, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
+            const SizedBox(width: Space.s3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -773,7 +771,7 @@ class _StaleBanner extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s2),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
@@ -781,7 +779,7 @@ class _StaleBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(Icons.cloud_off_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
+          const SizedBox(width: Space.s2),
           Expanded(
             child: Text(
               l.customerOfflineStale,
@@ -817,7 +815,7 @@ class _StartPlayingCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: Space.s8, horizontal: Space.s5),
         child: Column(
           children: [
             Container(
@@ -831,7 +829,7 @@ class _StartPlayingCard extends StatelessWidget {
               child:
                   Icon(Icons.sports_esports_outlined, color: theme.colorScheme.primary, size: 28),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: Space.s4),
             Text(
               l.customerDashboardNoSession,
               style:
@@ -840,7 +838,7 @@ class _StartPlayingCard extends StatelessWidget {
             // Кнопки нет — сказать, почему. Молча исчезнувшее действие читается как поломка
             // приложения, хотя причина внешняя: клуб не назвал зал или места ещё не заведены.
             if (onPlay == null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: Space.s2),
               Text(
                 l.customerPlayUnavailable,
                 textAlign: TextAlign.center,
@@ -849,7 +847,7 @@ class _StartPlayingCard extends StatelessWidget {
               ),
             ],
             if (onPlay != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -858,7 +856,7 @@ class _StartPlayingCard extends StatelessWidget {
                   label: Text(l.customerPlayStart),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: Space.s2),
               Text(
                 l.customerPlayStartHint,
                 textAlign: TextAlign.center,
@@ -866,7 +864,7 @@ class _StartPlayingCard extends StatelessWidget {
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.s3),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(

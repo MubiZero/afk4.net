@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../shell/pressable.dart';
 import '../theme/app_theme.dart';
+import '../theme/space.dart';
 
 /// Одно быстрое действие главной.
 class QuickAction {
@@ -42,7 +43,7 @@ class QuickActions extends StatelessWidget {
       children: [
         for (final row in rows)
           Padding(
-            padding: EdgeInsets.only(bottom: row == rows.last ? 0 : 12),
+            padding: EdgeInsets.only(bottom: row == rows.last ? 0 : Space.s3),
             // Соседние плитки одной высоты: на длинных языках подпись переносится на вторую
             // строку, и без выравнивания ряд получается ступенькой.
             child: IntrinsicHeight(
@@ -51,12 +52,12 @@ class QuickActions extends StatelessWidget {
                 children: [
                   for (final action in row) ...[
                     Expanded(child: _Tile(action: action)),
-                    if (action != row.last) const SizedBox(width: 12),
+                    if (action != row.last) const SizedBox(width: Space.s3),
                   ],
                   // Нечётное последнее действие занимает свою половину, а не растягивается на
                   // весь ряд: иначе одна плитка выглядит как отдельный, более важный блок.
                   if (row.length == 1) ...[
-                    const SizedBox(width: 12),
+                    const SizedBox(width: Space.s3),
                     const Expanded(child: SizedBox.shrink()),
                   ],
                 ],
@@ -89,7 +90,7 @@ class _Tile extends StatelessWidget {
           borderRadius: radius,
           border: Border.all(color: theme.colorScheme.outline),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -104,7 +105,7 @@ class _Tile extends StatelessWidget {
               ),
               child: Icon(action.icon, size: 20, color: theme.colorScheme.primary),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Space.s3),
             Text(
               action.label,
               maxLines: 2,

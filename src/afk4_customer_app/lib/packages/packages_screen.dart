@@ -13,6 +13,11 @@ import '../money/money.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
+import '../shell/group_header.dart';
+import '../shell/skeleton.dart';
+import '../shell/actions.dart';
+import '../shell/empty_state.dart';
+import '../theme/space.dart';
 
 /// Часы пакета для показа. Секунды — единица сервера, человек считает часами, и «5 ч»
 /// читается там, где «18000 с» не значит ничего. Неполный час показывается с минутами,
@@ -162,7 +167,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
     if (offers == null || mine == null) {
       return _failed
           ? LoadFailure(message: l.customerPackagesLoadError, onRetry: _load)
-          : const Center(child: CircularProgressIndicator());
+          : ListSkeleton(label: l.customerCommonLoading);
     }
 
     final locale = Localizations.localeOf(context).languageCode;
@@ -171,33 +176,28 @@ class _PackagesScreenState extends State<PackagesScreen> {
     final spent = mine.where((package) => !package.isUsable(now)).toList();
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       children: [
         if (_error != null) ...[
           Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.s4),
         ],
         if (active.isNotEmpty) ...[
-          Text(l.customerPackagesMine, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
+          GroupHeader(l.customerPackagesMine),
           for (final package in active)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: Space.s2),
               child: _MinePackageCard(package: package, locale: locale, clock: widget.clock),
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Space.s6),
         ],
-        Text(l.customerPackagesOffers, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        GroupHeader(l.customerPackagesOffers),
         if (offers.isEmpty)
-          Text(
-            l.customerPackagesNone,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          )
+          EmptyState(icon: Icons.confirmation_number_outlined, title: l.customerPackagesNone)
         else
           for (final offer in offers)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: Space.s3),
               child: _OfferCard(
                 offer: offer,
                 locale: locale,
@@ -207,12 +207,11 @@ class _PackagesScreenState extends State<PackagesScreen> {
               ),
             ),
         if (spent.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text(l.customerPackagesSpent, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.s6),
+          GroupHeader(l.customerPackagesSpent),
           for (final package in spent)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: Space.s2),
               child: _MinePackageCard(package: package, locale: locale, clock: widget.clock),
             ),
         ],
@@ -279,7 +278,7 @@ class _OfferCard extends StatelessWidget {
         border: Border.all(color: theme.colorScheme.outline),
         color: theme.colorScheme.surface,
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -292,7 +291,7 @@ class _OfferCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: Space.s2),
           Text(
             formatPackageDuration(l, offer.includedSeconds),
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -309,13 +308,9 @@ class _OfferCard extends StatelessWidget {
               l.customerPackagesExpiresIn(offer.expiresAfterDays),
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: anyBusy ? null : onBuy,
-              child: Text(busy ? l.customerPackagesBuying : l.customerPackagesBuy),
-            ),
+          const SizedBox(height: Space.s3),
+          PrimaryButton(
+            action: AppAction(busy ? l.customerPackagesBuying : l.customerPackagesBuy, anyBusy ? null : onBuy),
           ),
         ],
       ),
@@ -350,12 +345,12 @@ class _MinePackageCard extends StatelessWidget {
         ),
         color: theme.colorScheme.surface,
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(package.name, style: theme.textTheme.titleSmall),
-          const SizedBox(height: 4),
+          const SizedBox(height: Space.s1),
           Text(
             usable
                 ? l.customerPackagesLeft(formatPackageDuration(l, package.remainingSeconds))

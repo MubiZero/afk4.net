@@ -8,6 +8,8 @@ import '../api/contracts.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../shell/group_header.dart';
+import '../theme/space.dart';
 
 /// Что прочитали с монитора: код посадки и, если QR его назвал, клуб этого ПК.
 class PcSignInLink {
@@ -218,10 +220,10 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
       body: SafeArea(
         child: switch (_stage) {
           _Stage.scanning => ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(Space.s5),
               children: [
                 Text(l.customerPcSignInHint, style: theme.textTheme.bodyMedium),
-                const SizedBox(height: 16),
+                const SizedBox(height: Space.s4),
                 if (widget.enableCamera)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
@@ -232,7 +234,7 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
                         errorBuilder: (context, error) => Container(
                           color: theme.colorScheme.surfaceContainerHighest,
                           alignment: Alignment.center,
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(Space.s6),
                           child: Text(
                             error.errorCode == MobileScannerErrorCode.permissionDenied
                                 ? l.customerPcSignInCameraDenied
@@ -243,9 +245,8 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
                       ),
                     ),
                   ),
-                const SizedBox(height: 20),
-                Text(l.customerPcSignInOrType, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 8),
+                const SizedBox(height: Space.s5),
+                GroupHeader(l.customerPcSignInOrType),
                 TextField(
                   controller: _code,
                   keyboardType: TextInputType.number,
@@ -258,18 +259,18 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
                   ),
                   onSubmitted: (_) => _submitTyped(),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s3),
                 FilledButton(onPressed: _submitTyped, child: Text(l.customerPcSignInSubmit)),
               ],
             ),
           _Stage.sending || _Stage.waiting => Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(Space.s6),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Space.s4),
                     Text(
                       _stage == _Stage.waiting && _seat != null
                           ? l.customerPcSignInWaitingSeat(_seat!)
@@ -283,20 +284,20 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
             ),
           _Stage.done => Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(Space.s6),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.check_circle_outline, size: 56, color: theme.colorScheme.primary),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Space.s4),
                     Text(
                       _seat != null ? l.customerPcSignInDoneSeat(_seat!) : l.customerPcSignInDone,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.headlineSmall,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Space.s2),
                     Text(l.customerPcSignInDoneHint, textAlign: TextAlign.center),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: Space.s5),
                     FilledButton(
                       onPressed: () => Navigator.of(context).maybePop(),
                       child: Text(l.customerPcSignInClose),
@@ -307,14 +308,14 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
             ),
           _Stage.failed => Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(Space.s6),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Space.s4),
                     Text(_problem ?? l.customerPcSignInFailed, textAlign: TextAlign.center),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: Space.s5),
                     FilledButton(
                       onPressed: () => setState(() {
                         _stage = _Stage.scanning;

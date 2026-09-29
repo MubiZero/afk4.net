@@ -15,6 +15,12 @@ import '../shell/app_scaffold.dart';
 import '../shell/load_failure.dart';
 import 'date_time_field.dart';
 import 'new_reservation_sheet.dart';
+import '../shell/app_sheet.dart';
+import '../shell/actions.dart';
+import '../shell/empty_state.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
+import '../shell/status_badge.dart';
 
 /// Что не так со временем — до отправки. Сервер проверяет то же самое, но отвечает общей
 /// ошибкой, а игроку нужно знать, какое из двух полей чинить. null — всё в порядке.
@@ -160,11 +166,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   /// бронировать заново — развёрнутая форма занимала первый экран у всех.
   Future<void> _openForm() async {
     final l = L.of(context);
-    final created = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => NewReservationSheet(
+    final created = await showAppSheet<bool>(
+      context,
+      (_) => NewReservationSheet(
         api: widget.api,
         clock: widget.clock,
         accountOpen: widget.accountOpen,
@@ -246,11 +250,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   Future<void> _move(ReservationEntry entry) async {
     final l = L.of(context);
     final reservation = entry.first;
-    final chosen = await showModalBottomSheet<DateTime>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _MoveSheet(initial: reservation.startsAtUtc.toLocal()),
+    final chosen = await showAppSheet<DateTime>(
+      context,
+      (_) => _MoveSheet(initial: reservation.startsAtUtc.toLocal()),
     );
     if (chosen == null || !mounted || _busyId != null) return;
     setState(() => _busyId = reservation.reservationId);
@@ -310,38 +312,19 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
             children: [
             if (!widget.phoneVerified) ...[
               _gate(l, theme),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
             ],
             switch (_state) {
-              _Load.loading => Semantics(
-                  label: l.a11yLoadingReservations,
-                  child: const Center(child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
-                  )),
-                ),
+              _Load.loading => ListSkeleton(rows: 2, rowHeight: 120, label: l.a11yLoadingReservations),
               _Load.failed => _offline
                   ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _refresh)
                   : LoadFailure(message: l.customerReservationsLoadError, onRetry: _refresh),
               // Пустой раздел объясняет, зачем он нужен, а не сообщает о пустоте: серая
               // строка «броней пока нет» не отвечает на вопрос, что здесь делать.
-              _Load.ready when _reservations.isEmpty => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-                  child: Column(
-                    children: [
-                      Icon(Icons.event_available_outlined,
-                          size: 40, color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(height: 12),
-                      Text(l.customerReservationsNone, style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 4),
-                      Text(
-                        l.customerReservationsNoneHint,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
+              _Load.ready when _reservations.isEmpty => EmptyState(
+                  icon: Icons.event_available_outlined,
+                  title: l.customerReservationsNone,
+                  hint: l.customerReservationsNoneHint,
                 ),
               // Карточки живут отдельным списком ниже: строить их разом значит собрать
               // за один кадр всё, что игрок забронировал за годы.
@@ -352,7 +335,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         ),
         if (_state == _Load.ready)
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: Space.s4),
             sliver: Builder(builder: (context) {
               final entries = groupReservations(_reservations);
               return SliverList.builder(
@@ -360,7 +343,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                 itemBuilder: (context, index) {
                   final entry = entries[index];
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: Space.s3),
                     child: _ReservationCard(
                       entry: entry,
                       now: widget.clock(),
@@ -383,7 +366,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   /// Гейт с выходом: объяснение и кнопка, а не тупик с отсылкой к администратору.
   Widget _gate(L l, ThemeData theme) => Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Space.s4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -392,11 +375,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                 style:
                     theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: _verifyPhone,
-                child: Text(l.customerWalletGateAction),
-              ),
+              const SizedBox(height: Space.s3),
+              SecondaryButton(action: AppAction(l.customerWalletGateAction, _verifyPhone)),
             ],
           ),
         ),
@@ -404,11 +384,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
   Future<void> _verifyPhone() async {
     final l = L.of(context);
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => PhoneVerificationSheet(api: widget.api),
+    final confirmed = await showAppSheet<bool>(
+      context,
+      (_) => PhoneVerificationSheet(api: widget.api),
     );
     if (confirmed != true || !mounted) return;
 
@@ -525,6 +503,13 @@ class _ReservationCard extends StatelessWidget {
         _ => reservation.state,
       };
 
+  StatusTone get _stateTone => switch (entry.state) {
+        'pending' => StatusTone.waiting,
+        'confirmed' || 'seated' => StatusTone.positive,
+        'rejected' || 'no_show' => StatusTone.negative,
+        _ => StatusTone.neutral,
+      };
+
   /// Почему клуб отказал — словами, а не кодом состояния. Причина приходит кодом из общего
   /// справочника: текст на языке стойки игроку не помог бы, а перевод у кода свой на каждый язык.
   /// Пояснение администратора, если он его написал, идёт следом — оно и есть вся конкретика.
@@ -570,7 +555,7 @@ class _ReservationCard extends StatelessWidget {
     final left = respondBy.difference(now);
     if (left.isNegative) {
       return [
-        const SizedBox(height: 4),
+        const SizedBox(height: Space.s1),
         Text(
           l.customerReservationsRespondOver,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
@@ -585,7 +570,7 @@ class _ReservationCard extends StatelessWidget {
     final at = DateFormat.Hm(dateLocale(locale)).format(respondBy.toLocal());
 
     return [
-      const SizedBox(height: 4),
+      const SizedBox(height: Space.s1),
       Text(
         '${l.customerReservationsRespondBy(at)} · $remaining',
         style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
@@ -601,27 +586,25 @@ class _ReservationCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Space.s4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                Expanded(
+                  child: Text(
                   entry.isCompany
                       ? l.customerReservationsCompanySeats(entry.seatCount)
                       : reservation.seatName ?? l.customerReservationsNoSeat,
                   style: theme.textTheme.titleMedium,
+                  ),
                 ),
-                Text(
-                  _stateLabel(l),
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
+                const SizedBox(width: Space.s2),
+                StatusBadge(label: _stateLabel(l), tone: _stateTone),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               formatTimeRange(l, reservation.startsAtUtc, reservation.endsAtUtc, locale, now: now),
               style: theme.textTheme.bodyMedium
@@ -694,26 +677,21 @@ class _MoveSheetState extends State<_MoveSheet> {
     final l = L.of(context);
     final chosen = _value;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(l.customerReservationsMoveTitle, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 16),
-          DateTimeField(
-            label: l.customerReservationsMoveWhen,
-            value: chosen,
-            firstAllowed: DateTime.now(),
-            onChanged: (value) => setState(() => _value = value),
-          ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: chosen == null ? null : () => Navigator.of(context).pop(chosen),
-            child: Text(l.customerReservationsMoveConfirm),
-          ),
-        ],
+    return AppSheet(
+      title: l.customerReservationsMoveTitle,
+      content: [
+        DateTimeField(
+          label: l.customerReservationsMoveWhen,
+          value: chosen,
+          firstAllowed: DateTime.now(),
+          onChanged: (value) => setState(() => _value = value),
+        ),
+      ],
+      actions: ActionStack(
+        primary: AppAction(
+          l.customerReservationsMoveConfirm,
+          chosen == null ? null : () => Navigator.of(context).pop(chosen),
+        ),
       ),
     );
   }

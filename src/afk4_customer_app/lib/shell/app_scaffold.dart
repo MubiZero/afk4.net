@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import '../theme/space.dart';
 
 /// Шапка раздела: крупный заголовок, который сжимается при прокрутке.
 ///
@@ -39,7 +40,7 @@ SliverAppBar appHeader(
         child: DecoratedBox(
           decoration: BoxDecoration(color: theme.canvasColor.withValues(alpha: 0.55)),
           child: FlexibleSpaceBar(
-            titlePadding: EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 14 + tabsHeight),
+            titlePadding: EdgeInsetsDirectional.only(start: Space.s5, end: Space.s5, bottom: 14 + tabsHeight),
             title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
             background: eyebrow == null && place == null
                 ? null
@@ -47,7 +48,7 @@ SliverAppBar appHeader(
                     child: Align(
                       alignment: Alignment.bottomLeft,
                       child: Padding(
-                        padding: EdgeInsets.only(left: 20, right: 20, bottom: 50 + tabsHeight),
+                        padding: EdgeInsets.only(left: Space.s5, right: Space.s5, bottom: 50 + tabsHeight),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,7 +60,7 @@ SliverAppBar appHeader(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   _PlaceMark(logoUrl: placeLogoUrl),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: Space.s2),
                                   Text(
                                     place,
                                     style: theme.textTheme.labelMedium?.copyWith(
@@ -68,7 +69,7 @@ SliverAppBar appHeader(
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: Space.s1),
                             ],
                             if (eyebrow != null)
                               Text(
@@ -167,7 +168,7 @@ class AppScaffold extends StatelessWidget {
         ...slivers,
         // Хвост под последней карточкой: без него нижний край содержимого упирается в
         // панель разделов и читается как обрезанный.
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        const SliverToBoxAdapter(child: SizedBox(height: Space.s6)),
       ],
     );
 
@@ -180,4 +181,4 @@ class AppScaffold extends StatelessWidget {
 
 /// Отступы содержимого раздела. Одно значение на все экраны: разные поля у соседних вкладок
 /// заметны при переключении сильнее, чем кажется на макете.
-const EdgeInsets sectionPadding = EdgeInsets.fromLTRB(16, 8, 16, 0);
+const EdgeInsets sectionPadding = EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, 0);

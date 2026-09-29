@@ -7,6 +7,9 @@ import '../l10n/app_localizations.dart';
 import '../push/push_notification.dart';
 import '../shell/app_scaffold.dart';
 import '../shell/load_failure.dart';
+import '../shell/empty_state.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
 
 /// Что клуб присылал этому человеку.
 ///
@@ -96,10 +99,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         slivers: [
           appHeader(context, title: l.customerNotificationsTitle),
           if (_state == _Load.loading)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
-            )
+            SliverToBoxAdapter(child: ListSkeleton(rows: 4, label: l.customerCommonLoading))
           else if (_state == _Load.failed)
             SliverFillRemaining(
               hasScrollBody: false,
@@ -110,17 +110,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           else if (_items.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    l.customerNotificationsEmpty,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              ),
+              child: EmptyState(icon: Icons.notifications_none_outlined, title: l.customerNotificationsEmpty),
             )
           else
             SliverList.separated(
@@ -141,7 +131,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(item.body),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Space.s1),
                       Text(
                         formatDateTime(l, item.createdAtUtc, locale),
                         style: theme.textTheme.bodySmall

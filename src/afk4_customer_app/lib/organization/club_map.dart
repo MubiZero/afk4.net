@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import 'organization.dart';
+import '../theme/space.dart';
 
 /// Карта клубов. Список отвечает «какие клубы есть», карта — «какой из них рядом», и второй
 /// вопрос игрок задаёт чаще: до клуба надо доехать.
@@ -33,12 +34,12 @@ class ClubMap extends StatelessWidget {
     if (points.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Space.s6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.map_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(height: 12),
+              const SizedBox(height: Space.s3),
               Text(
                 l.customerClubPickerMapEmpty,
                 textAlign: TextAlign.center,
@@ -174,7 +175,7 @@ class _MapFooter extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s2),
         child: Row(
           children: [
             Expanded(
