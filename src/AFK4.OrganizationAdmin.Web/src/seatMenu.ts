@@ -116,28 +116,25 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
     });
   }
 
-  // Статус ПК больше не пункт меню — он живёт единым блоком внизу карточки места.
-  // Обе кнопки показаны всегда: доступна только та, что меняет состояние блокировки (см.
-  // pcLockCommandsFor) — не сессия решает, а сам ПК заперт он сейчас или нет.
+  // Статус ПК больше не пункт меню — он живёт единой строкой внизу карточки места.
+  // Блокировка — по факту: заблокированному ПК предлагаем только разблокировать, и наоборот (см.
+  // pcLockCommandsFor). Пункт «Блокировать» у запертого ПК с причиной «уже заблокирован» был
+  // шумом в каждом меню. Обе — только когда статус не подтверждён или до ПК не достучаться.
   const pc: SeatMenuItem[] = [];
   if (hasDevice && caps.canLockUnlock) {
-    const [lockOption, unlockOption] = pcLockCommandsFor(seat);
-    pc.push({
-      id: 'pc-lock',
-      labelKey: 'op.map.actionLockBtn',
-      feedbackKey: 'op.map.actionLock',
-      hintKey: lockOption.hintKey ?? undefined,
-      run: { kind: 'pc', action: 'lock' },
-      disabled: lockOption.disabled
-    });
-    pc.push({
-      id: 'pc-unlock',
-      labelKey: 'op.map.actionUnlockBtn',
-      feedbackKey: 'op.map.actionUnlock',
-      hintKey: unlockOption.hintKey ?? undefined,
-      run: { kind: 'pc', action: 'unlock' },
-      disabled: unlockOption.disabled
-    });
+    const lockItems = pcLockCommandsFor(seat)
+      .filter((option) => option.hintKey !== 'op.pc.blocked.alreadyLocked' && option.hintKey !== 'op.pc.blocked.alreadyUnlocked');
+    for (const option of lockItems) {
+      const lock = option.id === 'lock';
+      pc.push({
+        id: lock ? 'pc-lock' : 'pc-unlock',
+        labelKey: lock ? 'op.map.actionLockBtn' : 'op.map.actionUnlockBtn',
+        feedbackKey: lock ? 'op.map.actionLock' : 'op.map.actionUnlock',
+        hintKey: option.hintKey === null ? undefined : shortBlockReason(option.hintKey),
+        run: { kind: 'pc', action: option.id },
+        disabled: option.disabled
+      });
+    }
   }
 
   // Остальные команды ПК — те же, что в карточке места, и закрыты по тем же причинам: почему,

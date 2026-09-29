@@ -77,6 +77,19 @@ describe('RowActions', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  // Закрытый пункт остаётся в обходе стрелками и говорит почему: на disabled-кнопку фокус не
+  // вставал, и меню из закрытых пунктов было немым.
+  it('keeps a closed item reachable and reads its reason as the description', () => {
+    render(<RowActions label="Действия" actions={actions({ edit: { disabled: true, hint: 'идёт сессия' } })} />);
+    open();
+    const edit = screen.getByRole('menuitem', { name: 'Переименовать' });
+    expect(edit).toHaveFocus();
+    expect(edit).toHaveAttribute('aria-disabled', 'true');
+    expect(edit).toHaveAccessibleDescription('идёт сессия');
+    fireEvent.keyDown(edit, { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: 'Скрыть' })).toHaveFocus();
+  });
+
   it('sets danger apart with a separator', () => {
     render(<RowActions label="Действия" actions={actions()} />);
     open();

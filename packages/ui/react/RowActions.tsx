@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { IconButton } from './Button';
@@ -13,6 +13,8 @@ export interface RowAction {
   onSelect: () => void;
   danger?: boolean;
   disabled?: boolean;
+  /** Короткая строка под подписью: почему пункт закрыт («идёт сессия») или что он сделает. */
+  hint?: string;
 }
 
 // Меню действий строки или карточки: одна кнопка следующего шага остаётся на виду, остальное —
@@ -22,6 +24,7 @@ export interface RowAction {
 // Пустой список — ничего не рисуется: кнопка, за которой пусто, обещает то, чего нет.
 export function RowActions({ actions, label, size = 'md' }: { actions: RowAction[]; label: string; size?: 'sm' | 'md' }) {
   const [open, setOpen] = useState(false);
+  const hintId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -94,18 +97,28 @@ export function RowActions({ actions, label, size = 'md' }: { actions: RowAction
           {actions.map((action, index) => (
             <Fragment key={action.id}>
               {index === separatorBeforeIndex && <div className="ui-menu-sep" role="separator" />}
+              {/* Закрытый пункт — aria-disabled, а не disabled: на disabled-кнопку фокус не встаёт,
+                  и стрелки застревали на первом же закрытом пункте, а диктор его не читал вовсе.
+                  Причина рядом, под подписью, — её читают и глазами, и диктором. */}
               <button
                 ref={(node) => { itemRefs.current[index] = node; }}
                 type="button"
                 role="menuitem"
-                className={cx('ui-menu-item', action.danger && 'is-danger')}
+                className={cx('ui-menu-item', action.danger && 'is-danger', action.hint !== undefined && 'has-hint')}
                 tabIndex={-1}
-                disabled={action.disabled}
+                aria-disabled={action.disabled || undefined}
+                aria-label={action.hint === undefined ? undefined : action.label}
+                aria-describedby={action.hint === undefined ? undefined : `${hintId}-${index}`}
                 onClick={(event) => { event.stopPropagation(); select(action); }}
                 onKeyDown={(event) => move(event, index)}
               >
                 {action.icon}
-                {action.label}
+                {action.hint === undefined ? action.label : (
+                  <span className="ui-menu-item-text">
+                    <span>{action.label}</span>
+                    <small id={`${hintId}-${index}`} className="ui-menu-item-hint">{action.hint}</small>
+                  </span>
+                )}
               </button>
             </Fragment>
           ))}
