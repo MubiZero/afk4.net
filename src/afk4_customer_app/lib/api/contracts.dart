@@ -1062,6 +1062,28 @@ abstract final class SeatStateNames {
   static const String offline = 'Offline';
 }
 
+/// Машинные имена отказов по управлению сессией. См. Reservations.ReservationErrorCodeNames
+/// — та же причина: карта пола обновляется по SignalR, но между тем, что видит стойка, и тем, что
+/// уже случилось на сервере, всегда есть зазор в доли секунды, и отказ в него нужно назвать.
+///
+/// Словарь: Sessions/SessionErrorCodeNames.cs
+abstract final class SessionErrorCodeNames {
+  /// Продлить можно только идущую или на паузе сессию — эту уже закрыли или отменили.
+  static const String notExtendable = 'session_not_extendable';
+  /// Перенести можно только идущую сессию.
+  static const String notTransferable = 'session_not_transferable';
+  /// На паузу можно поставить только идущую сессию.
+  static const String notPausable = 'session_not_pausable';
+  /// Снять с паузы можно только сессию, которая на паузе.
+  static const String notResumable = 'session_not_resumable';
+  /// Закончить можно только идущую или на паузе сессию.
+  static const String notEndable = 'session_not_endable';
+  /// Рассчитать и закрыть счёт можно только по идущей сессии — эту уже закрыли.
+  static const String notCheckoutable = 'session_not_checkoutable';
+  /// Сумма разбивки по способам оплаты не сходится со счётом — счёт успел измениться.
+  static const String checkoutSplitMismatch = 'checkout_split_mismatch';
+}
+
 /// С чего началась сессия. Раньше на этот вопрос отвечали догадкой по косвенным признакам —
 /// «раз есть бронь, значит по брони», — и догадка врала на любом нестандартном вечере.
 /// Пустая строка — законный ответ «неизвестно» для строк, заведённых до того, как вопрос начали

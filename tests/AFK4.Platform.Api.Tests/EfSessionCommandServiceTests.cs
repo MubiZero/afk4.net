@@ -783,6 +783,9 @@ public sealed class EfSessionCommandServiceTests
             sessionId, ActorStaffUserId, new PauseSessionRequest("out again", "pause-2"), CancellationToken.None);
 
         Assert.False(second.Succeeded);
+        // Карта пола могла не успеть перерисоваться после первой паузы — код должен назвать
+        // причину, а не только «данные не приняты».
+        Assert.Equal(SessionErrorCodeNames.NotPausable, second.Code);
     }
 
     [Fact]
@@ -797,6 +800,87 @@ public sealed class EfSessionCommandServiceTests
             sessionId, ActorStaffUserId, new ResumeSessionRequest("back", "resume-1"), CancellationToken.None);
 
         Assert.False(result.Succeeded);
+        Assert.Equal(SessionErrorCodeNames.NotResumable, result.Code);
+    }
+
+    // Второй нажатый "Завершить" после того, как сессию уже полностью закрыли (не "ending", а
+    // "ended") — стойка могла не успеть перерисовать карту.
+    [Fact]
+    public async Task EndSessionAsync_AlreadyEnded_ReturnsNotEndableCode()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var sessionId = await StartFixedSessionAsync(service);
+        var session = await db.Sessions.SingleAsync(candidate => candidate.SessionId == sessionId);
+        session.State = SessionStateNames.Ended;
+        await db.SaveChangesAsync();
+
+        var result = await service.EndSessionAsync(
+            sessionId, ActorStaffUserId, new EndSessionRequest("operator-end", "end-again-1"), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(SessionErrorCodeNames.NotEndable, result.Code);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_AlreadyEnded_ReturnsNotExtendableCode()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var sessionId = await StartFixedSessionAsync(service);
+        var session = await db.Sessions.SingleAsync(candidate => candidate.SessionId == sessionId);
+        session.State = SessionStateNames.Ended;
+        await db.SaveChangesAsync();
+
+        var result = await service.ExtendSessionAsync(
+            sessionId, ActorStaffUserId, new ExtendSessionRequest(15, "manual-v1", "extend-1"), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(SessionErrorCodeNames.NotExtendable, result.Code);
+    }
+
+    [Fact]
+    public async Task TransferSessionAsync_AlreadyEnded_ReturnsNotTransferableCode()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: true);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var sessionId = await StartFixedSessionAsync(service);
+        var session = await db.Sessions.SingleAsync(candidate => candidate.SessionId == sessionId);
+        session.State = SessionStateNames.Ended;
+        await db.SaveChangesAsync();
+
+        var result = await service.TransferSessionAsync(
+            sessionId, ActorStaffUserId, new TransferSessionRequest(TargetSeatId, "transfer-1"), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(SessionErrorCodeNames.NotTransferable, result.Code);
+    }
+
+    // Карта пола показывала место свободным долю секунды назад — сосед успел посадить туда
+    // гостя раньше, чем этот перенос дошёл до сервера.
+    [Fact]
+    public async Task TransferSessionAsync_TargetSeatAlreadyHasSession_ReturnsSeatUnavailableCode()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: true);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var sessionId = await StartFixedSessionAsync(service);
+        var targetStart = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, TargetSeatId, "manual-v1", "start-target-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
+            CancellationToken.None);
+        Assert.True(targetStart.Succeeded);
+
+        var result = await service.TransferSessionAsync(
+            sessionId, ActorStaffUserId, new TransferSessionRequest(TargetSeatId, "transfer-2"), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("seat_unavailable", result.Code);
     }
 
     // Повторный запрос с тем же ключом не ставит вторую паузу и не двигает время ещё раз.

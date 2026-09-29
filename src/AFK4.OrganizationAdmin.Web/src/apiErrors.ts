@@ -99,6 +99,16 @@ const codeMessageKeys = {
   correction_reason_too_short: 'op.error.code.correctionReasonTooShort',
   debt_payment_exceeds_balance: 'op.error.code.debtPaymentExceedsBalance',
   package_name_taken: 'op.error.code.packageNameTaken',
+  // Действия над идущей сессией: карта пола обновляется по SignalR, но между тем, что видит
+  // стойка, и тем, что уже случилось на сервере, есть зазор — до сих пор отказ там был просто
+  // «данные не приняты».
+  session_not_extendable: 'op.error.code.sessionNotExtendable',
+  session_not_transferable: 'op.error.code.sessionNotTransferable',
+  session_not_pausable: 'op.error.code.sessionNotPausable',
+  session_not_resumable: 'op.error.code.sessionNotResumable',
+  session_not_endable: 'op.error.code.sessionNotEndable',
+  session_not_checkoutable: 'op.error.code.sessionNotCheckoutable',
+  checkout_split_mismatch: 'op.error.code.checkoutSplitMismatch',
   // Брони: отказ почти всегда про состояние, которое успело измениться, — сосед подтвердил её
   // раньше, гость уже сидит, заявку уже отклонили. Дальше оператор делает разное, поэтому
   // отличать их нужно, а не сводить к одному «не получилось».

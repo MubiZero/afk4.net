@@ -1276,6 +1276,31 @@ export const SeatStateNames = {
 export type SeatStateName = (typeof SeatStateNames)[keyof typeof SeatStateNames];
 
 /**
+ * Машинные имена отказов по управлению сессией. См. Reservations.ReservationErrorCodeNames
+ * — та же причина: карта пола обновляется по SignalR, но между тем, что видит стойка, и тем, что
+ * уже случилось на сервере, всегда есть зазор в доли секунды, и отказ в него нужно назвать.
+ *
+ * Словарь: Sessions/SessionErrorCodeNames.cs
+ */
+export const SessionErrorCodeNames = {
+  /** Продлить можно только идущую или на паузе сессию — эту уже закрыли или отменили. */
+  NotExtendable: 'session_not_extendable',
+  /** Перенести можно только идущую сессию. */
+  NotTransferable: 'session_not_transferable',
+  /** На паузу можно поставить только идущую сессию. */
+  NotPausable: 'session_not_pausable',
+  /** Снять с паузы можно только сессию, которая на паузе. */
+  NotResumable: 'session_not_resumable',
+  /** Закончить можно только идущую или на паузе сессию. */
+  NotEndable: 'session_not_endable',
+  /** Рассчитать и закрыть счёт можно только по идущей сессии — эту уже закрыли. */
+  NotCheckoutable: 'session_not_checkoutable',
+  /** Сумма разбивки по способам оплаты не сходится со счётом — счёт успел измениться. */
+  CheckoutSplitMismatch: 'checkout_split_mismatch',
+} as const;
+export type SessionErrorCodeName = (typeof SessionErrorCodeNames)[keyof typeof SessionErrorCodeNames];
+
+/**
  * С чего началась сессия. Раньше на этот вопрос отвечали догадкой по косвенным признакам —
  * «раз есть бронь, значит по брони», — и догадка врала на любом нестандартном вечере.
  * Пустая строка — законный ответ «неизвестно» для строк, заведённых до того, как вопрос начали

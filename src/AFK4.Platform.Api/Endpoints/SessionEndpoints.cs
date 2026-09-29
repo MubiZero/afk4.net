@@ -140,7 +140,7 @@ internal static class SessionEndpoints
 
             if (!result.Succeeded)
             {
-                return Results.BadRequest(new { Error = result.Error });
+                return Results.BadRequest(new { Error = result.Error, result.Code });
             }
 
             // §5.4: a comp (free session) is audited as a first-class session.comp with its reason and its
@@ -269,7 +269,7 @@ internal static class SessionEndpoints
 
             if (!result.Succeeded)
             {
-                return Results.BadRequest(new { Error = result.Error });
+                return Results.BadRequest(new { Error = result.Error, result.Code });
             }
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
@@ -335,7 +335,7 @@ internal static class SessionEndpoints
 
             if (!result.Succeeded)
             {
-                return Results.BadRequest(new { Error = result.Error });
+                return Results.BadRequest(new { Error = result.Error, result.Code });
             }
 
             return Results.Ok(result.Response);
@@ -438,7 +438,7 @@ internal static class SessionEndpoints
             return Results.NotFound(new { Error = result.Error });
         }
 
-        return result.Succeeded ? null : Results.BadRequest(new { Error = result.Error });
+        return result.Succeeded ? null : Results.BadRequest(new { Error = result.Error, result.Code });
     }
 
     private static Task WriteSessionAuditAsync(

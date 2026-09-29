@@ -529,6 +529,9 @@ public sealed class EfSessionCheckoutServiceTests
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
+        // Кассир видел баланс кошелька до того, как игрок потратил его в другом окне, — код
+        // должен назвать причину, а не только «данные не приняты».
+        Assert.Equal("insufficient_funds", result.Code);
         Assert.Empty(dispatcher.Enqueued);
         var session = await db.Sessions.SingleAsync();
         Assert.Equal(SessionStateNames.Active, session.State);
@@ -553,8 +556,34 @@ public sealed class EfSessionCheckoutServiceTests
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
+        Assert.Equal(SessionErrorCodeNames.CheckoutSplitMismatch, result.Code);
         Assert.Empty(db.Payments);
         Assert.Empty(db.Receipts);
+    }
+
+    // Кто-то другой продал последние бутылки с той же полки между тем, как счёт открыли и
+    // подтвердили, — товар с отслеживанием остатка не продаётся в минус.
+    [Fact]
+    public async Task CheckoutAsync_AttachedPosSaleExceedsStockOnHand_ReturnsOutOfStockCode()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        await SeedAttachedPosSaleAsync(db, totalMinorUnits: 5500, quantity: 11, unitCostMinorUnits: 175);
+        var dispatcher = new RecordingDispatch();
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge + 5500))],
+                "checkout-pos-stock-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("out_of_stock", result.Code);
     }
 
     [Fact]
