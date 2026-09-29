@@ -61,6 +61,9 @@ export interface SeatSummary {
   isConsole?: boolean;
   // ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются.
   isOutsidePlan?: boolean;
+  // Какая команда администратора упала на ПК последней и не сменилась успехом — её повторяет
+  // «Повторить …» в панели места. Null — сбоя нет.
+  lastFailedCommandType?: string | null;
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;

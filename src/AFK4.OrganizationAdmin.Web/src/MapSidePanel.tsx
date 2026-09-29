@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { BellRing, Check, Loader2, Plus, TriangleAlert, Wifi, WifiOff } from 'lucide-react';
-import { useI18n } from '@afk4/i18n';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { Button, Inspector, Money, StatusBadge, useBlockedReason, type Fact, type RowAction, type StatusTone } from '@afk4/ui/react';
 import { projectOperatorError } from './apiErrors';
 import { formatBilledDuration } from './checkoutState';
@@ -19,6 +19,7 @@ import type { SeatSummary, SeatTone } from './operatorData';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   appVersionsLabel,
+  commandTypeLabel,
   commandLabel,
   createAuthenticatedOperatorClients,
   emptyFeedback,
@@ -242,6 +243,18 @@ const STATUS_TONE: Record<SeatTone, StatusTone> = {
 // Эти пункты «Ещё» уже стоят на панели кнопкой — в меню их не дублируем.
 const SHOWN_ON_PANEL = new Set(['start-guest', 'extend-15', 'extend-30', 'resolve-assistance']);
 
+// Что повторяет «Повторить …» по упавшей команде (SeatStatusDto.lastFailedCommandType). Сервер
+// называет только те команды, что администратор шлёт сам и может повторить той же кнопкой.
+const RETRY: Partial<Record<string, { action: 'lock' | 'unlock' | Exclude<PcCommandId, 'wake' | 'message'>; label: MessageKey }>> = {
+  lock: { action: 'lock', label: 'op.map.panel.retry.lock' },
+  unlock: { action: 'unlock', label: 'op.map.panel.retry.unlock' },
+  reboot: { action: 'reboot', label: 'op.map.panel.retry.reboot' },
+  shutdown: { action: 'shutdown', label: 'op.map.panel.retry.shutdown' },
+  'sign-out': { action: 'sign-out', label: 'op.map.panel.retry.signOut' },
+  'maintenance-on': { action: 'maintenance-on', label: 'op.map.panel.retry.maintenanceOn' },
+  'maintenance-off': { action: 'maintenance-off', label: 'op.map.panel.retry.maintenanceOff' }
+};
+
 export function MapSidePanel({
   seat,
   seats: floorSeats,
@@ -421,9 +434,29 @@ export function MapSidePanel({
     ? t('op.map.panel.finishAndTake', { amount: formatMinorUnits(seat.accruedCostMinorUnits, currencyCode) })
     : t('op.map.panel.finishLabel');
   const openEnd = () => setDialog(backend !== null ? 'checkout' : 'end-session');
-  const startGuest = can.start ? (
-    <Button key="start" variant="primary" block disabled={!actionsEnabled || isBusy} onClick={() => setDialog('start')}>
+  const startGuestButton = (primaryVariant: boolean) => can.start ? (
+    <Button key="start" variant={primaryVariant ? 'primary' : 'secondary'} block={primaryVariant} disabled={!actionsEnabled || isBusy} onClick={() => setDialog('start')}>
       {t('op.map.seatInvite')}
+    </Button>
+  ) : null;
+
+  // Упавшая команда — тем же путём, что из «Ещё»: с тем же ключом повтора на нажатие и, для
+  // перезагрузки или выключения, с тем же «точно?».
+  const retry = seat.lastFailedCommandType ? RETRY[seat.lastFailedCommandType] : undefined;
+  const canRetry = retry !== undefined && hasDevice && seat.isDeviceOnline !== false
+    && (retry.action === 'maintenance-on' || retry.action === 'maintenance-off' ? can.maintain : can.dispatch);
+  const retryCommand = () => {
+    if (retry === undefined) return;
+    const label = t(retry.label);
+    if (retry.action === 'lock' || retry.action === 'unlock') {
+      void runPc(label, retry.action);
+    } else {
+      askPcCommand(retry.action, label);
+    }
+  };
+  const retryButton = (primaryVariant: boolean) => canRetry && retry !== undefined ? (
+    <Button key="retry" variant={primaryVariant ? 'primary' : 'secondary'} block={primaryVariant} size={primaryVariant ? 'md' : 'sm'} disabled={!actionsEnabled || isBusy} onClick={retryCommand}>
+      {primaryVariant ? t(retry.label) : t('op.map.panel.retryShort')}
     </Button>
   ) : null;
 
@@ -431,8 +464,12 @@ export function MapSidePanel({
   let primary: ReactElement | null = null;
   let secondary: (ReactElement | null)[] = [];
   const shownOnPanel = new Set(SHOWN_ON_PANEL);
-  if (state === 'free' || state === 'failed') {
-    primary = startGuest;
+  if (state === 'failed' && canRetry) {
+    // Сбой команды: главное — повторить её, но ПК на связи, и гостя посадить тоже можно.
+    primary = retryButton(true);
+    secondary = [startGuestButton(false)];
+  } else if (state === 'free' || state === 'failed') {
+    primary = startGuestButton(true);
   } else if (state === 'session' || state === 'open-tab') {
     primary = can.end ? <Button variant="primary" block disabled={!actionsEnabled || isBusy} onClick={openEnd}>{endLabel}</Button> : null;
     secondary = [can.extend ? extend(15) : null, can.extend ? extend(30) : null, transferButton];
@@ -526,6 +563,16 @@ export function MapSidePanel({
               {t('op.map.panel.resolveAssistance')}
             </Button>
           )}
+        </div>
+      )}
+
+      {/* С игроком за ПК упавшая команда — не главная кнопка (главная — сессия), а строка с
+          «Повторить»: так видно, что разблокировка при старте не прошла и игрок сидит у экрана. */}
+      {seat.lastFailedCommandType && state !== 'failed' && state !== 'pending' && (
+        <div className="seat-failed-strip" role="status">
+          <TriangleAlert size={14} aria-hidden="true" />
+          <span>{t('op.map.panel.commandFailed', { command: commandTypeLabel(seat.lastFailedCommandType, t) })}</span>
+          {retryButton(false)}
         </div>
       )}
 
