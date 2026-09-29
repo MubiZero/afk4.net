@@ -1,20 +1,12 @@
 import { afterEach, expect } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
+import { registerTestDom } from '../../../../scripts/testing/testDom';
 import * as matchers from '@testing-library/jest-dom/matchers';
 
 // happy-dom must be registered before @testing-library is imported: testing-library's
 // `screen` binds to `document.body` at module-evaluation time, so a dynamic import keeps
 // that evaluation after the DOM globals exist.
-GlobalRegistrator.register({ url: 'https://player.afk4.local/' });
-
-// Провал проверки печатает полученный элемент. bun печатал DOM-узел целиком — через ownerDocument
-// весь документ, а у отрисованного React ещё и дерево компонентов: мегабайты текста и минуты
-// работы в нативном коде. Тест, у которого первая попытка waitFor не удалась (под нагрузкой кнопка
-// оживала на миг позже), висел по пять минут. Узел печатается своим HTML, обрезанным.
-(Node.prototype as unknown as Record<symbol, unknown>)[Symbol.for('nodejs.util.inspect.custom')] = function printShort(this: Node) {
-  const text = this instanceof Element ? this.outerHTML : `#${this.nodeName} ${JSON.stringify(this.textContent ?? '')}`;
-  return text.length > 300 ? `${text.slice(0, 300)}…` : text;
-};
+registerTestDom(GlobalRegistrator, 'https://player.afk4.local/');
 expect.extend(matchers);
 
 // Tell React 18+ that this is a test environment so it flushes state updates
