@@ -37,15 +37,17 @@ describe('operator QA visual guards', () => {
     expect(cashCss).not.toMatch(/\.cash-register-row[^}]*transform:\s*translate/);
   });
 
-  it('keeps the shift reconciliation and cash ledger readable at desktop scale', () => {
-    expect(cashCss).toMatch(/\.cash-shift-reconcile-band strong \.ui-money\s*\{[^}]*font-size:\s*inherit/s);
+  // Полоса сверки ящика ушла с вкладки «Смена» (её «Ожидается» — в шапке кассы, остальное — в окне
+  // закрытия смены); читаемость журнала чаевых и сетки остаётся под охраной.
+  it('keeps the shift grid and the tips ledger readable at desktop scale', () => {
+    expect(cashCss).not.toContain('.cash-shift-reconcile-band');
     expect(cashCss).toMatch(/\.cash-shift-main-grid\s*\{[^}]*flex:\s*1/s);
     expect(cashCss).toMatch(/\.cash-shift-movements li\s*\{[^}]*font-size:\s*15px/s);
   });
 
   it('lets the stacked shift layout grow naturally instead of overlapping at narrow widths', () => {
     expect(cashCss).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.cash-shift-main-grid\s*\{[^}]*flex:\s*none[^}]*grid-template-columns:\s*1fr/s);
-    expect(cashCss).toMatch(/\.cash-shift-status-card,\s*\.cash-shift-reconcile-band\s*\{[^}]*flex:\s*none/s);
+    expect(cashCss).toMatch(/\.cash-shift-status-card\s*\{[^}]*flex:\s*none/s);
   });
 
   it('keeps the system footer on one line with separated, truncatable fields', () => {

@@ -697,7 +697,8 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         <section className="pos-panel pos-sale-panel">
           <header className="pos-panel-title">
             <span>{t('op.pos.cart.title')}</span>
-            <strong>{shiftId ? t('op.pos.cart.shiftOpen') : t('op.pos.cart.shiftClosed')}</strong>
+            {/* Открытая смена видна в шапке кассы; здесь говорим только о том, что мешает продать. */}
+            {shiftId ? null : <strong className="pos-cart-shift-closed">{t('op.pos.cart.shiftClosed')}</strong>}
           </header>
           {/* КТО — клиент одной строкой; поиск разворачивается по «Выбрать» */}
           {selectedPosPlayer ? (

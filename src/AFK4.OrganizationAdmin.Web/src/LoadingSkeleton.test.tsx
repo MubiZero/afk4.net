@@ -167,20 +167,19 @@ describe('cash, news, events and client screens wait in the shape of their conte
     globalThis.fetch = (() => new Promise<Response>(() => {})) as unknown as typeof fetch;
   });
 
-  it('shift: status with commands, the drawer check, the revenue strip, cash movements and past shifts', async () => {
+  // Сверка ящика и движение наличных ушли со вкладки (первое — в шапку и окно закрытия, второе —
+  // во вкладку «Кассовые операции»), и заглушка их больше не обещает.
+  it('shift: status with the export menu, the revenue strip and past shifts', async () => {
     const { container } = renderRu(
-      <CashShiftWorkspace backend={null} branchId="branch-1" currencyCode="TJS" revenueClient={{ current: never, history: never }} reports={{ getCashOperationReport: never }} />
+      <CashShiftWorkspace backend={null} branchId="branch-1" currencyCode="TJS" revenueClient={{ current: never, history: never }} />
     );
     await waitFor(() => expect(container.querySelector('[data-skeleton="cash-shift"]')).toBeTruthy());
     const shape = container.querySelector('[data-skeleton="cash-shift"]')!;
     expect(shape.querySelectorAll('.cash-shift-status-card > .cash-shift-status-block')).toHaveLength(4);
     expect(shape.querySelector('.cash-shift-status-actions .skeleton-control')).toBeTruthy();
-    expect(shape.querySelectorAll('.cash-shift-reconcile-band > div')).toHaveLength(3);
+    expect(shape.querySelector('.cash-shift-reconcile-band')).toBeNull();
     expect(shape.querySelector('.cash-shift-revenue-strip > .cash-shift-revenue-total')).toBeTruthy();
-    expect(shape.querySelectorAll('.cash-shift-movement-head > span')).toHaveLength(5);
-    const movements = shape.querySelectorAll('.cash-shift-movements > li');
-    expect(movements.length).toBeGreaterThan(0);
-    for (const row of movements) expect(row.children).toHaveLength(5);
+    expect(shape.querySelector('.cash-shift-movement-ledger')).toBeNull();
     expect(shape.querySelectorAll('.cash-shift-history-panel .cash-register-row .cash-shift-history-row').length).toBeGreaterThan(0);
     noLoadingText();
   });

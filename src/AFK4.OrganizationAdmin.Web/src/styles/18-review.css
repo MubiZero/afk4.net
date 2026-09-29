@@ -1,26 +1,5 @@
-/* Согласования (очередь одобрений + журнал операций), в т.ч. встроенные в «Журнал кассы».
-   Язык консоли: подчёркнутые под-вкладки (не пилюли), парящие карточки, актуальные токены. */
-.review-segments {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-}
-.review-segments button {
-  appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--space-1) var(--space-2);
-  min-height: var(--control-sm);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-.review-segments button:hover { color: var(--text-primary); }
-.review-segments button.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
-.review-segments button:focus-visible { outline: none; border-radius: 5px; box-shadow: var(--focus-ring); }
-
+/* Согласования — вкладка кассы: очередь одобрений, история решений и журнал операций.
+   Вкладки — Tabs кита. */
 .review-panel {
   display: flex;
   flex-direction: column;
@@ -45,14 +24,6 @@
 .review-request-row em { color: var(--text-secondary); font-style: normal; }
 .review-request-meta { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: 12px; color: var(--text-tertiary); }
 .review-request-actions { display: flex; gap: var(--space-2); }
-.review-request-actions button {
-  min-height: var(--control-sm); padding: 0 var(--space-3);
-  border: 1px solid var(--border-soft); border-radius: 6px;
-  background: var(--surface-elevated); color: var(--text-primary); cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-.review-request-actions button:hover { border-color: var(--accent); color: var(--accent-bright); }
-.review-request-actions button:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 
 .review-reject-form { display: flex; flex-direction: column; gap: var(--space-2); }
 .review-reject-form label,
@@ -65,13 +36,6 @@
   background: var(--surface-sunken); color: var(--text-primary);
 }
 .review-audit-filters { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; }
-.review-audit-filters button {
-  min-height: var(--control-md); padding: 0 var(--space-3);
-  border: 1px solid var(--border-soft); border-radius: 6px;
-  background: var(--surface-elevated); color: var(--text-primary); cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-.review-audit-filters button:hover { border-color: var(--accent); color: var(--accent-bright); }
 
 /* Журнал операций — read-only ряды-разделители в парящей панели (как лента кассы). */
 .review-audit-list {
@@ -118,9 +82,8 @@
 }
 
 /* Согласования: плотный реестр риска с решением в стабильном инспекторе. */
-.review-embed,
-.review-screen { min-height: 0; }
-.review-embed > .cash-terminal-metrics { flex: none; }
+.review-embed { min-height: 0; }
+.review-segments { flex: none; }
 .review-embed > .cash-terminal-split { flex: 1; min-height: 380px; }
 .review-approval-row { display: grid; grid-template-columns: 92px 90px minmax(0, 1fr) 110px auto; align-items: center; gap: var(--space-3); min-height: 54px; padding: var(--space-2) var(--space-3); }
 .review-approval-row > span { color: var(--text-primary); font-size: 12px; font-weight: 650; }

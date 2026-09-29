@@ -1,7 +1,10 @@
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
-import type { CashTab } from './CashTabBar';
+
+// Вкладки «Кассы» — один уровень. Кассовые операции, чеки и согласования раньше жили вкладками
+// внутри «Журнала кассы», а у согласований были свои вкладки — третий уровень, в котором терялись.
+export type CashTab = 'sales' | 'shift' | 'topups' | 'ops' | 'receipts' | 'review';
 
 type Money = ShiftRevenueDto['earned']['total'];
 
@@ -19,17 +22,12 @@ const CASH_TAB_PERMISSIONS: Record<CashTab, readonly string[]> = {
   shift: [permissionNames.viewShift, permissionNames.openShift, permissionNames.closeShift, permissionNames.manageShiftCash, permissionNames.viewReports],
   // Очередь заявок читает и закрывает тот же, кто вправе пополнять кошелёк.
   topups: [permissionNames.topUpWallet],
-  journal: [
-    permissionNames.approveMoneyAction,
-    permissionNames.viewReports,
-    permissionNames.viewShift,
-    permissionNames.manageShiftCash,
-    permissionNames.viewReceipt,
-    permissionNames.refundPosSale
-  ]
+  ops: [permissionNames.viewReports, permissionNames.viewShift, permissionNames.manageShiftCash],
+  receipts: [permissionNames.viewReceipt, permissionNames.refundPosSale],
+  review: [permissionNames.approveMoneyAction]
 };
 
-const CASH_TAB_ORDER: CashTab[] = ['sales', 'shift', 'topups', 'journal'];
+const CASH_TAB_ORDER: CashTab[] = ['sales', 'shift', 'topups', 'ops', 'receipts', 'review'];
 
 export function visibleCashTabs(session: OperatorAuthSession | null): CashTab[] {
   return CASH_TAB_ORDER.filter((id) => hasAnyPermission(session, CASH_TAB_PERMISSIONS[id]));
