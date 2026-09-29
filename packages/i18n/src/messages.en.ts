@@ -3396,6 +3396,7 @@ export const en = {
   "op.stock.summary.orderBtn": "Record receipt",
   "op.stock.summary.orderTitle": "Reorder",
   "op.stock.summary.totalValue": "Stock value",
+  "op.stock.summary.totalValuePartialHint": "The purchase price isn't known for every item on the shelf — the total is approximate.",
   "op.stock.tab.inventory": "Inventory",
   "op.stock.tab.journal": "Journal",
   "op.stock.tab.levels": "Levels",

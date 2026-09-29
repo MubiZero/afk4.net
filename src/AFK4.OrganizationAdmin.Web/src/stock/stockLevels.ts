@@ -49,23 +49,28 @@ export function mapCatalogToStock(catalog: PosProductDto[], categories?: PosCate
 
 // Стоимость склада неизвестна (`null`), пока ни у одного товара на полке не заведена
 // себестоимость: «0 с.» читалось как «склад ничего не стоит». Себестоимость есть лишь у части —
-// сумма по тем, у кого она есть.
-// ponytail: частичная сумма не помечена как частичная; пометка — когда себестоимость станет обязательной не везде.
+// сумма по тем, у кого она есть, и `partial` говорит об этом отдельно: сумма настоящая, но не
+// полная, и молчать об этом — значит выдавать её за весь склад.
 export function summarize(items: StockItem[]): {
   totalValueMinorUnits: number | null;
+  partial: boolean;
   lowCount: number;
   outCount: number;
 } {
   let total = 0;
   let costKnown = false;
+  let costMissing = false;
   let low = 0;
   let out = 0;
   for (const it of items) {
     total += stockValueMinorUnits(it);
-    if (it.stockOnHand > 0 && it.avgCostMinorUnits > 0) costKnown = true;
+    if (it.stockOnHand > 0) {
+      if (it.avgCostMinorUnits > 0) costKnown = true;
+      else costMissing = true;
+    }
     const status = stockStatus(it);
     if (status === 'out') out += 1;
     else if (status === 'low') low += 1;
   }
-  return { totalValueMinorUnits: costKnown ? total : null, lowCount: low, outCount: out };
+  return { totalValueMinorUnits: costKnown ? total : null, partial: costKnown && costMissing, lowCount: low, outCount: out };
 }

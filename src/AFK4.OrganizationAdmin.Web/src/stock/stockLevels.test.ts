@@ -73,5 +73,23 @@ describe('summarize', () => {
       item({ stockOnHand: 0, avgCostMinorUnits: 500 })
     ]);
     expect(r.totalValueMinorUnits).toBeNull();
+    expect(r.partial).toBe(false);
+  });
+
+  it('себестоимость известна не у всех товаров на полке → сумма есть, но помечена как частичная', () => {
+    const r = summarize([
+      item({ stockOnHand: 3, avgCostMinorUnits: 400 }),
+      item({ stockOnHand: 5, avgCostMinorUnits: 0 })
+    ]);
+    expect(r.totalValueMinorUnits).toBe(3 * 400);
+    expect(r.partial).toBe(true);
+  });
+
+  it('себестоимость известна у всех товаров на полке → сумма полная, не частичная', () => {
+    const r = summarize([
+      item({ stockOnHand: 3, avgCostMinorUnits: 400 }),
+      item({ stockOnHand: 0, avgCostMinorUnits: 0 })
+    ]);
+    expect(r.partial).toBe(false);
   });
 });

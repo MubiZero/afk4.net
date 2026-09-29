@@ -3396,6 +3396,7 @@ export const ru = {
   "op.stock.summary.orderBtn": "Оформить приёмку",
   "op.stock.summary.orderTitle": "Дозаказать",
   "op.stock.summary.totalValue": "Стоимость склада",
+  "op.stock.summary.totalValuePartialHint": "Себестоимость известна не у всех товаров на полке — сумма приблизительная.",
   "op.stock.tab.inventory": "Инвентаризация",
   "op.stock.tab.journal": "Журнал",
   "op.stock.tab.levels": "Остатки",

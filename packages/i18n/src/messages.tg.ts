@@ -3396,6 +3396,7 @@ export const tg = {
   "op.stock.summary.orderBtn": "Қабул кардан",
   "op.stock.summary.orderTitle": "Бояд фармоиш дод",
   "op.stock.summary.totalValue": "Арзиши анбор",
+  "op.stock.summary.totalValuePartialHint": "Нархи харид на ҳамаи молҳо дар анбор маълум нест — маблағ тахминист.",
   "op.stock.tab.inventory": "Барӯйхатгирӣ",
   "op.stock.tab.journal": "Журнали ҳаракат",
   "op.stock.tab.levels": "Бақияҳо",
