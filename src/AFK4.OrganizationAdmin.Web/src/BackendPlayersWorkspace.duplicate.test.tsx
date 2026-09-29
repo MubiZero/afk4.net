@@ -61,7 +61,7 @@ async function fillNewClient(phone: string) {
       </ToastProvider>
     </I18nProvider>
   );
-  await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
+  await screen.findByText('Фаррух Азизов', { selector: '.ui-inspector-title' });
   fireEvent.click(screen.getByRole('button', { name: 'Новый клиент' }));
   fireEvent.change(await screen.findByLabelText('Имя нового клиента'), { target: { value: 'Фаррух А.' } });
   fireEvent.change(screen.getByLabelText('Телефон нового клиента'), { target: { value: phone } });

@@ -75,11 +75,10 @@
     "mono": 13
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/12-players.css": {
-    "font-size": 40,
-    "radius": 10,
-    "spacing": 37,
-    "hex": 1,
-    "mono": 9
+    "font-size": 28,
+    "radius": 4,
+    "spacing": 20,
+    "hex": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/13-payments.css": {
     "font-size": 20,

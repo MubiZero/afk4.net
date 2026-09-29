@@ -1,7 +1,8 @@
 import { useI18n } from '@afk4/i18n';
-import { Package, Play, Search, UserRoundPlus, Users } from 'lucide-react';
+import { Package, Play, Search, Users } from 'lucide-react';
 import { initials, type PlayerClientItem } from '../operatorHelpers';
 import { Skeleton, EmptyState, Money } from '../operatorPrimitives';
+import { Button, FilterChip } from '@afk4/ui/react';
 import {
   activePackageLabel,
   isNewClient,
@@ -27,7 +28,6 @@ export function ClientsTable({
   canCreatePlayer,
   liveContextByClient,
   nowMs,
-  onNewClient,
   canImport = false,
   onImport,
   onSearchChange,
@@ -47,7 +47,6 @@ export function ClientsTable({
   canCreatePlayer: boolean;
   liveContextByClient: Map<string, ClientLiveContext>;
   nowMs: number;
-  onNewClient: () => void;
   // Перенос гостей из прежней программы — у владельца.
   canImport?: boolean;
   onImport?: () => void;
@@ -63,6 +62,7 @@ export function ClientsTable({
         <label className="tt-search">
           <Search size={14} aria-hidden="true" />
           <input
+            aria-label={t('op.players.list.searchPlaceholder')}
             placeholder={t('op.players.list.searchPlaceholder')}
             value={search}
             onChange={(event) => onSearchChange(event.currentTarget.value)}
@@ -71,28 +71,21 @@ export function ClientsTable({
 
         <div className="tt-segs" role="group" aria-label={t('op.players.segments.title')}>
           {segments.map((segment) => (
-            <button
+            <FilterChip
               key={segment.id}
-              type="button"
-              className={`ui-chip ui-chip--filter${activeSegment === segment.id ? ' is-active' : ''}`}
+              label={segment.label}
+              count={segment.count}
+              pressed={activeSegment === segment.id}
               onClick={() => onSelectSegment(segment.id)}
-            >
-              {segment.label}
-              <b>{segment.count}</b>
-            </button>
+            />
           ))}
         </div>
 
         <div className="tt-spacer" />
 
         {canImport && onImport ? (
-          <button type="button" className="ui-btn" onClick={onImport}>{t('op.players.import.openBtn')}</button>
+          <Button onClick={onImport}>{t('op.players.import.openBtn')}</Button>
         ) : null}
-        {canCreatePlayer && (
-          <button type="button" className="ui-btn ui-btn--primary" onClick={onNewClient}>
-            <UserRoundPlus size={14} aria-hidden="true" />{t('op.players.newClient.openBtn')}
-          </button>
-        )}
       </div>
 
       <div className="ctable-head ctable-grid" aria-hidden="true">
@@ -167,7 +160,6 @@ export function ClientsTable({
             connected={connected}
             filtered={search.trim() !== '' || activeSegment !== 'all'}
             canCreatePlayer={canCreatePlayer}
-            onNewClient={onNewClient}
             onResetFilter={() => {
               onSearchChange('');
               onSelectSegment('all');
@@ -181,12 +173,12 @@ export function ClientsTable({
 
 // Пустой список клиентов бывает трёх сортов, и следующий шаг у каждого свой: не подключились —
 // подключиться; поиск или отбор никого не нашёл — снять их; базы ещё нет — завести клиента
-// (или, без права, узнать, кто заводит).
-function ClientsEmpty({ connected, filtered, canCreatePlayer, onNewClient, onResetFilter }: {
+// кнопкой «Новый клиент» в шапке раздела (или, без права, узнать, кто заводит). Вторая такая же
+// кнопка посреди пустого списка была бы второй главной на экране.
+function ClientsEmpty({ connected, filtered, canCreatePlayer, onResetFilter }: {
   connected: boolean;
   filtered: boolean;
   canCreatePlayer: boolean;
-  onNewClient: () => void;
   onResetFilter: () => void;
 }) {
   const { t } = useI18n();
@@ -209,7 +201,7 @@ function ClientsEmpty({ connected, filtered, canCreatePlayer, onNewClient, onRes
       icon={icon}
       title={t('op.players.list.noneTitle')}
       next={canCreatePlayer
-        ? { kind: 'action', label: t('op.players.newClient.openBtn'), onClick: onNewClient }
+        ? { kind: 'formAbove' }
         : { kind: 'denied', hint: t('op.players.list.noneDenied') }}
     />
   );

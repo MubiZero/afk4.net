@@ -19,7 +19,8 @@ import {
 } from './operatorHelpers';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContextMap, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
 import { fetchPlayersData, playersSnapshotCache } from './players/playersSnapshot';
-import { StateFlag } from './operatorPrimitives';
+import { Button, Money, SectionHeader } from '@afk4/ui/react';
+import { UserRoundPlus } from 'lucide-react';
 import { useFeedbackToasts } from './useFeedbackToasts';
 import { ClientsTable } from './players/ClientsTable';
 import { ClientDrawer } from './players/ClientDrawer';
@@ -375,10 +376,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     && Boolean(selectedClient.playerAccountId)
     && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.topUpWallet);
-  // Неактивному клиенту кошелёк не показывается вовсе, поэтому остаётся одна причина — право.
-  const topUpBlockedReason = backend !== null && !hasPermission(backend.session, permissionNames.topUpWallet)
-    ? t('op.players.wallet.topUpNoPermission')
-    : null;
   const canPayDebt = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
@@ -839,22 +836,19 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
 
   return (
     <main className="workspace-screen clients-screen">
-      <section className="clients-head">
-        <h1>
-          <strong className="clients-head-name">{t('op.players.title')}</strong>
-          {' · '}
-          <span className="clients-head-tagline">{t('op.players.tagline')}</span>
-        </h1>
-        <div className="clients-head-metrics">
-          <StateFlag label={t('op.players.overview.clients')} value={String(overview.count)} />
-          <StateFlag label={t('op.players.overview.deposits')} value={formatMinorUnits(overview.depositMinorUnits, currencyCode)} />
-          <StateFlag
-            label={t('op.players.overview.debts')}
-            value={formatMinorUnits(overview.debtMinorUnits, currencyCode)}
-            tone={overview.debtMinorUnits > 0 ? 'warning' : undefined}
-          />
-        </div>
-      </section>
+      {/* Клиентов в шапке не считаем: столько же показывает фильтр «Все» прямо под ней. */}
+      <SectionHeader
+        title={t('op.players.title')}
+        counts={[
+          { label: t('op.players.overview.balances'), value: <Money minorUnits={overview.balanceMinorUnits} currencyCode={currencyCode} /> },
+          { label: t('op.players.overview.debts'), value: <Money minorUnits={overview.debtMinorUnits} currencyCode={currencyCode} />, tone: overview.debtMinorUnits > 0 ? 'warning' : undefined }
+        ]}
+        action={canCreatePlayer ? (
+          <Button variant="primary" onClick={() => setNewClientOpen(true)}>
+            <UserRoundPlus size={14} aria-hidden="true" />{t('op.players.newClient.openBtn')}
+          </Button>
+        ) : undefined}
+      />
 
       <div className="clients-grid">
         <ClientsTable
@@ -870,7 +864,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           canCreatePlayer={canCreatePlayer}
           liveContextByClient={liveContextByClient}
           nowMs={nowMs}
-          onNewClient={() => setNewClientOpen(true)}
           canImport={canImportPlayers}
           onImport={() => setImportOpen(true)}
           onSearchChange={setClientSearch}
@@ -892,7 +885,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             packagesErrorDetail={packagesErrorDetail}
             topUpAmount={walletTopUpAmount}
             canTopUp={canTopUpWallet}
-            topUpBlockedReason={topUpBlockedReason}
             onChangeTopUpAmount={setWalletTopUpAmount}
             onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
             onOpenDcTopUp={() => setDcTopUpOpen(true)}
@@ -1015,7 +1007,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           onChangeAmount={setDebtPaymentAmount}
           onChangeReason={setDebtPaymentReason}
           onClose={() => setPayDebtOpen(false)}
-          onSubmit={() => void runClientAction('writeOffDebt', t('op.players.actions.writeOffDebtBtn'))}
+          onSubmit={() => void runClientAction('writeOffDebt', t('op.players.actions.payDebtBtn'))}
           busy={feedback.state === 'pending'}
         />
       )}

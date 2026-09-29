@@ -1,10 +1,10 @@
 import { useI18n } from '@afk4/i18n';
-import { ReceiptText } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { PanelModal } from '../PanelModal';
 
-// Диалог погашения долга. Презентационный: реальный вызов — в оркестраторе (writeOffDebt).
-// Раньше был всегда развёрнутой inline-формой в WalletSection; теперь открывается кнопкой из
-// WalletZone. Та же бизнес-логика, только спрятана до нажатия.
+// Диалог оплаты долга. Презентационный: реальный вызов — в оркестраторе (writeOffDebt).
+// Это приём денег от игрока, а не списание: главная кнопка, не красная. Красным рисуется только
+// необратимое, а оплату долга, как и любое движение по журналу, можно вернуть.
 export function PayDebtModal({
   amount,
   reason,
@@ -25,7 +25,7 @@ export function PayDebtModal({
   const { t } = useI18n();
 
   return (
-    <PanelModal title={t('op.players.wallet.payDebtTitle')} tone="danger" onClose={onClose}>
+    <PanelModal title={t('op.players.actions.payDebtBtn')} onClose={onClose}>
       <form
         className="clients-paydebt-form"
         onSubmit={(event) => {
@@ -54,10 +54,7 @@ export function PayDebtModal({
             onChange={(event) => onChangeReason(event.currentTarget.value)}
           />
         </div>
-        <button type="submit" className="ui-btn ui-btn--danger ui-btn--block" disabled={busy}>
-          <ReceiptText size={15} aria-hidden="true" />
-          {t('op.players.actions.writeOffDebtBtn')}
-        </button>
+        <Button type="submit" variant="primary" block disabled={busy}>{t('op.players.actions.payDebtBtn')}</Button>
       </form>
     </PanelModal>
   );

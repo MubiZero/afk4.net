@@ -1090,16 +1090,18 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Клиенты'));
-    const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.clients-head');
+    const clientsHead = (await screen.findByRole('heading', { name: 'Клиенты' })).closest('.ui-section-header');
     expect(clientsHead).toBeInTheDocument();
-    // глобальные метрики базы в шапке: Клиентов / Депозиты / Долги (сумма по базе, не per-client)
-    expect(clientsHead).toHaveTextContent('Клиентов');
+    // Денежная картина базы в шапке: На балансах / Долги. Число клиентов не повторяем — его
+    // показывает фильтр «Все» под шапкой.
+    expect(clientsHead).toHaveTextContent('На балансах');
     expect(clientsHead).toHaveTextContent('Долги');
+    expect(clientsHead).not.toHaveTextContent('Клиентов');
     // Таблица + drawer выбранного клиента видны одновременно: тулбар таблицы, зона денег и мини-история.
     expect(screen.getByRole('button', { name: /Новый клиент/ })).toBeInTheDocument();
     expect(await screen.findByLabelText('Сумма пополнения')).toBeInTheDocument();
     expect(screen.getByText('Последние операции')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Пополнить баланс' })).toBeInTheDocument();
 
     gotoWorkspace('Смена');
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
@@ -1668,11 +1670,11 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
-    const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
+    const topUpWalletButton = screen.getByRole('button', { name: 'Пополнить баланс' });
     await waitFor(() => expect(topUpWalletButton).toBeEnabled());
     fireEvent.click(topUpWalletButton);
 
-    expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Пополнить баланс: подтверждено')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
       init?.method === 'POST');
@@ -1693,20 +1695,20 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Пополнить баланс' })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
-    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Оплатить долг' });
     await waitFor(() => expect(openPayDebtButton).toBeEnabled());
     fireEvent.click(openPayDebtButton);
 
-    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Оплатить долг' });
     fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
     fireEvent.change(within(payDebtDialog).getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
-    fireEvent.click(within(payDebtDialog).getByRole('button', { name: 'Списать долг' }));
+    fireEvent.click(within(payDebtDialog).getByRole('button', { name: 'Оплатить долг' }));
 
-    expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Оплатить долг: подтверждено')).toBeInTheDocument();
     // модалка закрывается сама на успехе
-    expect(screen.queryByRole('dialog', { name: 'Погасить долг' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Оплатить долг' })).toBeNull();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');
@@ -1730,11 +1732,11 @@ describe('App', () => {
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '50.00' } });
     // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
-    const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
+    const topUpWalletButton = screen.getByRole('button', { name: 'Пополнить баланс' });
     await waitFor(() => expect(topUpWalletButton).toBeEnabled());
     fireEvent.click(topUpWalletButton);
 
-    expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Пополнить баланс: подтверждено')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
       init?.method === 'POST');
@@ -1751,20 +1753,20 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Пополнить баланс' })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
-    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Оплатить долг' });
     await waitFor(() => expect(openPayDebtButton).toBeEnabled());
     fireEvent.click(openPayDebtButton);
 
-    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Оплатить долг' });
     fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
     // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
-    const payDebtButton = within(payDebtDialog).getByRole('button', { name: 'Списать долг' });
+    const payDebtButton = within(payDebtDialog).getByRole('button', { name: 'Оплатить долг' });
     await waitFor(() => expect(payDebtButton).toBeEnabled());
     fireEvent.click(payDebtButton);
 
-    expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Оплатить долг: подтверждено')).toBeInTheDocument();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');

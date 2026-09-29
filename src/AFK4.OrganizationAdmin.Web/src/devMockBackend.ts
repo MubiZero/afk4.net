@@ -1002,7 +1002,7 @@ function walletSummary() {
 
 function playerPackages() {
   return [
-    { playerPackageId: 'pp-1', name: 'Ночной 5ч', purchasedPrice: money(25000), includedSeconds: 18000, bonusSeconds: 1800, remainingIncludedSeconds: 9000, remainingBonusSeconds: 1800, purchasedAtUtc: minutesAgoUtc(1440), expiresAtUtc: FAR_FUTURE }
+    { playerPackageId: 'pp-1', name: 'Ночной 5ч', purchasedPrice: money(25000), includedSeconds: 18000, bonusSeconds: 1800, remainingIncludedSeconds: 9000, remainingBonusSeconds: 1800, purchasedAtUtc: minutesAgoUtc(1440), expiresAtUtc: minutesAgoUtc(1440 - 30 * 24 * 60) }
   ];
 }
 

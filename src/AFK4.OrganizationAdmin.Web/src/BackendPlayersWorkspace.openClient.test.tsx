@@ -92,7 +92,7 @@ describe('BackendPlayersWorkspace · заход из палитры', () => {
   it('открывает карточку того, кого выбрали, а не первого в списке', async () => {
     renderWorkspace({ playerAccountId: 'p2', search: 'Фаррух' });
 
-    const drawerName = await screen.findByText('Фаррух Одинаев', { selector: '.drawer-name' });
+    const drawerName = await screen.findByText('Фаррух Одинаев', { selector: '.ui-inspector-title' });
     expect(drawerName).toBeDefined();
     expect(searchPlayers.mock.calls[0]![1]).toBe('Фаррух');
   });
@@ -101,7 +101,7 @@ describe('BackendPlayersWorkspace · заход из палитры', () => {
   it('без выбора из палитры ищет по пустой строке', async () => {
     renderWorkspace();
 
-    await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
+    await screen.findByText('Фаррух Азизов', { selector: '.ui-inspector-title' });
     expect(searchPlayers.mock.calls[0]![1]).toBe('');
   });
 });

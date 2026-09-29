@@ -273,11 +273,14 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
+/* Нижняя граница — чтобы подсказка поиска читалась целиком: при узком окне поле делило свободное
+   место поровну с распоркой тулбара и обрезало её до «Игрок, телефон, карт». */
 .tt-search {
   display: flex;
   flex: 1;
   align-items: center;
   gap: 8px;
+  min-width: 200px;
   max-width: 360px;
   height: 34px;
   border: 1px solid var(--border-default);

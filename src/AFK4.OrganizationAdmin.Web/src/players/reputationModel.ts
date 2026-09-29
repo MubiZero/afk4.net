@@ -1,9 +1,6 @@
 import type { MessageKey } from '@afk4/i18n';
 import { PlatformApiError } from '../platformApi';
 import { localPhoneDigits } from '../phoneFormat';
-import type { PlayerReputationDto } from '../operatorApiClients';
-
-export type ReputationTone = 'clean' | 'watch' | 'banned';
 
 /**
  * Точный номер для спроса у сети, или null — если номера как такового нет.
@@ -14,15 +11,6 @@ export type ReputationTone = 'clean' | 'watch' | 'banned';
 export function reputationLookupPhone(raw: string): string | null {
   const local = localPhoneDigits(raw);
   return local.length === 9 ? `+992${local}` : null;
-}
-
-/**
- * Тон карточки. Ноль визитов — это «сеть его не знает», а не «подозрительный»: у только что
- * зарегистрировавшегося человека и у незнакомого сети номера ответ одинаковый по построению.
- */
-export function reputationTone(reputation: PlayerReputationDto): ReputationTone {
-  if (reputation.networkBanned) return 'banned';
-  return reputation.networkNoShows > 0 ? 'watch' : 'clean';
 }
 
 /**

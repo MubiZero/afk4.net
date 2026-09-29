@@ -101,7 +101,7 @@ function renderWorkspace() {
 
 async function openBookingDialog() {
   renderWorkspace();
-  await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
+  await screen.findByText('Фаррух Азизов', { selector: '.ui-inspector-title' });
   fireEvent.click(screen.getByRole('button', { name: "Действия с клиентом" }));
   fireEvent.click(await screen.findByRole('menuitem', { name: 'Создать бронь' }));
 }
@@ -167,7 +167,7 @@ describe('BackendPlayersWorkspace · продажа пакета из карто
 
   it('продаёт пакет тому, чья карточка открыта', async () => {
     renderWorkspace();
-    await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
+    await screen.findByText('Фаррух Азизов', { selector: '.ui-inspector-title' });
     fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Продать пакет' }));
 
@@ -192,9 +192,9 @@ describe('BackendPlayersWorkspace · посадить за ПК из карто�
 
   it('предлагает только свободные места и сажает выбранного клиента', async () => {
     renderWorkspace();
-    await screen.findByText('Фаррух Азизов', { selector: '.drawer-name' });
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Посадить за ПК' }));
+    await screen.findByText('Фаррух Азизов', { selector: '.ui-inspector-title' });
+    // «Посадить за ПК» — кнопка на виду в карточке, а не пункт «⋯».
+    fireEvent.click(await screen.findByRole('button', { name: 'Посадить за ПК' }));
 
     await waitFor(() => expect(getFloorMap).toHaveBeenCalled());
     const seat = await screen.findByLabelText('Место');
@@ -205,7 +205,7 @@ describe('BackendPlayersWorkspace · посадить за ПК из карто�
     // секунду — на загруженном раннере секунды не хватало, и проверка падала на ровном месте.
     await waitFor(() => expect(getTariffOptions).toHaveBeenCalled());
 
-    // Пункт меню и кнопка подтверждения называются одинаково — берём ту, что в диалоге.
+    // Кнопка карточки и кнопка подтверждения называются одинаково — берём ту, что в диалоге.
     const submit = (await screen.findAllByRole('button', { name: 'Посадить за ПК' })).at(-1)!;
     await waitFor(() => expect(submit).not.toBeDisabled(), { timeout: 5000 });
     fireEvent.click(submit);

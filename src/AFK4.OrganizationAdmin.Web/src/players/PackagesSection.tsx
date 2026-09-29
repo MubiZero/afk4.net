@@ -17,16 +17,16 @@ export function PackagesSection({ packages, loading, errorDetail, canSellPackage
   if (loading) {
     return (
       <section className="clients-packages-section">
-        <span className="eyebrow">{t('op.players.profile.packagesLabel')}</span>
+        <h3 className="ui-section-label">{t('op.players.profile.packagesLabel')}</h3>
         <DeferredSkeleton><article data-skeleton="list" aria-hidden="true"><SkeletonLine width="90%" /><SkeletonLine width="45%" /></article></DeferredSkeleton>
       </section>
     );
   }
-  if (errorDetail) return <section className="clients-packages-section"><span className="eyebrow">{t('op.players.profile.packagesLabel')}</span><p role="alert">{errorDetail}</p></section>;
+  if (errorDetail) return <section className="clients-packages-section"><h3 className="ui-section-label">{t('op.players.profile.packagesLabel')}</h3><p role="alert">{errorDetail}</p></section>;
   if (packages.length === 0) {
     return (
       <section className="clients-packages-section">
-        <span className="eyebrow">{t('op.players.profile.packagesLabel')}</span>
+        <h3 className="ui-section-label">{t('op.players.profile.packagesLabel')}</h3>
         <EmptyState
           inline
           title={t('op.players.packages.emptyTitle')}
@@ -39,7 +39,7 @@ export function PackagesSection({ packages, loading, errorDetail, canSellPackage
   }
   return (
     <section className="clients-packages-section">
-      <span className="eyebrow">{t('op.players.profile.packagesLabel')}</span>
+      <h3 className="ui-section-label">{t('op.players.profile.packagesLabel')}</h3>
       {packages.map((pkg) => {
         const view = projectPlayerPackage(pkg, t, locale);
         return <article key={view.id}>

@@ -1,93 +1,35 @@
 import { useI18n } from '@afk4/i18n';
-import { CircleDollarSign, QrCode, ReceiptText, SlidersHorizontal } from 'lucide-react';
-import { useBlockedReason } from '@afk4/ui/react';
+import { Button } from '@afk4/ui/react';
 
-// Форма денежных действий клиента: поле «своя сумма» + кнопка пополнения, затем «Погасить
-// долг» (только при долге) / «Ручная корректировка» (только при праве). Баланс/долг как
-// ЦИФРЫ — забота вызывающего экрана (ClientDetail рисует свои плитки-стат, ClientDrawer —
-// баланс-герой/долг-callout выше формы): WalletZone больше не показывает деньги, только
-// действия с ними. Возврат живёт построчно в Истории, не здесь.
-export function WalletZone({
-  debtMinorUnits,
-  topUpAmount,
-  canTopUp,
-  topUpBlockedReason = null,
-  onChangeTopUpAmount,
-  onTopUp,
-  onOpenDcTopUp,
-  canPayDebt,
-  onOpenPayDebt,
-  canCorrect,
-  onCorrect,
-}: {
-  debtMinorUnits: number;
+// Пополнение баланса у стойки: поле суммы и под ним главная кнопка карточки клиента во всю ширину.
+// Одна форма, чтобы Enter в поле пополнял. Остальные денежные действия — второстепенным рядом под
+// ней (ClientDrawer), корректировка — в «⋯»: раньше здесь стояли пять видов кнопок подряд.
+export function WalletZone({ topUpAmount, onChangeTopUpAmount, onTopUp }: {
   topUpAmount: string;
-  canTopUp: boolean;
-  /** Почему пополнить нельзя — показывается под кнопками, а не угадывается по серому цвету. */
-  topUpBlockedReason?: string | null;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
-  onOpenDcTopUp: () => void;
-  canPayDebt: boolean;
-  onOpenPayDebt: () => void;
-  canCorrect: boolean;
-  onCorrect: () => void;
 }) {
   const { t } = useI18n();
-  const hasDebt = debtMinorUnits > 0;
-  const hasSecondaryActions = hasDebt || canCorrect;
-  const topUpBlocked = useBlockedReason(canTopUp ? null : topUpBlockedReason);
 
   return (
-    <div className="clients-wallet-zone">
-      <form
-        className="clients-wallet-quickpay topup-row"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onTopUp();
-        }}
-      >
-        <div className="ui-field">
-          <label htmlFor="wallet-topup-amount">{t('op.players.actions.topUpAmountLabel')}</label>
-          <input
-            id="wallet-topup-amount"
-            inputMode="decimal"
-            placeholder={t('op.players.wallet.customAmountPlaceholder')}
-            value={topUpAmount}
-            disabled={!canTopUp}
-            onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}
-          />
-        </div>
-        <button type="submit" className="ui-btn ui-btn--primary" disabled={!canTopUp} aria-describedby={topUpBlocked.describedBy}>
-          <CircleDollarSign size={15} aria-hidden="true" />
-          {t('op.players.actions.topUpBtn')}
-        </button>
-      </form>
-
-      {/* Отдельная строка, а не третья ячейка в .topup-row (1fr/1fr): у DC-пополнения своя
-          сумма (вводится внутри DcTopUpDialog), она не делит поле «своя сумма» с counter-пополнением. */}
-      <button type="button" className="ui-btn ui-btn--block" disabled={!canTopUp} aria-describedby={topUpBlocked.describedBy} onClick={onOpenDcTopUp}>
-        <QrCode size={15} aria-hidden="true" />
-        {t('op.dc.topup.open')}
-      </button>
-      {topUpBlocked.hint}
-
-      {hasSecondaryActions && (
-        <div className="clients-wallet-secondary">
-          {hasDebt && (
-            <button type="button" className="ui-btn ui-btn--danger" disabled={!canPayDebt} onClick={onOpenPayDebt}>
-              <ReceiptText size={14} aria-hidden="true" />
-              {t('op.players.actions.writeOffDebtBtn')}
-            </button>
-          )}
-          {canCorrect && (
-            <button type="button" className="ui-btn" onClick={onCorrect}>
-              <SlidersHorizontal size={14} aria-hidden="true" />
-              {t('op.players.correction.openLink')}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+    <form
+      className="clients-topup"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onTopUp();
+      }}
+    >
+      <div className="ui-field">
+        <label htmlFor="wallet-topup-amount">{t('op.players.actions.topUpAmountLabel')}</label>
+        <input
+          id="wallet-topup-amount"
+          inputMode="decimal"
+          placeholder={t('op.players.wallet.customAmountPlaceholder')}
+          value={topUpAmount}
+          onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}
+        />
+      </div>
+      <Button type="submit" variant="primary" block>{t('op.players.actions.topUpBtn')}</Button>
+    </form>
   );
 }

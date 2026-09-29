@@ -532,7 +532,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ui-ledger-aside { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: end; }
+/* Сумма строки — размером строки, а не текста страницы: без своего размера она наследовала 16px и
+   в карточке клиента выходила крупнее баланса-фактов над ней. */
+.ui-ledger-aside { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: end; font-size: var(--text-sm); font-weight: 600; }
 .ui-ledger-reversal {
   margin-left: var(--space-2);
   color: var(--text-tertiary);

@@ -45,8 +45,7 @@ describe('ReputationCard', () => {
       status: 'ready',
       reputation: { networkVisits: 3, networkNoShows: 2, networkBanned: false, calculatedAtUtc: asOf }
     });
-    expect(container.querySelector('.reputation-card')).toHaveClass('is-watch');
-    expect(container.querySelector('.reputation-numbers .is-attention')).not.toBeNull();
+    expect(container.querySelector('.reputation-attention')).toHaveTextContent('2');
     expect(screen.queryByText('Сеть закрыла этому человеку вход')).toBeNull();
   });
 
@@ -55,7 +54,8 @@ describe('ReputationCard', () => {
       status: 'ready',
       reputation: { networkVisits: 40, networkNoShows: 0, networkBanned: true, calculatedAtUtc: asOf }
     });
-    expect(container.querySelector('.reputation-card')).toHaveClass('is-banned');
+    // Ноль неявок не подсвечивается и рядом с запретом.
+    expect(container.querySelector('.reputation-attention')).toBeNull();
     expect(screen.getByRole('alert')).toHaveTextContent('Сеть закрыла этому человеку вход');
   });
 
