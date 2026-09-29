@@ -62,7 +62,6 @@ export function AdsDestination({
   return (
     <ManagementScreen
       title={t('op.network.dest.ads')}
-      subtitle={t('op.network.dest.ads.subtitle')}
       contentWidth="full"
       state={state}
       skeleton={<SkeletonTiles count={3} className="network-ads-grid" tileClassName="network-ad" />}

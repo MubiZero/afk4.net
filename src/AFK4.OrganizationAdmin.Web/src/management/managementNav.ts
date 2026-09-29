@@ -9,35 +9,68 @@ export type ManagementDestinationId =
   | 'club' | 'booking' | 'halls' | 'protection' | 'games' | 'tariffs' | 'staff' | 'goods'
   | 'payments' | 'news' | 'events' | 'reviews';
 
+// Группы меню — решение владельца 29.09: двенадцать разделов подряд не читались, а четыре группы
+// отвечают на вопрос «про что это» раньше, чем глаз дойдёт до пункта.
+export type ManagementGroupId = 'club' | 'pcs' | 'money' | 'people';
+
+export const managementGroups: readonly { id: ManagementGroupId; labelKey: MessageKey }[] = [
+  { id: 'club', labelKey: 'op.management.group.club' },
+  { id: 'pcs', labelKey: 'op.management.group.pcs' },
+  { id: 'money', labelKey: 'op.management.group.money' },
+  { id: 'people', labelKey: 'op.management.group.people' }
+];
+
 export interface ManagementDestination {
   id: ManagementDestinationId;
+  group: ManagementGroupId;
   labelKey: MessageKey;
-  subtitleKey: MessageKey;
   Icon: LucideIcon;
   permissions: readonly string[]; // visible if the session has ANY of these
 }
 
+// Порядок массива — порядок меню внутри группы; группы идут в порядке managementGroups.
 export const managementDestinations: readonly ManagementDestination[] = [
   {
     id: 'club',
+    group: 'club',
     labelKey: 'op.management.dest.club',
-    subtitleKey: 'op.management.dest.club.subtitle',
     Icon: Building2,
     permissions: [permissionNames.manageBranchSettings]
   },
   {
     id: 'booking',
+    group: 'club',
     labelKey: 'op.management.dest.booking',
-    subtitleKey: 'op.management.dest.booking.subtitle',
     Icon: CalendarCheck,
     // Настройки приёма гостей ходят под тем же правом, что и остальные настройки филиала
     // (ManageBranchSettings на сервере) — своего права у них нет.
     permissions: [permissionNames.manageBranchSettings]
   },
   {
+    id: 'news',
+    group: 'club',
+    labelKey: 'op.management.dest.news',
+    Icon: Newspaper,
+    permissions: [permissionNames.manageNews]
+  },
+  {
+    id: 'events',
+    group: 'club',
+    labelKey: 'op.management.dest.events',
+    Icon: Trophy,
+    permissions: [permissionNames.manageTournaments]
+  },
+  {
+    id: 'reviews',
+    group: 'club',
+    labelKey: 'op.management.dest.reviews',
+    Icon: MessageSquareText,
+    permissions: [permissionNames.viewReviews]
+  },
+  {
     id: 'halls',
+    group: 'pcs',
     labelKey: 'op.management.dest.halls',
-    subtitleKey: 'op.management.dest.halls.subtitle',
     Icon: MonitorCog,
     // Gated on the ability to actually DO work in the reworked halls screen: manage the
     // floor layout (zones/seats) or manage a device (assign to a seat, rotate/revoke its
@@ -54,8 +87,8 @@ export const managementDestinations: readonly ManagementDestination[] = [
   },
   {
     id: 'protection',
+    group: 'pcs',
     labelKey: 'op.management.dest.protection',
-    subtitleKey: 'op.management.dest.protection.subtitle',
     Icon: ShieldCheck,
     // Правила клуба для всех ПК филиала — настройка филиала, как приём броней: её задают владелец
     // и управляющий, а не техник, который чинит ПК.
@@ -63,37 +96,30 @@ export const managementDestinations: readonly ManagementDestination[] = [
   },
   {
     id: 'games',
+    group: 'pcs',
     labelKey: 'op.management.dest.games',
-    subtitleKey: 'op.management.dest.games.subtitle',
     Icon: Gamepad2,
     // Библиотеку собирает тот, кто ставит ПК и игры: владелец, управляющий и техник.
     permissions: [permissionNames.manageGameLibrary]
   },
   {
     id: 'tariffs',
+    group: 'money',
     labelKey: 'op.management.dest.tariffs',
-    subtitleKey: 'op.management.dest.tariffs.subtitle',
     Icon: BadgeDollarSign,
     permissions: [permissionNames.manageTariffs, permissionNames.managePackages]
   },
   {
-    id: 'staff',
-    labelKey: 'op.management.dest.staff',
-    subtitleKey: 'op.management.dest.staff.subtitle',
-    Icon: UsersRound,
-    permissions: [permissionNames.manageBranchStaff, permissionNames.manageRoles]
-  },
-  {
     id: 'goods',
+    group: 'money',
     labelKey: 'op.management.dest.goods',
-    subtitleKey: 'op.management.dest.goods.subtitle',
     Icon: Boxes,
     permissions: [permissionNames.managePosCatalog, permissionNames.manageInventoryStock]
   },
   {
     id: 'payments',
+    group: 'money',
     labelKey: 'op.management.dest.payments',
-    subtitleKey: 'op.management.dest.payments.subtitle',
     Icon: CreditCard,
     // Union of the sections' permissions — visible if the session can manage payment gateways,
     // loyalty OR tips. Which sections render is gated inside PaymentsLoyaltyDestination, so a role
@@ -102,25 +128,11 @@ export const managementDestinations: readonly ManagementDestination[] = [
     permissions: [permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings, permissionNames.manageTips]
   },
   {
-    id: 'news',
-    labelKey: 'op.management.dest.news',
-    subtitleKey: 'op.management.dest.news.subtitle',
-    Icon: Newspaper,
-    permissions: [permissionNames.manageNews]
-  },
-  {
-    id: 'events',
-    labelKey: 'op.management.dest.events',
-    subtitleKey: 'op.management.dest.events.subtitle',
-    Icon: Trophy,
-    permissions: [permissionNames.manageTournaments]
-  },
-  {
-    id: 'reviews',
-    labelKey: 'op.management.dest.reviews',
-    subtitleKey: 'op.management.dest.reviews.subtitle',
-    Icon: MessageSquareText,
-    permissions: [permissionNames.viewReviews]
+    id: 'staff',
+    group: 'people',
+    labelKey: 'op.management.dest.staff',
+    Icon: UsersRound,
+    permissions: [permissionNames.manageBranchStaff, permissionNames.manageRoles]
   }
 ];
 

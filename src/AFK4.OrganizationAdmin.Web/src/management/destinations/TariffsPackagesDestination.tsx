@@ -51,7 +51,6 @@ export function TariffsPackagesDestination({
   return (
     <ManagementScreen
       title={t('op.management.dest.tariffs')}
-      subtitle={t('op.management.dest.tariffs.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
       skeleton={

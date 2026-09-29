@@ -391,7 +391,7 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
   };
 
   return (
-    <ManagementScreen title={t('op.management.dest.games')} subtitle={t('op.management.dest.games.subtitle')} contentWidth="full">
+    <ManagementScreen title={t('op.management.dest.games')} contentWidth="full">
       {content()}
     </ManagementScreen>
   );

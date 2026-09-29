@@ -16,7 +16,8 @@ import type {
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { ResourceState } from './destinations/types';
 import { CriticalActionConfirmation, EmptyState } from '../operatorPrimitives';
-import { allowedManagementDestinations, type ManagementDestinationId } from './managementNav';
+import { allowedManagementDestinations, managementGroups, type ManagementDestinationId } from './managementNav';
+import { SectionNav } from './SectionNav';
 import { useUnsavedGuard } from './useUnsavedGuard';
 import { ClubDestination } from './destinations/ClubDestination';
 import { BookingIntakeDestination } from './destinations/booking/BookingIntakeDestination';
@@ -257,22 +258,17 @@ export function ManagementWorkspace({
 
   return (
     <div className="management-layout">
-      <nav className="management-nav">
-        {destinations.map((destination) => {
-          const Icon = destination.Icon;
-          return (
-            <button
-              key={destination.id}
-              type="button"
-              className={destination.id === currentId ? 'active' : undefined}
-              onClick={() => guard.requestNavigate(destination.id)}
-            >
-              <Icon size={16} aria-hidden="true" />
-              <span>{t(destination.labelKey)}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <SectionNav
+        label={t('op.management.nav')}
+        groups={managementGroups.map((group) => ({
+          label: t(group.labelKey),
+          items: destinations
+            .filter((destination) => destination.group === group.id)
+            .map((destination) => ({ id: destination.id, label: t(destination.labelKey), Icon: destination.Icon }))
+        }))}
+        current={currentId}
+        onSelect={guard.requestNavigate}
+      />
 
       <div className="management-active-pane">
         {guard.pendingTarget !== null ? (

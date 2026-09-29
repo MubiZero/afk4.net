@@ -105,9 +105,19 @@ describe('ManagementWorkspace', () => {
 
   it('switches the active destination on nav click', () => {
     wrap(<ManagementWorkspace backend={null} session={session([permissionNames.manageBranchSettings, permissionNames.manageNews])} currencyCode="TJS" />);
+    expect(screen.getByRole('button', { name: 'Клуб' }).getAttribute('aria-current')).toBe('page');
     fireEvent.click(screen.getByRole('button', { name: 'Новости' }));
-    // News screen head renders its subtitle
-    expect(screen.getByRole('heading', { name: 'Новости' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Новости', level: 1 })).toBeTruthy();
+    // Выбранный пункт помечен для диктора, а не только подложкой.
+    expect(screen.getByRole('button', { name: 'Новости' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('button', { name: 'Клуб' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  // Группа без доступных разделов не рисует голую подпись.
+  it('shows only the menu groups that hold a permitted destination', () => {
+    wrap(<ManagementWorkspace backend={null} session={session([permissionNames.manageNews, permissionNames.manageBranchStaff])} currencyCode="TJS" />);
+    const nav = screen.getByRole('navigation', { name: 'Разделы управления' });
+    expect([...nav.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual(['Клуб', 'Люди']);
   });
 
   it('loads settings-domain slices once on mount with a backend, and skips integrations', async () => {

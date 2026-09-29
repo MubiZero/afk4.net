@@ -44,7 +44,6 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
   return (
     <ManagementScreen
       title={t('op.network.dest.branches')}
-      subtitle={t('op.network.dest.branches.subtitle')}
       contentWidth="full"
       state={screenState}
       skeleton={

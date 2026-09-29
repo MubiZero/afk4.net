@@ -1,5 +1,6 @@
 import type { JSX, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { Button, SectionHeader, type HeaderCounts } from '@afk4/ui/react';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { LoadFailureState } from '../operatorPrimitives';
 import { DeferredSkeleton } from '../LoadingSkeleton';
@@ -9,7 +10,12 @@ export type SaveState = 'clean' | 'dirty' | 'saving' | 'saved';
 
 interface ManagementScreenBaseProps {
   title: string;
-  subtitle: string;
+  // Шапка — общая шапка раздела кита: название, до трёх счётчиков и одна главная кнопка раздела
+  // («+ Товар»), под ними вкладки. Мелкой строки над названием нет (решение владельца 29.09): она
+  // пересказывала название другими словами и была только здесь, а не в соседних разделах.
+  counts?: HeaderCounts;
+  action?: ReactNode;
+  tabs?: ReactNode;
   children: ReactNode; // destination body (panels/forms)
   // Content column width: 'form' (narrow, single-column config forms) keeps fields a
   // comfortable measure instead of stretching edge-to-edge across the canvas; 'wide' is
@@ -53,7 +59,9 @@ export type ManagementScreenProps = ManagementScreenBaseProps & ManagementScreen
 
 export function ManagementScreen({
   title,
-  subtitle,
+  counts,
+  action,
+  tabs,
   children,
   contentWidth = 'form',
   state = 'ready',
@@ -68,10 +76,7 @@ export function ManagementScreen({
 
   return (
     <section className="workspace-screen management-screen">
-      <div className="management-screen-head">
-        <span>{subtitle}</span>
-        <h1>{title}</h1>
-      </div>
+      <SectionHeader title={title} counts={counts} action={action} tabs={tabs} />
 
       <div className="management-screen-body">
         <div className={`management-content management-content--${contentWidth}`}>
@@ -93,23 +98,17 @@ export function ManagementScreen({
                 <div className="management-save-bar">
                   <span>{save.state === 'saved' ? t('op.management.save.saved') : save.state === 'clean' ? t('op.management.save.clean') : ''}</span>
                   {save.onDiscard && (
-                    <button
-                      type="button"
-                      className="ui-btn"
-                      disabled={save.state !== 'dirty' || save.disabled}
-                      onClick={save.onDiscard}
-                    >
+                    <Button disabled={save.state !== 'dirty' || save.disabled} onClick={save.onDiscard}>
                       {t('op.management.save.discard')}
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    type="button"
-                    className="ui-btn ui-btn--primary"
+                  <Button
+                    variant="primary"
                     disabled={save.state === 'clean' || save.state === 'saving' || save.disabled}
                     onClick={save.onSave}
                   >
                     {t('common.save')}
-                  </button>
+                  </Button>
                 </div>
               )}
             </>

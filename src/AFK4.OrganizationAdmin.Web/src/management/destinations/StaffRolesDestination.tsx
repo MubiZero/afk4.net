@@ -407,7 +407,6 @@ export function StaffRolesDestination({
   return (
     <ManagementScreen
       title={t('op.management.dest.staff')}
-      subtitle={t('op.management.dest.staff.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
       skeleton={

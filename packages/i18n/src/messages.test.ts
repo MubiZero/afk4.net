@@ -61,6 +61,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
     'op.management.dest.club', 'platform.dynamics.branch.label',
+    // Группы меню «Управления»: «Клуб» — то же заимствование, «ПК» — канон терминов, одинаков во всех языках.
+    'op.management.group.club', 'op.management.group.pcs',
     'op.eskhata.title', 'op.eskhata.baseUrl', 'op.eskhata.companyId', 'op.eskhata.merchantId',
     'op.eskhata.hashKey', 'op.dc.title',
     'op.cash.title', 'op.club.field.telegram', 'op.club.field.instagram', 'op.club.ph.city',
@@ -286,9 +288,9 @@ it('includes the organization health keys', () => {
 
 it('includes the network section keys', () => {
   for (const key of [
-    'op.shell.navGroup.network', 'op.network.dest.branches', 'op.network.dest.branches.subtitle',
-    'op.network.dest.billing', 'op.network.dest.billing.subtitle', 'op.network.dest.install',
-    'op.network.dest.install.subtitle', 'op.network.dest.journal', 'op.network.dest.journal.subtitle',
+    'op.shell.navGroup.network', 'op.network.dest.branches',
+    'op.network.dest.billing', 'op.network.dest.install',
+    'op.network.dest.journal',
     'op.network.noAccess', 'op.network.install.get.title', 'op.network.install.get.lead',
     'op.network.install.download', 'op.network.install.noUrl', 'op.network.install.steps.title',
     'op.network.install.step.run', 'op.network.install.step.signIn', 'op.network.install.step.branch',

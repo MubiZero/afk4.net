@@ -1,13 +1,19 @@
 import { describe, it, expect } from 'bun:test';
-import { allowedManagementDestinations, managementDestinations } from './managementNav';
+import { allowedManagementDestinations, managementDestinations, managementGroups } from './managementNav';
 import { permissionNames } from '../operatorPermissions';
 
 const sessionWith = (perms: string[]) => ({ permissions: perms }) as never;
 
 describe('managementNav', () => {
-  it('lists exactly the twelve destinations in order', () => {
-    expect(managementDestinations.map((d) => d.id)).toEqual([
-      'club', 'booking', 'halls', 'protection', 'games', 'tariffs', 'staff', 'goods', 'payments', 'news', 'events', 'reviews'
+  // Меню сгруппировано (решение владельца 29.09): Клуб · ПК · Деньги · Люди. Порядок массива — порядок
+  // пунктов, и группы в нём идут подряд, иначе одна группа рисовалась бы двумя кусками.
+  it('lists the twelve destinations grouped as club · PCs · money · people', () => {
+    expect(managementGroups.map((g) => g.id)).toEqual(['club', 'pcs', 'money', 'people']);
+    expect(managementDestinations.map((d) => `${d.group}:${d.id}`)).toEqual([
+      'club:club', 'club:booking', 'club:news', 'club:events', 'club:reviews',
+      'pcs:halls', 'pcs:protection', 'pcs:games',
+      'money:tariffs', 'money:goods', 'money:payments',
+      'people:staff'
     ]);
   });
 

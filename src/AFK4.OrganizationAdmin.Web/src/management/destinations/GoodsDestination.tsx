@@ -365,7 +365,6 @@ export function GoodsDestination({
   return (
     <ManagementScreen
       title={t('op.management.dest.goods')}
-      subtitle={t('op.management.dest.goods.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
       skeleton={

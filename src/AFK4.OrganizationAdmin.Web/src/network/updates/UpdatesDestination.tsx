@@ -142,7 +142,6 @@ export function UpdatesDestination({
   return (
     <ManagementScreen
       title={t('op.network.dest.updates')}
-      subtitle={t('op.network.dest.updates.subtitle')}
       contentWidth="form"
       state={screenState}
       skeleton={

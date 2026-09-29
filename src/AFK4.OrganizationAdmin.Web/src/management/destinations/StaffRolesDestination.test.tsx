@@ -72,10 +72,9 @@ const staffUsers: StaffUserDto[] = [{
 } as never];
 
 describe('StaffRolesDestination', () => {
-  it('renders the ManagementScreen title and subtitle', () => {
+  it('renders the section title', () => {
     wrap(<StaffRolesDestination backend={null} session={session([])} currencyCode="TJS" staffUsers={[]} />);
     expect(screen.getByRole('heading', { name: 'Сотрудники и роли' })).toBeTruthy();
-    expect(screen.getByText('Сотрудники, роли и доступ')).toBeTruthy();
   });
 
   it('renders a staff row with login, role and status columns', () => {
