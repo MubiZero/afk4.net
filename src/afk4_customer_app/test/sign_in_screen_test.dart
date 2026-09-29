@@ -270,7 +270,7 @@ void main() {
       onChangeClub: () => changed = true,
     ));
 
-    await tester.tap(find.text('Сменить клуб'));
+    await tester.tap(find.text('Выбрать другой клуб'));
     await tester.pump();
 
     expect(changed, isTrue);

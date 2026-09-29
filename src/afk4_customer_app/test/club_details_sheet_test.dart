@@ -187,7 +187,7 @@ void main() {
     await tester.pumpWidget(harness(_club, onChoose: () => chosen = true));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Играть здесь'));
+    await tester.tap(find.text('Выбрать клуб'));
     await tester.pump();
 
     expect(chosen, isTrue);
@@ -299,7 +299,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bare Club'), findsOneWidget);
-    expect(find.text('Играть здесь'), findsOneWidget);
+    expect(find.text('Выбрать клуб'), findsOneWidget);
     expect(find.text('Клуб не указал, где он находится'), findsOneWidget);
     expect(find.text('Залы сети'), findsNothing);
     expect(find.text('Зоны'), findsNothing);

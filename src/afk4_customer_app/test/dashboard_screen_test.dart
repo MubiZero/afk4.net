@@ -110,7 +110,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(http)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
     expect(find.textContaining('200,50'), findsOneWidget);
     await unmount(tester);
   });
@@ -231,7 +231,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final session = tester.getTopLeft(find.text('PC-07')).dy;
-    final wallet = tester.getTopLeft(find.text('Баланс кошелька')).dy;
+    final wallet = tester.getTopLeft(find.text('Доступно')).dy;
     expect(wallet, lessThan(session));
     await unmount(tester);
   });
@@ -450,7 +450,7 @@ void main() {
     // Первая — кнопка в карточке идущей сессии; плитка ниже ведёт туда же.
     await tester.tap(find.text('Заказать еду').first);
     await tester.pumpAndSettle();
-    expect(find.text('Заказ к месту'), findsOneWidget);
+    expect(find.text('Заказать еду'), findsOneWidget);
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
@@ -537,7 +537,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Пополнить'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Пополнить баланс'));
     await tester.pumpAndSettle();
 
     expect(walletOpened, isTrue);

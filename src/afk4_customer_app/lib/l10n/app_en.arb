@@ -7,7 +7,7 @@
   "a11yLoadingReceipt": "Loading receipt",
   "a11yLoadingReservations": "Loading reservations",
   "a11yLoadingVisits": "Loading visits",
-  "a11yLoadingLedger": "Loading wallet movements",
+  "a11yLoadingLedger": "Loading balance movements",
   "a11ySessionElapsed": "Session running:",
   "a11ySessionRemaining": "Time remaining:",
   "bookingRejectEvent": "A private event is booked for that time",
@@ -41,10 +41,10 @@
   "customerBanTitle": "The platform closed your network access",
   "customerBranchErrGone": "That hall is no longer part of the network — pick another one.",
   "customerBranchErrRequired": "Choose the hall you are coming to first.",
-  "customerBranchHint": "The club opens your wallet and visit history at this hall.",
+  "customerBranchHint": "The club opens your balance and visit history at this hall.",
   "customerBranchTitle": "Which hall are you coming to?",
   "customerClubErrClosed": "The club has closed your account — only an administrator can seat you here.",
-  "customerClubDetailsChoose": "Play here",
+  "customerClubDetailsChoose": "Choose this club",
   "customerClubDetailsDayOff": "closed",
   "customerClubDetailsHalls": "Halls in the network",
   "customerClubDetailsHallsIn": "{count, plural, one {{count} hall} other {{count} halls}} · {cities}",
@@ -72,7 +72,7 @@
   "customerClubDetailsZones": "Zones",
   "customerClubDetailsZonesUnknown": "The club has not described its zones",
   "customerClubPickerAllCities": "All cities",
-  "customerClubPickerChange": "Change club",
+  "customerClubPickerChange": "Choose another club",
   "customerClubPickerClosedToday": "Closed today",
   "customerClubPickerDetails": "Details",
   "customerClubPickerDistanceKm": "{km} km away",
@@ -154,8 +154,8 @@
   "customerClubsHere": "You're here",
   "customerClubsMine": "Your clubs",
   "customerClubsNoAccount": "You haven't played here yet",
-  "customerClubsNoAccountHint": "This club's wallet opens with your first booking or top-up. Every club keeps its own money.",
-  "customerClubsOpen": "Open",
+  "customerClubsNoAccountHint": "Your balance at this club opens with your first booking or top-up. Every club keeps its own money.",
+  "customerClubsOpen": "Choose",
   "customerCommonBack": "← Back",
   "customerCommonCancel": "Cancel",
   "customerCommonDayAtTime": "{day}, {time}",
@@ -176,7 +176,7 @@
   "customerCommonTomorrow": "Tomorrow",
   "customerCommonYesterday": "Yesterday",
   "customerDashboardAccrued": "accrued",
-  "customerDashboardBalance": "Wallet balance",
+  "customerDashboardBalance": "Available",
   "customerDashboardDebt": "Debt",
   "customerDashboardDebtNote": "You can settle the debt at the club desk",
   "customerDashboardLoadError": "Couldn't load your data. Check your connection.",
@@ -189,7 +189,7 @@
       }
     }
   },
-  "customerDashboardSessionActive": "Session active",
+  "customerDashboardSessionActive": "Session running",
   "customerDashboardSessionEnded": "Time is up",
   "customerDashboardSessionEndingSoon": "Time is running out",
   "customerDashboardSessionRemaining": "Remaining",
@@ -197,7 +197,7 @@
   "customerErrorOffline": "No connection to the server. Check the internet.",
   "customerEventsCancel": "Not going",
   "customerEventsCancelConfirmFree": "Your spot goes back to the others.",
-  "customerEventsCancelConfirmPaid": "The {price} entry fee returns to your wallet.",
+  "customerEventsCancelConfirmPaid": "The {price} entry fee returns to your balance.",
   "@customerEventsCancelConfirmPaid": {
     "placeholders": {
       "price": {
@@ -216,7 +216,7 @@
     }
   },
   "customerEventsConfirmFree": "Taking part is free.",
-  "customerEventsConfirmPaid": "{price} will be taken from your wallet. Withdraw before it starts and the money comes back.",
+  "customerEventsConfirmPaid": "{price} will be taken from your balance. Withdraw before it starts and the money comes back.",
   "@customerEventsConfirmPaid": {
     "placeholders": {
       "price": {
@@ -236,7 +236,7 @@
   "customerEventsErrAlreadyIn": "You are already signed up for this event",
   "customerEventsErrCancelled": "The club cancelled this event",
   "customerEventsErrFull": "No spots left",
-  "customerEventsErrFunds": "Your wallet does not cover the entry fee",
+  "customerEventsErrFunds": "Your balance does not cover the entry fee",
   "customerEventsErrGeneric": "That did not work. Try again",
   "customerEventsErrNotIn": "You are not signed up for this event",
   "customerEventsErrStarted": "The event has already started",
@@ -367,7 +367,7 @@
       }
     }
   },
-  "customerLoyaltyRuleTopUp": "{percent} of every wallet top-up",
+  "customerLoyaltyRuleTopUp": "{percent} of every balance top-up",
   "@customerLoyaltyRuleTopUp": {
     "placeholders": {
       "percent": {
@@ -379,12 +379,12 @@
   "customerLoyaltySourceSession": "Game time",
   "customerLoyaltySourceShop": "Bar order",
   "customerLoyaltySourceTopUp": "Top-up",
-  "customerLoyaltySpendNote": "Cashback is ordinary wallet money: spend it on time and the bar.",
+  "customerLoyaltySpendNote": "Cashback is ordinary money on your balance: spend it on time and the bar.",
   "customerLoyaltyTitle": "Cashback",
   "customerNavDashboard": "Home",
   "customerNavProfile": "Profile",
   "customerNavReservations": "Bookings",
-  "customerNavWallet": "Wallet",
+  "customerNavWallet": "Balance",
   "customerNewsTitle": "Club news",
   "customerNotificationsEmpty": "Nothing has arrived yet. Whatever the club sends you will show up here.",
   "customerNotificationsError": "Notifications could not be loaded.",
@@ -409,7 +409,7 @@
   "customerPackagesBuy": "Buy",
   "customerPackagesBuying": "Buying…",
   "customerPackagesCancel": "Cancel",
-  "customerPackagesConfirm": "We will take {price} from your wallet and add {duration} to your account.",
+  "customerPackagesConfirm": "We will take {price} from your balance and add {duration} to your account.",
   "@customerPackagesConfirm": {
     "placeholders": {
       "price": {
@@ -420,7 +420,7 @@
       }
     }
   },
-  "customerPackagesErrFunds": "Your wallet is short for this package",
+  "customerPackagesErrFunds": "Your balance is short for this package",
   "customerPackagesErrGeneric": "Could not buy the package. Please try again.",
   "customerPackagesExpired": "Expired",
   "customerPackagesExpiresIn": "{count, plural, one {{count} day to use it} other {{count} days to use it}}",
@@ -580,7 +580,7 @@
   },
   "customerPlayDuration": "How long",
   "customerPlayErrDeviceGone": "This PC is not connected to the platform — ask an admin",
-  "customerPlayErrFunds": "Your wallet doesn't cover this time",
+  "customerPlayErrFunds": "Your balance doesn't cover this time",
   "customerPlayErrGeneric": "Couldn't start the session. Try again.",
   "customerPlayErrMaintenance": "This PC is under maintenance — pick another one or ask at the counter",
   "customerPlayErrOutsidePlan": "This PC isn't taking new sessions right now — pick another one or ask the admin.",
@@ -621,8 +621,8 @@
   "customerProfileBirthdayTitle": "Birthday",
   "customerProfileBirthdayUnset": "Not set",
   "customerProfileChangePhone": "Change the number",
-  "customerProfileDeleteBlockedBalance": "There is still money in your wallet. Collect it at the club counter, then come back here.",
-  "customerProfileDeleteBlockedDebt": "You still owe the club. Clear the debt — from your wallet or at the counter.",
+  "customerProfileDeleteBlockedBalance": "There is still money on your balance. Collect it at the club counter, then come back here.",
+  "customerProfileDeleteBlockedDebt": "You still owe the club. Clear the debt — from your balance or at the counter.",
   "customerProfileDeleteBlockedSession": "Your session is running right now. End it and try again.",
   "customerProfileDeleteBody": "You will be signed out, and your name and number will stop identifying you. The club keeps its operation records — that is its accounting. The account cannot be restored, but you can register again with the same number.",
   "customerProfileDeleteConfirm": "Delete",
@@ -639,7 +639,7 @@
   "customerProfileMarketing": "Receive promo emails",
   "customerProfilePhoneNote": "Number confirmed — codes and notifications go here",
   "customerProfilePhoneUnverified": "Number not confirmed — online top-up and booking are closed",
-  "customerProfilePoweredBy": "Powered by AFK4.NET",
+  "customerProfilePoweredBy": "Powered by AFK4.net",
   "customerProfilePush": "Phone notifications",
   "customerProfilePushNote": "Session end, booking, top-up and orders",
   "customerProfileSaveError": "Couldn't save",
@@ -698,6 +698,7 @@
   "customerReceiptNotFound": "Receipt not found",
   "customerReceiptOpenLink": "Receipt →",
   "customerReceiptTime": "Time",
+  "customerReceiptTitle": "Receipt",
   "customerReceiptTotal": "Total",
   "customerReferralAlreadyInvited": "You joined on a friend's invitation",
   "customerReferralClaim": "Apply the code",
@@ -739,7 +740,7 @@
     }
   },
   "customerReferralStepShare": "Give your friend your code — they enter it in the app",
-  "customerReferralStepTopUp": "Your friend tops up their wallet by {amount} or more",
+  "customerReferralStepTopUp": "Your friend tops up their balance by {amount} or more",
   "@customerReferralStepTopUp": {
     "placeholders": {
       "amount": {
@@ -747,7 +748,7 @@
       }
     }
   },
-  "customerReferralStepTopUpAny": "Your friend tops up their wallet",
+  "customerReferralStepTopUpAny": "Your friend tops up their balance",
   "customerReferralTitle": "Invite a friend",
   "customerReferralWindowClosedNote": "Someone else's code can only be named in the first days after the club creates your account.",
   "customerReferralYourCode": "Your code",
@@ -775,9 +776,9 @@
   "customerReservationsEndBeforeStart": "The end must be later than the start",
   "customerReservationsErrDisabled": "The club isn't taking bookings from the app right now",
   "customerReservationsErrLimit": "You already have an active booking. Wait for it or cancel it",
-  "customerReservationsErrPrepay": "Not enough money for the prepayment — top up your wallet",
+  "customerReservationsErrPrepay": "Not enough money for the prepayment — top up your balance",
   "customerReservationsGate": "To book online, confirm your phone number.",
-  "customerReservationsGroupNoFunds": "Your wallet is short for the whole group. Top it up or book fewer seats.",
+  "customerReservationsGroupNoFunds": "Your balance is short for the whole group. Top it up or book fewer seats.",
   "customerReservationsGroupNoSeats": "The hall does not have that many free PCs at this time. Book fewer seats or pick another time.",
   "customerReservationsGroupSeatNote": "The club assigns the PCs — you will get them in the confirmation. Your group will sit together if the hall has free PCs.",
   "customerReservationsGroupTooMany": "One booking takes at most {max} seats. Arrange a bigger group with the club.",
@@ -788,7 +789,7 @@
       }
     }
   },
-  "customerReservationsHeld": "{amount} is held in your wallet",
+  "customerReservationsHeld": "{amount} held for this booking",
   "@customerReservationsHeld": {
     "placeholders": {
       "amount": {
@@ -796,7 +797,7 @@
       }
     }
   },
-  "customerReservationsHoldNote": "The amount is held on your wallet and comes back if you cancel",
+  "customerReservationsHoldNote": "The amount is held on your balance and comes back if you cancel",
   "customerReservationsLoadError": "Failed to load reservations.",
   "customerReservationsMove": "Reschedule",
   "customerReservationsMoveConfirm": "Reschedule",
@@ -807,7 +808,7 @@
   "customerReservationsMoveWhen": "New time",
   "customerReservationsMoved": "Booking rescheduled",
   "customerReservationsNewTitle": "New booking",
-  "customerReservationsNoFunds": "Your wallet doesn't cover this booking; top it up and try again",
+  "customerReservationsNoFunds": "Your balance doesn't cover this booking; top it up and try again",
   "customerReservationsNoSeat": "No seat",
   "customerReservationsNoSeats": "No free PCs are left in the hall at this time. Pick another time.",
   "customerReservationsNone": "No bookings yet",
@@ -867,7 +868,7 @@
     }
   },
   "customerReservationsRuleOff": "This club doesn't take bookings from the app. Call the front desk.",
-  "customerReservationsRulePrepay": "Your first bookings need prepayment: the amount is held on your wallet.",
+  "customerReservationsRulePrepay": "Your first bookings need prepayment: the amount is held on your balance.",
   "customerReservationsSeatNote": "The club assigns the seat — you will see it in the confirmation.",
   "customerReservationsSeats": "How many seats",
   "customerReservationsSeatsAlone": "Booking for one",
@@ -933,7 +934,7 @@
   },
   "customerReviewsTitle": "Player reviews",
   "customerSessionEndAction": "Finish and leave",
-  "customerSessionEndBody": "The seat frees up right away. Paid time you did not use comes back to your wallet.",
+  "customerSessionEndBody": "The seat frees up right away. Paid time you did not use comes back to your balance.",
   "customerSessionEndCancel": "Stay",
   "customerSessionEndConfirm": "Finish",
   "customerSessionEndFailed": "Could not finish the session. Try again or ask an admin.",
@@ -982,10 +983,10 @@
       }
     }
   },
-  "customerSessionExtendErrBalance": "Your wallet doesn't cover this. Top it up on the home screen.",
+  "customerSessionExtendErrBalance": "Your balance doesn't cover this — top it up.",
   "customerSessionExtendErrGeneric": "Couldn't add the time. Try again.",
   "customerSessionExtendErrGone": "The session has already ended",
-  "customerSessionExtendHint": "The time is charged to your wallet at the current session's rate.",
+  "customerSessionExtendHint": "The time is charged to your balance at the current session's rate.",
   "customerSessionExtendHours": "{count, plural, one {{count} hour} other {{count} hours}}",
   "@customerSessionExtendHours": {
     "placeholders": {
@@ -1003,9 +1004,9 @@
       }
     }
   },
-  "customerSessionExtendNothingAffordable": "Not enough money to extend. Top up your wallet on the home screen.",
+  "customerSessionExtendNothingAffordable": "Not enough money to extend — top up your balance.",
   "customerSessionExtendPending": "Adding time…",
-  "customerSessionExtendSummary": "Until {time}. {amount} will be charged, {balance} will be left in the wallet.",
+  "customerSessionExtendSummary": "Until {time}. {amount} will be charged, {balance} will be left on your balance.",
   "@customerSessionExtendSummary": {
     "placeholders": {
       "time": {
@@ -1036,7 +1037,7 @@
   "customerShopCartEmpty": "Pick what to bring you",
   "customerShopEmpty": "Nothing to order right now",
   "customerShopEmptyHint": "The club has not published a menu here. Ask at the desk.",
-  "customerShopErrFunds": "Your wallet doesn't cover this order",
+  "customerShopErrFunds": "Your balance doesn't cover this order",
   "customerShopErrGeneric": "Couldn't place the order. Try again.",
   "customerShopErrNoSession": "Ordering works only during a session",
   "customerShopErrStock": "That item just ran out",
@@ -1075,7 +1076,6 @@
   "customerShopStatusCancelled": "Order cancelled",
   "customerShopStatusDelivered": "Order delivered",
   "customerShopStatusPlaced": "Order received, preparing it",
-  "customerShopTitle": "Order to your seat",
   "customerShopTotal": "Total",
   "customerSigninBlocked": "This account is closed. Ask the club for help.",
   "customerSigninCodeError": "Wrong code",
@@ -1133,27 +1133,27 @@
     }
   },
   "customerWalletDebtPayErrExceeds": "The debt is already smaller than this amount — refresh the screen",
-  "customerWalletDebtPayErrFunds": "Your wallet doesn't cover this payment",
+  "customerWalletDebtPayErrFunds": "Your balance doesn't cover this payment",
   "customerWalletDebtPayError": "The debt could not be cleared. Try again.",
-  "customerWalletDebtPayNote": "You can clear it from your wallet or at the club counter.",
-  "customerWalletGate": "To top up your wallet online, confirm your phone number.",
+  "customerWalletDebtPayNote": "You can clear it from your balance or at the club counter.",
+  "customerWalletGate": "To top up your balance online, confirm your phone number.",
   "customerWalletGateAction": "Confirm the number",
   "customerWalletHeld": "Held for bookings",
-  "customerWalletHeldNote": "It comes back to your wallet if the booking is cancelled.",
+  "customerWalletHeldNote": "It comes back to your balance if the booking is cancelled.",
   "customerWalletIntents": "Your requests",
-  "customerWalletLedgerEmpty": "Every wallet movement will show up here",
+  "customerWalletLedgerEmpty": "Every balance movement will show up here",
   "customerWalletLedgerError": "Could not load the movements",
   "customerWalletLedgerTab": "Money",
   "customerWalletNote": "The club credits the amount once it confirms it at the desk.",
   "customerWalletOnlineBusy": "The bank is busy right now. Try again in a minute or pay at the desk.",
   "customerWalletOnlineFailed": "The bank did not take the payment. Nothing was charged.",
   "customerWalletOnlineNoApp": "The payment page could not be opened. Try again or pay at the desk.",
-  "customerWalletOnlineNote": "An online payment lands in your wallet right away. A counter request is credited by the desk.",
+  "customerWalletOnlineNote": "An online payment lands on your balance right away. A counter request is credited by the desk.",
   "customerWalletOnlinePay": "Pay online",
   "customerWalletOnlineSlow": "The bank has not answered yet. If the payment went through, the money arrives on its own — check the balance in a couple of minutes.",
   "customerWalletOnlineUnavailable": "This club is not taking online payments right now. Pay at the desk.",
   "customerWalletOnlineWaiting": "Waiting for the bank…",
-  "customerWalletPaid": "The money is in your wallet",
+  "customerWalletPaid": "The money is on your balance",
   "customerWalletPendingCancel": "Cancel the request",
   "customerWalletPendingCancelError": "The request could not be cancelled. Try again.",
   "customerWalletPendingCancelled": "Request cancelled",
@@ -1172,8 +1172,7 @@
   "customerWalletStateExpired": "Expired",
   "customerWalletStateFulfilled": "Credited",
   "customerWalletStatePending": "Pending",
-  "customerWalletTitle": "Top up wallet",
-  "customerWalletTopUp": "Top up",
+  "customerWalletTopUp": "Top up balance",
   "customerWeekday1": "Monday",
   "customerWeekday2": "Tuesday",
   "customerWeekday3": "Wednesday",

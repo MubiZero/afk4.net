@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:afk4_customer_app/api/player_api_client.dart';
+import 'package:afk4_customer_app/wallet/top_up_sheet.dart';
 import 'package:afk4_customer_app/wallet/wallet_screen.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 
@@ -90,7 +91,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(_serve(visits: _page([_visit()])))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
     expect(find.textContaining('200,50'), findsOneWidget);
     expect(
       tester.getTopLeft(find.textContaining('200,50')).dy,
@@ -102,7 +103,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(_serve())));
     await tester.pumpAndSettle();
 
-    expect(find.text('Пополнить'), findsOneWidget);
+    expect(find.text('Пополнить баланс'), findsOneWidget);
   });
 
   // Сбой сети на балансе не должен уносить с собой списки: у них своя загрузка и свои
@@ -395,7 +396,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(http.paths, contains('/api/me/dashboard'));
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
   });
 
   // Пополнить можно и в клубе, который игрока ещё не знает: этим счёт и открывается.
@@ -414,10 +415,11 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Пополнить'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Пополнить баланс'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Пополнить кошелёк'), findsOneWidget);
+    // Кнопка и заголовок листа теперь называются одинаково — лист узнаём по нему самому.
+    expect(find.byType(TopUpSheet), findsOneWidget);
   });
 
   /// Раньше гейт с подтверждением жил только внутри карточки кошелька — то есть у тех, у кого

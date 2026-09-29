@@ -120,7 +120,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l.customerFriendsDismiss),
           ),
+          // Вернуть друга можно только новой заявкой, которую он должен принять: это не отмена
+          // нажатия, а разрыв — и выглядит он красным, а не зелёным «да».
           FilledButton(
+            style: irreversibleConfirmStyle(dialogContext),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l.customerFriendsRemove),
           ),
@@ -278,6 +281,7 @@ class FriendRow extends StatelessWidget {
             IconButton(
               onPressed: onRemove,
               tooltip: l.customerFriendsRemove,
+              color: theme.colorScheme.error,
               icon: const Icon(Icons.person_remove_outlined),
             ),
         ],

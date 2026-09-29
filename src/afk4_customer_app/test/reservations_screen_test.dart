@@ -736,7 +736,7 @@ void main() {
     ]))));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('придержано на кошельке'), findsOneWidget);
+    expect(find.textContaining('удержано под бронь'), findsOneWidget);
     expect(find.textContaining('240,00'), findsOneWidget);
   });
 

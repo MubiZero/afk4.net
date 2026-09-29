@@ -34,6 +34,15 @@ class AppAction {
   final bool irreversible;
 }
 
+/// Кнопка подтверждения в диалоге, когда подтверждают необратимое: удалить учётную запись,
+/// удалить друга, отменить бронь или участие. Красная заливка — та же, что у
+/// [AppAction.irreversible]: раньше одно такое подтверждение было зелёным, другое — текстом, и
+/// «Удалить» выглядело так же, как «Сохранить».
+ButtonStyle irreversibleConfirmStyle(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+  return FilledButton.styleFrom(backgroundColor: scheme.error, foregroundColor: scheme.onError);
+}
+
 /// Главная кнопка: заливка во всю ширину.
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({super.key, required this.action});

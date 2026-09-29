@@ -163,7 +163,7 @@ void main() {
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Выйти'));
-    await tester.tap(find.text('Сменить клуб'));
+    await tester.tap(find.text('Выбрать другой клуб'));
     await tester.pump();
 
     expect(signedOut, isTrue);
@@ -180,7 +180,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BrandMark), findsOneWidget);
-    expect(find.text('Работает на AFK4.NET'), findsOneWidget);
+    expect(find.text('Работает на AFK4.net'), findsOneWidget);
   });
 
   // Удаления учётной записи не было ни на сервере, ни здесь, хотя App Store требует его от любого
@@ -202,7 +202,7 @@ void main() {
     // Пока не подтвердили — ничего не ушло.
     expect(http.requests.any((r) => r.method == 'DELETE'), isFalse);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Удалить'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Удалить'));
     await tester.pumpAndSettle();
 
     expect(http.requests.any((r) => r.method == 'DELETE'), isTrue);
@@ -229,8 +229,8 @@ void main() {
   // бы ни в одном из трёх случаев.
   testWidgets('отказ называет причину, а не «что-то пошло не так»', (tester) async {
     for (final (code, expected) in [
-      ('remaining_balance', 'На кошельке остались деньги. Заберите их на стойке клуба — и возвращайтесь сюда.'),
-      ('outstanding_debt', 'За вами числится долг. Погасите его — с кошелька или на стойке клуба.'),
+      ('remaining_balance', 'На балансе остались деньги. Заберите их на стойке клуба — и возвращайтесь сюда.'),
+      ('outstanding_debt', 'За вами числится долг. Погасите его — с баланса или на стойке клуба.'),
       ('active_session', 'Сейчас идёт ваша сессия. Завершите её и попробуйте снова.'),
     ]) {
       final http = FakeHttpClient((request) => request.method == 'DELETE'
@@ -244,7 +244,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Удалить учётную запись'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Удалить'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Удалить'));
       await tester.pumpAndSettle();
 
       expect(find.text(expected), findsOneWidget, reason: code);

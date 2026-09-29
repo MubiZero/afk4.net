@@ -242,7 +242,7 @@ class _ShopScreenState extends State<ShopScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: nestedAppBar(context, title: l.customerShopTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
+      appBar: nestedAppBar(context, title: l.customerActionsOrder, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
       body: _body(l),
       bottomNavigationBar: _order == null && (_catalog?.isNotEmpty ?? false) ? _checkout(l) : null,
     );

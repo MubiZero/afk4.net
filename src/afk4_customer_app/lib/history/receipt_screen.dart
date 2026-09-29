@@ -61,7 +61,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: nestedAppBar(context, title: l.customerReceiptTotal),
+      appBar: nestedAppBar(context, title: l.customerReceiptTitle),
       body: switch (_state) {
         _Load.loading => ListSkeleton(rows: 1, rowHeight: 280, label: l.a11yLoadingReceipt),
         _Load.missing => EmptyState(icon: Icons.receipt_long_outlined, title: l.customerReceiptNotFound),

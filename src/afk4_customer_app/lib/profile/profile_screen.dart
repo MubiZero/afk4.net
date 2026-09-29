@@ -90,7 +90,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l.customerCommonCancel),
           ),
-          TextButton(
+          // Восстановить учётную запись нельзя — единственное по-настоящему необратимое действие
+          // в приложении, и подтверждение у него красное и залитое, а не тихая ссылка.
+          FilledButton(
+            style: irreversibleConfirmStyle(dialogContext),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l.customerProfileDeleteConfirm),
           ),

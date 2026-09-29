@@ -302,7 +302,7 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
     final blocked = _pending || _choice.unanswered;
 
     return AppSheet(
-      title: l.customerWalletTitle,
+      title: l.customerWalletTopUp,
       content: [
         // Зал идёт до суммы: он решает, где заведётся кошелёк, а сумма — сколько на нём
         // будет. Вопрос о деньгах вперёд вопроса о месте читался бы как мелочь под ним.

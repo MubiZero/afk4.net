@@ -214,7 +214,7 @@ void main() {
       await tester.pumpAndSettle();
       await expectLater(tester, meetsGuideline(guideline), reason: 'главная');
 
-      await tester.tap(find.text('Кошелёк'));
+      await tester.tap(find.text('Баланс'));
       await tester.pumpAndSettle();
       await expectLater(tester, meetsGuideline(guideline), reason: 'кошелёк');
 

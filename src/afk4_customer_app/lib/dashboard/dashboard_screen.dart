@@ -34,6 +34,7 @@ import 'quick_actions.dart';
 import '../shell/app_sheet.dart';
 import '../theme/space.dart';
 import '../shell/actions.dart';
+import '../wallet/top_up_sheet.dart';
 
 /// Главный экран: что происходит с сессией прямо сейчас и сколько денег в кошельке.
 ///
@@ -439,13 +440,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final l = L.of(context);
     final minutes = await showAppSheet<int>(
       context,
-      (_) => ExtendSessionSheet(api: widget.api, sessionId: session.sessionId),
+      (_) => ExtendSessionSheet(
+        api: widget.api,
+        sessionId: session.sessionId,
+        onTopUp: _canTopUpHere ? () => unawaited(_topUp(session.currencyCode)) : null,
+      ),
     );
     if (minutes == null || !mounted) return;
 
     unawaited(HapticFeedback.lightImpact());
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(l.customerSessionExtendDone(extendDurationLabel(l, minutes))),
+    ));
+    await _refresh();
+  }
+
+  /// Пополнить прямо отсюда можно, когда клуб принимает онлайн и номер подтверждён — те же
+  /// условия, что у кнопки в разделе баланса.
+  bool get _canTopUpHere =>
+      widget.phoneVerified &&
+      (widget.features == null || widget.features!.contains(PlatformFeatureNames.onlineTopUp));
+
+  /// Пополнение из листа продления: тот же лист, что в разделе баланса.
+  Future<void> _topUp(String currencyCode) async {
+    final l = L.of(context);
+    final outcome = await showAppSheet<TopUpOutcome>(
+      context,
+      (_) => TopUpSheet(api: widget.api, currencyCode: currencyCode, intents: const []),
+    );
+    if (outcome == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(outcome == TopUpOutcome.paid ? l.customerWalletPaid : l.customerWalletSent),
     ));
     await _refresh();
   }
