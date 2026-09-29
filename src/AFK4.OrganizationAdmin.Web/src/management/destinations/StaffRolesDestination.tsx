@@ -22,7 +22,7 @@ import {
 } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
 import type { StaffUserDto } from '../../operatorApiClients';
-import { useBlockedReason } from '../../components/BlockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
 import { SkeletonTable } from '../../LoadingSkeleton';
 import { StaffFromNetworkModal } from './StaffFromNetworkModal';

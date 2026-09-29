@@ -1,18 +1,21 @@
 import type { ReactNode } from 'react';
 import { ChevronLeft } from 'lucide-react';
+import { SectionHeader } from '@afk4/ui/react';
 
-// Каркас экрана панели — тот же, что в «Управлении» Organization Admin: подзаголовок мелкой
-// строкой НАД заголовком, затем колонка контента с ограниченной мерой ширины.
+// Каркас экрана панели. Шапка — общая шапка раздела кита, та же, что у Панели: название и главная
+// кнопка → вкладки → содержимое. Мелкой строки над названием больше нет (решение владельца
+// 29.09: слоганы убраны): она то повторяла название, то показывала служебный slug.
 //
 // Мера ширины не косметика: форма во всю ширину монитора читается как недоделанный экран,
 // а таблицу, наоборот, нельзя зажимать — отсюда три варианта колонки.
-export function Page({ width = 'wide', back, title, description, actions, children }: {
+export function Page({ width = 'wide', back, title, actions, tabs, children }: {
   width?: 'form' | 'wide' | 'full';
   back?: { label: string; onBack: () => void };
   // Узел, а не строка: пока карточка грузится, на месте названия стоит его заглушка.
   title?: ReactNode;
-  description?: ReactNode;
   actions?: ReactNode;
+  /** Вкладки раздела — второй строкой шапки, под названием. */
+  tabs?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -24,15 +27,7 @@ export function Page({ width = 'wide', back, title, description, actions, childr
         </button>
       ) : null}
 
-      {title !== undefined ? (
-        <div className="management-screen-head pc-screen-head">
-          <div>
-            {description !== undefined ? <span>{description}</span> : null}
-            <h1>{title}</h1>
-          </div>
-          {actions !== undefined ? <div className="pc-screen-actions">{actions}</div> : null}
-        </div>
-      ) : null}
+      {title !== undefined ? <SectionHeader title={title} action={actions} tabs={tabs} /> : null}
 
       <div className={`management-content management-content--${width}`}>{children}</div>
     </section>

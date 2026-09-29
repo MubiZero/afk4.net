@@ -106,7 +106,7 @@
 .club-preview-card {
   display: flex; flex-direction: column; gap: 8px;
   padding: 16px; border-radius: 14px;
-  background: var(--surface-card, #fff); box-shadow: var(--shadow-card);
+  background: var(--surface-card); box-shadow: var(--shadow-card);
 }
 .club-preview-logo { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; }
 .club-preview-logo--empty {
@@ -128,7 +128,7 @@
 .club-brand-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .club-brand-swatch { width: 32px; height: 32px; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
 .club-brand-swatch.is-selected { border-color: var(--text-primary); box-shadow: 0 0 0 2px var(--surface-elevated) inset; }
-.club-brand-swatch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.club-brand-swatch:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 2px; }
 .club-brand-swatch:disabled { cursor: not-allowed; opacity: .5; }
 
 /* Часы работы: компактные строки дней (тумблер работает/выходной, название, диапазон).

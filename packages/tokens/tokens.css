@@ -34,9 +34,13 @@
    * 44px в мастере, и шрифт 11/14/16 соответственно. Разными их делал не замысел, а то, что
    * каждый набор писали отдельно.
    *
-   * Значения по умолчанию — плотные: их читает консоль, и менять её этой правкой нельзя. */
+   * Значения по умолчанию — плотные: их читает консоль, и менять её этой правкой нельзя.
+   *
+   * Шрифт контрола — 13px, а не 11: высоты те же 28/36/44, но надпись на кнопке читается с
+   * расстояния вытянутой руки, а не только вплотную. 11px капсом был самым мелким текстом на
+   * экране, при том что кнопка — то, во что попадают чаще всего. */
   --control-h: var(--control-md);
-  --control-font: var(--text-xs);
+  --control-font: var(--text-sm);
   --control-radius: var(--radius-sm);
   --control-pad: var(--space-3);
   --field-label-font: var(--text-xs);
@@ -46,6 +50,11 @@
   --control-gap: var(--space-1);
   --field-gap: var(--space-1);
   --field-hint-min-h: 15px;
+
+  /* Инспектор — правая колонка карточки записи (игрок, ПК, клуб, товар). Ширина одна на все
+     приложения: их было пять (292/300/304/372/380), и глаз, переходя из раздела в раздел, каждый
+     раз искал край заново. */
+  --inspector-w: 360px;
 
   /* Motion */
   --duration-fast: 120ms;
@@ -58,9 +67,10 @@
   --focus-ring: 0 0 0 3px var(--accent-ring);
   --focus-ring-danger: 0 0 0 3px rgba(220, 38, 38, 0.22);
 
-  /* Fonts — body = system humanist grotesk; mono = register/terminal readout for
-     all numerics (money, SKU, quantities, times). Stack is Windows-reliable
-     (Cascadia ships with Terminal/VS, Consolas is always present). */
+  /* Моноширинный — только для кодов: артикул, штрихкод, версия, код приглашения. Числа (деньги,
+     количества, время) набираются основным шрифтом с tabular-nums: цифры встают в колонку так же
+     ровно, а строка не рассыпается на два шрифта. Стек надёжен на Windows (Cascadia идёт с
+     Terminal/VS, Consolas есть всегда). */
   --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, "SF Mono", "Roboto Mono", ui-monospace, monospace;
 
   /* Type scale */
@@ -154,6 +164,9 @@
   --success-text: #86efac;
   --success-soft-bg: #15311f;
   --success-soft-border: #1f5135;
+  /* Места «нет связи» и «на обслуживании»: спокойный серый, а не тревога. Жил литералом #64748b в
+     пяти правилах карты и броней. */
+  --status-offline: #64748b;
 
   --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.40);
   --shadow-elevated: 0 1px 0 rgba(0, 0, 0, 0.35), 0 18px 40px rgba(0, 0, 0, 0.50);
@@ -218,6 +231,7 @@
   --success-text: #166534;
   --success-soft-bg: #ecfdf3;
   --success-soft-border: #bbf7d0;
+  --status-offline: #64748b;
 
   --shadow-card: 0 1px 0 rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.08);
   --shadow-elevated: 0 1px 0 rgba(15, 23, 42, 0.04), 0 18px 40px rgba(15, 23, 42, 0.12);
@@ -281,6 +295,7 @@
   --success-text: #86efac;
   --success-soft-bg: #13301f;
   --success-soft-border: #1f5135;
+  --status-offline: #64748b;
 
   --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.35), 0 10px 28px rgba(0, 0, 0, 0.45);
   --shadow-elevated: 0 1px 0 rgba(0, 0, 0, 0.40), 0 24px 56px rgba(0, 0, 0, 0.55);

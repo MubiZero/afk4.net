@@ -68,7 +68,7 @@ it('reports tab changes to the route owner', async () => {
 
 it('keeps clubs available when health fails', async () => {
   setup('clubs');
-  await waitFor(() => expect(screen.getByText(/orion/u)).toBeVisible());
+  await waitFor(() => expect(screen.getByText('Orion Center')).toBeVisible());
   expect(screen.getAllByRole('heading', { name: 'Orion Gaming' }).length).toBeGreaterThan(0);
 });
 

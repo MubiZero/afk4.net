@@ -20,7 +20,7 @@ import {
 } from './stockLevels';
 import { StockHero } from './StockHero';
 import { WriteOffDialog } from './WriteOffDialog';
-import { useBlockedReason } from '../components/BlockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 
 type FilterMode = 'all' | 'low' | 'out';
 

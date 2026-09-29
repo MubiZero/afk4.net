@@ -1,78 +1,59 @@
-import { AlertTriangle, Inbox } from 'lucide-react';
-import { Button } from './button';
+import { Inbox } from 'lucide-react';
+import { EmptyState as KitEmptyState, LoadFailure } from '@afk4/ui/react';
 
-/// `title` — что именно не загрузилось, `message` — почему. Порознь они неполны: «не удалось
-/// загрузить фичи клуба» не подсказывает, чинить ли права или подождать сервер, а голое
-/// «недостаточно прав» на странице с семью разделами не говорит, к какому из них это относится.
-/// Кнопки повтора нет, когда повтор не поможет: нехватка прав не чинится нажатием, и кнопка,
-/// которая обещает обратное, уводит человека от единственного настоящего действия — попросить
-/// доступ. `onRetry` не передан — блок просто называет причину.
+// Состояния экрана — кит (@afk4/ui/react), тот же, что у Панели. Здесь только словарь панели:
+// тридцать с лишним экранов говорят `message`/`next` в её прежних словах, и переучивать их в этой
+// правке незачем — вид и поведение уже общие.
+
+/// `title` — что именно не загрузилось, `message` — почему. Кнопки повтора нет, когда повтор не
+/// поможет: нехватка прав не чинится нажатием. `onRetry` не передан — блок просто называет причину.
 export function ErrorState({ title, message, retryLabel, onRetry }: {
   title?: string; message: string; retryLabel?: string; onRetry?: () => void;
 }) {
-  return (
-    <div className="empty-state" role="alert">
-      <AlertTriangle className="empty-state-icon" size={22} aria-hidden="true" />
-      {title !== undefined ? <h2>{title}</h2> : null}
-      <p>{message}</p>
-      {onRetry !== undefined && retryLabel !== undefined ? <Button onClick={onRetry}>{retryLabel}</Button> : null}
-    </div>
-  );
+  return <LoadFailure title={title} detail={message} retry={onRetry !== undefined && retryLabel !== undefined ? { label: retryLabel, onClick: onRetry } : undefined} />;
 }
 
-/// Что пустой список предлагает человеку дальше. Проп обязателен, и в этом весь смысл: «Нет
-/// приглашений» без следующего шага оставляет человека гадать, что делать, — а пока проп был
-/// необязательным, его не передал ни один список панели. Молчание тоже бывает верным ответом,
-/// но теперь это решение с названной причиной, а не забытый аргумент.
+/// Что пустой список предлагает человеку дальше. Проп обязателен: пока он был необязательным,
+/// его не передал ни один список панели.
 export type EmptyNext =
-  /// Кнопка следующего шага: завести первое или сбросить фильтр, под который ничего не подошло.
+  /// Кнопка следующего шага: завести первое или сбросить фильтр.
   | { label: string; onClick: () => void }
-  /// Завести можно, но не этому сотруднику. Строка говорит, у кого есть право, — вместо кнопки,
-  /// на которую сервер ответил бы отказом.
+  /// Завести можно, но не этому сотруднику. Строка говорит, у кого есть право.
   | { noPermission: string }
-  /// Пусто — и это хорошо, или список пополняется сам. Текст говорит, что всё в порядке и что
-  /// появится здесь, когда случится.
+  /// Пусто — и это хорошо, или список пополняется сам.
   | 'calm'
   /// Здесь это не заводится. Текст называет место, где заводится.
   | 'elsewhere'
-  /// Форма или поле, которые решают дело, стоят прямо над списком; кнопка их только повторила бы.
+  /// Форма или поле, которые решают дело, стоят прямо над списком.
   | 'formAbove';
 
+// У «calm» и «elsewhere» панели сам `message` и есть та строка, которой кит требует от молчания:
+// что появится здесь или где это заводится. Поэтому он уходит в `hint`, а не дублируется.
 export function EmptyState({ title, message, next }: { title?: string; message: string; next: EmptyNext }) {
+  const icon = <Inbox size={22} />;
+  if (next === 'calm' || next === 'elsewhere') return <KitEmptyState icon={icon} title={title} next={{ kind: next, hint: message }} />;
   return (
-    <div className="empty-state">
-      <Inbox className="empty-state-icon" size={22} aria-hidden="true" />
-      {title !== undefined ? <h2>{title}</h2> : null}
-      <p>{message}</p>
-      {typeof next === 'string' ? null
-        : 'noPermission' in next ? <p className="mgmt-drawer-hint">{next.noPermission}</p>
-        : <Button size="sm" className="empty-state-action" onClick={next.onClick}>{next.label}</Button>}
-    </div>
+    <KitEmptyState
+      icon={icon}
+      title={title}
+      description={message}
+      next={next === 'formAbove' ? { kind: 'formAbove' }
+        : 'noPermission' in next ? { kind: 'denied', hint: next.noPermission }
+        : { kind: 'action', ...next }}
+    />
   );
 }
 
 export function ForbiddenState({ title, message, actionLabel, onAction }: {
   title: string; message: string; actionLabel: string; onAction: () => void;
 }) {
-  return (
-    <div className="empty-state" role="alert">
-      <AlertTriangle className="empty-state-icon" size={22} aria-hidden="true" />
-      <h2>{title}</h2>
-      <p>{message}</p>
-      <Button onClick={onAction}>{actionLabel}</Button>
-    </div>
-  );
+  return <LoadFailure title={title} detail={message} retry={{ label: actionLabel, onClick: onAction }} />;
 }
 
-// Частичный отказ: один блок экрана не загрузился, остальные живы. Полоса предупреждения
-// вместо подмены всего экрана — деньги и статус клиента обязаны остаться на виду.
+// Частичный отказ: один блок экрана не загрузился, остальные живы. Строка вместо подмены всего
+// экрана — деньги и статус клиента обязаны остаться на виду.
 export function PartialFailure({ title, retryLabel, onRetry }: {
   title: string; retryLabel: string; onRetry: () => void;
 }) {
-  return (
-    <div role="status" className="pc-partial">
-      <span>{title}</span>
-      <Button variant="outline" size="sm" onClick={onRetry}>{retryLabel}</Button>
-    </div>
-  );
+  return <LoadFailure inline detail={title} retry={{ label: retryLabel, onClick: onRetry }} />;
 }

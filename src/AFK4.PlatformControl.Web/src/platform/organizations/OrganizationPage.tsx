@@ -2,7 +2,7 @@ import type { PlatformApiClient } from '@/api/platformApi';
 import type { OrganizationOwnerInvite } from '@/api/types';
 import { Page } from '@/components/layout/Page';
 import { TabBoundary } from '@/components/shared/TabBoundary';
-import { Tabs } from '@/components/ui/tabs';
+import { Tabs } from '@afk4/ui/react';
 import { ErrorState, ForbiddenState } from '@/components/ui/states';
 import { Loading, SkeletonCard, SkeletonControl, SkeletonLine, SkeletonRows, SkeletonTabs } from '@/components/ui/skeletons';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
@@ -82,7 +82,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   if (state.status === 'loading') {
     return (
       // Название и короткое имя клиента ждут так же, как тело: 180 мс тишины, потом заглушка.
-      <Page back={back} width="full" title={<Loading><SkeletonLine width="12em" /></Loading>} description={<Loading><SkeletonLine width="8em" /></Loading>}>
+      <Page back={back} width="full" title={<Loading><SkeletonLine width="12em" /></Loading>}>
         <Loading><OrganizationPageSkeleton tabCount={visibleTabs.length} /></Loading>
       </Page>
     );
@@ -108,7 +108,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   const tabResetKey = `${organizationId}:${tab}`;
 
   return (
-    <Page back={back} width="full" title={organization.name} description={organization.slug}>
+    <Page back={back} width="full" title={organization.name}>
       <div className="pc-client">
         <div className="pc-client-main">
           <Tabs

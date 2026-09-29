@@ -48,7 +48,7 @@ it('renders forbidden content as an alert with a safe destination', () => {
 it('keeps partial failure non-blocking and retryable', () => {
   const retry = mock();
   render(<PartialFailure title="Счета временно недоступны" retryLabel="Повторить" onRetry={retry} />);
-  expect(screen.getByRole('status')).toHaveTextContent('Счета временно недоступны');
+  expect(screen.getByRole('alert')).toHaveTextContent('Счета временно недоступны');
   fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
   expect(retry).toHaveBeenCalledTimes(1);
 });

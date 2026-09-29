@@ -118,22 +118,6 @@
   font-size: 13px;
 }
 
-/* Частичный отказ: блок не загрузился, остальной экран жив. */
-.pc-partial {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--warning-soft-border);
-  border-left: 3px solid var(--warning);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  background: var(--warning-soft-bg);
-  color: var(--warning-text);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .pc-banner-dismiss {
   margin-left: auto;
   border: 0;
@@ -284,19 +268,8 @@
   min-width: 0;
 }
 
-.pc-screen-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.pc-screen-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-}
+/* Отступ под шапкой задаёт gap колонки экрана, а не своё поле. */
+.pc-screen > .ui-section-header { margin-bottom: 0; }
 
 /* Фильтры списка — тулбар панели (.table-toolbar) стоит внутри рамки списка; здесь строка
    фильтров живёт над таблицей, поэтому у неё свой контейнер с теми же метриками. */

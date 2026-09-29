@@ -9,7 +9,7 @@ import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
-import { useBlockedReason } from '@/components/ui/blockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { describeApiError } from '@/api/describeApiError';
 import { organizationOwnerActivationUrl } from './organizationsModel';
 import { AccessCodeHandoff } from '@/components/shared/AccessCodeHandoff';

@@ -1234,12 +1234,12 @@
 .seat-tile.state-ready { --seat-color: var(--accent); }
 .seat-tile.state-active { --seat-color: var(--text-tertiary); }
 .seat-tile.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
-.seat-tile.state-offline { --seat-color: #64748b; }
+.seat-tile.state-offline { --seat-color: var(--status-offline); }
 /* Сбой команды — тот же серый (см. «Красного на карте больше нет» выше), различают значок и
    подпись, не цвет; кант остаётся тревожным (4px, как «нет связи» — см. --alert ниже). */
-.seat-tile.state-failed { --seat-color: #64748b; }
+.seat-tile.state-failed { --seat-color: var(--status-offline); }
 /* Обслуживание — тот же серый, что «нет связи», но спокойный (без 4px-канта-тревоги). */
-.seat-tile.state-service { --seat-color: #64748b; }
+.seat-tile.state-service { --seat-color: var(--status-offline); }
 
 .seat-head,
 .seat-main,
@@ -1598,7 +1598,7 @@
 /* «Нет связи» и «обслуживание» — спокойный серый кант (не красный). */
 .context-status-row.state-offline,
 .context-status-row.state-service {
-  border-left-color: #64748b;
+  border-left-color: var(--status-offline);
 }
 
 .context-status-row.state-ready {

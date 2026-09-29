@@ -1,35 +1,27 @@
-import type { ComponentProps } from 'react';
+import { Button as KitButton, type ButtonProps as KitButtonProps } from '@afk4/ui/react';
 
-// Кнопка панели = атом .ui-btn из @afk4/ui. Здесь только сопоставление пропсов с модификаторами
-// кита: своих размеров и цветов панель не заводит — иначе она снова разъедется с Organization
-// Admin, как разъехалась на шаблонных примитивах.
+// Кнопка панели = кнопка кита (@afk4/ui/react), та же, что у Панели. Здесь только прежние имена
+// вариантов, на которых говорят экраны панели: `default` — главная, `outline`/`secondary` — обычная,
+// `destructive` — опасная. Кнопка под одну иконку — IconButton кита напрямую: у неё обязательная
+// подпись, а у этой обёртки её не было бы.
 export type ButtonVariant = 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive';
-export type ButtonSize = 'default' | 'sm' | 'lg' | 'icon' | 'icon-sm';
+export type ButtonSize = 'default' | 'sm' | 'lg';
 
-const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  default: 'ui-btn--primary',
-  outline: '',
-  secondary: '',
-  ghost: 'ui-btn--ghost',
-  destructive: 'ui-btn--danger'
+const VARIANT: Record<ButtonVariant, KitButtonProps['variant']> = {
+  default: 'primary',
+  outline: 'secondary',
+  secondary: 'secondary',
+  ghost: 'ghost',
+  destructive: 'danger'
 };
 
-const SIZE_CLASS: Record<ButtonSize, string> = {
-  default: '',
-  sm: 'ui-btn--sm',
-  lg: 'ui-btn--lg',
-  icon: 'ui-btn--icon',
-  'icon-sm': 'ui-btn--icon ui-btn--sm'
-};
+const SIZE: Record<ButtonSize, KitButtonProps['size']> = { default: 'md', sm: 'sm', lg: 'lg' };
 
-export interface ButtonProps extends ComponentProps<'button'> {
+export interface ButtonProps extends Omit<KitButtonProps, 'variant' | 'size'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
 }
 
-export function Button({ variant = 'default', size = 'default', className, type = 'button', ...props }: ButtonProps) {
-  const classes = ['ui-btn', VARIANT_CLASS[variant], SIZE_CLASS[size], className]
-    .filter(part => part !== undefined && part !== '')
-    .join(' ');
-  return <button type={type} className={classes} {...props} />;
+export function Button({ variant = 'default', size = 'default', ...props }: ButtonProps) {
+  return <KitButton variant={VARIANT[variant]} size={SIZE[size]} {...props} />;
 }

@@ -64,6 +64,29 @@ describe('@afk4/ui shared layer', () => {
     expect(blind).toEqual([]);
   });
 
+  // Решение владельца 29.09: числа — основным шрифтом с цифрами одной ширины, моноширинный — только
+  // кодам. Деньги моноширинным в инспекторе и обычным в таблице рядом были одной суммой в двух шрифтах.
+  it('sets numbers in the body font and keeps mono for codes', () => {
+    const rule = (sel: string) => kitCss.match(new RegExp(`${sel.replace('.', '\\.')}\\s*[,{][^}]*\\}`, 's'))?.[0] ?? '';
+    expect(rule('.ui-money')).toContain('tabular-nums');
+    expect(rule('.ui-money')).not.toContain('font-mono');
+    expect(rule('.ui-num')).toContain('tabular-nums');
+    expect(rule('.ui-code')).toContain('font-mono');
+  });
+
+  // `--focus-ring` — значение box-shadow («0 0 0 3px …»). В `outline` оно невалидно, браузер молча
+  // выбрасывает свойство, и фокуса не видно вовсе: так было на вкладках Отчётов.
+  it('never feeds the focus shadow into an outline', () => {
+    const appDirs = ['OrganizationAdmin', 'PlatformControl', 'SetupWizard', 'Player.Shell'].map(app => join(import.meta.dir, '..', '..', 'src', `AFK4.${app}.Web`, 'src'));
+    const sheets = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
+      entry.isDirectory() ? sheets(join(dir, entry.name)) : entry.name.endsWith('.css') ? [join(dir, entry.name)] : []);
+    const offenders = [import.meta.dir, ...appDirs].flatMap(dir => dir === import.meta.dir
+      ? readdirSync(dir).filter(name => name.endsWith('.css')).map(name => join(dir, name))
+      : sheets(dir))
+      .filter(file => /outline[a-z-]*:[^;{}]*var\(--focus-ring/.test(readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')));
+    expect(offenders).toEqual([]);
+  });
+
   // Оконные контролы, resize-хендлы и сетка оболочки принадлежат десктопному хосту. Если они
   // просочатся в общий слой, браузерная панель получит стили несуществующего у неё окна.
   it('carries no desktop-host chrome', () => {

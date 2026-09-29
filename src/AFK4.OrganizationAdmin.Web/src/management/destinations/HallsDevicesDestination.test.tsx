@@ -105,7 +105,7 @@ describe('HallsDevicesDestination', () => {
       />
     );
     await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
-    expect(container.querySelector('.mgmt-tabs')).toBeTruthy();
+    expect(container.querySelector('.ui-tabs')).toBeTruthy();
     // Список залов — одна колонка; справа карточка первого зала с таблицей мест.
     expect(container.querySelector('[data-skeleton="table"]')!.querySelectorAll('.ctable-head > span')).toHaveLength(1);
     expect(container.querySelector('.mgmt-master-detail--nav .mgmt-drawer')).toBeTruthy();

@@ -22,28 +22,11 @@
   animation: soft-enter 160ms var(--ease-out);
 }
 
-/* Крестик — иконочная кнопка в углу (в стиле остальных icon-кнопок приложения), не голый «×». */
+/* Вид ✕ — CloseButton кита; здесь только место в углу окна. */
 .account-panel-close {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.account-panel-close:hover,
-.account-panel-close:focus-visible {
-  outline: none;
-  background: var(--surface-hover);
-  color: var(--text-primary);
+  top: var(--space-3);
+  right: var(--space-3);
 }
 
 /* Шапка-личность: крупный аватар с инициалами + имя и роль — окно открывается «кто это», а не

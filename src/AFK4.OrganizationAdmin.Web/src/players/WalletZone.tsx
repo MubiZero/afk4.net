@@ -1,6 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { CircleDollarSign, QrCode, ReceiptText, SlidersHorizontal } from 'lucide-react';
-import { useBlockedReason } from '../components/BlockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 
 // Форма денежных действий клиента: поле «своя сумма» + кнопка пополнения, затем «Погасить
 // долг» (только при долге) / «Ручная корректировка» (только при праве). Баланс/долг как

@@ -58,12 +58,12 @@ export function SkeletonControl({ width, size }: { width?: string; size?: 'sm' |
   );
 }
 
-// Вкладки раздела (.mgmt-tabs) — чтобы переключатель не появлялся над содержимым вдогонку.
+// Вкладки раздела (.ui-tabs кита) — чтобы полоса не появлялась над содержимым вдогонку.
 export function SkeletonTabs({ count }: { count: number }): JSX.Element {
   return (
-    <div className="mgmt-tabs" aria-hidden="true">
+    <div className="ui-tabs" aria-hidden="true">
       {times(count).map((index) => (
-        <span key={index} className="mgmt-tab"><SkeletonLine width="6em" /></span>
+        <span key={index} className="ui-tab"><SkeletonLine width="6em" /></span>
       ))}
     </div>
   );

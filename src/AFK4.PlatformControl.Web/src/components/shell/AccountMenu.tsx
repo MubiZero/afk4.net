@@ -73,7 +73,7 @@ export function AccountMenu({ displayName, roleLabel, permissions, onSignOut }: 
             {LOCALE_LABEL[nextLocale]}
           </button>
 
-          <div className="mgmt-menu-sep" />
+          <div className="ui-menu-sep" />
 
           {/* Права — справка, а не экран: платформенный админ должен видеть, что ему доступно,
               когда кнопка не появилась, но ради этого не нужен отдельный раздел навигации. */}

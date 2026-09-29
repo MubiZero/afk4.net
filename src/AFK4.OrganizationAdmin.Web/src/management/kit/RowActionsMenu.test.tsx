@@ -10,7 +10,7 @@ afterEach(cleanup);
 describe('RowActionsMenu', () => {
   it('renders nothing when there are no actions', () => {
     const { container } = wrap(<RowActionsMenu actions={[]} />);
-    expect(container.querySelector('.mgmt-menu-trigger')).toBeNull();
+    expect(container.innerHTML).toBe('');
   });
 
   it('opens on trigger click and invokes the action, then closes', () => {
