@@ -7,6 +7,7 @@ afterEach(cleanup);
 
 function renderModal(overrides: Partial<Parameters<typeof CashMovementModal>[0]> = {}) {
   const onSubmit = mock(() => {});
+  const onClose = mock(() => {});
   render(
     <I18nProvider initialLocale="ru">
       <CashMovementModal
@@ -15,14 +16,14 @@ function renderModal(overrides: Partial<Parameters<typeof CashMovementModal>[0]>
         reason="Размен кассы"
         onChangeAmount={() => {}}
         onChangeReason={() => {}}
-        onClose={() => {}}
+        onClose={onClose}
         onSubmit={onSubmit}
         busy={false}
         {...overrides}
       />
     </I18nProvider>
   );
-  return { onSubmit };
+  return { onSubmit, onClose };
 }
 
 describe('CashMovementModal', () => {
@@ -36,9 +37,18 @@ describe('CashMovementModal', () => {
     expect(screen.getByText('Изъятие наличных')).toBeInTheDocument();
   });
 
-  it('submit вызывает onSubmit', () => {
-    const { onSubmit } = renderModal();
-    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
+  // Кнопка называет действие окна, а не безликое «Подтвердить».
+  it('кнопка «Внести» вызывает onSubmit', () => {
+    const { onSubmit } = renderModal({ movementType: 'cash_in' });
+    fireEvent.click(screen.getByRole('button', { name: 'Внести' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('«Отмена» закрывает окно, не записывая движение', () => {
+    const { onSubmit, onClose } = renderModal({ movementType: 'cash_out' });
+    expect(screen.getByRole('button', { name: 'Изъять' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Отмена', { selector: 'button' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

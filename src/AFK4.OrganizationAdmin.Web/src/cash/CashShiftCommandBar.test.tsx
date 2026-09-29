@@ -117,7 +117,7 @@ describe('CashShiftCommandBar', () => {
     renderBar({ isOpen: true, actions });
     fireEvent.click(screen.getByRole('button', { name: 'Изъять' }));
     fireEvent.change(screen.getByLabelText('Сумма'), { target: { value: '50.00' } });
-    const submit = within(screen.getByRole('dialog')).getByRole('button', { name: 'Подтвердить' });
+    const submit = within(screen.getByRole('dialog')).getByRole('button', { name: 'Изъять' });
     fireEvent.click(submit);
     await waitFor(() => expect(keys).toHaveLength(1));
     await waitFor(() => expect(submit).toBeEnabled());

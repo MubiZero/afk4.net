@@ -82,7 +82,7 @@ export function CashShiftCommandBar({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>({ label: '', state: 'idle' });
   useFeedbackToasts(feedback);
-  const [startingCash, setStartingCash] = useState('0.00');
+  const [startingCash, setStartingCash] = useState('0');
   const [openingNote, setOpeningNote] = useState(t('op.cash.open.defaultNote'));
   // Пустое поле, а не предзаполненные 10.00: в спешке легко подтвердить чужую сумму, просто
   // не заметив, что в поле уже что-то стоит.

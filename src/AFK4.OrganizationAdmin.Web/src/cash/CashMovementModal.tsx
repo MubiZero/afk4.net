@@ -1,5 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { PanelModal } from '../PanelModal';
 
 // Презентационная модалка кассового движения. Направление (внесение/изъятие) задаётся снаружи
@@ -55,10 +56,13 @@ export function CashMovementModal({
           disabled={busy}
           onChange={(event) => onChangeReason(event.currentTarget.value)}
         />
-        <button type="submit" className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action" disabled={busy}>
+        {/* Кнопка называет действие — «Внести», «Изъять», — а не безликое «Подтвердить»; рядом —
+            «Отмена»: окно с деньгами не должно закрываться только крестиком в углу. */}
+        <Button type="submit" variant="primary" size="lg" block disabled={busy}>
           <Icon size={15} aria-hidden="true" />
-          {t('op.cash.movement.submit')}
-        </button>
+          {isIn ? t('op.cash.action.cashIn') : t('op.cash.action.cashOut')}
+        </Button>
+        <Button variant="ghost" block disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
       </form>
     </PanelModal>
   );

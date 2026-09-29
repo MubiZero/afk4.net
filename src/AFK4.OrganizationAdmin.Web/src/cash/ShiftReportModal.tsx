@@ -57,7 +57,7 @@ export function ShiftReportModal({
           </div>
         </section>
 
-        <button type="button" className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action" onClick={onPrint}>
+        <button type="button" className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block" onClick={onPrint}>
           <Printer size={15} aria-hidden="true" />
           {t('op.cash.report.print')}
         </button>

@@ -5,13 +5,14 @@ import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerm
 afterEach(cleanup);
 
 describe('CashMetricStrip', () => {
-  it('renders decision metrics with explicit tones', () => {
+  // Тонов у полосы больше нет: «Изъято» и «Возвраты» красным читались как ошибка.
+  it('renders metrics with their details and no alarm colour', () => {
     render(<CashMetricStrip ariaLabel="Ключевые показатели смены" items={[
       { label: 'Выручка', value: '1 230 с.' },
-      { label: 'Расхождение', value: '−50 с.', tone: 'danger', detail: 'Требует сверки' }
+      { label: 'Расхождение', value: '−50 с.', detail: 'Требует сверки' }
     ]} />);
     expect(screen.getByLabelText('Ключевые показатели смены')).toBeInTheDocument();
-    expect(screen.getByText('−50 с.').closest('.cash-terminal-metric')).toHaveClass('tone-danger');
+    expect(screen.getByText('−50 с.').closest('.cash-terminal-metric')?.className).toBe('cash-terminal-metric');
     expect(screen.getByText('Требует сверки')).toBeInTheDocument();
   });
 });

@@ -125,14 +125,16 @@ function projectPosProduct(
   const stockOnHand = readNumber(product, 'stockOnHand', 0);
   const reorderThreshold = readNumber(product, 'reorderThreshold', 0);
   const categoryId = readString(product, 'categoryId');
+  const trackStock = readBoolean(product, 'trackStock');
   return {
     productId: readString(product, 'productId') || undefined,
     name: readString(product, 'name', t('op.pos.catalog.productFallback')),
     priceMinorUnits: price?.minorUnits ?? 0,
     categoryId: categoryId || undefined,
     category: directory.get(categoryId)?.name || t('op.pos.catalog.categoryFallback'),
-    note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
-    trackStock: readBoolean(product, 'trackStock'),
+    // Остаток — только у товара со складским учётом: «0 шт.» у гостевого часа читалось как «кончился».
+    note: trackStock ? t('op.pos.catalog.note', { sku, count: stockOnHand }) : sku,
+    trackStock,
     stockOnHand,
     reorderThreshold,
     barcodes: readArray<string>(product, 'barcodes'),

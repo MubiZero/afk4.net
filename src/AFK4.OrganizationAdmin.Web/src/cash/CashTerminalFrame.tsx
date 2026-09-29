@@ -2,10 +2,11 @@ import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNo
 import { SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
 import { CloseButton } from '@afk4/ui/react';
 
+// Цифры полосы — без цвета: «Изъято» и «Возвраты» — обычные деньги смены, а не ошибка, и красным
+// они кричали там, где ничего не случилось.
 export interface CashMetricItem {
   label: string;
   value: ReactNode;
-  tone?: 'default' | 'positive' | 'attention' | 'danger';
   detail?: string;
 }
 
@@ -13,7 +14,7 @@ export function CashMetricStrip({ items, ariaLabel }: { items: CashMetricItem[];
   return (
     <section className="cash-terminal-metrics" aria-label={ariaLabel} style={{ '--cash-metric-count': items.length } as CSSProperties}>
       {items.map((item) => (
-        <div key={item.label} className={`cash-terminal-metric tone-${item.tone ?? 'default'}`}>
+        <div key={item.label} className="cash-terminal-metric">
           <span>{item.label}</span>
           <strong>{item.value}</strong>
           {item.detail ? <small>{item.detail}</small> : null}

@@ -49,7 +49,7 @@ describe('ReceivingWorkspace', () => {
     const lines = await screen.findByLabelText('Позиции прихода');
     expect(within(lines).getByText('Cola 0.5')).toBeInTheDocument();
     const costInput = within(lines).getByLabelText('Себестоимость ед.') as HTMLInputElement;
-    expect(costInput.value).toBe('4.00');
+    expect(costInput.value).toBe('4');
   });
 
   it('ввод себестоимости под React.StrictMode не падает (event читается синхронно, не в updater)', async () => {

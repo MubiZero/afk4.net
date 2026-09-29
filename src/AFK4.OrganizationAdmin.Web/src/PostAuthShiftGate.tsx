@@ -17,7 +17,7 @@ export function PostAuthShiftGate({
   onSignOut: () => void;
 }) {
   const { t } = useI18n();
-  const [startingCash, setStartingCash] = useState('0.00');
+  const [startingCash, setStartingCash] = useState('0');
   const [openingNote, setOpeningNote] = useState(t('op.cash.open.defaultNote'));
   const [localError, setLocalError] = useState<string | null>(null);
   const checking = controller.status === 'checking';
