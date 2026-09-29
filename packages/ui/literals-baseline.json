@@ -195,7 +195,7 @@
   },
   "src/AFK4.SetupWizard.Web/src/styles/wizard.css": {
     "radius": 2,
-    "spacing": 20,
+    "spacing": 16,
     "hex": 2
   }
 }

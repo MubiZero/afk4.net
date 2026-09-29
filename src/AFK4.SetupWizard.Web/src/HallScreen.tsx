@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n } from '@afk4/i18n';
 import type { WizardZone } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
+import { WizardStepLayout } from './WizardStepLayout';
 
 export interface HallClient {
   createSeats(zoneId: string, namePrefix: string, count: number): Promise<{ names: string[] }>;
@@ -85,15 +87,22 @@ export function HallScreen({
   }
 
   return (
-    <section className="wizard-screen is-narrow">
-      <div className="wizard-screen-head">
-        <span className="wizard-screen-context">{ownerName} · {branchName}</span>
-        <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
-          <h1>{t('setup.wizard.hall.title')}</h1>
-        </div>
-        <p>{t('setup.wizard.hall.subtitle')}</p>
-      </div>
+    <WizardStepLayout
+      stepNumber={stepNumber}
+      context={`${ownerName} · ${branchName}`}
+      title={t('setup.wizard.hall.title')}
+      subtitle={t('setup.wizard.hall.subtitle')}
+      onBack={() => onBack(draft)}
+      // Пока на шаге ничего не сделано, уйти с него — «Пропустить», тихой ссылкой: главное
+      // действие здесь — кнопка в форме. Сделали — главной становится «Дальше».
+      skip={createdNames.length > 0 ? null : { label: t('setup.wizard.hall.skip'), onClick: () => onContinue(draft), disabled: creating }}
+      primary={createdNames.length > 0 ? (
+        <Button variant="primary" onClick={() => onContinue(draft)} disabled={creating}>
+          {t('setup.wizard.hall.next')}
+          <ArrowRight size={16} aria-hidden />
+        </Button>
+      ) : undefined}
+    >
 
       {zones.length === 0 && (
         /* Без зала заводить места негде: кнопка не нажимается, и раньше причину человек не
@@ -176,21 +185,6 @@ export function HallScreen({
         <p className="ui-field-hint">{t('setup.wizard.hall.skipMeaning')}</p>
       )}
 
-      <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
-          <ArrowLeft size={16} aria-hidden />
-          {t('setup.wizard.common.back')}
-        </button>
-        <button
-          type="button"
-          className={createdNames.length > 0 ? 'ui-btn ui-btn--primary' : 'ui-btn'}
-          onClick={() => onContinue(draft)}
-          disabled={creating}
-        >
-          <ArrowRight size={16} aria-hidden />
-          {createdNames.length > 0 ? t('setup.wizard.hall.next') : t('setup.wizard.hall.skip')}
-        </button>
-      </div>
-    </section>
+    </WizardStepLayout>
   );
 }

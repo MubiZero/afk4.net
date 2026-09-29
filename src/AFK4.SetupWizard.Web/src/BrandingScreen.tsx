@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { wizardErrorMessage } from './wizardErrors';
 import type { WizardBrandingPreset } from './wizardApi';
 import { handleRadioGroupKeys, radioTabIndex } from './radioGroup';
+import { WizardStepLayout } from './WizardStepLayout';
 
 // Цвет клуба доезжает до приложения игрока и до оболочки игрового ПК. Палитра задана здесь, а не
 // свободным вводом: на первом шаге важнее быстро выбрать читаемый цвет, чем подобрать оттенок.
@@ -133,16 +135,22 @@ export function BrandingScreen({
   }
 
   return (
-    <section className="wizard-screen is-narrow">
-      <div className="wizard-screen-head">
-        <span className="wizard-screen-context">{ownerName} · {branchName}</span>
-        <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
-          <h1>{t('setup.wizard.branding.title')}</h1>
-        </div>
-        <p>{t('setup.wizard.branding.subtitle')}</p>
-      </div>
-
+    <WizardStepLayout
+      stepNumber={stepNumber}
+      context={`${ownerName} · ${branchName}`}
+      title={t('setup.wizard.branding.title')}
+      subtitle={t('setup.wizard.branding.subtitle')}
+      onBack={() => onBack(draft)}
+      // Оформление можно пропустить: клуб откроется и без логотипа, а поставить его управляющий
+      // сможет в Панели AFK4.net.
+      skip={{ label: t('setup.wizard.branding.skip'), onClick: () => onContinue(draft), disabled: saving }}
+      primary={(
+        <Button variant="primary" onClick={() => void save()} disabled={saving}>
+          {t('setup.wizard.branding.save')}
+          {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <ArrowRight size={16} aria-hidden />}
+        </Button>
+      )}
+    >
       <div className="ui-field">
         <span className="ui-field-label">{t('setup.wizard.branding.logo')}</span>
         {/* Не radiogroup: нажатие по выбранному снимает выбор, а переключатель так не умеет —
@@ -214,21 +222,6 @@ export function BrandingScreen({
 
       {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
 
-      <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
-          <ArrowLeft size={16} aria-hidden />
-          {t('setup.wizard.common.back')}
-        </button>
-        {/* Оформление можно пропустить: клуб откроется и без логотипа, а поставить его
-            управляющий сможет в панели. */}
-        <button type="button" className="ui-btn" onClick={() => onContinue(draft)} disabled={saving}>
-          {t('setup.wizard.branding.skip')}
-        </button>
-        <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()} disabled={saving}>
-          {saving ? <Loader2 size={16} className="ui-spinner" aria-hidden /> : <ArrowRight size={16} aria-hidden />}
-          {t('setup.wizard.branding.save')}
-        </button>
-      </div>
-    </section>
+    </WizardStepLayout>
   );
 }

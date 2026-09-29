@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
 import {
@@ -10,6 +11,7 @@ import {
 } from './wizardApi';
 import { HostBridgeRequestError, isHostBridgeUnavailableError } from './hostBridge';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
+import { WizardStepLayout } from './WizardStepLayout';
 
 export type ResetChannel = 'email' | 'phone';
 
@@ -116,33 +118,27 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
 
   if (step === 'done') {
     return (
-      <section className="wizard-screen is-narrow is-static">
-        <div className="wizard-finished-hero">
-          <span className="wizard-finished-badge" aria-hidden>
-            <CheckCircle2 size={32} />
-          </span>
-          <h1>{t('auth.reset.title')}</h1>
-          <p>{t('auth.forgot.phone.done')}</p>
-        </div>
-        <div className="wizard-actions is-end">
-          <button
-            type="button"
-            className="ui-btn ui-btn--primary"
-            onClick={() => onBack(identity ? { channel, identity } : undefined)}
-          >
-            <span>{t('auth.forgot.phone.toSignIn')}</span>
-          </button>
-        </div>
-      </section>
+      <WizardStepLayout
+        title={t('auth.reset.title')}
+        subtitle={t('auth.forgot.phone.done')}
+        primary={(
+          <Button variant="primary" onClick={() => onBack(identity ? { channel, identity } : undefined)}>
+            {t('auth.forgot.phone.toSignIn')}
+          </Button>
+        )}
+      />
     );
   }
 
+  // Сброс ПИН-кода — ответвление от входа: номера шага у него нет, а «Назад» — там же, где на
+  // любом шаге мастера, внизу слева.
   return (
-    <section className="wizard-screen is-narrow is-static">
-      <div className="wizard-screen-head">
-        <h1>{t('auth.forgot.title')}</h1>
-        <p>{step === 'verify' ? t('auth.forgot.verify.subtitle') : t('auth.forgot.subtitle')}</p>
-      </div>
+    <WizardStepLayout
+      title={t('auth.forgot.title')}
+      subtitle={step === 'verify' ? t('auth.forgot.verify.subtitle') : t('auth.forgot.subtitle')}
+      onBack={handleBack}
+      backLabel={step === 'verify' ? undefined : t('auth.forgot.back')}
+    >
 
       {step === 'verify' ? (
         <form className="wizard-form" onSubmit={submitReset} noValidate>
@@ -255,15 +251,13 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
       )}
 
       {step === 'request' && (
-        <div className="wizard-alt-actions">
-          <button
-            type="button"
-            className="wizard-link-action"
-            onClick={() => selectChannel(channel === 'phone' ? 'email' : 'phone')}
-          >
-            {channel === 'phone' ? t('auth.forgot.switchToEmail') : t('auth.forgot.switchToSms')}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="wizard-link-inline wizard-mode-switch"
+          onClick={() => selectChannel(channel === 'phone' ? 'email' : 'phone')}
+        >
+          {channel === 'phone' ? t('auth.forgot.switchToEmail') : t('auth.forgot.switchToSms')}
+        </button>
       )}
 
       {error && (
@@ -272,11 +266,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         </div>
       )}
 
-      <button type="button" className="wizard-link-action" onClick={handleBack}>
-        <ArrowLeft aria-hidden />
-        <span>{step === 'verify' ? t('setup.wizard.common.back') : t('auth.forgot.back')}</span>
-      </button>
-    </section>
+    </WizardStepLayout>
   );
 }
 

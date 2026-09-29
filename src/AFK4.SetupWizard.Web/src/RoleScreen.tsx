@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Briefcase, Check, Monitor } from 'lucide-react';
+import { ArrowRight, Briefcase, Check, Monitor } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n } from '@afk4/i18n';
 import type { WizardRole } from './wizardApi';
 import { handleRadioGroupKeys, radioTabIndex } from './radioGroup';
+import { WizardStepLayout } from './WizardStepLayout';
 
 // Порядок здесь и порядок кнопок ниже — одно и то же: по нему ходят стрелки.
 const ROLES: readonly WizardRole[] = ['gaming_pc', 'manager_workstation'];
@@ -29,16 +31,19 @@ export function RoleScreen({
   const [role, setRole] = useState<WizardRole>(initialRole);
 
   return (
-    <section className="wizard-screen is-narrow">
-      <div className="wizard-screen-head">
-        <span className="wizard-screen-context">{ownerName} · {branchName}</span>
-        <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
-          <h1>{t('setup.wizard.role.title')}</h1>
-        </div>
-        <p>{t('setup.wizard.role.subtitle')}</p>
-      </div>
-
+    <WizardStepLayout
+      stepNumber={stepNumber}
+      context={`${ownerName} · ${branchName}`}
+      title={t('setup.wizard.role.title')}
+      subtitle={t('setup.wizard.role.subtitle')}
+      onBack={onBack}
+      primary={(
+        <Button variant="primary" onClick={() => onContinue(role)}>
+          {t('setup.wizard.common.continue')}
+          <ArrowRight size={16} aria-hidden />
+        </Button>
+      )}
+    >
       <div
         className="wizard-segment wizard-segment-stack"
         role="radiogroup"
@@ -85,20 +90,6 @@ export function RoleScreen({
         </button>
       </div>
 
-      <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={onBack}>
-          <ArrowLeft aria-hidden />
-          <span>{t('setup.wizard.common.back')}</span>
-        </button>
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          onClick={() => onContinue(role)}
-        >
-          <span>{t('setup.wizard.common.continue')}</span>
-          <ArrowRight aria-hidden />
-        </button>
-      </div>
-    </section>
+    </WizardStepLayout>
   );
 }

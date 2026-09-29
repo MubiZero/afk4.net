@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n } from '@afk4/i18n';
 import { majorToMinor } from '@afk4/money';
 import { wizardErrorMessage } from './wizardErrors';
+import { WizardStepLayout } from './WizardStepLayout';
 
 export interface TariffClient {
   createTariff(name: string, pricePerHourMinorUnits: number): Promise<{ name: string }>;
@@ -73,15 +75,22 @@ export function TariffScreen({
   }
 
   return (
-    <section className="wizard-screen is-narrow">
-      <div className="wizard-screen-head">
-        <span className="wizard-screen-context">{ownerName} · {branchName}</span>
-        <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
-          <h1>{t('setup.wizard.tariff.title')}</h1>
-        </div>
-        <p>{t('setup.wizard.tariff.subtitle')}</p>
-      </div>
+    <WizardStepLayout
+      stepNumber={stepNumber}
+      context={`${ownerName} · ${branchName}`}
+      title={t('setup.wizard.tariff.title')}
+      subtitle={t('setup.wizard.tariff.subtitle')}
+      onBack={() => onBack(draft)}
+      // Пока на шаге ничего не сделано, уйти с него — «Пропустить», тихой ссылкой: главное
+      // действие здесь — кнопка в форме. Сделали — главной становится «Дальше».
+      skip={created !== null ? null : { label: t('setup.wizard.tariff.skip'), onClick: () => onContinue(draft), disabled: saving }}
+      primary={created !== null ? (
+        <Button variant="primary" onClick={() => onContinue(draft)} disabled={saving}>
+          {t('setup.wizard.tariff.next')}
+          <ArrowRight size={16} aria-hidden />
+        </Button>
+      ) : undefined}
+    >
 
       {/* Форма — ради Enter: набрал цену и жмёт Enter, как на входе и на экране устройства.
           Поля вне формы Enter молча проглатывали. «Дальше» в форму не входит: Enter в поле
@@ -125,21 +134,6 @@ export function TariffScreen({
       {failure === null ? null : <p className="ui-alert" role="alert">{failure}</p>}
       {created === null ? null : <p className="ui-field-hint">{t('setup.wizard.tariff.created', { name: created })}</p>}
 
-      <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
-          <ArrowLeft size={16} aria-hidden />
-          {t('setup.wizard.common.back')}
-        </button>
-        <button
-          type="button"
-          className={created === null ? 'ui-btn' : 'ui-btn ui-btn--primary'}
-          onClick={() => onContinue(draft)}
-          disabled={saving}
-        >
-          <ArrowRight size={16} aria-hidden />
-          {created === null ? t('setup.wizard.tariff.skip') : t('setup.wizard.tariff.next')}
-        </button>
-      </div>
-    </section>
+    </WizardStepLayout>
   );
 }

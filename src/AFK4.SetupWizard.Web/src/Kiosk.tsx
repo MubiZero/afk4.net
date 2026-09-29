@@ -4,29 +4,19 @@ import type { WizardKioskOutcome, WizardKioskStatus, WizardRole, WizardShellOutc
 import { wizardErrorMessage } from './wizardErrors';
 
 /**
- * Строка киоска на экране «Готово» (спека оболочки, §6.1). В отличие от установки приложения,
- * успех здесь показывается: без перезагрузки киоск не заработает, и человек должен это прочитать.
+ * Киоск не встал — строка с повтором на экране «Готово» (спека оболочки, §6.1). Удачу экран
+ * «Готово» говорит сам, в списке «Что дальше»: без перезагрузки киоск не заработает, и главной
+ * кнопкой там становится перезагрузка.
  */
-export function KioskStatusRow({ initial, role, provisionShell, reboot }: {
-  initial: WizardKioskOutcome;
+export function KioskStatusRow({ outcome, role, provisionShell, onOutcome }: {
+  outcome: WizardKioskOutcome;
   role: WizardRole;
   provisionShell: (role: WizardRole) => Promise<WizardShellOutcome>;
-  reboot: () => Promise<void>;
+  onOutcome: (next: WizardKioskOutcome) => void;
 }) {
   const { t } = useI18n();
-  const [outcome, setOutcome] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-
-  if (outcome.status === 'ready') {
-    return (
-      <div className="wizard-shell-status is-ok" role="status">
-        <span>{t('setup.wizard.kiosk.ready')}</span>
-        {failure === null ? null : <span className="wizard-shell-status-detail">{failure}</span>}
-        <RebootButton reboot={reboot} onFailed={setFailure} />
-      </div>
-    );
-  }
 
   return (
     <div className="wizard-shell-status is-error" role="alert">
@@ -42,7 +32,7 @@ export function KioskStatusRow({ initial, role, provisionShell, reboot }: {
           setFailure(null);
           try {
             const next = await provisionShell(role);
-            if (next.kiosk) setOutcome(next.kiosk);
+            if (next.kiosk) onOutcome(next.kiosk);
           } catch (error) {
             setFailure(wizardErrorMessage(error, t, 'setup.wizard.finished.shell.retryFailed'));
           } finally {
@@ -130,7 +120,7 @@ export function KioskRemoval({ loadStatus, remove, reboot }: {
   );
 }
 
-function RebootButton({ reboot, onFailed }: { reboot: () => Promise<void>; onFailed: (message: string) => void }) {
+export function RebootButton({ reboot, onFailed }: { reboot: () => Promise<void>; onFailed: (message: string) => void }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   return (

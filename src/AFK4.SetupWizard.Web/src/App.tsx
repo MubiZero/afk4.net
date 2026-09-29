@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { useI18n, type Locale, type MessageKey } from '@afk4/i18n';
+import { useI18n, type Locale } from '@afk4/i18n';
 import { CloseIcon, MaximizeIcon, MinimizeIcon, RestoreIcon } from './WindowIcons';
 import { BrandMark } from './BrandMark';
 import { BranchSelectionScreen } from './BranchSelectionScreen';
@@ -13,7 +13,7 @@ import { HallScreen, type HallDraft } from './HallScreen';
 import { StaffScreen, type StaffDraft } from './StaffScreen';
 import { TariffScreen, type TariffDraft } from './TariffScreen';
 import { RoleScreen } from './RoleScreen';
-import { Stepper, type WizardStep } from './Stepper';
+import { STEP_LABELS, Stepper, type WizardStep } from './Stepper';
 import { WizardErrorBoundary } from './WizardErrorBoundary';
 import { nextSetupStep, previousVisibleStep, visibleSteps } from './setupSteps';
 import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
@@ -391,24 +391,12 @@ export function App() {
   );
 
   const stepAnnouncement = useMemo(() => {
-    const stepLabelKey: Record<typeof state.step, MessageKey> = {
-      phoneLogin: 'setup.wizard.stepper.signIn',
-      forgotPassword: 'setup.wizard.stepper.signIn',
-      branchSelection: 'setup.wizard.stepper.branch',
-      role: 'setup.wizard.stepper.role',
-      branding: 'setup.wizard.stepper.branding',
-      staff: 'setup.wizard.stepper.staff',
-      hall: 'setup.wizard.stepper.hall',
-      tariff: 'setup.wizard.stepper.tariff',
-      device: 'setup.wizard.stepper.device',
-      finished: 'setup.wizard.stepper.done',
-    };
     // Номер берётся из шагов ЭТОГО прогона — того же списка, что рисует степпер. Со своим
     // зашитым порядком живой регион объявлял бы «шаг 8 из девяти» там, где на экране пятый
     // из пяти.
     const announceStep = state.step === 'forgotPassword' ? 'phoneLogin' : state.step;
     const position = steps.indexOf(announceStep) + 1;
-    return `${t('setup.wizard.common.step')} ${position}: ${t(stepLabelKey[state.step])}`;
+    return `${t('setup.wizard.common.step')} ${position}: ${t(STEP_LABELS[state.step])}`;
   }, [state.step, steps, t]);
 
   return (
@@ -419,13 +407,10 @@ export function App() {
           <BrandMark className="wizard-brand-logo" />
           <div className="wizard-brand-text">
             <strong>
-              AFK4<span className="wizard-brand-accent">.NET</span>
+              AFK4<span className="wizard-brand-accent">.net</span>
             </strong>
             <span className="wizard-brand-product">{t('setup.wizard.titlebar.product')}</span>
           </div>
-        </div>
-        <div className="wizard-titlebar-stepper" data-no-drag>
-          <Stepper steps={steps} current={state.step} />
         </div>
         <div className="wizard-titlebar-controls" data-no-drag>
           <button
@@ -515,6 +500,13 @@ export function App() {
       {/* Граница монтируется заново на каждом шаге: исправленный шаг не должен оставаться
           «сломанным» из-за падения предыдущего. */}
       <main className="wizard-body" data-nav-dir={navDirection}>
+        {/* Шаги — списком слева, с подписями: раньше это были кружки в титлбаре, а что за ними,
+            показывала только подсказка на наведении. До входа список пуст: сколько шагов будет, зависит
+            от клуба, и список, который растёт после входа, обещал бы меньше. Место под него держим
+            и на входе — иначе карточка шага прыгает вправо после входа. */}
+        <aside className="wizard-rail">
+          {state.step === 'phoneLogin' || state.step === 'forgotPassword' ? null : <Stepper steps={steps} current={state.step} />}
+        </aside>
         <WizardErrorBoundary
           key={state.step}
           message={t('setup.wizard.crash.message')}
