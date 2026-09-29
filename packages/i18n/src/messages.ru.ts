@@ -3687,6 +3687,7 @@ export const ru = {
   "platform.ads.report.error.order": "Последний день — не раньше первого.",
   "platform.ads.report.error.tooLong": "Период — не длиннее {max} дней.",
   "platform.ads.report.from": "Первый день",
+  "platform.ads.report.refresh": "Обновить",
   "platform.ads.report.to": "Последний день",
   "platform.ads.report.total": "Итого",
   "platform.ads.tab.advertisers": "Рекламодатели",

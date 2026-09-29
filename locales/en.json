@@ -3686,6 +3686,7 @@
   "platform.ads.report.error.order": "The last day can't be before the first.",
   "platform.ads.report.error.tooLong": "The period can be at most {max} days.",
   "platform.ads.report.from": "First day",
+  "platform.ads.report.refresh": "Refresh",
   "platform.ads.report.to": "Last day",
   "platform.ads.report.total": "Total",
   "platform.ads.tab.advertisers": "Advertisers",

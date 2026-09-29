@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonTable } from '@/components/ui/skeletons';
+import { IconButton } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdsApi } from '@/api/platformClients/ads';
 import type { AdImpressionRowDto } from '@/api/types';
@@ -65,7 +67,13 @@ export function ReportTab({ client, now = new Date() }: {
 
   return (
     <Card>
-      <CardToolbar hint={t('platform.ads.report.description')} />
+      {/* Фильтры применяются сами по себе (без «Применить»), и повторный выбор той же даты не
+          меняет их значение — событие изменения не срабатывает, и обновить те же дни было нечем.
+          Показы с ПК приходят раз в час: без кнопки «Обновить» узнать о свежих было нельзя, не
+          сдвинув период туда-обратно. */}
+      <CardToolbar hint={t('platform.ads.report.description')}>
+        <IconButton variant="ghost" size="sm" label={t('platform.ads.report.refresh')} icon={<RefreshCw size={14} aria-hidden="true" />} onClick={report.retry} />
+      </CardToolbar>
       <CardContent>
 
         {/* Фильтры применяются сразу, без кнопки (решение владельца 29.09): в журнале и здесь они
