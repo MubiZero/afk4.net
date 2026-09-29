@@ -114,6 +114,7 @@ public sealed class EfShiftServiceTests
             CancellationToken.None);
 
         Assert.True(conflict.Conflict);
+        Assert.Equal("idempotency_conflict", conflict.Code);
         Assert.Single(await db.Shifts.ToListAsync());
     }
 

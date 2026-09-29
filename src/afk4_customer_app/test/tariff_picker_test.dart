@@ -313,4 +313,19 @@ void main() {
 
     expect(find.textContaining('не действует в выбранное время'), findsOneWidget);
   });
+
+  // Тариф сняли с публикации между тем, как лист открылся, и нажатием «Забронировать».
+  testWidgets('отказ по снятому с публикации тарифу назван своей причиной', (tester) async {
+    await tester.pumpWidget(harness(_serve(
+      tariffs: _scheduledTariffJson(from: null, to: null),
+      create: ('{"error":"tariff_not_available"}', 400),
+    )));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+    await fillTimes(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Забронировать'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('больше не действует'), findsOneWidget);
+  });
 }

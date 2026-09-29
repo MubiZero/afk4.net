@@ -130,7 +130,9 @@ const codeMessageKeys = {
   reservation_not_rejectable: 'op.error.code.reservationNotRejectable',
   reservation_refusal_note_required: 'op.error.code.reservationRefusalNoteRequired',
   reservation_reject_reason_unsupported: 'op.error.code.reservationRejectReasonUnsupported',
-  reservation_no_show_not_allowed: 'op.error.code.reservationNoShowNotAllowed'
+  reservation_no_show_not_allowed: 'op.error.code.reservationNoShowNotAllowed',
+  // Соседняя смена подтвердила бронь на то же место и время быстрее, чем этот экран.
+  reservation_seat_booked: 'op.error.code.reservationSeatBooked'
 } as const satisfies Record<string, MessageKey>;
 
 /**

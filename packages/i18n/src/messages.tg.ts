@@ -1385,6 +1385,7 @@ export const tg = {
   "op.error.code.reservationNotSeatable": "Танҳо дархост ё брондошти тасдиқшударо шинондан мумкин аст. Рӯйхатро нав кунед.",
   "op.error.code.reservationRefusalNoteRequired": "Нависед, ки чӣ шуд: сабаби «дигар» бе шарҳ ба меҳмон чизе намефаҳмонад.",
   "op.error.code.reservationRejectReasonUnsupported": "Сабаби раддро аз рӯйхат интихоб кунед.",
+  "op.error.code.reservationSeatBooked": "Ин ҷой барои ин вақт аллакай бо брони дигар банд аст. Ҷой ё вақти дигарро интихоб кунед.",
   "op.error.code.reservationSeatRequired": "Брондошт ҷой надорад — аввал ҷой интихоб кунед, баъд меҳмонро шинонед.",
   "op.error.code.saleNotPayable": "Ин чекро дигар пардохтан мумкин нест — онро бекор кардаанд ё дар равзанаи дигар аллакай пардохтаанд. Рӯйхатро нав кунед.",
   "op.error.code.seatUnavailable": "Ҷойи интихобшуда барои оғози сессия дастрас нест.",

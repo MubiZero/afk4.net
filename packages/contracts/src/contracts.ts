@@ -1214,6 +1214,8 @@ export const ReservationErrorCodeNames = {
   RejectReasonUnsupported: 'reservation_reject_reason_unsupported',
   /** Неявку отмечают у подтверждённой брони, время которой уже началось. */
   NoShowNotAllowed: 'reservation_no_show_not_allowed',
+  /** На это время место уже занято другой активной бронью. */
+  SeatBooked: 'reservation_seat_booked',
 } as const;
 export type ReservationErrorCodeName = (typeof ReservationErrorCodeNames)[keyof typeof ReservationErrorCodeNames];
 
@@ -1687,6 +1689,8 @@ export const TariffErrorCodeNames = {
   NameTaken: 'tariff_name_taken',
   /** Эту версию тарифа уже использовали сессии — редактировать нельзя, только новую версию. */
   VersionInUse: 'tariff_version_in_use',
+  /** Выбранный тариф сняли с публикации или он принадлежит другому филиалу. */
+  NotAvailable: 'tariff_not_available',
 } as const;
 export type TariffErrorCodeName = (typeof TariffErrorCodeNames)[keyof typeof TariffErrorCodeNames];
 

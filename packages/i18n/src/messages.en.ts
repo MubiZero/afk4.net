@@ -1385,6 +1385,7 @@ export const en = {
   "op.error.code.reservationNotSeatable": "Only a request or a confirmed booking can be seated. Refresh the list.",
   "op.error.code.reservationRefusalNoteRequired": "Write what happened: “other” without a note explains nothing to the guest.",
   "op.error.code.reservationRejectReasonUnsupported": "Pick a refusal reason from the list.",
+  "op.error.code.reservationSeatBooked": "This seat is already booked for that time. Choose another seat or time.",
   "op.error.code.reservationSeatRequired": "The booking has no seat — pick a seat first, then seat the guest.",
   "op.error.code.saleNotPayable": "This receipt can no longer be paid — it was voided or already paid elsewhere. Refresh the list.",
   "op.error.code.seatUnavailable": "The selected seat is unavailable for session start.",

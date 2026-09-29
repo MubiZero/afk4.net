@@ -1028,12 +1028,12 @@ internal static class PlayerSelfServiceEndpoints
             // экран показывает их по-разному.
             if (result.Conflict)
             {
-                return Results.Conflict(new { Error = result.Error });
+                return Results.Conflict(new { Error = result.Error, result.Code });
             }
 
             if (!result.Succeeded)
             {
-                return Results.BadRequest(new { Error = result.Error });
+                return Results.BadRequest(new { Error = result.Error, result.Code });
             }
 
             return Results.Ok(ToPlayerReservationDto(result.Response!));
@@ -1063,7 +1063,7 @@ internal static class PlayerSelfServiceEndpoints
 
             if (!result.Succeeded)
             {
-                return Results.BadRequest(new { Error = result.Error });
+                return Results.BadRequest(new { Error = result.Error, result.Code });
             }
 
             return Results.Ok(ToPlayerReservationDto(result.Response!));

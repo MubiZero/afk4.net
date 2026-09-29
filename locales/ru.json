@@ -1384,6 +1384,7 @@
   "op.error.code.reservationNotSeatable": "Посадить можно заявку или подтверждённую бронь. Обновите список.",
   "op.error.code.reservationRefusalNoteRequired": "Напишите, что случилось: причина «другое» без пояснения гостю ничего не объясняет.",
   "op.error.code.reservationRejectReasonUnsupported": "Выберите причину отказа из списка.",
+  "op.error.code.reservationSeatBooked": "На это время место уже занято другой активной бронью. Выберите другое место или время.",
   "op.error.code.reservationSeatRequired": "У брони нет места — выберите место, потом сажайте гостя.",
   "op.error.code.saleNotPayable": "Этот чек уже нельзя оплатить — его аннулировали или уже оплатили в другом окне. Обновите список.",
   "op.error.code.seatUnavailable": "Выбранное место недоступно для запуска сессии.",

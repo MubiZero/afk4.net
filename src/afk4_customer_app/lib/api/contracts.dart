@@ -1014,6 +1014,8 @@ abstract final class ReservationErrorCodeNames {
   static const String rejectReasonUnsupported = 'reservation_reject_reason_unsupported';
   /// Неявку отмечают у подтверждённой брони, время которой уже началось.
   static const String noShowNotAllowed = 'reservation_no_show_not_allowed';
+  /// На это время место уже занято другой активной бронью.
+  static const String seatBooked = 'reservation_seat_booked';
 }
 
 /// Словарь: Reservations/ReservationSourceNames.cs
@@ -1409,6 +1411,8 @@ abstract final class TariffErrorCodeNames {
   static const String nameTaken = 'tariff_name_taken';
   /// Эту версию тарифа уже использовали сессии — редактировать нельзя, только новую версию.
   static const String versionInUse = 'tariff_version_in_use';
+  /// Выбранный тариф сняли с публикации или он принадлежит другому филиалу.
+  static const String notAvailable = 'tariff_not_available';
 }
 
 /// Словарь: Tips/TipContracts.cs
