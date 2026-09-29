@@ -27,13 +27,17 @@ export type EmptyNext =
   /// Форма или поле, которые решают дело, стоят прямо над списком.
   | 'formAbove';
 
+// У «calm» и «elsewhere» панели сам `message` и есть та строка, которой кит требует от молчания:
+// что появится здесь или где это заводится. Поэтому он уходит в `hint`, а не дублируется.
 export function EmptyState({ title, message, next }: { title?: string; message: string; next: EmptyNext }) {
+  const icon = <Inbox size={22} />;
+  if (next === 'calm' || next === 'elsewhere') return <KitEmptyState icon={icon} title={title} next={{ kind: next, hint: message }} />;
   return (
     <KitEmptyState
-      icon={<Inbox size={22} />}
+      icon={icon}
       title={title}
       description={message}
-      next={typeof next === 'string' ? { kind: next }
+      next={next === 'formAbove' ? { kind: 'formAbove' }
         : 'noPermission' in next ? { kind: 'denied', hint: next.noPermission }
         : { kind: 'action', ...next }}
     />
