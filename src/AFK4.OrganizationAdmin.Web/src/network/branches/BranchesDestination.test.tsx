@@ -11,7 +11,10 @@ const summary = {
   alertPressure: { totalAlerts: 0 }
 };
 
+// Остальные помощники — настоящие: список филиалов собран на общем списке Управления.
+const realHelpers = (globalThis as typeof globalThis & { __afk4RealOperatorHelpers: typeof import('../../operatorHelpers') }).__afk4RealOperatorHelpers;
 mock.module('../../operatorHelpers', () => ({
+  ...realHelpers,
   createAuthenticatedOperatorClients: () => ({
     orgBranches: { getOwnerBranches: mock(async () => [{ branchId: 'b1', name: 'Центр' }]) },
     settings: { getBranchProfile: mock(async () => ({ name: 'Центр', city: 'Душанбе' })) },
@@ -30,7 +33,23 @@ afterAll(() => {
 });
 
 describe('BranchesDestination', () => {
-  it('renders branch cards with the branch name', async () => {
+  // Одна главная цифра — выручка сети за сегодня; остальное — строками по филиалам, без пяти
+  // плиток итогов, которые повторялись ещё раз в карточке каждого филиала.
+  it('shows the network revenue once and each branch as a row', async () => {
+    const { BranchesDestination } = await import('./BranchesDestination');
+    const { container } = render(
+      <I18nProvider initialLocale="ru">
+        <BranchesDestination backend={backend as never} />
+      </I18nProvider>
+    );
+    await waitFor(() => expect(screen.getByText('Душанбе')).toBeInTheDocument());
+    expect(screen.getByText('Выручка сети сегодня')).toBeInTheDocument();
+    expect(screen.getByText('1 филиал · ПК на связи 2 из 2')).toBeInTheDocument();
+    expect(container.querySelectorAll('.mgmt-row')).toHaveLength(1);
+    expect(screen.getByText('2 из 2')).toBeInTheDocument();
+  });
+
+  it('renders a branch row with the branch name', async () => {
     const { BranchesDestination } = await import('./BranchesDestination');
     render(
       <I18nProvider initialLocale="ru">

@@ -58,7 +58,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.network.billing.col.number',
     'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone',
     'platform.health.queue.billing_outbox', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
-    'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
+    'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
     'op.management.dest.club', 'platform.dynamics.branch.label',
     // Группы меню «Управления»: «Клуб» — то же заимствование, «ПК» — канон терминов, одинаков во всех языках.
@@ -68,6 +68,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.network.journal.source.pc', 'op.network.journal.source.server', 'op.network.journal.target.branch',
     'op.network.journal.target.device', 'op.network.journal.target.dushanbeCity', 'op.network.journal.target.eskhata',
     'op.network.journal.target.loyalty', 'op.network.journal.target.organization', 'op.network.journal.target.shift',
+    'op.network.branches.col.branch',
     'op.eskhata.title', 'op.eskhata.baseUrl', 'op.eskhata.companyId', 'op.eskhata.merchantId',
     'op.eskhata.hashKey', 'op.dc.title',
     'op.cash.title', 'op.club.field.telegram', 'op.club.field.instagram', 'op.club.ph.city',
@@ -371,7 +372,7 @@ it('includes the network journal (org-audit) screen keys', () => {
 it('includes the network branches rollup screen keys', () => {
   for (const key of [
     'op.network.branches.unnamed',
-    'op.network.branches.totals.branches',
+    'op.network.branches.figure.label',
     'op.network.branches.kpi.devices',
     'op.network.branches.kpi.sessions',
     'op.network.branches.kpi.revenue',

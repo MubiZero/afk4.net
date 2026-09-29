@@ -62,13 +62,13 @@ describe('DeferredSkeleton', () => {
 // Какой экран какую форму получает. Без сервера экраны «Сети» остаются в ожидании, и видно ровно
 // то, что стоит на месте содержимого.
 describe('network screens wait in the shape of their content', () => {
-  it('branches: five totals and a grid of branch cards with four figures each', async () => {
+  // Филиалы — одна главная цифра и список: заглушка повторяет обе части, а не пять плиток и сетку
+  // карточек, как было.
+  it('branches: the main figure and a five-column branch list', async () => {
     const { container } = renderRu(<BranchesDestination backend={null} />);
-    await waitFor(() => expect(container.querySelector('[data-skeleton="cards"]')).toBeTruthy());
-    expect(container.querySelectorAll('.network-branches-totals[data-skeleton="tiles"] > .network-total')).toHaveLength(5);
-    const cards = container.querySelectorAll('.network-branches-grid .network-branch-card');
-    expect(cards.length).toBeGreaterThan(0);
-    for (const card of cards) expect(card.querySelectorAll('.network-branch-kpis .network-stat')).toHaveLength(4);
+    await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
+    expect(container.querySelector('.network-branches-figure')).toBeTruthy();
+    expect(headColumns(container)).toBe(6); // пять колонок и место под «⋯» строки
   });
 
   it('billing: subscription figures and a five-column invoice table', async () => {
