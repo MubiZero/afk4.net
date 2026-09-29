@@ -72,7 +72,9 @@ describe('SeatTile', () => {
     expect(amount?.textContent).toContain('≈ 54 с.');
     expect(head?.contains(amount)).toBe(false);
     expect(container.querySelector('.seat-body')?.contains(amount)).toBe(true);
-    expect(head?.querySelector('.seat-client')?.textContent).toBe('Юсуф А.');
+    expect(container.querySelector('.seat-client')?.textContent).toBe('Юсуф А.');
+    // Игрок — своей строкой, не в шапке: там ему не хватало места рядом с колокольчиком и паузой.
+    expect(head?.querySelector('.seat-client')).toBeNull();
     // No state-chip when the amount takes the lead slot.
     expect(container.querySelector('.seat-head .state-chip')).toBeNull();
   });

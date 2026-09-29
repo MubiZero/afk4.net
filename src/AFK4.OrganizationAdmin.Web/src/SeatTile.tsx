@@ -93,7 +93,6 @@ export function SeatTile({
               поэтому видно целиком, а статус-слово несут точка и тело плитки, не отдельный чип. */}
           <span className="seat-dot" aria-hidden="true" />
           <strong>{seat.name}</strong>
-          {clientName && <span className="seat-client">{clientName}</span>}
         </span>
         {callingForSeconds !== null && (
           <span className="seat-calling" aria-label={t('op.map.seatCalling')}>
@@ -111,6 +110,9 @@ export function SeatTile({
           <WifiOff className="seat-offline-mark" size={13} aria-label={t('op.floor.remaining.pcOffline')} />
         )}
       </header>
+      {/* Кто за местом — своей строкой под именем ПК. В шапке рядом с колокольчиком, паузой или
+          суммой имя игрока сжималось до пары букв, а следом и имя ПК. */}
+      {clientName && <span className="seat-client">{clientName}</span>}
 
       {lead.kind === 'free' ? (
         // Свободное место — приглашение: крупный «＋» по центру + подпись-аффорданс.
