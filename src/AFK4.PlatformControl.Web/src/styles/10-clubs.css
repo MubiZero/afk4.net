@@ -3,10 +3,35 @@
    Мишени клика разведены физически: шеврон слева раскрывает список клубов, вся остальная
    строка открывает карточку клиента. В прошлой версии на одной строке жили две разные реакции
    без единого намёка — клик по имени уводил внутрь, клик рядом раскрывал. */
+/* Вердикт утра над списком: сколько клубов ждут человека — строкой, а рядом тише — на какой
+   момент снимок. */
+.pc-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.pc-verdict strong {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.pc-verdict span {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* Список без браузерного отступа: без сброса строки клубов стояли на 40 px правее шапки. */
 .pulse-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .pulse-net {

@@ -56,7 +56,7 @@ export function HealthScreen({ client, canSendTestEmail }: HealthScreenProps) {
   const state = useHealth(client);
 
   return (
-    <Page title={t('platform.health.title')}>
+    <Page title={t('nav.platform.health')}>
       {state.status === 'loading' ? (
         // Карточки здоровья — очереди строк (.pc-queue): инциденты, задания, очереди, сбои.
         <Loading>

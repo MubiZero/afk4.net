@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -58,10 +58,7 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.billing.tab.plans')}</CardTitle>
-        {canManage ? <Button onClick={openCreate}>{t('platform.billing.plans.create')}</Button> : null}
-      </CardHeader>
+      {canManage ? <CardToolbar><Button onClick={openCreate}>{t('platform.billing.plans.create')}</Button></CardToolbar> : null}
       <CardContent>
         {state.data.length === 0 ? (
           <EmptyState

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { alertRank, resolveDensity, selectView } from './pulseModel';
+import { alertRank, countNeedingAttention, resolveDensity, selectView } from './pulseModel';
 import type { PulseOrganization } from '@/api/types';
 
 const org = (over: Partial<PulseOrganization>): PulseOrganization => ({
@@ -44,6 +44,15 @@ describe('pulseModel', () => {
       org({ organizationId: 'owing', outstandingMinorUnits: 140000 })
     ];
     expect(selectView(list, 'debt').map(item => item.organizationId)).toEqual(['owing']);
+  });
+
+  it('считает для вердикта утра клубы с любой тревогой, а спокойные — нет', () => {
+    expect(countNeedingAttention([
+      org({ organizationId: 'a', alertLevel: 'critical' }),
+      org({ organizationId: 'b', alertLevel: 'attention' }),
+      org({ organizationId: 'c', alertLevel: 'normal' })
+    ])).toBe(2);
+    expect(countNeedingAttention([])).toBe(0);
   });
 
   it('switches to dense rows once there are more than five clients', () => {

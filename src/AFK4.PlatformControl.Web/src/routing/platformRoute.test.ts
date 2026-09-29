@@ -56,6 +56,10 @@ describe('platformRoute', () => {
 
   it('round-trips global workspace tabs and audit filters', () => {
     expect(resolvePlatformRoute('/admin/money', '?tab=invoices')).toEqual({ kind: 'billing', tab: 'invoices' });
+    // «Деньги» открываются вкладкой «Сегодня» — долги и счета к оплате, а не реестр тарифов.
+    expect(resolvePlatformRoute('/admin/money')).toEqual({ kind: 'billing', tab: 'today' });
+    expect(pathForPlatformRoute({ kind: 'billing', tab: 'today' })).toBe('/admin/money');
+    expect(pathForPlatformRoute({ kind: 'billing', tab: 'plans' })).toBe('/admin/money?tab=plans');
     const audit = { kind: 'audit', organizationId: 'org-1', action: 'updates.rollout.create', outcome: 'succeeded', from: '2026-07-01', to: '2026-07-30' } as const;
     expect(resolvePlatformRoute('/admin/journal', pathForPlatformRoute(audit).split('?')[1])).toEqual(audit);
   });

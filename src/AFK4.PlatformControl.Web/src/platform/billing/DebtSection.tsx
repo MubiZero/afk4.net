@@ -107,13 +107,7 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
   return (
     <Card>
       <CardHeader>
-        <div>
-          <CardTitle>{t('platform.debt.title')}</CardTitle>
-          {/* Постоянная подпись раздела: строка totals пуста, когда в очереди только клубы,
-              которые уже расплатились, но остались отключены (нечего суммировать), а
-              «platform.debt.empty» подходит только пустой очереди целиком. */}
-          <CardDescription>{rows.length === 0 ? t('platform.debt.empty') : t('platform.debt.subtitle')}</CardDescription>
-        </div>
+        <CardTitle>{t('platform.debt.title')}</CardTitle>
         {rows.length > 0 ? (
           <div className="pc-debt-summary">
             <Badge variant="warning">{t('platform.debt.count', { count: rows.length })}</Badge>
@@ -125,6 +119,12 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
           </div>
         ) : null}
       </CardHeader>
+
+      {/* Постоянная подпись раздела — под шапкой, а не внутри неё: в шапке она наследовала
+          капитель заголовка. Строка totals пуста, когда в очереди только клубы, которые уже
+          расплатились, но остались отключены, а «platform.debt.empty» подходит только пустой
+          очереди целиком. */}
+      <CardDescription>{rows.length === 0 ? t('platform.debt.empty') : t('platform.debt.subtitle')}</CardDescription>
 
       {rows.length > 0 ? (
         <CardContent>

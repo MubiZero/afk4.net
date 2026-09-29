@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ErrorState, EmptyState } from '@/components/ui/states';
@@ -84,15 +84,14 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.organization.section.invoices')}</CardTitle>
-        {canManage ? (
+      {canManage ? (
+        <CardToolbar>
           <span className="pc-cell-actions">
             <Button variant="outline" disabled={pending} onClick={() => void generate()}>{t('platform.organization.invoices.generate')}</Button>
             <Button variant="outline" onClick={() => setManualOpen(true)}>{t('platform.organization.invoices.manual')}</Button>
           </span>
-        ) : null}
-      </CardHeader>
+        </CardToolbar>
+      ) : null}
       <CardContent>
         {state.status === 'error' ? (
           <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />

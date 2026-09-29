@@ -65,17 +65,21 @@ export function PayableQueue({ client, canManage }: { client: InvoicesApi; canMa
 
   return (
     <Card>
+      {/* Итог — справа в шапке, как у «Задолженности»: подпись под заголовком наследовала его
+          капитель, и сумма читалась заглавными буквами. */}
       <CardHeader>
-        <div>
-          <CardTitle>{t('platform.billing.queue.title')}</CardTitle>
-          <CardDescription>
-            {queue.length === 0
-              ? t('platform.billing.queue.empty')
-              : totals.map(total => formatCurrency(minorToMajor(total.amountMinorUnits), total.currencyCode)).join(' · ')}
-          </CardDescription>
-        </div>
-        {queue.length > 0 ? <Badge variant="warning">{t('platform.billing.queue.count', { count: queue.length })}</Badge> : null}
+        <CardTitle>{t('platform.billing.queue.title')}</CardTitle>
+        {queue.length > 0 ? (
+          <div className="pc-debt-summary">
+            <Badge variant="warning">{t('platform.billing.queue.count', { count: queue.length })}</Badge>
+            <span className="pc-debt-summary-amount ui-money">
+              {totals.map(total => formatCurrency(minorToMajor(total.amountMinorUnits), total.currencyCode)).join(' · ')}
+            </span>
+          </div>
+        ) : null}
       </CardHeader>
+
+      {queue.length === 0 ? <CardDescription>{t('platform.billing.queue.empty')}</CardDescription> : null}
 
       {queue.length > 0 ? (
         <CardContent>

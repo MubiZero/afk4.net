@@ -164,7 +164,8 @@ it('hides the test email card without the permission', async () => {
     </I18nProvider>
   );
 
-  expect(await screen.findByText('Здоровье платформы')).toBeTruthy();
+  // Заголовок раздела — подпись рейла «Здоровье», а не отдельное «Здоровье платформы».
+  expect(await screen.findByRole('heading', { name: 'Здоровье' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Отправить проверочное письмо' })).toBeNull();
 });
 

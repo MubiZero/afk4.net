@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -114,7 +115,13 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
     }
   }
 
-  if (adminsState.status === 'loading') return <Loading><SkeletonCard action><SkeletonTable columns={6} /></SkeletonCard></Loading>;
+  // Шапка раздела известна до ответа и стоит так же, как встанет: название из рейла и главная кнопка.
+  const pageHead = {
+    title: t('nav.platform.settings'),
+    actions: <Button onClick={() => setInviteOpen(true)}>{t('platform.settings.action.invite')}</Button>
+  };
+
+  if (adminsState.status === 'loading') return <Page {...pageHead}><Loading><SkeletonCard><SkeletonTable columns={6} /></SkeletonCard></Loading></Page>;
 
   const admins = adminsState.status === 'ready' ? adminsState.data : [];
   const pendingInvitations = invitationsState.status === 'ready'
@@ -127,12 +134,8 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
   const hasRows = admins.length > 0 || pendingInvitations.length > 0;
 
   return (
-    <>
+    <Page {...pageHead}>
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.settings.title')}</CardTitle>
-        <Button onClick={() => setInviteOpen(true)}>{t('platform.settings.action.invite')}</Button>
-      </CardHeader>
       <CardContent>
         {adminsState.status === 'error' ? (
           <ErrorState
@@ -288,7 +291,7 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
       />
     </Card>
     <RolesSection client={rolesClient} />
-    </>
+    </Page>
   );
 }
 

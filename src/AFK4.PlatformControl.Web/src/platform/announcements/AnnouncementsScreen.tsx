@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -141,28 +142,32 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
     }
   }
 
+  const pageHead = {
+    title: t('nav.platform.announcements'),
+    actions: <Button onClick={() => setDraft(emptyDraft())}>{t('platform.announcements.create')}</Button>
+  };
+
   if (state.status === 'error') {
-    return <ErrorState title={t('platform.announcements.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? reload : undefined} />;
+    return <Page {...pageHead}><ErrorState title={t('platform.announcements.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? reload : undefined} /></Page>;
   }
   if (announcements === null) {
     return (
-      <Loading>
-        <SkeletonCard action>
-          <p className="mgmt-drawer-hint">{t('platform.announcements.description')}</p>
-          <SkeletonTable columns={7} />
-        </SkeletonCard>
-      </Loading>
+      <Page {...pageHead}>
+        <Loading>
+          <SkeletonCard>
+            <p className="mgmt-drawer-hint">{t('platform.announcements.description')}</p>
+            <SkeletonTable columns={7} />
+          </SkeletonCard>
+        </Loading>
+      </Page>
     );
   }
 
   const canSave = draft !== null && draft.title.trim().length > 0 && draft.body.trim().length > 0;
 
   return (
+    <Page {...pageHead}>
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.announcements.title')}</CardTitle>
-        <Button onClick={() => setDraft(emptyDraft())}>{t('platform.announcements.create')}</Button>
-      </CardHeader>
       <CardContent>
         <p className="mgmt-drawer-hint">{t('platform.announcements.description')}</p>
 
@@ -343,5 +348,6 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
         />
       </CardContent>
     </Card>
+    </Page>
   );
 }

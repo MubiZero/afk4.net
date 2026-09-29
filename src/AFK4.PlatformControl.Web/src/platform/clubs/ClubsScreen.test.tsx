@@ -59,6 +59,29 @@ it('renders the loudest network first in the "now" view', async () => {
   expect(rows[1]).toHaveTextContent('Arena');
 });
 
+it('первой строкой говорит, сколько клубов ждут человека', async () => {
+  const getPulse = mock().mockResolvedValue({
+    generatedAtUtc: '2026-08-03T00:00:00Z',
+    organizations: [
+      org({ organizationId: 'quiet', name: 'Arena', alertLevel: 'normal' }),
+      org({ organizationId: 'loud', name: 'Zulu Zone', alertLevel: 'critical' })
+    ]
+  });
+  setup({ client: client({ getPulse }) });
+
+  expect(await screen.findByText('1 из 2 клубов требует внимания')).toBeInTheDocument();
+});
+
+it('спокойный день так и называет', async () => {
+  const getPulse = mock().mockResolvedValue({
+    generatedAtUtc: '2026-08-03T00:00:00Z',
+    organizations: [org({ organizationId: 'a', name: 'Arena' }), org({ organizationId: 'b', name: 'Bolt' })]
+  });
+  setup({ client: client({ getPulse }) });
+
+  expect(await screen.findByText('Все 2 клуба — всё спокойно')).toBeInTheDocument();
+});
+
 it('reports view switches to the URL owner', async () => {
   const getPulse = mock().mockResolvedValue({
     generatedAtUtc: '2026-08-03T00:00:00Z',

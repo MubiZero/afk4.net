@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ErrorState } from '@/components/ui/states';
@@ -88,14 +88,12 @@ export function OffboardingTab({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.offboarding.title')}</CardTitle>
+      <CardToolbar hint={t('platform.offboarding.description')}>
         {offboarding.status === 'purged'
           ? <Badge variant="outline">{t('platform.offboarding.status.purged')}</Badge>
           : null}
-      </CardHeader>
+      </CardToolbar>
       <CardContent>
-        <p className="mgmt-drawer-hint">{t('platform.offboarding.description')}</p>
 
         <dl className="pc-kv-list">
           <div className="pc-kv">

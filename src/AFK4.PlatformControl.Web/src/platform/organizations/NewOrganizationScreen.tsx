@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { slugify } from '@/lib/slugify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -118,6 +119,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
   }
 
   return (
+    <Page width="form" back={{ label: t('platform.organization.backToClubs'), onBack: onCancel }} title={t('platform.clubs.create')}>
     <form className="mgmt-form" onSubmit={handleSubmit}>
       {error !== null && (
         <Card><CardContent className="pc-error-text">{error}</CardContent></Card>
@@ -200,6 +202,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
         </Button>
       </div>
     </form>
+    </Page>
   );
 }
 

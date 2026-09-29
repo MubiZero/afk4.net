@@ -22,24 +22,34 @@ export function BillingScreen({ client, tab, onTabChange, canManageInvoices, can
   debtAccess: DebtSectionAccess;
 }) {
   const { t } = useI18n();
+  // Долги и счета к оплате — первая вкладка «Сегодня», а не две карточки над вкладками: раньше
+  // они стояли над реестрами на каждой вкладке, и полоса вкладок уезжала вниз экрана, а на
+  // вкладке «Тарифы» до неё приходилось листать (решение владельца 29.09).
   return (
-    <Page title={t('nav.platform.money')}>
-      <DebtSection client={client} access={debtAccess} />
-      <PayableQueue client={client.invoices} canManage={canManageInvoices} />
-
-      <Tabs
-        label={t('platform.billing.tabs.label')}
-        value={tab}
-        onChange={onTabChange}
-        items={[
-          { value: 'subscriptions', label: t('platform.billing.tab.subscriptions') },
-          { value: 'invoices', label: t('platform.billing.tab.invoices') },
-          { value: 'plans', label: t('platform.billing.tab.plans') },
-          { value: 'analytics', label: t('platform.billing.tab.analytics') }
-        ]}
-      />
-
-      <div role="tabpanel">
+    <Page
+      title={t('nav.platform.money')}
+      tabs={(
+        <Tabs
+          label={t('platform.billing.tabs.label')}
+          value={tab}
+          onChange={onTabChange}
+          items={[
+            { value: 'today', label: t('platform.billing.tab.today') },
+            { value: 'subscriptions', label: t('platform.billing.tab.subscriptions') },
+            { value: 'invoices', label: t('platform.billing.tab.invoices') },
+            { value: 'plans', label: t('platform.billing.tab.plans') },
+            { value: 'analytics', label: t('platform.billing.tab.analytics') }
+          ]}
+        />
+      )}
+    >
+      <div role="tabpanel" className="pc-screen">
+        {tab === 'today' ? (
+          <>
+            <DebtSection client={client} access={debtAccess} />
+            <PayableQueue client={client.invoices} canManage={canManageInvoices} />
+          </>
+        ) : null}
         {tab === 'subscriptions' ? <SubscriptionsTab client={client.subscriptions} /> : null}
         {tab === 'invoices' ? <InvoicesTab client={client.invoices} canManage={canManageInvoices} /> : null}
         {tab === 'plans' ? <PlansAndTermsTab client={client.plans} canManage={canManagePlans} /> : null}
