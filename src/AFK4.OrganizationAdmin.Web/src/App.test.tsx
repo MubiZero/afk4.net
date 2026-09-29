@@ -99,7 +99,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect(await screen.findByTitle(/Смена открыта/)).toBeInTheDocument();
     expect(await screen.findByText('Cashier One')).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('App', () => {
     }));
 
     const { container } = render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     const footer = container.querySelector('.signals-strip');
     expect(footer).not.toBeNull();
 
@@ -157,7 +157,7 @@ describe('App', () => {
     const bridge = installSessionBridge();
     const { container } = render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
 
     const topCommand = container.querySelector('.top-command');
     expect(topCommand).not.toBeNull();
@@ -188,7 +188,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
     // PC controls live in the selected seat's card (no toolbar button, no popover).
@@ -212,7 +212,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Свободно/ }));
 
@@ -247,7 +247,7 @@ describe('App', () => {
     render(<App />);
 
     // Money surfaces (the checkout breakdown) render amounts in the configured host currency.
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
@@ -275,7 +275,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     fireEvent.change(await screen.findByLabelText('Введите ПИН-код'), { target: { value: '246813' } });
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     // The session lives in sessionStorage (staffSessionStore) — cleared on tab close, never in
     // localStorage. Auth is a direct HTTP call now (StaffAuthApi), no native bridge involved.
     const sessionishKeys = Object.keys(localStorage).filter((key) =>
@@ -380,7 +380,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     fireEvent.change(await screen.findByLabelText('Введите ПИН-код'), { target: { value: '246813' } });
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
   });
 
   it('opens the forgot-password screen from the sign-in link', async () => {
@@ -446,7 +446,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/refresh'))).toBe(false);
   });
 
@@ -639,7 +639,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
 
@@ -701,7 +701,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
 
@@ -762,7 +762,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
     const realtimeFinishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
@@ -803,7 +803,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
     // Wait for the initial KPI load to settle so the assertions below prove an event-driven
     // reconcile, not the first mount.
@@ -856,7 +856,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Вход администратора' })).not.toBeInTheDocument();
     expect(sessionStorage.getItem('afk4.staff.session')).not.toBeNull();
@@ -873,7 +873,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
     const floorMapBefore = floorMapRequestCount;
 
@@ -899,7 +899,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // «+» свободной плитки открывает запуск; гость по умолчанию идёт открытым счётом.
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
@@ -930,7 +930,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
@@ -956,7 +956,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // «+» свободной плитки открывает запуск сессии сразу (выбрав место).
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
@@ -997,7 +997,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect(screen.queryByTitle('Касса')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Брони')).not.toBeInTheDocument();
@@ -1021,7 +1021,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     const rail = within(screen.getByRole('navigation', { name: 'Рабочие места' }));
     expect(rail.getByTitle('Касса')).toBeEnabled();
 
@@ -1041,7 +1041,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     const bookingButton = within(screen.getByRole('navigation')).getByTitle('Брони');
     expect(bookingButton).toBeEnabled();
 
@@ -1054,7 +1054,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Сводка');
     expect(screen.getByRole('tab', { name: 'Сводка' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Смены и касса' })).toBeInTheDocument();
@@ -1126,7 +1126,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     // Task 1.6: Настройки/Приём платежей/Лояльность/Новости/Логи collapsed into one
     // 'Управление' rail entry with a left destination nav (no tab strip) — open the section,
     // then pick the destination inside .management-nav.
@@ -1160,7 +1160,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Выручка');
     expect(screen.getAllByText('Выручка').length).toBeGreaterThan(0);
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
@@ -1199,7 +1199,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Продажи');
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // Чек стартует пустым — кладём товар кликом по карточке каталога, как это делает кассир.
@@ -1240,7 +1240,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Продажи');
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // Выбор клиента свёрнут в строку «Гость» — разворачиваем поиск по «Выбрать».
@@ -1333,7 +1333,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
     expect(screen.getByText('Движений нет')).toBeInTheDocument();
@@ -1352,7 +1352,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Продажи');
 
     expect(await screen.findByText('Каталог пуст')).toBeInTheDocument();
@@ -1374,7 +1374,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
 
     // Поиска нет, база пуста — это «клиентов пока нет», а не «никто не подошёл под поиск».
@@ -1388,7 +1388,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
     // Кокпит вкладки «Смена» загружает данные из мока и показывает выручку + сверку.
@@ -1420,7 +1420,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
     // Ждём загрузки кокпита и раскрываем компактное меню экспорта.
@@ -1452,7 +1452,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
     // Шапка-якорь: смена открыта → кнопка «Закрыть смену» открывает модалку.
@@ -1496,7 +1496,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
     // Шапка-якорь: смена открыта → кнопка «Внести» открывает модалку внесения.
@@ -1534,7 +1534,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Брони'));
     // Бронь из мока отрисована в гриде таймлайна — значит данные сервера получены.
     expect((await screen.findAllByText('Aziz P.')).length).toBeGreaterThan(0);
@@ -1582,7 +1582,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Брони'));
     expect(await screen.findByText('Aziz P.')).toBeInTheDocument();
 
@@ -1616,7 +1616,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
@@ -1650,7 +1650,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
@@ -1664,7 +1664,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
@@ -1690,7 +1690,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
@@ -1725,7 +1725,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '50.00' } });
@@ -1748,7 +1748,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
@@ -1778,7 +1778,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Новый клиент/ }));
@@ -1806,7 +1806,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
@@ -1855,7 +1855,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     // Task 1.6: the old 'Настройки' rail button is now the 'Клуб' destination inside the
     // consolidated 'Управление' section's left nav (no tab strip).
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Управление'));
@@ -1943,7 +1943,7 @@ describe('App', () => {
   it('hides the cash journal tab without cash/review permissions', async () => {
     installSessionBridge(createSession({ permissions: ['organization.pos.sales.create', 'organization.pos.sales.pay'] }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
     // Без прав cash/approve раздел «Касса» открывается, но вкладка «Журнал кассы» в нём отсутствует.
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
@@ -1955,7 +1955,7 @@ describe('App', () => {
   it('opens journal receipts for receipt-only staff', async () => {
     installSessionBridge(createSession({ permissions: ['organization.receipts.view'] }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
     const cashTabs = screen.getByRole('tablist', { name: 'Касса' });
@@ -1966,7 +1966,7 @@ describe('App', () => {
   it('opens the cash journal for a manager', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
     gotoWorkspace('Журнал кассы');
     expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
@@ -1977,7 +1977,7 @@ describe('App', () => {
   it('renders the pending money-action queue and approves a request', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     gotoWorkspace('Журнал кассы');
     fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
 
@@ -1998,7 +1998,7 @@ describe('App', () => {
   it('requires a reason before rejecting a money action', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     gotoWorkspace('Журнал кассы');
     fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
     await screen.findByText('Клиент отменил заказ');
@@ -2023,7 +2023,7 @@ describe('App', () => {
   it('builds an audit query from staff and amount filters', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     gotoWorkspace('Журнал кассы');
     fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
     await screen.findByText('Клиент отменил заказ');
@@ -2047,7 +2047,7 @@ describe('App', () => {
   it('shows the cash operations ledger in the cash journal', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
     gotoWorkspace('Журнал кассы');
     // По умолчанию активен сегмент «Кассовые операции» (первый сегмент)
@@ -2057,7 +2057,7 @@ describe('App', () => {
   it('opens the X report from the cash header', async () => {
     installSessionBridge();
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     gotoWorkspace('Смена');
 
     fireEvent.click(await screen.findByRole('button', { name: /X-отчёт/ }));
@@ -2070,7 +2070,7 @@ describe('App', () => {
     installSessionBridge();
     render(<App />);
 
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     // Раздел «Склад» — одиночный элемент рейла, открывается прямым кликом (нет таб-секции).
     gotoWorkspace('Склад');
     // Экран Остатков: заголовок секции + кнопка фильтра «Все»

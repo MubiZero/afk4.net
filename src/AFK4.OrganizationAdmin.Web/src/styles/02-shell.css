@@ -11,8 +11,8 @@
   grid-template-columns: 74px minmax(0, 1fr) var(--shell-context-col, minmax(260px, 292px));
   grid-template-rows: 46px minmax(0, 1fr) 32px;
   background: var(--surface-canvas);
-  /* Высота тулбара карты (.map-header) — единый источник: по ней же правый context-zone опускает
-     карточку вровень с доской зала. Меняешь шапку — правь это число, отступ панели едет сам. */
+  /* Высота старых шапок-тулбаров (Касса, Брони, Клиенты), пока они не переехали на SectionHeader
+     кита. Карта на нём уже стоит, и отступ её правой панели считается от токенов шапки. */
   --map-toolbar-h: 38px;
 }
 

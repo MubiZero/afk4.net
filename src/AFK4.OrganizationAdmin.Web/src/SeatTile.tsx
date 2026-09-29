@@ -110,12 +110,6 @@ export function SeatTile({
         {sessionOffline && (
           <WifiOff className="seat-offline-mark" size={13} aria-label={t('op.floor.remaining.pcOffline')} />
         )}
-        {lead.kind === 'postpaid' && (
-          <span className="seat-amount" aria-label={t('op.map.seatRising')}>
-            {lead.amount}
-            <TrendingUp size={12} aria-hidden="true" />
-          </span>
-        )}
       </header>
 
       {lead.kind === 'free' ? (
@@ -144,9 +138,14 @@ export function SeatTile({
           </span>
         </div>
       ) : lead.kind === 'postpaid' ? (
-        // Открытый счёт: сумма наверху (в шапке), в теле — честный ярлык состояния оплаты.
+        // Открытый счёт: сумма — герой тела, как время у предоплаты. Раньше она стояла в шапке
+        // рядом с именем игрока и сжимала его до пары букв.
         <div className="seat-body seat-body--metric">
           <span className="seat-open-tab">{t('op.map.seatOpenTab')}</span>
+          <strong className="seat-clock seat-amount" title={t('op.map.seatRising')}>
+            {lead.amount}
+            <TrendingUp size={13} aria-hidden="true" />
+          </strong>
         </div>
       ) : (
         // Проблемное / ожидающее место: иконка типа проблемы + человеческая строка состояния.

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { WifiOff } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import { FilterChip, SectionHeader } from '@afk4/ui/react';
 import { projectOperatorError } from './apiErrors';
 import { useDeferredFlag } from './useDeferredFlag';
 import { offlineBannerText, type OperatorFloorMapState } from './floorMapState';
@@ -292,28 +293,24 @@ export function MapWorkspace({
 
   return (
     <main className="floor-workspace">
-      {/* Шапка экрана на мягкой подложке: заголовок зала + фильтры-статусы в одной строке —
-          единый блок (как на «Бронях»), а не голый заголовок над россыпью фильтров. */}
-      <section className="map-header">
-        <h1>
-          <strong className="map-header-name">{floorMap.branchName}</strong>
-          {' · '}
-          <span className="map-header-tagline">{t('op.map.tagline')}</span>
-        </h1>
-        <div className="filter-row map-filter-row" aria-label={t('op.map.filterLabel')}>
-          {mapFilterOptions(t).map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={activeFilter === option.id ? 'active' : undefined}
-              onClick={() => onFilterChange(option.id)}
-            >
-              {option.label}
-              <strong>{countByMapFilter(floorMap.seats, option.id)}</strong>
-            </button>
-          ))}
-        </div>
-      </section>
+      {/* Шапка раздела — как у остальных разделов Панели: название, под ним фильтры. Имя клуба
+          уже стоит в нижней строке окна, повторять его заголовком незачем. */}
+      <SectionHeader
+        title={t('op.map.title')}
+        tools={(
+          <div className="map-filters" role="group" aria-label={t('op.map.filterLabel')}>
+            {mapFilterOptions(t).map((option) => (
+              <FilterChip
+                key={option.id}
+                label={option.label}
+                count={countByMapFilter(floorMap.seats, option.id)}
+                pressed={activeFilter === option.id}
+                onClick={() => onFilterChange(option.id)}
+              />
+            ))}
+          </div>
+        )}
+      />
       {floorMap.loadStatus === 'failed' && (
         <p className="ui-alert ui-alert--spaced" role="alert">{floorMap.error ?? t('op.map.loadError')}</p>
       )}
@@ -355,21 +352,23 @@ export function MapWorkspace({
             />
           )
         ) : (
-          <div className="seat-zones">
+          // Сколько плиток в самом длинном зале: столько колонок сетка и старается уместить, растягивая
+          // плитки, — иначе на широком экране зал из шести ПК занимал левую половину доски.
+          <div className="seat-zones" style={{ '--seat-cols': Math.max(...zoneGroups.map((group) => group.seats.length)) } as CSSProperties}>
             {zoneGroups.map((group) => (
               <section className="zone-group" key={group.zone}>
                 <header className="zone-group-head">
                   <span>{zoneLabel(group.zone, t)}</span>
-                  <strong>{group.seats.length}</strong>
+                  <strong className="ui-num">{group.seats.length}</strong>
+                  {/* Переключатель: нажатость говорит aria-pressed, подпись одна. Раньше подпись
+                      менялась на «Снять выбор зала» вдобавок к нажатости, и диктор читал двойное. */}
                   {pcAccess.canDispatch && group.seats.some((seat) => seat.deviceId) && (
-                    <button
-                      type="button"
+                    <FilterChip
                       className="zone-group-pick"
-                      aria-pressed={group.seats.every((seat) => picked.includes(seat.id))}
+                      label={t('op.map.pick.zone')}
+                      pressed={group.seats.every((seat) => picked.includes(seat.id))}
                       onClick={() => toggleZone(group.seats)}
-                    >
-                      {t(group.seats.every((seat) => picked.includes(seat.id)) ? 'op.map.pick.zoneClear' : 'op.map.pick.zone')}
-                    </button>
+                    />
                   )}
                 </header>
                 <div className="seat-grid">
